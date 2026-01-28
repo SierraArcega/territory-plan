@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapStore } from "@/lib/store";
@@ -29,6 +29,126 @@ const US_BOUNDS: maplibregl.LngLatBoundsLike = [
   [-66, 50], // Northeast
 ];
 
+// State bounding boxes for zoom (approximate centers and zoom levels)
+const STATE_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
+  AL: { center: [-86.9, 32.8], zoom: 6.5 },
+  AK: { center: [-153, 64], zoom: 3.5 },
+  AZ: { center: [-111.9, 34.2], zoom: 6 },
+  AR: { center: [-92.4, 34.9], zoom: 6.5 },
+  CA: { center: [-119.5, 37.2], zoom: 5.5 },
+  CO: { center: [-105.5, 39], zoom: 6 },
+  CT: { center: [-72.7, 41.6], zoom: 8 },
+  DE: { center: [-75.5, 39], zoom: 8 },
+  DC: { center: [-77, 38.9], zoom: 11 },
+  FL: { center: [-82, 28.5], zoom: 6 },
+  GA: { center: [-83.5, 32.7], zoom: 6.5 },
+  HI: { center: [-157, 20.5], zoom: 6 },
+  ID: { center: [-114.5, 44.4], zoom: 5.5 },
+  IL: { center: [-89.2, 40], zoom: 6 },
+  IN: { center: [-86.2, 39.9], zoom: 6.5 },
+  IA: { center: [-93.5, 42], zoom: 6.5 },
+  KS: { center: [-98.5, 38.5], zoom: 6.5 },
+  KY: { center: [-85.7, 37.8], zoom: 6.5 },
+  LA: { center: [-92, 31], zoom: 6.5 },
+  ME: { center: [-69, 45.4], zoom: 6.5 },
+  MD: { center: [-76.8, 39.2], zoom: 7 },
+  MA: { center: [-71.8, 42.2], zoom: 7.5 },
+  MI: { center: [-85, 44.3], zoom: 6 },
+  MN: { center: [-94.5, 46.3], zoom: 6 },
+  MS: { center: [-89.7, 32.7], zoom: 6.5 },
+  MO: { center: [-92.5, 38.4], zoom: 6 },
+  MT: { center: [-109.6, 47], zoom: 5.5 },
+  NE: { center: [-99.8, 41.5], zoom: 6 },
+  NV: { center: [-116.6, 39], zoom: 5.5 },
+  NH: { center: [-71.5, 43.7], zoom: 7 },
+  NJ: { center: [-74.7, 40.2], zoom: 7.5 },
+  NM: { center: [-106, 34.5], zoom: 6 },
+  NY: { center: [-75.5, 42.9], zoom: 6 },
+  NC: { center: [-79.4, 35.5], zoom: 6.5 },
+  ND: { center: [-100.5, 47.4], zoom: 6 },
+  OH: { center: [-82.8, 40.3], zoom: 6.5 },
+  OK: { center: [-97.5, 35.5], zoom: 6.5 },
+  OR: { center: [-120.5, 44], zoom: 6 },
+  PA: { center: [-77.5, 41], zoom: 6.5 },
+  RI: { center: [-71.5, 41.6], zoom: 9 },
+  SC: { center: [-80.9, 33.9], zoom: 7 },
+  SD: { center: [-100.2, 44.4], zoom: 6 },
+  TN: { center: [-86.3, 35.8], zoom: 6.5 },
+  TX: { center: [-99.5, 31.5], zoom: 5.5 },
+  UT: { center: [-111.7, 39.3], zoom: 6 },
+  VT: { center: [-72.7, 44], zoom: 7 },
+  VA: { center: [-78.8, 37.5], zoom: 6.5 },
+  WA: { center: [-120.5, 47.4], zoom: 6 },
+  WV: { center: [-80.6, 38.9], zoom: 7 },
+  WI: { center: [-89.8, 44.6], zoom: 6 },
+  WY: { center: [-107.5, 43], zoom: 6 },
+  PR: { center: [-66.5, 18.2], zoom: 8 },
+  VI: { center: [-64.8, 18.3], zoom: 10 },
+  GU: { center: [144.8, 13.5], zoom: 10 },
+  AS: { center: [-170.7, -14.3], zoom: 10 },
+  MP: { center: [145.7, 15.2], zoom: 8 },
+};
+
+// State name to abbreviation mapping
+const STATE_NAME_TO_ABBREV: Record<string, string> = {
+  "Alabama": "AL",
+  "Alaska": "AK",
+  "Arizona": "AZ",
+  "Arkansas": "AR",
+  "California": "CA",
+  "Colorado": "CO",
+  "Connecticut": "CT",
+  "Delaware": "DE",
+  "District of Columbia": "DC",
+  "Florida": "FL",
+  "Georgia": "GA",
+  "Hawaii": "HI",
+  "Idaho": "ID",
+  "Illinois": "IL",
+  "Indiana": "IN",
+  "Iowa": "IA",
+  "Kansas": "KS",
+  "Kentucky": "KY",
+  "Louisiana": "LA",
+  "Maine": "ME",
+  "Maryland": "MD",
+  "Massachusetts": "MA",
+  "Michigan": "MI",
+  "Minnesota": "MN",
+  "Mississippi": "MS",
+  "Missouri": "MO",
+  "Montana": "MT",
+  "Nebraska": "NE",
+  "Nevada": "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  "Ohio": "OH",
+  "Oklahoma": "OK",
+  "Oregon": "OR",
+  "Pennsylvania": "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  "Tennessee": "TN",
+  "Texas": "TX",
+  "Utah": "UT",
+  "Vermont": "VT",
+  "Virginia": "VA",
+  "Washington": "WA",
+  "West Virginia": "WV",
+  "Wisconsin": "WI",
+  "Wyoming": "WY",
+  "Puerto Rico": "PR",
+  "Virgin Islands": "VI",
+  "Guam": "GU",
+  "American Samoa": "AS",
+  "Northern Mariana Islands": "MP",
+};
+
 interface MapContainerProps {
   className?: string;
 }
@@ -37,6 +157,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
+  const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const {
     selectedLeaid,
@@ -44,6 +166,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     fiscalYear,
     setSelectedLeaid,
     setHoveredLeaid,
+    setStateFilter,
+    filters,
   } = useMapStore();
 
   const { data: quantiles } = useQuantiles(metricType, fiscalYear);
@@ -93,12 +217,67 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     map.current.on("load", () => {
       if (!map.current) return;
 
+      // Add US states boundaries source (using public GeoJSON)
+      map.current.addSource("states", {
+        type: "geojson",
+        data: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
+      });
+
       // Add district tiles source
       map.current.addSource("districts", {
         type: "vector",
         tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?metric=${metricType}&year=${fiscalYear}`],
         minzoom: 3,
         maxzoom: 12,
+      });
+
+      // Add state fill layer (subtle fill for interactivity)
+      map.current.addLayer({
+        id: "state-fill",
+        type: "fill",
+        source: "states",
+        paint: {
+          "fill-color": "transparent",
+          "fill-opacity": 0.1,
+        },
+      });
+
+      // Add state outline layer - prominent on load
+      map.current.addLayer({
+        id: "state-outline",
+        type: "line",
+        source: "states",
+        paint: {
+          "line-color": "#403770", // Plum
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 2,
+            6, 2.5,
+            10, 1.5,
+          ],
+          "line-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 1,
+            8, 0.6,
+            12, 0.3,
+          ],
+        },
+      });
+
+      // Add state hover highlight
+      map.current.addLayer({
+        id: "state-hover",
+        type: "line",
+        source: "states",
+        filter: ["==", ["get", "name"], ""],
+        paint: {
+          "line-color": "#F37167", // Coral
+          "line-width": 4,
+        },
       });
 
       // Add choropleth fill layer
@@ -115,7 +294,43 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             // Default color - will be updated with quantiles
             CHOROPLETH_COLORS[0],
           ],
-          "fill-opacity": 0.7,
+          "fill-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 0.4,
+            6, 0.7,
+            10, 0.8,
+          ],
+        },
+      });
+
+      // Add district boundary layer - visible but subtle, becomes clearer on zoom
+      map.current.addLayer({
+        id: "district-boundary",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "line-color": "#666666",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 0.2,
+            6, 0.5,
+            8, 0.8,
+            12, 1.2,
+          ],
+          "line-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 0.2,
+            6, 0.4,
+            8, 0.6,
+            12, 0.8,
+          ],
         },
       });
 
@@ -177,6 +392,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         },
         filter: ["==", ["get", "leaid"], ""],
       });
+
+      setMapReady(true);
     });
 
     // Create popup
@@ -246,11 +463,42 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     ]);
   }, [selectedLeaid]);
 
-  // Handle click events
+  // Handle click events - state level at low zoom, district level at high zoom
   const handleClick = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current) return;
 
+      const zoom = map.current.getZoom();
+
+      // At low zoom, check for state clicks first
+      if (zoom < 6 && map.current.getLayer("state-fill")) {
+        const stateFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: ["state-fill"],
+        });
+
+        if (stateFeatures.length > 0) {
+          const feature = stateFeatures[0];
+          // Try to extract state code from the feature name
+          const stateName = feature.properties?.name;
+          const stateCode = stateName ? STATE_NAME_TO_ABBREV[stateName] : null;
+
+          if (stateCode && STATE_BOUNDS[stateCode]) {
+            const bounds = STATE_BOUNDS[stateCode];
+            setSelectedState(stateCode);
+            setStateFilter(stateCode);
+
+            map.current.flyTo({
+              center: bounds.center,
+              zoom: bounds.zoom,
+              duration: 1000,
+              essential: true,
+            });
+            return;
+          }
+        }
+      }
+
+      // Check for district clicks
       const features = map.current.queryRenderedFeatures(e.point, {
         layers: ["district-fill"],
       });
@@ -262,10 +510,21 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           setSelectedLeaid(leaid);
         }
       } else {
+        // Clicking outside - if zoomed in, zoom back out
+        if (zoom > 5 && selectedState) {
+          map.current.flyTo({
+            center: [-98, 39],
+            zoom: 4,
+            duration: 1000,
+            essential: true,
+          });
+          setSelectedState(null);
+          setStateFilter(null);
+        }
         setSelectedLeaid(null);
       }
     },
-    [setSelectedLeaid]
+    [setSelectedLeaid, setStateFilter, selectedState]
   );
 
   // Handle hover events
@@ -273,6 +532,57 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !popup.current) return;
 
+      const zoom = map.current.getZoom();
+
+      // At low zoom, handle state hover
+      if (zoom < 6 && map.current.getLayer("state-fill")) {
+        const stateFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: ["state-fill"],
+        });
+
+        if (stateFeatures.length > 0) {
+          const feature = stateFeatures[0];
+          const stateName = feature.properties?.name;
+          const stateCode = stateName ? STATE_NAME_TO_ABBREV[stateName] : null;
+
+          // Update cursor
+          map.current.getCanvas().style.cursor = "pointer";
+
+          // Update state hover highlight
+          map.current.setFilter("state-hover", [
+            "==",
+            ["get", "name"],
+            stateName || "",
+          ]);
+
+          // Clear district hover
+          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+          setHoveredLeaid(null);
+
+          // Show state popup
+          popup.current
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `<div class="text-sm">
+                <div class="font-bold text-[#403770]">${stateName || stateCode}</div>
+                <div class="text-gray-500 text-xs mt-1">Click to explore districts</div>
+              </div>`
+            )
+            .addTo(map.current);
+          return;
+        }
+      }
+
+      // Clear state hover at higher zoom
+      if (map.current.getLayer("state-hover")) {
+        map.current.setFilter("state-hover", [
+          "==",
+          ["get", "name"],
+          "",
+        ]);
+      }
+
+      // Handle district hover
       const features = map.current.queryRenderedFeatures(e.point, {
         layers: ["district-fill"],
       });
@@ -353,6 +663,33 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       setHoveredLeaid(null);
       popup.current.remove();
     });
+    // Only add state mouseleave listener once the layer exists
+    const addStateMouseLeave = () => {
+      if (map.current?.getLayer("state-fill")) {
+        map.current.on("mouseleave", "state-fill", () => {
+          if (!map.current || !popup.current) return;
+          if (map.current.getLayer("state-hover")) {
+            map.current.setFilter("state-hover", [
+              "==",
+              ["get", "name"],
+              "",
+            ]);
+          }
+          popup.current.remove();
+        });
+      }
+    };
+
+    // Check if layer already exists, otherwise wait for sourcedata event
+    if (map.current.getLayer("state-fill")) {
+      addStateMouseLeave();
+    } else {
+      map.current.on("sourcedata", (e) => {
+        if (e.sourceId === "states" && map.current?.getLayer("state-fill")) {
+          addStateMouseLeave();
+        }
+      });
+    }
 
     return () => {
       map.current?.off("click", handleClick);
@@ -360,11 +697,73 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     };
   }, [handleClick, handleMouseMove, setHoveredLeaid]);
 
+  // Handle zoom back to US view
+  const handleBackToUS = useCallback(() => {
+    if (!map.current) return;
+
+    map.current.flyTo({
+      center: [-98, 39],
+      zoom: 4,
+      duration: 1000,
+      essential: true,
+    });
+    setSelectedState(null);
+    setStateFilter(null);
+    setSelectedLeaid(null);
+  }, [setStateFilter, setSelectedLeaid]);
+
+  // Sync selected state with store filter
+  useEffect(() => {
+    if (filters.stateAbbrev && filters.stateAbbrev !== selectedState && mapReady) {
+      const stateCode = filters.stateAbbrev;
+      if (STATE_BOUNDS[stateCode] && map.current) {
+        const bounds = STATE_BOUNDS[stateCode];
+        setSelectedState(stateCode);
+        map.current.flyTo({
+          center: bounds.center,
+          zoom: bounds.zoom,
+          duration: 1000,
+          essential: true,
+        });
+      }
+    } else if (!filters.stateAbbrev && selectedState && mapReady) {
+      setSelectedState(null);
+    }
+  }, [filters.stateAbbrev, selectedState, mapReady]);
+
   return (
-    <div
-      ref={mapContainer}
-      className={`w-full h-full ${className}`}
-      style={{ minHeight: "400px" }}
-    />
+    <div className={`relative w-full h-full ${className}`} style={{ minHeight: "400px" }}>
+      <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Back to US button when zoomed into a state */}
+      {selectedState && (
+        <button
+          onClick={handleBackToUS}
+          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm font-medium text-[#403770]"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to US
+        </button>
+      )}
+
+      {/* Interactive hint when at US level */}
+      {!selectedState && mapReady && (
+        <div className="absolute bottom-4 left-4 z-10 px-3 py-2 bg-white/90 rounded-lg shadow-md text-xs text-gray-600 pointer-events-none">
+          Click a state to explore districts
+        </div>
+      )}
+    </div>
   );
 }
