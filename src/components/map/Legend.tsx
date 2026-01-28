@@ -1,7 +1,12 @@
 "use client";
 
-import { useMapStore } from "@/lib/store";
-import { useQuantiles } from "@/lib/api";
+// Tier fill colors and labels
+const TIER_LEGEND = [
+  { tier: "multi_year", label: "Multi-Year Customer", color: "#403770", description: "FY25 + FY26 invoicing" },
+  { tier: "single_year", label: "Single-Year Customer", color: "#F37167", description: "FY25 OR FY26 invoicing" },
+  { tier: "pipeline_only", label: "Pipeline Only", color: "#6EA3BE", description: "Open pipeline, no revenue" },
+  { tier: "no_data", label: "No Fullmind Data", color: "#E5E7EB", description: "Not in system" },
+];
 
 // Status outline colors
 const STATUS_LEGEND = [
@@ -10,86 +15,39 @@ const STATUS_LEGEND = [
   { label: "Both", color: "#403770", description: "Customer with pipeline" },
 ];
 
-// Metric display names
-const METRIC_LABELS: Record<string, string> = {
-  sessions_revenue: "Sessions Revenue",
-  sessions_take: "Sessions Take",
-  sessions_count: "Session Count",
-  closed_won_net_booking: "Closed Won Booking",
-  net_invoicing: "Net Invoicing",
-  open_pipeline: "Open Pipeline",
-  open_pipeline_weighted: "Weighted Pipeline",
-};
-
-const YEAR_LABELS: Record<string, string> = {
-  fy25: "FY25",
-  fy26: "FY26",
-  fy27: "FY27",
-};
-
-function formatCurrency(value: number): string {
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(1)}M`;
-  }
-  if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(0)}K`;
-  }
-  return `$${value.toFixed(0)}`;
-}
-
 export default function Legend() {
-  const { metricType, fiscalYear } = useMapStore();
-  const { data: quantiles, isLoading } = useQuantiles(metricType, fiscalYear);
-
-  const metricLabel = METRIC_LABELS[metricType] || metricType;
-  const yearLabel = YEAR_LABELS[fiscalYear] || fiscalYear;
-
   return (
     <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 max-w-xs z-10">
-      {/* Choropleth Legend */}
+      {/* Tier Legend (Fill Colors) */}
       <div className="mb-4">
         <h3 className="text-sm font-bold text-[#403770] mb-2">
-          {metricLabel} ({yearLabel})
+          Customer Status
         </h3>
-
-        {isLoading ? (
-          <div className="text-sm text-gray-500">Loading...</div>
-        ) : quantiles ? (
-          <div className="space-y-1">
-            {/* Color gradient bar */}
-            <div className="flex h-4 rounded overflow-hidden">
-              {quantiles.colors.map((color, i) => (
-                <div
-                  key={i}
-                  className="flex-1"
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+        <div className="space-y-1.5">
+          {TIER_LEGEND.map((item) => (
+            <div key={item.tier} className="flex items-center gap-2">
+              <div
+                className="w-4 h-4 rounded"
+                style={{
+                  backgroundColor: item.color,
+                  opacity: item.tier === "multi_year" ? 0.7 :
+                           item.tier === "single_year" ? 0.6 :
+                           item.tier === "pipeline_only" ? 0.5 : 0.15,
+                }}
+              />
+              <span className="text-xs text-gray-700">{item.label}</span>
+              <span className="text-xs text-gray-400 ml-auto">
+                {item.description}
+              </span>
             </div>
-
-            {/* Break values */}
-            <div className="flex justify-between text-xs text-gray-600">
-              <span>$0</span>
-              {quantiles.breaks.slice(1).map((breakVal, i) => (
-                <span key={i}>{formatCurrency(breakVal)}</span>
-              ))}
-              <span>{formatCurrency(quantiles.max)}</span>
-            </div>
-
-            {/* Stats */}
-            <div className="text-xs text-gray-500 mt-2">
-              {quantiles.count.toLocaleString()} districts with data
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">No data available</div>
-        )}
+          ))}
+        </div>
       </div>
 
-      {/* Status Legend */}
+      {/* Status Legend (Outlines) */}
       <div>
         <h3 className="text-sm font-bold text-[#403770] mb-2">
-          Account Status
+          Account Status (Outline)
         </h3>
         <div className="space-y-1.5">
           {STATUS_LEGEND.map((item) => (

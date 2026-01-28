@@ -8,45 +8,6 @@ const pool = new Pool({
 
 export const dynamic = "force-dynamic";
 
-// Metric column mapping for choropleth
-const METRIC_COLUMNS: Record<string, Record<string, string>> = {
-  sessions_revenue: {
-    fy25: "fy25_sessions_revenue",
-    fy26: "fy26_sessions_revenue",
-    fy27: "fy26_sessions_revenue",
-  },
-  sessions_take: {
-    fy25: "fy25_sessions_take",
-    fy26: "fy26_sessions_take",
-    fy27: "fy26_sessions_take",
-  },
-  sessions_count: {
-    fy25: "fy25_sessions_count",
-    fy26: "fy26_sessions_count",
-    fy27: "fy26_sessions_count",
-  },
-  closed_won_net_booking: {
-    fy25: "fy25_closed_won_net_booking",
-    fy26: "fy26_closed_won_net_booking",
-    fy27: "fy26_closed_won_net_booking",
-  },
-  net_invoicing: {
-    fy25: "fy25_net_invoicing",
-    fy26: "fy26_net_invoicing",
-    fy27: "fy26_net_invoicing",
-  },
-  open_pipeline: {
-    fy25: "fy26_open_pipeline",
-    fy26: "fy26_open_pipeline",
-    fy27: "fy27_open_pipeline",
-  },
-  open_pipeline_weighted: {
-    fy25: "fy26_open_pipeline_weighted",
-    fy26: "fy26_open_pipeline_weighted",
-    fy27: "fy27_open_pipeline_weighted",
-  },
-};
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ z: string; x: string; y: string }> }
@@ -65,55 +26,47 @@ export async function GET(
       );
     }
 
-    // Get metric/year from query params
+    // Get optional state filter from query params
     const { searchParams } = new URL(request.url);
-    const metric = searchParams.get("metric") || "net_invoicing";
-    const year = searchParams.get("year") || "fy26";
+    const stateFilter = searchParams.get("state");
 
-    const metricColumn = METRIC_COLUMNS[metric]?.[year] || "fy26_net_invoicing";
-
-    // Build MVT query using PostGIS
-    // ST_TileEnvelope creates the bounding box for the tile
-    // ST_AsMVTGeom clips and transforms geometry for MVT format
-    // ST_AsMVT creates the actual MVT binary
+    // Build MVT query - filter by state if provided for better performance
     const query = `
       WITH tile_bounds AS (
-        SELECT ST_TileEnvelope($1, $2, $3) AS envelope
+        SELECT
+          ST_TileEnvelope($1, $2, $3) AS envelope,
+          ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS envelope_4326
       ),
       tile_data AS (
         SELECT
           d.leaid,
           d.name,
           d.state_abbrev,
-          COALESCE(f.is_customer, false) AS is_customer,
-          COALESCE(f.has_open_pipeline, false) AS has_open_pipeline,
-          CASE
-            WHEN f.is_customer AND f.has_open_pipeline THEN 'customer_pipeline'
-            WHEN f.is_customer THEN 'customer'
-            WHEN f.has_open_pipeline THEN 'pipeline'
-            ELSE 'no_data'
-          END AS status,
-          COALESCE(f.${metricColumn}, 0)::float AS metric_value,
           ST_AsMVTGeom(
-            d.geometry,
+            ST_Transform(d.geometry, 3857),
             (SELECT envelope FROM tile_bounds),
             4096,
             64,
             true
           ) AS geom
         FROM districts d
-        LEFT JOIN fullmind_data f ON d.leaid = f.leaid
         WHERE d.geometry IS NOT NULL
-          AND d.geometry && (SELECT envelope FROM tile_bounds)
+          AND d.geometry && (SELECT envelope_4326 FROM tile_bounds)
+          ${stateFilter ? "AND d.state_abbrev = $4" : ""}
       )
       SELECT ST_AsMVT(tile_data, 'districts', 4096, 'geom') AS mvt
       FROM tile_data
       WHERE geom IS NOT NULL
     `;
 
+    // Build query parameters - include state filter if provided
+    const queryParams = stateFilter
+      ? [zoom, tileX, tileY, stateFilter]
+      : [zoom, tileX, tileY];
+
     const client = await pool.connect();
     try {
-      const result = await client.query(query, [zoom, tileX, tileY]);
+      const result = await client.query(query, queryParams);
       const mvt = result.rows[0]?.mvt;
 
       if (!mvt || mvt.length === 0) {
