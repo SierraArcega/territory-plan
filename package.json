@@ -9,13 +9,21 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@tanstack/react-query": "^5.90.20",
+    "maplibre-gl": "^5.17.0",
     "next": "16.1.6",
+    "pg": "^8.17.2",
+    "prisma": "^5.22.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/maplibre-gl": "^1.13.2",
     "@types/node": "^20",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

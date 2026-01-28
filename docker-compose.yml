@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: territory
+      POSTGRES_PASSWORD: territory_dev
+      POSTGRES_DB: territory_plan
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U territory -d territory_plan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

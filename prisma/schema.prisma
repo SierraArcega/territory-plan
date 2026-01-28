@@ -1,0 +1,148 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+model District {
+  leaid             String   @id @db.VarChar(7)
+  name              String   @db.VarChar(255)
+  stateFips         String   @map("state_fips") @db.VarChar(2)
+  stateAbbrev       String?  @map("state_abbrev") @db.VarChar(2)
+  mtfcc             String?  @db.VarChar(5)
+  sdtyp             String?  @db.VarChar(1)
+  funcstat          String?  @default("E") @db.VarChar(1)
+  lograde           String?  @db.VarChar(2)
+  higrade           String?  @db.VarChar(2)
+  enrollment        Int?
+  urbanInstituteYear Int?    @map("urban_institute_year")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  fullmindData FullmindData?
+  edits        DistrictEdits?
+  districtTags DistrictTag[]
+  contacts     Contact[]
+
+  @@index([stateFips])
+  @@map("districts")
+}
+
+model FullmindData {
+  leaid         String  @id @db.VarChar(7)
+  accountName   String? @map("account_name") @db.VarChar(255)
+  salesExecutive String? @map("sales_executive") @db.VarChar(100)
+  lmsid         String? @db.VarChar(50)
+
+  // FY25 Sessions
+  fy25SessionsRevenue Decimal @default(0) @map("fy25_sessions_revenue") @db.Decimal(15, 2)
+  fy25SessionsTake    Decimal @default(0) @map("fy25_sessions_take") @db.Decimal(15, 2)
+  fy25SessionsCount   Int     @default(0) @map("fy25_sessions_count")
+
+  // FY26 Sessions
+  fy26SessionsRevenue Decimal @default(0) @map("fy26_sessions_revenue") @db.Decimal(15, 2)
+  fy26SessionsTake    Decimal @default(0) @map("fy26_sessions_take") @db.Decimal(15, 2)
+  fy26SessionsCount   Int     @default(0) @map("fy26_sessions_count")
+
+  // FY25 Bookings
+  fy25ClosedWonOppCount    Int     @default(0) @map("fy25_closed_won_opp_count")
+  fy25ClosedWonNetBooking  Decimal @default(0) @map("fy25_closed_won_net_booking") @db.Decimal(15, 2)
+  fy25NetInvoicing         Decimal @default(0) @map("fy25_net_invoicing") @db.Decimal(15, 2)
+
+  // FY26 Bookings
+  fy26ClosedWonOppCount    Int     @default(0) @map("fy26_closed_won_opp_count")
+  fy26ClosedWonNetBooking  Decimal @default(0) @map("fy26_closed_won_net_booking") @db.Decimal(15, 2)
+  fy26NetInvoicing         Decimal @default(0) @map("fy26_net_invoicing") @db.Decimal(15, 2)
+
+  // FY26 Pipeline
+  fy26OpenPipelineOppCount Int     @default(0) @map("fy26_open_pipeline_opp_count")
+  fy26OpenPipeline         Decimal @default(0) @map("fy26_open_pipeline") @db.Decimal(15, 2)
+  fy26OpenPipelineWeighted Decimal @default(0) @map("fy26_open_pipeline_weighted") @db.Decimal(15, 2)
+
+  // FY27 Pipeline
+  fy27OpenPipelineOppCount Int     @default(0) @map("fy27_open_pipeline_opp_count")
+  fy27OpenPipeline         Decimal @default(0) @map("fy27_open_pipeline") @db.Decimal(15, 2)
+  fy27OpenPipelineWeighted Decimal @default(0) @map("fy27_open_pipeline_weighted") @db.Decimal(15, 2)
+
+  // Computed status flags
+  isCustomer      Boolean @default(false) @map("is_customer")
+  hasOpenPipeline Boolean @default(false) @map("has_open_pipeline")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@index([isCustomer, hasOpenPipeline])
+  @@map("fullmind_data")
+}
+
+model DistrictEdits {
+  leaid     String   @id @db.VarChar(7)
+  notes     String?  @db.Text
+  owner     String?  @db.VarChar(100)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@map("district_edits")
+}
+
+model Tag {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique @db.VarChar(50)
+  color        String        @db.VarChar(7)
+  districtTags DistrictTag[]
+
+  @@map("tags")
+}
+
+model DistrictTag {
+  districtLeaid String @map("district_leaid") @db.VarChar(7)
+  tagId         Int    @map("tag_id")
+
+  district District @relation(fields: [districtLeaid], references: [leaid])
+  tag      Tag      @relation(fields: [tagId], references: [id])
+
+  @@id([districtLeaid, tagId])
+  @@map("district_tags")
+}
+
+model Contact {
+  id        Int      @id @default(autoincrement())
+  leaid     String   @db.VarChar(7)
+  name      String   @db.VarChar(255)
+  title     String?  @db.VarChar(100)
+  email     String?  @db.VarChar(255)
+  phone     String?  @db.VarChar(50)
+  isPrimary Boolean  @default(false) @map("is_primary")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@map("contacts")
+}
+
+model UnmatchedAccount {
+  id                 Int      @id @default(autoincrement())
+  accountName        String   @map("account_name") @db.VarChar(255)
+  salesExecutive     String?  @map("sales_executive") @db.VarChar(100)
+  stateAbbrev        String   @map("state_abbrev") @db.VarChar(2)
+  lmsid              String?  @db.VarChar(50)
+  leaidRaw           String?  @map("leaid_raw") @db.VarChar(50)
+  matchFailureReason String   @map("match_failure_reason") @db.VarChar(100)
+
+  // Key metrics for state-level summary
+  fy25NetInvoicing Decimal @default(0) @map("fy25_net_invoicing") @db.Decimal(15, 2)
+  fy26NetInvoicing Decimal @default(0) @map("fy26_net_invoicing") @db.Decimal(15, 2)
+  fy26OpenPipeline Decimal @default(0) @map("fy26_open_pipeline") @db.Decimal(15, 2)
+  fy27OpenPipeline Decimal @default(0) @map("fy27_open_pipeline") @db.Decimal(15, 2)
+
+  isCustomer      Boolean  @default(false) @map("is_customer")
+  hasOpenPipeline Boolean  @default(false) @map("has_open_pipeline")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([stateAbbrev])
+  @@map("unmatched_accounts")
+}

@@ -1,26 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Fullmind Brand Colors */
+  --color-coral: #F37167;
+  --color-plum: #403770;
+  --color-steel-blue: #6EA3BE;
+  --color-robins-egg: #C4E7E6;
+  --color-mint: #EDFFE3;
+  --color-off-white: #FFFCFA;
+
+  --background: var(--color-off-white);
+  --foreground: var(--color-plum);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Fullmind Brand Colors for Tailwind */
+  --color-coral: #F37167;
+  --color-plum: #403770;
+  --color-steel-blue: #6EA3BE;
+  --color-robins-egg: #C4E7E6;
+  --color-mint: #EDFFE3;
+  --color-off-white: #FFFCFA;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* MapLibre GL styles */
+.maplibregl-map {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.maplibregl-popup-content {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(64, 55, 112, 0.15);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-robins-egg);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-steel-blue);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-plum);
 }
