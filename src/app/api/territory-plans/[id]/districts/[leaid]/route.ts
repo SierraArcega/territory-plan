@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { syncAutoTagsForDistrict } from "@/lib/autoTags";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,9 @@ export async function DELETE(
         },
       },
     });
+
+    // Sync auto-tags after removal (may affect Prospect tag)
+    await syncAutoTagsForDistrict(leaid);
 
     return NextResponse.json({ success: true });
   } catch (error) {
