@@ -504,8 +504,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             setTouchPreviewLeaid(leaid);
             // Show tooltip on first tap
             const stateAbbrev = feature.properties?.state_abbrev;
-            const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
-            const hasPipeline = feature.properties?.has_pipeline === true || feature.properties?.has_pipeline === 1;
             const enrollment = feature.properties?.enrollment;
             const salesExec = feature.properties?.sales_executive;
 
@@ -514,8 +512,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
               leaid,
               name,
               stateAbbrev,
-              hasRevenue,
-              hasPipeline,
               enrollment: enrollment ? Number(enrollment) : undefined,
               salesExecutive: salesExec || null,
             });
@@ -654,8 +650,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
       const name = feature.properties?.name;
       const stateAbbrev = feature.properties?.state_abbrev;
-      const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
-      const hasPipeline = feature.properties?.has_pipeline === true || feature.properties?.has_pipeline === 1;
       const enrollment = feature.properties?.enrollment;
       const salesExec = feature.properties?.sales_executive;
 
@@ -678,8 +672,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         leaid,
         name,
         stateAbbrev,
-        hasRevenue,
-        hasPipeline,
         enrollment: enrollment ? Number(enrollment) : undefined,
         salesExecutive: salesExec || null,
       });

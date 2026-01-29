@@ -31,8 +31,6 @@ export interface TooltipData {
   name?: string;
   stateAbbrev?: string;
   enrollment?: number;
-  hasRevenue?: boolean;
-  hasPipeline?: boolean;
   salesExecutive?: string | null;
   tags?: Array<{ name: string; color: string }>;
 }
