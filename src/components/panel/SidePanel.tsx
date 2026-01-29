@@ -73,22 +73,20 @@ export default function SidePanel() {
             <FullmindMetrics fullmindData={data.fullmindData} />
           )}
 
-          {/* Add to Plan Button */}
-          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
+          {/* Action Buttons */}
+          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex gap-2">
             <AddToPlanButton
               leaid={selectedLeaid}
               existingPlanIds={data.territoryPlanIds}
             />
+            <FindSimilarDistricts
+              district={data.district}
+              educationData={data.educationData}
+              enrollmentDemographics={data.enrollmentDemographics}
+            />
           </div>
 
           <DistrictInfo district={data.district} />
-
-          {/* Find Similar Districts */}
-          <FindSimilarDistricts
-            district={data.district}
-            educationData={data.educationData}
-            enrollmentDemographics={data.enrollmentDemographics}
-          />
 
           {/* Group 2: Student Body */}
           {data.enrollmentDemographics && (

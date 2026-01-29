@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useSimilarDistricts,
   useTerritoryPlans,
@@ -103,11 +103,12 @@ export default function FindSimilarDistricts({
   educationData,
   enrollmentDemographics,
 }: FindSimilarDistrictsProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<SimilarMetricKey[]>([]);
   const [tolerance, setTolerance] = useState<SimilarityTolerance>("medium");
   const [hasSearched, setHasSearched] = useState(false);
-  const [showPlanSelector, setShowPlanSelector] = useState<string | null>(null); // leaid or "all"
+  const [showPlanSelector, setShowPlanSelector] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { setSelectedLeaid, setSimilarDistrictLeaids, clearSimilarDistricts } = useMapStore();
   const { data: plans } = useTerritoryPlans();
@@ -124,6 +125,25 @@ export default function FindSimilarDistricts({
     tolerance,
     enabled: hasSearched && selectedMetrics.length > 0,
   });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        // Don't close if clicking plan selector
+        if (showPlanSelector) return;
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen, showPlanSelector]);
 
   // Update map highlighting when results change
   useEffect(() => {
@@ -144,6 +164,7 @@ export default function FindSimilarDistricts({
     setSelectedMetrics([]);
     setHasSearched(false);
     setShowPlanSelector(null);
+    setIsOpen(false);
   }, [district.leaid]);
 
   const handleMetricToggle = (key: SimilarMetricKey) => {
@@ -152,11 +173,11 @@ export default function FindSimilarDistricts({
         return prev.filter((m) => m !== key);
       }
       if (prev.length >= 3) {
-        return prev; // Max 3 metrics
+        return prev;
       }
       return [...prev, key];
     });
-    setHasSearched(false); // Reset search when metrics change
+    setHasSearched(false);
   };
 
   const handleSearch = () => {
@@ -171,6 +192,7 @@ export default function FindSimilarDistricts({
   };
 
   const handleSelectDistrict = (leaid: string) => {
+    setIsOpen(false);
     setSelectedLeaid(leaid);
     clearSimilarDistricts();
     setHasSearched(false);
@@ -188,17 +210,28 @@ export default function FindSimilarDistricts({
   const results = similarData?.results || [];
 
   return (
-    <div className="px-6 py-4 border-b border-gray-100">
-      {/* Collapsible Header */}
+    <div className="relative" ref={dropdownRef}>
+      {/* Button */}
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between text-left group"
+        onClick={() => setIsOpen(!isOpen)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#403770] bg-white border border-[#403770] rounded-lg hover:bg-gray-50 transition-colors"
       >
-        <h3 className="text-sm font-semibold text-[#403770]">Find Similar Districts</h3>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-            isExpanded ? "rotate-180" : ""
-          }`}
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        Find Similar
+        <svg
+          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -212,134 +245,136 @@ export default function FindSimilarDistricts({
         </svg>
       </button>
 
-      {/* Collapsible Content */}
-      {isExpanded && (
-        <div className="mt-4 space-y-4">
-          {/* Metric Chips */}
-          <div>
-            <p className="text-xs text-gray-500 mb-2">Select up to 3 metrics to compare:</p>
-            <div className="flex flex-wrap gap-2">
-              {METRICS.map((metric) => {
-                const isSelected = selectedMetrics.includes(metric.key);
-                const isDisabled =
-                  !hasMetricData(metric.key, district, educationData, enrollmentDemographics) ||
-                  (!isSelected && selectedMetrics.length >= 3);
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+          <div className="p-4 space-y-4">
+            {/* Metric Chips */}
+            <div>
+              <p className="text-xs text-gray-500 mb-2">Select up to 3 metrics:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {METRICS.map((metric) => {
+                  const isSelected = selectedMetrics.includes(metric.key);
+                  const isDisabled =
+                    !hasMetricData(metric.key, district, educationData, enrollmentDemographics) ||
+                    (!isSelected && selectedMetrics.length >= 3);
 
-                return (
+                  return (
+                    <button
+                      key={metric.key}
+                      onClick={() => !isDisabled && handleMetricToggle(metric.key)}
+                      disabled={isDisabled}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${
+                        isSelected
+                          ? "bg-[#403770] text-white"
+                          : isDisabled
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      title={isDisabled && !isSelected ? "No data available" : metric.label}
+                    >
+                      {metric.shortLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Tolerance Selection */}
+            <div>
+              <p className="text-xs text-gray-500 mb-2">Similarity:</p>
+              <div className="flex gap-1.5">
+                {TOLERANCES.map((t) => (
                   <button
-                    key={metric.key}
-                    onClick={() => !isDisabled && handleMetricToggle(metric.key)}
-                    disabled={isDisabled}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                      isSelected
-                        ? "bg-[#403770] text-white"
-                        : isDisabled
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    key={t.value}
+                    onClick={() => {
+                      setTolerance(t.value);
+                      setHasSearched(false);
+                    }}
+                    className={`flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+                      tolerance === t.value
+                        ? "bg-[#6EA3BE] text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
-                    title={isDisabled && !isSelected ? "No data available" : metric.label}
                   >
-                    {metric.shortLabel}
+                    {t.label}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Tolerance Selection */}
-          <div>
-            <p className="text-xs text-gray-500 mb-2">Similarity level:</p>
-            <div className="flex gap-2">
-              {TOLERANCES.map((t) => (
-                <button
-                  key={t.value}
-                  onClick={() => {
-                    setTolerance(t.value);
-                    setHasSearched(false);
-                  }}
-                  className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                    tolerance === t.value
-                      ? "bg-[#6EA3BE] text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Search Button */}
-          <button
-            onClick={handleSearch}
-            disabled={selectedMetrics.length === 0 || isLoading}
-            className="w-full px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isLoading ? "Searching..." : "Search"}
-          </button>
-
-          {/* Error State */}
-          {error && (
-            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
-              {error.message || "Failed to find similar districts"}
-            </div>
-          )}
-
-          {/* Results */}
-          {hasSearched && !isLoading && !error && (
-            <div className="space-y-3">
-              {/* Results Header */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  {results.length} similar district{results.length !== 1 ? "s" : ""} found
-                </p>
-                <div className="flex gap-2">
-                  {results.length > 0 && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowPlanSelector(showPlanSelector === "all" ? null : "all")}
-                        className="text-xs text-[#403770] hover:underline"
-                      >
-                        Add All to Plan
-                      </button>
-                      {showPlanSelector === "all" && (
-                        <PlanSelectorDropdown
-                          plans={plans || []}
-                          onSelect={(planId) => handleAddToPlan(planId, results.map((r) => r.leaid))}
-                          onClose={() => setShowPlanSelector(null)}
-                          isPending={addDistrictsToPlan.isPending}
-                        />
-                      )}
-                    </div>
-                  )}
-                  <button
-                    onClick={handleClearResults}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* Result Cards */}
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {results.map((result) => (
-                  <ResultCard
-                    key={result.leaid}
-                    result={result}
-                    selectedMetrics={selectedMetrics}
-                    onSelect={() => handleSelectDistrict(result.leaid)}
-                    onAddToPlan={() => setShowPlanSelector(result.leaid)}
-                    showPlanSelector={showPlanSelector === result.leaid}
-                    plans={plans || []}
-                    onPlanSelect={(planId) => handleAddToPlan(planId, [result.leaid])}
-                    onClosePlanSelector={() => setShowPlanSelector(null)}
-                    isPending={addDistrictsToPlan.isPending}
-                  />
                 ))}
               </div>
             </div>
-          )}
+
+            {/* Search Button */}
+            <button
+              onClick={handleSearch}
+              disabled={selectedMetrics.length === 0 || isLoading}
+              className="w-full px-3 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? "Searching..." : "Search"}
+            </button>
+
+            {/* Error State */}
+            {error && (
+              <div className="p-2 bg-red-50 text-red-700 text-xs rounded-lg">
+                {error.message || "Failed to find similar districts"}
+              </div>
+            )}
+
+            {/* Results */}
+            {hasSearched && !isLoading && !error && (
+              <div className="space-y-2 border-t border-gray-100 pt-3">
+                {/* Results Header */}
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-600">
+                    {results.length} similar district{results.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="flex gap-2">
+                    {results.length > 0 && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowPlanSelector(showPlanSelector === "all" ? null : "all")}
+                          className="text-xs text-[#403770] hover:underline"
+                        >
+                          Add All
+                        </button>
+                        {showPlanSelector === "all" && (
+                          <PlanSelectorDropdown
+                            plans={plans || []}
+                            onSelect={(planId) => handleAddToPlan(planId, results.map((r) => r.leaid))}
+                            onClose={() => setShowPlanSelector(null)}
+                            isPending={addDistrictsToPlan.isPending}
+                          />
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleClearResults}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Result Cards */}
+                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {results.map((result) => (
+                    <ResultCard
+                      key={result.leaid}
+                      result={result}
+                      selectedMetrics={selectedMetrics}
+                      onSelect={() => handleSelectDistrict(result.leaid)}
+                      onAddToPlan={() => setShowPlanSelector(result.leaid)}
+                      showPlanSelector={showPlanSelector === result.leaid}
+                      plans={plans || []}
+                      onPlanSelect={(planId) => handleAddToPlan(planId, [result.leaid])}
+                      onClosePlanSelector={() => setShowPlanSelector(null)}
+                      isPending={addDistrictsToPlan.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -371,27 +406,26 @@ function ResultCard({
   const isInPlan = result.territoryPlanIds.length > 0;
 
   return (
-    <div className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+    <div className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
       <div className="flex items-start justify-between gap-2">
         <button
           onClick={onSelect}
           className="flex-1 text-left"
         >
-          <p className="text-sm font-medium text-[#403770]">{result.name}</p>
-          <p className="text-xs text-gray-500">{result.stateAbbrev}</p>
+          <p className="text-xs font-medium text-[#403770]">{result.name}</p>
         </button>
 
         <div className="flex items-center gap-1">
           {isInPlan && (
-            <span className="w-2 h-2 rounded-full bg-[#8AA891]" title="Already in a plan" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#8AA891]" title="In a plan" />
           )}
           <div className="relative">
             <button
               onClick={onAddToPlan}
-              className="p-1 text-gray-400 hover:text-[#403770] transition-colors"
+              className="p-0.5 text-gray-400 hover:text-[#403770] transition-colors"
               title="Add to plan"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
@@ -408,7 +442,7 @@ function ResultCard({
       </div>
 
       {/* Metric Values */}
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+      <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
         {selectedMetrics.map((key) => {
           const metricData = result.metrics[key];
           if (!metricData) return null;
@@ -416,9 +450,8 @@ function ResultCard({
           const label = METRICS.find((m) => m.key === key)?.shortLabel || key;
 
           return (
-            <span key={key} className="text-xs text-gray-600">
-              <span className="text-gray-400">{label}:</span>{" "}
-              {formatMetricValue(key, metricData.value)}
+            <span key={key} className="text-[10px] text-gray-500">
+              {label}: {formatMetricValue(key, metricData.value)}
             </span>
           );
         })}
@@ -441,23 +474,22 @@ function PlanSelectorDropdown({
 }) {
   return (
     <>
-      {/* Backdrop to close */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
-      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+      <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
         {plans.length === 0 ? (
-          <p className="p-3 text-sm text-gray-500">No plans yet</p>
+          <p className="p-2 text-xs text-gray-500">No plans yet</p>
         ) : (
-          <div className="max-h-48 overflow-y-auto">
+          <div className="max-h-40 overflow-y-auto">
             {plans.map((plan) => (
               <button
                 key={plan.id}
                 onClick={() => onSelect(plan.id)}
                 disabled={isPending}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+                className="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-gray-50 disabled:opacity-50"
               >
                 <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: plan.color }}
                 />
                 <span className="truncate">{plan.name}</span>
