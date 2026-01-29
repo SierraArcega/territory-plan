@@ -58,6 +58,18 @@ async function getTagByName(name: string): Promise<{ id: number } | null> {
 }
 
 /**
+ * Gets multiple tags by name from the database in a single query.
+ * Returns a Map of tag name to tag id.
+ */
+async function getTagsByNames(names: string[]): Promise<Map<string, number>> {
+  const tags = await prisma.tag.findMany({
+    where: { name: { in: names } },
+    select: { id: true, name: true },
+  });
+  return new Map(tags.map((t) => [t.name, t.id]));
+}
+
+/**
  * Adds a tag to a district if not already present.
  */
 async function addTagToDistrict(leaid: string, tagId: number): Promise<void> {
@@ -116,57 +128,86 @@ export async function syncAutoTagsForDistrict(leaid: string): Promise<void> {
   const isWinBackTarget = previousYearRevenue > 0 && currentYearRevenue === 0;
   const isProspect = isInAnyPlan && !hasOpenPipeline;
 
-  // Get tag IDs
-  const customerTag = await getTagByName(AUTO_TAGS.CUSTOMER.name);
-  const pipelineTag = await getTagByName(AUTO_TAGS.PIPELINE.name);
-  const prospectTag = await getTagByName(AUTO_TAGS.PROSPECT.name);
-  const vipTag = await getTagByName(AUTO_TAGS.VIP.name);
-  const winBackTag = await getTagByName(AUTO_TAGS.WIN_BACK_TARGET.name);
+  // Batch fetch all tag IDs in a single query
+  const tagNames = [
+    AUTO_TAGS.CUSTOMER.name,
+    AUTO_TAGS.PIPELINE.name,
+    AUTO_TAGS.PROSPECT.name,
+    AUTO_TAGS.VIP.name,
+    AUTO_TAGS.WIN_BACK_TARGET.name,
+  ];
+  const tagMap = await getTagsByNames(tagNames);
 
-  // Sync Customer tag
-  if (customerTag) {
-    if (isCustomer) {
-      await addTagToDistrict(leaid, customerTag.id);
-    } else {
-      await removeTagFromDistrict(leaid, customerTag.id);
-    }
-  }
+  const customerTagId = tagMap.get(AUTO_TAGS.CUSTOMER.name);
+  const pipelineTagId = tagMap.get(AUTO_TAGS.PIPELINE.name);
+  const prospectTagId = tagMap.get(AUTO_TAGS.PROSPECT.name);
+  const vipTagId = tagMap.get(AUTO_TAGS.VIP.name);
+  const winBackTagId = tagMap.get(AUTO_TAGS.WIN_BACK_TARGET.name);
 
-  // Sync Pipeline tag
-  if (pipelineTag) {
-    if (hasOpenPipeline) {
-      await addTagToDistrict(leaid, pipelineTag.id);
-    } else {
-      await removeTagFromDistrict(leaid, pipelineTag.id);
-    }
-  }
+  // Wrap all tag sync operations in a transaction for atomicity
+  await prisma.$transaction(async (tx) => {
+    // Helper functions that use the transaction client
+    const addTag = async (tagId: number) => {
+      await tx.districtTag.upsert({
+        where: {
+          districtLeaid_tagId: { districtLeaid: leaid, tagId },
+        },
+        update: {},
+        create: { districtLeaid: leaid, tagId },
+      });
+    };
 
-  // Sync Prospect tag
-  if (prospectTag) {
-    if (isProspect) {
-      await addTagToDistrict(leaid, prospectTag.id);
-    } else {
-      await removeTagFromDistrict(leaid, prospectTag.id);
-    }
-  }
+    const removeTag = async (tagId: number) => {
+      await tx.districtTag.deleteMany({
+        where: { districtLeaid: leaid, tagId },
+      });
+    };
 
-  // Sync VIP tag
-  if (vipTag) {
-    if (isVIP) {
-      await addTagToDistrict(leaid, vipTag.id);
-    } else {
-      await removeTagFromDistrict(leaid, vipTag.id);
+    // Sync Customer tag
+    if (customerTagId !== undefined) {
+      if (isCustomer) {
+        await addTag(customerTagId);
+      } else {
+        await removeTag(customerTagId);
+      }
     }
-  }
 
-  // Sync Win Back Target tag
-  if (winBackTag) {
-    if (isWinBackTarget) {
-      await addTagToDistrict(leaid, winBackTag.id);
-    } else {
-      await removeTagFromDistrict(leaid, winBackTag.id);
+    // Sync Pipeline tag
+    if (pipelineTagId !== undefined) {
+      if (hasOpenPipeline) {
+        await addTag(pipelineTagId);
+      } else {
+        await removeTag(pipelineTagId);
+      }
     }
-  }
+
+    // Sync Prospect tag
+    if (prospectTagId !== undefined) {
+      if (isProspect) {
+        await addTag(prospectTagId);
+      } else {
+        await removeTag(prospectTagId);
+      }
+    }
+
+    // Sync VIP tag
+    if (vipTagId !== undefined) {
+      if (isVIP) {
+        await addTag(vipTagId);
+      } else {
+        await removeTag(vipTagId);
+      }
+    }
+
+    // Sync Win Back Target tag
+    if (winBackTagId !== undefined) {
+      if (isWinBackTarget) {
+        await addTag(winBackTagId);
+      } else {
+        await removeTag(winBackTagId);
+      }
+    }
+  });
 }
 
 /**
@@ -183,26 +224,52 @@ export async function syncLocaleTagForDistrict(leaid: string): Promise<void> {
 
   const locale = district.urbanCentricLocale;
 
-  // Get all locale tag IDs
-  const cityTag = await getTagByName(AUTO_TAGS.CITY.name);
-  const suburbTag = await getTagByName(AUTO_TAGS.SUBURB.name);
-  const townTag = await getTagByName(AUTO_TAGS.TOWN.name);
-  const ruralTag = await getTagByName(AUTO_TAGS.RURAL.name);
+  // Batch fetch all locale tag IDs in a single query
+  const localeTagNames = [
+    AUTO_TAGS.CITY.name,
+    AUTO_TAGS.SUBURB.name,
+    AUTO_TAGS.TOWN.name,
+    AUTO_TAGS.RURAL.name,
+  ];
+  const tagMap = await getTagsByNames(localeTagNames);
 
-  // Remove all locale tags first
-  if (cityTag) await removeTagFromDistrict(leaid, cityTag.id);
-  if (suburbTag) await removeTagFromDistrict(leaid, suburbTag.id);
-  if (townTag) await removeTagFromDistrict(leaid, townTag.id);
-  if (ruralTag) await removeTagFromDistrict(leaid, ruralTag.id);
+  const cityTagId = tagMap.get(AUTO_TAGS.CITY.name);
+  const suburbTagId = tagMap.get(AUTO_TAGS.SUBURB.name);
+  const townTagId = tagMap.get(AUTO_TAGS.TOWN.name);
+  const ruralTagId = tagMap.get(AUTO_TAGS.RURAL.name);
 
-  // Add the correct locale tag
-  if (LOCALE_RANGES.CITY.includes(locale) && cityTag) {
-    await addTagToDistrict(leaid, cityTag.id);
-  } else if (LOCALE_RANGES.SUBURB.includes(locale) && suburbTag) {
-    await addTagToDistrict(leaid, suburbTag.id);
-  } else if (LOCALE_RANGES.TOWN.includes(locale) && townTag) {
-    await addTagToDistrict(leaid, townTag.id);
-  } else if (LOCALE_RANGES.RURAL.includes(locale) && ruralTag) {
-    await addTagToDistrict(leaid, ruralTag.id);
-  }
+  // Wrap all operations in a transaction for atomicity
+  await prisma.$transaction(async (tx) => {
+    // Remove all locale tags first
+    const allLocaleTagIds = [cityTagId, suburbTagId, townTagId, ruralTagId].filter(
+      (id): id is number => id !== undefined
+    );
+
+    if (allLocaleTagIds.length > 0) {
+      await tx.districtTag.deleteMany({
+        where: {
+          districtLeaid: leaid,
+          tagId: { in: allLocaleTagIds },
+        },
+      });
+    }
+
+    // Add the correct locale tag
+    let tagIdToAdd: number | undefined;
+    if ((LOCALE_RANGES.CITY as readonly number[]).includes(locale) && cityTagId !== undefined) {
+      tagIdToAdd = cityTagId;
+    } else if ((LOCALE_RANGES.SUBURB as readonly number[]).includes(locale) && suburbTagId !== undefined) {
+      tagIdToAdd = suburbTagId;
+    } else if ((LOCALE_RANGES.TOWN as readonly number[]).includes(locale) && townTagId !== undefined) {
+      tagIdToAdd = townTagId;
+    } else if ((LOCALE_RANGES.RURAL as readonly number[]).includes(locale) && ruralTagId !== undefined) {
+      tagIdToAdd = ruralTagId;
+    }
+
+    if (tagIdToAdd !== undefined) {
+      await tx.districtTag.create({
+        data: { districtLeaid: leaid, tagId: tagIdToAdd },
+      });
+    }
+  });
 }
