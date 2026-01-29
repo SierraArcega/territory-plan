@@ -65,6 +65,10 @@ interface MapState {
   clickRipples: ClickRipple[];
   // Touch preview mode (first tap shows tooltip, second tap selects)
   touchPreviewLeaid: string | null;
+  // Multi-select mode for batch adding districts to plans
+  multiSelectMode: boolean;
+  selectedLeaids: Set<string>;
+  currentPlanId: string | null; // Active plan for quick-add
 }
 
 interface MapActions {
@@ -87,6 +91,11 @@ interface MapActions {
   removeClickRipple: (id: number) => void;
   // Touch preview actions
   setTouchPreviewLeaid: (leaid: string | null) => void;
+  // Multi-select actions
+  toggleMultiSelectMode: () => void;
+  toggleDistrictSelection: (leaid: string) => void;
+  clearSelectedDistricts: () => void;
+  setCurrentPlanId: (planId: string | null) => void;
 }
 
 const initialFilters: Filters = {
@@ -118,6 +127,9 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   tooltip: initialTooltip,
   clickRipples: [],
   touchPreviewLeaid: null,
+  multiSelectMode: false,
+  selectedLeaids: new Set<string>(),
+  currentPlanId: null,
 
   // Actions
   setSelectedLeaid: (leaid) =>
@@ -161,6 +173,29 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
 
   // Touch preview actions
   setTouchPreviewLeaid: (leaid) => set({ touchPreviewLeaid: leaid }),
+
+  // Multi-select actions
+  toggleMultiSelectMode: () =>
+    set((s) => ({
+      multiSelectMode: !s.multiSelectMode,
+      // Clear selections when exiting multi-select mode
+      selectedLeaids: s.multiSelectMode ? new Set<string>() : s.selectedLeaids,
+      // Close side panel when entering multi-select mode
+      sidePanelOpen: s.multiSelectMode ? s.sidePanelOpen : false,
+      selectedLeaid: s.multiSelectMode ? s.selectedLeaid : null,
+    })),
+  toggleDistrictSelection: (leaid) =>
+    set((s) => {
+      const newSet = new Set(s.selectedLeaids);
+      if (newSet.has(leaid)) {
+        newSet.delete(leaid);
+      } else {
+        newSet.add(leaid);
+      }
+      return { selectedLeaids: newSet };
+    }),
+  clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>() }),
+  setCurrentPlanId: (planId) => set({ currentPlanId: planId }),
 }));
 
 // Selector helpers

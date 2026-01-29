@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import FilterBar from "@/components/filters/FilterBar";
 import SidePanel from "@/components/panel/SidePanel";
+import MultiSelectActionBar from "@/components/MultiSelectActionBar";
 
 // Dynamic import for MapContainer to avoid SSR issues with MapLibre
 const MapContainer = dynamic(() => import("@/components/map/MapContainer"), {
@@ -29,8 +31,24 @@ export default function Home() {
           <span className="text-[#F37167]">|</span>
           <span className="text-sm text-gray-500">Fullmind</span>
         </div>
-        <div className="text-sm text-gray-500">
-          ~13,000 US School Districts
+        <div className="flex items-center gap-4">
+          <Link
+            href="/plans"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770]/30 rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            Plans
+          </Link>
+          <span className="text-sm text-gray-500">
+            ~13,000 US School Districts
+          </span>
         </div>
       </header>
 
@@ -44,6 +62,9 @@ export default function Home() {
 
         {/* Side Panel */}
         <SidePanel />
+
+        {/* Multi-Select Action Bar */}
+        <MultiSelectActionBar />
       </div>
 
       {/* Footer */}

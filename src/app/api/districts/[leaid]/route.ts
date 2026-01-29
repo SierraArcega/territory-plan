@@ -23,6 +23,11 @@ export async function GET(
         contacts: {
           orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
         },
+        territoryPlans: {
+          select: {
+            planId: true,
+          },
+        },
       },
     });
 
@@ -189,6 +194,7 @@ export async function GET(
         phone: c.phone,
         isPrimary: c.isPrimary,
       })),
+      territoryPlanIds: district.territoryPlans.map((tp: { planId: string }) => tp.planId),
       educationData,
       enrollmentDemographics,
     };

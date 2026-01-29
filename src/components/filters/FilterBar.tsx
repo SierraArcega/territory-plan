@@ -3,6 +3,7 @@
 import { useMapStore, StatusFilter } from "@/lib/store";
 import { useStates, useSalesExecutives } from "@/lib/api";
 import SearchBox from "./SearchBox";
+import MultiSelectToggle from "./MultiSelectToggle";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All Districts" },
@@ -107,6 +108,12 @@ export default function FilterBar() {
             Clear
           </button>
         )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Multi-Select Toggle */}
+        <MultiSelectToggle />
       </div>
 
       {/* Active Filters Summary */}

@@ -171,6 +171,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     addClickRipple,
     touchPreviewLeaid,
     setTouchPreviewLeaid,
+    multiSelectMode,
+    selectedLeaids,
+    toggleDistrictSelection,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -362,6 +365,32 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         filter: ["==", ["get", "leaid"], ""],
       });
 
+      // Multi-selected districts fill layer
+      map.current.addLayer({
+        id: "district-multiselect-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "fill-color": "#6EA3BE", // Steel Blue
+          "fill-opacity": 0.6,
+        },
+        filter: ["in", ["get", "leaid"], ["literal", []]],
+      });
+
+      // Multi-selected districts outline layer
+      map.current.addLayer({
+        id: "district-multiselect-outline",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "line-color": "#6EA3BE", // Steel Blue
+          "line-width": 3,
+        },
+        filter: ["in", ["get", "leaid"], ["literal", []]],
+      });
+
       setMapReady(true);
       setMapInstance(map.current);
     });
@@ -382,6 +411,20 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       selectedLeaid || "",
     ]);
   }, [selectedLeaid]);
+
+  // Update multi-selected districts filter
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+
+    const leaidArray = Array.from(selectedLeaids);
+    const filter: maplibregl.FilterSpecification =
+      leaidArray.length > 0
+        ? ["in", ["get", "leaid"], ["literal", leaidArray]]
+        : ["in", ["get", "leaid"], ["literal", [""]]]; // Empty filter that matches nothing
+
+    map.current.setFilter("district-multiselect-fill", filter);
+    map.current.setFilter("district-multiselect-outline", filter);
+  }, [selectedLeaids]);
 
   // Update tile source when selected state changes - only load districts for focused state
   useEffect(() => {
@@ -448,6 +491,14 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         const name = feature.properties?.name;
 
         if (leaid) {
+          // Multi-select mode: toggle selection
+          if (multiSelectMode) {
+            toggleDistrictSelection(leaid);
+            const isNowSelected = !selectedLeaids.has(leaid);
+            announce(isNowSelected ? `Added ${name} to selection` : `Removed ${name} from selection`);
+            return;
+          }
+
           // Touch device: tap-to-preview pattern
           if (isTouchDevice && touchPreviewLeaid !== leaid) {
             setTouchPreviewLeaid(leaid);
@@ -509,6 +560,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       touchPreviewLeaid,
       setTouchPreviewLeaid,
       announce,
+      multiSelectMode,
+      selectedLeaids,
+      toggleDistrictSelection,
     ]
   );
 

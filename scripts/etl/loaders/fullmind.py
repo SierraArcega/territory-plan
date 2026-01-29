@@ -183,9 +183,43 @@ def insert_fullmind_data(
     Insert matched records into fullmind_data table.
 
     Uses upsert to handle updates to existing records.
+    Deduplicates by leaid, aggregating numeric fields.
     """
     if not records:
         return 0
+
+    # Deduplicate by leaid - aggregate numeric fields, keep last string values
+    deduped = {}
+    numeric_fields = [
+        "fy25_sessions_revenue", "fy25_sessions_take", "fy25_sessions_count",
+        "fy26_sessions_revenue", "fy26_sessions_take", "fy26_sessions_count",
+        "fy25_closed_won_opp_count", "fy25_closed_won_net_booking", "fy25_net_invoicing",
+        "fy26_closed_won_opp_count", "fy26_closed_won_net_booking", "fy26_net_invoicing",
+        "fy26_open_pipeline_opp_count", "fy26_open_pipeline", "fy26_open_pipeline_weighted",
+        "fy27_open_pipeline_opp_count", "fy27_open_pipeline", "fy27_open_pipeline_weighted",
+    ]
+
+    for r in records:
+        leaid = r["leaid"]
+        if leaid not in deduped:
+            deduped[leaid] = r.copy()
+        else:
+            # Aggregate numeric fields
+            for field in numeric_fields:
+                deduped[leaid][field] = deduped[leaid][field] + r[field]
+            # Recalculate boolean flags
+            deduped[leaid]["is_customer"] = (
+                deduped[leaid]["fy25_net_invoicing"] > 0 or
+                deduped[leaid]["fy26_net_invoicing"] > 0
+            )
+            deduped[leaid]["has_open_pipeline"] = (
+                deduped[leaid]["fy26_open_pipeline"] > 0 or
+                deduped[leaid]["fy27_open_pipeline"] > 0
+            )
+            # Keep first account_name, sales_executive, lmsid (they should be the same)
+
+    records = list(deduped.values())
+    print(f"Deduplicated to {len(records)} unique LEAIDs")
 
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()

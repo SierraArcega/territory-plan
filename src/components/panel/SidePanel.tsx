@@ -3,6 +3,7 @@
 import { useMapStore } from "@/lib/store";
 import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
+import AddToPlanButton from "./AddToPlanButton";
 import DistrictInfo from "./DistrictInfo";
 import FinanceData from "./FinanceData";
 import StaffingSalaries from "./StaffingSalaries";
@@ -65,6 +66,15 @@ export default function SidePanel() {
             district={data.district}
             fullmindData={data.fullmindData}
           />
+
+          {/* Add to Plan Button */}
+          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
+            <AddToPlanButton
+              leaid={selectedLeaid}
+              existingPlanIds={data.territoryPlanIds}
+            />
+          </div>
+
           <DistrictInfo district={data.district} />
 
           {/* Group 2: Student Body */}

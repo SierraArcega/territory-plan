@@ -147,6 +147,7 @@ export interface DistrictDetail {
   edits: DistrictEdits | null;
   tags: Tag[];
   contacts: Contact[];
+  territoryPlanIds: string[];
   educationData: DistrictEducationData | null;
   enrollmentDemographics: DistrictEnrollmentDemographics | null;
 }
@@ -189,6 +190,35 @@ export interface Quantiles {
   min: number;
   max: number;
   count: number;
+}
+
+// Territory Plan types
+export interface TerritoryPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  owner: string | null;
+  color: string;
+  status: "draft" | "active" | "archived";
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  districtCount: number;
+}
+
+export interface TerritoryPlanDistrict {
+  leaid: string;
+  addedAt: string;
+  name: string;
+  stateAbbrev: string | null;
+  enrollment: number | null;
+  isCustomer: boolean;
+  hasOpenPipeline: boolean;
+}
+
+export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"> {
+  districts: TerritoryPlanDistrict[];
 }
 
 // API Functions
@@ -412,5 +442,124 @@ export function useStates() {
     queryKey: ["states"],
     queryFn: () =>
       fetchJson<{ abbrev: string; name: string }[]>(`${API_BASE}/states`),
+  });
+}
+
+// Territory Plans
+export function useTerritoryPlans() {
+  return useQuery({
+    queryKey: ["territoryPlans"],
+    queryFn: () => fetchJson<TerritoryPlan[]>(`${API_BASE}/territory-plans`),
+  });
+}
+
+export function useTerritoryPlan(planId: string | null) {
+  return useQuery({
+    queryKey: ["territoryPlan", planId],
+    queryFn: () =>
+      fetchJson<TerritoryPlanDetail>(`${API_BASE}/territory-plans/${planId}`),
+    enabled: !!planId,
+  });
+}
+
+export function useCreateTerritoryPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (plan: {
+      name: string;
+      description?: string;
+      owner?: string;
+      color?: string;
+      status?: "draft" | "active" | "archived";
+      startDate?: string;
+      endDate?: string;
+    }) =>
+      fetchJson<TerritoryPlan>(`${API_BASE}/territory-plans`, {
+        method: "POST",
+        body: JSON.stringify(plan),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+    },
+  });
+}
+
+export function useUpdateTerritoryPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...data
+    }: {
+      id: string;
+      name?: string;
+      description?: string;
+      owner?: string;
+      color?: string;
+      status?: "draft" | "active" | "archived";
+      startDate?: string;
+      endDate?: string;
+    }) =>
+      fetchJson<TerritoryPlan>(`${API_BASE}/territory-plans/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.id] });
+    },
+  });
+}
+
+export function useDeleteTerritoryPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchJson<{ success: boolean }>(`${API_BASE}/territory-plans/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+    },
+  });
+}
+
+export function useAddDistrictsToPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, leaids }: { planId: string; leaids: string | string[] }) =>
+      fetchJson<{ added: number; planId: string }>(
+        `${API_BASE}/territory-plans/${planId}/districts`,
+        {
+          method: "POST",
+          body: JSON.stringify({ leaids }),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+    },
+  });
+}
+
+export function useRemoveDistrictFromPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, leaid }: { planId: string; leaid: string }) =>
+      fetchJson<{ success: boolean }>(
+        `${API_BASE}/territory-plans/${planId}/districts/${leaid}`,
+        {
+          method: "DELETE",
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+    },
   });
 }
