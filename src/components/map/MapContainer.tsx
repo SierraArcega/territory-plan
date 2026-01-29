@@ -174,6 +174,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     multiSelectMode,
     selectedLeaids,
     toggleDistrictSelection,
+    similarDistrictLeaids,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -391,6 +392,32 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         filter: ["in", ["get", "leaid"], ["literal", []]],
       });
 
+      // Similar districts fill layer (for Find Similar feature)
+      map.current.addLayer({
+        id: "district-similar-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "fill-color": "#F37167", // Coral
+          "fill-opacity": 0.5,
+        },
+        filter: ["in", ["get", "leaid"], ["literal", []]],
+      });
+
+      // Similar districts outline layer
+      map.current.addLayer({
+        id: "district-similar-outline",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "line-color": "#F37167", // Coral
+          "line-width": 3,
+        },
+        filter: ["in", ["get", "leaid"], ["literal", []]],
+      });
+
       setMapReady(true);
       setMapInstance(map.current);
     });
@@ -425,6 +452,23 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     map.current.setFilter("district-multiselect-fill", filter);
     map.current.setFilter("district-multiselect-outline", filter);
   }, [selectedLeaids]);
+
+  // Update similar districts filter (for Find Similar feature)
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+
+    const filter: maplibregl.FilterSpecification =
+      similarDistrictLeaids.length > 0
+        ? ["in", ["get", "leaid"], ["literal", similarDistrictLeaids]]
+        : ["in", ["get", "leaid"], ["literal", [""]]];
+
+    if (map.current.getLayer("district-similar-fill")) {
+      map.current.setFilter("district-similar-fill", filter);
+    }
+    if (map.current.getLayer("district-similar-outline")) {
+      map.current.setFilter("district-similar-outline", filter);
+    }
+  }, [similarDistrictLeaids]);
 
   // Update tile source when selected state changes - only load districts for focused state
   useEffect(() => {
