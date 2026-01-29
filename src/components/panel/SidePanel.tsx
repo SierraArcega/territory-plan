@@ -10,8 +10,7 @@ import StaffingSalaries from "./StaffingSalaries";
 import DemographicsChart from "./DemographicsChart";
 import AcademicMetrics from "./AcademicMetrics";
 import StudentPopulations from "./StudentPopulations";
-import MetricsChart from "./MetricsChart";
-import PipelineSummary from "./PipelineSummary";
+import FullmindMetrics from "./FullmindMetrics";
 import NotesEditor from "./NotesEditor";
 import TagsEditor from "./TagsEditor";
 import ContactsList from "./ContactsList";
@@ -101,12 +100,7 @@ export default function SidePanel() {
           {/* Group 4: Sales/CRM */}
           {data.fullmindData && (
             <div className="px-6 py-4 border-b border-gray-100">
-              <MetricsChart fullmindData={data.fullmindData} />
-            </div>
-          )}
-          {data.fullmindData && (
-            <div className="px-6 py-4 border-b border-gray-100">
-              <PipelineSummary fullmindData={data.fullmindData} />
+              <FullmindMetrics fullmindData={data.fullmindData} />
             </div>
           )}
           <div className="px-6 py-4 border-b border-gray-100">
