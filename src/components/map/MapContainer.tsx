@@ -258,15 +258,32 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         },
       });
 
-      // Fill layer - simple solid color
+      // Fill layer - Deep Coral for districts with revenue, gray for others
+      // Note: MVT encodes booleans as 1/0, so we check explicitly
       map.current.addLayer({
         id: "district-fill",
         type: "fill",
         source: "districts",
         "source-layer": "districts",
         paint: {
-          "fill-color": "#E5E7EB",
-          "fill-opacity": 0.4,
+          "fill-color": [
+            "case",
+            ["any",
+              ["==", ["get", "has_revenue"], true],
+              ["==", ["get", "has_revenue"], 1],
+            ],
+            "#F37167", // Deep Coral - Fullmind brand color for districts with revenue
+            "#E5E7EB", // Gray for districts without revenue
+          ],
+          "fill-opacity": [
+            "case",
+            ["any",
+              ["==", ["get", "has_revenue"], true],
+              ["==", ["get", "has_revenue"], 1],
+            ],
+            0.7, // More visible for revenue districts
+            0.5, // Visible for non-revenue districts
+          ],
         },
       });
 
@@ -478,6 +495,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         const leaid = feature.properties?.leaid;
         const name = feature.properties?.name;
         const stateAbbrev = feature.properties?.state_abbrev;
+        const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
 
         // Update cursor
         map.current.getCanvas().style.cursor = "pointer";
@@ -492,13 +510,19 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         // Update store
         setHoveredLeaid(leaid);
 
-        // Show simplified popup - just name and state
+        // Build revenue badge if applicable
+        const revenueBadge = hasRevenue
+          ? '<div style="margin-top: 6px;"><span style="display: inline-block; padding: 2px 8px; font-size: 11px; border-radius: 4px; color: white; background-color: #F37167;">Fullmind Customer</span></div>'
+          : "";
+
+        // Show popup with name, state, and revenue status
         popup.current
           .setLngLat(e.lngLat)
           .setHTML(
             `<div style="font-size: 14px;">
               <div style="font-weight: 700; color: #403770;">${name}</div>
               <div style="color: #6B7280;">${stateAbbrev}</div>
+              ${revenueBadge}
             </div>`
           )
           .addTo(map.current);
