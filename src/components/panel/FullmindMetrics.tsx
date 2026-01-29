@@ -158,19 +158,6 @@ export default function FullmindMetrics({ fullmindData }: FullmindMetricsProps) 
         <FiscalYearSection year="FY26" metrics={fyData.fy26} maxValue={maxValue} />
         <FiscalYearSection year="FY27" metrics={fyData.fy27} maxValue={maxValue} />
       </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-4 text-xs">
-        {METRICS.map((metric) => (
-          <div key={metric.key} className="flex items-center gap-1">
-            <div
-              className="w-2 h-2 rounded"
-              style={{ backgroundColor: metric.color }}
-            />
-            <span className="text-gray-500">{metric.label}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
