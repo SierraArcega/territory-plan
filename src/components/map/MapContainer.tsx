@@ -80,6 +80,14 @@ const STATE_BOUNDS: Record<string, { center: [number, number]; zoom: number }> =
   MP: { center: [145.7, 15.2], zoom: 8 },
 };
 
+// Category labels for dot tooltips
+const DOT_CATEGORY_LABELS: Record<string, string> = {
+  multi_year: "Multi-year customer",
+  new: "New this year",
+  lapsed: "Lapsed customer",
+  prospect: "Prospect",
+};
+
 // State name to abbreviation mapping
 const STATE_NAME_TO_ABBREV: Record<string, string> = {
   "Alabama": "AL",
@@ -908,13 +916,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       const stateAbbrev = feature.properties?.stateAbbrev;
       const category = feature.properties?.category;
 
-      const categoryLabels: Record<string, string> = {
-        multi_year: "Multi-year customer",
-        new: "New this year",
-        lapsed: "Lapsed customer",
-        prospect: "Prospect",
-      };
-
       map.current.getCanvas().style.cursor = "pointer";
 
       map.current.setFilter("customer-dots-hover", [
@@ -926,7 +927,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
         type: "district",
         leaid,
-        name: `${name} - ${categoryLabels[category] || category}`,
+        name: `${name} - ${DOT_CATEGORY_LABELS[category] || category}`,
         stateAbbrev,
       });
     },
@@ -1010,10 +1011,24 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current.on("sourcedata", handleSourceData);
     }
 
-    // Add customer dot event listeners
+    // Add customer dot event listeners (wait for layer if needed)
+    const addDotListeners = () => {
+      if (map.current?.getLayer("customer-dots")) {
+        map.current.on("mousemove", "customer-dots", handleDotHover);
+        map.current.on("mouseleave", "customer-dots", handleDotMouseLeave);
+      }
+    };
+
     if (map.current.getLayer("customer-dots")) {
-      map.current.on("mousemove", "customer-dots", handleDotHover);
-      map.current.on("mouseleave", "customer-dots", handleDotMouseLeave);
+      addDotListeners();
+    } else {
+      const handleDotSourceData = (e: maplibregl.MapSourceDataEvent) => {
+        if (e.sourceId === "customer-dots" && map.current?.getLayer("customer-dots")) {
+          addDotListeners();
+          map.current?.off("sourcedata", handleDotSourceData);
+        }
+      };
+      map.current.on("sourcedata", handleDotSourceData);
     }
 
     return () => {
