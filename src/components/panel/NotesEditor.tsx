@@ -129,7 +129,7 @@ export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
 
           {/* Last updated */}
           {edits?.updatedAt && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-400 mt-2" suppressHydrationWarning>
               Last updated:{" "}
               {new Date(edits.updatedAt).toLocaleDateString("en-US", {
                 month: "short",

@@ -357,7 +357,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         "source-layer": "districts",
         paint: {
           "line-color": "#403770", // Plum
-          "line-width": 4,
+          "line-width": 1.5,
         },
         filter: ["==", ["get", "leaid"], ""],
       });
