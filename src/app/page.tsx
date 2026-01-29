@@ -21,9 +21,9 @@ const MapContainer = dynamic(() => import("@/components/map/MapContainer"), {
 
 export default function Home() {
   return (
-    <div className="h-screen flex flex-col bg-[#FFFCFA]">
+    <div className="fixed inset-0 flex flex-col bg-[#FFFCFA] overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <header className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold text-[#403770]">
             Territory Plan Builder
@@ -56,7 +56,7 @@ export default function Home() {
       <FilterBar />
 
       {/* Map Area */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden min-h-0">
         {/* Map */}
         <MapContainer className="absolute inset-0" />
 
@@ -68,7 +68,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 px-6 py-2 text-xs text-gray-500 flex justify-between items-center">
+      <footer className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-2 text-xs text-gray-500 flex justify-between items-center">
         <div>
           Data sources: NCES EDGE Boundaries, Urban Institute Education Data
         </div>

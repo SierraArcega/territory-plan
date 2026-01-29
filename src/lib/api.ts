@@ -614,7 +614,7 @@ export function useSimilarDistricts(params: {
 }
 
 // Customer dots for national view
-export type DotCategory = "multi_year" | "new" | "lapsed" | "prospect";
+export type DotCategory = "multi_year" | "new" | "lapsed" | "pipeline" | "target";
 
 export interface CustomerDotFeature {
   type: "Feature";

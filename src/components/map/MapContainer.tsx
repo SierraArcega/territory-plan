@@ -85,7 +85,8 @@ const DOT_CATEGORY_LABELS: Record<string, string> = {
   multi_year: "Multi-year customer",
   new: "New this year",
   lapsed: "Lapsed customer",
-  prospect: "Prospect",
+  pipeline: "In pipeline",
+  target: "Target",
 };
 
 // State name to abbreviation mapping
@@ -450,24 +451,25 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             ["get", "category"],
             "multi_year", "#403770",
             "new", "#22C55E",
-            "lapsed", "#403770",
-            "prospect", "#F59E0B",
+            "lapsed", "#EF4444",
+            "pipeline", "#F59E0B",
+            "target", "#6EA3BE",
             "#403770",
           ],
           "circle-radius": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            3, ["match", ["get", "category"], "multi_year", 4, "new", 3, "lapsed", 3, "prospect", 2.5, 3],
-            6, ["match", ["get", "category"], "multi_year", 8, "new", 6, "lapsed", 6, "prospect", 5, 6],
+            3, ["match", ["get", "category"], "multi_year", 5, "new", 4, "lapsed", 4, "pipeline", 3.5, "target", 3, 4],
+            6, ["match", ["get", "category"], "multi_year", 10, "new", 8, "lapsed", 8, "pipeline", 7, "target", 6, 8],
           ],
           "circle-opacity": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            3, ["match", ["get", "category"], "lapsed", 0.4, 1],
-            5, ["match", ["get", "category"], "lapsed", 0.4, 1],
-            7, ["match", ["get", "category"], "lapsed", 0.15, 0.3],
+            3, 1,
+            5, 1,
+            7, 0.3,
           ],
           "circle-stroke-width": 1,
           "circle-stroke-color": "#ffffff",
@@ -493,11 +495,12 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             ["get", "category"],
             "multi_year", "#403770",
             "new", "#22C55E",
-            "lapsed", "#403770",
-            "prospect", "#F59E0B",
+            "lapsed", "#EF4444",
+            "pipeline", "#F59E0B",
+            "target", "#6EA3BE",
             "#403770",
           ],
-          "circle-radius": 12,
+          "circle-radius": 14,
           "circle-opacity": 1,
           "circle-stroke-width": 2,
           "circle-stroke-color": "#ffffff",
@@ -1086,8 +1089,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
       <div
         ref={containerRef}
-        className={`relative w-full h-full ${className}`}
-        style={{ minHeight: "400px" }}
+        className={`overflow-hidden ${className}`}
       >
         {/* Map container with focus ring for accessibility */}
         <div

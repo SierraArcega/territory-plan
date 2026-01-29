@@ -10,10 +10,11 @@ interface LegendItem {
 }
 
 const LEGEND_ITEMS: LegendItem[] = [
-  { category: "multi_year", color: "#403770", size: 8, label: "Multi-year customer" },
-  { category: "new", color: "#22C55E", size: 6, label: "New this year" },
-  { category: "lapsed", color: "#403770", size: 6, opacity: 0.4, label: "Lapsed customer" },
-  { category: "prospect", color: "#F59E0B", size: 5, label: "Prospect" },
+  { category: "multi_year", color: "#403770", size: 10, label: "Multi-year customer" },
+  { category: "new", color: "#22C55E", size: 8, label: "New this year" },
+  { category: "lapsed", color: "#EF4444", size: 8, label: "Lapsed customer" },
+  { category: "pipeline", color: "#F59E0B", size: 7, label: "In pipeline" },
+  { category: "target", color: "#6EA3BE", size: 6, label: "Target" },
 ];
 
 interface CustomerDotsLegendProps {

@@ -32,7 +32,7 @@ export default function FilterBar() {
     filters.searchQuery;
 
   return (
-    <div className="bg-white border-b border-gray-200 px-4 py-3">
+    <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <div className="flex-1 min-w-[200px] max-w-md">
