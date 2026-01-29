@@ -10,6 +10,19 @@ export interface District {
   enrollment: number | null;
   lograde: string | null;
   higrade: string | null;
+  // Contact info
+  phone: string | null;
+  streetLocation: string | null;
+  cityLocation: string | null;
+  stateLocation: string | null;
+  zipLocation: string | null;
+  // Geographic context
+  countyName: string | null;
+  urbanCentricLocale: number | null;
+  // Additional characteristics
+  numberOfSchools: number | null;
+  specEdStudents: number | null;
+  ellStudents: number | null;
 }
 
 export interface FullmindData {

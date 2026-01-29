@@ -43,6 +43,19 @@ export async function GET(
         enrollment: district.enrollment,
         lograde: district.lograde,
         higrade: district.higrade,
+        // Contact info
+        phone: district.phone,
+        streetLocation: district.streetLocation,
+        cityLocation: district.cityLocation,
+        stateLocation: district.stateLocation,
+        zipLocation: district.zipLocation,
+        // Geographic context
+        countyName: district.countyName,
+        urbanCentricLocale: district.urbanCentricLocale,
+        // Additional characteristics
+        numberOfSchools: district.numberOfSchools,
+        specEdStudents: district.specEdStudents,
+        ellStudents: district.ellStudents,
       },
       fullmindData: district.fullmindData
         ? {

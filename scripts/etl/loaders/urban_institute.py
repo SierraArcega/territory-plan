@@ -52,7 +52,7 @@ def fetch_enrollment_data(
         }
 
         try:
-            response = requests.get(url, params=params, timeout=60)
+            response = requests.get(url, params=params, timeout=120)
             response.raise_for_status()
             data = response.json()
         except requests.RequestException as e:
@@ -120,7 +120,7 @@ def fetch_district_directory(
         }
 
         try:
-            response = requests.get(url, params=params, timeout=60)
+            response = requests.get(url, params=params, timeout=120)
             response.raise_for_status()
             data = response.json()
         except requests.RequestException as e:
@@ -140,6 +140,18 @@ def fetch_district_directory(
                     "lea_name": record.get("lea_name"),
                     "state_fips": str(record.get("fips", "")).zfill(2),
                     "urban_centric_locale": record.get("urban_centric_locale"),
+                    # Contact info
+                    "phone": record.get("phone"),
+                    "street_location": record.get("street_location"),
+                    "city_location": record.get("city_location"),
+                    "state_location": record.get("state_location"),
+                    "zip_location": record.get("zip_location"),
+                    # Geographic context
+                    "county_name": record.get("county_name"),
+                    # Additional characteristics
+                    "number_of_schools": record.get("number_of_schools"),
+                    "spec_ed_students": record.get("spec_ed_students"),
+                    "ell_students": record.get("english_language_learners"),
                 })
 
         print(f"Page {page}: {len(results)} records, total: {len(all_records)}")
@@ -180,16 +192,44 @@ def update_district_enrollment(
 
     update_sql = """
         UPDATE districts
-        SET enrollment = data.enrollment,
-            urban_institute_year = data.year,
+        SET enrollment = data.enrollment::integer,
+            urban_institute_year = data.year::integer,
+            phone = data.phone,
+            street_location = data.street_location,
+            city_location = data.city_location,
+            state_location = data.state_location,
+            zip_location = data.zip_location,
+            county_name = data.county_name,
+            urban_centric_locale = data.urban_centric_locale::integer,
+            number_of_schools = data.number_of_schools::integer,
+            spec_ed_students = data.spec_ed_students::integer,
+            ell_students = data.ell_students::integer,
             updated_at = NOW()
-        FROM (VALUES %s) AS data(leaid, enrollment, year)
+        FROM (VALUES %s) AS data(
+            leaid, enrollment, year, phone, street_location, city_location,
+            state_location, zip_location, county_name, urban_centric_locale,
+            number_of_schools, spec_ed_students, ell_students
+        )
         WHERE districts.leaid = data.leaid
     """
 
     # Prepare values
     values = [
-        (r["leaid"], r["enrollment"], year)
+        (
+            r["leaid"],
+            r["enrollment"],
+            year,
+            r.get("phone"),
+            r.get("street_location"),
+            r.get("city_location"),
+            r.get("state_location"),
+            r.get("zip_location"),
+            r.get("county_name"),
+            r.get("urban_centric_locale"),
+            r.get("number_of_schools"),
+            r.get("spec_ed_students"),
+            r.get("ell_students"),
+        )
         for r in records
         if r["enrollment"] is not None
     ]
@@ -200,7 +240,7 @@ def update_district_enrollment(
 
     for i in tqdm(range(0, len(values), batch_size), desc="Updating"):
         batch = values[i:i+batch_size]
-        execute_values(cur, update_sql, batch, template="(%s, %s, %s)")
+        execute_values(cur, update_sql, batch, template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
         updated_count += cur.rowcount
 
     conn.commit()

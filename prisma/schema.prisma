@@ -21,6 +21,23 @@ model District {
   higrade           String?  @db.VarChar(2)
   enrollment        Int?
   urbanInstituteYear Int?    @map("urban_institute_year")
+
+  // Contact info
+  phone             String?  @db.VarChar(20)
+  streetLocation    String?  @map("street_location") @db.VarChar(255)
+  cityLocation      String?  @map("city_location") @db.VarChar(100)
+  stateLocation     String?  @map("state_location") @db.VarChar(2)
+  zipLocation       String?  @map("zip_location") @db.VarChar(10)
+
+  // Geographic context
+  countyName        String?  @map("county_name") @db.VarChar(100)
+  urbanCentricLocale Int?    @map("urban_centric_locale")
+
+  // Additional characteristics
+  numberOfSchools   Int?     @map("number_of_schools")
+  specEdStudents    Int?     @map("spec_ed_students")
+  ellStudents       Int?     @map("ell_students")
+
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

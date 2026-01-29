@@ -3,6 +3,7 @@
 import { useMapStore } from "@/lib/store";
 import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
+import DistrictInfo from "./DistrictInfo";
 import MetricsChart from "./MetricsChart";
 import PipelineSummary from "./PipelineSummary";
 import NotesEditor from "./NotesEditor";
@@ -59,6 +60,9 @@ export default function SidePanel() {
             district={data.district}
             fullmindData={data.fullmindData}
           />
+
+          {/* District Info */}
+          <DistrictInfo district={data.district} />
 
           {/* Metrics Chart */}
           {data.fullmindData && (
