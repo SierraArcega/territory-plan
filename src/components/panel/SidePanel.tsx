@@ -8,6 +8,7 @@ import FinanceData from "./FinanceData";
 import StaffingSalaries from "./StaffingSalaries";
 import DemographicsChart from "./DemographicsChart";
 import AcademicMetrics from "./AcademicMetrics";
+import StudentPopulations from "./StudentPopulations";
 import MetricsChart from "./MetricsChart";
 import PipelineSummary from "./PipelineSummary";
 import NotesEditor from "./NotesEditor";
@@ -59,60 +60,50 @@ export default function SidePanel() {
         </div>
       ) : data ? (
         <div className="flex-1 overflow-y-auto">
-          {/* Header */}
+          {/* Group 1: Identity */}
           <DistrictHeader
             district={data.district}
             fullmindData={data.fullmindData}
           />
-
-          {/* District Info */}
           <DistrictInfo district={data.district} />
 
-          {/* Finance & Economic Data */}
-          {data.educationData && (
-            <FinanceData educationData={data.educationData} />
-          )}
-
-          {/* Staffing & Salaries */}
-          {data.educationData && (
-            <StaffingSalaries educationData={data.educationData} />
-          )}
-
-          {/* Student Demographics */}
+          {/* Group 2: Student Body */}
           {data.enrollmentDemographics && (
             <DemographicsChart demographics={data.enrollmentDemographics} />
           )}
-
-          {/* Academic Outcomes (Graduation Rates) */}
+          <StudentPopulations
+            district={data.district}
+            educationData={data.educationData}
+          />
           {data.educationData && (
             <AcademicMetrics educationData={data.educationData} />
           )}
 
-          {/* Metrics Chart */}
+          {/* Group 3: Financial */}
+          {data.educationData && (
+            <FinanceData educationData={data.educationData} />
+          )}
+          {data.educationData && (
+            <StaffingSalaries educationData={data.educationData} />
+          )}
+
+          {/* Group 4: Sales/CRM */}
           {data.fullmindData && (
             <div className="px-6 py-4 border-b border-gray-100">
               <MetricsChart fullmindData={data.fullmindData} />
             </div>
           )}
-
-          {/* Pipeline Summary */}
           {data.fullmindData && (
             <div className="px-6 py-4 border-b border-gray-100">
               <PipelineSummary fullmindData={data.fullmindData} />
             </div>
           )}
-
-          {/* Tags */}
           <div className="px-6 py-4 border-b border-gray-100">
             <TagsEditor leaid={selectedLeaid} tags={data.tags} />
           </div>
-
-          {/* Notes */}
           <div className="px-6 py-4 border-b border-gray-100">
             <NotesEditor leaid={selectedLeaid} edits={data.edits} />
           </div>
-
-          {/* Contacts */}
           <div className="px-6 py-4">
             <ContactsList leaid={selectedLeaid} contacts={data.contacts} />
           </div>

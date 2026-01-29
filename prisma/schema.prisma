@@ -212,6 +212,11 @@ model DistrictEducationData {
   staffTotalFte              Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
   staffDataYear              Int?     @map("staff_data_year")
 
+  // Chronic absenteeism (aggregated from CRDC school-level data)
+  chronicAbsenteeismCount    Int?     @map("chronic_absenteeism_count")
+  chronicAbsenteeismRate     Decimal? @map("chronic_absenteeism_rate") @db.Decimal(5, 2)
+  absenteeismDataYear        Int?     @map("absenteeism_data_year")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

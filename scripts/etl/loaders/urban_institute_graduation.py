@@ -20,20 +20,23 @@ API_BASE_URL = "https://educationdata.urban.org/api/v1"
 
 
 def fetch_graduation_data(
-    year: int = 2022,
+    year: int = 2019,
     page_size: int = 10000,
     delay: float = 0.5,
 ) -> Dict[str, Dict]:
     """
     Fetch district graduation rate data from Urban Institute EdFacts API.
 
+    The API disaggregates by race, disability, econ_disadvantaged, etc.
+    We want records where all disaggregation fields = 99 (total).
+
     Args:
-        year: Academic year
+        year: Academic year (max available is 2019)
         page_size: Results per page (max 10000)
         delay: Delay between requests in seconds
 
     Returns:
-        Dict mapping leaid to graduation rates by sex
+        Dict mapping leaid to graduation rates
     """
     all_records: Dict[str, Dict] = {}
     page = 1
@@ -61,21 +64,25 @@ def fetch_graduation_data(
 
         for record in results:
             leaid = record.get("leaid")
-            sex = record.get("sex")  # 1=Male, 2=Female, 99=Total
             grad_rate = record.get("grad_rate_midpt")
 
-            if leaid and sex is not None and grad_rate is not None:
+            # Check if this is a "total" record (all disaggregation fields = 99)
+            is_total = (
+                record.get("race") == 99 and
+                record.get("disability") == 99 and
+                record.get("econ_disadvantaged") == 99 and
+                record.get("homeless") == 99 and
+                record.get("foster_care") == 99 and
+                record.get("lep") == 99
+            )
+
+            if leaid and grad_rate is not None and is_total:
                 leaid_str = str(leaid).zfill(7)
-
-                if leaid_str not in all_records:
-                    all_records[leaid_str] = {"leaid": leaid_str, "year": year}
-
-                if sex == 99:  # Total
-                    all_records[leaid_str]["total"] = grad_rate
-                elif sex == 1:  # Male
-                    all_records[leaid_str]["male"] = grad_rate
-                elif sex == 2:  # Female
-                    all_records[leaid_str]["female"] = grad_rate
+                all_records[leaid_str] = {
+                    "leaid": leaid_str,
+                    "year": year,
+                    "total": grad_rate,
+                }
 
         print(f"Page {page}: {len(results)} records, {len(all_records)} unique districts")
 
@@ -117,12 +124,10 @@ def upsert_graduation_data(
     # First, insert records that don't exist yet
     insert_sql = """
         INSERT INTO district_education_data (
-            leaid, graduation_rate_total, graduation_rate_male, graduation_rate_female,
-            graduation_data_year, created_at, updated_at
+            leaid, graduation_rate_total, graduation_data_year, created_at, updated_at
         )
-        SELECT v.leaid, v.rate_total::numeric, v.rate_male::numeric, v.rate_female::numeric,
-               v.year::integer, NOW(), NOW()
-        FROM (VALUES %s) AS v(leaid, rate_total, rate_male, rate_female, year)
+        SELECT v.leaid, v.rate_total::numeric, v.year::integer, NOW(), NOW()
+        FROM (VALUES %s) AS v(leaid, rate_total, year)
         WHERE v.leaid IN (SELECT leaid FROM districts)
         AND v.leaid NOT IN (SELECT leaid FROM district_education_data)
     """
@@ -131,11 +136,9 @@ def upsert_graduation_data(
     update_sql = """
         UPDATE district_education_data
         SET graduation_rate_total = v.rate_total::numeric,
-            graduation_rate_male = v.rate_male::numeric,
-            graduation_rate_female = v.rate_female::numeric,
             graduation_data_year = v.year::integer,
             updated_at = NOW()
-        FROM (VALUES %s) AS v(leaid, rate_total, rate_male, rate_female, year)
+        FROM (VALUES %s) AS v(leaid, rate_total, year)
         WHERE district_education_data.leaid = v.leaid
     """
 
@@ -144,8 +147,6 @@ def upsert_graduation_data(
         (
             r["leaid"],
             r.get("total"),
-            r.get("male"),
-            r.get("female"),
             year,
         )
         for r in records.values()
@@ -161,11 +162,11 @@ def upsert_graduation_data(
         batch = values[i:i+batch_size]
         try:
             # First insert new records
-            execute_values(cur, insert_sql, batch, template="(%s, %s, %s, %s, %s)")
+            execute_values(cur, insert_sql, batch, template="(%s, %s, %s)")
             inserted = cur.rowcount
 
             # Then update existing records
-            execute_values(cur, update_sql, batch, template="(%s, %s, %s, %s, %s)")
+            execute_values(cur, update_sql, batch, template="(%s, %s, %s)")
             updated = cur.rowcount
 
             updated_count += inserted + updated

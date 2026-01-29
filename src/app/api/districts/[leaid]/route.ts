@@ -72,6 +72,10 @@ export async function GET(
           supportStaffFte: row.support_staff_fte ? Number(row.support_staff_fte) : null,
           staffTotalFte: row.staff_total_fte ? Number(row.staff_total_fte) : null,
           staffDataYear: row.staff_data_year as number | null,
+          // Chronic absenteeism
+          chronicAbsenteeismCount: row.chronic_absenteeism_count as number | null,
+          chronicAbsenteeismRate: row.chronic_absenteeism_rate ? Number(row.chronic_absenteeism_rate) : null,
+          absenteeismDataYear: row.absenteeism_data_year as number | null,
         };
       }
 

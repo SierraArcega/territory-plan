@@ -122,6 +122,10 @@ export interface DistrictEducationData {
   supportStaffFte: number | null;
   staffTotalFte: number | null;
   staffDataYear: number | null;
+  // Chronic absenteeism (aggregated from school-level CRDC)
+  chronicAbsenteeismCount: number | null;
+  chronicAbsenteeismRate: number | null;
+  absenteeismDataYear: number | null;
 }
 
 export interface DistrictEnrollmentDemographics {

@@ -1,11 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { DistrictEducationData } from "@/lib/api";
 
 interface FinanceDataProps {
   educationData: DistrictEducationData;
 }
+
+// Brand-compatible colors for revenue sources
+const REVENUE_COLORS = {
+  federal: { hex: "#6EA3BE", label: "Federal" },
+  state: { hex: "#48bb78", label: "State" },
+  local: { hex: "#F37167", label: "Local" },
+};
 
 function formatCurrency(value: number | null): string {
   if (value === null || value === undefined) return "N/A";
@@ -27,6 +35,44 @@ function formatPercent(value: number | null): string {
   return `${value.toFixed(1)}%`;
 }
 
+interface RevenueDataItem {
+  key: string;
+  value: number;
+  pct: number;
+  hex: string;
+  label: string;
+}
+
+interface TooltipPayloadItem {
+  payload: RevenueDataItem;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+
+  const data = payload[0].payload;
+
+  return (
+    <div className="bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2 text-sm">
+      <div className="flex items-center gap-2">
+        <div
+          className="w-3 h-3 rounded-sm"
+          style={{ backgroundColor: data.hex }}
+        />
+        <span className="font-medium text-gray-700">{data.label}</span>
+      </div>
+      <div className="mt-1 text-gray-600">
+        {formatCurrency(data.value)} ({data.pct.toFixed(1)}%)
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceData({ educationData }: FinanceDataProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -43,11 +89,32 @@ export default function FinanceData({ educationData }: FinanceDataProps) {
     return null;
   }
 
-  // Calculate revenue percentages
+  // Calculate revenue percentages and build chart data
   const totalRevenue = educationData.totalRevenue || 0;
-  const federalPct = totalRevenue > 0 ? ((educationData.federalRevenue || 0) / totalRevenue) * 100 : 0;
-  const statePct = totalRevenue > 0 ? ((educationData.stateRevenue || 0) / totalRevenue) * 100 : 0;
-  const localPct = totalRevenue > 0 ? ((educationData.localRevenue || 0) / totalRevenue) * 100 : 0;
+  const federalRevenue = educationData.federalRevenue || 0;
+  const stateRevenue = educationData.stateRevenue || 0;
+  const localRevenue = educationData.localRevenue || 0;
+
+  const revenueData: RevenueDataItem[] = [
+    {
+      key: "federal",
+      value: federalRevenue,
+      pct: totalRevenue > 0 ? (federalRevenue / totalRevenue) * 100 : 0,
+      ...REVENUE_COLORS.federal
+    },
+    {
+      key: "state",
+      value: stateRevenue,
+      pct: totalRevenue > 0 ? (stateRevenue / totalRevenue) * 100 : 0,
+      ...REVENUE_COLORS.state
+    },
+    {
+      key: "local",
+      value: localRevenue,
+      pct: totalRevenue > 0 ? (localRevenue / totalRevenue) * 100 : 0,
+      ...REVENUE_COLORS.local
+    },
+  ].filter((d) => d.value > 0);
 
   return (
     <div className="px-6 py-4 border-b border-gray-100">
@@ -92,47 +159,52 @@ export default function FinanceData({ educationData }: FinanceDataProps) {
             </div>
           )}
 
-          {/* Revenue Breakdown Bar */}
-          {totalRevenue > 0 && (
+          {/* Revenue Sources Pie Chart */}
+          {totalRevenue > 0 && revenueData.length > 0 && (
             <div>
               <p className="text-gray-500 mb-2">Revenue Sources</p>
-              <div className="h-4 rounded-full overflow-hidden flex">
-                {federalPct > 0 && (
-                  <div
-                    className="bg-blue-500 h-full"
-                    style={{ width: `${federalPct}%` }}
-                    title={`Federal: ${federalPct.toFixed(1)}%`}
-                  />
-                )}
-                {statePct > 0 && (
-                  <div
-                    className="bg-green-500 h-full"
-                    style={{ width: `${statePct}%` }}
-                    title={`State: ${statePct.toFixed(1)}%`}
-                  />
-                )}
-                {localPct > 0 && (
-                  <div
-                    className="bg-amber-500 h-full"
-                    style={{ width: `${localPct}%` }}
-                    title={`Local: ${localPct.toFixed(1)}%`}
-                  />
-                )}
+
+              {/* Donut Chart */}
+              <div className="h-36">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={revenueData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={60}
+                      paddingAngle={2}
+                      dataKey="value"
+                      nameKey="label"
+                    >
+                      {revenueData.map((entry) => (
+                        <Cell key={entry.key} fill={entry.hex} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-              <div className="flex justify-between mt-2 text-xs">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-gray-600">Federal {federalPct.toFixed(0)}%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-gray-600">State {statePct.toFixed(0)}%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-gray-600">Local {localPct.toFixed(0)}%</span>
-                </div>
+
+              {/* Legend with dollar amounts */}
+              <div className="space-y-1 mt-2">
+                {revenueData.map((item) => (
+                  <div key={item.key} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.hex }}
+                      />
+                      <span className="text-gray-600 text-xs">{item.label}</span>
+                    </div>
+                    <span className="text-gray-500 text-xs">
+                      {formatCurrency(item.value)} ({item.pct.toFixed(0)}%)
+                    </span>
+                  </div>
+                ))}
               </div>
+
               <p className="text-gray-400 text-xs mt-2">
                 Total Revenue: {formatCurrency(totalRevenue)}
               </p>
