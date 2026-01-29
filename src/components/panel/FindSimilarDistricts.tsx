@@ -108,6 +108,8 @@ export default function FindSimilarDistricts({
   const [tolerance, setTolerance] = useState<SimilarityTolerance>("medium");
   const [hasSearched, setHasSearched] = useState(false);
   const [showPlanSelector, setShowPlanSelector] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { setSelectedLeaid, setSimilarDistrictLeaids, clearSimilarDistricts } = useMapStore();
@@ -126,12 +128,26 @@ export default function FindSimilarDistricts({
     enabled: hasSearched && selectedMetrics.length > 0,
   });
 
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      // Position dropdown below and to the left of button, extending outside panel
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: Math.max(16, rect.left - 100), // Shift left but keep on screen
+      });
+    }
+  }, [isOpen]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
         dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
+        !dropdownRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
       ) {
         // Don't close if clicking plan selector
         if (showPlanSelector) return;
@@ -210,9 +226,10 @@ export default function FindSimilarDistricts({
   const results = similarData?.results || [];
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       {/* Button */}
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#403770] bg-white border border-[#403770] rounded-lg hover:bg-gray-50 transition-colors"
       >
@@ -245,9 +262,13 @@ export default function FindSimilarDistricts({
         </svg>
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown - Fixed position to extend outside panel */}
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+        <div
+          ref={dropdownRef}
+          className="fixed w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-[100] overflow-hidden"
+          style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+        >
           <div className="p-4 space-y-4">
             {/* Metric Chips */}
             <div>

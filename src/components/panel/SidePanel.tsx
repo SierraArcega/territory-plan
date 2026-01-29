@@ -25,7 +25,7 @@ export default function SidePanel() {
   }
 
   return (
-    <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-20 flex flex-col overflow-hidden">
+    <div className="fixed top-0 right-0 h-full w-[420px] bg-white shadow-xl z-20 flex flex-col overflow-hidden">
       {/* Close button */}
       <button
         onClick={() => setSidePanelOpen(false)}
