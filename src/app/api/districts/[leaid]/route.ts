@@ -26,6 +26,57 @@ export async function GET(
       },
     });
 
+    // Fetch education data separately (tables may not exist yet)
+    let educationData = null;
+    let enrollmentDemographics = null;
+    try {
+      const eduResult = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+        SELECT * FROM district_education_data WHERE leaid = ${leaid} LIMIT 1
+      `;
+      if (eduResult.length > 0) {
+        const row = eduResult[0];
+        educationData = {
+          leaid: row.leaid as string,
+          totalRevenue: row.total_revenue ? Number(row.total_revenue) : null,
+          federalRevenue: row.federal_revenue ? Number(row.federal_revenue) : null,
+          stateRevenue: row.state_revenue ? Number(row.state_revenue) : null,
+          localRevenue: row.local_revenue ? Number(row.local_revenue) : null,
+          totalExpenditure: row.total_expenditure ? Number(row.total_expenditure) : null,
+          expenditurePerPupil: row.expenditure_per_pupil ? Number(row.expenditure_per_pupil) : null,
+          financeDataYear: row.finance_data_year as number | null,
+          childrenPovertyCount: row.children_poverty_count as number | null,
+          childrenPovertyPercent: row.children_poverty_percent ? Number(row.children_poverty_percent) : null,
+          medianHouseholdIncome: row.median_household_income ? Number(row.median_household_income) : null,
+          saipeDataYear: row.saipe_data_year as number | null,
+          graduationRateTotal: row.graduation_rate_total ? Number(row.graduation_rate_total) : null,
+          graduationRateMale: row.graduation_rate_male ? Number(row.graduation_rate_male) : null,
+          graduationRateFemale: row.graduation_rate_female ? Number(row.graduation_rate_female) : null,
+          graduationDataYear: row.graduation_data_year as number | null,
+        };
+      }
+
+      const demoResult = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+        SELECT * FROM district_enrollment_demographics WHERE leaid = ${leaid} LIMIT 1
+      `;
+      if (demoResult.length > 0) {
+        const row = demoResult[0];
+        enrollmentDemographics = {
+          leaid: row.leaid as string,
+          enrollmentWhite: row.enrollment_white as number | null,
+          enrollmentBlack: row.enrollment_black as number | null,
+          enrollmentHispanic: row.enrollment_hispanic as number | null,
+          enrollmentAsian: row.enrollment_asian as number | null,
+          enrollmentAmericanIndian: row.enrollment_american_indian as number | null,
+          enrollmentPacificIslander: row.enrollment_pacific_islander as number | null,
+          enrollmentTwoOrMore: row.enrollment_two_or_more as number | null,
+          totalEnrollment: row.total_enrollment as number | null,
+          demographicsDataYear: row.demographics_data_year as number | null,
+        };
+      }
+    } catch {
+      // Tables don't exist yet - that's okay, just return null
+    }
+
     if (!district) {
       return NextResponse.json(
         { error: "District not found" },
@@ -114,6 +165,8 @@ export async function GET(
         phone: c.phone,
         isPrimary: c.isPrimary,
       })),
+      educationData,
+      enrollmentDemographics,
     };
 
     return NextResponse.json(response);

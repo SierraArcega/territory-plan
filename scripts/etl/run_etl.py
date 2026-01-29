@@ -24,6 +24,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from loaders.nces_edge import download_nces_edge, find_shapefile, load_nces_edge_to_postgis
 from loaders.urban_institute import fetch_district_directory, update_district_enrollment
+from loaders.urban_institute_finance import fetch_finance_data, upsert_finance_data
+from loaders.urban_institute_poverty import fetch_poverty_data, upsert_poverty_data
+from loaders.urban_institute_demographics import fetch_demographics_data, upsert_demographics_data
+from loaders.urban_institute_graduation import fetch_graduation_data, upsert_graduation_data
 from loaders.fullmind import (
     load_fullmind_csv,
     get_valid_leaids,
@@ -116,6 +120,102 @@ def run_enrollment_etl(
     count = update_district_enrollment(connection_string, records, year=year)
     print(f"\nUpdated {count} districts with enrollment data")
     return count
+
+
+def run_finance_etl(
+    connection_string: str,
+    year: int = 2022,
+) -> dict:
+    """
+    Run Urban Institute finance data ETL.
+
+    Returns dict with update counts.
+    """
+    print("\n" + "="*60)
+    print("Fetching Urban Institute Finance Data")
+    print("="*60)
+
+    records = fetch_finance_data(year=year)
+
+    if not records:
+        print("Warning: No finance records fetched")
+        return {"updated": 0, "failed": 0}
+
+    result = upsert_finance_data(connection_string, records, year=year)
+    print(f"\nFinance data: {result}")
+    return result
+
+
+def run_poverty_etl(
+    connection_string: str,
+    year: int = 2022,
+) -> dict:
+    """
+    Run Urban Institute SAIPE poverty data ETL.
+
+    Returns dict with update counts.
+    """
+    print("\n" + "="*60)
+    print("Fetching Urban Institute SAIPE Poverty Data")
+    print("="*60)
+
+    records = fetch_poverty_data(year=year)
+
+    if not records:
+        print("Warning: No poverty records fetched")
+        return {"updated": 0, "failed": 0}
+
+    result = upsert_poverty_data(connection_string, records, year=year)
+    print(f"\nPoverty data: {result}")
+    return result
+
+
+def run_demographics_etl(
+    connection_string: str,
+    year: int = 2022,
+) -> dict:
+    """
+    Run Urban Institute demographics (enrollment by race) ETL.
+
+    Returns dict with update counts.
+    """
+    print("\n" + "="*60)
+    print("Fetching Urban Institute Demographics Data")
+    print("="*60)
+
+    records = fetch_demographics_data(year=year)
+
+    if not records:
+        print("Warning: No demographics records fetched")
+        return {"updated": 0, "failed": 0}
+
+    result = upsert_demographics_data(connection_string, records, year=year)
+    print(f"\nDemographics data: {result}")
+    return result
+
+
+def run_graduation_etl(
+    connection_string: str,
+    year: int = 2022,
+) -> dict:
+    """
+    Run Urban Institute graduation rates ETL.
+
+    Returns dict with update counts.
+    """
+    print("\n" + "="*60)
+    print("Fetching Urban Institute Graduation Rates Data")
+    print("="*60)
+
+    records = fetch_graduation_data(year=year)
+
+    if not records:
+        print("Warning: No graduation records fetched")
+        return {"updated": 0, "failed": 0}
+
+    result = upsert_graduation_data(connection_string, records, year=year)
+    print(f"\nGraduation data: {result}")
+    return result
 
 
 def run_fullmind_etl(
@@ -217,6 +317,25 @@ def print_database_stats(connection_string: str):
     for row in cur.fetchall():
         print(f"  {row[0]}: {row[1]:,}")
 
+    # Education data stats
+    cur.execute("""
+        SELECT
+            COUNT(*) FILTER (WHERE expenditure_per_pupil IS NOT NULL) as finance,
+            COUNT(*) FILTER (WHERE children_poverty_percent IS NOT NULL) as poverty,
+            COUNT(*) FILTER (WHERE graduation_rate_total IS NOT NULL) as graduation
+        FROM district_education_data
+    """)
+    row = cur.fetchone()
+    if row:
+        print("\nEducation data coverage:")
+        print(f"  Finance data: {row[0]:,}")
+        print(f"  Poverty data: {row[1]:,}")
+        print(f"  Graduation data: {row[2]:,}")
+
+    cur.execute("SELECT COUNT(*) FROM district_enrollment_demographics WHERE total_enrollment IS NOT NULL")
+    demographics = cur.fetchone()[0]
+    print(f"  Demographics data: {demographics:,}")
+
     cur.close()
     conn.close()
 
@@ -241,6 +360,12 @@ Examples:
 
     # Skip Urban Institute (faster, uses existing enrollment data)
     python run_etl.py --boundaries --fullmind /path/to/fullmind.csv
+
+    # Run education data ETL (finance + poverty)
+    python run_etl.py --finance --poverty --year 2022
+
+    # Run all education data ETL
+    python run_etl.py --education-data --year 2022
         """
     )
 
@@ -250,6 +375,16 @@ Examples:
                         help="Run NCES EDGE boundaries ETL")
     parser.add_argument("--enrollment", action="store_true",
                         help="Run Urban Institute enrollment ETL")
+    parser.add_argument("--finance", action="store_true",
+                        help="Run Urban Institute finance data ETL")
+    parser.add_argument("--poverty", action="store_true",
+                        help="Run Urban Institute SAIPE poverty data ETL")
+    parser.add_argument("--demographics", action="store_true",
+                        help="Run Urban Institute demographics (enrollment by race) ETL")
+    parser.add_argument("--graduation", action="store_true",
+                        help="Run Urban Institute graduation rates ETL")
+    parser.add_argument("--education-data", action="store_true",
+                        help="Run all education data ETL (finance, poverty, demographics, graduation)")
     parser.add_argument("--fullmind", type=str,
                         help="Run Fullmind CSV ETL with specified file")
     parser.add_argument("--shapefile", type=str,
@@ -260,6 +395,8 @@ Examples:
                         help="Directory for reports")
     parser.add_argument("--enrollment-year", type=int, default=2023,
                         help="Year for enrollment data")
+    parser.add_argument("--year", type=int, default=2022,
+                        help="Year for education data (finance, poverty, demographics, graduation)")
     parser.add_argument("--stats-only", action="store_true",
                         help="Only print database statistics")
 
@@ -285,7 +422,12 @@ Examples:
         sys.exit(0)
 
     # Check if any ETL step specified
-    if not (args.all or args.boundaries or args.enrollment or args.fullmind):
+    any_step = (
+        args.all or args.boundaries or args.enrollment or args.fullmind or
+        args.finance or args.poverty or args.demographics or args.graduation or
+        args.education_data
+    )
+    if not any_step:
         print("No ETL steps specified. Use --all or specify individual steps.")
         print("Use --help for usage information.")
         sys.exit(1)
@@ -304,6 +446,19 @@ Examples:
             connection_string,
             year=args.enrollment_year
         )
+
+    # Education data ETL steps
+    if args.all or args.education_data or args.finance:
+        run_finance_etl(connection_string, year=args.year)
+
+    if args.all or args.education_data or args.poverty:
+        run_poverty_etl(connection_string, year=args.year)
+
+    if args.all or args.education_data or args.demographics:
+        run_demographics_etl(connection_string, year=args.year)
+
+    if args.all or args.education_data or args.graduation:
+        run_graduation_etl(connection_string, year=args.year)
 
     if args.all and not args.fullmind:
         print("\nWarning: --all specified but no --fullmind CSV path provided")

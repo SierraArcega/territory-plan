@@ -41,10 +41,12 @@ model District {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  fullmindData FullmindData?
-  edits        DistrictEdits?
-  districtTags DistrictTag[]
-  contacts     Contact[]
+  fullmindData           FullmindData?
+  edits                  DistrictEdits?
+  districtTags           DistrictTag[]
+  contacts               Contact[]
+  educationData          DistrictEducationData?
+  enrollmentDemographics DistrictEnrollmentDemographics?
 
   @@index([stateFips])
   @@map("districts")
@@ -162,4 +164,73 @@ model UnmatchedAccount {
 
   @@index([stateAbbrev])
   @@map("unmatched_accounts")
+}
+
+model DistrictEducationData {
+  leaid String @id @db.VarChar(7)
+
+  // Finance data (from CCD Finance endpoint)
+  totalRevenue       Decimal? @map("total_revenue") @db.Decimal(15, 2)
+  federalRevenue     Decimal? @map("federal_revenue") @db.Decimal(15, 2)
+  stateRevenue       Decimal? @map("state_revenue") @db.Decimal(15, 2)
+  localRevenue       Decimal? @map("local_revenue") @db.Decimal(15, 2)
+  totalExpenditure   Decimal? @map("total_expenditure") @db.Decimal(15, 2)
+  expenditurePerPupil Decimal? @map("expenditure_per_pupil") @db.Decimal(12, 2)
+  financeDataYear    Int?     @map("finance_data_year")
+
+  // SAIPE poverty data
+  childrenPovertyCount   Int?     @map("children_poverty_count")
+  childrenPovertyPercent Decimal? @map("children_poverty_percent") @db.Decimal(5, 2)
+  medianHouseholdIncome  Decimal? @map("median_household_income") @db.Decimal(12, 2)
+  saipeDataYear          Int?     @map("saipe_data_year")
+
+  // Graduation rates (from EdFacts)
+  graduationRateTotal  Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
+  graduationRateMale   Decimal? @map("graduation_rate_male") @db.Decimal(5, 2)
+  graduationRateFemale Decimal? @map("graduation_rate_female") @db.Decimal(5, 2)
+  graduationDataYear   Int?     @map("graduation_data_year")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@map("district_education_data")
+}
+
+model DistrictEnrollmentDemographics {
+  leaid String @id @db.VarChar(7)
+
+  // Enrollment by race/ethnicity
+  enrollmentWhite          Int? @map("enrollment_white")
+  enrollmentBlack          Int? @map("enrollment_black")
+  enrollmentHispanic       Int? @map("enrollment_hispanic")
+  enrollmentAsian          Int? @map("enrollment_asian")
+  enrollmentAmericanIndian Int? @map("enrollment_american_indian")
+  enrollmentPacificIslander Int? @map("enrollment_pacific_islander")
+  enrollmentTwoOrMore      Int? @map("enrollment_two_or_more")
+  totalEnrollment          Int? @map("total_enrollment")
+  demographicsDataYear     Int? @map("demographics_data_year")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@map("district_enrollment_demographics")
+}
+
+model DataRefreshLog {
+  id              Int      @id @default(autoincrement())
+  dataSource      String   @map("data_source") @db.VarChar(50)
+  dataYear        Int?     @map("data_year")
+  recordsUpdated  Int      @map("records_updated")
+  recordsFailed   Int      @default(0) @map("records_failed")
+  status          String   @db.VarChar(20) // 'success', 'partial', 'failed'
+  errorMessage    String?  @map("error_message") @db.Text
+  startedAt       DateTime @map("started_at")
+  completedAt     DateTime @default(now()) @map("completed_at")
+
+  @@index([dataSource, completedAt])
+  @@map("data_refresh_logs")
 }

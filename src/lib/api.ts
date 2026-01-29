@@ -82,12 +82,49 @@ export interface Contact {
   isPrimary: boolean;
 }
 
+export interface DistrictEducationData {
+  leaid: string;
+  // Finance data
+  totalRevenue: number | null;
+  federalRevenue: number | null;
+  stateRevenue: number | null;
+  localRevenue: number | null;
+  totalExpenditure: number | null;
+  expenditurePerPupil: number | null;
+  financeDataYear: number | null;
+  // Poverty data
+  childrenPovertyCount: number | null;
+  childrenPovertyPercent: number | null;
+  medianHouseholdIncome: number | null;
+  saipeDataYear: number | null;
+  // Graduation data
+  graduationRateTotal: number | null;
+  graduationRateMale: number | null;
+  graduationRateFemale: number | null;
+  graduationDataYear: number | null;
+}
+
+export interface DistrictEnrollmentDemographics {
+  leaid: string;
+  enrollmentWhite: number | null;
+  enrollmentBlack: number | null;
+  enrollmentHispanic: number | null;
+  enrollmentAsian: number | null;
+  enrollmentAmericanIndian: number | null;
+  enrollmentPacificIslander: number | null;
+  enrollmentTwoOrMore: number | null;
+  totalEnrollment: number | null;
+  demographicsDataYear: number | null;
+}
+
 export interface DistrictDetail {
   district: District;
   fullmindData: FullmindData | null;
   edits: DistrictEdits | null;
   tags: Tag[];
   contacts: Contact[];
+  educationData: DistrictEducationData | null;
+  enrollmentDemographics: DistrictEnrollmentDemographics | null;
 }
 
 export interface DistrictListItem {

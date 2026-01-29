@@ -4,6 +4,9 @@ import { useMapStore } from "@/lib/store";
 import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
 import DistrictInfo from "./DistrictInfo";
+import FinanceData from "./FinanceData";
+import DemographicsChart from "./DemographicsChart";
+import AcademicMetrics from "./AcademicMetrics";
 import MetricsChart from "./MetricsChart";
 import PipelineSummary from "./PipelineSummary";
 import NotesEditor from "./NotesEditor";
@@ -63,6 +66,21 @@ export default function SidePanel() {
 
           {/* District Info */}
           <DistrictInfo district={data.district} />
+
+          {/* Finance & Economic Data */}
+          {data.educationData && (
+            <FinanceData educationData={data.educationData} />
+          )}
+
+          {/* Student Demographics */}
+          {data.enrollmentDemographics && (
+            <DemographicsChart demographics={data.enrollmentDemographics} />
+          )}
+
+          {/* Academic Outcomes (Graduation Rates) */}
+          {data.educationData && (
+            <AcademicMetrics educationData={data.educationData} />
+          )}
 
           {/* Metrics Chart */}
           {data.fullmindData && (

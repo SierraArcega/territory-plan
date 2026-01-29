@@ -1,0 +1,326 @@
+"""
+Urban Institute Finance Data API Loader
+
+Fetches school district finance data from the Urban Institute's Education Data Portal API.
+Includes revenue sources (federal/state/local) and per-pupil expenditure.
+
+API Docs: https://educationdata.urban.org/documentation/
+Endpoint: /school-districts/ccd/finance/{year}/
+"""
+
+import os
+import time
+from typing import Dict, List, Optional
+import requests
+from tqdm import tqdm
+
+
+# Urban Institute Education Data API base URL
+API_BASE_URL = "https://educationdata.urban.org/api/v1"
+
+
+def fetch_finance_data(
+    year: int = 2022,
+    page_size: int = 10000,
+    delay: float = 0.5,
+) -> List[Dict]:
+    """
+    Fetch district finance data from Urban Institute API.
+
+    Args:
+        year: Fiscal year (e.g., 2022 for FY2022 data)
+        page_size: Results per page (max 10000)
+        delay: Delay between requests in seconds
+
+    Returns:
+        List of finance records with leaid and financial metrics
+    """
+    all_records = []
+    page = 1
+
+    print(f"Fetching finance data for year {year}...")
+
+    while True:
+        url = f"{API_BASE_URL}/school-districts/ccd/finance/{year}/"
+        params = {
+            "page": page,
+            "per_page": page_size,
+        }
+
+        try:
+            response = requests.get(url, params=params, timeout=120)
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException as e:
+            print(f"Error fetching page {page}: {e}")
+            break
+
+        results = data.get("results", [])
+        if not results:
+            break
+
+        for record in results:
+            leaid = record.get("leaid")
+            if leaid:
+                all_records.append({
+                    "leaid": str(leaid).zfill(7),
+                    # Revenue sources
+                    "total_revenue": record.get("rev_total"),
+                    "federal_revenue": record.get("rev_fed_total"),
+                    "state_revenue": record.get("rev_state_total"),
+                    "local_revenue": record.get("rev_local_total"),
+                    # Expenditure
+                    "total_expenditure": record.get("exp_total"),
+                    "expenditure_per_pupil": record.get("exp_current_instruction_total_ppcstot"),
+                    "year": year,
+                })
+
+        print(f"Page {page}: {len(results)} records, total: {len(all_records)}")
+
+        next_url = data.get("next")
+        if not next_url:
+            break
+
+        page += 1
+        time.sleep(delay)
+
+    print(f"Total finance records fetched: {len(all_records)}")
+    return all_records
+
+
+def upsert_finance_data(
+    connection_string: str,
+    records: List[Dict],
+    year: int,
+    batch_size: int = 1000,
+) -> dict:
+    """
+    Upsert finance data into district_education_data table.
+
+    Args:
+        connection_string: PostgreSQL connection string
+        records: List of finance records
+        year: Year the data is from
+        batch_size: Records per batch update
+
+    Returns:
+        Dict with counts of updated and failed records
+    """
+    import psycopg2
+    from psycopg2.extras import execute_values
+
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    # Filter records with valid data (Urban Institute uses -1, -2 for missing/not applicable)
+    def is_valid(val):
+        return val is not None and val >= 0
+
+    valid_records = [
+        {
+            **r,
+            # Replace negative values with None
+            "total_revenue": r.get("total_revenue") if is_valid(r.get("total_revenue")) else None,
+            "federal_revenue": r.get("federal_revenue") if is_valid(r.get("federal_revenue")) else None,
+            "state_revenue": r.get("state_revenue") if is_valid(r.get("state_revenue")) else None,
+            "local_revenue": r.get("local_revenue") if is_valid(r.get("local_revenue")) else None,
+            "total_expenditure": r.get("total_expenditure") if is_valid(r.get("total_expenditure")) else None,
+            "expenditure_per_pupil": r.get("expenditure_per_pupil") if is_valid(r.get("expenditure_per_pupil")) else None,
+        }
+        for r in records
+        if is_valid(r.get("total_revenue")) or is_valid(r.get("expenditure_per_pupil"))
+    ]
+
+    upsert_sql = """
+        INSERT INTO district_education_data (
+            leaid, total_revenue, federal_revenue, state_revenue, local_revenue,
+            total_expenditure, expenditure_per_pupil, finance_data_year,
+            created_at, updated_at
+        )
+        SELECT v.leaid::varchar(7),
+               v.total_revenue::numeric,
+               v.federal_revenue::numeric,
+               v.state_revenue::numeric,
+               v.local_revenue::numeric,
+               v.total_expenditure::numeric,
+               v.expenditure_per_pupil::numeric,
+               v.finance_data_year::integer,
+               NOW(), NOW()
+        FROM (VALUES %s) AS v(
+            leaid, total_revenue, federal_revenue, state_revenue, local_revenue,
+            total_expenditure, expenditure_per_pupil, finance_data_year
+        )
+        WHERE v.leaid IN (SELECT leaid FROM districts)
+        ON CONFLICT (leaid) DO UPDATE SET
+            total_revenue = EXCLUDED.total_revenue,
+            federal_revenue = EXCLUDED.federal_revenue,
+            state_revenue = EXCLUDED.state_revenue,
+            local_revenue = EXCLUDED.local_revenue,
+            total_expenditure = EXCLUDED.total_expenditure,
+            expenditure_per_pupil = EXCLUDED.expenditure_per_pupil,
+            finance_data_year = EXCLUDED.finance_data_year,
+            updated_at = NOW()
+    """
+
+    # Prepare values - only include records that have matching districts
+    values = [
+        (
+            r["leaid"],
+            r.get("total_revenue"),
+            r.get("federal_revenue"),
+            r.get("state_revenue"),
+            r.get("local_revenue"),
+            r.get("total_expenditure"),
+            r.get("expenditure_per_pupil"),
+            year,
+        )
+        for r in valid_records
+    ]
+
+    updated_count = 0
+    failed_count = 0
+
+    print(f"Upserting {len(values)} finance records...")
+
+    for i in tqdm(range(0, len(values), batch_size), desc="Upserting finance data"):
+        batch = values[i:i+batch_size]
+        try:
+            execute_values(
+                cur, upsert_sql, batch,
+                template="(%s, %s, %s, %s, %s, %s, %s, %s)"
+            )
+            updated_count += cur.rowcount
+        except Exception as e:
+            print(f"Error in batch {i//batch_size}: {e}")
+            failed_count += len(batch)
+            conn.rollback()
+            continue
+
+    conn.commit()
+
+    # Get count of records with finance data
+    cur.execute("""
+        SELECT COUNT(*) FROM district_education_data
+        WHERE expenditure_per_pupil IS NOT NULL
+    """)
+    total_with_finance = cur.fetchone()[0]
+
+    cur.close()
+    conn.close()
+
+    print(f"Districts with finance data: {total_with_finance}")
+
+    return {
+        "updated": updated_count,
+        "failed": failed_count,
+        "total_with_data": total_with_finance,
+    }
+
+
+def log_refresh(
+    connection_string: str,
+    data_source: str,
+    data_year: int,
+    records_updated: int,
+    records_failed: int,
+    status: str,
+    error_message: Optional[str] = None,
+    started_at: Optional[str] = None,
+):
+    """Log the data refresh to the data_refresh_logs table."""
+    import psycopg2
+
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO data_refresh_logs (
+            data_source, data_year, records_updated, records_failed,
+            status, error_message, started_at, completed_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+    """, (
+        data_source,
+        data_year,
+        records_updated,
+        records_failed,
+        status,
+        error_message,
+        started_at or "NOW()",
+    ))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def main():
+    """CLI entry point."""
+    import argparse
+    from datetime import datetime
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Fetch Urban Institute finance data")
+    parser.add_argument("--year", type=int, default=2022, help="Fiscal year")
+    parser.add_argument("--delay", type=float, default=0.5, help="Delay between API calls")
+
+    args = parser.parse_args()
+
+    connection_string = os.environ.get("DATABASE_URL")
+    if not connection_string:
+        raise ValueError("DATABASE_URL environment variable not set")
+
+    started_at = datetime.now().isoformat()
+
+    try:
+        records = fetch_finance_data(year=args.year, delay=args.delay)
+
+        if records:
+            result = upsert_finance_data(
+                connection_string,
+                records,
+                year=args.year
+            )
+            print(f"Finance data import complete: {result}")
+
+            log_refresh(
+                connection_string,
+                data_source="urban_institute_finance",
+                data_year=args.year,
+                records_updated=result["updated"],
+                records_failed=result["failed"],
+                status="success" if result["failed"] == 0 else "partial",
+                started_at=started_at,
+            )
+        else:
+            print("No records fetched")
+            log_refresh(
+                connection_string,
+                data_source="urban_institute_finance",
+                data_year=args.year,
+                records_updated=0,
+                records_failed=0,
+                status="failed",
+                error_message="No records fetched from API",
+                started_at=started_at,
+            )
+
+    except Exception as e:
+        print(f"Error: {e}")
+        log_refresh(
+            connection_string,
+            data_source="urban_institute_finance",
+            data_year=args.year,
+            records_updated=0,
+            records_failed=0,
+            status="failed",
+            error_message=str(e),
+            started_at=started_at,
+        )
+        raise
+
+
+if __name__ == "__main__":
+    main()
