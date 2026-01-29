@@ -191,6 +191,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     selectedLeaids,
     toggleDistrictSelection,
     similarDistrictLeaids,
+    showCustomerDots,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -220,10 +221,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         ],
       },
       center: [-98, 39], // Center of US
-      zoom: 4,
-      minZoom: 3,
+      zoom: 3.5,
+      minZoom: 2,
       maxZoom: 14,
-      maxBounds: US_BOUNDS,
     });
 
     // Add navigation controls
@@ -243,7 +243,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current.addSource("districts", {
         type: "vector",
         tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?state=_none_`],
-        minzoom: 3,
+        minzoom: 3.5,
         maxzoom: 12,
       });
 
@@ -543,6 +543,20 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     }
   }, [customerDotsData, mapReady]);
 
+  // Toggle customer dots layer visibility
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+
+    const visibility = showCustomerDots ? "visible" : "none";
+
+    if (map.current.getLayer("customer-dots")) {
+      map.current.setLayoutProperty("customer-dots", "visibility", visibility);
+    }
+    if (map.current.getLayer("customer-dots-hover")) {
+      map.current.setLayoutProperty("customer-dots-hover", "visibility", visibility);
+    }
+  }, [showCustomerDots, mapReady]);
+
   // Update selected district filter
   useEffect(() => {
     if (!map.current?.isStyleLoaded()) return;
@@ -730,7 +744,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         if (zoom > 5 && selectedState) {
           map.current.flyTo({
             center: [-98, 39],
-            zoom: 4,
+            zoom: 3.5,
             duration: 1000,
             essential: true,
           });
@@ -956,7 +970,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         } else if (selectedState && map.current) {
           map.current.flyTo({
             center: [-98, 39],
-            zoom: 4,
+            zoom: 3.5,
             duration: 1000,
             essential: true,
           });
@@ -1051,7 +1065,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
     map.current.flyTo({
       center: [-98, 39],
-      zoom: 4,
+      zoom: 3.5,
       duration: 1000,
       essential: true,
     });
@@ -1143,7 +1157,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         )}
 
         {/* Customer dots legend */}
-        {mapReady && (
+        {mapReady && showCustomerDots && (
           <CustomerDotsLegend
             className="absolute bottom-4 left-4 z-10"
             fadeOnZoom={currentZoom > 7}
