@@ -5,6 +5,9 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapStore } from "@/lib/store";
 
+// Throttle interval for hover handlers (ms) - 20fps is smooth enough for hover effects
+const HOVER_THROTTLE_MS = 50;
+
 // US bounds
 const US_BOUNDS: maplibregl.LngLatBoundsLike = [
   [-125, 24], // Southwest
@@ -141,6 +144,11 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   const popup = useRef<maplibregl.Popup | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+
+  // Refs for hover optimization - change detection and throttling
+  const lastHoveredLeaidRef = useRef<string | null>(null);
+  const lastHoveredStateRef = useRef<string | null>(null);
+  const lastHoverTimeRef = useRef(0);
 
   const {
     selectedLeaid,
@@ -418,158 +426,193 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     [setSelectedLeaid, setStateFilter, selectedState]
   );
 
-  // Handle hover events
-  const handleMouseMove = useCallback(
-    (e: maplibregl.MapMouseEvent) => {
+  // Handle state hover events (layer-specific, with throttling and change detection)
+  const handleStateHover = useCallback(
+    (e: maplibregl.MapLayerMouseEvent) => {
       if (!map.current || !popup.current) return;
 
+      // Throttle: skip if called too recently
+      const now = Date.now();
+      if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
+      lastHoverTimeRef.current = now;
+
+      // Only handle state hover at low zoom
       const zoom = map.current.getZoom();
+      if (zoom >= 6) return;
 
-      // At low zoom, handle state hover
-      if (zoom < 6 && map.current.getLayer("state-fill")) {
-        const stateFeatures = map.current.queryRenderedFeatures(e.point, {
-          layers: ["state-fill"],
-        });
+      const feature = e.features?.[0];
+      if (!feature) return;
 
-        if (stateFeatures.length > 0) {
-          const feature = stateFeatures[0];
-          const stateName = feature.properties?.name;
-          const stateCode = stateName ? STATE_NAME_TO_ABBREV[stateName] : null;
+      const stateName = feature.properties?.name as string | undefined;
+      const stateCode = stateName ? STATE_NAME_TO_ABBREV[stateName] : null;
 
-          // Update cursor
-          map.current.getCanvas().style.cursor = "pointer";
-
-          // Update state hover highlight
-          map.current.setFilter("state-hover", [
-            "==",
-            ["get", "name"],
-            stateName || "",
-          ]);
-
-          // Clear district hover
-          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
-          setHoveredLeaid(null);
-
-          // Show state popup
-          popup.current
-            .setLngLat(e.lngLat)
-            .setHTML(
-              `<div style="font-size: 14px;">
-                <div style="font-weight: 700; color: #403770;">${stateName || stateCode}</div>
-                <div style="color: #6B7280; font-size: 12px; margin-top: 4px;">Click to explore districts</div>
-              </div>`
-            )
-            .addTo(map.current);
-          return;
-        }
+      // Change detection: skip if same state
+      if (stateName === lastHoveredStateRef.current) {
+        // Still update popup position for smooth tracking
+        popup.current.setLngLat(e.lngLat);
+        return;
       }
+      lastHoveredStateRef.current = stateName || null;
 
-      // Clear state hover at higher zoom
-      if (map.current.getLayer("state-hover")) {
-        map.current.setFilter("state-hover", [
-          "==",
-          ["get", "name"],
-          "",
-        ]);
-      }
-
-      // Handle district hover
-      const features = map.current.queryRenderedFeatures(e.point, {
-        layers: ["district-fill"],
-      });
-
-      if (features.length > 0) {
-        const feature = features[0];
-        const leaid = feature.properties?.leaid;
-        const name = feature.properties?.name;
-        const stateAbbrev = feature.properties?.state_abbrev;
-        const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
-
-        // Update cursor
-        map.current.getCanvas().style.cursor = "pointer";
-
-        // Update hover filter
-        map.current.setFilter("district-hover", [
-          "==",
-          ["get", "leaid"],
-          leaid || "",
-        ]);
-
-        // Update store
-        setHoveredLeaid(leaid);
-
-        // Build revenue badge if applicable
-        const revenueBadge = hasRevenue
-          ? '<div style="margin-top: 6px;"><span style="display: inline-block; padding: 2px 8px; font-size: 11px; border-radius: 4px; color: white; background-color: #F37167;">Fullmind Customer</span></div>'
-          : "";
-
-        // Show popup with name, state, and revenue status
-        popup.current
-          .setLngLat(e.lngLat)
-          .setHTML(
-            `<div style="font-size: 14px;">
-              <div style="font-weight: 700; color: #403770;">${name}</div>
-              <div style="color: #6B7280;">${stateAbbrev}</div>
-              ${revenueBadge}
-            </div>`
-          )
-          .addTo(map.current);
-      } else {
-        map.current.getCanvas().style.cursor = "";
+      // Clear any district hover state
+      if (lastHoveredLeaidRef.current !== null) {
+        lastHoveredLeaidRef.current = null;
         map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
         setHoveredLeaid(null);
-        popup.current.remove();
       }
+
+      // Update cursor
+      map.current.getCanvas().style.cursor = "pointer";
+
+      // Update state hover highlight
+      map.current.setFilter("state-hover", [
+        "==",
+        ["get", "name"],
+        stateName || "",
+      ]);
+
+      // Show state popup
+      popup.current
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div style="font-size: 14px;">
+            <div style="font-weight: 700; color: #403770;">${stateName || stateCode}</div>
+            <div style="color: #6B7280; font-size: 12px; margin-top: 4px;">Click to explore districts</div>
+          </div>`
+        )
+        .addTo(map.current);
     },
     [setHoveredLeaid]
   );
 
-  // Attach event listeners
+  // Handle district hover events (layer-specific, with throttling and change detection)
+  const handleDistrictHover = useCallback(
+    (e: maplibregl.MapLayerMouseEvent) => {
+      if (!map.current || !popup.current) return;
+
+      // Throttle: skip if called too recently
+      const now = Date.now();
+      if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
+      lastHoverTimeRef.current = now;
+
+      const feature = e.features?.[0];
+      if (!feature) return;
+
+      const leaid = feature.properties?.leaid as string | undefined;
+
+      // Change detection: skip if same district
+      if (leaid === lastHoveredLeaidRef.current) {
+        // Still update popup position for smooth tracking
+        popup.current.setLngLat(e.lngLat);
+        return;
+      }
+      lastHoveredLeaidRef.current = leaid || null;
+
+      // Clear any state hover state
+      if (lastHoveredStateRef.current !== null) {
+        lastHoveredStateRef.current = null;
+        if (map.current.getLayer("state-hover")) {
+          map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
+        }
+      }
+
+      const name = feature.properties?.name;
+      const stateAbbrev = feature.properties?.state_abbrev;
+      const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
+
+      // Update cursor
+      map.current.getCanvas().style.cursor = "pointer";
+
+      // Update hover filter
+      map.current.setFilter("district-hover", [
+        "==",
+        ["get", "leaid"],
+        leaid || "",
+      ]);
+
+      // Update store
+      setHoveredLeaid(leaid || null);
+
+      // Build revenue badge if applicable
+      const revenueBadge = hasRevenue
+        ? '<div style="margin-top: 6px;"><span style="display: inline-block; padding: 2px 8px; font-size: 11px; border-radius: 4px; color: white; background-color: #F37167;">Fullmind Customer</span></div>'
+        : "";
+
+      // Show popup with name, state, and revenue status
+      popup.current
+        .setLngLat(e.lngLat)
+        .setHTML(
+          `<div style="font-size: 14px;">
+            <div style="font-weight: 700; color: #403770;">${name}</div>
+            <div style="color: #6B7280;">${stateAbbrev}</div>
+            ${revenueBadge}
+          </div>`
+        )
+        .addTo(map.current);
+    },
+    [setHoveredLeaid]
+  );
+
+  // Handle mouse leave for districts
+  const handleDistrictMouseLeave = useCallback(() => {
+    if (!map.current || !popup.current) return;
+    lastHoveredLeaidRef.current = null;
+    map.current.getCanvas().style.cursor = "";
+    map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+    setHoveredLeaid(null);
+    popup.current.remove();
+  }, [setHoveredLeaid]);
+
+  // Handle mouse leave for states
+  const handleStateMouseLeave = useCallback(() => {
+    if (!map.current || !popup.current) return;
+    lastHoveredStateRef.current = null;
+    if (map.current.getLayer("state-hover")) {
+      map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
+    }
+    popup.current.remove();
+  }, []);
+
+  // Attach event listeners using layer-specific events for better performance
   useEffect(() => {
     if (!map.current) return;
 
     map.current.on("click", handleClick);
-    map.current.on("mousemove", handleMouseMove);
-    map.current.on("mouseleave", "district-fill", () => {
-      if (!map.current || !popup.current) return;
-      map.current.getCanvas().style.cursor = "";
-      map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
-      setHoveredLeaid(null);
-      popup.current.remove();
-    });
-    // Only add state mouseleave listener once the layer exists
-    const addStateMouseLeave = () => {
+
+    // Use layer-specific mousemove events instead of map-level event
+    // These only fire when cursor is over the specific layer
+    map.current.on("mousemove", "district-fill", handleDistrictHover);
+    map.current.on("mouseleave", "district-fill", handleDistrictMouseLeave);
+
+    // Only add state event listeners once the layer exists
+    const addStateListeners = () => {
       if (map.current?.getLayer("state-fill")) {
-        map.current.on("mouseleave", "state-fill", () => {
-          if (!map.current || !popup.current) return;
-          if (map.current.getLayer("state-hover")) {
-            map.current.setFilter("state-hover", [
-              "==",
-              ["get", "name"],
-              "",
-            ]);
-          }
-          popup.current.remove();
-        });
+        map.current.on("mousemove", "state-fill", handleStateHover);
+        map.current.on("mouseleave", "state-fill", handleStateMouseLeave);
       }
     };
 
     // Check if layer already exists, otherwise wait for sourcedata event
     if (map.current.getLayer("state-fill")) {
-      addStateMouseLeave();
+      addStateListeners();
     } else {
-      map.current.on("sourcedata", (e) => {
+      const handleSourceData = (e: maplibregl.MapSourceDataEvent) => {
         if (e.sourceId === "states" && map.current?.getLayer("state-fill")) {
-          addStateMouseLeave();
+          addStateListeners();
+          map.current?.off("sourcedata", handleSourceData);
         }
-      });
+      };
+      map.current.on("sourcedata", handleSourceData);
     }
 
     return () => {
       map.current?.off("click", handleClick);
-      map.current?.off("mousemove", handleMouseMove);
+      map.current?.off("mousemove", "district-fill", handleDistrictHover);
+      map.current?.off("mouseleave", "district-fill", handleDistrictMouseLeave);
+      map.current?.off("mousemove", "state-fill", handleStateHover);
+      map.current?.off("mouseleave", "state-fill", handleStateMouseLeave);
     };
-  }, [handleClick, handleMouseMove, setHoveredLeaid]);
+  }, [handleClick, handleDistrictHover, handleDistrictMouseLeave, handleStateHover, handleStateMouseLeave]);
 
   // Handle zoom back to US view
   const handleBackToUS = useCallback(() => {
