@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { FullmindData } from "@/lib/api";
 
 interface FullmindMetricsProps {
@@ -99,6 +99,8 @@ function FiscalYearSection({
 }
 
 export default function FullmindMetrics({ fullmindData }: FullmindMetricsProps) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
   // Build data for each fiscal year
   const fyData = useMemo(() => {
     return {
@@ -139,25 +141,42 @@ export default function FullmindMetrics({ fullmindData }: FullmindMetricsProps) 
   }, [fyData]);
 
   if (!hasAnyData) {
-    return (
-      <div>
-        <h3 className="text-sm font-bold text-[#403770] mb-3">
-          Fullmind Data
-        </h3>
-        <p className="text-sm text-gray-500">No financial data available</p>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div>
-      <h3 className="text-sm font-bold text-[#403770] mb-3">Fullmind Data</h3>
+    <div className="px-6 py-4 border-b border-gray-100">
+      {/* Collapsible Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between text-left group"
+      >
+        <h3 className="text-sm font-semibold text-[#403770]">Fullmind Data</h3>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+            isExpanded ? "rotate-180" : ""
+          }`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
 
-      <div className="space-y-4">
-        <FiscalYearSection year="FY25" metrics={fyData.fy25} maxValue={maxValue} />
-        <FiscalYearSection year="FY26" metrics={fyData.fy26} maxValue={maxValue} />
-        <FiscalYearSection year="FY27" metrics={fyData.fy27} maxValue={maxValue} />
-      </div>
+      {/* Collapsible Content */}
+      {isExpanded && (
+        <div className="mt-3 space-y-4">
+          <FiscalYearSection year="FY25" metrics={fyData.fy25} maxValue={maxValue} />
+          <FiscalYearSection year="FY26" metrics={fyData.fy26} maxValue={maxValue} />
+          <FiscalYearSection year="FY27" metrics={fyData.fy27} maxValue={maxValue} />
+        </div>
+      )}
     </div>
   );
 }

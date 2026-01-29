@@ -67,6 +67,11 @@ export default function SidePanel() {
             tags={data.tags}
           />
 
+          {/* Fullmind Data - First section if exists */}
+          {data.fullmindData && (
+            <FullmindMetrics fullmindData={data.fullmindData} />
+          )}
+
           {/* Add to Plan Button */}
           <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
             <AddToPlanButton
@@ -98,11 +103,6 @@ export default function SidePanel() {
           )}
 
           {/* Group 4: Sales/CRM */}
-          {data.fullmindData && (
-            <div className="px-6 py-4 border-b border-gray-100">
-              <FullmindMetrics fullmindData={data.fullmindData} />
-            </div>
-          )}
           <div className="px-6 py-4 border-b border-gray-100">
             <TagsEditor leaid={selectedLeaid} tags={data.tags} />
           </div>
