@@ -158,26 +158,14 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       container: mapContainer.current,
       style: {
         version: 8,
-        sources: {
-          // OpenStreetMap tiles for basemap
-          osm: {
-            type: "raster",
-            tiles: [
-              "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-              "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ],
-            tileSize: 256,
-            attribution: "© OpenStreetMap contributors",
-          },
-        },
+        sources: {},
         layers: [
           {
-            id: "osm-tiles",
-            type: "raster",
-            source: "osm",
-            minzoom: 0,
-            maxzoom: 19,
+            id: "background",
+            type: "background",
+            paint: {
+              "background-color": "#FFFCFA", // Fullmind off-white
+            },
           },
         ],
       },
