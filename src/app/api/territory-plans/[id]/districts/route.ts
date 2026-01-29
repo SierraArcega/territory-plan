@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { syncAutoTagsForDistrict } from "@/lib/autoTags";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,11 @@ export async function POST(
       })),
       skipDuplicates: true,
     });
+
+    // Sync auto-tags for all added districts
+    await Promise.all(
+      districtLeaids.map((leaid) => syncAutoTagsForDistrict(leaid))
+    );
 
     return NextResponse.json(
       {
