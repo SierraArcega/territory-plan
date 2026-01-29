@@ -87,6 +87,103 @@ feat: Add user dashboard filtering
 
 ---
 
+## Cloud Deployment (Vercel + Supabase)
+
+### How Deployment Works
+
+The project uses a **continuous deployment** workflow:
+
+1. **Push to GitHub** → Vercel automatically detects the new commit
+2. **Vercel builds** → Runs `prisma generate && next build`
+3. **Vercel deploys** → New version goes live at `territory-plan.vercel.app`
+
+This means every `git push` triggers a new deployment. No manual deploy steps needed.
+
+### Commit → Deploy Flow
+
+```
+git add <files>
+git commit -m "Description of changes"
+git push origin <branch-name>
+```
+
+After pushing:
+- Check **Vercel Dashboard** → **Deployments** to see build progress
+- Build logs show any errors (TypeScript, missing dependencies, etc.)
+- Once green, the site is live
+
+### Environment Variables
+
+**Two places store environment variables:**
+
+| Location | Purpose | Variables |
+|----------|---------|-----------|
+| `.env` (local) | Local development | DATABASE_URL, DIRECT_URL, NEXT_PUBLIC_* |
+| Vercel Dashboard | Production deployment | Same variables, but with production values |
+
+**Important:** Changes to `.env` only affect local dev. Production uses Vercel's environment variables.
+
+To update production env vars:
+1. Vercel Dashboard → Project → Settings → Environment Variables
+2. Edit the value
+3. Redeploy for changes to take effect
+
+### Database Changes (Supabase)
+
+**Schema changes** (adding columns, tables):
+```bash
+# 1. Update prisma/schema.prisma
+# 2. Push to Supabase
+npx prisma db push
+```
+
+**Data loading** (ETL):
+```bash
+cd scripts/etl
+python3 run_etl.py --boundaries --shapefile ./data/nces_edge/EDGE_SCHOOLDISTRICT_TL24_SY2324.shp
+python3 run_etl.py --enrollment
+python3 run_etl.py --education-data --year 2022
+```
+
+**Direct SQL** (for things Prisma doesn't support like PostGIS):
+- Use Supabase Dashboard → SQL Editor
+- Or run via: `npx prisma db execute --stdin < file.sql`
+
+### Authentication (Supabase Auth)
+
+- Users log in via **Google OAuth**
+- Supabase handles sessions and tokens
+- Middleware (`src/middleware.ts`) protects routes
+- API routes use `getUser()` to get current user
+
+**To add team members:**
+1. Google Cloud Console → OAuth consent screen → Test users
+2. Add their email addresses
+3. They can now sign in with Google
+
+### Troubleshooting Deployments
+
+| Issue | Solution |
+|-------|----------|
+| Build fails with TypeScript error | Fix the error locally, commit, push again |
+| "Prisma Client not generated" | Already fixed - build script runs `prisma generate` |
+| Old code still deployed | Check Vercel is building the latest commit; try "Redeploy" with cache disabled |
+| Login redirect goes to localhost | Update Site URL in Supabase → Authentication → URL Configuration |
+| Google OAuth "redirect_uri_mismatch" | Add exact callback URL to Google Cloud Console credentials |
+
+### Quick Deploy Checklist
+
+Before pushing changes that will deploy:
+
+- [ ] Test locally with `npm run dev`
+- [ ] Check for TypeScript errors with `npm run build`
+- [ ] Commit with clear message
+- [ ] Push to GitHub
+- [ ] Watch Vercel build logs for errors
+- [ ] Test the deployed site
+
+---
+
 ## Testing Approach
 
 ### Test as We Go
