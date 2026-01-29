@@ -612,3 +612,33 @@ export function useSimilarDistricts(params: {
     enabled: params.enabled !== false && !!params.leaid && params.metrics.length > 0,
   });
 }
+
+// Customer dots for national view
+export type DotCategory = "multi_year" | "new" | "lapsed" | "prospect";
+
+export interface CustomerDotFeature {
+  type: "Feature";
+  geometry: {
+    type: "Point";
+    coordinates: [number, number];
+  };
+  properties: {
+    leaid: string;
+    name: string;
+    stateAbbrev: string;
+    category: DotCategory;
+  };
+}
+
+export interface CustomerDotsGeoJSON {
+  type: "FeatureCollection";
+  features: CustomerDotFeature[];
+}
+
+export function useCustomerDots() {
+  return useQuery({
+    queryKey: ["customerDots"],
+    queryFn: () => fetchJson<CustomerDotsGeoJSON>(`${API_BASE}/customer-dots`),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
