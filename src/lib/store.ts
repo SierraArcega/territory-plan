@@ -19,6 +19,39 @@ interface Filters {
   searchQuery: string;
 }
 
+// Tooltip types
+export interface TooltipData {
+  type: "state" | "district";
+  // State tooltip data
+  stateName?: string;
+  stateCode?: string;
+  districtCount?: number;
+  // District tooltip data
+  leaid?: string;
+  name?: string;
+  stateAbbrev?: string;
+  enrollment?: number;
+  hasRevenue?: boolean;
+  hasPipeline?: boolean;
+  salesExecutive?: string | null;
+}
+
+export interface TooltipState {
+  visible: boolean;
+  exiting: boolean;
+  x: number;
+  y: number;
+  data: TooltipData | null;
+}
+
+// Click ripple types
+export interface ClickRipple {
+  id: number;
+  x: number;
+  y: number;
+  color: "coral" | "plum";
+}
+
 interface MapState {
   selectedLeaid: string | null;
   hoveredLeaid: string | null;
@@ -26,6 +59,12 @@ interface MapState {
   fiscalYear: FiscalYear;
   filters: Filters;
   sidePanelOpen: boolean;
+  // Tooltip state
+  tooltip: TooltipState;
+  // Click ripples for visual feedback
+  clickRipples: ClickRipple[];
+  // Touch preview mode (first tap shows tooltip, second tap selects)
+  touchPreviewLeaid: string | null;
 }
 
 interface MapActions {
@@ -39,6 +78,15 @@ interface MapActions {
   setSearchQuery: (query: string) => void;
   setSidePanelOpen: (open: boolean) => void;
   clearFilters: () => void;
+  // Tooltip actions
+  showTooltip: (x: number, y: number, data: TooltipData) => void;
+  hideTooltip: () => void;
+  updateTooltipPosition: (x: number, y: number) => void;
+  // Click ripple actions
+  addClickRipple: (x: number, y: number, color: "coral" | "plum") => void;
+  removeClickRipple: (id: number) => void;
+  // Touch preview actions
+  setTouchPreviewLeaid: (leaid: string | null) => void;
 }
 
 const initialFilters: Filters = {
@@ -48,6 +96,17 @@ const initialFilters: Filters = {
   searchQuery: "",
 };
 
+const initialTooltip: TooltipState = {
+  visible: false,
+  exiting: false,
+  x: 0,
+  y: 0,
+  data: null,
+};
+
+// Counter for generating unique ripple IDs
+let rippleIdCounter = 0;
+
 export const useMapStore = create<MapState & MapActions>((set) => ({
   // State
   selectedLeaid: null,
@@ -56,6 +115,9 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   fiscalYear: "fy26",
   filters: initialFilters,
   sidePanelOpen: false,
+  tooltip: initialTooltip,
+  clickRipples: [],
+  touchPreviewLeaid: null,
 
   // Actions
   setSelectedLeaid: (leaid) =>
@@ -73,6 +135,32 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
     set((s) => ({ filters: { ...s.filters, searchQuery: query } })),
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
   clearFilters: () => set({ filters: initialFilters }),
+
+  // Tooltip actions
+  showTooltip: (x, y, data) =>
+    set({ tooltip: { visible: true, exiting: false, x, y, data } }),
+  hideTooltip: () =>
+    set((s) => {
+      // If already hidden or exiting, no change
+      if (!s.tooltip.visible && !s.tooltip.exiting) return s;
+      // Start exit animation
+      return { tooltip: { ...s.tooltip, exiting: true } };
+    }),
+  updateTooltipPosition: (x, y) =>
+    set((s) => ({ tooltip: { ...s.tooltip, x, y } })),
+
+  // Click ripple actions
+  addClickRipple: (x, y, color) =>
+    set((s) => ({
+      clickRipples: [...s.clickRipples, { id: ++rippleIdCounter, x, y, color }],
+    })),
+  removeClickRipple: (id) =>
+    set((s) => ({
+      clickRipples: s.clickRipples.filter((r) => r.id !== id),
+    })),
+
+  // Touch preview actions
+  setTouchPreviewLeaid: (leaid) => set({ touchPreviewLeaid: leaid }),
 }));
 
 // Selector helpers

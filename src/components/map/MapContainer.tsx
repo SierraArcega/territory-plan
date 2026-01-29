@@ -4,6 +4,10 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapStore } from "@/lib/store";
+import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
+import MapTooltip from "./MapTooltip";
+import ClickRipple from "./ClickRipple";
+import TileLoadingIndicator from "./TileLoadingIndicator";
 
 // Throttle interval for hover handlers (ms) - 20fps is smooth enough for hover effects
 const HOVER_THROTTLE_MS = 50;
@@ -139,16 +143,21 @@ interface MapContainerProps {
 }
 
 export default function MapContainer({ className = "" }: MapContainerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const popup = useRef<maplibregl.Popup | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
+  const isTouchDevice = useIsTouchDevice();
 
   // Refs for hover optimization - change detection and throttling
   const lastHoveredLeaidRef = useRef<string | null>(null);
   const lastHoveredStateRef = useRef<string | null>(null);
   const lastHoverTimeRef = useRef(0);
+
+  // Screen reader announcement ref
+  const announcementRef = useRef<HTMLDivElement>(null);
 
   const {
     selectedLeaid,
@@ -156,7 +165,20 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     setHoveredLeaid,
     setStateFilter,
     filters,
+    showTooltip,
+    hideTooltip,
+    updateTooltipPosition,
+    addClickRipple,
+    touchPreviewLeaid,
+    setTouchPreviewLeaid,
   } = useMapStore();
+
+  // Screen reader announcement helper
+  const announce = useCallback((message: string) => {
+    if (announcementRef.current) {
+      announcementRef.current.textContent = message;
+    }
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -212,7 +234,13 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         source: "states",
         paint: {
           "fill-color": "transparent",
-          "fill-opacity": 0.1,
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.15,
+            0.1,
+          ],
+          "fill-opacity-transition": { duration: 150 },
         },
       });
 
@@ -239,6 +267,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             8, 0.6,
             12, 0.3,
           ],
+          "line-opacity-transition": { duration: 150 },
         },
       });
 
@@ -251,6 +280,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         paint: {
           "line-color": "#F37167", // Coral
           "line-width": 4,
+          "line-width-transition": { duration: 100 },
+          "line-opacity-transition": { duration: 100 },
         },
       });
 
@@ -273,13 +304,19 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           ],
           "fill-opacity": [
             "case",
-            ["any",
-              ["==", ["get", "has_revenue"], true],
-              ["==", ["get", "has_revenue"], 1],
+            ["boolean", ["feature-state", "hover"], false],
+            0.85, // Brighter on hover
+            [
+              "case",
+              ["any",
+                ["==", ["get", "has_revenue"], true],
+                ["==", ["get", "has_revenue"], 1],
+              ],
+              0.7, // More visible for revenue districts
+              0.5, // Visible for non-revenue districts
             ],
-            0.7, // More visible for revenue districts
-            0.5, // Visible for non-revenue districts
           ],
+          "fill-opacity-transition": { duration: 150 },
         },
       });
 
@@ -293,6 +330,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           "line-color": "#374151",
           "line-width": 1.5,
           "line-opacity": 0.8,
+          "line-opacity-transition": { duration: 100 },
         },
       });
 
@@ -305,6 +343,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         paint: {
           "line-color": "#F37167", // Coral
           "line-width": 3,
+          "line-width-transition": { duration: 100 },
+          "line-opacity-transition": { duration: 100 },
         },
         filter: ["==", ["get", "leaid"], ""],
       });
@@ -323,16 +363,10 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       });
 
       setMapReady(true);
-    });
-
-    // Create popup
-    popup.current = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
+      setMapInstance(map.current);
     });
 
     return () => {
-      popup.current?.remove();
       map.current?.remove();
       map.current = null;
     };
@@ -369,6 +403,10 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
       const zoom = map.current.getZoom();
 
+      // Add click ripple effect
+      const color = zoom < 6 ? "plum" : "coral";
+      addClickRipple(e.originalEvent.clientX, e.originalEvent.clientY, color);
+
       // At low zoom, check for state clicks first
       if (zoom < 6 && map.current.getLayer("state-fill")) {
         const stateFeatures = map.current.queryRenderedFeatures(e.point, {
@@ -385,6 +423,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             const bounds = STATE_BOUNDS[stateCode];
             setSelectedState(stateCode);
             setStateFilter(stateCode);
+            hideTooltip();
+            announce(`Exploring ${stateName}`);
 
             map.current.flyTo({
               center: bounds.center,
@@ -405,11 +445,45 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       if (features.length > 0) {
         const feature = features[0];
         const leaid = feature.properties?.leaid;
+        const name = feature.properties?.name;
+
         if (leaid) {
+          // Touch device: tap-to-preview pattern
+          if (isTouchDevice && touchPreviewLeaid !== leaid) {
+            setTouchPreviewLeaid(leaid);
+            // Show tooltip on first tap
+            const stateAbbrev = feature.properties?.state_abbrev;
+            const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
+            const hasPipeline = feature.properties?.has_pipeline === true || feature.properties?.has_pipeline === 1;
+            const enrollment = feature.properties?.enrollment;
+            const salesExec = feature.properties?.sales_executive;
+
+            showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
+              type: "district",
+              leaid,
+              name,
+              stateAbbrev,
+              hasRevenue,
+              hasPipeline,
+              enrollment: enrollment ? Number(enrollment) : undefined,
+              salesExecutive: salesExec || null,
+            });
+            announce(`${name}, ${stateAbbrev}. Tap again to select.`);
+            return;
+          }
+
+          // Select on second tap or mouse click
           setSelectedLeaid(leaid);
+          setTouchPreviewLeaid(null);
+          hideTooltip();
+          announce(`Selected ${name}`);
         }
       } else {
-        // Clicking outside - if zoomed in, zoom back out
+        // Clicking outside - clear preview and selection
+        setTouchPreviewLeaid(null);
+        hideTooltip();
+
+        // If zoomed in, zoom back out
         if (zoom > 5 && selectedState) {
           map.current.flyTo({
             center: [-98, 39],
@@ -419,17 +493,29 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           });
           setSelectedState(null);
           setStateFilter(null);
+          announce("Returned to US map view");
         }
         setSelectedLeaid(null);
       }
     },
-    [setSelectedLeaid, setStateFilter, selectedState]
+    [
+      setSelectedLeaid,
+      setStateFilter,
+      selectedState,
+      addClickRipple,
+      hideTooltip,
+      showTooltip,
+      isTouchDevice,
+      touchPreviewLeaid,
+      setTouchPreviewLeaid,
+      announce,
+    ]
   );
 
   // Handle state hover events (layer-specific, with throttling and change detection)
   const handleStateHover = useCallback(
     (e: maplibregl.MapLayerMouseEvent) => {
-      if (!map.current || !popup.current) return;
+      if (!map.current || isTouchDevice) return;
 
       // Throttle: skip if called too recently
       const now = Date.now();
@@ -448,8 +534,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
       // Change detection: skip if same state
       if (stateName === lastHoveredStateRef.current) {
-        // Still update popup position for smooth tracking
-        popup.current.setLngLat(e.lngLat);
+        // Still update tooltip position for smooth tracking
+        updateTooltipPosition(e.originalEvent.clientX, e.originalEvent.clientY);
         return;
       }
       lastHoveredStateRef.current = stateName || null;
@@ -471,24 +557,20 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         stateName || "",
       ]);
 
-      // Show state popup
-      popup.current
-        .setLngLat(e.lngLat)
-        .setHTML(
-          `<div style="font-size: 14px;">
-            <div style="font-weight: 700; color: #403770;">${stateName || stateCode}</div>
-            <div style="color: #6B7280; font-size: 12px; margin-top: 4px;">Click to explore districts</div>
-          </div>`
-        )
-        .addTo(map.current);
+      // Show React tooltip
+      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
+        type: "state",
+        stateName: stateName || undefined,
+        stateCode: stateCode || undefined,
+      });
     },
-    [setHoveredLeaid]
+    [setHoveredLeaid, showTooltip, updateTooltipPosition, isTouchDevice]
   );
 
   // Handle district hover events (layer-specific, with throttling and change detection)
   const handleDistrictHover = useCallback(
     (e: maplibregl.MapLayerMouseEvent) => {
-      if (!map.current || !popup.current) return;
+      if (!map.current || isTouchDevice) return;
 
       // Throttle: skip if called too recently
       const now = Date.now();
@@ -502,8 +584,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
       // Change detection: skip if same district
       if (leaid === lastHoveredLeaidRef.current) {
-        // Still update popup position for smooth tracking
-        popup.current.setLngLat(e.lngLat);
+        // Still update tooltip position for smooth tracking
+        updateTooltipPosition(e.originalEvent.clientX, e.originalEvent.clientY);
         return;
       }
       lastHoveredLeaidRef.current = leaid || null;
@@ -519,6 +601,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       const name = feature.properties?.name;
       const stateAbbrev = feature.properties?.state_abbrev;
       const hasRevenue = feature.properties?.has_revenue === true || feature.properties?.has_revenue === 1;
+      const hasPipeline = feature.properties?.has_pipeline === true || feature.properties?.has_pipeline === 1;
+      const enrollment = feature.properties?.enrollment;
+      const salesExec = feature.properties?.sales_executive;
 
       // Update cursor
       map.current.getCanvas().style.cursor = "pointer";
@@ -533,45 +618,77 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       // Update store
       setHoveredLeaid(leaid || null);
 
-      // Build revenue badge if applicable
-      const revenueBadge = hasRevenue
-        ? '<div style="margin-top: 6px;"><span style="display: inline-block; padding: 2px 8px; font-size: 11px; border-radius: 4px; color: white; background-color: #F37167;">Fullmind Customer</span></div>'
-        : "";
-
-      // Show popup with name, state, and revenue status
-      popup.current
-        .setLngLat(e.lngLat)
-        .setHTML(
-          `<div style="font-size: 14px;">
-            <div style="font-weight: 700; color: #403770;">${name}</div>
-            <div style="color: #6B7280;">${stateAbbrev}</div>
-            ${revenueBadge}
-          </div>`
-        )
-        .addTo(map.current);
+      // Show React tooltip
+      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
+        type: "district",
+        leaid,
+        name,
+        stateAbbrev,
+        hasRevenue,
+        hasPipeline,
+        enrollment: enrollment ? Number(enrollment) : undefined,
+        salesExecutive: salesExec || null,
+      });
     },
-    [setHoveredLeaid]
+    [setHoveredLeaid, showTooltip, updateTooltipPosition, isTouchDevice]
   );
 
   // Handle mouse leave for districts
   const handleDistrictMouseLeave = useCallback(() => {
-    if (!map.current || !popup.current) return;
+    if (!map.current) return;
     lastHoveredLeaidRef.current = null;
     map.current.getCanvas().style.cursor = "";
     map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
     setHoveredLeaid(null);
-    popup.current.remove();
-  }, [setHoveredLeaid]);
+    hideTooltip();
+  }, [setHoveredLeaid, hideTooltip]);
 
   // Handle mouse leave for states
   const handleStateMouseLeave = useCallback(() => {
-    if (!map.current || !popup.current) return;
+    if (!map.current) return;
     lastHoveredStateRef.current = null;
     if (map.current.getLayer("state-hover")) {
       map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
     }
-    popup.current.remove();
-  }, []);
+    hideTooltip();
+  }, [hideTooltip]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // Clear selection and zoom out if needed
+        if (selectedLeaid) {
+          setSelectedLeaid(null);
+          announce("Selection cleared");
+        } else if (selectedState && map.current) {
+          map.current.flyTo({
+            center: [-98, 39],
+            zoom: 4,
+            duration: 1000,
+            essential: true,
+          });
+          setSelectedState(null);
+          setStateFilter(null);
+          announce("Returned to US map view");
+        }
+        // Clear touch preview
+        setTouchPreviewLeaid(null);
+        hideTooltip();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedLeaid,
+    selectedState,
+    setSelectedLeaid,
+    setStateFilter,
+    setTouchPreviewLeaid,
+    hideTooltip,
+    announce,
+  ]);
 
   // Attach event listeners using layer-specific events for better performance
   useEffect(() => {
@@ -627,7 +744,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     setSelectedState(null);
     setStateFilter(null);
     setSelectedLeaid(null);
-  }, [setStateFilter, setSelectedLeaid]);
+    announce("Returned to US map view");
+  }, [setStateFilter, setSelectedLeaid, announce]);
 
   // Sync selected state with store filter
   useEffect(() => {
@@ -649,38 +767,75 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   }, [filters.stateAbbrev, selectedState, mapReady]);
 
   return (
-    <div className={`relative w-full h-full ${className}`} style={{ minHeight: "400px" }}>
-      <div ref={mapContainer} className="w-full h-full" />
+    <>
+      {/* Skip link for keyboard navigation */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
 
-      {/* Back to US button when zoomed into a state */}
-      {selectedState && (
-        <button
-          onClick={handleBackToUS}
-          className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm font-medium text-[#403770]"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      <div
+        ref={containerRef}
+        className={`relative w-full h-full ${className}`}
+        style={{ minHeight: "400px" }}
+      >
+        {/* Map container with focus ring for accessibility */}
+        <div
+          ref={mapContainer}
+          className="w-full h-full map-focus-ring"
+          tabIndex={0}
+          role="application"
+          aria-label="Interactive territory map. Use mouse or touch to explore states and districts. Press Escape to zoom out."
+        />
+
+        {/* Screen reader announcements */}
+        <div
+          ref={announcementRef}
+          className="aria-live-region"
+          aria-live="polite"
+          aria-atomic="true"
+        />
+
+        {/* React tooltip component */}
+        <MapTooltip containerRef={containerRef} />
+
+        {/* Click ripple effect */}
+        <ClickRipple containerRef={containerRef} />
+
+        {/* Tile loading indicator */}
+        <TileLoadingIndicator map={mapInstance} />
+
+        {/* Back to US button when zoomed into a state */}
+        {selectedState && (
+          <button
+            onClick={handleBackToUS}
+            className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm font-medium text-[#403770]"
+            aria-label="Go back to US map view"
           >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Back to US
-        </button>
-      )}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Back to US
+          </button>
+        )}
 
-      {/* Interactive hint when at US level */}
-      {!selectedState && mapReady && (
-        <div className="absolute bottom-4 left-4 z-10 px-3 py-2 bg-white/90 rounded-lg shadow-md text-xs text-gray-600 pointer-events-none">
-          Click a state to explore districts
-        </div>
-      )}
-    </div>
+        {/* Interactive hint when at US level */}
+        {!selectedState && mapReady && (
+          <div className="absolute bottom-4 left-4 z-10 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md text-xs text-gray-600 pointer-events-none">
+            {isTouchDevice ? "Tap a state to explore districts" : "Click a state to explore districts"}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
