@@ -65,6 +65,7 @@ export default function SidePanel() {
           <DistrictHeader
             district={data.district}
             fullmindData={data.fullmindData}
+            tags={data.tags}
           />
 
           {/* Add to Plan Button */}
