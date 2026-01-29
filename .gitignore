@@ -56,3 +56,6 @@ next-env.d.ts
 
 # Keep .env.example
 !.env.example
+
+# Database backups
+backups/

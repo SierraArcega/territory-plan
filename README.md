@@ -92,25 +92,79 @@ The ETL pipeline loads data from three sources:
 # Load boundaries only
 python scripts/etl/run_etl.py --boundaries --shapefile /path/to/shapefile.shp
 
-# Fetch enrollment data (optional, can be slow)
+# Fetch enrollment data
 python scripts/etl/run_etl.py --enrollment
 
 # Load Fullmind data only
 python scripts/etl/run_etl.py --fullmind /path/to/fullmind.csv
 
+# Load education data (finance, poverty, demographics, graduation, staff)
+# Note: Finance data uses --year 2020 (latest available from Urban Institute)
+python scripts/etl/run_etl.py --education-data --year 2020
+
 # View database stats
 python scripts/etl/run_etl.py --stats-only
 ```
+
+### Full Setup After Database Reset
+
+If the database is reset, run these steps in order:
+
+```bash
+cd scripts/etl
+
+# 1. Load district boundaries (~13k districts)
+python run_etl.py --boundaries
+
+# 2. Load enrollment data
+python run_etl.py --enrollment
+
+# 3. Load education data (finance uses 2020, others use 2022)
+python run_etl.py --finance --year 2020
+python run_etl.py --poverty --demographics --graduation --staff --year 2022
+
+# 4. Load Fullmind CRM data
+python run_etl.py --fullmind /path/to/fullmind.csv
+
+# 5. Verify everything loaded
+python run_etl.py --stats-only
+```
+
+Or restore from a backup instead: `./scripts/db-backup.sh restore <backup-name>`
 
 ## Database Schema
 
 - `districts` - School district boundaries and metadata
 - `fullmind_data` - Revenue, bookings, and pipeline metrics
+- `district_education_data` - Finance, poverty, graduation, staffing data
+- `district_enrollment_demographics` - Enrollment by race/ethnicity
 - `district_edits` - User notes and owner assignments
 - `tags` - Reusable tags
 - `district_tags` - District-tag associations
 - `contacts` - District contacts
 - `unmatched_accounts` - Fullmind accounts without district match
+- `territory_plans` - Saved territory plan configurations
+- `data_refresh_logs` - ETL run history
+
+## Database Backup & Restore
+
+Always create a backup before destructive operations:
+
+```bash
+# Create a backup
+./scripts/db-backup.sh backup before-changes
+
+# Verify database state
+./scripts/db-backup.sh verify
+
+# List available backups
+./scripts/db-backup.sh list
+
+# Restore from backup (if needed)
+./scripts/db-backup.sh restore before-changes
+```
+
+**Important:** Backups are stored in `backups/` (gitignored). Keep a copy somewhere safe.
 
 ## API Endpoints
 
