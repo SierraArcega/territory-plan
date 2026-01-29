@@ -8,6 +8,8 @@ import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import MapTooltip from "./MapTooltip";
 import ClickRipple from "./ClickRipple";
 import TileLoadingIndicator from "./TileLoadingIndicator";
+import { useCustomerDots } from "@/lib/api";
+import CustomerDotsLegend from "./CustomerDotsLegend";
 
 // Throttle interval for hover handlers (ms) - 20fps is smooth enough for hover effects
 const HOVER_THROTTLE_MS = 50;
@@ -149,12 +151,17 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(4);
   const isTouchDevice = useIsTouchDevice();
+
+  // Fetch customer dots for national view
+  const { data: customerDotsData } = useCustomerDots();
 
   // Refs for hover optimization - change detection and throttling
   const lastHoveredLeaidRef = useRef<string | null>(null);
   const lastHoveredStateRef = useRef<string | null>(null);
   const lastHoverTimeRef = useRef(0);
+  const lastHoveredDotLeaidRef = useRef<string | null>(null);
 
   // Screen reader announcement ref
   const announcementRef = useRef<HTMLDivElement>(null);
@@ -418,6 +425,77 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         filter: ["in", ["get", "leaid"], ["literal", []]],
       });
 
+      // Add customer dots source (empty initially, populated by effect)
+      map.current.addSource("customer-dots", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      // Add customer dots layer with data-driven styling
+      map.current.addLayer({
+        id: "customer-dots",
+        type: "circle",
+        source: "customer-dots",
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "category"],
+            "multi_year", "#403770",
+            "new", "#22C55E",
+            "lapsed", "#403770",
+            "prospect", "#F59E0B",
+            "#403770",
+          ],
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, ["match", ["get", "category"], "multi_year", 4, "new", 3, "lapsed", 3, "prospect", 2.5, 3],
+            6, ["match", ["get", "category"], "multi_year", 8, "new", 6, "lapsed", 6, "prospect", 5, 6],
+          ],
+          "circle-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, ["match", ["get", "category"], "lapsed", 0.4, 1],
+            5, ["match", ["get", "category"], "lapsed", 0.4, 1],
+            7, ["match", ["get", "category"], "lapsed", 0.15, 0.3],
+          ],
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 0.8,
+            7, 0.2,
+          ],
+        },
+      });
+
+      // Add customer dots hover layer
+      map.current.addLayer({
+        id: "customer-dots-hover",
+        type: "circle",
+        source: "customer-dots",
+        filter: ["==", ["get", "leaid"], ""],
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "category"],
+            "multi_year", "#403770",
+            "new", "#22C55E",
+            "lapsed", "#403770",
+            "prospect", "#F59E0B",
+            "#403770",
+          ],
+          "circle-radius": 12,
+          "circle-opacity": 1,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
       setMapReady(true);
       setMapInstance(map.current);
     });
@@ -427,6 +505,32 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current = null;
     };
   }, []);
+
+  // Track zoom level for legend fading
+  useEffect(() => {
+    if (!map.current) return;
+
+    const handleZoom = () => {
+      if (map.current) {
+        setCurrentZoom(map.current.getZoom());
+      }
+    };
+
+    map.current.on("zoom", handleZoom);
+    return () => {
+      map.current?.off("zoom", handleZoom);
+    };
+  }, [mapReady]);
+
+  // Update customer dots source when data loads
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded() || !customerDotsData) return;
+
+    const source = map.current.getSource("customer-dots") as maplibregl.GeoJSONSource;
+    if (source) {
+      source.setData(customerDotsData);
+    }
+  }, [customerDotsData, mapReady]);
 
   // Update selected district filter
   useEffect(() => {
@@ -519,6 +623,43 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
               duration: 1000,
               essential: true,
             });
+            return;
+          }
+        }
+      }
+
+      // Check for customer dot clicks (at national view level)
+      if (zoom < 7 && map.current.getLayer("customer-dots")) {
+        const dotFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: ["customer-dots"],
+        });
+
+        if (dotFeatures.length > 0) {
+          const feature = dotFeatures[0];
+          const leaid = feature.properties?.leaid;
+          const stateAbbrev = feature.properties?.stateAbbrev;
+          const name = feature.properties?.name;
+
+          if (leaid && stateAbbrev && STATE_BOUNDS[stateAbbrev]) {
+            const coords = (feature.geometry as GeoJSON.Point).coordinates;
+
+            hideTooltip();
+            announce(`Zooming to ${name}`);
+
+            setSelectedState(stateAbbrev);
+            setStateFilter(stateAbbrev);
+
+            map.current.flyTo({
+              center: coords as [number, number],
+              zoom: 9,
+              duration: 1500,
+              essential: true,
+            });
+
+            setTimeout(() => {
+              setSelectedLeaid(leaid);
+            }, 1600);
+
             return;
           }
         }
@@ -743,6 +884,63 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     hideTooltip();
   }, [hideTooltip]);
 
+  // Handle customer dot hover events
+  const handleDotHover = useCallback(
+    (e: maplibregl.MapLayerMouseEvent) => {
+      if (!map.current || isTouchDevice) return;
+
+      const now = Date.now();
+      if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
+      lastHoverTimeRef.current = now;
+
+      const feature = e.features?.[0];
+      if (!feature) return;
+
+      const leaid = feature.properties?.leaid as string | undefined;
+
+      if (leaid === lastHoveredDotLeaidRef.current) {
+        updateTooltipPosition(e.originalEvent.clientX, e.originalEvent.clientY);
+        return;
+      }
+      lastHoveredDotLeaidRef.current = leaid || null;
+
+      const name = feature.properties?.name;
+      const stateAbbrev = feature.properties?.stateAbbrev;
+      const category = feature.properties?.category;
+
+      const categoryLabels: Record<string, string> = {
+        multi_year: "Multi-year customer",
+        new: "New this year",
+        lapsed: "Lapsed customer",
+        prospect: "Prospect",
+      };
+
+      map.current.getCanvas().style.cursor = "pointer";
+
+      map.current.setFilter("customer-dots-hover", [
+        "==",
+        ["get", "leaid"],
+        leaid || "",
+      ]);
+
+      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
+        type: "district",
+        leaid,
+        name: `${name} - ${categoryLabels[category] || category}`,
+        stateAbbrev,
+      });
+    },
+    [showTooltip, updateTooltipPosition, isTouchDevice]
+  );
+
+  const handleDotMouseLeave = useCallback(() => {
+    if (!map.current) return;
+    lastHoveredDotLeaidRef.current = null;
+    map.current.getCanvas().style.cursor = "";
+    map.current.setFilter("customer-dots-hover", ["==", ["get", "leaid"], ""]);
+    hideTooltip();
+  }, [hideTooltip]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -812,14 +1010,22 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current.on("sourcedata", handleSourceData);
     }
 
+    // Add customer dot event listeners
+    if (map.current.getLayer("customer-dots")) {
+      map.current.on("mousemove", "customer-dots", handleDotHover);
+      map.current.on("mouseleave", "customer-dots", handleDotMouseLeave);
+    }
+
     return () => {
       map.current?.off("click", handleClick);
       map.current?.off("mousemove", "district-fill", handleDistrictHover);
       map.current?.off("mouseleave", "district-fill", handleDistrictMouseLeave);
       map.current?.off("mousemove", "state-fill", handleStateHover);
       map.current?.off("mouseleave", "state-fill", handleStateMouseLeave);
+      map.current?.off("mousemove", "customer-dots", handleDotHover);
+      map.current?.off("mouseleave", "customer-dots", handleDotMouseLeave);
     };
-  }, [handleClick, handleDistrictHover, handleDistrictMouseLeave, handleStateHover, handleStateMouseLeave]);
+  }, [handleClick, handleDistrictHover, handleDistrictMouseLeave, handleStateHover, handleStateMouseLeave, handleDotHover, handleDotMouseLeave]);
 
   // Handle zoom back to US view
   const handleBackToUS = useCallback(() => {
@@ -919,11 +1125,12 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           </button>
         )}
 
-        {/* Interactive hint when at US level */}
-        {!selectedState && mapReady && (
-          <div className="absolute bottom-4 left-4 z-10 px-3 py-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-md text-xs text-gray-600 pointer-events-none">
-            {isTouchDevice ? "Tap a state to explore districts" : "Click a state to explore districts"}
-          </div>
+        {/* Customer dots legend */}
+        {mapReady && (
+          <CustomerDotsLegend
+            className="absolute bottom-4 left-4 z-10"
+            fadeOnZoom={currentZoom > 7}
+          />
         )}
       </div>
     </>
