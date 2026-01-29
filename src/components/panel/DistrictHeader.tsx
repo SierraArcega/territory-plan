@@ -79,7 +79,7 @@ export default function DistrictHeader({
       )}
 
       {/* District Info */}
-      <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+      <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
         <div>
           <span className="text-gray-500">Enrollment</span>
           <p className="font-medium text-[#403770]">
@@ -90,6 +90,12 @@ export default function DistrictHeader({
           <span className="text-gray-500">Grades</span>
           <p className="font-medium text-[#403770]">
             {formatGrades(district.lograde, district.higrade)}
+          </p>
+        </div>
+        <div>
+          <span className="text-gray-500">Schools</span>
+          <p className="font-medium text-[#403770]">
+            {district.numberOfSchools?.toLocaleString() ?? "N/A"}
           </p>
         </div>
       </div>
