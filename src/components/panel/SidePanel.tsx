@@ -5,6 +5,7 @@ import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
 import AddToPlanButton from "./AddToPlanButton";
 import DistrictInfo from "./DistrictInfo";
+import FindSimilarDistricts from "./FindSimilarDistricts";
 import FinanceData from "./FinanceData";
 import StaffingSalaries from "./StaffingSalaries";
 import DemographicsChart from "./DemographicsChart";
@@ -81,6 +82,13 @@ export default function SidePanel() {
           </div>
 
           <DistrictInfo district={data.district} />
+
+          {/* Find Similar Districts */}
+          <FindSimilarDistricts
+            district={data.district}
+            educationData={data.educationData}
+            enrollmentDemographics={data.enrollmentDemographics}
+          />
 
           {/* Group 2: Student Body */}
           {data.enrollmentDemographics && (
