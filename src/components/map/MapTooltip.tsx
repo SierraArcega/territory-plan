@@ -186,19 +186,20 @@ function DistrictTooltipContent({
         </div>
       )}
 
-      {/* Status badges */}
-      <div className="flex flex-wrap gap-1.5 mt-2">
-        {data.hasRevenue && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F37167] text-white">
-            Customer
-          </span>
-        )}
-        {data.hasPipeline && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#6EA3BE] text-white">
-            Pipeline
-          </span>
-        )}
-      </div>
+      {/* Tags */}
+      {data.tags && data.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {data.tags.map((tag, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
+              style={{ backgroundColor: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Sales executive */}
       {data.salesExecutive && (

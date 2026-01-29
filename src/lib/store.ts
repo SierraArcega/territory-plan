@@ -34,6 +34,7 @@ export interface TooltipData {
   hasRevenue?: boolean;
   hasPipeline?: boolean;
   salesExecutive?: string | null;
+  tags?: Array<{ name: string; color: string }>;
 }
 
 export interface TooltipState {
