@@ -1,10 +1,11 @@
 "use client";
 
-import type { District, FullmindData } from "@/lib/api";
+import type { District, FullmindData, Tag } from "@/lib/api";
 
 interface DistrictHeaderProps {
   district: District;
   fullmindData: FullmindData | null;
+  tags: Tag[];
 }
 
 function formatEnrollment(enrollment: number | null): string {
@@ -40,10 +41,8 @@ function formatGrades(lograde: string | null, higrade: string | null): string {
 export default function DistrictHeader({
   district,
   fullmindData,
+  tags,
 }: DistrictHeaderProps) {
-  const isCustomer = fullmindData?.isCustomer || false;
-  const hasOpenPipeline = fullmindData?.hasOpenPipeline || false;
-
   return (
     <div className="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-b from-[#FFFCFA] to-white">
       {/* District Name */}
@@ -58,42 +57,20 @@ export default function DistrictHeader({
         <span className="font-mono">{district.leaid}</span>
       </div>
 
-      {/* Status Chips */}
-      <div className="flex flex-wrap gap-2 mt-3">
-        {isCustomer && (
-          <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-[#F37167] text-white">
-            <svg
-              className="w-3 h-3 mr-1"
-              fill="currentColor"
-              viewBox="0 0 20 20"
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {tags.map((tag) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full text-white"
+              style={{ backgroundColor: tag.color }}
             >
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Customer
-          </span>
-        )}
-        {hasOpenPipeline && (
-          <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-[#6EA3BE] text-white">
-            <svg
-              className="w-3 h-3 mr-1"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z" />
-            </svg>
-            Pipeline
-          </span>
-        )}
-        {!isCustomer && !hasOpenPipeline && (
-          <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-gray-200 text-gray-600">
-            No Fullmind Data
-          </span>
-        )}
-      </div>
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* District Info */}
       <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
