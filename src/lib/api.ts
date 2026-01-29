@@ -562,3 +562,53 @@ export function useRemoveDistrictFromPlan() {
     },
   });
 }
+
+// Similar districts types
+export type SimilarMetricKey =
+  | "enrollment"
+  | "locale"
+  | "medianIncome"
+  | "expenditurePerPupil"
+  | "avgSalary"
+  | "ellPercent"
+  | "swdPercent"
+  | "pocRate";
+
+export type SimilarityTolerance = "tight" | "medium" | "loose";
+
+export interface SimilarDistrictResult {
+  leaid: string;
+  name: string;
+  stateAbbrev: string;
+  distanceScore: number;
+  metrics: Record<string, { value: number | string | null; sourceValue: number | string | null }>;
+  territoryPlanIds: string[];
+}
+
+export interface SimilarDistrictsResponse {
+  results: SimilarDistrictResult[];
+  sourceMetrics: Record<string, number | null>;
+  total: number;
+}
+
+// Similar districts hook
+export function useSimilarDistricts(params: {
+  leaid: string | null;
+  metrics: SimilarMetricKey[];
+  tolerance: SimilarityTolerance;
+  enabled?: boolean;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params.leaid) searchParams.set("leaid", params.leaid);
+  if (params.metrics.length > 0) searchParams.set("metrics", params.metrics.join(","));
+  searchParams.set("tolerance", params.tolerance);
+
+  return useQuery({
+    queryKey: ["similarDistricts", params],
+    queryFn: () =>
+      fetchJson<SimilarDistrictsResponse>(
+        `${API_BASE}/districts/similar?${searchParams}`
+      ),
+    enabled: params.enabled !== false && !!params.leaid && params.metrics.length > 0,
+  });
+}
