@@ -62,6 +62,13 @@ def fetch_finance_data(
         for record in results:
             leaid = record.get("leaid")
             if leaid:
+                # Calculate per-pupil expenditure from total and enrollment
+                exp_total = record.get("exp_total")
+                enrollment = record.get("enrollment_fall_responsible")
+                exp_per_pupil = None
+                if exp_total and enrollment and exp_total > 0 and enrollment > 0:
+                    exp_per_pupil = exp_total / enrollment
+
                 all_records.append({
                     "leaid": str(leaid).zfill(7),
                     # Revenue sources
@@ -70,8 +77,8 @@ def fetch_finance_data(
                     "state_revenue": record.get("rev_state_total"),
                     "local_revenue": record.get("rev_local_total"),
                     # Expenditure
-                    "total_expenditure": record.get("exp_total"),
-                    "expenditure_per_pupil": record.get("exp_current_instruction_total_ppcstot"),
+                    "total_expenditure": exp_total,
+                    "expenditure_per_pupil": exp_per_pupil,
                     # Salaries
                     "salaries_total": record.get("salaries_total"),
                     "salaries_instruction": record.get("salaries_instruction"),
