@@ -29,6 +29,7 @@ from loaders.urban_institute_poverty import fetch_poverty_data, upsert_poverty_d
 from loaders.urban_institute_demographics import fetch_demographics_data, upsert_demographics_data
 from loaders.urban_institute_graduation import fetch_graduation_data, upsert_graduation_data
 from loaders.urban_institute_staff import fetch_staff_data, upsert_staff_data
+from loaders.census_county_income import fetch_county_income, update_district_income
 from loaders.fullmind import (
     load_fullmind_csv,
     get_valid_leaids,
@@ -243,6 +244,30 @@ def run_staff_etl(
     return result
 
 
+def run_county_income_etl(
+    connection_string: str,
+    year: int = 2022,
+) -> dict:
+    """
+    Run Census county median household income ETL.
+
+    Returns dict with update counts.
+    """
+    print("\n" + "="*60)
+    print("Fetching Census County Median Household Income")
+    print("="*60)
+
+    records = fetch_county_income(year=year)
+
+    if not records:
+        print("Warning: No county income records fetched")
+        return {"matched_counties": 0, "districts_updated": 0}
+
+    result = update_district_income(connection_string, records, year=year)
+    print(f"\nCounty income data: {result}")
+    return result
+
+
 def run_fullmind_etl(
     connection_string: str,
     csv_path: Path,
@@ -410,6 +435,8 @@ Examples:
                         help="Run Urban Institute graduation rates ETL")
     parser.add_argument("--staff", action="store_true",
                         help="Run Urban Institute staff FTE data ETL")
+    parser.add_argument("--county-income", action="store_true",
+                        help="Run Census county median household income ETL")
     parser.add_argument("--education-data", action="store_true",
                         help="Run all education data ETL (finance, poverty, demographics, graduation, staff)")
     parser.add_argument("--fullmind", type=str,
@@ -452,7 +479,7 @@ Examples:
     any_step = (
         args.all or args.boundaries or args.enrollment or args.fullmind or
         args.finance or args.poverty or args.demographics or args.graduation or
-        args.staff or args.education_data
+        args.staff or args.county_income or args.education_data
     )
     if not any_step:
         print("No ETL steps specified. Use --all or specify individual steps.")
@@ -489,6 +516,9 @@ Examples:
 
     if args.all or args.education_data or args.staff:
         run_staff_etl(connection_string, year=args.year)
+
+    if args.all or args.education_data or args.county_income:
+        run_county_income_etl(connection_string, year=args.year)
 
     if args.all and not args.fullmind:
         print("\nWarning: --all specified but no --fullmind CSV path provided")
