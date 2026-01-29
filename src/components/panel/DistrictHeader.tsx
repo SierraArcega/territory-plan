@@ -50,9 +50,15 @@ export default function DistrictHeader({
         {district.name}
       </h2>
 
-      {/* State & LEAID */}
+      {/* State, County & LEAID */}
       <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
         <span>{district.stateAbbrev}</span>
+        {district.countyName && (
+          <>
+            <span>•</span>
+            <span>{district.countyName} County</span>
+          </>
+        )}
         <span>•</span>
         <span className="font-mono">{district.leaid}</span>
       </div>

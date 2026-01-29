@@ -35,7 +35,6 @@ export default function DistrictInfo({ district }: DistrictInfoProps) {
   const hasAnyData =
     hasAddress ||
     district.phone ||
-    district.countyName ||
     district.numberOfSchools ||
     district.ellStudents ||
     district.specEdStudents;
@@ -107,14 +106,6 @@ export default function DistrictInfo({ district }: DistrictInfoProps) {
               >
                 {formattedPhone}
               </a>
-            </div>
-          )}
-
-          {/* County Name */}
-          {district.countyName && (
-            <div>
-              <span className="text-gray-500">County: </span>
-              <span className="text-gray-700">{district.countyName}</span>
             </div>
           )}
 
