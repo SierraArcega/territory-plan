@@ -28,6 +28,7 @@ from loaders.urban_institute_finance import fetch_finance_data, upsert_finance_d
 from loaders.urban_institute_poverty import fetch_poverty_data, upsert_poverty_data
 from loaders.urban_institute_demographics import fetch_demographics_data, upsert_demographics_data
 from loaders.urban_institute_graduation import fetch_graduation_data, upsert_graduation_data
+from loaders.urban_institute_staff import fetch_staff_data, upsert_staff_data
 from loaders.fullmind import (
     load_fullmind_csv,
     get_valid_leaids,
@@ -218,6 +219,30 @@ def run_graduation_etl(
     return result
 
 
+def run_staff_etl(
+    connection_string: str,
+    year: int = 2021,
+) -> dict:
+    """
+    Run Urban Institute staff FTE data ETL.
+
+    Returns dict with update counts.
+    """
+    print("\n" + "="*60)
+    print("Fetching Urban Institute Staff FTE Data")
+    print("="*60)
+
+    records = fetch_staff_data(year=year)
+
+    if not records:
+        print("Warning: No staff records fetched")
+        return {"updated": 0, "failed": 0}
+
+    result = upsert_staff_data(connection_string, records, year=year)
+    print(f"\nStaff data: {result}")
+    return result
+
+
 def run_fullmind_etl(
     connection_string: str,
     csv_path: Path,
@@ -383,8 +408,10 @@ Examples:
                         help="Run Urban Institute demographics (enrollment by race) ETL")
     parser.add_argument("--graduation", action="store_true",
                         help="Run Urban Institute graduation rates ETL")
+    parser.add_argument("--staff", action="store_true",
+                        help="Run Urban Institute staff FTE data ETL")
     parser.add_argument("--education-data", action="store_true",
-                        help="Run all education data ETL (finance, poverty, demographics, graduation)")
+                        help="Run all education data ETL (finance, poverty, demographics, graduation, staff)")
     parser.add_argument("--fullmind", type=str,
                         help="Run Fullmind CSV ETL with specified file")
     parser.add_argument("--shapefile", type=str,
@@ -425,7 +452,7 @@ Examples:
     any_step = (
         args.all or args.boundaries or args.enrollment or args.fullmind or
         args.finance or args.poverty or args.demographics or args.graduation or
-        args.education_data
+        args.staff or args.education_data
     )
     if not any_step:
         print("No ETL steps specified. Use --all or specify individual steps.")
@@ -459,6 +486,9 @@ Examples:
 
     if args.all or args.education_data or args.graduation:
         run_graduation_etl(connection_string, year=args.year)
+
+    if args.all or args.education_data or args.staff:
+        run_staff_etl(connection_string, year=args.year)
 
     if args.all and not args.fullmind:
         print("\nWarning: --all specified but no --fullmind CSV path provided")

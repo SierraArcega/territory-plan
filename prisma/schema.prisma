@@ -190,6 +190,28 @@ model DistrictEducationData {
   graduationRateFemale Decimal? @map("graduation_rate_female") @db.Decimal(5, 2)
   graduationDataYear   Int?     @map("graduation_data_year")
 
+  // Staffing & Salaries (from CCD Finance endpoint)
+  salariesTotal              Decimal? @map("salaries_total") @db.Decimal(15, 2)
+  salariesInstruction        Decimal? @map("salaries_instruction") @db.Decimal(15, 2)
+  salariesTeachersRegular    Decimal? @map("salaries_teachers_regular") @db.Decimal(15, 2)
+  salariesTeachersSpecialEd  Decimal? @map("salaries_teachers_special_ed") @db.Decimal(15, 2)
+  salariesTeachersVocational Decimal? @map("salaries_teachers_vocational") @db.Decimal(15, 2)
+  salariesTeachersOther      Decimal? @map("salaries_teachers_other") @db.Decimal(15, 2)
+  salariesSupportAdmin       Decimal? @map("salaries_support_admin") @db.Decimal(15, 2)
+  salariesSupportInstructional Decimal? @map("salaries_support_instructional") @db.Decimal(15, 2)
+  benefitsTotal              Decimal? @map("benefits_total") @db.Decimal(15, 2)
+
+  // Staff counts (FTE from CCD Directory)
+  teachersFte                Decimal? @map("teachers_fte") @db.Decimal(10, 2)
+  teachersElementaryFte      Decimal? @map("teachers_elementary_fte") @db.Decimal(10, 2)
+  teachersSecondaryFte       Decimal? @map("teachers_secondary_fte") @db.Decimal(10, 2)
+  adminFte                   Decimal? @map("admin_fte") @db.Decimal(10, 2)
+  guidanceCounselorsFte      Decimal? @map("guidance_counselors_fte") @db.Decimal(10, 2)
+  instructionalAidesFte      Decimal? @map("instructional_aides_fte") @db.Decimal(10, 2)
+  supportStaffFte            Decimal? @map("support_staff_fte") @db.Decimal(10, 2)
+  staffTotalFte              Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
+  staffDataYear              Int?     @map("staff_data_year")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

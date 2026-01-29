@@ -5,6 +5,7 @@ import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
 import DistrictInfo from "./DistrictInfo";
 import FinanceData from "./FinanceData";
+import StaffingSalaries from "./StaffingSalaries";
 import DemographicsChart from "./DemographicsChart";
 import AcademicMetrics from "./AcademicMetrics";
 import MetricsChart from "./MetricsChart";
@@ -70,6 +71,11 @@ export default function SidePanel() {
           {/* Finance & Economic Data */}
           {data.educationData && (
             <FinanceData educationData={data.educationData} />
+          )}
+
+          {/* Staffing & Salaries */}
+          {data.educationData && (
+            <StaffingSalaries educationData={data.educationData} />
           )}
 
           {/* Student Demographics */}

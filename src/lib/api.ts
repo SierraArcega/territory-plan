@@ -102,6 +102,26 @@ export interface DistrictEducationData {
   graduationRateMale: number | null;
   graduationRateFemale: number | null;
   graduationDataYear: number | null;
+  // Staffing & Salaries
+  salariesTotal: number | null;
+  salariesInstruction: number | null;
+  salariesTeachersRegular: number | null;
+  salariesTeachersSpecialEd: number | null;
+  salariesTeachersVocational: number | null;
+  salariesTeachersOther: number | null;
+  salariesSupportAdmin: number | null;
+  salariesSupportInstructional: number | null;
+  benefitsTotal: number | null;
+  // Staff counts (FTE)
+  teachersFte: number | null;
+  teachersElementaryFte: number | null;
+  teachersSecondaryFte: number | null;
+  adminFte: number | null;
+  guidanceCounselorsFte: number | null;
+  instructionalAidesFte: number | null;
+  supportStaffFte: number | null;
+  staffTotalFte: number | null;
+  staffDataYear: number | null;
 }
 
 export interface DistrictEnrollmentDemographics {

@@ -52,6 +52,26 @@ export async function GET(
           graduationRateMale: row.graduation_rate_male ? Number(row.graduation_rate_male) : null,
           graduationRateFemale: row.graduation_rate_female ? Number(row.graduation_rate_female) : null,
           graduationDataYear: row.graduation_data_year as number | null,
+          // Staffing & Salaries
+          salariesTotal: row.salaries_total ? Number(row.salaries_total) : null,
+          salariesInstruction: row.salaries_instruction ? Number(row.salaries_instruction) : null,
+          salariesTeachersRegular: row.salaries_teachers_regular ? Number(row.salaries_teachers_regular) : null,
+          salariesTeachersSpecialEd: row.salaries_teachers_special_ed ? Number(row.salaries_teachers_special_ed) : null,
+          salariesTeachersVocational: row.salaries_teachers_vocational ? Number(row.salaries_teachers_vocational) : null,
+          salariesTeachersOther: row.salaries_teachers_other ? Number(row.salaries_teachers_other) : null,
+          salariesSupportAdmin: row.salaries_support_admin ? Number(row.salaries_support_admin) : null,
+          salariesSupportInstructional: row.salaries_support_instructional ? Number(row.salaries_support_instructional) : null,
+          benefitsTotal: row.benefits_total ? Number(row.benefits_total) : null,
+          // Staff counts (FTE)
+          teachersFte: row.teachers_fte ? Number(row.teachers_fte) : null,
+          teachersElementaryFte: row.teachers_elementary_fte ? Number(row.teachers_elementary_fte) : null,
+          teachersSecondaryFte: row.teachers_secondary_fte ? Number(row.teachers_secondary_fte) : null,
+          adminFte: row.admin_fte ? Number(row.admin_fte) : null,
+          guidanceCounselorsFte: row.guidance_counselors_fte ? Number(row.guidance_counselors_fte) : null,
+          instructionalAidesFte: row.instructional_aides_fte ? Number(row.instructional_aides_fte) : null,
+          supportStaffFte: row.support_staff_fte ? Number(row.support_staff_fte) : null,
+          staffTotalFte: row.staff_total_fte ? Number(row.staff_total_fte) : null,
+          staffDataYear: row.staff_data_year as number | null,
         };
       }
 

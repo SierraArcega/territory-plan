@@ -72,6 +72,16 @@ def fetch_finance_data(
                     # Expenditure
                     "total_expenditure": record.get("exp_total"),
                     "expenditure_per_pupil": record.get("exp_current_instruction_total_ppcstot"),
+                    # Salaries
+                    "salaries_total": record.get("salaries_total"),
+                    "salaries_instruction": record.get("salaries_instruction"),
+                    "salaries_teachers_regular": record.get("salaries_teachers_regular_prog"),
+                    "salaries_teachers_special_ed": record.get("salaries_teachers_sped"),
+                    "salaries_teachers_vocational": record.get("salaries_teachers_vocational"),
+                    "salaries_teachers_other": record.get("salaries_teachers_other_ed"),
+                    "salaries_support_admin": record.get("salaries_supp_sch_admin"),
+                    "salaries_support_instructional": record.get("salaries_supp_instruc_staff"),
+                    "benefits_total": record.get("benefits_employee_total"),
                     "year": year,
                 })
 
@@ -116,25 +126,42 @@ def upsert_finance_data(
     def is_valid(val):
         return val is not None and val >= 0
 
+    def clean_val(val):
+        return val if is_valid(val) else None
+
     valid_records = [
         {
-            **r,
-            # Replace negative values with None
-            "total_revenue": r.get("total_revenue") if is_valid(r.get("total_revenue")) else None,
-            "federal_revenue": r.get("federal_revenue") if is_valid(r.get("federal_revenue")) else None,
-            "state_revenue": r.get("state_revenue") if is_valid(r.get("state_revenue")) else None,
-            "local_revenue": r.get("local_revenue") if is_valid(r.get("local_revenue")) else None,
-            "total_expenditure": r.get("total_expenditure") if is_valid(r.get("total_expenditure")) else None,
-            "expenditure_per_pupil": r.get("expenditure_per_pupil") if is_valid(r.get("expenditure_per_pupil")) else None,
+            "leaid": r["leaid"],
+            "year": r["year"],
+            # Revenue
+            "total_revenue": clean_val(r.get("total_revenue")),
+            "federal_revenue": clean_val(r.get("federal_revenue")),
+            "state_revenue": clean_val(r.get("state_revenue")),
+            "local_revenue": clean_val(r.get("local_revenue")),
+            "total_expenditure": clean_val(r.get("total_expenditure")),
+            "expenditure_per_pupil": clean_val(r.get("expenditure_per_pupil")),
+            # Salaries
+            "salaries_total": clean_val(r.get("salaries_total")),
+            "salaries_instruction": clean_val(r.get("salaries_instruction")),
+            "salaries_teachers_regular": clean_val(r.get("salaries_teachers_regular")),
+            "salaries_teachers_special_ed": clean_val(r.get("salaries_teachers_special_ed")),
+            "salaries_teachers_vocational": clean_val(r.get("salaries_teachers_vocational")),
+            "salaries_teachers_other": clean_val(r.get("salaries_teachers_other")),
+            "salaries_support_admin": clean_val(r.get("salaries_support_admin")),
+            "salaries_support_instructional": clean_val(r.get("salaries_support_instructional")),
+            "benefits_total": clean_val(r.get("benefits_total")),
         }
         for r in records
-        if is_valid(r.get("total_revenue")) or is_valid(r.get("expenditure_per_pupil"))
+        if is_valid(r.get("total_revenue")) or is_valid(r.get("salaries_total"))
     ]
 
     upsert_sql = """
         INSERT INTO district_education_data (
             leaid, total_revenue, federal_revenue, state_revenue, local_revenue,
             total_expenditure, expenditure_per_pupil, finance_data_year,
+            salaries_total, salaries_instruction, salaries_teachers_regular,
+            salaries_teachers_special_ed, salaries_teachers_vocational, salaries_teachers_other,
+            salaries_support_admin, salaries_support_instructional, benefits_total,
             created_at, updated_at
         )
         SELECT v.leaid::varchar(7),
@@ -145,10 +172,22 @@ def upsert_finance_data(
                v.total_expenditure::numeric,
                v.expenditure_per_pupil::numeric,
                v.finance_data_year::integer,
+               v.salaries_total::numeric,
+               v.salaries_instruction::numeric,
+               v.salaries_teachers_regular::numeric,
+               v.salaries_teachers_special_ed::numeric,
+               v.salaries_teachers_vocational::numeric,
+               v.salaries_teachers_other::numeric,
+               v.salaries_support_admin::numeric,
+               v.salaries_support_instructional::numeric,
+               v.benefits_total::numeric,
                NOW(), NOW()
         FROM (VALUES %s) AS v(
             leaid, total_revenue, federal_revenue, state_revenue, local_revenue,
-            total_expenditure, expenditure_per_pupil, finance_data_year
+            total_expenditure, expenditure_per_pupil, finance_data_year,
+            salaries_total, salaries_instruction, salaries_teachers_regular,
+            salaries_teachers_special_ed, salaries_teachers_vocational, salaries_teachers_other,
+            salaries_support_admin, salaries_support_instructional, benefits_total
         )
         WHERE v.leaid IN (SELECT leaid FROM districts)
         ON CONFLICT (leaid) DO UPDATE SET
@@ -159,6 +198,15 @@ def upsert_finance_data(
             total_expenditure = EXCLUDED.total_expenditure,
             expenditure_per_pupil = EXCLUDED.expenditure_per_pupil,
             finance_data_year = EXCLUDED.finance_data_year,
+            salaries_total = EXCLUDED.salaries_total,
+            salaries_instruction = EXCLUDED.salaries_instruction,
+            salaries_teachers_regular = EXCLUDED.salaries_teachers_regular,
+            salaries_teachers_special_ed = EXCLUDED.salaries_teachers_special_ed,
+            salaries_teachers_vocational = EXCLUDED.salaries_teachers_vocational,
+            salaries_teachers_other = EXCLUDED.salaries_teachers_other,
+            salaries_support_admin = EXCLUDED.salaries_support_admin,
+            salaries_support_instructional = EXCLUDED.salaries_support_instructional,
+            benefits_total = EXCLUDED.benefits_total,
             updated_at = NOW()
     """
 
@@ -173,6 +221,15 @@ def upsert_finance_data(
             r.get("total_expenditure"),
             r.get("expenditure_per_pupil"),
             year,
+            r.get("salaries_total"),
+            r.get("salaries_instruction"),
+            r.get("salaries_teachers_regular"),
+            r.get("salaries_teachers_special_ed"),
+            r.get("salaries_teachers_vocational"),
+            r.get("salaries_teachers_other"),
+            r.get("salaries_support_admin"),
+            r.get("salaries_support_instructional"),
+            r.get("benefits_total"),
         )
         for r in valid_records
     ]
@@ -187,7 +244,7 @@ def upsert_finance_data(
         try:
             execute_values(
                 cur, upsert_sql, batch,
-                template="(%s, %s, %s, %s, %s, %s, %s, %s)"
+                template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             )
             updated_count += cur.rowcount
         except Exception as e:
