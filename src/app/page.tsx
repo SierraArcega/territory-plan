@@ -3,8 +3,6 @@
 import dynamic from "next/dynamic";
 import FilterBar from "@/components/filters/FilterBar";
 import SidePanel from "@/components/panel/SidePanel";
-import Controls from "@/components/map/Controls";
-import Legend from "@/components/map/Legend";
 
 // Dynamic import for MapContainer to avoid SSR issues with MapLibre
 const MapContainer = dynamic(() => import("@/components/map/MapContainer"), {
@@ -43,12 +41,6 @@ export default function Home() {
       <div className="flex-1 relative">
         {/* Map */}
         <MapContainer className="absolute inset-0" />
-
-        {/* Map Controls */}
-        <Controls />
-
-        {/* Legend */}
-        <Legend />
 
         {/* Side Panel */}
         <SidePanel />
