@@ -18,7 +18,11 @@ export async function GET(
           include: {
             district: {
               include: {
-                fullmindData: true,
+                districtTags: {
+                  include: {
+                    tag: true,
+                  },
+                },
               },
             },
           },
@@ -51,8 +55,11 @@ export async function GET(
         name: pd.district.name,
         stateAbbrev: pd.district.stateAbbrev,
         enrollment: pd.district.enrollment,
-        isCustomer: pd.district.fullmindData?.isCustomer ?? false,
-        hasOpenPipeline: pd.district.fullmindData?.hasOpenPipeline ?? false,
+        tags: pd.district.districtTags.map((dt) => ({
+          id: dt.tag.id,
+          name: dt.tag.name,
+          color: dt.tag.color,
+        })),
       })),
     });
   } catch (error) {
