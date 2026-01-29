@@ -1,5 +1,5 @@
 // src/lib/autoTags.ts
-import prisma from "@/lib/prisma";
+import prisma from "./prisma";
 
 // Auto-tag definitions with names and colors
 export const AUTO_TAGS = {
