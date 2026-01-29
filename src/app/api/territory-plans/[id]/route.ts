@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/territory-plans/[id] - Get a single plan with its districts
+// GET /api/territory-plans/[id] - Get a single plan with its districts (user-scoped)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const user = await getUser();
 
     const plan = await prisma.territoryPlan.findUnique({
-      where: { id },
+      where: { id, userId: user?.id },
       include: {
         districts: {
           include: {
@@ -71,19 +73,20 @@ export async function GET(
   }
 }
 
-// PUT /api/territory-plans/[id] - Update plan metadata
+// PUT /api/territory-plans/[id] - Update plan metadata (user-scoped)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const user = await getUser();
     const body = await request.json();
     const { name, description, owner, color, status, startDate, endDate } = body;
 
-    // Check if plan exists
+    // Check if plan exists and belongs to user
     const existing = await prisma.territoryPlan.findUnique({
-      where: { id },
+      where: { id, userId: user?.id },
     });
 
     if (!existing) {
@@ -152,17 +155,18 @@ export async function PUT(
   }
 }
 
-// DELETE /api/territory-plans/[id] - Delete a plan
+// DELETE /api/territory-plans/[id] - Delete a plan (user-scoped)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const user = await getUser();
 
-    // Check if plan exists
+    // Check if plan exists and belongs to user
     const existing = await prisma.territoryPlan.findUnique({
-      where: { id },
+      where: { id, userId: user?.id },
     });
 
     if (!existing) {
@@ -174,7 +178,7 @@ export async function DELETE(
 
     // Delete will cascade to TerritoryPlanDistrict due to onDelete: Cascade
     await prisma.territoryPlan.delete({
-      where: { id },
+      where: { id, userId: user?.id },
     });
 
     return NextResponse.json({ success: true });

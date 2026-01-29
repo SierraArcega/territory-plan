@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
   extensions = [postgis]
 }
 
@@ -80,9 +81,11 @@ model DistrictEdits {
   leaid     String   @id @db.VarChar(7)
   notes     String?
   owner     String?  @db.VarChar(100)
+  userId    String?  @map("user_id") @db.Uuid
   updatedAt DateTime @updatedAt @map("updated_at")
   district  District @relation(fields: [leaid], references: [leaid])
 
+  @@index([userId])
   @@map("district_edits")
 }
 
@@ -225,10 +228,12 @@ model TerritoryPlan {
   status      String                  @default("active") @db.VarChar(20)
   startDate   DateTime?               @map("start_date")
   endDate     DateTime?               @map("end_date")
+  userId      String?                 @map("user_id") @db.Uuid
   createdAt   DateTime                @default(now()) @map("created_at")
   updatedAt   DateTime                @updatedAt @map("updated_at")
   districts   TerritoryPlanDistrict[]
 
+  @@index([userId])
   @@map("territory_plans")
 }
 

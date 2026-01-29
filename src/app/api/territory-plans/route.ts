@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/territory-plans - List all plans with district counts
+// GET /api/territory-plans - List all plans with district counts (scoped to user)
 export async function GET() {
   try {
+    const user = await getUser();
+
+    // Build where clause - if user is authenticated, filter by their userId
+    // If not authenticated (shouldn't happen with middleware), return empty
+    const whereClause = user ? { userId: user.id } : { userId: "none" };
+
     const plans = await prisma.territoryPlan.findMany({
+      where: whereClause,
       orderBy: { updatedAt: "desc" },
       include: {
         _count: {
@@ -39,9 +47,18 @@ export async function GET() {
   }
 }
 
-// POST /api/territory-plans - Create a new plan
+// POST /api/territory-plans - Create a new plan (associated with current user)
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { name, description, owner, color, status, startDate, endDate } = body;
 
@@ -78,6 +95,7 @@ export async function POST(request: NextRequest) {
         status: status || "active",
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
+        userId: user.id,
       },
     });
 
