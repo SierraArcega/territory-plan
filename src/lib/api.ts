@@ -213,8 +213,7 @@ export interface TerritoryPlanDistrict {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
-  isCustomer: boolean;
-  hasOpenPipeline: boolean;
+  tags: Array<{ id: number; name: string; color: string }>;
 }
 
 export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"> {

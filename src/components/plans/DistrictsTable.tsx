@@ -138,7 +138,7 @@ export default function DistrictsTable({
               Enrollment
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Status
+              Tags
             </th>
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Added
@@ -172,21 +172,19 @@ export default function DistrictsTable({
                 </span>
               </td>
               <td className="px-4 py-3">
-                <div className="flex gap-1.5">
-                  {district.isCustomer && (
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[#F37167] text-white">
-                      Customer
-                    </span>
-                  )}
-                  {district.hasOpenPipeline && (
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[#6EA3BE] text-white">
-                      Pipeline
-                    </span>
-                  )}
-                  {!district.isCustomer && !district.hasOpenPipeline && (
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-600">
-                      No Data
-                    </span>
+                <div className="flex flex-wrap gap-1">
+                  {district.tags && district.tags.length > 0 ? (
+                    district.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white"
+                        style={{ backgroundColor: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">No tags</span>
                   )}
                 </div>
               </td>
