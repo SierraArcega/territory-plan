@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { FullmindData } from "@/lib/api";
 
 interface MetricsChartProps {
@@ -23,7 +24,8 @@ interface BarData {
 }
 
 export default function MetricsChart({ fullmindData }: MetricsChartProps) {
-  const metrics: BarData[] = [
+  // Memoize metrics array to prevent recreating on every render
+  const metrics = useMemo<BarData[]>(() => [
     {
       label: "Net Invoicing",
       fy25: fullmindData.fy25NetInvoicing,
@@ -39,13 +41,13 @@ export default function MetricsChart({ fullmindData }: MetricsChartProps) {
       fy25: fullmindData.fy25SessionsRevenue,
       fy26: fullmindData.fy26SessionsRevenue,
     },
-  ];
+  ], [fullmindData]);
 
-  // Find max value for scaling
-  const maxValue = Math.max(
+  // Find max value for scaling (memoized)
+  const maxValue = useMemo(() => Math.max(
     ...metrics.flatMap((m) => [m.fy25, m.fy26]),
     1 // Prevent division by zero
-  );
+  ), [metrics]);
 
   return (
     <div>

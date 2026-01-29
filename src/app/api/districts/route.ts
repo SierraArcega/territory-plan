@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const metric = (searchParams.get("metric") || "net_invoicing") as MetricType;
     const year = (searchParams.get("year") || "fy26") as FiscalYear;
-    const limit = parseInt(searchParams.get("limit") || "1000");
+    const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Build where clause
