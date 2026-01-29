@@ -76,7 +76,7 @@ python run_etl.py --all --fullmind /path/to/fullmind.csv
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3005](http://localhost:3005)
 
 ## ETL Pipeline
 

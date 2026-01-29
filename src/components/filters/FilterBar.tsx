@@ -20,8 +20,6 @@ export default function FilterBar() {
     setStatusFilter,
     setSalesExecutive,
     clearFilters,
-    showCustomerDots,
-    setShowCustomerDots,
   } = useMapStore();
 
   const { data: states } = useStates();
@@ -87,33 +85,6 @@ export default function FilterBar() {
             ))}
           </select>
         </div>
-
-        {/* Customer Dots Toggle */}
-        <button
-          onClick={() => setShowCustomerDots(!showCustomerDots)}
-          className={`
-            px-3 py-2 text-sm font-medium rounded-md border transition-colors
-            flex items-center gap-2
-            ${showCustomerDots
-              ? "bg-[#403770] text-white border-[#403770]"
-              : "bg-white text-[#403770] border-gray-200 hover:border-[#403770]"
-            }
-          `}
-          title={showCustomerDots ? "Hide customer dots" : "Show customer dots"}
-        >
-          <svg
-            className="w-4 h-4"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="3" />
-            <circle cx="4" cy="8" r="2" />
-            <circle cx="20" cy="16" r="2" />
-            <circle cx="8" cy="18" r="2.5" />
-            <circle cx="18" cy="6" r="1.5" />
-          </svg>
-          Dots
-        </button>
 
         {/* Clear Filters */}
         {hasActiveFilters && (

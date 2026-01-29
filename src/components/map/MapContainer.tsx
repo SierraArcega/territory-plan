@@ -8,8 +8,7 @@ import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import MapTooltip from "./MapTooltip";
 import ClickRipple from "./ClickRipple";
 import TileLoadingIndicator from "./TileLoadingIndicator";
-import { useCustomerDots } from "@/lib/api";
-import CustomerDotsLegend from "./CustomerDotsLegend";
+import CustomerOverviewLegend from "./CustomerOverviewLegend";
 
 // Throttle interval for hover handlers (ms) - 20fps is smooth enough for hover effects
 const HOVER_THROTTLE_MS = 50;
@@ -80,8 +79,8 @@ const STATE_BOUNDS: Record<string, { center: [number, number]; zoom: number }> =
   MP: { center: [145.7, 15.2], zoom: 8 },
 };
 
-// Category labels for dot tooltips
-const DOT_CATEGORY_LABELS: Record<string, string> = {
+// Category labels for customer shading tooltips
+const CUSTOMER_CATEGORY_LABELS: Record<string, string> = {
   multi_year: "Multi-year customer",
   new: "New this year",
   lapsed: "Lapsed customer",
@@ -160,17 +159,12 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(4);
   const isTouchDevice = useIsTouchDevice();
-
-  // Fetch customer dots for national view
-  const { data: customerDotsData } = useCustomerDots();
 
   // Refs for hover optimization - change detection and throttling
   const lastHoveredLeaidRef = useRef<string | null>(null);
   const lastHoveredStateRef = useRef<string | null>(null);
   const lastHoverTimeRef = useRef(0);
-  const lastHoveredDotLeaidRef = useRef<string | null>(null);
 
   // Screen reader announcement ref
   const announcementRef = useRef<HTMLDivElement>(null);
@@ -191,7 +185,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     selectedLeaids,
     toggleDistrictSelection,
     similarDistrictLeaids,
-    showCustomerDots,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -239,10 +232,10 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         data: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
       });
 
-      // Add district tiles source (starts empty, populated when state is selected)
+      // Add district tiles source - loads all districts at national level
       map.current.addSource("districts", {
         type: "vector",
-        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?state=_none_`],
+        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}`],
         minzoom: 3.5,
         maxzoom: 12,
       });
@@ -305,47 +298,88 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         },
       });
 
-      // Fill layer - Deep Coral for districts with revenue, gray for others
-      // Note: MVT encodes booleans as 1/0, so we check explicitly
+      // Customer category fill layer - colors districts by customer status
+      // Only shows districts that have a customer_category
       map.current.addLayer({
-        id: "district-fill",
+        id: "district-customer-fill",
         type: "fill",
         source: "districts",
         "source-layer": "districts",
+        filter: ["has", "customer_category"],
         paint: {
           "fill-color": [
-            "case",
-            ["any",
-              ["==", ["get", "has_revenue"], true],
-              ["==", ["get", "has_revenue"], 1],
-            ],
-            "#F37167", // Deep Coral - Fullmind brand color for districts with revenue
-            "#E5E7EB", // Gray for districts without revenue
+            "match",
+            ["get", "customer_category"],
+            "multi_year", "#403770", // Plum
+            "new", "#22C55E",        // Green
+            "lapsed", "#EF4444",     // Red
+            "pipeline", "#F59E0B",   // Amber
+            "target", "#6EA3BE",     // Steel Blue
+            "#E5E7EB",               // Fallback gray
           ],
           "fill-opacity": [
             "case",
             ["boolean", ["feature-state", "hover"], false],
             0.85, // Brighter on hover
-            [
-              "case",
-              ["any",
-                ["==", ["get", "has_revenue"], true],
-                ["==", ["get", "has_revenue"], 1],
-              ],
-              0.7, // More visible for revenue districts
-              0.5, // Visible for non-revenue districts
-            ],
+            0.6,  // Default opacity
           ],
           "fill-opacity-transition": { duration: 150 },
         },
       });
 
-      // Boundary layer - visible lines
+      // Boundary layer for customer districts - visible at all zoom levels
+      // Thinner lines when zoomed out for cleaner national view
+      map.current.addLayer({
+        id: "district-customer-boundary",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["has", "customer_category"],
+        paint: {
+          "line-color": "#374151",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 0.3,   // Very thin at national level
+            5, 0.5,   // Slightly thicker
+            7, 1,     // Medium at state level
+            10, 1.5,  // Full thickness when zoomed in
+          ],
+          "line-opacity": 0.8,
+          "line-opacity-transition": { duration: 100 },
+        },
+      });
+
+      // Base fill layer - gray for districts without customer category
+      // Only visible when zoomed into a state (zoom >= 6)
+      map.current.addLayer({
+        id: "district-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["!", ["has", "customer_category"]],
+        minzoom: 6,
+        paint: {
+          "fill-color": "#E5E7EB", // Gray
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.7, // Brighter on hover
+            0.5, // Default for non-customer districts
+          ],
+          "fill-opacity-transition": { duration: 150 },
+        },
+      });
+
+      // Boundary layer for non-customer districts - only when zoomed in
       map.current.addLayer({
         id: "district-boundary",
         type: "line",
         source: "districts",
         "source-layer": "districts",
+        filter: ["!", ["has", "customer_category"]],
+        minzoom: 6,
         paint: {
           "line-color": "#374151",
           "line-width": 1.5,
@@ -434,79 +468,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         filter: ["in", ["get", "leaid"], ["literal", []]],
       });
 
-      // Add customer dots source (empty initially, populated by effect)
-      map.current.addSource("customer-dots", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-
-      // Add customer dots layer with data-driven styling
-      map.current.addLayer({
-        id: "customer-dots",
-        type: "circle",
-        source: "customer-dots",
-        paint: {
-          "circle-color": [
-            "match",
-            ["get", "category"],
-            "multi_year", "#403770",
-            "new", "#22C55E",
-            "lapsed", "#EF4444",
-            "pipeline", "#F59E0B",
-            "target", "#6EA3BE",
-            "#403770",
-          ],
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            3, ["match", ["get", "category"], "multi_year", 5, "new", 4, "lapsed", 4, "pipeline", 3.5, "target", 3, 4],
-            6, ["match", ["get", "category"], "multi_year", 10, "new", 8, "lapsed", 8, "pipeline", 7, "target", 6, 8],
-          ],
-          "circle-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            3, 1,
-            5, 1,
-            7, 0.3,
-          ],
-          "circle-stroke-width": 1,
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            3, 0.8,
-            7, 0.2,
-          ],
-        },
-      });
-
-      // Add customer dots hover layer
-      map.current.addLayer({
-        id: "customer-dots-hover",
-        type: "circle",
-        source: "customer-dots",
-        filter: ["==", ["get", "leaid"], ""],
-        paint: {
-          "circle-color": [
-            "match",
-            ["get", "category"],
-            "multi_year", "#403770",
-            "new", "#22C55E",
-            "lapsed", "#EF4444",
-            "pipeline", "#F59E0B",
-            "target", "#6EA3BE",
-            "#403770",
-          ],
-          "circle-radius": 14,
-          "circle-opacity": 1,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-
       setMapReady(true);
       setMapInstance(map.current);
     });
@@ -516,46 +477,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current = null;
     };
   }, []);
-
-  // Track zoom level for legend fading
-  useEffect(() => {
-    if (!map.current) return;
-
-    const handleZoom = () => {
-      if (map.current) {
-        setCurrentZoom(map.current.getZoom());
-      }
-    };
-
-    map.current.on("zoom", handleZoom);
-    return () => {
-      map.current?.off("zoom", handleZoom);
-    };
-  }, [mapReady]);
-
-  // Update customer dots source when data loads
-  useEffect(() => {
-    if (!map.current?.isStyleLoaded() || !customerDotsData) return;
-
-    const source = map.current.getSource("customer-dots") as maplibregl.GeoJSONSource;
-    if (source) {
-      source.setData(customerDotsData);
-    }
-  }, [customerDotsData, mapReady]);
-
-  // Toggle customer dots layer visibility
-  useEffect(() => {
-    if (!map.current?.isStyleLoaded()) return;
-
-    const visibility = showCustomerDots ? "visible" : "none";
-
-    if (map.current.getLayer("customer-dots")) {
-      map.current.setLayoutProperty("customer-dots", "visibility", visibility);
-    }
-    if (map.current.getLayer("customer-dots-hover")) {
-      map.current.setLayoutProperty("customer-dots-hover", "visibility", visibility);
-    }
-  }, [showCustomerDots, mapReady]);
 
   // Update selected district filter
   useEffect(() => {
@@ -599,13 +520,15 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     }
   }, [similarDistrictLeaids]);
 
-  // Update tile source when selected state changes - only load districts for focused state
+  // Update tile source when selected state changes - filter to state or show all
   useEffect(() => {
     if (!map.current?.isStyleLoaded()) return;
 
     const source = map.current.getSource("districts") as maplibregl.VectorTileSource;
     if (source && "setTiles" in source) {
-      const stateParam = selectedState ? `?state=${selectedState}` : "?state=_none_";
+      // When a state is selected, filter to that state for better performance
+      // Otherwise, load all districts to show customer shading at national level
+      const stateParam = selectedState ? `?state=${selectedState}` : "";
       (source as unknown as { setTiles: (tiles: string[]) => void }).setTiles([
         `${window.location.origin}/api/tiles/{z}/{x}/{y}${stateParam}`,
       ]);
@@ -653,46 +576,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         }
       }
 
-      // Check for customer dot clicks (at national view level)
-      if (zoom < 7 && map.current.getLayer("customer-dots")) {
-        const dotFeatures = map.current.queryRenderedFeatures(e.point, {
-          layers: ["customer-dots"],
-        });
-
-        if (dotFeatures.length > 0) {
-          const feature = dotFeatures[0];
-          const leaid = feature.properties?.leaid;
-          const stateAbbrev = feature.properties?.stateAbbrev;
-          const name = feature.properties?.name;
-
-          if (leaid && stateAbbrev && STATE_BOUNDS[stateAbbrev]) {
-            const coords = (feature.geometry as GeoJSON.Point).coordinates;
-
-            hideTooltip();
-            announce(`Zooming to ${name}`);
-
-            setSelectedState(stateAbbrev);
-            setStateFilter(stateAbbrev);
-
-            map.current.flyTo({
-              center: coords as [number, number],
-              zoom: 9,
-              duration: 1500,
-              essential: true,
-            });
-
-            setTimeout(() => {
-              setSelectedLeaid(leaid);
-            }, 1600);
-
-            return;
-          }
-        }
-      }
-
-      // Check for district clicks
+      // Check for district clicks (both customer-filled and regular districts)
       const features = map.current.queryRenderedFeatures(e.point, {
-        layers: ["district-fill"],
+        layers: ["district-customer-fill", "district-fill"],
       });
 
       if (features.length > 0) {
@@ -862,6 +748,11 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       const stateAbbrev = feature.properties?.state_abbrev;
       const enrollment = feature.properties?.enrollment;
       const salesExec = feature.properties?.sales_executive;
+      const customerCategory = feature.properties?.customer_category;
+
+      // Build display name with customer category if present
+      const categoryLabel = customerCategory ? CUSTOMER_CATEGORY_LABELS[customerCategory] : null;
+      const displayName = categoryLabel ? `${name} - ${categoryLabel}` : name;
 
       // Update cursor
       map.current.getCanvas().style.cursor = "pointer";
@@ -880,7 +771,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
         type: "district",
         leaid,
-        name,
+        name: displayName,
         stateAbbrev,
         enrollment: enrollment ? Number(enrollment) : undefined,
         salesExecutive: salesExec || null,
@@ -906,56 +797,6 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     if (map.current.getLayer("state-hover")) {
       map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
     }
-    hideTooltip();
-  }, [hideTooltip]);
-
-  // Handle customer dot hover events
-  const handleDotHover = useCallback(
-    (e: maplibregl.MapLayerMouseEvent) => {
-      if (!map.current || isTouchDevice) return;
-
-      const now = Date.now();
-      if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
-      lastHoverTimeRef.current = now;
-
-      const feature = e.features?.[0];
-      if (!feature) return;
-
-      const leaid = feature.properties?.leaid as string | undefined;
-
-      if (leaid === lastHoveredDotLeaidRef.current) {
-        updateTooltipPosition(e.originalEvent.clientX, e.originalEvent.clientY);
-        return;
-      }
-      lastHoveredDotLeaidRef.current = leaid || null;
-
-      const name = feature.properties?.name;
-      const stateAbbrev = feature.properties?.stateAbbrev;
-      const category = feature.properties?.category;
-
-      map.current.getCanvas().style.cursor = "pointer";
-
-      map.current.setFilter("customer-dots-hover", [
-        "==",
-        ["get", "leaid"],
-        leaid || "",
-      ]);
-
-      showTooltip(e.originalEvent.clientX, e.originalEvent.clientY, {
-        type: "district",
-        leaid,
-        name: `${name} - ${DOT_CATEGORY_LABELS[category] || category}`,
-        stateAbbrev,
-      });
-    },
-    [showTooltip, updateTooltipPosition, isTouchDevice]
-  );
-
-  const handleDotMouseLeave = useCallback(() => {
-    if (!map.current) return;
-    lastHoveredDotLeaidRef.current = null;
-    map.current.getCanvas().style.cursor = "";
-    map.current.setFilter("customer-dots-hover", ["==", ["get", "leaid"], ""]);
     hideTooltip();
   }, [hideTooltip]);
 
@@ -1004,6 +845,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
     // Use layer-specific mousemove events instead of map-level event
     // These only fire when cursor is over the specific layer
+    // Listen on both customer-fill and regular fill layers
+    map.current.on("mousemove", "district-customer-fill", handleDistrictHover);
+    map.current.on("mouseleave", "district-customer-fill", handleDistrictMouseLeave);
     map.current.on("mousemove", "district-fill", handleDistrictHover);
     map.current.on("mouseleave", "district-fill", handleDistrictMouseLeave);
 
@@ -1028,36 +872,16 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current.on("sourcedata", handleSourceData);
     }
 
-    // Add customer dot event listeners (wait for layer if needed)
-    const addDotListeners = () => {
-      if (map.current?.getLayer("customer-dots")) {
-        map.current.on("mousemove", "customer-dots", handleDotHover);
-        map.current.on("mouseleave", "customer-dots", handleDotMouseLeave);
-      }
-    };
-
-    if (map.current.getLayer("customer-dots")) {
-      addDotListeners();
-    } else {
-      const handleDotSourceData = (e: maplibregl.MapSourceDataEvent) => {
-        if (e.sourceId === "customer-dots" && map.current?.getLayer("customer-dots")) {
-          addDotListeners();
-          map.current?.off("sourcedata", handleDotSourceData);
-        }
-      };
-      map.current.on("sourcedata", handleDotSourceData);
-    }
-
     return () => {
       map.current?.off("click", handleClick);
+      map.current?.off("mousemove", "district-customer-fill", handleDistrictHover);
+      map.current?.off("mouseleave", "district-customer-fill", handleDistrictMouseLeave);
       map.current?.off("mousemove", "district-fill", handleDistrictHover);
       map.current?.off("mouseleave", "district-fill", handleDistrictMouseLeave);
       map.current?.off("mousemove", "state-fill", handleStateHover);
       map.current?.off("mouseleave", "state-fill", handleStateMouseLeave);
-      map.current?.off("mousemove", "customer-dots", handleDotHover);
-      map.current?.off("mouseleave", "customer-dots", handleDotMouseLeave);
     };
-  }, [handleClick, handleDistrictHover, handleDistrictMouseLeave, handleStateHover, handleStateMouseLeave, handleDotHover, handleDotMouseLeave]);
+  }, [handleClick, handleDistrictHover, handleDistrictMouseLeave, handleStateHover, handleStateMouseLeave]);
 
   // Handle zoom back to US view
   const handleBackToUS = useCallback(() => {
@@ -1156,12 +980,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           </button>
         )}
 
-        {/* Customer dots legend */}
-        {mapReady && showCustomerDots && (
-          <CustomerDotsLegend
-            className="absolute bottom-4 left-4 z-10"
-            fadeOnZoom={currentZoom > 7}
-          />
+        {/* Customer overview legend (polygon shading categories) */}
+        {mapReady && (
+          <CustomerOverviewLegend className="absolute bottom-4 left-4 z-10" />
         )}
       </div>
     </>

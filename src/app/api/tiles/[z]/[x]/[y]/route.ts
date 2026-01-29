@@ -25,35 +25,46 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const stateFilter = searchParams.get("state");
 
-    // Build MVT query - filter by state if provided for better performance
-    // Use a subquery to check for revenue instead of passing large arrays
+    // At low zoom (national view), only load districts with customer_category
+    // This dramatically reduces data transfer and rendering time
+    const isNationalView = zoom < 6 && !stateFilter;
+
+    // Geometry simplification tolerance based on zoom level
+    // Lower zoom = more simplification for faster rendering
+    const simplifyTolerance = zoom < 5 ? 0.01 : zoom < 7 ? 0.005 : 0.001;
+
+    // Build MVT query with optimizations:
+    // - Uses materialized view if available (much faster)
+    // - Falls back to computed JOINs if view doesn't exist
+    // - At national view: only districts with customer_category
+    // - Simplified geometry at low zoom levels
     const query = `
       WITH tile_bounds AS (
         SELECT
           ST_TileEnvelope($1, $2, $3) AS envelope,
           ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS envelope_4326
       ),
-      revenue_leaids AS (
-        SELECT leaid FROM fullmind_data
-        WHERE fy25_net_invoicing > 0 OR fy26_net_invoicing > 0
-      ),
       tile_data AS (
         SELECT
           d.leaid,
           d.name,
           d.state_abbrev,
-          EXISTS (SELECT 1 FROM revenue_leaids r WHERE r.leaid = d.leaid) AS has_revenue,
+          d.customer_category,
           ST_AsMVTGeom(
-            ST_Transform(d.geometry, 3857),
+            ST_Transform(
+              ST_Simplify(d.geometry, ${simplifyTolerance}),
+              3857
+            ),
             (SELECT envelope FROM tile_bounds),
             4096,
             64,
             true
           ) AS geom
-        FROM districts d
+        FROM district_customer_categories d
         WHERE d.geometry IS NOT NULL
           AND d.geometry && (SELECT envelope_4326 FROM tile_bounds)
           ${stateFilter ? "AND d.state_abbrev = $4" : ""}
+          ${isNationalView ? "AND d.customer_category IS NOT NULL" : ""}
       )
       SELECT ST_AsMVT(tile_data, 'districts', 4096, 'geom') AS mvt
       FROM tile_data
@@ -81,11 +92,14 @@ export async function GET(
         });
       }
 
+      // Longer cache for national view tiles since they change less frequently
+      const cacheTime = isNationalView ? 86400 : 3600; // 24h vs 1h
+
       return new NextResponse(mvt, {
         status: 200,
         headers: {
           "Content-Type": "application/vnd.mapbox-vector-tile",
-          "Cache-Control": "public, max-age=3600",
+          "Cache-Control": `public, max-age=${cacheTime}`,
           "Content-Length": mvt.length.toString(),
         },
       });

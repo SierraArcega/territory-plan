@@ -70,8 +70,6 @@ interface MapState {
   currentPlanId: string | null; // Active plan for quick-add
   // Similar districts for "Find Similar" feature
   similarDistrictLeaids: string[];
-  // Customer dots layer visibility
-  showCustomerDots: boolean;
 }
 
 interface MapActions {
@@ -102,8 +100,6 @@ interface MapActions {
   // Similar districts actions
   setSimilarDistrictLeaids: (leaids: string[]) => void;
   clearSimilarDistricts: () => void;
-  // Customer dots visibility
-  setShowCustomerDots: (show: boolean) => void;
 }
 
 const initialFilters: Filters = {
@@ -139,7 +135,6 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   selectedLeaids: new Set<string>(),
   currentPlanId: null,
   similarDistrictLeaids: [],
-  showCustomerDots: true,
 
   // Actions
   setSelectedLeaid: (leaid) =>
@@ -210,9 +205,6 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   // Similar districts actions
   setSimilarDistrictLeaids: (leaids) => set({ similarDistrictLeaids: leaids }),
   clearSimilarDistricts: () => set({ similarDistrictLeaids: [] }),
-
-  // Customer dots visibility
-  setShowCustomerDots: (show) => set({ showCustomerDots: show }),
 }));
 
 // Selector helpers
