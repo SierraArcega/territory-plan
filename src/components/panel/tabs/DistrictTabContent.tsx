@@ -26,6 +26,10 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
   const { data, isLoading, error } = useDistrictDetail(leaid);
   const goBackToDistrictsList = useMapStore((s) => s.goBackToDistrictsList);
 
+  // Get state name for back link - must be called unconditionally (hooks rule)
+  const districtStateAbbrev = data?.district.stateAbbrev || stateCode;
+  const { data: stateData } = useStateDetail(districtStateAbbrev);
+
   // Case 1: No leaid and no stateCode - show empty state
   if (!leaid && !stateCode) {
     return (
@@ -88,9 +92,6 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
   if (!data) {
     return null;
   }
-
-  // Get state name for back link
-  const { data: stateData } = useStateDetail(data.district.stateAbbrev);
 
   return (
     <div className="h-full overflow-y-auto">
