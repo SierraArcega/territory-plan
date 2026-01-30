@@ -4,7 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useMapStore } from "@/lib/store";
 import { useDistricts } from "@/lib/api";
 
-export default function SearchBox() {
+interface SearchBoxProps {
+  compact?: boolean;
+}
+
+export default function SearchBox({ compact = false }: SearchBoxProps) {
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [debouncedValue, setDebouncedValue] = useState("");
@@ -101,7 +105,9 @@ export default function SearchBox() {
             onChange={handleInputChange}
             onFocus={() => inputValue && setIsOpen(true)}
             placeholder="Search districts..."
-            className="w-full pl-10 pr-10 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white text-[#403770] placeholder-gray-400"
+            className={`w-full pl-10 pr-10 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white text-[#403770] placeholder-gray-400 ${
+              compact ? "h-9 py-1.5" : "py-2"
+            }`}
           />
 
           {/* Clear Button */}
