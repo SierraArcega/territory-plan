@@ -13,6 +13,31 @@ function parseCurrency(value: string): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
+// Tooltip component
+function Tooltip({ text }: { text: string }) {
+  return (
+    <div className="group relative inline-block ml-1">
+      <svg
+        className="w-4 h-4 text-[#403770]/50 hover:text-[#403770]/70 cursor-help inline"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-64 text-center z-10">
+        {text}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+      </div>
+    </div>
+  );
+}
+
 export default function GoalSetupModal() {
   const { data: profile } = useProfile();
   const updateProfileMutation = useUpdateProfile();
@@ -20,12 +45,10 @@ export default function GoalSetupModal() {
 
   // Form state for goals
   const [fiscalYear, setFiscalYear] = useState(2026);
-  const [revenueTarget, setRevenueTarget] = useState("");
-  const [takeTarget, setTakeTarget] = useState("");
-  const [pipelineTarget, setPipelineTarget] = useState("");
-  const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
   const [drawDownTarget, setDrawDownTarget] = useState("");
   const [quotaTarget, setQuotaTarget] = useState("");
+  const [takeTarget, setTakeTarget] = useState("");
+  const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,19 +82,17 @@ export default function GoalSetupModal() {
     try {
       // Save the goals if any values were entered
       const hasGoals =
-        revenueTarget || takeTarget || pipelineTarget || newDistrictsTarget || drawDownTarget || quotaTarget;
+        drawDownTarget || quotaTarget || takeTarget || newDistrictsTarget;
 
       if (hasGoals) {
         await upsertGoalMutation.mutateAsync({
           fiscalYear,
-          revenueTarget: parseCurrency(revenueTarget),
+          drawDownTarget: parseCurrency(drawDownTarget),
+          quotaTarget: parseCurrency(quotaTarget),
           takeTarget: parseCurrency(takeTarget),
-          pipelineTarget: parseCurrency(pipelineTarget),
           newDistrictsTarget: newDistrictsTarget
             ? parseInt(newDistrictsTarget, 10)
             : null,
-          drawDownTarget: parseCurrency(drawDownTarget),
-          quotaTarget: parseCurrency(quotaTarget),
         });
       }
 
@@ -133,94 +154,11 @@ export default function GoalSetupModal() {
             </select>
           </div>
 
-          {/* Revenue Target */}
-          <div>
-            <label className="block text-sm font-medium text-[#403770] mb-1">
-              Revenue Target
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
-                $
-              </span>
-              <input
-                type="text"
-                value={revenueTarget}
-                onChange={(e) => setRevenueTarget(e.target.value)}
-                placeholder="500,000"
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-              />
-            </div>
-            <p className="mt-1 text-xs text-[#403770]/50">
-              Your total net invoicing goal for FY{fiscalYear.toString().slice(-2)}
-            </p>
-          </div>
-
-          {/* Take/Margin Target */}
-          <div>
-            <label className="block text-sm font-medium text-[#403770] mb-1">
-              Take (Gross Margin) Target
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
-                $
-              </span>
-              <input
-                type="text"
-                value={takeTarget}
-                onChange={(e) => setTakeTarget(e.target.value)}
-                placeholder="75,000"
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-              />
-            </div>
-            <p className="mt-1 text-xs text-[#403770]/50">
-              Your gross margin goal from sessions
-            </p>
-          </div>
-
-          {/* Pipeline Target */}
-          <div>
-            <label className="block text-sm font-medium text-[#403770] mb-1">
-              Pipeline Target
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
-                $
-              </span>
-              <input
-                type="text"
-                value={pipelineTarget}
-                onChange={(e) => setPipelineTarget(e.target.value)}
-                placeholder="1,000,000"
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-              />
-            </div>
-            <p className="mt-1 text-xs text-[#403770]/50">
-              Your open pipeline goal
-            </p>
-          </div>
-
-          {/* New Districts Target */}
-          <div>
-            <label className="block text-sm font-medium text-[#403770] mb-1">
-              New Districts Target
-            </label>
-            <input
-              type="number"
-              value={newDistrictsTarget}
-              onChange={(e) => setNewDistrictsTarget(e.target.value)}
-              placeholder="10"
-              min="0"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-            />
-            <p className="mt-1 text-xs text-[#403770]/50">
-              Number of new districts to acquire
-            </p>
-          </div>
-
-          {/* Draw Down Target */}
+          {/* Draw Down */}
           <div>
             <label className="block text-sm font-medium text-[#403770] mb-1">
               Draw Down
+              <Tooltip text="The amount to recover in exchange for a higher than standard base salary. For example, if the standard base is $130,000 and you make $150,000, your draw down is $20,000." />
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
@@ -230,19 +168,17 @@ export default function GoalSetupModal() {
                 type="text"
                 value={drawDownTarget}
                 onChange={(e) => setDrawDownTarget(e.target.value)}
-                placeholder="100,000"
+                placeholder="20,000"
                 className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
               />
             </div>
-            <p className="mt-1 text-xs text-[#403770]/50">
-              Your draw down amount
-            </p>
           </div>
 
-          {/* Quota Target */}
+          {/* Quota */}
           <div>
             <label className="block text-sm font-medium text-[#403770] mb-1">
               Quota
+              <Tooltip text="Total take required to hit your assigned sales goals for this year." />
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
@@ -256,9 +192,42 @@ export default function GoalSetupModal() {
                 className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
               />
             </div>
-            <p className="mt-1 text-xs text-[#403770]/50">
-              Your quota target
-            </p>
+          </div>
+
+          {/* Take Goal */}
+          <div>
+            <label className="block text-sm font-medium text-[#403770] mb-1">
+              Take Goal
+              <Tooltip text="Your target profit contribution after direct costs." />
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
+                $
+              </span>
+              <input
+                type="text"
+                value={takeTarget}
+                onChange={(e) => setTakeTarget(e.target.value)}
+                placeholder="75,000"
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* New Districts */}
+          <div>
+            <label className="block text-sm font-medium text-[#403770] mb-1">
+              New Districts
+              <Tooltip text="Number of new district logos (first-time customers) to win." />
+            </label>
+            <input
+              type="number"
+              value={newDistrictsTarget}
+              onChange={(e) => setNewDistrictsTarget(e.target.value)}
+              placeholder="10"
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+            />
           </div>
         </div>
 
