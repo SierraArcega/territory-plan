@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export const dynamic = "force-dynamic";
 
@@ -64,12 +65,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch source district with all needed data
+    // Fetch source district - all data is now directly on the district
     const sourceDistrict = await prisma.district.findUnique({
       where: { leaid },
       include: {
-        educationData: true,
-        enrollmentDemographics: true,
         territoryPlans: { select: { planId: true } },
       },
     });
@@ -102,8 +101,6 @@ export async function GET(request: NextRequest) {
         leaid: { not: leaid }, // Exclude source district
       },
       include: {
-        educationData: true,
-        enrollmentDemographics: true,
         territoryPlans: { select: { planId: true } },
       },
     });
@@ -188,30 +185,24 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper to calculate all metrics for a district
+// All data is now directly on the district model
 function calculateMetrics(district: {
   enrollment: number | null;
   urbanCentricLocale: number | null;
   ellStudents: number | null;
   specEdStudents: number | null;
-  educationData: {
-    medianHouseholdIncome: unknown;
-    expenditurePerPupil: unknown;
-    salariesTotal: unknown;
-    staffTotalFte: unknown;
-  } | null;
-  enrollmentDemographics: {
-    totalEnrollment: number | null;
-    enrollmentWhite: number | null;
-  } | null;
+  medianHouseholdIncome: Decimal | null;
+  expenditurePerPupil: Decimal | null;
+  salariesTotal: Decimal | null;
+  staffTotalFte: Decimal | null;
+  totalEnrollment: number | null;
+  enrollmentWhite: number | null;
 }): Record<MetricKey, number | null> {
-  const ed = district.educationData;
-  const dem = district.enrollmentDemographics;
-
   // Calculate average salary (total salaries / total FTE)
   let avgSalary: number | null = null;
-  if (ed?.salariesTotal && ed?.staffTotalFte) {
-    const salaries = Number(ed.salariesTotal);
-    const fte = Number(ed.staffTotalFte);
+  if (district.salariesTotal && district.staffTotalFte) {
+    const salaries = Number(district.salariesTotal);
+    const fte = Number(district.staffTotalFte);
     if (fte > 0) {
       avgSalary = salaries / fte;
     }
@@ -231,16 +222,16 @@ function calculateMetrics(district: {
 
   // Calculate POC rate (non-white / total)
   let pocRate: number | null = null;
-  if (dem?.totalEnrollment && dem.totalEnrollment > 0 && dem.enrollmentWhite !== null) {
-    const nonWhite = dem.totalEnrollment - dem.enrollmentWhite;
-    pocRate = (nonWhite / dem.totalEnrollment) * 100;
+  if (district.totalEnrollment && district.totalEnrollment > 0 && district.enrollmentWhite !== null) {
+    const nonWhite = district.totalEnrollment - district.enrollmentWhite;
+    pocRate = (nonWhite / district.totalEnrollment) * 100;
   }
 
   return {
     enrollment: district.enrollment,
     locale: district.urbanCentricLocale,
-    medianIncome: ed?.medianHouseholdIncome ? Number(ed.medianHouseholdIncome) : null,
-    expenditurePerPupil: ed?.expenditurePerPupil ? Number(ed.expenditurePerPupil) : null,
+    medianIncome: district.medianHouseholdIncome ? Number(district.medianHouseholdIncome) : null,
+    expenditurePerPupil: district.expenditurePerPupil ? Number(district.expenditurePerPupil) : null,
     avgSalary,
     ellPercent,
     swdPercent,
