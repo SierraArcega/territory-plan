@@ -177,6 +177,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   const {
     selectedLeaid,
     setSelectedLeaid,
+    hoveredLeaid,
     setHoveredLeaid,
     setStateFilter,
     filters,
@@ -222,7 +223,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         ],
       },
       center: [-98, 39], // Center of US
-      zoom: 3.5,
+      zoom: 4.2, // Slightly zoomed in so customer-shaded districts are visible on load
       minZoom: 2,
       maxZoom: 14,
     });
@@ -396,7 +397,21 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         },
       });
 
-      // Hover highlight layer
+      // Hover highlight fill layer (renders under the outline)
+      map.current.addLayer({
+        id: "district-hover-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "fill-color": "#F37167", // Coral
+          "fill-opacity": 0.4,
+          "fill-opacity-transition": { duration: 100 },
+        },
+        filter: ["==", ["get", "leaid"], ""],
+      });
+
+      // Hover highlight outline layer (renders on top of fill)
       map.current.addLayer({
         id: "district-hover",
         type: "line",
@@ -496,6 +511,22 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       selectedLeaid || "",
     ]);
   }, [selectedLeaid]);
+
+  // Sync hoveredLeaid from store to map layer
+  // This enables hover highlights when hovering over the district list (not just the map)
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+
+    const filter: maplibregl.FilterSpecification = [
+      "==",
+      ["get", "leaid"],
+      hoveredLeaid || "",
+    ];
+
+    // Update both fill and outline layers
+    map.current.setFilter("district-hover-fill", filter);
+    map.current.setFilter("district-hover", filter);
+  }, [hoveredLeaid]);
 
   // Update multi-selected districts filter
   useEffect(() => {
@@ -668,7 +699,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         if (zoom > 5 && selectedState) {
           map.current.flyTo({
             center: [-98, 39],
-            zoom: 3.5,
+            zoom: 4.2,
             duration: 1000,
             essential: true,
           });
@@ -729,6 +760,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       // Clear any district hover state
       if (lastHoveredLeaidRef.current !== null) {
         lastHoveredLeaidRef.current = null;
+        map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
         map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
         setHoveredLeaid(null);
       }
@@ -797,12 +829,14 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       // Update cursor
       map.current.getCanvas().style.cursor = "pointer";
 
-      // Update hover filter
-      map.current.setFilter("district-hover", [
+      // Update hover filter (both fill and outline)
+      const hoverFilter: maplibregl.FilterSpecification = [
         "==",
         ["get", "leaid"],
         leaid || "",
-      ]);
+      ];
+      map.current.setFilter("district-hover-fill", hoverFilter);
+      map.current.setFilter("district-hover", hoverFilter);
 
       // Update store
       setHoveredLeaid(leaid || null);
@@ -825,6 +859,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     if (!map.current) return;
     lastHoveredLeaidRef.current = null;
     map.current.getCanvas().style.cursor = "";
+    // Clear both fill and outline hover layers
+    map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
     setHoveredLeaid(null);
     hideTooltip();
@@ -852,7 +888,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         if (selectedState && map.current) {
           map.current.flyTo({
             center: [-98, 39],
-            zoom: 3.5,
+            zoom: 4.2,
             duration: 1000,
             essential: true,
           });
@@ -928,7 +964,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
 
     map.current.flyTo({
       center: [-98, 39],
-      zoom: 3.5,
+      zoom: 4.2,
       duration: 1000,
       essential: true,
     });
