@@ -51,6 +51,9 @@ export interface ClickRipple {
   color: "coral" | "plum";
 }
 
+// Panel types for unified panel management
+export type PanelType = 'district' | 'state' | null;
+
 interface MapState {
   selectedLeaid: string | null;
   hoveredLeaid: string | null;
@@ -58,6 +61,9 @@ interface MapState {
   fiscalYear: FiscalYear;
   filters: Filters;
   sidePanelOpen: boolean;
+  // Unified panel management - one panel at a time
+  activePanelType: PanelType;
+  selectedStateCode: string | null;
   // Tooltip state
   tooltip: TooltipState;
   // Click ripples for visual feedback
@@ -83,6 +89,10 @@ interface MapActions {
   setSearchQuery: (query: string) => void;
   setSidePanelOpen: (open: boolean) => void;
   clearFilters: () => void;
+  // Unified panel actions
+  openStatePanel: (stateCode: string) => void;
+  openDistrictPanel: (leaid: string) => void;
+  closePanel: () => void;
   // Tooltip actions
   showTooltip: (x: number, y: number, data: TooltipData) => void;
   hideTooltip: () => void;
@@ -128,6 +138,8 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   fiscalYear: "fy26",
   filters: initialFilters,
   sidePanelOpen: false,
+  activePanelType: null,
+  selectedStateCode: null,
   tooltip: initialTooltip,
   clickRipples: [],
   touchPreviewLeaid: null,
@@ -138,7 +150,13 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
 
   // Actions
   setSelectedLeaid: (leaid) =>
-    set({ selectedLeaid: leaid, sidePanelOpen: leaid !== null }),
+    set({
+      selectedLeaid: leaid,
+      sidePanelOpen: leaid !== null,
+      // When selecting a district, switch to district panel and clear state selection
+      activePanelType: leaid !== null ? 'district' : null,
+      selectedStateCode: leaid !== null ? null : undefined, // Clear state when selecting district
+    }),
   setHoveredLeaid: (leaid) => set({ hoveredLeaid: leaid }),
   setMetricType: (metric) => set({ metricType: metric }),
   setFiscalYear: (year) => set({ fiscalYear: year }),
@@ -152,6 +170,31 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
     set((s) => ({ filters: { ...s.filters, searchQuery: query } })),
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
   clearFilters: () => set({ filters: initialFilters }),
+
+  // Unified panel actions
+  openStatePanel: (stateCode) =>
+    set({
+      activePanelType: 'state',
+      selectedStateCode: stateCode,
+      sidePanelOpen: true,
+      // Clear district selection when opening state panel
+      selectedLeaid: null,
+    }),
+  openDistrictPanel: (leaid) =>
+    set({
+      activePanelType: 'district',
+      selectedLeaid: leaid,
+      sidePanelOpen: true,
+      // Clear state selection when opening district panel
+      selectedStateCode: null,
+    }),
+  closePanel: () =>
+    set({
+      activePanelType: null,
+      sidePanelOpen: false,
+      selectedLeaid: null,
+      selectedStateCode: null,
+    }),
 
   // Tooltip actions
   showTooltip: (x, y, data) =>
@@ -212,4 +255,10 @@ export const selectFilters = (state: MapState) => state.filters;
 export const selectMetricConfig = (state: MapState) => ({
   metric: state.metricType,
   year: state.fiscalYear,
+});
+export const selectPanelState = (state: MapState) => ({
+  activePanelType: state.activePanelType,
+  selectedStateCode: state.selectedStateCode,
+  selectedLeaid: state.selectedLeaid,
+  sidePanelOpen: state.sidePanelOpen,
 });

@@ -185,6 +185,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     selectedLeaids,
     toggleDistrictSelection,
     similarDistrictLeaids,
+    openStatePanel,
+    openDistrictPanel,
+    closePanel,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -565,6 +568,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             hideTooltip();
             announce(`Exploring ${stateName}`);
 
+            // Open state panel when clicking state at low zoom
+            openStatePanel(stateCode);
+
             map.current.flyTo({
               center: bounds.center,
               zoom: bounds.zoom,
@@ -616,7 +622,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           }
 
           // Select on second tap or mouse click
-          setSelectedLeaid(leaid);
+          openDistrictPanel(leaid);
           setTouchPreviewLeaid(null);
           hideTooltip();
           announce(`Selected ${name}`);
@@ -655,6 +661,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       multiSelectMode,
       selectedLeaids,
       toggleDistrictSelection,
+      openStatePanel,
+      openDistrictPanel,
     ]
   );
 
@@ -804,11 +812,12 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        // Clear selection and zoom out if needed
-        if (selectedLeaid) {
-          setSelectedLeaid(null);
-          announce("Selection cleared");
-        } else if (selectedState && map.current) {
+        // Clear panel and selection, then zoom out if needed
+        closePanel();
+        setTouchPreviewLeaid(null);
+        hideTooltip();
+
+        if (selectedState && map.current) {
           map.current.flyTo({
             center: [-98, 39],
             zoom: 3.5,
@@ -818,23 +827,21 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           setSelectedState(null);
           setStateFilter(null);
           announce("Returned to US map view");
+        } else {
+          announce("Panel closed");
         }
-        // Clear touch preview
-        setTouchPreviewLeaid(null);
-        hideTooltip();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    selectedLeaid,
     selectedState,
-    setSelectedLeaid,
     setStateFilter,
     setTouchPreviewLeaid,
     hideTooltip,
     announce,
+    closePanel,
   ]);
 
   // Attach event listeners using layer-specific events for better performance
