@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useGoalDashboard, useProfile } from "@/lib/api";
+import { useGoalDashboard, useProfile, useUpsertUserGoal } from "@/lib/api";
 
 // Get default fiscal year based on current date
 function getDefaultFiscalYear(): number {
@@ -62,8 +62,250 @@ function ProgressCard({ label, current, target, format = "currency", color }: Pr
   );
 }
 
+// Parse a currency string to number
+function parseCurrency(value: string): number | null {
+  const cleaned = value.replace(/[^0-9.-]/g, "");
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? null : parsed;
+}
+
+// Tooltip component
+function Tooltip({ text }: { text: string }) {
+  return (
+    <div className="group relative inline-block ml-1">
+      <svg
+        className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help inline"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-[#403770] text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-56 z-10 whitespace-normal">
+        {text}
+        <div className="absolute top-full left-3 border-4 border-transparent border-t-[#403770]" />
+      </div>
+    </div>
+  );
+}
+
+interface GoalEditorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  fiscalYear: number;
+  currentGoals: {
+    revenueTarget: number | null;
+    takeTarget: number | null;
+    pipelineTarget: number | null;
+    newDistrictsTarget: number | null;
+    drawDownTarget: number | null;
+    quotaTarget: number | null;
+  } | null;
+}
+
+function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEditorModalProps) {
+  const upsertGoalMutation = useUpsertUserGoal();
+
+  const [drawDownTarget, setDrawDownTarget] = useState("");
+  const [quotaTarget, setQuotaTarget] = useState("");
+  const [takeTarget, setTakeTarget] = useState("");
+  const [pipelineTarget, setPipelineTarget] = useState("");
+  const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset form when modal opens or goals change
+  useEffect(() => {
+    if (isOpen && currentGoals) {
+      setDrawDownTarget(currentGoals.drawDownTarget?.toLocaleString() || "");
+      setQuotaTarget(currentGoals.quotaTarget?.toLocaleString() || "");
+      setTakeTarget(currentGoals.takeTarget?.toLocaleString() || "");
+      setPipelineTarget(currentGoals.pipelineTarget?.toLocaleString() || "");
+      setNewDistrictsTarget(currentGoals.newDistrictsTarget?.toString() || "");
+    } else if (isOpen) {
+      setDrawDownTarget("");
+      setQuotaTarget("");
+      setTakeTarget("");
+      setPipelineTarget("");
+      setNewDistrictsTarget("");
+    }
+    setError(null);
+  }, [isOpen, currentGoals]);
+
+  const handleSave = async () => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await upsertGoalMutation.mutateAsync({
+        fiscalYear,
+        drawDownTarget: parseCurrency(drawDownTarget),
+        quotaTarget: parseCurrency(quotaTarget),
+        takeTarget: parseCurrency(takeTarget),
+        pipelineTarget: parseCurrency(pipelineTarget),
+        newDistrictsTarget: newDistrictsTarget ? parseInt(newDistrictsTarget, 10) : null,
+      });
+      onClose();
+    } catch (err) {
+      console.error("Error saving goals:", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-[#403770]">
+              FY{String(fiscalYear).slice(-2)} Goals
+            </h2>
+            <p className="text-sm text-gray-500">Set your targets for this fiscal year</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
+          {/* Draw Down */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Draw Down
+              <Tooltip text="If your base salary exceeds $130K, this is the difference you recover through sales." />
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <input
+                type="text"
+                value={drawDownTarget}
+                onChange={(e) => setDrawDownTarget(e.target.value)}
+                placeholder="20,000"
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Quota */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Quota
+              <Tooltip text="Total take required to hit your assigned sales goals for this year." />
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <input
+                type="text"
+                value={quotaTarget}
+                onChange={(e) => setQuotaTarget(e.target.value)}
+                placeholder="500,000"
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Take Goal */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Take Goal
+              <Tooltip text="Your target profit contribution after direct costs." />
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <input
+                type="text"
+                value={takeTarget}
+                onChange={(e) => setTakeTarget(e.target.value)}
+                placeholder="75,000"
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Pipeline Goal */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Pipeline Goal
+              <Tooltip text="Target pipeline value to build for this fiscal year." />
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+              <input
+                type="text"
+                value={pipelineTarget}
+                onChange={(e) => setPipelineTarget(e.target.value)}
+                placeholder="1,000,000"
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* New Districts */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              New Districts
+              <Tooltip text="Number of new district logos (first-time customers) to win." />
+            </label>
+            <input
+              type="number"
+              value={newDistrictsTarget}
+              onChange={(e) => setNewDistrictsTarget(e.target.value)}
+              placeholder="10"
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Saving..." : "Save Goals"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function GoalsDashboardPage() {
   const [selectedYear, setSelectedYear] = useState(getDefaultFiscalYear());
+  const [showGoalEditor, setShowGoalEditor] = useState(false);
   const { data: profile } = useProfile();
   const { data: dashboard, isLoading, error } = useGoalDashboard(selectedYear);
 
@@ -127,11 +369,22 @@ export default function GoalsDashboardPage() {
         ) : dashboard ? (
           <div className="space-y-8">
             {/* User Goals Section */}
-            {dashboard.goals ? (
-              <section>
-                <h2 className="text-lg font-semibold text-[#403770] mb-4">
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-[#403770]">
                   Your FY{String(selectedYear).slice(-2)} Goals
                 </h2>
+                <button
+                  onClick={() => setShowGoalEditor(true)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  {dashboard.goals ? "Edit Goals" : "Set Goals"}
+                </button>
+              </div>
+              {dashboard.goals ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <ProgressCard
                     label="Revenue"
@@ -159,17 +412,36 @@ export default function GoalsDashboardPage() {
                     color="#F37167"
                   />
                 </div>
-              </section>
-            ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-                <p>
-                  No goals set for FY{String(selectedYear).slice(-2)}.{" "}
-                  <Link href="/setup" className="text-[#403770] font-medium hover:underline">
-                    Set your goals
-                  </Link>
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                  <svg
+                    className="w-12 h-12 mx-auto text-gray-300 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <p className="text-gray-500 mb-4">
+                    No goals set for FY{String(selectedYear).slice(-2)} yet
+                  </p>
+                  <button
+                    onClick={() => setShowGoalEditor(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Set Your Goals
+                  </button>
+                </div>
+              )}
+            </section>
 
             {/* Plan Targets Summary */}
             <section>
@@ -286,6 +558,14 @@ export default function GoalsDashboardPage() {
           </div>
         ) : null}
       </main>
+
+      {/* Goal Editor Modal */}
+      <GoalEditorModal
+        isOpen={showGoalEditor}
+        onClose={() => setShowGoalEditor(false)}
+        fiscalYear={selectedYear}
+        currentGoals={dashboard?.goals || null}
+      />
     </div>
   );
 }
