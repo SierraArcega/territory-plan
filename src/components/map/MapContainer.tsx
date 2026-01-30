@@ -9,6 +9,8 @@ import MapTooltip from "./MapTooltip";
 import ClickRipple from "./ClickRipple";
 import TileLoadingIndicator from "./TileLoadingIndicator";
 import CustomerOverviewLegend from "./CustomerOverviewLegend";
+import VendorLayerToggle from "./VendorLayerToggle";
+import VendorComparisonLegend from "./VendorComparisonLegend";
 
 // Throttle interval for hover handlers (ms) - 20fps is smooth enough for hover effects
 const HOVER_THROTTLE_MS = 50;
@@ -194,6 +196,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     openStatePanel,
     openDistrictPanel,
     closePanel,
+    vendorLayerVisible,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -245,6 +248,14 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current.addSource("districts", {
         type: "vector",
         tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}`],
+        minzoom: 3.5,
+        maxzoom: 12,
+      });
+
+      // Add vendor comparison tiles source
+      map.current.addSource("vendor-districts", {
+        type: "vector",
+        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?layer=vendor`],
         minzoom: 3.5,
         maxzoom: 12,
       });
@@ -333,6 +344,62 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             0.6,  // Default opacity
           ],
           "fill-opacity-transition": { duration: 150 },
+        },
+      });
+
+      // Vendor comparison fill layer - colors districts by dominant vendor
+      // Hidden by default, shown when vendor layer toggle is enabled
+      map.current.addLayer({
+        id: "vendor-fill",
+        type: "fill",
+        source: "vendor-districts",
+        "source-layer": "districts",
+        filter: ["has", "dominant_vendor"],
+        layout: {
+          visibility: "none", // Hidden by default
+        },
+        paint: {
+          "fill-color": [
+            "match",
+            ["get", "dominant_vendor"],
+            "Fullmind", "#F37167",            // Coral
+            "Proximity Learning", "#6EA3BE",  // Steel Blue
+            "Elevate K12", "#E07A5F",         // Terra Cotta
+            "Tutored By Teachers", "#7C3AED", // Purple
+            "#E5E7EB",                        // Fallback gray
+          ],
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.85, // Brighter on hover
+            0.7,  // Default opacity
+          ],
+          "fill-opacity-transition": { duration: 150 },
+        },
+      });
+
+      // Vendor comparison boundary layer
+      map.current.addLayer({
+        id: "vendor-boundary",
+        type: "line",
+        source: "vendor-districts",
+        "source-layer": "districts",
+        filter: ["has", "dominant_vendor"],
+        layout: {
+          visibility: "none", // Hidden by default
+        },
+        paint: {
+          "line-color": "#374151",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 0.3,
+            5, 0.5,
+            7, 1,
+            10, 1.5,
+          ],
+          "line-opacity": 0.8,
         },
       });
 
@@ -559,6 +626,43 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     }
   }, [similarDistrictLeaids]);
 
+  // Toggle vendor comparison layer visibility
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+
+    // Toggle vendor layers
+    if (map.current.getLayer("vendor-fill")) {
+      map.current.setLayoutProperty(
+        "vendor-fill",
+        "visibility",
+        vendorLayerVisible ? "visible" : "none"
+      );
+    }
+    if (map.current.getLayer("vendor-boundary")) {
+      map.current.setLayoutProperty(
+        "vendor-boundary",
+        "visibility",
+        vendorLayerVisible ? "visible" : "none"
+      );
+    }
+
+    // Toggle customer layers (hide when vendor is shown)
+    if (map.current.getLayer("district-customer-fill")) {
+      map.current.setLayoutProperty(
+        "district-customer-fill",
+        "visibility",
+        vendorLayerVisible ? "none" : "visible"
+      );
+    }
+    if (map.current.getLayer("district-customer-boundary")) {
+      map.current.setLayoutProperty(
+        "district-customer-boundary",
+        "visibility",
+        vendorLayerVisible ? "none" : "visible"
+      );
+    }
+  }, [vendorLayerVisible]);
+
   // Update tile source when selected state changes - filter to state or show all
   useEffect(() => {
     if (!map.current?.isStyleLoaded()) return;
@@ -624,9 +728,12 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         }
       }
 
-      // Check for district clicks (both customer-filled and regular districts)
+      // Check for district clicks (customer-filled, vendor-filled, and regular districts)
+      const layersToQuery = vendorLayerVisible
+        ? ["vendor-fill", "district-fill"]
+        : ["district-customer-fill", "district-fill"];
       const features = map.current.queryRenderedFeatures(e.point, {
-        layers: ["district-customer-fill", "district-fill"],
+        layers: layersToQuery.filter((l) => map.current?.getLayer(l)),
       });
 
       if (features.length > 0) {
@@ -726,6 +833,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       toggleDistrictSelection,
       openStatePanel,
       openDistrictPanel,
+      vendorLayerVisible,
     ]
   );
 
@@ -925,6 +1033,9 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     map.current.on("mouseleave", "district-customer-fill", handleDistrictMouseLeave);
     map.current.on("mousemove", "district-fill", handleDistrictHover);
     map.current.on("mouseleave", "district-fill", handleDistrictMouseLeave);
+    // Vendor layer hover events
+    map.current.on("mousemove", "vendor-fill", handleDistrictHover);
+    map.current.on("mouseleave", "vendor-fill", handleDistrictMouseLeave);
 
     // Only add state event listeners once the layer exists
     const addStateListeners = () => {
@@ -953,6 +1064,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       map.current?.off("mouseleave", "district-customer-fill", handleDistrictMouseLeave);
       map.current?.off("mousemove", "district-fill", handleDistrictHover);
       map.current?.off("mouseleave", "district-fill", handleDistrictMouseLeave);
+      map.current?.off("mousemove", "vendor-fill", handleDistrictHover);
+      map.current?.off("mouseleave", "vendor-fill", handleDistrictMouseLeave);
       map.current?.off("mousemove", "state-fill", handleStateHover);
       map.current?.off("mouseleave", "state-fill", handleStateMouseLeave);
     };
@@ -1056,9 +1169,17 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           </button>
         )}
 
-        {/* Customer overview legend (polygon shading categories) */}
+        {/* Vendor layer toggle */}
         {mapReady && (
+          <VendorLayerToggle className="absolute bottom-20 left-4 z-10" />
+        )}
+
+        {/* Legend - shows customer or vendor based on toggle */}
+        {mapReady && !vendorLayerVisible && (
           <CustomerOverviewLegend className="absolute bottom-4 left-4 z-10" />
+        )}
+        {mapReady && vendorLayerVisible && (
+          <VendorComparisonLegend className="absolute bottom-4 left-4 z-10" />
         )}
       </div>
     </>
