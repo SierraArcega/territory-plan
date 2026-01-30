@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS "territory_plan_district_services" (
 -- Add earnings_target column to user_goals
 ALTER TABLE "user_goals" ADD COLUMN IF NOT EXISTS "earnings_target" DECIMAL(15, 2);
 
--- Optional: Remove old columns (commented out for safety - can run later if desired)
--- ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "draw_down_target";
--- ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "quota_target";
+-- Remove old columns (no longer used)
+ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "draw_down_target";
+ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "quota_target";
 
 -- Verify the migration
 SELECT
