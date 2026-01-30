@@ -22,65 +22,67 @@ const US_BOUNDS: maplibregl.LngLatBoundsLike = [
 // Panel width constant for viewport calculations
 const PANEL_WIDTH = 420;
 
-// State bounding boxes for zoom (approximate centers and zoom levels)
-const STATE_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
-  AL: { center: [-86.9, 32.8], zoom: 6.5 },
-  AK: { center: [-153, 64], zoom: 3.5 },
-  AZ: { center: [-111.9, 34.2], zoom: 6 },
-  AR: { center: [-92.4, 34.9], zoom: 6.5 },
-  CA: { center: [-119.5, 37.2], zoom: 5.5 },
-  CO: { center: [-105.5, 39], zoom: 6 },
-  CT: { center: [-72.7, 41.6], zoom: 8 },
-  DE: { center: [-75.5, 39], zoom: 8 },
-  DC: { center: [-77, 38.9], zoom: 11 },
-  FL: { center: [-82, 28.5], zoom: 6 },
-  GA: { center: [-83.5, 32.7], zoom: 6.5 },
-  HI: { center: [-157, 20.5], zoom: 6 },
-  ID: { center: [-114.5, 44.4], zoom: 5.5 },
-  IL: { center: [-89.2, 40], zoom: 6 },
-  IN: { center: [-86.2, 39.9], zoom: 6.5 },
-  IA: { center: [-93.5, 42], zoom: 6.5 },
-  KS: { center: [-98.5, 38.5], zoom: 6.5 },
-  KY: { center: [-85.7, 37.8], zoom: 6.5 },
-  LA: { center: [-92, 31], zoom: 6.5 },
-  ME: { center: [-69, 45.4], zoom: 6.5 },
-  MD: { center: [-76.8, 39.2], zoom: 7 },
-  MA: { center: [-71.8, 42.2], zoom: 7.5 },
-  MI: { center: [-85, 44.3], zoom: 6 },
-  MN: { center: [-94.5, 46.3], zoom: 6 },
-  MS: { center: [-89.7, 32.7], zoom: 6.5 },
-  MO: { center: [-92.5, 38.4], zoom: 6 },
-  MT: { center: [-109.6, 47], zoom: 5.5 },
-  NE: { center: [-99.8, 41.5], zoom: 6 },
-  NV: { center: [-116.6, 39], zoom: 5.5 },
-  NH: { center: [-71.5, 43.7], zoom: 7 },
-  NJ: { center: [-74.7, 40.2], zoom: 7.5 },
-  NM: { center: [-106, 34.5], zoom: 6 },
-  NY: { center: [-75.5, 42.9], zoom: 6 },
-  NC: { center: [-79.4, 35.5], zoom: 6.5 },
-  ND: { center: [-100.5, 47.4], zoom: 6 },
-  OH: { center: [-82.8, 40.3], zoom: 6.5 },
-  OK: { center: [-97.5, 35.5], zoom: 6.5 },
-  OR: { center: [-120.5, 44], zoom: 6 },
-  PA: { center: [-77.5, 41], zoom: 6.5 },
-  RI: { center: [-71.5, 41.6], zoom: 9 },
-  SC: { center: [-80.9, 33.9], zoom: 7 },
-  SD: { center: [-100.2, 44.4], zoom: 6 },
-  TN: { center: [-86.3, 35.8], zoom: 6.5 },
-  TX: { center: [-99.5, 31.5], zoom: 5.5 },
-  UT: { center: [-111.7, 39.3], zoom: 6 },
-  VT: { center: [-72.7, 44], zoom: 7 },
-  VA: { center: [-78.8, 37.5], zoom: 6.5 },
-  WA: { center: [-120.5, 47.4], zoom: 6 },
-  WV: { center: [-80.6, 38.9], zoom: 7 },
-  WI: { center: [-89.8, 44.6], zoom: 6 },
-  WY: { center: [-107.5, 43], zoom: 6 },
-  PR: { center: [-66.5, 18.2], zoom: 8 },
-  VI: { center: [-64.8, 18.3], zoom: 10 },
-  GU: { center: [144.8, 13.5], zoom: 10 },
-  AS: { center: [-170.7, -14.3], zoom: 10 },
-  MP: { center: [145.7, 15.2], zoom: 8 },
+// State bounding boxes as [sw, ne] for fitBounds - [[west, south], [east, north]]
+// These are used to fit the state into view when the panel opens
+const STATE_BBOX: Record<string, [[number, number], [number, number]]> = {
+  AL: [[-88.5, 30.2], [-84.9, 35.0]],
+  AK: [[-179.2, 51.2], [-129.9, 71.4]],
+  AZ: [[-114.8, 31.3], [-109.0, 37.0]],
+  AR: [[-94.6, 33.0], [-89.6, 36.5]],
+  CA: [[-124.4, 32.5], [-114.1, 42.0]],
+  CO: [[-109.1, 37.0], [-102.0, 41.0]],
+  CT: [[-73.7, 41.0], [-71.8, 42.1]],
+  DE: [[-75.8, 38.5], [-75.0, 39.8]],
+  DC: [[-77.1, 38.8], [-76.9, 39.0]],
+  FL: [[-87.6, 24.5], [-80.0, 31.0]],
+  GA: [[-85.6, 30.4], [-80.8, 35.0]],
+  HI: [[-160.2, 18.9], [-154.8, 22.2]],
+  ID: [[-117.2, 42.0], [-111.0, 49.0]],
+  IL: [[-91.5, 37.0], [-87.5, 42.5]],
+  IN: [[-88.1, 37.8], [-84.8, 41.8]],
+  IA: [[-96.6, 40.4], [-90.1, 43.5]],
+  KS: [[-102.1, 37.0], [-94.6, 40.0]],
+  KY: [[-89.6, 36.5], [-81.9, 39.1]],
+  LA: [[-94.0, 29.0], [-89.0, 33.0]],
+  ME: [[-71.1, 43.1], [-66.9, 47.5]],
+  MD: [[-79.5, 37.9], [-75.0, 39.7]],
+  MA: [[-73.5, 41.2], [-69.9, 42.9]],
+  MI: [[-90.4, 41.7], [-82.4, 48.2]],
+  MN: [[-97.2, 43.5], [-89.5, 49.4]],
+  MS: [[-91.7, 30.2], [-88.1, 35.0]],
+  MO: [[-95.8, 36.0], [-89.1, 40.6]],
+  MT: [[-116.1, 45.0], [-104.0, 49.0]],
+  NE: [[-104.1, 40.0], [-95.3, 43.0]],
+  NV: [[-120.0, 35.0], [-114.0, 42.0]],
+  NH: [[-72.6, 42.7], [-70.7, 45.3]],
+  NJ: [[-75.6, 38.9], [-73.9, 41.4]],
+  NM: [[-109.1, 31.3], [-103.0, 37.0]],
+  NY: [[-79.8, 40.5], [-71.9, 45.0]],
+  NC: [[-84.3, 33.8], [-75.5, 36.6]],
+  ND: [[-104.1, 45.9], [-96.6, 49.0]],
+  OH: [[-84.8, 38.4], [-80.5, 42.0]],
+  OK: [[-103.0, 33.6], [-94.4, 37.0]],
+  OR: [[-124.6, 42.0], [-116.5, 46.3]],
+  PA: [[-80.5, 39.7], [-74.7, 42.3]],
+  RI: [[-71.9, 41.1], [-71.1, 42.0]],
+  SC: [[-83.4, 32.0], [-78.5, 35.2]],
+  SD: [[-104.1, 42.5], [-96.4, 45.9]],
+  TN: [[-90.3, 35.0], [-81.6, 36.7]],
+  TX: [[-106.6, 25.8], [-93.5, 36.5]],
+  UT: [[-114.1, 37.0], [-109.0, 42.0]],
+  VT: [[-73.4, 42.7], [-71.5, 45.0]],
+  VA: [[-83.7, 36.5], [-75.2, 39.5]],
+  WA: [[-124.8, 45.5], [-116.9, 49.0]],
+  WV: [[-82.6, 37.2], [-77.7, 40.6]],
+  WI: [[-92.9, 42.5], [-86.8, 47.1]],
+  WY: [[-111.1, 41.0], [-104.1, 45.0]],
+  PR: [[-67.3, 17.9], [-65.2, 18.5]],
+  VI: [[-65.1, 17.7], [-64.6, 18.4]],
+  GU: [[144.6, 13.2], [145.0, 13.7]],
+  AS: [[-171.1, -14.5], [-168.1, -11.0]],
+  MP: [[144.9, 14.1], [146.1, 20.6]],
 };
+
 
 // Category labels for customer shading tooltips
 const CUSTOMER_CATEGORY_LABELS: Record<string, string> = {
@@ -564,8 +566,8 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           const stateName = feature.properties?.name;
           const stateCode = stateName ? STATE_NAME_TO_ABBREV[stateName] : null;
 
-          if (stateCode && STATE_BOUNDS[stateCode]) {
-            const bounds = STATE_BOUNDS[stateCode];
+          if (stateCode && STATE_BBOX[stateCode]) {
+            const bbox = STATE_BBOX[stateCode];
             setSelectedState(stateCode);
             setStateFilter(stateCode);
             hideTooltip();
@@ -574,11 +576,17 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
             // Open state panel when clicking state at low zoom
             openStatePanel(stateCode);
 
-            map.current.flyTo({
-              center: bounds.center,
-              zoom: bounds.zoom,
-              duration: 1000,
-              essential: true,
+            // Fit state to view with padding to account for the side panel
+            // The right padding ensures the state is centered in the visible area left of the panel
+            map.current.fitBounds(bbox, {
+              padding: {
+                top: 60,
+                bottom: 40,
+                left: 40,
+                right: PANEL_WIDTH + 40, // Panel width + breathing room
+              },
+              maxZoom: 8, // Prevent over-zooming on small states
+              duration: 800,
             });
             return;
           }
@@ -629,6 +637,27 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           setTouchPreviewLeaid(null);
           hideTooltip();
           announce(`Selected ${name}`);
+
+          // Ensure district is visible (not hidden behind panel)
+          // Get the click point and check if it would be behind the panel
+          const containerWidth = containerRef.current?.clientWidth || window.innerWidth;
+          const visibleAreaRight = containerWidth - PANEL_WIDTH;
+
+          // If the click was in the area that will be covered by the panel, pan left
+          if (e.originalEvent.clientX > visibleAreaRight - 40) {
+            // Pan the map so the district is centered in the visible area
+            const currentCenter = map.current.getCenter();
+
+            // Calculate how much we need to pan (convert panel width to lng offset at current zoom)
+            // Use unproject to get accurate offset based on current zoom level
+            const centerPoint = map.current.project(currentCenter);
+            const offsetPoint: [number, number] = [centerPoint.x - (PANEL_WIDTH / 2 + 40), centerPoint.y];
+            const newCenter = map.current.unproject(offsetPoint);
+
+            map.current.panTo(newCenter, {
+              duration: 300,
+            });
+          }
         }
       } else {
         // Clicking outside - clear preview and selection
@@ -909,18 +938,19 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     announce("Returned to US map view");
   }, [setStateFilter, setSelectedLeaid, announce]);
 
-  // Sync selected state with store filter
+  // Sync selected state with store filter (from dropdown selection)
   useEffect(() => {
     if (filters.stateAbbrev && filters.stateAbbrev !== selectedState && mapReady) {
       const stateCode = filters.stateAbbrev;
-      if (STATE_BOUNDS[stateCode] && map.current) {
-        const bounds = STATE_BOUNDS[stateCode];
+      if (STATE_BBOX[stateCode] && map.current) {
+        const bbox = STATE_BBOX[stateCode];
         setSelectedState(stateCode);
-        map.current.flyTo({
-          center: bounds.center,
-          zoom: bounds.zoom,
-          duration: 1000,
-          essential: true,
+        // Use fitBounds for consistent behavior, but without panel padding
+        // since the panel doesn't auto-open from dropdown selection
+        map.current.fitBounds(bbox, {
+          padding: { top: 60, bottom: 40, left: 40, right: 40 },
+          maxZoom: 8,
+          duration: 800,
         });
       }
     } else if (!filters.stateAbbrev && selectedState && mapReady) {
