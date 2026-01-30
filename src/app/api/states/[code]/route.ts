@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
+import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export async function GET(
   try {
     const { code } = await params;
     const stateCode = code.toUpperCase();
+    const user = await getUser();
 
     // Try to find state in the states table first
     const state = await prisma.state.findUnique({
@@ -93,6 +95,7 @@ export async function GET(
           where: {
             stateFips: state.fips,
             status: { not: "archived" },
+            userId: user?.id,
           },
           orderBy: { updatedAt: "desc" },
           include: {
@@ -172,6 +175,7 @@ export async function GET(
       ? await prisma.territoryPlan.findMany({
           where: {
             status: { not: "archived" },
+            userId: user?.id,
             districts: {
               some: { districtLeaid: { in: leaidList } },
             },
