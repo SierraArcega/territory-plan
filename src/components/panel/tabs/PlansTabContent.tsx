@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { useTerritoryPlans } from "@/lib/api";
+
+type PlanView = { type: "list" } | { type: "dashboard"; planId: string };
 
 interface PlansTabContentProps {
   stateCode: string | null;
@@ -9,6 +11,7 @@ interface PlansTabContentProps {
 
 export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
   const { data: plans, isLoading, error } = useTerritoryPlans();
+  const [view, setView] = useState<PlanView>({ type: "list" });
 
   if (isLoading) {
     return (
@@ -24,6 +27,26 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
         <div className="text-center text-red-500">
           <p className="font-medium">Error loading plans</p>
           <p className="text-sm mt-1">{error.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If viewing a specific plan dashboard, render that (component will be added in Task 8)
+  if (view.type === "dashboard") {
+    return (
+      <div className="flex flex-col h-full">
+        <button
+          onClick={() => setView({ type: "list" })}
+          className="flex items-center gap-1 px-4 py-2 text-sm text-[#403770] hover:text-[#F37167] bg-gray-50 border-b border-gray-100"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Plans
+        </button>
+        <div className="flex-1 flex items-center justify-center text-gray-500">
+          Plan dashboard coming in Task 8 (planId: {view.planId})
         </div>
       </div>
     );
@@ -49,15 +72,15 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
         <p className="text-gray-400 text-sm mt-1 mb-4">
           Create a plan to organize your target districts
         </p>
-        <Link
-          href="/plans"
+        <button
+          onClick={() => {/* Create modal will be added in Task 9 */}}
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Create Plan
-        </Link>
+        </button>
       </div>
     );
   }
@@ -85,21 +108,15 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
         <span className="text-sm font-medium text-gray-700">
           {visiblePlans.length} {visiblePlans.length === 1 ? "Plan" : "Plans"}
         </span>
-        <Link
-          href="/plans"
-          className="text-xs text-[#403770] hover:text-[#F37167] font-medium"
-        >
-          Manage Plans
-        </Link>
       </div>
 
       {/* Plans list */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
         {visiblePlans.map((plan) => (
-          <Link
+          <button
             key={plan.id}
-            href={`/plans/${plan.id}`}
-            className="block px-4 py-3 hover:bg-gray-50 transition-colors"
+            onClick={() => setView({ type: "dashboard", planId: plan.id })}
+            className="block w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-start gap-3">
               {/* Color indicator */}
@@ -159,21 +176,21 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
                 />
               </svg>
             </div>
-          </Link>
+          </button>
         ))}
       </div>
 
       {/* Create plan CTA */}
       <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-        <Link
-          href="/plans"
+        <button
+          onClick={() => {/* Create modal will be added in Task 9 */}}
           className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Create New Plan
-        </Link>
+        </button>
       </div>
     </div>
   );
