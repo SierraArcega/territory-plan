@@ -10,83 +10,143 @@ datasource db {
   extensions = [postgis]
 }
 
+// Main district table - consolidated from multiple tables for simpler queries
+// Contains: core district info, Fullmind CRM data, education data, demographics, and user edits
 model District {
-  leaid                  String                          @id @db.VarChar(7)
-  name                   String                          @db.VarChar(255)
-  stateFips              String                          @map("state_fips") @db.VarChar(2)
-  stateAbbrev            String?                         @map("state_abbrev") @db.VarChar(2)
-  mtfcc                  String?                         @db.VarChar(5)
-  sdtyp                  String?                         @db.VarChar(1)
-  funcstat               String?                         @default("E") @db.VarChar(1)
-  lograde                String?                         @db.VarChar(2)
-  higrade                String?                         @db.VarChar(2)
-  enrollment             Int?
-  urbanInstituteYear     Int?                            @map("urban_institute_year")
-  phone                  String?                         @db.VarChar(20)
-  streetLocation         String?                         @map("street_location") @db.VarChar(255)
-  cityLocation           String?                         @map("city_location") @db.VarChar(100)
-  stateLocation          String?                         @map("state_location") @db.VarChar(2)
-  zipLocation            String?                         @map("zip_location") @db.VarChar(10)
-  countyName             String?                         @map("county_name") @db.VarChar(100)
-  urbanCentricLocale     Int?                            @map("urban_centric_locale")
-  numberOfSchools        Int?                            @map("number_of_schools")
-  specEdStudents         Int?                            @map("spec_ed_students")
-  ellStudents            Int?                            @map("ell_students")
-  createdAt              DateTime                        @default(now()) @map("created_at")
-  updatedAt              DateTime                        @updatedAt @map("updated_at")
-  contacts               Contact[]
-  edits                  DistrictEdits?
-  educationData          DistrictEducationData?
-  enrollmentDemographics DistrictEnrollmentDemographics?
-  districtTags           DistrictTag[]
-  fullmindData           FullmindData?
-  territoryPlans         TerritoryPlanDistrict[]
+  leaid              String    @id @db.VarChar(7)
+  name               String    @db.VarChar(255)
+  stateFips          String    @map("state_fips") @db.VarChar(2)
+  stateAbbrev        String?   @map("state_abbrev") @db.VarChar(2)
+  mtfcc              String?   @db.VarChar(5)
+  sdtyp              String?   @db.VarChar(1)
+  funcstat           String?   @default("E") @db.VarChar(1)
+  lograde            String?   @db.VarChar(2)
+  higrade            String?   @db.VarChar(2)
+  enrollment         Int?
+  urbanInstituteYear Int?      @map("urban_institute_year")
+  phone              String?   @db.VarChar(20)
+  streetLocation     String?   @map("street_location") @db.VarChar(255)
+  cityLocation       String?   @map("city_location") @db.VarChar(100)
+  stateLocation      String?   @map("state_location") @db.VarChar(2)
+  zipLocation        String?   @map("zip_location") @db.VarChar(10)
+  countyName         String?   @map("county_name") @db.VarChar(100)
+  urbanCentricLocale Int?      @map("urban_centric_locale")
+  numberOfSchools    Int?      @map("number_of_schools")
+  specEdStudents     Int?      @map("spec_ed_students")
+  ellStudents        Int?      @map("ell_students")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  @@index([stateFips])
-  @@map("districts")
-}
-
-model FullmindData {
-  leaid                    String   @id @db.VarChar(7)
+  // ===== Fullmind CRM Data =====
+  // Source: Fullmind CSV import via ETL
   accountName              String?  @map("account_name") @db.VarChar(255)
   salesExecutive           String?  @map("sales_executive") @db.VarChar(100)
   lmsid                    String?  @db.VarChar(50)
-  fy25SessionsRevenue      Decimal  @default(0) @map("fy25_sessions_revenue") @db.Decimal(15, 2)
-  fy25SessionsTake         Decimal  @default(0) @map("fy25_sessions_take") @db.Decimal(15, 2)
-  fy25SessionsCount        Int      @default(0) @map("fy25_sessions_count")
-  fy26SessionsRevenue      Decimal  @default(0) @map("fy26_sessions_revenue") @db.Decimal(15, 2)
-  fy26SessionsTake         Decimal  @default(0) @map("fy26_sessions_take") @db.Decimal(15, 2)
-  fy26SessionsCount        Int      @default(0) @map("fy26_sessions_count")
-  fy25ClosedWonOppCount    Int      @default(0) @map("fy25_closed_won_opp_count")
-  fy25ClosedWonNetBooking  Decimal  @default(0) @map("fy25_closed_won_net_booking") @db.Decimal(15, 2)
-  fy25NetInvoicing         Decimal  @default(0) @map("fy25_net_invoicing") @db.Decimal(15, 2)
-  fy26ClosedWonOppCount    Int      @default(0) @map("fy26_closed_won_opp_count")
-  fy26ClosedWonNetBooking  Decimal  @default(0) @map("fy26_closed_won_net_booking") @db.Decimal(15, 2)
-  fy26NetInvoicing         Decimal  @default(0) @map("fy26_net_invoicing") @db.Decimal(15, 2)
-  fy26OpenPipelineOppCount Int      @default(0) @map("fy26_open_pipeline_opp_count")
-  fy26OpenPipeline         Decimal  @default(0) @map("fy26_open_pipeline") @db.Decimal(15, 2)
-  fy26OpenPipelineWeighted Decimal  @default(0) @map("fy26_open_pipeline_weighted") @db.Decimal(15, 2)
-  fy27OpenPipelineOppCount Int      @default(0) @map("fy27_open_pipeline_opp_count")
-  fy27OpenPipeline         Decimal  @default(0) @map("fy27_open_pipeline") @db.Decimal(15, 2)
-  fy27OpenPipelineWeighted Decimal  @default(0) @map("fy27_open_pipeline_weighted") @db.Decimal(15, 2)
-  isCustomer               Boolean  @default(false) @map("is_customer")
-  hasOpenPipeline          Boolean  @default(false) @map("has_open_pipeline")
-  district                 District @relation(fields: [leaid], references: [leaid])
+  // FY25 Sessions
+  fy25SessionsRevenue      Decimal? @default(0) @map("fy25_sessions_revenue") @db.Decimal(15, 2)
+  fy25SessionsTake         Decimal? @default(0) @map("fy25_sessions_take") @db.Decimal(15, 2)
+  fy25SessionsCount        Int?     @default(0) @map("fy25_sessions_count")
+  // FY26 Sessions
+  fy26SessionsRevenue      Decimal? @default(0) @map("fy26_sessions_revenue") @db.Decimal(15, 2)
+  fy26SessionsTake         Decimal? @default(0) @map("fy26_sessions_take") @db.Decimal(15, 2)
+  fy26SessionsCount        Int?     @default(0) @map("fy26_sessions_count")
+  // FY25 Bookings
+  fy25ClosedWonOppCount    Int?     @default(0) @map("fy25_closed_won_opp_count")
+  fy25ClosedWonNetBooking  Decimal? @default(0) @map("fy25_closed_won_net_booking") @db.Decimal(15, 2)
+  fy25NetInvoicing         Decimal? @default(0) @map("fy25_net_invoicing") @db.Decimal(15, 2)
+  // FY26 Bookings
+  fy26ClosedWonOppCount    Int?     @default(0) @map("fy26_closed_won_opp_count")
+  fy26ClosedWonNetBooking  Decimal? @default(0) @map("fy26_closed_won_net_booking") @db.Decimal(15, 2)
+  fy26NetInvoicing         Decimal? @default(0) @map("fy26_net_invoicing") @db.Decimal(15, 2)
+  // FY26 Pipeline
+  fy26OpenPipelineOppCount Int?     @default(0) @map("fy26_open_pipeline_opp_count")
+  fy26OpenPipeline         Decimal? @default(0) @map("fy26_open_pipeline") @db.Decimal(15, 2)
+  fy26OpenPipelineWeighted Decimal? @default(0) @map("fy26_open_pipeline_weighted") @db.Decimal(15, 2)
+  // FY27 Pipeline
+  fy27OpenPipelineOppCount Int?     @default(0) @map("fy27_open_pipeline_opp_count")
+  fy27OpenPipeline         Decimal? @default(0) @map("fy27_open_pipeline") @db.Decimal(15, 2)
+  fy27OpenPipelineWeighted Decimal? @default(0) @map("fy27_open_pipeline_weighted") @db.Decimal(15, 2)
+  // Computed flags
+  isCustomer               Boolean? @default(false) @map("is_customer")
+  hasOpenPipeline          Boolean? @default(false) @map("has_open_pipeline")
 
+  // ===== Finance Data =====
+  // Source: Urban Institute API (finance endpoint)
+  totalRevenue        Decimal? @map("total_revenue") @db.Decimal(15, 2)
+  federalRevenue      Decimal? @map("federal_revenue") @db.Decimal(15, 2)
+  stateRevenue        Decimal? @map("state_revenue") @db.Decimal(15, 2)
+  localRevenue        Decimal? @map("local_revenue") @db.Decimal(15, 2)
+  totalExpenditure    Decimal? @map("total_expenditure") @db.Decimal(15, 2)
+  expenditurePerPupil Decimal? @map("expenditure_per_pupil") @db.Decimal(12, 2)
+  financeDataYear     Int?     @map("finance_data_year")
+
+  // ===== Poverty Data =====
+  // Source: Urban Institute API (SAIPE endpoint)
+  childrenPovertyCount   Int?     @map("children_poverty_count")
+  childrenPovertyPercent Decimal? @map("children_poverty_percent") @db.Decimal(5, 2)
+  medianHouseholdIncome  Decimal? @map("median_household_income") @db.Decimal(12, 2)
+  saipeDataYear          Int?     @map("saipe_data_year")
+
+  // ===== Graduation Data =====
+  // Source: Urban Institute API (graduation endpoint)
+  graduationRateTotal  Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
+  graduationRateMale   Decimal? @map("graduation_rate_male") @db.Decimal(5, 2)
+  graduationRateFemale Decimal? @map("graduation_rate_female") @db.Decimal(5, 2)
+  graduationDataYear   Int?     @map("graduation_data_year")
+
+  // ===== Staffing & Salaries =====
+  // Source: Urban Institute API (staff endpoint)
+  salariesTotal                Decimal? @map("salaries_total") @db.Decimal(15, 2)
+  salariesInstruction          Decimal? @map("salaries_instruction") @db.Decimal(15, 2)
+  salariesTeachersRegular      Decimal? @map("salaries_teachers_regular") @db.Decimal(15, 2)
+  salariesTeachersSpecialEd    Decimal? @map("salaries_teachers_special_ed") @db.Decimal(15, 2)
+  salariesTeachersVocational   Decimal? @map("salaries_teachers_vocational") @db.Decimal(15, 2)
+  salariesTeachersOther        Decimal? @map("salaries_teachers_other") @db.Decimal(15, 2)
+  salariesSupportAdmin         Decimal? @map("salaries_support_admin") @db.Decimal(15, 2)
+  salariesSupportInstructional Decimal? @map("salaries_support_instructional") @db.Decimal(15, 2)
+  benefitsTotal                Decimal? @map("benefits_total") @db.Decimal(15, 2)
+  teachersFte                  Decimal? @map("teachers_fte") @db.Decimal(10, 2)
+  teachersElementaryFte        Decimal? @map("teachers_elementary_fte") @db.Decimal(10, 2)
+  teachersSecondaryFte         Decimal? @map("teachers_secondary_fte") @db.Decimal(10, 2)
+  adminFte                     Decimal? @map("admin_fte") @db.Decimal(10, 2)
+  guidanceCounselorsFte        Decimal? @map("guidance_counselors_fte") @db.Decimal(10, 2)
+  instructionalAidesFte        Decimal? @map("instructional_aides_fte") @db.Decimal(10, 2)
+  supportStaffFte              Decimal? @map("support_staff_fte") @db.Decimal(10, 2)
+  staffTotalFte                Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
+  staffDataYear                Int?     @map("staff_data_year")
+
+  // ===== Absenteeism Data =====
+  // Source: Urban Institute API (chronic absenteeism endpoint)
+  chronicAbsenteeismCount Int?     @map("chronic_absenteeism_count")
+  chronicAbsenteeismRate  Decimal? @map("chronic_absenteeism_rate") @db.Decimal(5, 2)
+  absenteeismDataYear     Int?     @map("absenteeism_data_year")
+
+  // ===== Demographics =====
+  // Source: Urban Institute API (enrollment endpoint)
+  enrollmentWhite           Int? @map("enrollment_white")
+  enrollmentBlack           Int? @map("enrollment_black")
+  enrollmentHispanic        Int? @map("enrollment_hispanic")
+  enrollmentAsian           Int? @map("enrollment_asian")
+  enrollmentAmericanIndian  Int? @map("enrollment_american_indian")
+  enrollmentPacificIslander Int? @map("enrollment_pacific_islander")
+  enrollmentTwoOrMore       Int? @map("enrollment_two_or_more")
+  totalEnrollment           Int? @map("total_enrollment")
+  demographicsDataYear      Int? @map("demographics_data_year")
+
+  // ===== User Edits =====
+  // Source: App users (shared across team)
+  notes            String?
+  owner            String?   @db.VarChar(100)
+  notesUpdatedAt   DateTime? @map("notes_updated_at")
+
+  // ===== Relations =====
+  contacts       Contact[]
+  districtTags   DistrictTag[]
+  territoryPlans TerritoryPlanDistrict[]
+
+  @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
-  @@map("fullmind_data")
-}
-
-model DistrictEdits {
-  leaid     String   @id @db.VarChar(7)
-  notes     String?
-  owner     String?  @db.VarChar(100)
-  userId    String?  @map("user_id") @db.Uuid
-  updatedAt DateTime @updatedAt @map("updated_at")
-  district  District @relation(fields: [leaid], references: [leaid])
-
-  @@index([userId])
-  @@map("district_edits")
+  @@map("districts")
 }
 
 model Tag {
@@ -139,69 +199,6 @@ model UnmatchedAccount {
 
   @@index([stateAbbrev])
   @@map("unmatched_accounts")
-}
-
-model DistrictEducationData {
-  leaid                        String   @id @db.VarChar(7)
-  totalRevenue                 Decimal? @map("total_revenue") @db.Decimal(15, 2)
-  federalRevenue               Decimal? @map("federal_revenue") @db.Decimal(15, 2)
-  stateRevenue                 Decimal? @map("state_revenue") @db.Decimal(15, 2)
-  localRevenue                 Decimal? @map("local_revenue") @db.Decimal(15, 2)
-  totalExpenditure             Decimal? @map("total_expenditure") @db.Decimal(15, 2)
-  expenditurePerPupil          Decimal? @map("expenditure_per_pupil") @db.Decimal(12, 2)
-  financeDataYear              Int?     @map("finance_data_year")
-  childrenPovertyCount         Int?     @map("children_poverty_count")
-  childrenPovertyPercent       Decimal? @map("children_poverty_percent") @db.Decimal(5, 2)
-  medianHouseholdIncome        Decimal? @map("median_household_income") @db.Decimal(12, 2)
-  saipeDataYear                Int?     @map("saipe_data_year")
-  graduationRateTotal          Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
-  graduationRateMale           Decimal? @map("graduation_rate_male") @db.Decimal(5, 2)
-  graduationRateFemale         Decimal? @map("graduation_rate_female") @db.Decimal(5, 2)
-  graduationDataYear           Int?     @map("graduation_data_year")
-  salariesTotal                Decimal? @map("salaries_total") @db.Decimal(15, 2)
-  salariesInstruction          Decimal? @map("salaries_instruction") @db.Decimal(15, 2)
-  salariesTeachersRegular      Decimal? @map("salaries_teachers_regular") @db.Decimal(15, 2)
-  salariesTeachersSpecialEd    Decimal? @map("salaries_teachers_special_ed") @db.Decimal(15, 2)
-  salariesTeachersVocational   Decimal? @map("salaries_teachers_vocational") @db.Decimal(15, 2)
-  salariesTeachersOther        Decimal? @map("salaries_teachers_other") @db.Decimal(15, 2)
-  salariesSupportAdmin         Decimal? @map("salaries_support_admin") @db.Decimal(15, 2)
-  salariesSupportInstructional Decimal? @map("salaries_support_instructional") @db.Decimal(15, 2)
-  benefitsTotal                Decimal? @map("benefits_total") @db.Decimal(15, 2)
-  teachersFte                  Decimal? @map("teachers_fte") @db.Decimal(10, 2)
-  teachersElementaryFte        Decimal? @map("teachers_elementary_fte") @db.Decimal(10, 2)
-  teachersSecondaryFte         Decimal? @map("teachers_secondary_fte") @db.Decimal(10, 2)
-  adminFte                     Decimal? @map("admin_fte") @db.Decimal(10, 2)
-  guidanceCounselorsFte        Decimal? @map("guidance_counselors_fte") @db.Decimal(10, 2)
-  instructionalAidesFte        Decimal? @map("instructional_aides_fte") @db.Decimal(10, 2)
-  supportStaffFte              Decimal? @map("support_staff_fte") @db.Decimal(10, 2)
-  staffTotalFte                Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
-  staffDataYear                Int?     @map("staff_data_year")
-  chronicAbsenteeismCount      Int?     @map("chronic_absenteeism_count")
-  chronicAbsenteeismRate       Decimal? @map("chronic_absenteeism_rate") @db.Decimal(5, 2)
-  absenteeismDataYear          Int?     @map("absenteeism_data_year")
-  createdAt                    DateTime @default(now()) @map("created_at")
-  updatedAt                    DateTime @updatedAt @map("updated_at")
-  district                     District @relation(fields: [leaid], references: [leaid])
-
-  @@map("district_education_data")
-}
-
-model DistrictEnrollmentDemographics {
-  leaid                     String   @id @db.VarChar(7)
-  enrollmentWhite           Int?     @map("enrollment_white")
-  enrollmentBlack           Int?     @map("enrollment_black")
-  enrollmentHispanic        Int?     @map("enrollment_hispanic")
-  enrollmentAsian           Int?     @map("enrollment_asian")
-  enrollmentAmericanIndian  Int?     @map("enrollment_american_indian")
-  enrollmentPacificIslander Int?     @map("enrollment_pacific_islander")
-  enrollmentTwoOrMore       Int?     @map("enrollment_two_or_more")
-  totalEnrollment           Int?     @map("total_enrollment")
-  demographicsDataYear      Int?     @map("demographics_data_year")
-  createdAt                 DateTime @default(now()) @map("created_at")
-  updatedAt                 DateTime @updatedAt @map("updated_at")
-  district                  District @relation(fields: [leaid], references: [leaid])
-
-  @@map("district_enrollment_demographics")
 }
 
 model DataRefreshLog {
