@@ -357,39 +357,46 @@ model PlanActivityContact {
 }
 
 // ===== User Profile & Goals =====
-// Tracks user setup state and fiscal year targets
-
+// User profile - synced from Supabase Auth on login
+// Stores user preferences and tracks whether they've completed the initial setup wizard
 model UserProfile {
-  id                String    @id @db.Uuid
-  email             String    @unique @db.VarChar(255)
-  fullName          String?   @map("full_name") @db.VarChar(255)
-  avatarUrl         String?   @map("avatar_url") @db.VarChar(500)
-  hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  lastLoginAt       DateTime? @map("last_login_at")
+  id                String     @id @db.Uuid // Supabase user.id
+  email             String     @unique @db.VarChar(255)
+  fullName          String?    @map("full_name") @db.VarChar(255)
+  avatarUrl         String?    @map("avatar_url") @db.VarChar(500)
+  hasCompletedSetup Boolean    @default(false) @map("has_completed_setup")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  lastLoginAt       DateTime?  @map("last_login_at")
 
-  goals UserGoal[]
+  // Relation to user's fiscal year goals
+  goals             UserGoal[]
 
   @@map("user_profiles")
 }
 
+// User goals by fiscal year - tracks revenue, margin, pipeline, and new district targets
+// One row per user per fiscal year (e.g., FY26, FY27)
 model UserGoal {
-  id                 Int      @id @default(autoincrement())
-  userId             String   @map("user_id") @db.Uuid
-  fiscalYear         Int      @map("fiscal_year")
-  revenueTarget      Decimal? @map("revenue_target") @db.Decimal(15, 2)
-  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
-  pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
-  newDistrictsTarget Int?     @map("new_districts_target")
-  drawDownTarget     Decimal? @map("draw_down_target") @db.Decimal(15, 2)
-  quotaTarget        Decimal? @map("quota_target") @db.Decimal(15, 2)
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                 Int       @id @default(autoincrement())
+  userId             String    @map("user_id") @db.Uuid
+  fiscalYear         Int       @map("fiscal_year") // 2025, 2026, 2027
 
-  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Target values - all optional since users may only set some goals
+  revenueTarget      Decimal?  @map("revenue_target") @db.Decimal(15, 2)
+  takeTarget         Decimal?  @map("take_target") @db.Decimal(15, 2)      // Gross margin/take
+  pipelineTarget     Decimal?  @map("pipeline_target") @db.Decimal(15, 2)
+  newDistrictsTarget Int?      @map("new_districts_target")
+  drawDownTarget     Decimal?  @map("draw_down_target") @db.Decimal(15, 2)
+  quotaTarget        Decimal?  @map("quota_target") @db.Decimal(15, 2)
 
-  @@unique([userId, fiscalYear])
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relation to user profile
+  user               UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fiscalYear]) // One goal record per user per fiscal year
   @@index([userId])
   @@map("user_goals")
 }
