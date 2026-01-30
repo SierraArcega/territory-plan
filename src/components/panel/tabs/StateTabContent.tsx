@@ -3,18 +3,13 @@
 import { useStateDetail } from "@/lib/api";
 import StateHeader from "../state/StateHeader";
 import StateStats from "../state/StateStats";
-import StateDistrictsList from "../state/StateDistrictsList";
 import StateNotesEditor from "../state/StateNotesEditor";
-import { useState } from "react";
 
 interface StateTabContentProps {
   stateCode: string | null;
 }
 
-type SubTab = "overview" | "districts";
-
 export default function StateTabContent({ stateCode }: StateTabContentProps) {
-  const [subTab, setSubTab] = useState<SubTab>("overview");
   const { data, isLoading, error } = useStateDetail(stateCode);
 
   if (!stateCode) {
@@ -66,47 +61,10 @@ export default function StateTabContent({ stateCode }: StateTabContentProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* State Header */}
       <StateHeader state={data} />
-
-      {/* Sub-tabs for Overview vs Districts list */}
-      <div className="flex border-b border-gray-100 px-4 bg-gray-50/50">
-        {(
-          [
-            { id: "overview", label: "Overview" },
-            { id: "districts", label: `Districts (${data.aggregates.totalDistricts})` },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            className={`px-4 py-2 text-xs font-medium transition-colors relative ${
-              subTab === tab.id
-                ? "text-[#403770]"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {tab.label}
-            {subTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#403770]" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Sub-tab content */}
-      <div className="flex-1 overflow-hidden">
-        {subTab === "overview" ? (
-          <div className="h-full overflow-y-auto">
-            <StateStats state={data} />
-            <StateNotesEditor
-              stateCode={data.code}
-              notes={data.notes}
-            />
-          </div>
-        ) : (
-          <StateDistrictsList stateCode={data.code} />
-        )}
+      <div className="flex-1 overflow-y-auto">
+        <StateStats state={data} />
+        <StateNotesEditor stateCode={data.code} notes={data.notes} />
       </div>
     </div>
   );
