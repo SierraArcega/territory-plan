@@ -1,6 +1,7 @@
 "use client";
 
 import { useDistrictDetail } from "@/lib/api";
+import StateDistrictsList from "../state/StateDistrictsList";
 import DistrictHeader from "../DistrictHeader";
 import AddToPlanButton from "../AddToPlanButton";
 import DistrictInfo from "../DistrictInfo";
@@ -17,12 +18,14 @@ import ContactsList from "../ContactsList";
 
 interface DistrictTabContentProps {
   leaid: string | null;
+  stateCode: string | null;
 }
 
-export default function DistrictTabContent({ leaid }: DistrictTabContentProps) {
+export default function DistrictTabContent({ leaid, stateCode }: DistrictTabContentProps) {
   const { data, isLoading, error } = useDistrictDetail(leaid);
 
-  if (!leaid) {
+  // Case 1: No leaid and no stateCode - show empty state
+  if (!leaid && !stateCode) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
         <svg
@@ -44,6 +47,21 @@ export default function DistrictTabContent({ leaid }: DistrictTabContentProps) {
         </p>
       </div>
     );
+  }
+
+  // Case 2: No leaid but have stateCode - show districts list
+  if (!leaid && stateCode) {
+    return (
+      <div className="flex flex-col h-full">
+        <StateDistrictsList stateCode={stateCode} />
+      </div>
+    );
+  }
+
+  // Case 3: Have leaid - show district detail (existing code)
+  // TypeScript narrowing: at this point leaid must be non-null
+  if (!leaid) {
+    return null;
   }
 
   if (isLoading) {
