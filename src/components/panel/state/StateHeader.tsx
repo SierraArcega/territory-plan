@@ -21,16 +21,18 @@ export default function StateHeader({ state }: StateHeaderProps) {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-[#403770]">{state.name}</h2>
-          <span className="text-sm text-gray-500">{state.code}</span>
-        </div>
-        {state.territoryOwner && (
-          <div className="text-right">
-            <span className="text-xs text-gray-500 block">Territory Owner</span>
-            <span className="text-sm font-medium text-[#403770]">
-              {state.territoryOwner}
-            </span>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-sm text-gray-500">{state.code}</span>
+            {state.territoryOwner && (
+              <>
+                <span className="text-gray-300">•</span>
+                <span className="text-sm text-[#403770] font-medium">
+                  {state.territoryOwner}
+                </span>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Quick stats row */}
