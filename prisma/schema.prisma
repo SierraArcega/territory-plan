@@ -216,6 +216,64 @@ model DataRefreshLog {
   @@map("data_refresh_logs")
 }
 
+// State table - groups districts by state with denormalized aggregates
+// Aggregates are refreshed from district data via ETL
+model State {
+  fips   String @id @db.VarChar(2) // "06" for California
+  abbrev String @unique @db.VarChar(2) // "CA"
+  name   String @db.VarChar(100) // "California"
+
+  // ===== Denormalized Aggregates =====
+  // Refreshed from districts table via ETL
+  totalDistricts     Int      @default(0) @map("total_districts")
+  totalEnrollment    Int?     @map("total_enrollment")
+  totalSchools       Int?     @map("total_schools")
+  totalCustomers     Int      @default(0) @map("total_customers")
+  totalWithPipeline  Int      @default(0) @map("total_with_pipeline")
+  totalPipelineValue Decimal? @map("total_pipeline_value") @db.Decimal(15, 2)
+
+  // Education averages (weighted by enrollment where appropriate)
+  avgExpenditurePerPupil Decimal? @map("avg_expenditure_per_pupil") @db.Decimal(12, 2)
+  avgGraduationRate      Decimal? @map("avg_graduation_rate") @db.Decimal(5, 2)
+  avgPovertyRate         Decimal? @map("avg_poverty_rate") @db.Decimal(5, 2)
+
+  // ===== Territory Management =====
+  territoryOwner String? @map("territory_owner") @db.VarChar(100)
+  notes          String?
+
+  // ===== Timestamps =====
+  aggregatesUpdatedAt DateTime? @map("aggregates_updated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // ===== Relations =====
+  goals          StateGoal[]
+  territoryPlans TerritoryPlan[]
+
+  @@map("states")
+}
+
+// State goals by fiscal year - one row per state per year
+model StateGoal {
+  id         Int    @id @default(autoincrement())
+  stateFips  String @map("state_fips") @db.VarChar(2)
+  fiscalYear Int    @map("fiscal_year") // 2025, 2026, etc.
+
+  // Goals
+  revenueGoal       Decimal? @map("revenue_goal") @db.Decimal(15, 2)
+  districtCountGoal Int?     @map("district_count_goal")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  state State @relation(fields: [stateFips], references: [fips])
+
+  @@unique([stateFips, fiscalYear])
+  @@map("state_goals")
+}
+
 model TerritoryPlan {
   id          String                  @id @default(uuid())
   name        String                  @db.VarChar(255)
@@ -226,11 +284,16 @@ model TerritoryPlan {
   startDate   DateTime?               @map("start_date")
   endDate     DateTime?               @map("end_date")
   userId      String?                 @map("user_id") @db.Uuid
+  stateFips   String?                 @map("state_fips") @db.VarChar(2) // Optional state association
   createdAt   DateTime                @default(now()) @map("created_at")
   updatedAt   DateTime                @updatedAt @map("updated_at")
-  districts   TerritoryPlanDistrict[]
+
+  // Relations
+  districts TerritoryPlanDistrict[]
+  state     State?                  @relation(fields: [stateFips], references: [fips])
 
   @@index([userId])
+  @@index([stateFips])
   @@map("territory_plans")
 }
 
