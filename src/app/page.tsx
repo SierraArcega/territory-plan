@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import FilterBar from "@/components/filters/FilterBar";
 import PanelContainer from "@/components/panel/PanelContainer";
 import MultiSelectActionBar from "@/components/MultiSelectActionBar";
+import GoalSetupModal from "@/components/user/GoalSetupModal";
 
 // Dynamic import for MapContainer to avoid SSR issues with MapLibre
 const MapContainer = dynamic(() => import("@/components/map/MapContainer"), {
@@ -35,6 +36,9 @@ export default function Home() {
         {/* Multi-Select Action Bar */}
         <MultiSelectActionBar />
       </div>
+
+      {/* First-login setup wizard - shows when hasCompletedSetup is false */}
+      <GoalSetupModal />
     </div>
   );
 }
