@@ -144,6 +144,7 @@ model District {
   centroid         Unsupported("geometry(Point, 4326)")?
 
   // ===== Relations =====
+  state          State?                  @relation(fields: [stateFips], references: [fips])
   contacts       Contact[]
   districtTags   DistrictTag[]
   territoryPlans TerritoryPlanDistrict[]
@@ -258,31 +259,10 @@ model State {
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   // ===== Relations =====
-  goals          StateGoal[]
+  districts      District[]
   territoryPlans TerritoryPlan[]
 
   @@map("states")
-}
-
-// State goals by fiscal year - one row per state per year
-model StateGoal {
-  id         Int    @id @default(autoincrement())
-  stateFips  String @map("state_fips") @db.VarChar(2)
-  fiscalYear Int    @map("fiscal_year") // 2025, 2026, etc.
-
-  // Goals
-  revenueGoal       Decimal? @map("revenue_goal") @db.Decimal(15, 2)
-  districtCountGoal Int?     @map("district_count_goal")
-
-  // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  state State @relation(fields: [stateFips], references: [fips])
-
-  @@unique([stateFips, fiscalYear])
-  @@map("state_goals")
 }
 
 model TerritoryPlan {
