@@ -13,6 +13,7 @@ import DemographicsChart from "../DemographicsChart";
 import AcademicMetrics from "../AcademicMetrics";
 import StudentPopulations from "../StudentPopulations";
 import FullmindMetrics from "../FullmindMetrics";
+import CompetitorSpend from "../CompetitorSpend";
 import NotesEditor from "../NotesEditor";
 import TagsEditor from "../TagsEditor";
 import ContactsList from "../ContactsList";
@@ -119,6 +120,9 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
       {data.fullmindData && (
         <FullmindMetrics fullmindData={data.fullmindData} />
       )}
+
+      {/* Competitor Spend - after Fullmind data */}
+      <CompetitorSpend leaid={leaid} />
 
       {/* Action Buttons */}
       <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex gap-2">
