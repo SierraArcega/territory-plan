@@ -67,7 +67,9 @@ export async function GET(
         fy26OpenPipeline: true,
         fy27OpenPipeline: true,
         districtTags: {
-          include: { tag: true },
+          select: {
+            tag: { select: { id: true, name: true, color: true } },
+          },
           take: 3, // Limit tags for list view
         },
       },
