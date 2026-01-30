@@ -2,10 +2,14 @@
 Urban Institute Staff FTE Data API Loader
 
 Fetches school district staff counts (FTE) from the Urban Institute's
-Education Data Portal API using CCD directory data.
+Education Data Portal API and updates the districts table directly.
+Uses CCD directory data.
 
 API Docs: https://educationdata.urban.org/documentation/
 Endpoint: /school-districts/ccd/directory/{year}/
+
+Note: As of Jan 2026, staff data is stored directly on the districts table
+(consolidated schema) rather than a separate district_education_data table.
 """
 
 import os
@@ -100,7 +104,7 @@ def upsert_staff_data(
     batch_size: int = 1000,
 ) -> dict:
     """
-    Upsert staff FTE data into district_education_data table.
+    Update districts table with staff FTE data.
 
     Args:
         connection_string: PostgreSQL connection string
@@ -141,25 +145,28 @@ def upsert_staff_data(
         if is_valid(r.get("staff_total_fte")) or is_valid(r.get("teachers_fte"))
     ]
 
-    # Update existing records (staff data supplements finance data)
-    update_sql = """
-        UPDATE district_education_data
-        SET teachers_fte = v.teachers_fte::numeric,
-            teachers_elementary_fte = v.teachers_elementary_fte::numeric,
-            teachers_secondary_fte = v.teachers_secondary_fte::numeric,
-            admin_fte = v.admin_fte::numeric,
-            guidance_counselors_fte = v.guidance_counselors_fte::numeric,
-            instructional_aides_fte = v.instructional_aides_fte::numeric,
-            support_staff_fte = v.support_staff_fte::numeric,
-            staff_total_fte = v.staff_total_fte::numeric,
-            staff_data_year = v.staff_data_year::integer,
-            updated_at = NOW()
-        FROM (VALUES %s) AS v(
+    # Create temp table for efficient bulk updates
+    cur.execute("""
+        CREATE TEMP TABLE staff_updates (
+            leaid VARCHAR(7) PRIMARY KEY,
+            teachers_fte NUMERIC,
+            teachers_elementary_fte NUMERIC,
+            teachers_secondary_fte NUMERIC,
+            admin_fte NUMERIC,
+            guidance_counselors_fte NUMERIC,
+            instructional_aides_fte NUMERIC,
+            support_staff_fte NUMERIC,
+            staff_total_fte NUMERIC,
+            staff_data_year INTEGER
+        )
+    """)
+
+    insert_temp_sql = """
+        INSERT INTO staff_updates (
             leaid, teachers_fte, teachers_elementary_fte, teachers_secondary_fte,
             admin_fte, guidance_counselors_fte, instructional_aides_fte,
             support_staff_fte, staff_total_fte, staff_data_year
-        )
-        WHERE district_education_data.leaid = v.leaid
+        ) VALUES %s
     """
 
     values = [
@@ -181,27 +188,48 @@ def upsert_staff_data(
     updated_count = 0
     failed_count = 0
 
-    print(f"Updating {len(values)} staff records...")
+    print(f"Loading {len(values)} staff records into temp table...")
 
-    for i in tqdm(range(0, len(values), batch_size), desc="Updating staff data"):
+    for i in tqdm(range(0, len(values), batch_size), desc="Loading temp table"):
         batch = values[i:i+batch_size]
         try:
             execute_values(
-                cur, update_sql, batch,
+                cur, insert_temp_sql, batch,
                 template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             )
-            updated_count += cur.rowcount
         except Exception as e:
             print(f"Error in batch {i//batch_size}: {e}")
             failed_count += len(batch)
             conn.rollback()
             continue
 
+    # Bulk update districts from temp table
+    print("Updating districts table...")
+    cur.execute("""
+        UPDATE districts d SET
+            teachers_fte = u.teachers_fte,
+            teachers_elementary_fte = u.teachers_elementary_fte,
+            teachers_secondary_fte = u.teachers_secondary_fte,
+            admin_fte = u.admin_fte,
+            guidance_counselors_fte = u.guidance_counselors_fte,
+            instructional_aides_fte = u.instructional_aides_fte,
+            support_staff_fte = u.support_staff_fte,
+            staff_total_fte = u.staff_total_fte,
+            staff_data_year = u.staff_data_year
+        FROM staff_updates u
+        WHERE d.leaid = u.leaid
+    """)
+    updated_count = cur.rowcount
+    print(f"Updated {updated_count} district records")
+
+    # Drop temp table
+    cur.execute("DROP TABLE staff_updates")
+
     conn.commit()
 
     # Get count of records with staff data
     cur.execute("""
-        SELECT COUNT(*) FROM district_education_data
+        SELECT COUNT(*) FROM districts
         WHERE staff_total_fte IS NOT NULL
     """)
     total_with_staff = cur.fetchone()[0]

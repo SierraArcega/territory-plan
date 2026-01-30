@@ -1,8 +1,11 @@
 """
 Fullmind CSV Data Loader
 
-Parses the Fullmind district data CSV and loads into fullmind_data table.
+Parses the Fullmind district data CSV and updates the districts table directly.
 Handles LEAID matching and tracks unmatched accounts.
+
+Note: As of Jan 2026, Fullmind data is stored directly on the districts table
+(consolidated schema) rather than a separate fullmind_data table.
 """
 
 import os
@@ -174,16 +177,16 @@ def categorize_records(
     return matched, unmatched
 
 
-def insert_fullmind_data(
+def update_districts_with_fullmind_data(
     connection_string: str,
     records: List[Dict],
     batch_size: int = 500
 ) -> int:
     """
-    Insert matched records into fullmind_data table.
+    Update districts table with Fullmind CRM data.
 
-    Uses upsert to handle updates to existing records.
     Deduplicates by leaid, aggregating numeric fields.
+    Updates the Fullmind columns directly on the districts table.
     """
     if not records:
         return 0
@@ -224,12 +227,67 @@ def insert_fullmind_data(
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
 
-    # Clear existing data
-    print("Clearing existing fullmind_data...")
-    cur.execute("TRUNCATE TABLE fullmind_data")
+    # Clear existing Fullmind data on districts (set to NULL/defaults)
+    print("Clearing existing Fullmind data on districts...")
+    cur.execute("""
+        UPDATE districts SET
+            account_name = NULL,
+            sales_executive = NULL,
+            lmsid = NULL,
+            fy25_sessions_revenue = 0,
+            fy25_sessions_take = 0,
+            fy25_sessions_count = 0,
+            fy26_sessions_revenue = 0,
+            fy26_sessions_take = 0,
+            fy26_sessions_count = 0,
+            fy25_closed_won_opp_count = 0,
+            fy25_closed_won_net_booking = 0,
+            fy25_net_invoicing = 0,
+            fy26_closed_won_opp_count = 0,
+            fy26_closed_won_net_booking = 0,
+            fy26_net_invoicing = 0,
+            fy26_open_pipeline_opp_count = 0,
+            fy26_open_pipeline = 0,
+            fy26_open_pipeline_weighted = 0,
+            fy27_open_pipeline_opp_count = 0,
+            fy27_open_pipeline = 0,
+            fy27_open_pipeline_weighted = 0,
+            is_customer = false,
+            has_open_pipeline = false
+    """)
 
-    insert_sql = """
-        INSERT INTO fullmind_data (
+    # Use a temp table + UPDATE JOIN pattern for efficient bulk updates
+    cur.execute("""
+        CREATE TEMP TABLE fullmind_updates (
+            leaid VARCHAR(7) PRIMARY KEY,
+            account_name TEXT,
+            sales_executive TEXT,
+            lmsid TEXT,
+            fy25_sessions_revenue DECIMAL,
+            fy25_sessions_take DECIMAL,
+            fy25_sessions_count INTEGER,
+            fy26_sessions_revenue DECIMAL,
+            fy26_sessions_take DECIMAL,
+            fy26_sessions_count INTEGER,
+            fy25_closed_won_opp_count INTEGER,
+            fy25_closed_won_net_booking DECIMAL,
+            fy25_net_invoicing DECIMAL,
+            fy26_closed_won_opp_count INTEGER,
+            fy26_closed_won_net_booking DECIMAL,
+            fy26_net_invoicing DECIMAL,
+            fy26_open_pipeline_opp_count INTEGER,
+            fy26_open_pipeline DECIMAL,
+            fy26_open_pipeline_weighted DECIMAL,
+            fy27_open_pipeline_opp_count INTEGER,
+            fy27_open_pipeline DECIMAL,
+            fy27_open_pipeline_weighted DECIMAL,
+            is_customer BOOLEAN,
+            has_open_pipeline BOOLEAN
+        )
+    """)
+
+    insert_temp_sql = """
+        INSERT INTO fullmind_updates (
             leaid, account_name, sales_executive, lmsid,
             fy25_sessions_revenue, fy25_sessions_take, fy25_sessions_count,
             fy26_sessions_revenue, fy26_sessions_take, fy26_sessions_count,
@@ -239,30 +297,6 @@ def insert_fullmind_data(
             fy27_open_pipeline_opp_count, fy27_open_pipeline, fy27_open_pipeline_weighted,
             is_customer, has_open_pipeline
         ) VALUES %s
-        ON CONFLICT (leaid) DO UPDATE SET
-            account_name = EXCLUDED.account_name,
-            sales_executive = EXCLUDED.sales_executive,
-            lmsid = EXCLUDED.lmsid,
-            fy25_sessions_revenue = EXCLUDED.fy25_sessions_revenue,
-            fy25_sessions_take = EXCLUDED.fy25_sessions_take,
-            fy25_sessions_count = EXCLUDED.fy25_sessions_count,
-            fy26_sessions_revenue = EXCLUDED.fy26_sessions_revenue,
-            fy26_sessions_take = EXCLUDED.fy26_sessions_take,
-            fy26_sessions_count = EXCLUDED.fy26_sessions_count,
-            fy25_closed_won_opp_count = EXCLUDED.fy25_closed_won_opp_count,
-            fy25_closed_won_net_booking = EXCLUDED.fy25_closed_won_net_booking,
-            fy25_net_invoicing = EXCLUDED.fy25_net_invoicing,
-            fy26_closed_won_opp_count = EXCLUDED.fy26_closed_won_opp_count,
-            fy26_closed_won_net_booking = EXCLUDED.fy26_closed_won_net_booking,
-            fy26_net_invoicing = EXCLUDED.fy26_net_invoicing,
-            fy26_open_pipeline_opp_count = EXCLUDED.fy26_open_pipeline_opp_count,
-            fy26_open_pipeline = EXCLUDED.fy26_open_pipeline,
-            fy26_open_pipeline_weighted = EXCLUDED.fy26_open_pipeline_weighted,
-            fy27_open_pipeline_opp_count = EXCLUDED.fy27_open_pipeline_opp_count,
-            fy27_open_pipeline = EXCLUDED.fy27_open_pipeline,
-            fy27_open_pipeline_weighted = EXCLUDED.fy27_open_pipeline_weighted,
-            is_customer = EXCLUDED.is_customer,
-            has_open_pipeline = EXCLUDED.has_open_pipeline
     """
 
     values = [
@@ -295,16 +329,52 @@ def insert_fullmind_data(
         for r in records
     ]
 
-    print(f"Inserting {len(values)} fullmind_data records...")
-    for i in tqdm(range(0, len(values), batch_size), desc="Inserting"):
+    print(f"Inserting {len(values)} records into temp table...")
+    for i in tqdm(range(0, len(values), batch_size), desc="Loading temp table"):
         batch = values[i:i+batch_size]
-        execute_values(cur, insert_sql, batch)
+        execute_values(cur, insert_temp_sql, batch)
+
+    # Bulk update districts from temp table
+    print("Updating districts table...")
+    cur.execute("""
+        UPDATE districts d SET
+            account_name = u.account_name,
+            sales_executive = u.sales_executive,
+            lmsid = u.lmsid,
+            fy25_sessions_revenue = u.fy25_sessions_revenue,
+            fy25_sessions_take = u.fy25_sessions_take,
+            fy25_sessions_count = u.fy25_sessions_count,
+            fy26_sessions_revenue = u.fy26_sessions_revenue,
+            fy26_sessions_take = u.fy26_sessions_take,
+            fy26_sessions_count = u.fy26_sessions_count,
+            fy25_closed_won_opp_count = u.fy25_closed_won_opp_count,
+            fy25_closed_won_net_booking = u.fy25_closed_won_net_booking,
+            fy25_net_invoicing = u.fy25_net_invoicing,
+            fy26_closed_won_opp_count = u.fy26_closed_won_opp_count,
+            fy26_closed_won_net_booking = u.fy26_closed_won_net_booking,
+            fy26_net_invoicing = u.fy26_net_invoicing,
+            fy26_open_pipeline_opp_count = u.fy26_open_pipeline_opp_count,
+            fy26_open_pipeline = u.fy26_open_pipeline,
+            fy26_open_pipeline_weighted = u.fy26_open_pipeline_weighted,
+            fy27_open_pipeline_opp_count = u.fy27_open_pipeline_opp_count,
+            fy27_open_pipeline = u.fy27_open_pipeline,
+            fy27_open_pipeline_weighted = u.fy27_open_pipeline_weighted,
+            is_customer = u.is_customer,
+            has_open_pipeline = u.has_open_pipeline
+        FROM fullmind_updates u
+        WHERE d.leaid = u.leaid
+    """)
+    updated_count = cur.rowcount
+    print(f"Updated {updated_count} district records")
+
+    # Drop temp table
+    cur.execute("DROP TABLE fullmind_updates")
 
     conn.commit()
     cur.close()
     conn.close()
 
-    return len(values)
+    return updated_count
 
 
 def insert_unmatched_accounts(
@@ -485,9 +555,9 @@ def main():
     matched, unmatched = categorize_records(records, valid_leaids)
     print(f"Matched: {len(matched)}, Unmatched: {len(unmatched)}")
 
-    # Insert matched
-    matched_count = insert_fullmind_data(connection_string, matched)
-    print(f"Inserted {matched_count} fullmind_data records")
+    # Update districts with matched Fullmind data
+    matched_count = update_districts_with_fullmind_data(connection_string, matched)
+    print(f"Updated {matched_count} district records with Fullmind data")
 
     # Insert unmatched
     unmatched_count = insert_unmatched_accounts(connection_string, unmatched)

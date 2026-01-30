@@ -1,11 +1,15 @@
 """
 Urban Institute SAIPE Poverty Data API Loader
 
-Fetches school district poverty estimates from the Urban Institute's Education Data Portal API.
+Fetches school district poverty estimates from the Urban Institute's Education Data Portal API
+and updates the districts table directly.
 Uses SAIPE (Small Area Income and Poverty Estimates) data.
 
 API Docs: https://educationdata.urban.org/documentation/
 Endpoint: /school-districts/saipe/{year}/
+
+Note: As of Jan 2026, poverty data is stored directly on the districts table
+(consolidated schema) rather than a separate district_education_data table.
 """
 
 import os
@@ -90,7 +94,7 @@ def upsert_poverty_data(
     batch_size: int = 1000,
 ) -> dict:
     """
-    Upsert poverty data into district_education_data table.
+    Update districts table with poverty data.
 
     Args:
         connection_string: PostgreSQL connection string
@@ -113,29 +117,22 @@ def upsert_poverty_data(
         if r.get("children_poverty_count") is not None or r.get("children_poverty_percent") is not None
     ]
 
-    # First, insert records that don't exist yet (for districts without finance data)
-    insert_sql = """
-        INSERT INTO district_education_data (
-            leaid, children_poverty_count, children_poverty_percent,
-            median_household_income, saipe_data_year, created_at, updated_at
+    # Create temp table for efficient bulk updates
+    cur.execute("""
+        CREATE TEMP TABLE poverty_updates (
+            leaid VARCHAR(7) PRIMARY KEY,
+            children_poverty_count INTEGER,
+            children_poverty_percent NUMERIC,
+            median_household_income NUMERIC,
+            saipe_data_year INTEGER
         )
-        SELECT v.leaid, v.poverty_count::integer, v.poverty_percent::numeric,
-               v.median_income::numeric, v.year::integer, NOW(), NOW()
-        FROM (VALUES %s) AS v(leaid, poverty_count, poverty_percent, median_income, year)
-        WHERE v.leaid IN (SELECT leaid FROM districts)
-        AND v.leaid NOT IN (SELECT leaid FROM district_education_data)
-    """
+    """)
 
-    # Then update existing records
-    update_sql = """
-        UPDATE district_education_data
-        SET children_poverty_count = v.poverty_count::integer,
-            children_poverty_percent = v.poverty_percent::numeric,
-            median_household_income = v.median_income::numeric,
-            saipe_data_year = v.year::integer,
-            updated_at = NOW()
-        FROM (VALUES %s) AS v(leaid, poverty_count, poverty_percent, median_income, year)
-        WHERE district_education_data.leaid = v.leaid
+    insert_temp_sql = """
+        INSERT INTO poverty_updates (
+            leaid, children_poverty_count, children_poverty_percent,
+            median_household_income, saipe_data_year
+        ) VALUES %s
     """
 
     values = [
@@ -152,31 +149,40 @@ def upsert_poverty_data(
     updated_count = 0
     failed_count = 0
 
-    print(f"Upserting {len(values)} poverty records...")
+    print(f"Loading {len(values)} poverty records into temp table...")
 
-    for i in tqdm(range(0, len(values), batch_size), desc="Upserting poverty data"):
+    for i in tqdm(range(0, len(values), batch_size), desc="Loading temp table"):
         batch = values[i:i+batch_size]
         try:
-            # First insert new records
-            execute_values(cur, insert_sql, batch, template="(%s, %s, %s, %s, %s)")
-            inserted = cur.rowcount
-
-            # Then update existing records
-            execute_values(cur, update_sql, batch, template="(%s, %s, %s, %s, %s)")
-            updated = cur.rowcount
-
-            updated_count += inserted + updated
+            execute_values(cur, insert_temp_sql, batch, template="(%s, %s, %s, %s, %s)")
         except Exception as e:
             print(f"Error in batch {i//batch_size}: {e}")
             failed_count += len(batch)
             conn.rollback()
             continue
 
+    # Bulk update districts from temp table
+    print("Updating districts table...")
+    cur.execute("""
+        UPDATE districts d SET
+            children_poverty_count = u.children_poverty_count,
+            children_poverty_percent = u.children_poverty_percent,
+            median_household_income = u.median_household_income,
+            saipe_data_year = u.saipe_data_year
+        FROM poverty_updates u
+        WHERE d.leaid = u.leaid
+    """)
+    updated_count = cur.rowcount
+    print(f"Updated {updated_count} district records")
+
+    # Drop temp table
+    cur.execute("DROP TABLE poverty_updates")
+
     conn.commit()
 
     # Get count of records with poverty data
     cur.execute("""
-        SELECT COUNT(*) FROM district_education_data
+        SELECT COUNT(*) FROM districts
         WHERE children_poverty_percent IS NOT NULL
     """)
     total_with_poverty = cur.fetchone()[0]

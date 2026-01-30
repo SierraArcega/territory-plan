@@ -2,10 +2,13 @@
 Urban Institute Demographics Data API Loader
 
 Fetches school district enrollment by race/ethnicity from the Urban Institute's
-Education Data Portal API.
+Education Data Portal API and updates the districts table directly.
 
 API Docs: https://educationdata.urban.org/documentation/
 Endpoint: /school-districts/ccd/enrollment/{year}/grade-99/race/
+
+Note: As of Jan 2026, demographics data is stored directly on the districts table
+(consolidated schema) rather than a separate district_enrollment_demographics table.
 """
 
 import os
@@ -107,7 +110,7 @@ def upsert_demographics_data(
     batch_size: int = 1000,
 ) -> dict:
     """
-    Upsert demographics data into district_enrollment_demographics table.
+    Update districts table with demographics data.
 
     Args:
         connection_string: PostgreSQL connection string
@@ -124,32 +127,28 @@ def upsert_demographics_data(
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
 
-    upsert_sql = """
-        INSERT INTO district_enrollment_demographics (
+    # Create temp table for efficient bulk updates
+    cur.execute("""
+        CREATE TEMP TABLE demographics_updates (
+            leaid VARCHAR(7) PRIMARY KEY,
+            enrollment_white INTEGER,
+            enrollment_black INTEGER,
+            enrollment_hispanic INTEGER,
+            enrollment_asian INTEGER,
+            enrollment_american_indian INTEGER,
+            enrollment_pacific_islander INTEGER,
+            enrollment_two_or_more INTEGER,
+            total_enrollment INTEGER,
+            demographics_data_year INTEGER
+        )
+    """)
+
+    insert_temp_sql = """
+        INSERT INTO demographics_updates (
             leaid, enrollment_white, enrollment_black, enrollment_hispanic,
             enrollment_asian, enrollment_american_indian, enrollment_pacific_islander,
-            enrollment_two_or_more, total_enrollment, demographics_data_year,
-            created_at, updated_at
-        )
-        SELECT v.leaid, v.white::integer, v.black::integer, v.hispanic::integer,
-               v.asian::integer, v.american_indian::integer, v.pacific_islander::integer,
-               v.two_or_more::integer, v.total::integer, v.year::integer, NOW(), NOW()
-        FROM (VALUES %s) AS v(
-            leaid, white, black, hispanic, asian, american_indian,
-            pacific_islander, two_or_more, total, year
-        )
-        WHERE v.leaid IN (SELECT leaid FROM districts)
-        ON CONFLICT (leaid) DO UPDATE SET
-            enrollment_white = EXCLUDED.enrollment_white,
-            enrollment_black = EXCLUDED.enrollment_black,
-            enrollment_hispanic = EXCLUDED.enrollment_hispanic,
-            enrollment_asian = EXCLUDED.enrollment_asian,
-            enrollment_american_indian = EXCLUDED.enrollment_american_indian,
-            enrollment_pacific_islander = EXCLUDED.enrollment_pacific_islander,
-            enrollment_two_or_more = EXCLUDED.enrollment_two_or_more,
-            total_enrollment = EXCLUDED.total_enrollment,
-            demographics_data_year = EXCLUDED.demographics_data_year,
-            updated_at = NOW()
+            enrollment_two_or_more, total_enrollment, demographics_data_year
+        ) VALUES %s
     """
 
     # Prepare values
@@ -172,27 +171,48 @@ def upsert_demographics_data(
     updated_count = 0
     failed_count = 0
 
-    print(f"Upserting {len(values)} demographics records...")
+    print(f"Loading {len(values)} demographics records into temp table...")
 
-    for i in tqdm(range(0, len(values), batch_size), desc="Upserting demographics"):
+    for i in tqdm(range(0, len(values), batch_size), desc="Loading temp table"):
         batch = values[i:i+batch_size]
         try:
             execute_values(
-                cur, upsert_sql, batch,
+                cur, insert_temp_sql, batch,
                 template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             )
-            updated_count += cur.rowcount
         except Exception as e:
             print(f"Error in batch {i//batch_size}: {e}")
             failed_count += len(batch)
             conn.rollback()
             continue
 
+    # Bulk update districts from temp table
+    print("Updating districts table...")
+    cur.execute("""
+        UPDATE districts d SET
+            enrollment_white = u.enrollment_white,
+            enrollment_black = u.enrollment_black,
+            enrollment_hispanic = u.enrollment_hispanic,
+            enrollment_asian = u.enrollment_asian,
+            enrollment_american_indian = u.enrollment_american_indian,
+            enrollment_pacific_islander = u.enrollment_pacific_islander,
+            enrollment_two_or_more = u.enrollment_two_or_more,
+            total_enrollment = u.total_enrollment,
+            demographics_data_year = u.demographics_data_year
+        FROM demographics_updates u
+        WHERE d.leaid = u.leaid
+    """)
+    updated_count = cur.rowcount
+    print(f"Updated {updated_count} district records")
+
+    # Drop temp table
+    cur.execute("DROP TABLE demographics_updates")
+
     conn.commit()
 
     # Get count of records with demographics data
     cur.execute("""
-        SELECT COUNT(*) FROM district_enrollment_demographics
+        SELECT COUNT(*) FROM districts
         WHERE total_enrollment IS NOT NULL
     """)
     total_with_demographics = cur.fetchone()[0]
