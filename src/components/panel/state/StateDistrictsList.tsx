@@ -13,7 +13,7 @@ type StatusFilter = "all" | "customer" | "pipeline" | "customer_pipeline";
 export default function StateDistrictsList({ stateCode }: StateDistrictsListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const { openDistrictPanel } = useMapStore();
+  const { openDistrictPanel, setHoveredLeaid } = useMapStore();
 
   const { data, isLoading, error } = useStateDistricts({
     stateCode,
@@ -135,6 +135,8 @@ export default function StateDistrictsList({ stateCode }: StateDistrictsListProp
               <button
                 key={district.leaid}
                 onClick={() => handleDistrictClick(district.leaid)}
+                onMouseEnter={() => setHoveredLeaid(district.leaid)}
+                onMouseLeave={() => setHoveredLeaid(null)}
                 className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-start justify-between gap-2">
