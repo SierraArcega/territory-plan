@@ -15,6 +15,7 @@ type MetricType =
   | "open_pipeline_weighted";
 type FiscalYear = "fy25" | "fy26" | "fy27";
 
+// Maps metric + year to the actual column name on the district model
 function getMetricColumn(metric: MetricType, year: FiscalYear): string {
   const metricMap: Record<MetricType, Record<FiscalYear, string>> = {
     sessions_revenue: {
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    // Build where clause
+    // Build where clause - all filters are now directly on the district
     const where: Prisma.DistrictWhereInput = {};
 
     if (state) {
@@ -83,63 +84,56 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Status filter requires joining with fullmind_data
+    // Status filter - now directly on district columns
     if (status !== "all") {
       switch (status) {
         case "customer":
-          where.fullmindData = { isCustomer: true };
+          where.isCustomer = true;
           break;
         case "pipeline":
-          where.fullmindData = { hasOpenPipeline: true };
+          where.hasOpenPipeline = true;
           break;
         case "customer_pipeline":
-          where.fullmindData = { isCustomer: true, hasOpenPipeline: true };
+          where.isCustomer = true;
+          where.hasOpenPipeline = true;
           break;
         case "no_data":
-          where.fullmindData = null;
+          where.isCustomer = null;
           break;
       }
     }
 
+    // Sales executive filter - now directly on district
     if (salesExec) {
-      const existingFullmindFilter = where.fullmindData as Prisma.FullmindDataWhereInput | null | undefined;
-      if (existingFullmindFilter && typeof existingFullmindFilter === 'object') {
-        where.fullmindData = {
-          ...existingFullmindFilter,
-          salesExecutive: salesExec,
-        };
-      } else {
-        where.fullmindData = { salesExecutive: salesExec };
-      }
+      where.salesExecutive = salesExec;
     }
 
     // Get total count
     const total = await prisma.district.count({ where });
 
-    // Get districts with fullmind data
+    // Get districts - no more include needed, all data is on the district
     const districts = await prisma.district.findMany({
       where,
-      include: {
-        fullmindData: {
-          select: {
-            isCustomer: true,
-            hasOpenPipeline: true,
-            fy25SessionsRevenue: true,
-            fy25SessionsTake: true,
-            fy25SessionsCount: true,
-            fy26SessionsRevenue: true,
-            fy26SessionsTake: true,
-            fy26SessionsCount: true,
-            fy25ClosedWonNetBooking: true,
-            fy25NetInvoicing: true,
-            fy26ClosedWonNetBooking: true,
-            fy26NetInvoicing: true,
-            fy26OpenPipeline: true,
-            fy26OpenPipelineWeighted: true,
-            fy27OpenPipeline: true,
-            fy27OpenPipelineWeighted: true,
-          },
-        },
+      select: {
+        leaid: true,
+        name: true,
+        stateAbbrev: true,
+        isCustomer: true,
+        hasOpenPipeline: true,
+        fy25SessionsRevenue: true,
+        fy25SessionsTake: true,
+        fy25SessionsCount: true,
+        fy26SessionsRevenue: true,
+        fy26SessionsTake: true,
+        fy26SessionsCount: true,
+        fy25ClosedWonNetBooking: true,
+        fy25NetInvoicing: true,
+        fy26ClosedWonNetBooking: true,
+        fy26NetInvoicing: true,
+        fy26OpenPipeline: true,
+        fy26OpenPipelineWeighted: true,
+        fy27OpenPipeline: true,
+        fy27OpenPipelineWeighted: true,
       },
       take: limit,
       skip: offset,
@@ -149,17 +143,14 @@ export async function GET(request: NextRequest) {
     // Transform to list items
     const metricColumn = getMetricColumn(metric, year);
     const districtList = districts.map((d) => {
-      const fm = d.fullmindData;
-      const metricValue = fm
-        ? Number(fm[metricColumn as keyof typeof fm] || 0)
-        : 0;
+      const metricValue = Number(d[metricColumn as keyof typeof d] || 0);
 
       return {
         leaid: d.leaid,
         name: d.name,
         stateAbbrev: d.stateAbbrev,
-        isCustomer: fm?.isCustomer || false,
-        hasOpenPipeline: fm?.hasOpenPipeline || false,
+        isCustomer: d.isCustomer || false,
+        hasOpenPipeline: d.hasOpenPipeline || false,
         metricValue,
       };
     });
