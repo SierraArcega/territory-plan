@@ -61,10 +61,26 @@ This document defines how Sierra and Claude collaborate on coding projects. It s
 
 ## Git Workflow
 
+### Starting a Session
+
+When beginning any coding work together:
+
+1. **Create a feature branch immediately** before making any changes
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feature/descriptive-name
+   ```
+2. **Start committing early** — don't wait until the feature is "done"
+3. **Push the branch to GitHub** after the first meaningful commit
+
+This ensures work is never at risk of being lost and can be easily rolled back.
+
 ### Branching Strategy
 
 - **Always use branches** for new features and large updates
 - Never commit directly to main for significant changes
+- Use descriptive branch names: `feature/add-user-dashboard`, `fix/login-redirect`
 
 ### Commit Philosophy
 
@@ -279,8 +295,8 @@ Before starting any task, Claude should:
 - [ ] Understand the goal and requirements
 - [ ] Plan the approach at high level and task level
 - [ ] Get Sierra's approval on the plan
-- [ ] Create a branch for the work
+- [ ] **Create a feature branch immediately** (before any code changes)
 - [ ] Write code with clear comments
-- [ ] Make small, frequent commits
+- [ ] **Commit early and often** (small, frequent commits throughout)
 - [ ] Write tests alongside the code
 - [ ] Explain what was done and check for questions
