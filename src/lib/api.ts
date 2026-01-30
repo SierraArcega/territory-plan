@@ -642,3 +642,124 @@ export function useCustomerDots() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
+
+// State detail types
+export interface StateAggregates {
+  totalDistricts: number;
+  totalEnrollment: number | null;
+  totalSchools: number | null;
+  totalCustomers: number;
+  totalWithPipeline: number;
+  totalPipelineValue: number | null;
+  avgExpenditurePerPupil: number | null;
+  avgGraduationRate: number | null;
+  avgPovertyRate: number | null;
+}
+
+export interface StateGoal {
+  id: number;
+  fiscalYear: number;
+  revenueGoal: number | null;
+  districtCountGoal: number | null;
+}
+
+export interface StateTerritoryPlan {
+  id: string;
+  name: string;
+  owner: string | null;
+  color: string;
+  status: string;
+  districtCount: number;
+}
+
+export interface StateDetail {
+  code: string;
+  fips: string | null;
+  name: string;
+  aggregates: StateAggregates;
+  territoryOwner: string | null;
+  notes: string | null;
+  goals: StateGoal[];
+  territoryPlans: StateTerritoryPlan[];
+}
+
+export interface StateDistrictListItem {
+  leaid: string;
+  name: string;
+  enrollment: number | null;
+  isCustomer: boolean;
+  hasOpenPipeline: boolean;
+  salesExecutive: string | null;
+  fy26NetInvoicing: number;
+  fy26OpenPipeline: number;
+  fy27OpenPipeline: number;
+  tags: Array<{ id: number; name: string; color: string }>;
+}
+
+export interface StateDistrictsResponse {
+  districts: StateDistrictListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// State detail hook
+export function useStateDetail(stateCode: string | null) {
+  return useQuery({
+    queryKey: ["stateDetail", stateCode],
+    queryFn: () => fetchJson<StateDetail>(`${API_BASE}/states/${stateCode}`),
+    enabled: !!stateCode,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// State districts hook with search and filter support
+export function useStateDistricts(params: {
+  stateCode: string | null;
+  search?: string;
+  status?: "all" | "customer" | "pipeline" | "customer_pipeline";
+  limit?: number;
+  offset?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params.search) searchParams.set("search", params.search);
+  if (params.status && params.status !== "all") searchParams.set("status", params.status);
+  if (params.limit) searchParams.set("limit", params.limit.toString());
+  if (params.offset) searchParams.set("offset", params.offset.toString());
+
+  const queryString = searchParams.toString();
+  const url = `${API_BASE}/states/${params.stateCode}/districts${queryString ? `?${queryString}` : ""}`;
+
+  return useQuery({
+    queryKey: ["stateDistricts", params],
+    queryFn: () => fetchJson<StateDistrictsResponse>(url),
+    enabled: !!params.stateCode,
+  });
+}
+
+// Update state notes/owner mutation
+export function useUpdateState() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      stateCode,
+      notes,
+      territoryOwner,
+    }: {
+      stateCode: string;
+      notes?: string;
+      territoryOwner?: string;
+    }) =>
+      fetchJson<{ code: string; notes: string | null; territoryOwner: string | null }>(
+        `${API_BASE}/states/${stateCode}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ notes, territoryOwner }),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["stateDetail", variables.stateCode] });
+    },
+  });
+}

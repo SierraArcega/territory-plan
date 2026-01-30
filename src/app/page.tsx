@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import FilterBar from "@/components/filters/FilterBar";
-import SidePanel from "@/components/panel/SidePanel";
+import PanelContainer from "@/components/panel/PanelContainer";
 import MultiSelectActionBar from "@/components/MultiSelectActionBar";
 
 // Dynamic import for MapContainer to avoid SSR issues with MapLibre
@@ -60,8 +60,8 @@ export default function Home() {
         {/* Map */}
         <MapContainer className="absolute inset-0" />
 
-        {/* Side Panel */}
-        <SidePanel />
+        {/* Unified Panel Container (State or District panel) */}
+        <PanelContainer />
 
         {/* Multi-Select Action Bar */}
         <MultiSelectActionBar />
