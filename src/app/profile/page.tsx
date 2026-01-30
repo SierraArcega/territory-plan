@@ -269,19 +269,17 @@ export default function ProfilePage() {
                   {/* Progress Bars */}
                   <div className="bg-gray-50 rounded-lg p-4 space-y-4">
                     <GoalProgress
-                      label="Revenue"
-                      actual={goal.revenueActual}
-                      target={goal.revenueTarget}
+                      label="Draw Down"
+                      target={goal.drawDownTarget}
                     />
                     <GoalProgress
-                      label="Take (Margin)"
+                      label="Quota"
+                      target={goal.quotaTarget}
+                    />
+                    <GoalProgress
+                      label="Take Goal"
                       actual={goal.takeActual}
                       target={goal.takeTarget}
-                    />
-                    <GoalProgress
-                      label="Pipeline"
-                      actual={goal.pipelineActual}
-                      target={goal.pipelineTarget}
                     />
                     <GoalProgress
                       label="New Districts"
