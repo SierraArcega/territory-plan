@@ -128,8 +128,7 @@ export async function GET(
             takeTarget: userGoal.takeTarget ? Number(userGoal.takeTarget) : null,
             pipelineTarget: userGoal.pipelineTarget ? Number(userGoal.pipelineTarget) : null,
             newDistrictsTarget: userGoal.newDistrictsTarget,
-            drawDownTarget: userGoal.drawDownTarget ? Number(userGoal.drawDownTarget) : null,
-            quotaTarget: userGoal.quotaTarget ? Number(userGoal.quotaTarget) : null,
+            earningsTarget: userGoal.earningsTarget ? Number(userGoal.earningsTarget) : null,
           }
         : null,
       planTotals: {

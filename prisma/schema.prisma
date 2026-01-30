@@ -404,8 +404,7 @@ model UserGoal {
   takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2) // Gross margin/take
   pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
   newDistrictsTarget Int?     @map("new_districts_target")
-  drawDownTarget     Decimal? @map("draw_down_target") @db.Decimal(15, 2)
-  quotaTarget        Decimal? @map("quota_target") @db.Decimal(15, 2)
+  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2) // Total earnings goal
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -42,7 +42,22 @@ CREATE TABLE IF NOT EXISTS "territory_plan_district_services" (
         FOREIGN KEY ("service_id") REFERENCES "services"("id") ON DELETE CASCADE
 );
 
+-- =====================================================
+-- EARNINGS TARGET MIGRATION (replaces draw_down and quota)
+-- =====================================================
+
+-- Add earnings_target column to user_goals
+ALTER TABLE "user_goals" ADD COLUMN IF NOT EXISTS "earnings_target" DECIMAL(15, 2);
+
+-- Optional: Remove old columns (commented out for safety - can run later if desired)
+-- ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "draw_down_target";
+-- ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "quota_target";
+
 -- Verify the migration
 SELECT
     'territory_plans.fiscal_year' as check_item,
-    EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='territory_plans' AND column_name='fiscal_year') as exists;
+    EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='territory_plans' AND column_name='fiscal_year') as exists
+UNION ALL
+SELECT
+    'user_goals.earnings_target' as check_item,
+    EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='user_goals' AND column_name='earnings_target') as exists;

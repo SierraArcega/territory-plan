@@ -35,8 +35,7 @@ export async function GET() {
       takeTarget: toNumber(goal.takeTarget),
       pipelineTarget: toNumber(goal.pipelineTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
-      drawDownTarget: toNumber(goal.drawDownTarget),
-      quotaTarget: toNumber(goal.quotaTarget),
+      earningsTarget: toNumber(goal.earningsTarget),
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
     }));
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fiscalYear, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget, drawDownTarget, quotaTarget } = body;
+    const { fiscalYear, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget, earningsTarget } = body;
 
     // Validate fiscalYear
     if (!fiscalYear || typeof fiscalYear !== "number" || fiscalYear < 2020 || fiscalYear > 2050) {
@@ -100,8 +99,7 @@ export async function POST(request: NextRequest) {
         takeTarget: takeTarget ?? null,
         pipelineTarget: pipelineTarget ?? null,
         newDistrictsTarget: newDistrictsTarget ?? null,
-        drawDownTarget: drawDownTarget ?? null,
-        quotaTarget: quotaTarget ?? null,
+        earningsTarget: earningsTarget ?? null,
       },
       create: {
         userId: user.id,
@@ -110,8 +108,7 @@ export async function POST(request: NextRequest) {
         takeTarget: takeTarget ?? null,
         pipelineTarget: pipelineTarget ?? null,
         newDistrictsTarget: newDistrictsTarget ?? null,
-        drawDownTarget: drawDownTarget ?? null,
-        quotaTarget: quotaTarget ?? null,
+        earningsTarget: earningsTarget ?? null,
       },
     });
 
@@ -123,8 +120,7 @@ export async function POST(request: NextRequest) {
         takeTarget: toNumber(goal.takeTarget),
         pipelineTarget: toNumber(goal.pipelineTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
-        drawDownTarget: toNumber(goal.drawDownTarget),
-        quotaTarget: toNumber(goal.quotaTarget),
+        earningsTarget: toNumber(goal.earningsTarget),
         createdAt: goal.createdAt.toISOString(),
         updatedAt: goal.updatedAt.toISOString(),
       },

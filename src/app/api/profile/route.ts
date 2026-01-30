@@ -148,8 +148,7 @@ export async function GET() {
         takeTarget: toNumber(goal.takeTarget),
         pipelineTarget: toNumber(goal.pipelineTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
-        drawDownTarget: toNumber(goal.drawDownTarget),
-        quotaTarget: toNumber(goal.quotaTarget),
+        earningsTarget: toNumber(goal.earningsTarget),
         ...yearActuals,
       };
     });
@@ -233,8 +232,7 @@ export async function PUT(request: NextRequest) {
         takeTarget: toNumber(goal.takeTarget),
         pipelineTarget: toNumber(goal.pipelineTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
-        drawDownTarget: toNumber(goal.drawDownTarget),
-        quotaTarget: toNumber(goal.quotaTarget),
+        earningsTarget: toNumber(goal.earningsTarget),
         ...yearActuals,
       };
     });
