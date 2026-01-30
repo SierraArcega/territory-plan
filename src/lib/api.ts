@@ -1004,6 +1004,7 @@ export function useUpsertUserGoal() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
     },
   });
 }
@@ -1110,6 +1111,7 @@ export interface GoalDashboard {
     planCount: number;
   };
   actuals: {
+    earnings: number;
     revenue: number;
     take: number;
     pipeline: number;

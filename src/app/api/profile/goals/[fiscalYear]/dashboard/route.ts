@@ -4,6 +4,10 @@ import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+// Constants for earnings calculation
+const BASE_SALARY = 130000;
+const COMMISSION_RATE = 0.10; // 10% of take
+
 // GET /api/profile/goals/[fiscalYear]/dashboard - Get goal dashboard with targets vs actuals
 export async function GET(
   request: NextRequest,
@@ -120,6 +124,9 @@ export async function GET(
     // when a district became a customer vs when it was added to the plan
     newDistrictsActual = districtCount - existingCustomers.size;
 
+    // Calculate projected earnings based on actual take
+    const earningsActual = BASE_SALARY + (takeActual * COMMISSION_RATE);
+
     return NextResponse.json({
       fiscalYear,
       goals: userGoal
@@ -139,6 +146,7 @@ export async function GET(
         planCount: plans.length,
       },
       actuals: {
+        earnings: earningsActual,
         revenue: revenueActual,
         take: takeActual,
         pipeline: pipelineActual,

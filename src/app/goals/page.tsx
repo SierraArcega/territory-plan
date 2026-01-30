@@ -426,44 +426,55 @@ export default function GoalsDashboardPage() {
                 <h2 className="text-lg font-semibold text-[#403770]">
                   Your FY{String(selectedYear).slice(-2)} Goals
                 </h2>
-                <button
-                  onClick={() => setShowGoalEditor(true)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  {dashboard.goals ? "Edit Goals" : "Set Goals"}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setShowGoalEditor(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    {dashboard.goals ? "Edit Goals" : "Set Goals"}
+                  </button>
+                  <Tooltip text="Set your target earnings and take rate, and we'll calculate the take, revenue, and pipeline you need to hit your goal." />
+                </div>
               </div>
               {dashboard.goals ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <ProgressCard
-                    label="Revenue"
-                    current={dashboard.actuals.revenue}
-                    target={dashboard.goals.revenueTarget}
-                    color="#8AA891"
-                  />
-                  <ProgressCard
-                    label="Take"
-                    current={dashboard.actuals.take}
-                    target={dashboard.goals.takeTarget}
-                    color="#6EA3BE"
-                  />
-                  <ProgressCard
-                    label="Pipeline"
-                    current={dashboard.actuals.pipeline}
-                    target={dashboard.goals.pipelineTarget}
-                    color="#D4A84B"
-                  />
-                  <ProgressCard
-                    label="New Districts"
-                    current={dashboard.actuals.newDistricts}
-                    target={dashboard.goals.newDistrictsTarget}
-                    format="number"
-                    color="#F37167"
-                  />
-                </div>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <ProgressCard
+                      label="Earnings"
+                      current={dashboard.actuals.earnings}
+                      target={dashboard.goals.earningsTarget}
+                      color="#F37167"
+                    />
+                    <ProgressCard
+                      label="Take"
+                      current={dashboard.actuals.take}
+                      target={dashboard.goals.takeTarget}
+                      color="#6EA3BE"
+                    />
+                    <ProgressCard
+                      label="Revenue"
+                      current={dashboard.actuals.revenue}
+                      target={dashboard.goals.revenueTarget}
+                      color="#8AA891"
+                    />
+                    <ProgressCard
+                      label="Pipeline"
+                      current={dashboard.actuals.pipeline}
+                      target={dashboard.goals.pipelineTarget}
+                      color="#D4A84B"
+                    />
+                    <ProgressCard
+                      label="New Districts"
+                      current={dashboard.actuals.newDistricts}
+                      target={dashboard.goals.newDistrictsTarget}
+                      format="number"
+                      color="#403770"
+                    />
+                  </div>
+                </>
               ) : (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                   <svg
