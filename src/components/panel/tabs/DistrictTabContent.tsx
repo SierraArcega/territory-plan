@@ -1,6 +1,7 @@
 "use client";
 
-import { useDistrictDetail } from "@/lib/api";
+import { useDistrictDetail, useStateDetail } from "@/lib/api";
+import { useMapStore } from "@/lib/store";
 import StateDistrictsList from "../state/StateDistrictsList";
 import DistrictHeader from "../DistrictHeader";
 import AddToPlanButton from "../AddToPlanButton";
@@ -23,6 +24,7 @@ interface DistrictTabContentProps {
 
 export default function DistrictTabContent({ leaid, stateCode }: DistrictTabContentProps) {
   const { data, isLoading, error } = useDistrictDetail(leaid);
+  const goBackToDistrictsList = useMapStore((s) => s.goBackToDistrictsList);
 
   // Case 1: No leaid and no stateCode - show empty state
   if (!leaid && !stateCode) {
@@ -87,8 +89,24 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
     return null;
   }
 
+  // Get state name for back link
+  const { data: stateData } = useStateDetail(data.district.stateAbbrev);
+
   return (
     <div className="h-full overflow-y-auto">
+      {/* Back to state districts link - only show if we have state context */}
+      {stateCode && (
+        <button
+          onClick={goBackToDistrictsList}
+          className="flex items-center gap-1 px-6 py-2 text-sm text-[#403770] hover:text-[#F37167] bg-gray-50 border-b border-gray-100 w-full"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to {stateData?.name || stateCode} districts
+        </button>
+      )}
+
       {/* Group 1: Identity */}
       <DistrictHeader
         district={data.district}
