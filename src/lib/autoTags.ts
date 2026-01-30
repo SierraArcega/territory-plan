@@ -47,17 +47,6 @@ export async function ensureAutoTagsExist(): Promise<void> {
 }
 
 /**
- * Gets a tag by name from the database.
- * Returns null if not found.
- */
-async function getTagByName(name: string): Promise<{ id: number } | null> {
-  return prisma.tag.findUnique({
-    where: { name },
-    select: { id: true },
-  });
-}
-
-/**
  * Gets multiple tags by name from the database in a single query.
  * Returns a Map of tag name to tag id.
  */
@@ -70,59 +59,38 @@ async function getTagsByNames(names: string[]): Promise<Map<string, number>> {
 }
 
 /**
- * Adds a tag to a district if not already present.
- */
-async function addTagToDistrict(leaid: string, tagId: number): Promise<void> {
-  await prisma.districtTag.upsert({
-    where: {
-      districtLeaid_tagId: { districtLeaid: leaid, tagId },
-    },
-    update: {},
-    create: { districtLeaid: leaid, tagId },
-  });
-}
-
-/**
- * Removes a tag from a district if present.
- */
-async function removeTagFromDistrict(leaid: string, tagId: number): Promise<void> {
-  await prisma.districtTag.deleteMany({
-    where: { districtLeaid: leaid, tagId },
-  });
-}
-
-/**
  * Syncs all auto-tags for a single district based on current data.
  * Call this after adding/removing district from a plan or after data refresh.
+ *
+ * Note: Fullmind data is now directly on the district (consolidated schema).
  */
 export async function syncAutoTagsForDistrict(leaid: string): Promise<void> {
-  // Fetch district data with Fullmind data and territory plan membership
+  // Fetch district with territory plan membership
+  // Fullmind data is now directly on the district (consolidated schema)
   const district = await prisma.district.findUnique({
     where: { leaid },
     include: {
-      fullmindData: true,
       territoryPlans: { select: { planId: true } },
     },
   });
 
   if (!district) return;
 
-  const fullmind = district.fullmindData;
   const isInAnyPlan = district.territoryPlans.length > 0;
 
-  // Calculate conditions
-  const isCustomer = fullmind?.isCustomer ?? false;
-  const hasOpenPipeline = fullmind?.hasOpenPipeline ?? false;
+  // Calculate conditions - data is now directly on district
+  const isCustomer = district.isCustomer ?? false;
+  const hasOpenPipeline = district.hasOpenPipeline ?? false;
 
   // Current year revenue = FY26 net invoicing + closed won bookings
-  const currentYearRevenue = fullmind
-    ? Number(fullmind.fy26NetInvoicing) + Number(fullmind.fy26ClosedWonNetBooking)
-    : 0;
+  const currentYearRevenue =
+    Number(district.fy26NetInvoicing ?? 0) +
+    Number(district.fy26ClosedWonNetBooking ?? 0);
 
   // Previous year revenue = FY25 net invoicing + closed won bookings
-  const previousYearRevenue = fullmind
-    ? Number(fullmind.fy25NetInvoicing) + Number(fullmind.fy25ClosedWonNetBooking)
-    : 0;
+  const previousYearRevenue =
+    Number(district.fy25NetInvoicing ?? 0) +
+    Number(district.fy25ClosedWonNetBooking ?? 0);
 
   const isVIP = currentYearRevenue > VIP_REVENUE_THRESHOLD;
   const isWinBackTarget = previousYearRevenue > 0 && currentYearRevenue === 0;
