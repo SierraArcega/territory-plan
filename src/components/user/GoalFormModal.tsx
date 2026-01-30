@@ -14,12 +14,10 @@ interface GoalFormModalProps {
 
 export interface GoalFormData {
   fiscalYear: number;
-  revenueTarget: number | null;
-  takeTarget: number | null;
-  pipelineTarget: number | null;
-  newDistrictsTarget: number | null;
   drawDownTarget: number | null;
   quotaTarget: number | null;
+  takeTarget: number | null;
+  newDistrictsTarget: number | null;
 }
 
 // Available fiscal years for goal creation
@@ -38,6 +36,31 @@ function formatForInput(value: number | null | undefined): string {
   return value.toString();
 }
 
+// Tooltip component
+function Tooltip({ text }: { text: string }) {
+  return (
+    <div className="group relative inline-block ml-1">
+      <svg
+        className="w-4 h-4 text-[#403770]/50 hover:text-[#403770]/70 cursor-help inline"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[#403770] text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-64 text-center z-10">
+        {text}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[#403770]" />
+      </div>
+    </div>
+  );
+}
+
 export default function GoalFormModal({
   isOpen,
   onClose,
@@ -47,12 +70,10 @@ export default function GoalFormModal({
   isNewGoal = false,
 }: GoalFormModalProps) {
   const [fiscalYear, setFiscalYear] = useState(initialData?.fiscalYear || 2026);
-  const [revenueTarget, setRevenueTarget] = useState("");
-  const [takeTarget, setTakeTarget] = useState("");
-  const [pipelineTarget, setPipelineTarget] = useState("");
-  const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
   const [drawDownTarget, setDrawDownTarget] = useState("");
   const [quotaTarget, setQuotaTarget] = useState("");
+  const [takeTarget, setTakeTarget] = useState("");
+  const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,12 +82,10 @@ export default function GoalFormModal({
   useEffect(() => {
     if (isOpen) {
       setFiscalYear(initialData?.fiscalYear || 2026);
-      setRevenueTarget(formatForInput(initialData?.revenueTarget));
-      setTakeTarget(formatForInput(initialData?.takeTarget));
-      setPipelineTarget(formatForInput(initialData?.pipelineTarget));
-      setNewDistrictsTarget(formatForInput(initialData?.newDistrictsTarget));
       setDrawDownTarget(formatForInput(initialData?.drawDownTarget));
       setQuotaTarget(formatForInput(initialData?.quotaTarget));
+      setTakeTarget(formatForInput(initialData?.takeTarget));
+      setNewDistrictsTarget(formatForInput(initialData?.newDistrictsTarget));
       setError(null);
       // Focus first input after a short delay for animation
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -82,14 +101,12 @@ export default function GoalFormModal({
     try {
       await onSubmit({
         fiscalYear,
-        revenueTarget: parseCurrency(revenueTarget),
+        drawDownTarget: parseCurrency(drawDownTarget),
+        quotaTarget: parseCurrency(quotaTarget),
         takeTarget: parseCurrency(takeTarget),
-        pipelineTarget: parseCurrency(pipelineTarget),
         newDistrictsTarget: newDistrictsTarget
           ? parseInt(newDistrictsTarget, 10)
           : null,
-        drawDownTarget: parseCurrency(drawDownTarget),
-        quotaTarget: parseCurrency(quotaTarget),
       });
       onClose();
     } catch (err) {
@@ -104,16 +121,16 @@ export default function GoalFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-[#403770]/40" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="relative bg-[#FFFCFA] rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-4 bg-[#C4E7E6] flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#403770]">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1 rounded-full hover:bg-[#403770]/10 text-[#403770]/60 hover:text-[#403770] transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -143,13 +160,13 @@ export default function GoalFormModal({
             {/* Fiscal Year Selector - only show for new goals */}
             {isNewGoal && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fiscal Year <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-[#403770] mb-1">
+                  Fiscal Year <span className="text-[#F37167]">*</span>
                 </label>
                 <select
                   value={fiscalYear}
                   onChange={(e) => setFiscalYear(parseInt(e.target.value, 10))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
                 >
                   {FISCAL_YEARS.map((year) => (
                     <option key={year} value={year}>
@@ -160,118 +177,35 @@ export default function GoalFormModal({
               </div>
             )}
 
-            {/* Revenue Target */}
+            {/* Draw Down */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Revenue Target
+              <label className="block text-sm font-medium text-[#403770] mb-1">
+                Draw Down
+                <Tooltip text="The amount to recover in exchange for a higher than standard base salary. For example, if the standard base is $130,000 and you make $150,000, your draw down is $20,000." />
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
                   $
                 </span>
                 <input
                   ref={inputRef}
                   type="text"
-                  value={revenueTarget}
-                  onChange={(e) => setRevenueTarget(e.target.value)}
-                  placeholder="500,000"
-                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Total net invoicing goal
-              </p>
-            </div>
-
-            {/* Take/Margin Target */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Take (Gross Margin) Target
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  $
-                </span>
-                <input
-                  type="text"
-                  value={takeTarget}
-                  onChange={(e) => setTakeTarget(e.target.value)}
-                  placeholder="75,000"
-                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Gross margin goal from sessions
-              </p>
-            </div>
-
-            {/* Pipeline Target */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pipeline Target
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  $
-                </span>
-                <input
-                  type="text"
-                  value={pipelineTarget}
-                  onChange={(e) => setPipelineTarget(e.target.value)}
-                  placeholder="1,000,000"
-                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Open pipeline goal</p>
-            </div>
-
-            {/* New Districts Target */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                New Districts Target
-              </label>
-              <input
-                type="number"
-                value={newDistrictsTarget}
-                onChange={(e) => setNewDistrictsTarget(e.target.value)}
-                placeholder="10"
-                min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Number of new districts to acquire
-              </p>
-            </div>
-
-            {/* Draw Down Target */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Draw Down
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  $
-                </span>
-                <input
-                  type="text"
                   value={drawDownTarget}
                   onChange={(e) => setDrawDownTarget(e.target.value)}
-                  placeholder="100,000"
-                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                  placeholder="20,000"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Your draw down amount
-              </p>
             </div>
 
-            {/* Quota Target */}
+            {/* Quota */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#403770] mb-1">
                 Quota
+                <Tooltip text="Total take required to hit your assigned sales goals for this year." />
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
                   $
                 </span>
                 <input
@@ -279,28 +213,61 @@ export default function GoalFormModal({
                   value={quotaTarget}
                   onChange={(e) => setQuotaTarget(e.target.value)}
                   placeholder="500,000"
-                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Your quota target
-              </p>
+            </div>
+
+            {/* Take Goal */}
+            <div>
+              <label className="block text-sm font-medium text-[#403770] mb-1">
+                Take Goal
+                <Tooltip text="Your target profit contribution after direct costs." />
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
+                  $
+                </span>
+                <input
+                  type="text"
+                  value={takeTarget}
+                  onChange={(e) => setTakeTarget(e.target.value)}
+                  placeholder="75,000"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* New Districts */}
+            <div>
+              <label className="block text-sm font-medium text-[#403770] mb-1">
+                New Districts
+                <Tooltip text="Number of new district logos (first-time customers) to win." />
+              </label>
+              <input
+                type="number"
+                value={newDistrictsTarget}
+                onChange={(e) => setNewDistrictsTarget(e.target.value)}
+                placeholder="10"
+                min="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+              />
             </div>
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <div className="px-6 py-4 bg-[#C4E7E6]/30 border-t border-[#C4E7E6] flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-[#403770]/70 hover:text-[#403770] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#F37167] hover:bg-[#e05f55] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Saving..." : "Save Goals"}
             </button>
