@@ -31,7 +31,7 @@ export default function CustomerOverviewLegend({
       `}
     >
       <div className="font-semibold text-[#403770] mb-2 text-xs uppercase tracking-wide">
-        Customer Overview
+        Fullmind View
       </div>
       <div className="space-y-1.5">
         {LEGEND_ITEMS.map((item) => (
