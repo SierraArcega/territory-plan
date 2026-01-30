@@ -110,6 +110,8 @@ interface MapActions {
   // Similar districts actions
   setSimilarDistrictLeaids: (leaids: string[]) => void;
   clearSimilarDistricts: () => void;
+  // Back navigation
+  goBackToDistrictsList: () => void;
 }
 
 const initialFilters: Filters = {
@@ -248,6 +250,14 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   // Similar districts actions
   setSimilarDistrictLeaids: (leaids) => set({ similarDistrictLeaids: leaids }),
   clearSimilarDistricts: () => set({ similarDistrictLeaids: [] }),
+
+  // Go back to districts list (clears district selection but keeps state context)
+  goBackToDistrictsList: () =>
+    set({
+      selectedLeaid: null,
+      // Don't change activePanelType or selectedStateCode
+      // The DistrictTabContent will show the districts list because stateCode is still set
+    }),
 }));
 
 // Selector helpers
