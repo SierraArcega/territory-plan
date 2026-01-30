@@ -400,11 +400,13 @@ model UserGoal {
   fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
 
   // Target values - all optional since users may only set some goals
+  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2) // Total earnings goal (user input)
+  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2) // Expected take rate % (user input)
+  // Calculated goals based on earnings and take rate
   revenueTarget      Decimal? @map("revenue_target") @db.Decimal(15, 2)
   takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2) // Gross margin/take
   pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
   newDistrictsTarget Int?     @map("new_districts_target")
-  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2) // Total earnings goal
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

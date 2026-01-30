@@ -931,11 +931,14 @@ export function useDeletePlanActivity() {
 export interface UserGoal {
   id: number;
   fiscalYear: number;
+  // User inputs
+  earningsTarget: number | null;
+  takeRatePercent: number | null;
+  newDistrictsTarget: number | null;
+  // Calculated targets (from earnings + take rate)
   revenueTarget: number | null;
   takeTarget: number | null;
   pipelineTarget: number | null;
-  newDistrictsTarget: number | null;
-  earningsTarget: number | null;
   // Calculated actuals from territory plan districts
   revenueActual: number;
   takeActual: number;
@@ -988,11 +991,12 @@ export function useUpsertUserGoal() {
   return useMutation({
     mutationFn: (data: {
       fiscalYear: number;
+      earningsTarget?: number | null;
+      takeRatePercent?: number | null;
       revenueTarget?: number | null;
       takeTarget?: number | null;
       pipelineTarget?: number | null;
       newDistrictsTarget?: number | null;
-      earningsTarget?: number | null;
     }) =>
       fetchJson<UserGoal>(`${API_BASE}/profile/goals`, {
         method: "POST",
@@ -1092,11 +1096,12 @@ export function useUpdateDistrictTargets() {
 export interface GoalDashboard {
   fiscalYear: number;
   goals: {
+    earningsTarget: number | null;
+    takeRatePercent: number | null;
     revenueTarget: number | null;
     takeTarget: number | null;
     pipelineTarget: number | null;
     newDistrictsTarget: number | null;
-    earningsTarget: number | null;
   } | null;
   planTotals: {
     revenueTarget: number;

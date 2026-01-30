@@ -31,11 +31,12 @@ export async function GET() {
     const result = goals.map((goal) => ({
       id: goal.id,
       fiscalYear: goal.fiscalYear,
+      earningsTarget: toNumber(goal.earningsTarget),
+      takeRatePercent: toNumber(goal.takeRatePercent),
       revenueTarget: toNumber(goal.revenueTarget),
       takeTarget: toNumber(goal.takeTarget),
       pipelineTarget: toNumber(goal.pipelineTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
-      earningsTarget: toNumber(goal.earningsTarget),
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
     }));
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fiscalYear, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget, earningsTarget } = body;
+    const { fiscalYear, earningsTarget, takeRatePercent, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget } = body;
 
     // Validate fiscalYear
     if (!fiscalYear || typeof fiscalYear !== "number" || fiscalYear < 2020 || fiscalYear > 2050) {
@@ -95,20 +96,22 @@ export async function POST(request: NextRequest) {
         },
       },
       update: {
+        earningsTarget: earningsTarget ?? null,
+        takeRatePercent: takeRatePercent ?? null,
         revenueTarget: revenueTarget ?? null,
         takeTarget: takeTarget ?? null,
         pipelineTarget: pipelineTarget ?? null,
         newDistrictsTarget: newDistrictsTarget ?? null,
-        earningsTarget: earningsTarget ?? null,
       },
       create: {
         userId: user.id,
         fiscalYear,
+        earningsTarget: earningsTarget ?? null,
+        takeRatePercent: takeRatePercent ?? null,
         revenueTarget: revenueTarget ?? null,
         takeTarget: takeTarget ?? null,
         pipelineTarget: pipelineTarget ?? null,
         newDistrictsTarget: newDistrictsTarget ?? null,
-        earningsTarget: earningsTarget ?? null,
       },
     });
 
@@ -116,11 +119,12 @@ export async function POST(request: NextRequest) {
       {
         id: goal.id,
         fiscalYear: goal.fiscalYear,
+        earningsTarget: toNumber(goal.earningsTarget),
+        takeRatePercent: toNumber(goal.takeRatePercent),
         revenueTarget: toNumber(goal.revenueTarget),
         takeTarget: toNumber(goal.takeTarget),
         pipelineTarget: toNumber(goal.pipelineTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
-        earningsTarget: toNumber(goal.earningsTarget),
         createdAt: goal.createdAt.toISOString(),
         updatedAt: goal.updatedAt.toISOString(),
       },

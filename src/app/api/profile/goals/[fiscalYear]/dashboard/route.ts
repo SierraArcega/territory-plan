@@ -124,11 +124,12 @@ export async function GET(
       fiscalYear,
       goals: userGoal
         ? {
+            earningsTarget: userGoal.earningsTarget ? Number(userGoal.earningsTarget) : null,
+            takeRatePercent: userGoal.takeRatePercent ? Number(userGoal.takeRatePercent) : null,
             revenueTarget: userGoal.revenueTarget ? Number(userGoal.revenueTarget) : null,
             takeTarget: userGoal.takeTarget ? Number(userGoal.takeTarget) : null,
             pipelineTarget: userGoal.pipelineTarget ? Number(userGoal.pipelineTarget) : null,
             newDistrictsTarget: userGoal.newDistrictsTarget,
-            earningsTarget: userGoal.earningsTarget ? Number(userGoal.earningsTarget) : null,
           }
         : null,
       planTotals: {
