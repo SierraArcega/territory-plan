@@ -107,7 +107,6 @@ export default function StatePanel() {
                 <StateNotesEditor
                   stateCode={data.code}
                   notes={data.notes}
-                  territoryOwner={data.territoryOwner}
                 />
               </div>
             )}

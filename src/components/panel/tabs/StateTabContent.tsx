@@ -102,7 +102,6 @@ export default function StateTabContent({ stateCode }: StateTabContentProps) {
             <StateNotesEditor
               stateCode={data.code}
               notes={data.notes}
-              territoryOwner={data.territoryOwner}
             />
           </div>
         ) : (
