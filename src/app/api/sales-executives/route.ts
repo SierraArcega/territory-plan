@@ -7,7 +7,7 @@ export async function GET(_request: NextRequest) {
   try {
     const query = `
       SELECT DISTINCT sales_executive
-      FROM fullmind_data
+      FROM districts
       WHERE sales_executive IS NOT NULL AND sales_executive != ''
       ORDER BY sales_executive
     `;
