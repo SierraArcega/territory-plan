@@ -144,11 +144,12 @@ export async function GET() {
       return {
         id: goal.id,
         fiscalYear: goal.fiscalYear,
+        earningsTarget: toNumber(goal.earningsTarget),
+        takeRatePercent: toNumber(goal.takeRatePercent),
         revenueTarget: toNumber(goal.revenueTarget),
         takeTarget: toNumber(goal.takeTarget),
         pipelineTarget: toNumber(goal.pipelineTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
-        earningsTarget: toNumber(goal.earningsTarget),
         ...yearActuals,
       };
     });
@@ -228,11 +229,12 @@ export async function PUT(request: NextRequest) {
       return {
         id: goal.id,
         fiscalYear: goal.fiscalYear,
+        earningsTarget: toNumber(goal.earningsTarget),
+        takeRatePercent: toNumber(goal.takeRatePercent),
         revenueTarget: toNumber(goal.revenueTarget),
         takeTarget: toNumber(goal.takeTarget),
         pipelineTarget: toNumber(goal.pipelineTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
-        earningsTarget: toNumber(goal.earningsTarget),
         ...yearActuals,
       };
     });

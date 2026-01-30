@@ -120,11 +120,12 @@ export async function GET(
     return NextResponse.json({
       id: goal.id,
       fiscalYear: goal.fiscalYear,
+      earningsTarget: toNumber(goal.earningsTarget),
+      takeRatePercent: toNumber(goal.takeRatePercent),
       revenueTarget: toNumber(goal.revenueTarget),
       takeTarget: toNumber(goal.takeTarget),
       pipelineTarget: toNumber(goal.pipelineTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
-      earningsTarget: toNumber(goal.earningsTarget),
       ...actuals,
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
@@ -164,7 +165,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget, earningsTarget } = body;
+    const { earningsTarget, takeRatePercent, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget } = body;
 
     // Update the goal
     const goal = await prisma.userGoal.update({
@@ -175,11 +176,12 @@ export async function PUT(
         },
       },
       data: {
+        earningsTarget: earningsTarget !== undefined ? earningsTarget : undefined,
+        takeRatePercent: takeRatePercent !== undefined ? takeRatePercent : undefined,
         revenueTarget: revenueTarget !== undefined ? revenueTarget : undefined,
         takeTarget: takeTarget !== undefined ? takeTarget : undefined,
         pipelineTarget: pipelineTarget !== undefined ? pipelineTarget : undefined,
         newDistrictsTarget: newDistrictsTarget !== undefined ? newDistrictsTarget : undefined,
-        earningsTarget: earningsTarget !== undefined ? earningsTarget : undefined,
       },
     });
 
@@ -189,11 +191,12 @@ export async function PUT(
     return NextResponse.json({
       id: goal.id,
       fiscalYear: goal.fiscalYear,
+      earningsTarget: toNumber(goal.earningsTarget),
+      takeRatePercent: toNumber(goal.takeRatePercent),
       revenueTarget: toNumber(goal.revenueTarget),
       takeTarget: toNumber(goal.takeTarget),
       pipelineTarget: toNumber(goal.pipelineTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
-      earningsTarget: toNumber(goal.earningsTarget),
       ...actuals,
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),

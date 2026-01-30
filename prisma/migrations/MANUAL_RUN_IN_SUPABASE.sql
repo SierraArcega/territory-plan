@@ -46,8 +46,9 @@ CREATE TABLE IF NOT EXISTS "territory_plan_district_services" (
 -- EARNINGS TARGET MIGRATION (replaces draw_down and quota)
 -- =====================================================
 
--- Add earnings_target column to user_goals
+-- Add earnings_target and take_rate_percent columns to user_goals
 ALTER TABLE "user_goals" ADD COLUMN IF NOT EXISTS "earnings_target" DECIMAL(15, 2);
+ALTER TABLE "user_goals" ADD COLUMN IF NOT EXISTS "take_rate_percent" DECIMAL(5, 2);
 
 -- Remove old columns (no longer used)
 ALTER TABLE "user_goals" DROP COLUMN IF EXISTS "draw_down_target";
