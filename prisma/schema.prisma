@@ -144,11 +144,12 @@ model District {
   centroid Unsupported("geometry(Point, 4326)")?
 
   // ===== Relations =====
-  state          State?                  @relation(fields: [stateFips], references: [fips])
-  contacts       Contact[]
-  districtTags   DistrictTag[]
-  territoryPlans TerritoryPlanDistrict[]
-  planActivities PlanActivity[]
+  state           State?                  @relation(fields: [stateFips], references: [fips])
+  contacts        Contact[]
+  districtTags    DistrictTag[]
+  territoryPlans  TerritoryPlanDistrict[]
+  planActivities  PlanActivity[]
+  competitorSpend CompetitorSpend[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -176,6 +177,26 @@ model DistrictTag {
 
   @@id([districtLeaid, tagId])
   @@map("district_tags")
+}
+
+// ===== Competitor Spend =====
+// Tracks competitor purchase order spend by district, competitor, and fiscal year
+// Source: GovSpend PO data via ETL
+model CompetitorSpend {
+  id          Int      @id @default(autoincrement())
+  leaid       String   @db.VarChar(7)
+  competitor  String   @db.VarChar(50)
+  fiscalYear  String   @map("fiscal_year") @db.VarChar(4)
+  totalSpend  Decimal  @map("total_spend") @db.Decimal(12, 2)
+  poCount     Int      @map("po_count")
+  lastUpdated DateTime @default(now()) @map("last_updated")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@unique([leaid, competitor, fiscalYear])
+  @@index([leaid])
+  @@index([competitor, fiscalYear])
+  @@map("competitor_spend")
 }
 
 model Contact {
