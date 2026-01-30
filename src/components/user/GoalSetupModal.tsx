@@ -13,7 +13,7 @@ function parseCurrency(value: string): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
-// Tooltip component
+// Tooltip component - positions to the right to avoid container overflow
 function Tooltip({ text }: { text: string }) {
   return (
     <div className="group relative inline-block ml-1">
@@ -30,9 +30,9 @@ function Tooltip({ text }: { text: string }) {
           d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-64 text-center z-10">
+      <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-[#403770] text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-56 z-10 whitespace-normal">
         {text}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        <div className="absolute top-full left-3 border-4 border-transparent border-t-[#403770]" />
       </div>
     </div>
   );
@@ -158,7 +158,7 @@ export default function GoalSetupModal() {
           <div>
             <label className="block text-sm font-medium text-[#403770] mb-1">
               Draw Down
-              <Tooltip text="The amount to recover in exchange for a higher than standard base salary. For example, if the standard base is $130,000 and you make $150,000, your draw down is $20,000." />
+              <Tooltip text="If your base salary exceeds $130K, this is the difference you recover through sales." />
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
