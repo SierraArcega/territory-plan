@@ -2,10 +2,14 @@
 Urban Institute Graduation Rates Data API Loader
 
 Fetches school district graduation rates from the Urban Institute's
-Education Data Portal API using EdFacts data.
+Education Data Portal API and updates the districts table directly.
+Uses EdFacts data.
 
 API Docs: https://educationdata.urban.org/documentation/
 Endpoint: /school-districts/edfacts/grad-rates/{year}/
+
+Note: As of Jan 2026, graduation data is stored directly on the districts table
+(consolidated schema) rather than a separate district_education_data table.
 """
 
 import os
@@ -104,7 +108,7 @@ def upsert_graduation_data(
     batch_size: int = 1000,
 ) -> dict:
     """
-    Upsert graduation data into district_education_data table.
+    Update districts table with graduation data.
 
     Args:
         connection_string: PostgreSQL connection string
@@ -121,25 +125,19 @@ def upsert_graduation_data(
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
 
-    # First, insert records that don't exist yet
-    insert_sql = """
-        INSERT INTO district_education_data (
-            leaid, graduation_rate_total, graduation_data_year, created_at, updated_at
+    # Create temp table for efficient bulk updates
+    cur.execute("""
+        CREATE TEMP TABLE graduation_updates (
+            leaid VARCHAR(7) PRIMARY KEY,
+            graduation_rate_total NUMERIC,
+            graduation_data_year INTEGER
         )
-        SELECT v.leaid, v.rate_total::numeric, v.year::integer, NOW(), NOW()
-        FROM (VALUES %s) AS v(leaid, rate_total, year)
-        WHERE v.leaid IN (SELECT leaid FROM districts)
-        AND v.leaid NOT IN (SELECT leaid FROM district_education_data)
-    """
+    """)
 
-    # Then update existing records
-    update_sql = """
-        UPDATE district_education_data
-        SET graduation_rate_total = v.rate_total::numeric,
-            graduation_data_year = v.year::integer,
-            updated_at = NOW()
-        FROM (VALUES %s) AS v(leaid, rate_total, year)
-        WHERE district_education_data.leaid = v.leaid
+    insert_temp_sql = """
+        INSERT INTO graduation_updates (
+            leaid, graduation_rate_total, graduation_data_year
+        ) VALUES %s
     """
 
     # Prepare values
@@ -156,31 +154,38 @@ def upsert_graduation_data(
     updated_count = 0
     failed_count = 0
 
-    print(f"Upserting {len(values)} graduation records...")
+    print(f"Loading {len(values)} graduation records into temp table...")
 
-    for i in tqdm(range(0, len(values), batch_size), desc="Upserting graduation data"):
+    for i in tqdm(range(0, len(values), batch_size), desc="Loading temp table"):
         batch = values[i:i+batch_size]
         try:
-            # First insert new records
-            execute_values(cur, insert_sql, batch, template="(%s, %s, %s)")
-            inserted = cur.rowcount
-
-            # Then update existing records
-            execute_values(cur, update_sql, batch, template="(%s, %s, %s)")
-            updated = cur.rowcount
-
-            updated_count += inserted + updated
+            execute_values(cur, insert_temp_sql, batch, template="(%s, %s, %s)")
         except Exception as e:
             print(f"Error in batch {i//batch_size}: {e}")
             failed_count += len(batch)
             conn.rollback()
             continue
 
+    # Bulk update districts from temp table
+    print("Updating districts table...")
+    cur.execute("""
+        UPDATE districts d SET
+            graduation_rate_total = u.graduation_rate_total,
+            graduation_data_year = u.graduation_data_year
+        FROM graduation_updates u
+        WHERE d.leaid = u.leaid
+    """)
+    updated_count = cur.rowcount
+    print(f"Updated {updated_count} district records")
+
+    # Drop temp table
+    cur.execute("DROP TABLE graduation_updates")
+
     conn.commit()
 
     # Get count of records with graduation data
     cur.execute("""
-        SELECT COUNT(*) FROM district_education_data
+        SELECT COUNT(*) FROM districts
         WHERE graduation_rate_total IS NOT NULL
     """)
     total_with_graduation = cur.fetchone()[0]
