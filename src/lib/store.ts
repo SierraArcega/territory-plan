@@ -76,6 +76,8 @@ interface MapState {
   currentPlanId: string | null; // Active plan for quick-add
   // Similar districts for "Find Similar" feature
   similarDistrictLeaids: string[];
+  // Vendor comparison layer toggle
+  vendorLayerVisible: boolean;
 }
 
 interface MapActions {
@@ -112,6 +114,8 @@ interface MapActions {
   clearSimilarDistricts: () => void;
   // Back navigation
   goBackToDistrictsList: () => void;
+  // Vendor layer actions
+  toggleVendorLayer: () => void;
 }
 
 const initialFilters: Filters = {
@@ -149,6 +153,7 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   selectedLeaids: new Set<string>(),
   currentPlanId: null,
   similarDistrictLeaids: [],
+  vendorLayerVisible: false,
 
   // Actions
   setSelectedLeaid: (leaid) =>
@@ -258,6 +263,10 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
       // Don't change activePanelType or selectedStateCode
       // The DistrictTabContent will show the districts list because stateCode is still set
     }),
+
+  // Vendor layer toggle
+  toggleVendorLayer: () =>
+    set((s) => ({ vendorLayerVisible: !s.vendorLayerVisible })),
 }));
 
 // Selector helpers
