@@ -24,6 +24,7 @@ export default function PlansTabContent({ stateCode: _stateCode }: PlansTabConte
       owner: data.owner || undefined,
       color: data.color,
       status: data.status,
+      fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
     });

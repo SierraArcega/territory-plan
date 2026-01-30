@@ -13,29 +13,29 @@ datasource db {
 // Main district table - consolidated from multiple tables for simpler queries
 // Contains: core district info, Fullmind CRM data, education data, demographics, and user edits
 model District {
-  leaid              String    @id @db.VarChar(7)
-  name               String    @db.VarChar(255)
-  stateFips          String    @map("state_fips") @db.VarChar(2)
-  stateAbbrev        String?   @map("state_abbrev") @db.VarChar(2)
-  mtfcc              String?   @db.VarChar(5)
-  sdtyp              String?   @db.VarChar(1)
-  funcstat           String?   @default("E") @db.VarChar(1)
-  lograde            String?   @db.VarChar(2)
-  higrade            String?   @db.VarChar(2)
+  leaid              String   @id @db.VarChar(7)
+  name               String   @db.VarChar(255)
+  stateFips          String   @map("state_fips") @db.VarChar(2)
+  stateAbbrev        String?  @map("state_abbrev") @db.VarChar(2)
+  mtfcc              String?  @db.VarChar(5)
+  sdtyp              String?  @db.VarChar(1)
+  funcstat           String?  @default("E") @db.VarChar(1)
+  lograde            String?  @db.VarChar(2)
+  higrade            String?  @db.VarChar(2)
   enrollment         Int?
-  urbanInstituteYear Int?      @map("urban_institute_year")
-  phone              String?   @db.VarChar(20)
-  streetLocation     String?   @map("street_location") @db.VarChar(255)
-  cityLocation       String?   @map("city_location") @db.VarChar(100)
-  stateLocation      String?   @map("state_location") @db.VarChar(2)
-  zipLocation        String?   @map("zip_location") @db.VarChar(10)
-  countyName         String?   @map("county_name") @db.VarChar(100)
-  urbanCentricLocale Int?      @map("urban_centric_locale")
-  numberOfSchools    Int?      @map("number_of_schools")
-  specEdStudents     Int?      @map("spec_ed_students")
-  ellStudents        Int?      @map("ell_students")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  urbanInstituteYear Int?     @map("urban_institute_year")
+  phone              String?  @db.VarChar(20)
+  streetLocation     String?  @map("street_location") @db.VarChar(255)
+  cityLocation       String?  @map("city_location") @db.VarChar(100)
+  stateLocation      String?  @map("state_location") @db.VarChar(2)
+  zipLocation        String?  @map("zip_location") @db.VarChar(10)
+  countyName         String?  @map("county_name") @db.VarChar(100)
+  urbanCentricLocale Int?     @map("urban_centric_locale")
+  numberOfSchools    Int?     @map("number_of_schools")
+  specEdStudents     Int?     @map("spec_ed_students")
+  ellStudents        Int?     @map("ell_students")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   // ===== Fullmind CRM Data =====
   // Source: Fullmind CSV import via ETL
@@ -135,13 +135,13 @@ model District {
 
   // ===== User Edits =====
   // Source: App users (shared across team)
-  notes            String?
-  owner            String?   @db.VarChar(100)
-  notesUpdatedAt   DateTime? @map("notes_updated_at")
+  notes          String?
+  owner          String?   @db.VarChar(100)
+  notesUpdatedAt DateTime? @map("notes_updated_at")
 
   // ===== PostGIS Geometry (managed outside Prisma) =====
-  geometry         Unsupported("geometry(MultiPolygon, 4326)")?
-  centroid         Unsupported("geometry(Point, 4326)")?
+  geometry Unsupported("geometry(MultiPolygon, 4326)")?
+  centroid Unsupported("geometry(Point, 4326)")?
 
   // ===== Relations =====
   state          State?                  @relation(fields: [stateFips], references: [fips])
@@ -266,18 +266,19 @@ model State {
 }
 
 model TerritoryPlan {
-  id          String                  @id @default(uuid())
-  name        String                  @db.VarChar(255)
+  id          String    @id @default(uuid())
+  name        String    @db.VarChar(255)
   description String?
-  owner       String?                 @db.VarChar(100)
-  color       String                  @default("#403770") @db.VarChar(7)
-  status      String                  @default("active") @db.VarChar(20)
-  startDate   DateTime?               @map("start_date")
-  endDate     DateTime?               @map("end_date")
-  userId      String?                 @map("user_id") @db.Uuid
-  stateFips   String?                 @map("state_fips") @db.VarChar(2) // Optional state association
-  createdAt   DateTime                @default(now()) @map("created_at")
-  updatedAt   DateTime                @updatedAt @map("updated_at")
+  owner       String?   @db.VarChar(100)
+  color       String    @default("#403770") @db.VarChar(7)
+  status      String    @default("active") @db.VarChar(20)
+  fiscalYear  Int       @map("fiscal_year") // Required: 2025, 2026, 2027, etc.
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  userId      String?   @map("user_id") @db.Uuid
+  stateFips   String?   @map("state_fips") @db.VarChar(2) // Optional state association
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
   districts  TerritoryPlanDistrict[]
@@ -285,16 +286,25 @@ model TerritoryPlan {
   state      State?                  @relation(fields: [stateFips], references: [fips])
 
   @@index([userId])
+  @@index([userId, fiscalYear])
   @@index([stateFips])
   @@map("territory_plans")
 }
 
 model TerritoryPlanDistrict {
-  planId        String        @map("plan_id")
-  districtLeaid String        @map("district_leaid") @db.VarChar(7)
-  addedAt       DateTime      @default(now()) @map("added_at")
-  district      District      @relation(fields: [districtLeaid], references: [leaid])
-  plan          TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId        String   @map("plan_id")
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  addedAt       DateTime @default(now()) @map("added_at")
+
+  // Per-district targets
+  revenueTarget  Decimal? @map("revenue_target") @db.Decimal(15, 2)
+  pipelineTarget Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  notes          String?
+
+  // Relations
+  district       District                       @relation(fields: [districtLeaid], references: [leaid])
+  plan           TerritoryPlan                  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  targetServices TerritoryPlanDistrictService[]
 
   @@id([planId, districtLeaid])
   @@map("territory_plan_districts")
@@ -304,20 +314,20 @@ model TerritoryPlanDistrict {
 // Tracks sales activities (visits, emails, meetings, etc.) for territory plans
 
 model PlanActivity {
-  id            String    @id @default(uuid())
-  planId        String    @map("plan_id")
-  districtLeaid String?   @map("district_leaid") @db.VarChar(7) // null = plan-level activity
-  type          String    @db.VarChar(30) // email_campaign, in_person_visit, sales_meeting, conference, phone_call
-  title         String    @db.VarChar(255)
+  id            String   @id @default(uuid())
+  planId        String   @map("plan_id")
+  districtLeaid String?  @map("district_leaid") @db.VarChar(7) // null = plan-level activity
+  type          String   @db.VarChar(30) // email_campaign, in_person_visit, sales_meeting, conference, phone_call
+  title         String   @db.VarChar(255)
   notes         String?
-  activityDate  DateTime  @map("activity_date")
-  status        String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  activityDate  DateTime @map("activity_date")
+  status        String   @default("planned") @db.VarChar(20) // planned, completed, cancelled
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   // Relations
-  plan     TerritoryPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
-  district District?              @relation(fields: [districtLeaid], references: [leaid])
+  plan     TerritoryPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  district District?             @relation(fields: [districtLeaid], references: [leaid])
   contacts PlanActivityContact[]
 
   @@index([planId])
@@ -340,41 +350,68 @@ model PlanActivityContact {
 // User profile - synced from Supabase Auth on login
 // Stores user preferences and tracks whether they've completed the initial setup wizard
 model UserProfile {
-  id                String     @id @db.Uuid // Supabase user.id
-  email             String     @unique @db.VarChar(255)
-  fullName          String?    @map("full_name") @db.VarChar(255)
-  avatarUrl         String?    @map("avatar_url") @db.VarChar(500)
-  hasCompletedSetup Boolean    @default(false) @map("has_completed_setup")
-  createdAt         DateTime   @default(now()) @map("created_at")
-  updatedAt         DateTime   @updatedAt @map("updated_at")
-  lastLoginAt       DateTime?  @map("last_login_at")
+  id                String    @id @db.Uuid // Supabase user.id
+  email             String    @unique @db.VarChar(255)
+  fullName          String?   @map("full_name") @db.VarChar(255)
+  avatarUrl         String?   @map("avatar_url") @db.VarChar(500)
+  hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  lastLoginAt       DateTime? @map("last_login_at")
 
   // Relation to user's fiscal year goals
-  goals             UserGoal[]
+  goals UserGoal[]
 
   @@map("user_profiles")
+}
+
+// ===== Service Catalog =====
+// Fullmind's service offerings that can be targeted for districts
+model Service {
+  id        Int    @id @default(autoincrement())
+  name      String @unique @db.VarChar(100)
+  slug      String @unique @db.VarChar(50)
+  color     String @db.VarChar(7)
+  sortOrder Int    @default(0) @map("sort_order")
+
+  planDistrictServices TerritoryPlanDistrictService[]
+
+  @@map("services")
+}
+
+// Junction table linking plan-districts to target services
+model TerritoryPlanDistrictService {
+  planId        String @map("plan_id")
+  districtLeaid String @map("district_leaid") @db.VarChar(7)
+  serviceId     Int    @map("service_id")
+
+  planDistrict TerritoryPlanDistrict @relation(fields: [planId, districtLeaid], references: [planId, districtLeaid], onDelete: Cascade)
+  service      Service               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([planId, districtLeaid, serviceId])
+  @@map("territory_plan_district_services")
 }
 
 // User goals by fiscal year - tracks revenue, margin, pipeline, and new district targets
 // One row per user per fiscal year (e.g., FY26, FY27)
 model UserGoal {
-  id                 Int       @id @default(autoincrement())
-  userId             String    @map("user_id") @db.Uuid
-  fiscalYear         Int       @map("fiscal_year") // 2025, 2026, 2027
+  id         Int    @id @default(autoincrement())
+  userId     String @map("user_id") @db.Uuid
+  fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
 
   // Target values - all optional since users may only set some goals
-  revenueTarget      Decimal?  @map("revenue_target") @db.Decimal(15, 2)
-  takeTarget         Decimal?  @map("take_target") @db.Decimal(15, 2)      // Gross margin/take
-  pipelineTarget     Decimal?  @map("pipeline_target") @db.Decimal(15, 2)
-  newDistrictsTarget Int?      @map("new_districts_target")
-  drawDownTarget     Decimal?  @map("draw_down_target") @db.Decimal(15, 2)
-  quotaTarget        Decimal?  @map("quota_target") @db.Decimal(15, 2)
+  revenueTarget      Decimal? @map("revenue_target") @db.Decimal(15, 2)
+  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2) // Gross margin/take
+  pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  newDistrictsTarget Int?     @map("new_districts_target")
+  drawDownTarget     Decimal? @map("draw_down_target") @db.Decimal(15, 2)
+  quotaTarget        Decimal? @map("quota_target") @db.Decimal(15, 2)
 
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relation to user profile
-  user               UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, fiscalYear]) // One goal record per user per fiscal year
   @@index([userId])

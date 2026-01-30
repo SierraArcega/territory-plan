@@ -30,6 +30,7 @@ export async function GET() {
       owner: plan.owner,
       color: plan.color,
       status: plan.status,
+      fiscalYear: plan.fiscalYear,
       startDate: plan.startDate?.toISOString() ?? null,
       endDate: plan.endDate?.toISOString() ?? null,
       createdAt: plan.createdAt.toISOString(),
@@ -60,11 +61,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, owner, color, status, startDate, endDate } = body;
+    const { name, description, owner, color, status, fiscalYear, startDate, endDate } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
         { error: "name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate fiscal year is required and valid
+    if (!fiscalYear || typeof fiscalYear !== "number" || fiscalYear < 2024 || fiscalYear > 2030) {
+      return NextResponse.json(
+        { error: "fiscalYear is required and must be between 2024 and 2030" },
         { status: 400 }
       );
     }
@@ -93,6 +102,7 @@ export async function POST(request: NextRequest) {
         owner: owner?.trim() || null,
         color: color || "#403770",
         status: status || "active",
+        fiscalYear,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         userId: user.id,
@@ -107,6 +117,7 @@ export async function POST(request: NextRequest) {
         owner: plan.owner,
         color: plan.color,
         status: plan.status,
+        fiscalYear: plan.fiscalYear,
         startDate: plan.startDate?.toISOString() ?? null,
         endDate: plan.endDate?.toISOString() ?? null,
         createdAt: plan.createdAt.toISOString(),

@@ -17,6 +17,7 @@ export interface PlanFormData {
   owner: string;
   color: string;
   status: "draft" | "active" | "archived";
+  fiscalYear: number;
   startDate: string;
   endDate: string;
 }
@@ -35,6 +36,26 @@ const STATUS_OPTIONS = [
   { value: "archived", label: "Archived" },
 ];
 
+// Fiscal year options - show FY25 through FY29
+const FISCAL_YEAR_OPTIONS = [
+  { value: 2025, label: "FY25 (Jul 2024 - Jun 2025)" },
+  { value: 2026, label: "FY26 (Jul 2025 - Jun 2026)" },
+  { value: 2027, label: "FY27 (Jul 2026 - Jun 2027)" },
+  { value: 2028, label: "FY28 (Jul 2027 - Jun 2028)" },
+  { value: 2029, label: "FY29 (Jul 2028 - Jun 2029)" },
+];
+
+// Get default fiscal year based on current date
+function getDefaultFiscalYear(): number {
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const year = now.getFullYear();
+  // Fiscal year starts in July (month 6)
+  // If we're in Jul-Dec, we're in the FY that ends next year
+  // If we're in Jan-Jun, we're in the FY that ends this year
+  return month >= 6 ? year + 1 : year;
+}
+
 export default function PlanFormModal({
   isOpen,
   onClose,
@@ -48,6 +69,7 @@ export default function PlanFormModal({
     owner: "",
     color: PLAN_COLORS[0].value,
     status: "active",
+    fiscalYear: getDefaultFiscalYear(),
     startDate: "",
     endDate: "",
   });
@@ -64,6 +86,7 @@ export default function PlanFormModal({
         owner: initialData?.owner || "",
         color: initialData?.color || PLAN_COLORS[0].value,
         status: initialData?.status || "active",
+        fiscalYear: initialData?.fiscalYear || getDefaultFiscalYear(),
         startDate: initialData?.startDate?.split("T")[0] || "",
         endDate: initialData?.endDate?.split("T")[0] || "",
       });
@@ -140,6 +163,29 @@ export default function PlanFormModal({
                 placeholder="e.g., Q1 2025 Northeast Expansion"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
               />
+            </div>
+
+            {/* Fiscal Year */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fiscal Year <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.fiscalYear}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    fiscalYear: parseInt(e.target.value, 10),
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              >
+                {FISCAL_YEAR_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Description */}

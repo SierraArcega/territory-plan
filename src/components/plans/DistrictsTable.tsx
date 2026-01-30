@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { TerritoryPlanDistrict } from "@/lib/api";
+import DistrictTargetEditor from "./DistrictTargetEditor";
 
 interface DistrictsTableProps {
+  planId: string;
   districts: TerritoryPlanDistrict[];
   onRemove: (leaid: string) => void;
   isRemoving?: boolean;
@@ -67,12 +69,19 @@ function formatDate(dateString: string): string {
   });
 }
 
+function formatCurrency(value: number | null): string {
+  if (value === null || value === undefined) return "-";
+  return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 export default function DistrictsTable({
+  planId,
   districts,
   onRemove,
   isRemoving,
 }: DistrictsTableProps) {
   const [confirmRemove, setConfirmRemove] = useState<TerritoryPlanDistrict | null>(null);
+  const [editingDistrict, setEditingDistrict] = useState<TerritoryPlanDistrict | null>(null);
 
   const handleRemoveClick = (district: TerritoryPlanDistrict) => {
     setConfirmRemove(district);
@@ -123,31 +132,42 @@ export default function DistrictsTable({
     );
   }
 
+  // Calculate totals
+  const totals = districts.reduce(
+    (acc, d) => ({
+      revenueTarget: acc.revenueTarget + (d.revenueTarget || 0),
+      pipelineTarget: acc.pipelineTarget + (d.pipelineTarget || 0),
+      enrollment: acc.enrollment + (d.enrollment || 0),
+    }),
+    { revenueTarget: 0, pipelineTarget: 0, enrollment: 0 }
+  );
+
   return (
     <div className="overflow-hidden border border-gray-200 rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              District
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              State
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Enrollment
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Tags
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Added
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                District
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                State
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Revenue Target
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Pipeline Target
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Services
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
         <tbody className="bg-white divide-y divide-gray-100">
           {districts.map((district) => (
             <tr key={district.leaid} className="hover:bg-gray-50 transition-colors">
@@ -166,40 +186,52 @@ export default function DistrictsTable({
                   {district.stateAbbrev || "N/A"}
                 </span>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 text-right">
                 <span className="text-sm text-gray-600">
-                  {formatEnrollment(district.enrollment)}
+                  {formatCurrency(district.revenueTarget)}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-right">
+                <span className="text-sm text-gray-600">
+                  {formatCurrency(district.pipelineTarget)}
                 </span>
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-wrap gap-1">
-                  {district.tags && district.tags.length > 0 ? (
-                    district.tags.map((tag) => (
+                  {district.targetServices && district.targetServices.length > 0 ? (
+                    district.targetServices.slice(0, 3).map((service) => (
                       <span
-                        key={tag.id}
+                        key={service.id}
                         className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white"
-                        style={{ backgroundColor: tag.color }}
+                        style={{ backgroundColor: service.color }}
+                        title={service.name}
                       >
-                        {tag.name}
+                        {service.name.length > 12 ? `${service.name.slice(0, 12)}...` : service.name}
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-gray-400 italic">No tags</span>
+                    <span className="text-xs text-gray-400 italic">-</span>
+                  )}
+                  {district.targetServices && district.targetServices.length > 3 && (
+                    <span className="text-xs text-gray-400">
+                      +{district.targetServices.length - 3}
+                    </span>
                   )}
                 </div>
               </td>
-              <td className="px-4 py-3">
-                <span className="text-sm text-gray-500">
-                  {formatDate(district.addedAt)}
-                </span>
-              </td>
               <td className="px-4 py-3 text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <Link
-                    href={`/?leaid=${district.leaid}`}
+                  <button
+                    onClick={() => setEditingDistrict(district)}
                     className="text-sm text-[#403770] hover:text-[#F37167] transition-colors"
                   >
-                    View on Map
+                    Edit Targets
+                  </button>
+                  <Link
+                    href={`/?leaid=${district.leaid}`}
+                    className="text-sm text-gray-500 hover:text-[#403770] transition-colors"
+                  >
+                    Map
                   </Link>
                   <button
                     onClick={() => handleRemoveClick(district)}
@@ -213,7 +245,31 @@ export default function DistrictsTable({
             </tr>
           ))}
         </tbody>
-      </table>
+        {/* Totals row */}
+        <tfoot className="bg-gray-50 border-t border-gray-200">
+          <tr>
+            <td className="px-4 py-3">
+              <span className="text-sm font-semibold text-gray-700">
+                Total ({districts.length} districts)
+              </span>
+            </td>
+            <td className="px-4 py-3"></td>
+            <td className="px-4 py-3 text-right">
+              <span className="text-sm font-semibold text-gray-700">
+                {formatCurrency(totals.revenueTarget)}
+              </span>
+            </td>
+            <td className="px-4 py-3 text-right">
+              <span className="text-sm font-semibold text-gray-700">
+                {formatCurrency(totals.pipelineTarget)}
+              </span>
+            </td>
+            <td className="px-4 py-3"></td>
+            <td className="px-4 py-3"></td>
+          </tr>
+        </tfoot>
+        </table>
+      </div>
 
       {/* Confirm Remove Dialog */}
       {confirmRemove && (
@@ -222,6 +278,16 @@ export default function DistrictsTable({
           onConfirm={handleConfirmRemove}
           onCancel={() => setConfirmRemove(null)}
           isRemoving={isRemoving || false}
+        />
+      )}
+
+      {/* District Target Editor */}
+      {editingDistrict && (
+        <DistrictTargetEditor
+          isOpen={!!editingDistrict}
+          onClose={() => setEditingDistrict(null)}
+          planId={planId}
+          district={editingDistrict}
         />
       )}
     </div>

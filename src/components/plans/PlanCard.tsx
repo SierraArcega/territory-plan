@@ -64,11 +64,16 @@ export default function PlanCard({ plan }: PlanCardProps) {
             {plan.name}
           </h3>
         </div>
-        <span
-          className={`px-2.5 py-0.5 text-xs font-medium rounded-full flex-shrink-0 ${statusBadge.className}`}
-        >
-          {statusBadge.label}
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-[#403770] text-white">
+            FY{String(plan.fiscalYear).slice(-2)}
+          </span>
+          <span
+            className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${statusBadge.className}`}
+          >
+            {statusBadge.label}
+          </span>
+        </div>
       </div>
 
       {/* Description */}
