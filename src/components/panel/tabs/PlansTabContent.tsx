@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTerritoryPlans } from "@/lib/api";
+import PlanDashboard from "../plans/PlanDashboard";
 
 type PlanView = { type: "list" } | { type: "dashboard"; planId: string };
 
@@ -32,24 +33,9 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
     );
   }
 
-  // If viewing a specific plan dashboard, render that (component will be added in Task 8)
+  // If viewing a specific plan dashboard, render that
   if (view.type === "dashboard") {
-    return (
-      <div className="flex flex-col h-full">
-        <button
-          onClick={() => setView({ type: "list" })}
-          className="flex items-center gap-1 px-4 py-2 text-sm text-[#403770] hover:text-[#F37167] bg-gray-50 border-b border-gray-100"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Plans
-        </button>
-        <div className="flex-1 flex items-center justify-center text-gray-500">
-          Plan dashboard coming in Task 8 (planId: {view.planId})
-        </div>
-      </div>
-    );
+    return <PlanDashboard planId={view.planId} onBack={() => setView({ type: "list" })} />;
   }
 
   if (!plans || plans.length === 0) {
