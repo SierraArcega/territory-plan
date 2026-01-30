@@ -14,7 +14,49 @@ export const AUTO_TAGS = {
   SUBURB: { name: "Suburb", color: "#48bb78" },
   TOWN: { name: "Town", color: "#EC4899" },
   RURAL: { name: "Rural", color: "#A16207" },
+  // Competitor tags - auto-applied based on competitor_spend data
+  PROXIMITY_LEARNING_FY24: { name: "Proximity Learning FY24", color: "#6EA3BE" },
+  PROXIMITY_LEARNING_FY25: { name: "Proximity Learning FY25", color: "#6EA3BE" },
+  PROXIMITY_LEARNING_FY26: { name: "Proximity Learning FY26", color: "#6EA3BE" },
+  ELEVATE_K12_FY24: { name: "Elevate K12 FY24", color: "#E07A5F" },
+  ELEVATE_K12_FY25: { name: "Elevate K12 FY25", color: "#E07A5F" },
+  ELEVATE_K12_FY26: { name: "Elevate K12 FY26", color: "#E07A5F" },
+  TUTORED_BY_TEACHERS_FY24: { name: "Tutored By Teachers FY24", color: "#7C3AED" },
+  TUTORED_BY_TEACHERS_FY25: { name: "Tutored By Teachers FY25", color: "#7C3AED" },
+  TUTORED_BY_TEACHERS_FY26: { name: "Tutored By Teachers FY26", color: "#7C3AED" },
 } as const;
+
+// Competitor tag mapping: competitor name + FY -> tag key
+export const COMPETITOR_TAG_MAP: Record<string, Record<string, keyof typeof AUTO_TAGS>> = {
+  "Proximity Learning": {
+    FY24: "PROXIMITY_LEARNING_FY24",
+    FY25: "PROXIMITY_LEARNING_FY25",
+    FY26: "PROXIMITY_LEARNING_FY26",
+  },
+  "Elevate K12": {
+    FY24: "ELEVATE_K12_FY24",
+    FY25: "ELEVATE_K12_FY25",
+    FY26: "ELEVATE_K12_FY26",
+  },
+  "Tutored By Teachers": {
+    FY24: "TUTORED_BY_TEACHERS_FY24",
+    FY25: "TUTORED_BY_TEACHERS_FY25",
+    FY26: "TUTORED_BY_TEACHERS_FY26",
+  },
+};
+
+// Get all competitor tag names
+export const COMPETITOR_TAG_NAMES = [
+  AUTO_TAGS.PROXIMITY_LEARNING_FY24.name,
+  AUTO_TAGS.PROXIMITY_LEARNING_FY25.name,
+  AUTO_TAGS.PROXIMITY_LEARNING_FY26.name,
+  AUTO_TAGS.ELEVATE_K12_FY24.name,
+  AUTO_TAGS.ELEVATE_K12_FY25.name,
+  AUTO_TAGS.ELEVATE_K12_FY26.name,
+  AUTO_TAGS.TUTORED_BY_TEACHERS_FY24.name,
+  AUTO_TAGS.TUTORED_BY_TEACHERS_FY25.name,
+  AUTO_TAGS.TUTORED_BY_TEACHERS_FY26.name,
+];
 
 // VIP threshold in dollars
 export const VIP_REVENUE_THRESHOLD = 100_000;
@@ -240,4 +282,78 @@ export async function syncLocaleTagForDistrict(leaid: string): Promise<void> {
       });
     }
   });
+}
+
+/**
+ * Syncs competitor tags for a district based on competitor_spend data.
+ * Tags are added when spend > 0 for a competitor-FY combination.
+ * Tags are removed when no spend exists.
+ */
+export async function syncCompetitorTagsForDistrict(leaid: string): Promise<void> {
+  // Fetch competitor spend data for this district
+  const competitorSpend = await prisma.competitorSpend.findMany({
+    where: { leaid },
+    select: { competitor: true, fiscalYear: true, totalSpend: true },
+  });
+
+  // Build set of tag names that should be applied
+  const tagsToApply = new Set<string>();
+  for (const spend of competitorSpend) {
+    if (Number(spend.totalSpend) > 0) {
+      const competitorMap = COMPETITOR_TAG_MAP[spend.competitor];
+      if (competitorMap) {
+        const tagKey = competitorMap[spend.fiscalYear];
+        if (tagKey) {
+          tagsToApply.add(AUTO_TAGS[tagKey].name);
+        }
+      }
+    }
+  }
+
+  // Get all competitor tag IDs
+  const tagMap = await getTagsByNames(COMPETITOR_TAG_NAMES);
+
+  // Wrap in transaction
+  await prisma.$transaction(async (tx) => {
+    // Remove all competitor tags first
+    const allCompetitorTagIds = Array.from(tagMap.values());
+    if (allCompetitorTagIds.length > 0) {
+      await tx.districtTag.deleteMany({
+        where: {
+          districtLeaid: leaid,
+          tagId: { in: allCompetitorTagIds },
+        },
+      });
+    }
+
+    // Add tags that should be applied
+    for (const tagName of tagsToApply) {
+      const tagId = tagMap.get(tagName);
+      if (tagId !== undefined) {
+        await tx.districtTag.create({
+          data: { districtLeaid: leaid, tagId },
+        });
+      }
+    }
+  });
+}
+
+/**
+ * Syncs competitor tags for all districts that have competitor spend data.
+ * Call this after running the competitor spend ETL.
+ */
+export async function syncAllCompetitorTags(): Promise<number> {
+  // Get all distinct LEAIDs with competitor spend
+  const distinctLeaids = await prisma.competitorSpend.findMany({
+    select: { leaid: true },
+    distinct: ["leaid"],
+  });
+
+  console.log(`Syncing competitor tags for ${distinctLeaids.length} districts...`);
+
+  for (const { leaid } of distinctLeaids) {
+    await syncCompetitorTagsForDistrict(leaid);
+  }
+
+  return distinctLeaids.length;
 }
