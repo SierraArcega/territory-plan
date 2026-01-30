@@ -1,19 +1,33 @@
 "use client";
 
-// Format large numbers with K/M suffixes for display
-function formatCompact(value: number): string {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
+// Format currency with proper formatting (e.g., $10,000 or $1.5M)
+function formatCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "$0";
+
+  const absValue = Math.abs(value);
+
+  if (absValue >= 1000000) {
+    const formatted = (value / 1000000).toFixed(1);
+    // Remove trailing .0
+    return `$${formatted.replace(/\.0$/, "")}M`;
   }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
+  if (absValue >= 1000) {
+    const formatted = (value / 1000).toFixed(1);
+    // Remove trailing .0
+    return `$${formatted.replace(/\.0$/, "")}K`;
   }
-  return `$${value.toFixed(0)}`;
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
+// Format a number (non-currency)
+function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "0";
+  return Math.round(value).toLocaleString();
 }
 
 // Calculate progress percentage (capped at 100 for display)
-function getProgressPercent(actual: number, target: number | null): number {
-  if (!target || target === 0) return 0;
+function getProgressPercent(actual: number | null | undefined, target: number | null | undefined): number {
+  if (!target || target === 0 || actual === null || actual === undefined) return 0;
   return Math.min(100, Math.round((actual / target) * 100));
 }
 
@@ -27,8 +41,8 @@ function getProgressColor(percent: number): string {
 
 interface GoalProgressProps {
   label: string;
-  actual: number;
-  target: number | null;
+  actual?: number | null;
+  target?: number | null;
   isCurrency?: boolean;
   showPercentage?: boolean;
 }
@@ -40,16 +54,17 @@ export default function GoalProgress({
   isCurrency = true,
   showPercentage = true,
 }: GoalProgressProps) {
-  const percent = getProgressPercent(actual, target);
+  const safeActual = actual ?? 0;
+  const percent = getProgressPercent(safeActual, target);
   const progressColor = getProgressColor(percent);
 
   // Format values for display
-  const actualDisplay = isCurrency ? formatCompact(actual) : actual.toString();
+  const actualDisplay = isCurrency ? formatCurrency(safeActual) : formatNumber(safeActual);
   const targetDisplay = target
     ? isCurrency
-      ? formatCompact(target)
-      : target.toString()
-    : "Not set";
+      ? formatCurrency(target)
+      : formatNumber(target)
+    : null;
 
   return (
     <div className="space-y-1.5">
@@ -57,17 +72,19 @@ export default function GoalProgress({
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-gray-700">{label}</span>
         <span className="text-gray-600">
-          {actualDisplay}
-          {target && (
+          {targetDisplay ? (
             <>
-              {" / "}
+              {actualDisplay}
+              <span className="text-gray-400"> / </span>
               <span className="text-gray-500">{targetDisplay}</span>
+              {showPercentage && (
+                <span className="ml-2 text-xs font-medium text-gray-500">
+                  {percent}%
+                </span>
+              )}
             </>
-          )}
-          {showPercentage && target && (
-            <span className="ml-2 text-xs font-medium text-gray-500">
-              {percent}%
-            </span>
+          ) : (
+            <span className="text-gray-400 italic">Not set</span>
           )}
         </span>
       </div>
@@ -85,7 +102,7 @@ export default function GoalProgress({
       </div>
 
       {/* Status indicator for targets that are set */}
-      {target && (
+      {target && target > 0 && (
         <div className="flex items-center gap-1.5 text-xs">
           {percent >= 100 && (
             <>
