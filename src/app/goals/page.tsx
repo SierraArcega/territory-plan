@@ -14,8 +14,14 @@ function getDefaultFiscalYear(): number {
 
 const FISCAL_YEARS = [2025, 2026, 2027, 2028, 2029];
 
-function formatCurrency(value: number | null | undefined): string {
+function formatCurrency(value: number | null | undefined, compact = false): string {
   if (value === null || value === undefined) return "-";
+  if (compact && Math.abs(value) >= 1000000) {
+    return `$${(value / 1000000).toLocaleString("en-US", { maximumFractionDigits: 1 })}M`;
+  }
+  if (compact && Math.abs(value) >= 1000) {
+    return `$${(value / 1000).toLocaleString("en-US", { maximumFractionDigits: 0 })}K`;
+  }
   return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
@@ -34,25 +40,25 @@ interface ProgressCardProps {
 }
 
 function ProgressCard({ label, current, target, format = "currency", color }: ProgressCardProps) {
-  const formattedCurrent = format === "currency" ? formatCurrency(current) : current.toLocaleString();
-  const formattedTarget = format === "currency" ? formatCurrency(target) : (target?.toLocaleString() || "-");
+  const formattedCurrent = format === "currency" ? formatCurrency(current, true) : current.toLocaleString();
+  const formattedTarget = format === "currency" ? formatCurrency(target, true) : (target?.toLocaleString() || "-");
   const percent = target && target > 0 ? Math.min((current / target) * 100, 100) : 0;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-600">{label}</span>
-        {target && (
-          <span className="text-sm font-semibold" style={{ color }}>
+    <div className="bg-white rounded-xl border border-gray-200 p-4 min-h-[120px] flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+        {target !== null && target !== undefined && (
+          <span className="text-xs font-semibold" style={{ color }}>
             {formatPercent(current, target)}
           </span>
         )}
       </div>
-      <div className="mb-3">
-        <span className="text-2xl font-bold text-[#403770]">{formattedCurrent}</span>
-        <span className="text-sm text-gray-400 ml-2">/ {formattedTarget}</span>
+      <div className="flex-1 flex flex-col justify-center">
+        <div className="text-xl font-bold text-[#403770] leading-tight">{formattedCurrent}</div>
+        <div className="text-xs text-gray-400 mt-0.5">of {formattedTarget}</div>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-2">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${percent}%`, backgroundColor: color }}
