@@ -14,8 +14,7 @@ interface GoalFormModalProps {
 
 export interface GoalFormData {
   fiscalYear: number;
-  drawDownTarget: number | null;
-  quotaTarget: number | null;
+  earningsTarget: number | null;
   takeTarget: number | null;
   newDistrictsTarget: number | null;
 }
@@ -70,8 +69,7 @@ export default function GoalFormModal({
   isNewGoal = false,
 }: GoalFormModalProps) {
   const [fiscalYear, setFiscalYear] = useState(initialData?.fiscalYear || 2026);
-  const [drawDownTarget, setDrawDownTarget] = useState("");
-  const [quotaTarget, setQuotaTarget] = useState("");
+  const [earningsTarget, setEarningsTarget] = useState("");
   const [takeTarget, setTakeTarget] = useState("");
   const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,8 +80,7 @@ export default function GoalFormModal({
   useEffect(() => {
     if (isOpen) {
       setFiscalYear(initialData?.fiscalYear || 2026);
-      setDrawDownTarget(formatForInput(initialData?.drawDownTarget));
-      setQuotaTarget(formatForInput(initialData?.quotaTarget));
+      setEarningsTarget(formatForInput(initialData?.earningsTarget));
       setTakeTarget(formatForInput(initialData?.takeTarget));
       setNewDistrictsTarget(formatForInput(initialData?.newDistrictsTarget));
       setError(null);
@@ -101,8 +98,7 @@ export default function GoalFormModal({
     try {
       await onSubmit({
         fiscalYear,
-        drawDownTarget: parseCurrency(drawDownTarget),
-        quotaTarget: parseCurrency(quotaTarget),
+        earningsTarget: parseCurrency(earningsTarget),
         takeTarget: parseCurrency(takeTarget),
         newDistrictsTarget: newDistrictsTarget
           ? parseInt(newDistrictsTarget, 10)
@@ -177,11 +173,11 @@ export default function GoalFormModal({
               </div>
             )}
 
-            {/* Draw Down */}
+            {/* Target Total Earnings */}
             <div>
               <label className="block text-sm font-medium text-[#403770] mb-1">
-                Draw Down
-                <Tooltip text="If your base salary exceeds $130K, this is the difference you recover through sales." />
+                Target Total Earnings
+                <Tooltip text="How much you want to make this year." />
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
@@ -190,29 +186,9 @@ export default function GoalFormModal({
                 <input
                   ref={inputRef}
                   type="text"
-                  value={drawDownTarget}
-                  onChange={(e) => setDrawDownTarget(e.target.value)}
-                  placeholder="20,000"
-                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Quota */}
-            <div>
-              <label className="block text-sm font-medium text-[#403770] mb-1">
-                Quota
-                <Tooltip text="Total take required to hit your assigned sales goals for this year." />
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#403770]/50">
-                  $
-                </span>
-                <input
-                  type="text"
-                  value={quotaTarget}
-                  onChange={(e) => setQuotaTarget(e.target.value)}
-                  placeholder="500,000"
+                  value={earningsTarget}
+                  onChange={(e) => setEarningsTarget(e.target.value)}
+                  placeholder="150,000"
                   className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
                 />
               </div>

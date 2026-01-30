@@ -103,16 +103,14 @@ interface GoalEditorModalProps {
     takeTarget: number | null;
     pipelineTarget: number | null;
     newDistrictsTarget: number | null;
-    drawDownTarget: number | null;
-    quotaTarget: number | null;
+    earningsTarget: number | null;
   } | null;
 }
 
 function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEditorModalProps) {
   const upsertGoalMutation = useUpsertUserGoal();
 
-  const [drawDownTarget, setDrawDownTarget] = useState("");
-  const [quotaTarget, setQuotaTarget] = useState("");
+  const [earningsTarget, setEarningsTarget] = useState("");
   const [takeTarget, setTakeTarget] = useState("");
   const [pipelineTarget, setPipelineTarget] = useState("");
   const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
@@ -122,14 +120,12 @@ function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEdit
   // Reset form when modal opens or goals change
   useEffect(() => {
     if (isOpen && currentGoals) {
-      setDrawDownTarget(currentGoals.drawDownTarget?.toLocaleString() || "");
-      setQuotaTarget(currentGoals.quotaTarget?.toLocaleString() || "");
+      setEarningsTarget(currentGoals.earningsTarget?.toLocaleString() || "");
       setTakeTarget(currentGoals.takeTarget?.toLocaleString() || "");
       setPipelineTarget(currentGoals.pipelineTarget?.toLocaleString() || "");
       setNewDistrictsTarget(currentGoals.newDistrictsTarget?.toString() || "");
     } else if (isOpen) {
-      setDrawDownTarget("");
-      setQuotaTarget("");
+      setEarningsTarget("");
       setTakeTarget("");
       setPipelineTarget("");
       setNewDistrictsTarget("");
@@ -144,8 +140,7 @@ function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEdit
     try {
       await upsertGoalMutation.mutateAsync({
         fiscalYear,
-        drawDownTarget: parseCurrency(drawDownTarget),
-        quotaTarget: parseCurrency(quotaTarget),
+        earningsTarget: parseCurrency(earningsTarget),
         takeTarget: parseCurrency(takeTarget),
         pipelineTarget: parseCurrency(pipelineTarget),
         newDistrictsTarget: newDistrictsTarget ? parseInt(newDistrictsTarget, 10) : null,
@@ -191,37 +186,19 @@ function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEdit
             </div>
           )}
 
-          {/* Draw Down */}
+          {/* Target Total Earnings */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Draw Down
-              <Tooltip text="If your base salary exceeds $130K, this is the difference you recover through sales." />
+              Target Total Earnings
+              <Tooltip text="How much you want to make this year." />
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
               <input
                 type="text"
-                value={drawDownTarget}
-                onChange={(e) => setDrawDownTarget(e.target.value)}
-                placeholder="20,000"
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Quota */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quota
-              <Tooltip text="Total take required to hit your assigned sales goals for this year." />
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-              <input
-                type="text"
-                value={quotaTarget}
-                onChange={(e) => setQuotaTarget(e.target.value)}
-                placeholder="500,000"
+                value={earningsTarget}
+                onChange={(e) => setEarningsTarget(e.target.value)}
+                placeholder="150,000"
                 className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
               />
             </div>
