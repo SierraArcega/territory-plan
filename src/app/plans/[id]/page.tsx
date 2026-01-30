@@ -56,6 +56,7 @@ export default function PlanDetailPage() {
       owner: data.owner || undefined,
       color: data.color,
       status: data.status,
+      fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
     });
@@ -166,6 +167,9 @@ export default function PlanDetailPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-2xl font-bold text-[#403770]">{plan.name}</h1>
+                <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-[#403770] text-white">
+                  FY{String(plan.fiscalYear).slice(-2)}
+                </span>
                 <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${statusBadge.className}`}>
                   {statusBadge.label}
                 </span>
@@ -215,6 +219,7 @@ export default function PlanDetailPage() {
               </Link>
             </div>
             <DistrictsTable
+              planId={planId}
               districts={plan.districts}
               onRemove={handleRemoveDistrict}
               isRemoving={removeDistrict.isPending}

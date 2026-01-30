@@ -22,6 +22,14 @@ const PLAN_COLORS = [
   { name: "Gold", value: "#D4A84B" },
 ];
 
+// Get default fiscal year based on current date
+function getDefaultFiscalYear(): number {
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  return month >= 6 ? year + 1 : year;
+}
+
 export default function AddToPlanButton({
   leaid,
   existingPlanIds = [],
@@ -81,6 +89,7 @@ export default function AddToPlanButton({
       const plan = await createPlan.mutateAsync({
         name: newPlanName.trim(),
         color: newPlanColor,
+        fiscalYear: getDefaultFiscalYear(),
       });
       await addDistricts.mutateAsync({ planId: plan.id, leaids: leaid });
       setIsOpen(false);

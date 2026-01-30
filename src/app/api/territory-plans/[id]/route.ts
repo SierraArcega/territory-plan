@@ -31,6 +31,13 @@ export async function GET(
                 },
               },
             },
+            targetServices: {
+              include: {
+                service: {
+                  select: { id: true, name: true, slug: true, color: true },
+                },
+              },
+            },
           },
           orderBy: { addedAt: "desc" },
         },
@@ -51,6 +58,7 @@ export async function GET(
       owner: plan.owner,
       color: plan.color,
       status: plan.status,
+      fiscalYear: plan.fiscalYear,
       startDate: plan.startDate?.toISOString() ?? null,
       endDate: plan.endDate?.toISOString() ?? null,
       createdAt: plan.createdAt.toISOString(),
@@ -61,6 +69,15 @@ export async function GET(
         name: pd.district.name,
         stateAbbrev: pd.district.stateAbbrev,
         enrollment: pd.district.enrollment,
+        revenueTarget: pd.revenueTarget ? Number(pd.revenueTarget) : null,
+        pipelineTarget: pd.pipelineTarget ? Number(pd.pipelineTarget) : null,
+        notes: pd.notes,
+        targetServices: pd.targetServices.map((ts) => ({
+          id: ts.service.id,
+          name: ts.service.name,
+          slug: ts.service.slug,
+          color: ts.service.color,
+        })),
         tags: pd.district.districtTags.map((dt) => ({
           id: dt.tag.id,
           name: dt.tag.name,
@@ -86,7 +103,7 @@ export async function PUT(
     const { id } = await params;
     const user = await getUser();
     const body = await request.json();
-    const { name, description, owner, color, status, startDate, endDate } = body;
+    const { name, description, owner, color, status, fiscalYear, startDate, endDate } = body;
 
     // Check if plan exists and belongs to user
     const existing = await prisma.territoryPlan.findUnique({
@@ -117,6 +134,14 @@ export async function PUT(
       );
     }
 
+    // Validate fiscal year if provided
+    if (fiscalYear !== undefined && (typeof fiscalYear !== "number" || fiscalYear < 2024 || fiscalYear > 2030)) {
+      return NextResponse.json(
+        { error: "fiscalYear must be between 2024 and 2030" },
+        { status: 400 }
+      );
+    }
+
     // Build update data - only include fields that were provided
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name.trim();
@@ -124,6 +149,7 @@ export async function PUT(
     if (owner !== undefined) updateData.owner = owner?.trim() || null;
     if (color !== undefined) updateData.color = color;
     if (status !== undefined) updateData.status = status;
+    if (fiscalYear !== undefined) updateData.fiscalYear = fiscalYear;
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
 
@@ -144,6 +170,7 @@ export async function PUT(
       owner: plan.owner,
       color: plan.color,
       status: plan.status,
+      fiscalYear: plan.fiscalYear,
       startDate: plan.startDate?.toISOString() ?? null,
       endDate: plan.endDate?.toISOString() ?? null,
       createdAt: plan.createdAt.toISOString(),

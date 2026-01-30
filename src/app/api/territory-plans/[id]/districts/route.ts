@@ -12,7 +12,7 @@ export async function POST(
   try {
     const { id: planId } = await params;
     const body = await request.json();
-    const { leaids } = body;
+    const { leaids, revenueTarget, pipelineTarget, notes, serviceIds } = body;
 
     // Validate input - accept either a single leaid or array of leaids
     let districtLeaids: string[];
@@ -63,13 +63,57 @@ export async function POST(
     }
 
     // Add districts to plan (skipDuplicates handles if already added)
-    const result = await prisma.territoryPlanDistrict.createMany({
-      data: districtLeaids.map((leaid) => ({
-        planId,
-        districtLeaid: leaid,
-      })),
-      skipDuplicates: true,
-    });
+    // If adding a single district with targets, use create; otherwise use createMany
+    let addedCount = 0;
+
+    if (districtLeaids.length === 1 && (revenueTarget || pipelineTarget || notes || serviceIds)) {
+      // Single district with targets - use upsert to handle duplicates gracefully
+      const leaid = districtLeaids[0];
+      await prisma.territoryPlanDistrict.upsert({
+        where: {
+          planId_districtLeaid: { planId, districtLeaid: leaid },
+        },
+        create: {
+          planId,
+          districtLeaid: leaid,
+          revenueTarget: revenueTarget ?? null,
+          pipelineTarget: pipelineTarget ?? null,
+          notes: notes ?? null,
+        },
+        update: {
+          revenueTarget: revenueTarget ?? undefined,
+          pipelineTarget: pipelineTarget ?? undefined,
+          notes: notes ?? undefined,
+        },
+      });
+      addedCount = 1;
+
+      // Handle service assignments if provided
+      if (serviceIds && Array.isArray(serviceIds) && serviceIds.length > 0) {
+        // Delete existing service assignments
+        await prisma.territoryPlanDistrictService.deleteMany({
+          where: { planId, districtLeaid: leaid },
+        });
+        // Create new service assignments
+        await prisma.territoryPlanDistrictService.createMany({
+          data: serviceIds.map((serviceId: number) => ({
+            planId,
+            districtLeaid: leaid,
+            serviceId,
+          })),
+        });
+      }
+    } else {
+      // Multiple districts or no targets - use createMany
+      const result = await prisma.territoryPlanDistrict.createMany({
+        data: districtLeaids.map((leaid) => ({
+          planId,
+          districtLeaid: leaid,
+        })),
+        skipDuplicates: true,
+      });
+      addedCount = result.count;
+    }
 
     // Sync auto-tags for all added districts
     await Promise.all(
@@ -78,7 +122,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        added: result.count,
+        added: addedCount,
         planId,
       },
       { status: 201 }

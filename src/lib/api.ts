@@ -72,6 +72,14 @@ export interface Tag {
   color: string;
 }
 
+export interface Service {
+  id: number;
+  name: string;
+  slug: string;
+  color: string;
+  sortOrder: number;
+}
+
 export interface Contact {
   id: number;
   leaid: string;
@@ -200,6 +208,7 @@ export interface TerritoryPlan {
   owner: string | null;
   color: string;
   status: "draft" | "active" | "archived";
+  fiscalYear: number;
   startDate: string | null;
   endDate: string | null;
   createdAt: string;
@@ -213,6 +222,10 @@ export interface TerritoryPlanDistrict {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
+  revenueTarget: number | null;
+  pipelineTarget: number | null;
+  notes: string | null;
+  targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
   tags: Array<{ id: number; name: string; color: string }>;
 }
 
@@ -481,6 +494,7 @@ export function useCreateTerritoryPlan() {
       owner?: string;
       color?: string;
       status?: "draft" | "active" | "archived";
+      fiscalYear: number;
       startDate?: string;
       endDate?: string;
     }) =>
@@ -508,6 +522,7 @@ export function useUpdateTerritoryPlan() {
       owner?: string;
       color?: string;
       status?: "draft" | "active" | "archived";
+      fiscalYear?: number;
       startDate?: string;
       endDate?: string;
     }) =>
@@ -1003,6 +1018,119 @@ export function useDeleteUserGoal() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
+  });
+}
+
+// ===== Services =====
+
+export function useServices() {
+  return useQuery({
+    queryKey: ["services"],
+    queryFn: () => fetchJson<Service[]>(`${API_BASE}/services`),
+    staleTime: 60 * 60 * 1000, // 1 hour - services rarely change
+  });
+}
+
+// ===== District Targets =====
+
+export interface PlanDistrictDetail {
+  planId: string;
+  leaid: string;
+  addedAt: string;
+  name: string;
+  stateAbbrev: string | null;
+  enrollment: number | null;
+  revenueTarget: number | null;
+  pipelineTarget: number | null;
+  notes: string | null;
+  targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
+}
+
+export function usePlanDistrictDetail(planId: string | null, leaid: string | null) {
+  return useQuery({
+    queryKey: ["planDistrict", planId, leaid],
+    queryFn: () =>
+      fetchJson<PlanDistrictDetail>(
+        `${API_BASE}/territory-plans/${planId}/districts/${leaid}`
+      ),
+    enabled: !!planId && !!leaid,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+export function useUpdateDistrictTargets() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      leaid,
+      ...data
+    }: {
+      planId: string;
+      leaid: string;
+      revenueTarget?: number | null;
+      pipelineTarget?: number | null;
+      notes?: string | null;
+      serviceIds?: number[];
+    }) =>
+      fetchJson<PlanDistrictDetail>(
+        `${API_BASE}/territory-plans/${planId}/districts/${leaid}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(data),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planDistrict", variables.planId, variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+      queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
+    },
+  });
+}
+
+// ===== Goal Dashboard =====
+
+export interface GoalDashboard {
+  fiscalYear: number;
+  goals: {
+    revenueTarget: number | null;
+    takeTarget: number | null;
+    pipelineTarget: number | null;
+    newDistrictsTarget: number | null;
+    drawDownTarget: number | null;
+    quotaTarget: number | null;
+  } | null;
+  planTotals: {
+    revenueTarget: number;
+    pipelineTarget: number;
+    districtCount: number;
+    planCount: number;
+  };
+  actuals: {
+    revenue: number;
+    take: number;
+    pipeline: number;
+    newDistricts: number;
+  };
+  plans: Array<{
+    id: string;
+    name: string;
+    color: string;
+    status: string;
+    districtCount: number;
+    revenueTarget: number;
+    pipelineTarget: number;
+  }>;
+}
+
+export function useGoalDashboard(fiscalYear: number | null) {
+  return useQuery({
+    queryKey: ["goalDashboard", fiscalYear],
+    queryFn: () =>
+      fetchJson<GoalDashboard>(`${API_BASE}/profile/goals/${fiscalYear}/dashboard`),
+    enabled: !!fiscalYear,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
