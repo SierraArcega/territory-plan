@@ -335,18 +335,18 @@ def print_database_stats(connection_string: str):
     with_enrollment = cur.fetchone()[0]
     print(f"Districts with enrollment: {with_enrollment:,}")
 
-    # Fullmind data
-    cur.execute("SELECT COUNT(*) FROM fullmind_data")
+    # Fullmind/CRM data (now in districts table)
+    cur.execute("SELECT COUNT(*) FROM districts WHERE account_name IS NOT NULL")
     fullmind = cur.fetchone()[0]
-    print(f"Fullmind data records: {fullmind:,}")
+    print(f"Districts with Fullmind data: {fullmind:,}")
 
     # Customers
-    cur.execute("SELECT COUNT(*) FROM fullmind_data WHERE is_customer = true")
+    cur.execute("SELECT COUNT(*) FROM districts WHERE is_customer = true")
     customers = cur.fetchone()[0]
     print(f"  - Customers: {customers:,}")
 
     # Pipeline
-    cur.execute("SELECT COUNT(*) FROM fullmind_data WHERE has_open_pipeline = true")
+    cur.execute("SELECT COUNT(*) FROM districts WHERE has_open_pipeline = true")
     pipeline = cur.fetchone()[0]
     print(f"  - With open pipeline: {pipeline:,}")
 
@@ -355,26 +355,14 @@ def print_database_stats(connection_string: str):
     unmatched = cur.fetchone()[0]
     print(f"Unmatched accounts: {unmatched:,}")
 
-    # Top states by district count
-    print("\nTop 10 states by district count:")
-    cur.execute("""
-        SELECT state_abbrev, COUNT(*) as cnt
-        FROM districts
-        WHERE state_abbrev IS NOT NULL
-        GROUP BY state_abbrev
-        ORDER BY cnt DESC
-        LIMIT 10
-    """)
-    for row in cur.fetchall():
-        print(f"  {row[0]}: {row[1]:,}")
-
-    # Education data stats
+    # Education data stats (now in districts table)
     cur.execute("""
         SELECT
             COUNT(*) FILTER (WHERE expenditure_per_pupil IS NOT NULL) as finance,
             COUNT(*) FILTER (WHERE children_poverty_percent IS NOT NULL) as poverty,
-            COUNT(*) FILTER (WHERE graduation_rate_total IS NOT NULL) as graduation
-        FROM district_education_data
+            COUNT(*) FILTER (WHERE graduation_rate_total IS NOT NULL) as graduation,
+            COUNT(*) FILTER (WHERE total_enrollment IS NOT NULL) as demographics
+        FROM districts
     """)
     row = cur.fetchone()
     if row:
@@ -382,10 +370,24 @@ def print_database_stats(connection_string: str):
         print(f"  Finance data: {row[0]:,}")
         print(f"  Poverty data: {row[1]:,}")
         print(f"  Graduation data: {row[2]:,}")
+        print(f"  Demographics data: {row[3]:,}")
 
-    cur.execute("SELECT COUNT(*) FROM district_enrollment_demographics WHERE total_enrollment IS NOT NULL")
-    demographics = cur.fetchone()[0]
-    print(f"  Demographics data: {demographics:,}")
+    # State stats
+    cur.execute("SELECT COUNT(*) FROM states WHERE aggregates_updated_at IS NOT NULL")
+    states_with_data = cur.fetchone()[0]
+    print(f"\nStates with aggregates: {states_with_data}")
+
+    # Top states by enrollment
+    print("\nTop 10 states by enrollment:")
+    cur.execute("""
+        SELECT abbrev, total_enrollment, total_customers
+        FROM states
+        WHERE total_enrollment IS NOT NULL
+        ORDER BY total_enrollment DESC
+        LIMIT 10
+    """)
+    for row in cur.fetchall():
+        print(f"  {row[0]}: {row[1]:,} students, {row[2]} customers")
 
     cur.close()
     conn.close()
