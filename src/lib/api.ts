@@ -786,6 +786,8 @@ export interface UserGoal {
   takeTarget: number | null;
   pipelineTarget: number | null;
   newDistrictsTarget: number | null;
+  drawDownTarget: number | null;
+  quotaTarget: number | null;
   // Calculated actuals from territory plan districts
   revenueActual: number;
   takeActual: number;
@@ -842,6 +844,8 @@ export function useUpsertUserGoal() {
       takeTarget?: number | null;
       pipelineTarget?: number | null;
       newDistrictsTarget?: number | null;
+      drawDownTarget?: number | null;
+      quotaTarget?: number | null;
     }) =>
       fetchJson<UserGoal>(`${API_BASE}/profile/goals`, {
         method: "POST",
