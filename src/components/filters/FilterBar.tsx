@@ -5,6 +5,7 @@ import { useMapStore, StatusFilter } from "@/lib/store";
 import { useStates, useSalesExecutives, useTerritoryPlans } from "@/lib/api";
 import SearchBox from "./SearchBox";
 import MultiSelectToggle from "./MultiSelectToggle";
+import UserMenu from "@/components/user/UserMenu";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All Districts" },
@@ -161,6 +162,12 @@ export default function FilterBar() {
             </span>
           )}
         </Link>
+
+        {/* Divider before User Menu */}
+        <div className="h-6 border-l border-gray-200" />
+
+        {/* User Menu */}
+        <UserMenu />
       </div>
 
       {/* Active Filters Summary - compact row below if filters active */}
