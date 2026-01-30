@@ -80,23 +80,28 @@ export async function GET(
     // Try to find state in the states table first
     const state = await prisma.state.findUnique({
       where: { abbrev: stateCode },
-      include: {
-        goals: {
+    });
+
+    // If state exists in the states table, fetch related data and return
+    if (state) {
+      const [goals, plans] = await Promise.all([
+        prisma.stateGoal.findMany({
+          where: { stateFips: state.fips },
           orderBy: { fiscalYear: "desc" },
-        },
-        territoryPlans: {
-          where: { status: { not: "archived" } },
+        }),
+        prisma.territoryPlan.findMany({
+          where: {
+            stateFips: state.fips,
+            status: { not: "archived" },
+          },
           orderBy: { updatedAt: "desc" },
           include: {
             _count: { select: { districts: true } },
           },
-        },
-      },
-    });
+        }),
+      ]);
 
-    // If state exists in the states table, return its data
-    if (state) {
-      const response = {
+      return NextResponse.json({
         code: state.abbrev,
         fips: state.fips,
         name: state.name,
@@ -113,13 +118,13 @@ export async function GET(
         },
         territoryOwner: state.territoryOwner,
         notes: state.notes,
-        goals: state.goals.map((g) => ({
+        goals: goals.map((g) => ({
           id: g.id,
           fiscalYear: g.fiscalYear,
           revenueGoal: toNumber(g.revenueGoal),
           districtCountGoal: g.districtCountGoal,
         })),
-        territoryPlans: state.territoryPlans.map((p) => ({
+        territoryPlans: plans.map((p) => ({
           id: p.id,
           name: p.name,
           owner: p.owner,
@@ -127,30 +132,26 @@ export async function GET(
           status: p.status,
           districtCount: p._count.districts,
         })),
-      };
-
-      return NextResponse.json(response);
+      });
     }
 
-    // If state doesn't exist in states table, compute aggregates from districts
-    const aggregates = await prisma.district.aggregate({
-      where: { stateAbbrev: stateCode },
-      _count: { leaid: true },
-      _sum: {
-        enrollment: true,
-        numberOfSchools: true,
-        fy26OpenPipeline: true,
-        fy27OpenPipeline: true,
-      },
-      _avg: {
-        expenditurePerPupil: true,
-        graduationRateTotal: true,
-        childrenPovertyPercent: true,
-      },
-    });
-
-    // Count customers and pipeline districts
-    const [customerCount, pipelineCount] = await Promise.all([
+    // Fallback: compute aggregates from districts if state not in states table
+    const [aggregates, customerCount, pipelineCount] = await Promise.all([
+      prisma.district.aggregate({
+        where: { stateAbbrev: stateCode },
+        _count: { leaid: true },
+        _sum: {
+          enrollment: true,
+          numberOfSchools: true,
+          fy26OpenPipeline: true,
+          fy27OpenPipeline: true,
+        },
+        _avg: {
+          expenditurePerPupil: true,
+          graduationRateTotal: true,
+          childrenPovertyPercent: true,
+        },
+      }),
       prisma.district.count({
         where: { stateAbbrev: stateCode, isCustomer: true },
       }),
@@ -159,7 +160,7 @@ export async function GET(
       }),
     ]);
 
-    // Get territory plans for this state (by looking at districts in the state)
+    // Get territory plans that include districts from this state
     const districtLeaids = await prisma.district.findMany({
       where: { stateAbbrev: stateCode },
       select: { leaid: true },
@@ -167,21 +168,26 @@ export async function GET(
 
     const leaidList = districtLeaids.map((d) => d.leaid);
 
-    const territoryPlans = await prisma.territoryPlan.findMany({
-      where: {
-        status: { not: "archived" },
-        districts: {
-          some: { districtLeaid: { in: leaidList } },
-        },
-      },
-      include: {
-        _count: { select: { districts: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-    });
+    const plans = leaidList.length > 0
+      ? await prisma.territoryPlan.findMany({
+          where: {
+            status: { not: "archived" },
+            districts: {
+              some: { districtLeaid: { in: leaidList } },
+            },
+          },
+          include: {
+            _count: { select: { districts: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 10,
+        })
+      : [];
 
-    const response = {
+    const pipelineValue = (toNumber(aggregates._sum.fy26OpenPipeline) ?? 0) +
+      (toNumber(aggregates._sum.fy27OpenPipeline) ?? 0);
+
+    return NextResponse.json({
       code: stateCode,
       fips: null,
       name: STATE_NAMES[stateCode] || stateCode,
@@ -191,7 +197,7 @@ export async function GET(
         totalSchools: aggregates._sum.numberOfSchools,
         totalCustomers: customerCount,
         totalWithPipeline: pipelineCount,
-        totalPipelineValue: toNumber(aggregates._sum.fy26OpenPipeline) ?? 0 + (toNumber(aggregates._sum.fy27OpenPipeline) ?? 0),
+        totalPipelineValue: pipelineValue,
         avgExpenditurePerPupil: toNumber(aggregates._avg.expenditurePerPupil),
         avgGraduationRate: toNumber(aggregates._avg.graduationRateTotal),
         avgPovertyRate: toNumber(aggregates._avg.childrenPovertyPercent),
@@ -199,7 +205,7 @@ export async function GET(
       territoryOwner: null,
       notes: null,
       goals: [],
-      territoryPlans: territoryPlans.map((p) => ({
+      territoryPlans: plans.map((p) => ({
         id: p.id,
         name: p.name,
         owner: p.owner,
@@ -207,13 +213,11 @@ export async function GET(
         status: p.status,
         districtCount: p._count.districts,
       })),
-    };
-
-    return NextResponse.json(response);
+    });
   } catch (error) {
     console.error("Error fetching state detail:", error);
     return NextResponse.json(
-      { error: "Failed to fetch state" },
+      { error: "Failed to fetch state", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
