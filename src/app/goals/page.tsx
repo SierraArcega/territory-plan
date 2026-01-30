@@ -69,7 +69,7 @@ function parseCurrency(value: string): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
-// Tooltip component
+// Tooltip component - positions to the right to avoid container clipping
 function Tooltip({ text }: { text: string }) {
   return (
     <div className="group relative inline-block ml-1">
@@ -86,9 +86,9 @@ function Tooltip({ text }: { text: string }) {
           d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
-      <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-[#403770] text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-56 z-10 whitespace-normal">
+      <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-2 bg-[#403770] text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-56 z-50 whitespace-normal">
         {text}
-        <div className="absolute top-full left-3 border-4 border-transparent border-t-[#403770]" />
+        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#403770]" />
       </div>
     </div>
   );
