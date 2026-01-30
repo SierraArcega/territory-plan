@@ -30,6 +30,7 @@ from loaders.urban_institute_demographics import fetch_demographics_data, upsert
 from loaders.urban_institute_graduation import fetch_graduation_data, upsert_graduation_data
 from loaders.urban_institute_staff import fetch_staff_data, upsert_staff_data
 from loaders.census_county_income import fetch_county_income, update_district_income
+from loaders.state_aggregates import seed_states, refresh_state_aggregates, get_state_summary
 from loaders.fullmind import (
     load_fullmind_csv,
     get_valid_leaids,
@@ -441,6 +442,10 @@ Examples:
                         help="Run all education data ETL (finance, poverty, demographics, graduation, staff)")
     parser.add_argument("--fullmind", type=str,
                         help="Run Fullmind CSV ETL with specified file")
+    parser.add_argument("--seed-states", action="store_true",
+                        help="Seed states table with reference data (FIPS, abbreviations, names)")
+    parser.add_argument("--refresh-states", action="store_true",
+                        help="Refresh state aggregate metrics from district data")
     parser.add_argument("--shapefile", type=str,
                         help="Path to existing NCES shapefile (skips download)")
     parser.add_argument("--download-dir", default="./data",
@@ -490,7 +495,8 @@ Examples:
     any_step = (
         args.all or args.boundaries or args.enrollment or args.fullmind or
         args.finance or args.poverty or args.demographics or args.graduation or
-        args.staff or args.county_income or args.education_data
+        args.staff or args.county_income or args.education_data or
+        args.seed_states or args.refresh_states
     )
     if not any_step:
         print("No ETL steps specified. Use --all or specify individual steps.")
@@ -540,6 +546,19 @@ Examples:
             csv_path=Path(args.fullmind),
             output_dir=args.output_dir
         )
+
+    # State table management
+    if args.seed_states or args.all:
+        print("\n" + "="*60)
+        print("Seeding States Table")
+        print("="*60)
+        seed_states(connection_string)
+
+    if args.refresh_states or args.all:
+        print("\n" + "="*60)
+        print("Refreshing State Aggregates")
+        print("="*60)
+        refresh_state_aggregates(connection_string)
 
     # Print final stats
     print_database_stats(connection_string)
