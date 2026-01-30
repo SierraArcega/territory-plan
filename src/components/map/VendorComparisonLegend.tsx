@@ -7,10 +7,10 @@ interface LegendItem {
 }
 
 const LEGEND_ITEMS: LegendItem[] = [
-  { vendor: "Fullmind", color: "#F37167", label: "Fullmind" },
-  { vendor: "Proximity Learning", color: "#6EA3BE", label: "Proximity Learning" },
-  { vendor: "Elevate K12", color: "#E07A5F", label: "Elevate K12" },
-  { vendor: "Tutored By Teachers", color: "#7C3AED", label: "Tutored By Teachers" },
+  { vendor: "Fullmind", color: "#F37167", label: "Fullmind" },           // Deep Coral (warm - stands out)
+  { vendor: "Proximity Learning", color: "#6EA3BE", label: "Proximity Learning" }, // Steel Blue (cool)
+  { vendor: "Elevate K12", color: "#5AA9A5", label: "Elevate K12" },     // Teal (cool)
+  { vendor: "Tutored By Teachers", color: "#7C3AED", label: "Tutored By Teachers" }, // Purple (cool)
 ];
 
 interface VendorComparisonLegendProps {
@@ -29,7 +29,7 @@ export default function VendorComparisonLegend({
       `}
     >
       <div className="font-semibold text-[#403770] mb-2 text-xs uppercase tracking-wide">
-        Vendor Comparison
+        Competitor View
       </div>
       <div className="space-y-1.5">
         {LEGEND_ITEMS.map((item) => (

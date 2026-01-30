@@ -21,7 +21,7 @@ export default function VendorLayerToggle({
         ${className}
       `}
       aria-pressed={vendorLayerVisible}
-      aria-label={`${vendorLayerVisible ? "Hide" : "Show"} vendor comparison layer`}
+      aria-label={`Switch to ${vendorLayerVisible ? "Fullmind" : "Competitor"} View`}
     >
       {/* Toggle switch */}
       <span
@@ -41,7 +41,9 @@ export default function VendorLayerToggle({
           `}
         />
       </span>
-      <span className="text-[#403770]">Vendor Comparison</span>
+      <span className="text-[#403770]">
+        {vendorLayerVisible ? "Competitor View" : "Fullmind View"}
+      </span>
     </button>
   );
 }

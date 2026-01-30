@@ -362,10 +362,10 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           "fill-color": [
             "match",
             ["get", "dominant_vendor"],
-            "Fullmind", "#F37167",            // Coral
-            "Proximity Learning", "#6EA3BE",  // Steel Blue
-            "Elevate K12", "#E07A5F",         // Terra Cotta
-            "Tutored By Teachers", "#7C3AED", // Purple
+            "Fullmind", "#F37167",            // Deep Coral (warm - stands out)
+            "Proximity Learning", "#6EA3BE",  // Steel Blue (cool)
+            "Elevate K12", "#5AA9A5",         // Teal (cool)
+            "Tutored By Teachers", "#7C3AED", // Purple (cool)
             "#E5E7EB",                        // Fallback gray
           ],
           "fill-opacity": [
@@ -1169,17 +1169,13 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
           </button>
         )}
 
-        {/* Vendor layer toggle */}
+        {/* View toggle and legend - stacked vertically to avoid overlap */}
         {mapReady && (
-          <VendorLayerToggle className="absolute bottom-20 left-4 z-10" />
-        )}
-
-        {/* Legend - shows customer or vendor based on toggle */}
-        {mapReady && !vendorLayerVisible && (
-          <CustomerOverviewLegend className="absolute bottom-4 left-4 z-10" />
-        )}
-        {mapReady && vendorLayerVisible && (
-          <VendorComparisonLegend className="absolute bottom-4 left-4 z-10" />
+          <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-2">
+            <VendorLayerToggle />
+            {!vendorLayerVisible && <CustomerOverviewLegend />}
+            {vendorLayerVisible && <VendorComparisonLegend />}
+          </div>
         )}
       </div>
     </>
