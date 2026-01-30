@@ -11,7 +11,7 @@ interface PlansTabContentProps {
   stateCode: string | null;
 }
 
-export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
+export default function PlansTabContent({ stateCode: _stateCode }: PlansTabContentProps) {
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const [view, setView] = useState<PlanView>({ type: "list" });
   const [showCreateModal, setShowCreateModal] = useState(false);
