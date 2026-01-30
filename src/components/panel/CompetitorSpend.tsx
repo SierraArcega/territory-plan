@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
+import { useQuery } from "@tanstack/react-query";
 
 interface CompetitorSpendRecord {
   competitor: string;
@@ -31,9 +31,6 @@ function formatCurrency(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
-// Fetcher for SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 // Group spend records by competitor
 function groupByCompetitor(
   records: CompetitorSpendRecord[]
@@ -58,10 +55,15 @@ function groupByCompetitor(
 export default function CompetitorSpend({ leaid }: CompetitorSpendProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const { data, isLoading, error } = useSWR<CompetitorSpendResponse>(
-    `/api/districts/${leaid}/competitor-spend`,
-    fetcher
-  );
+  const { data, isLoading, error } = useQuery<CompetitorSpendResponse>({
+    queryKey: ["competitorSpend", leaid],
+    queryFn: async () => {
+      const res = await fetch(`/api/districts/${leaid}/competitor-spend`);
+      if (!res.ok) throw new Error("Failed to fetch competitor spend");
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
 
   // Don't render if loading, error, or no data
   if (isLoading || error || !data) {
