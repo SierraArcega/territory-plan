@@ -10,8 +10,10 @@ export const pool =
   globalForPool.pool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 20, // Maximum number of connections
-    idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
+    // In serverless (Vercel), keep pool small since each function instance
+    // creates its own pool, and Supabase Shared Pooler has limited connections
+    max: process.env.NODE_ENV === "production" ? 2 : 5,
+    idleTimeoutMillis: 10000, // Close idle connections quickly in serverless
     connectionTimeoutMillis: 10000, // Timeout after 10 seconds when connecting
   });
 
