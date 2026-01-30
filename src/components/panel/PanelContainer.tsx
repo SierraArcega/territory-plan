@@ -130,7 +130,7 @@ export default function PanelContainer() {
           <StateTabContent stateCode={effectiveStateCode} />
         )}
         {activeTab === "district" && (
-          <DistrictTabContent leaid={selectedLeaid} />
+          <DistrictTabContent leaid={selectedLeaid} stateCode={effectiveStateCode} />
         )}
         {activeTab === "plans" && (
           <PlansTabContent stateCode={effectiveStateCode} />
