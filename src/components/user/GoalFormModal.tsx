@@ -18,10 +18,12 @@ export interface GoalFormData {
   takeTarget: number | null;
   pipelineTarget: number | null;
   newDistrictsTarget: number | null;
+  drawDownTarget: number | null;
+  quotaTarget: number | null;
 }
 
 // Available fiscal years for goal creation
-const FISCAL_YEARS = [2025, 2026, 2027, 2028];
+const FISCAL_YEARS = [2025, 2026, 2027, 2028, 2029];
 
 // Parse a currency string to number
 function parseCurrency(value: string): number | null {
@@ -49,6 +51,8 @@ export default function GoalFormModal({
   const [takeTarget, setTakeTarget] = useState("");
   const [pipelineTarget, setPipelineTarget] = useState("");
   const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
+  const [drawDownTarget, setDrawDownTarget] = useState("");
+  const [quotaTarget, setQuotaTarget] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +65,8 @@ export default function GoalFormModal({
       setTakeTarget(formatForInput(initialData?.takeTarget));
       setPipelineTarget(formatForInput(initialData?.pipelineTarget));
       setNewDistrictsTarget(formatForInput(initialData?.newDistrictsTarget));
+      setDrawDownTarget(formatForInput(initialData?.drawDownTarget));
+      setQuotaTarget(formatForInput(initialData?.quotaTarget));
       setError(null);
       // Focus first input after a short delay for animation
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -82,6 +88,8 @@ export default function GoalFormModal({
         newDistrictsTarget: newDistrictsTarget
           ? parseInt(newDistrictsTarget, 10)
           : null,
+        drawDownTarget: parseCurrency(drawDownTarget),
+        quotaTarget: parseCurrency(quotaTarget),
       });
       onClose();
     } catch (err) {
@@ -145,7 +153,7 @@ export default function GoalFormModal({
                 >
                   {FISCAL_YEARS.map((year) => (
                     <option key={year} value={year}>
-                      FY{year.toString().slice(-2)}
+                      FY{year.toString().slice(-2)} ({year - 1}-{year})
                     </option>
                   ))}
                 </select>
@@ -232,6 +240,50 @@ export default function GoalFormModal({
               />
               <p className="mt-1 text-xs text-gray-500">
                 Number of new districts to acquire
+              </p>
+            </div>
+
+            {/* Draw Down Target */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Draw Down
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  $
+                </span>
+                <input
+                  type="text"
+                  value={drawDownTarget}
+                  onChange={(e) => setDrawDownTarget(e.target.value)}
+                  placeholder="100,000"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Your draw down amount
+              </p>
+            </div>
+
+            {/* Quota Target */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Quota
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  $
+                </span>
+                <input
+                  type="text"
+                  value={quotaTarget}
+                  onChange={(e) => setQuotaTarget(e.target.value)}
+                  placeholder="500,000"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Your quota target
               </p>
             </div>
           </div>

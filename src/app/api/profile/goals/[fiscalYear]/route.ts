@@ -124,6 +124,8 @@ export async function GET(
       takeTarget: toNumber(goal.takeTarget),
       pipelineTarget: toNumber(goal.pipelineTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
+      drawDownTarget: toNumber(goal.drawDownTarget),
+      quotaTarget: toNumber(goal.quotaTarget),
       ...actuals,
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
@@ -163,7 +165,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget } = body;
+    const { revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget, drawDownTarget, quotaTarget } = body;
 
     // Update the goal
     const goal = await prisma.userGoal.update({
@@ -178,6 +180,8 @@ export async function PUT(
         takeTarget: takeTarget !== undefined ? takeTarget : undefined,
         pipelineTarget: pipelineTarget !== undefined ? pipelineTarget : undefined,
         newDistrictsTarget: newDistrictsTarget !== undefined ? newDistrictsTarget : undefined,
+        drawDownTarget: drawDownTarget !== undefined ? drawDownTarget : undefined,
+        quotaTarget: quotaTarget !== undefined ? quotaTarget : undefined,
       },
     });
 
@@ -191,6 +195,8 @@ export async function PUT(
       takeTarget: toNumber(goal.takeTarget),
       pipelineTarget: toNumber(goal.pipelineTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
+      drawDownTarget: toNumber(goal.drawDownTarget),
+      quotaTarget: toNumber(goal.quotaTarget),
       ...actuals,
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
