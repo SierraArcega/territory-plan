@@ -19,11 +19,15 @@ export async function GET(
         districts: {
           include: {
             district: {
-              include: {
+              select: {
+                name: true,
+                stateAbbrev: true,
+                enrollment: true,
                 districtTags: {
-                  include: {
-                    tag: true,
+                  select: {
+                    tag: { select: { id: true, name: true, color: true } },
                   },
+                  take: 5, // Limit tags per district
                 },
               },
             },

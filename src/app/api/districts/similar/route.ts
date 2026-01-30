@@ -95,14 +95,29 @@ export async function GET(request: NextRequest) {
     const localeTolerance = LOCALE_TOLERANCE[tolerance];
 
     // Find similar districts in the same state
+    // Limit candidates to avoid loading entire state into memory
     const candidates = await prisma.district.findMany({
       where: {
         stateAbbrev: sourceDistrict.stateAbbrev,
         leaid: { not: leaid }, // Exclude source district
       },
-      include: {
+      select: {
+        leaid: true,
+        name: true,
+        stateAbbrev: true,
+        enrollment: true,
+        urbanCentricLocale: true,
+        ellStudents: true,
+        specEdStudents: true,
+        medianHouseholdIncome: true,
+        expenditurePerPupil: true,
+        salariesTotal: true,
+        staffTotalFte: true,
+        totalEnrollment: true,
+        enrollmentWhite: true,
         territoryPlans: { select: { planId: true } },
       },
+      take: 500, // Limit to 500 candidates to avoid memory issues
     });
 
     // Filter and score candidates

@@ -146,6 +146,10 @@ model District {
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
+  @@index([stateAbbrev])
+  @@index([stateAbbrev, isCustomer])
+  @@index([stateAbbrev, hasOpenPipeline])
+  @@index([salesExecutive])
   @@map("districts")
 }
 
@@ -178,6 +182,7 @@ model Contact {
   isPrimary Boolean  @default(false) @map("is_primary")
   district  District @relation(fields: [leaid], references: [leaid])
 
+  @@index([leaid])
   @@map("contacts")
 }
 

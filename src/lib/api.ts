@@ -265,6 +265,7 @@ export function useDistricts(params: {
       fetchJson<{ districts: DistrictListItem[]; total: number }>(
         `${API_BASE}/districts?${searchParams}`
       ),
+    staleTime: 5 * 60 * 1000, // 5 minutes - district lists don't change often
   });
 }
 
@@ -273,6 +274,7 @@ export function useDistrictDetail(leaid: string | null) {
     queryKey: ["district", leaid],
     queryFn: () => fetchJson<DistrictDetail>(`${API_BASE}/districts/${leaid}`),
     enabled: !!leaid,
+    staleTime: 10 * 60 * 1000, // 10 minutes - district details rarely change
   });
 }
 
@@ -305,6 +307,7 @@ export function useTags() {
   return useQuery({
     queryKey: ["tags"],
     queryFn: () => fetchJson<Tag[]>(`${API_BASE}/tags`),
+    staleTime: 60 * 60 * 1000, // 1 hour - tags rarely change
   });
 }
 
@@ -406,6 +409,7 @@ export function useUnmatchedByState(stateAbbrev: string | null) {
         `${API_BASE}/unmatched?state=${stateAbbrev}`
       ),
     enabled: !!stateAbbrev,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -413,6 +417,7 @@ export function useStateSummaries() {
   return useQuery({
     queryKey: ["unmatched", "summaries"],
     queryFn: () => fetchJson<StateSummary[]>(`${API_BASE}/unmatched/by-state`),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -424,6 +429,7 @@ export function useQuantiles(metric: MetricType, year: FiscalYear) {
       fetchJson<Quantiles>(
         `${API_BASE}/metrics/quantiles?metric=${metric}&year=${year}`
       ),
+    staleTime: 10 * 60 * 1000, // 10 minutes - quantiles rarely change
   });
 }
 
@@ -432,6 +438,7 @@ export function useSalesExecutives() {
   return useQuery({
     queryKey: ["salesExecutives"],
     queryFn: () => fetchJson<string[]>(`${API_BASE}/sales-executives`),
+    staleTime: 60 * 60 * 1000, // 1 hour - sales execs rarely change
   });
 }
 
@@ -441,6 +448,7 @@ export function useStates() {
     queryKey: ["states"],
     queryFn: () =>
       fetchJson<{ abbrev: string; name: string }[]>(`${API_BASE}/states`),
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours - states are static
   });
 }
 
@@ -449,6 +457,7 @@ export function useTerritoryPlans() {
   return useQuery({
     queryKey: ["territoryPlans"],
     queryFn: () => fetchJson<TerritoryPlan[]>(`${API_BASE}/territory-plans`),
+    staleTime: 2 * 60 * 1000, // 2 minutes - plans may change during session
   });
 }
 
@@ -458,6 +467,7 @@ export function useTerritoryPlan(planId: string | null) {
     queryFn: () =>
       fetchJson<TerritoryPlanDetail>(`${API_BASE}/territory-plans/${planId}`),
     enabled: !!planId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -610,6 +620,7 @@ export function useSimilarDistricts(params: {
         `${API_BASE}/districts/similar?${searchParams}`
       ),
     enabled: params.enabled !== false && !!params.leaid && params.metrics.length > 0,
+    staleTime: 15 * 60 * 1000, // 15 minutes - expensive calculation
   });
 }
 
@@ -734,6 +745,7 @@ export function useStateDistricts(params: {
     queryKey: ["stateDistricts", params],
     queryFn: () => fetchJson<StateDistrictsResponse>(url),
     enabled: !!params.stateCode,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
