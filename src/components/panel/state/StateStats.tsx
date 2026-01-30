@@ -7,7 +7,7 @@ interface StateStatsProps {
 }
 
 export default function StateStats({ state }: StateStatsProps) {
-  const { aggregates, goals } = state;
+  const { aggregates } = state;
 
   // Format currency
   const formatCurrency = (n: number | null) => {
@@ -31,9 +31,6 @@ export default function StateStats({ state }: StateStatsProps) {
     if (n === null) return "N/A";
     return new Intl.NumberFormat("en-US").format(n);
   };
-
-  // Get current fiscal year goal (FY26)
-  const currentGoal = goals.find((g) => g.fiscalYear === 2026);
 
   return (
     <div className="px-6 py-4">
@@ -90,43 +87,6 @@ export default function StateStats({ state }: StateStatsProps) {
           </div>
         </div>
       </div>
-
-      {/* Goals Section */}
-      {currentGoal && (
-        <div>
-          <h3 className="text-sm font-semibold text-[#403770] mb-3 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            FY26 Goals
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            {currentGoal.revenueGoal && (
-              <div className="bg-[#403770]/5 rounded-lg p-3 border border-[#403770]/10">
-                <div className="text-sm font-medium text-[#403770]">
-                  {formatCurrency(currentGoal.revenueGoal)}
-                </div>
-                <div className="text-xs text-gray-500">Revenue Goal</div>
-              </div>
-            )}
-            {currentGoal.districtCountGoal && (
-              <div className="bg-[#403770]/5 rounded-lg p-3 border border-[#403770]/10">
-                <div className="text-sm font-medium text-[#403770]">
-                  {currentGoal.districtCountGoal}
-                </div>
-                <div className="text-xs text-gray-500">District Goal</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Empty state for goals */}
-      {(!goals || goals.length === 0) && (
-        <div className="text-center py-4 text-gray-400 text-sm">
-          No goals set for this state
-        </div>
-      )}
     </div>
   );
 }

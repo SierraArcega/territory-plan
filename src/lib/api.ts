@@ -667,13 +667,6 @@ export interface StateAggregates {
   avgPovertyRate: number | null;
 }
 
-export interface StateGoal {
-  id: number;
-  fiscalYear: number;
-  revenueGoal: number | null;
-  districtCountGoal: number | null;
-}
-
 export interface StateTerritoryPlan {
   id: string;
   name: string;
@@ -690,7 +683,6 @@ export interface StateDetail {
   aggregates: StateAggregates;
   territoryOwner: string | null;
   notes: string | null;
-  goals: StateGoal[];
   territoryPlans: StateTerritoryPlan[];
 }
 

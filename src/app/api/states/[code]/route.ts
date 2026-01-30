@@ -86,23 +86,17 @@ export async function GET(
 
     // If state exists in the states table, fetch related data and return
     if (state) {
-      const [goals, plans] = await Promise.all([
-        prisma.stateGoal.findMany({
-          where: { stateFips: state.fips },
-          orderBy: { fiscalYear: "desc" },
-        }),
-        prisma.territoryPlan.findMany({
-          where: {
-            stateFips: state.fips,
-            status: { not: "archived" },
-            userId: user?.id,
-          },
-          orderBy: { updatedAt: "desc" },
-          include: {
-            _count: { select: { districts: true } },
-          },
-        }),
-      ]);
+      const plans = await prisma.territoryPlan.findMany({
+        where: {
+          stateFips: state.fips,
+          status: { not: "archived" },
+          userId: user?.id,
+        },
+        orderBy: { updatedAt: "desc" },
+        include: {
+          _count: { select: { districts: true } },
+        },
+      });
 
       return NextResponse.json({
         code: state.abbrev,
@@ -121,12 +115,6 @@ export async function GET(
         },
         territoryOwner: state.territoryOwner,
         notes: state.notes,
-        goals: goals.map((g) => ({
-          id: g.id,
-          fiscalYear: g.fiscalYear,
-          revenueGoal: toNumber(g.revenueGoal),
-          districtCountGoal: g.districtCountGoal,
-        })),
         territoryPlans: plans.map((p) => ({
           id: p.id,
           name: p.name,
@@ -208,7 +196,6 @@ export async function GET(
       },
       territoryOwner: null,
       notes: null,
-      goals: [],
       territoryPlans: plans.map((p) => ({
         id: p.id,
         name: p.name,
