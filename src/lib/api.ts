@@ -775,3 +775,145 @@ export function useUpdateState() {
     },
   });
 }
+
+// ===== Plan Activities =====
+
+export type PlanActivityType =
+  | "email_campaign"
+  | "in_person_visit"
+  | "sales_meeting"
+  | "conference"
+  | "phone_call";
+
+export type PlanActivityStatus = "planned" | "completed" | "cancelled";
+
+export interface PlanActivityContact {
+  id: number;
+  name: string;
+  title: string | null;
+}
+
+export interface PlanActivity {
+  id: string;
+  planId: string;
+  districtLeaid: string | null;
+  districtName: string | null;
+  districtState: string | null;
+  type: PlanActivityType;
+  title: string;
+  notes: string | null;
+  activityDate: string;
+  status: PlanActivityStatus;
+  contacts: PlanActivityContact[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Activity type display labels
+export const ACTIVITY_TYPE_LABELS: Record<PlanActivityType, string> = {
+  email_campaign: "Email Campaign",
+  in_person_visit: "In-Person Visit",
+  sales_meeting: "Sales Meeting",
+  conference: "Conference",
+  phone_call: "Phone Call",
+};
+
+// Activity status display labels and colors
+export const ACTIVITY_STATUS_CONFIG: Record<
+  PlanActivityStatus,
+  { label: string; color: string; bgColor: string }
+> = {
+  planned: { label: "Planned", color: "#6EA3BE", bgColor: "#EEF5F8" },
+  completed: { label: "Completed", color: "#8AA891", bgColor: "#EFF5F0" },
+  cancelled: { label: "Cancelled", color: "#9CA3AF", bgColor: "#F3F4F6" },
+};
+
+// Fetch activities for a plan
+export function usePlanActivities(planId: string | null) {
+  return useQuery({
+    queryKey: ["planActivities", planId],
+    queryFn: () =>
+      fetchJson<PlanActivity[]>(`${API_BASE}/territory-plans/${planId}/activities`),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// Create a new activity
+export function useCreatePlanActivity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      ...data
+    }: {
+      planId: string;
+      type: PlanActivityType;
+      title: string;
+      activityDate: string;
+      status?: PlanActivityStatus;
+      districtLeaid?: string | null;
+      contactIds?: number[];
+      notes?: string;
+    }) =>
+      fetchJson<PlanActivity>(`${API_BASE}/territory-plans/${planId}/activities`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planActivities", variables.planId] });
+    },
+  });
+}
+
+// Update an activity
+export function useUpdatePlanActivity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      activityId,
+      ...data
+    }: {
+      planId: string;
+      activityId: string;
+      type?: PlanActivityType;
+      title?: string;
+      activityDate?: string;
+      status?: PlanActivityStatus;
+      districtLeaid?: string | null;
+      contactIds?: number[];
+      notes?: string;
+    }) =>
+      fetchJson<PlanActivity>(
+        `${API_BASE}/territory-plans/${planId}/activities/${activityId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(data),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planActivities", variables.planId] });
+    },
+  });
+}
+
+// Delete an activity
+export function useDeletePlanActivity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, activityId }: { planId: string; activityId: string }) =>
+      fetchJson<{ success: boolean }>(
+        `${API_BASE}/territory-plans/${planId}/activities/${activityId}`,
+        {
+          method: "DELETE",
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planActivities", variables.planId] });
+    },
+  });
+}

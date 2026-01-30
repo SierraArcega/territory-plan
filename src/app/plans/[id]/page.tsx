@@ -10,6 +10,7 @@ import {
   useRemoveDistrictFromPlan,
 } from "@/lib/api";
 import DistrictsTable from "@/components/plans/DistrictsTable";
+import ActivitiesPanel from "@/components/plans/ActivitiesPanel";
 import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
 
 function formatDate(dateString: string | null): string {
@@ -194,27 +195,37 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      {/* Districts Table */}
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#403770]">
-            Districts ({plan.districts.length})
-          </h2>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-[#403770] hover:text-[#F37167] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add from Map
-          </Link>
+      {/* Main content: 50/50 split - Districts | Activities */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left side: Districts */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-[#403770]">
+                Districts ({plan.districts.length})
+              </h2>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm text-[#403770] hover:text-[#F37167] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add from Map
+              </Link>
+            </div>
+            <DistrictsTable
+              districts={plan.districts}
+              onRemove={handleRemoveDistrict}
+              isRemoving={removeDistrict.isPending}
+            />
+          </div>
+
+          {/* Right side: Activities */}
+          <div className="lg:border-l lg:border-gray-200 lg:pl-8">
+            <ActivitiesPanel planId={planId} districts={plan.districts} />
+          </div>
         </div>
-        <DistrictsTable
-          districts={plan.districts}
-          onRemove={handleRemoveDistrict}
-          isRemoving={removeDistrict.isPending}
-        />
       </main>
 
       {/* Edit Modal */}

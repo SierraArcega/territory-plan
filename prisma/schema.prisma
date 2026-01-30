@@ -139,10 +139,15 @@ model District {
   owner            String?   @db.VarChar(100)
   notesUpdatedAt   DateTime? @map("notes_updated_at")
 
+  // ===== PostGIS Geometry (managed outside Prisma) =====
+  geometry         Unsupported("geometry(MultiPolygon, 4326)")?
+  centroid         Unsupported("geometry(Point, 4326)")?
+
   // ===== Relations =====
   contacts       Contact[]
   districtTags   DistrictTag[]
   territoryPlans TerritoryPlanDistrict[]
+  planActivities PlanActivity[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -173,14 +178,15 @@ model DistrictTag {
 }
 
 model Contact {
-  id        Int      @id @default(autoincrement())
-  leaid     String   @db.VarChar(7)
-  name      String   @db.VarChar(255)
-  title     String?  @db.VarChar(100)
-  email     String?  @db.VarChar(255)
-  phone     String?  @db.VarChar(50)
-  isPrimary Boolean  @default(false) @map("is_primary")
-  district  District @relation(fields: [leaid], references: [leaid])
+  id         Int                   @id @default(autoincrement())
+  leaid      String                @db.VarChar(7)
+  name       String                @db.VarChar(255)
+  title      String?               @db.VarChar(100)
+  email      String?               @db.VarChar(255)
+  phone      String?               @db.VarChar(50)
+  isPrimary  Boolean               @default(false) @map("is_primary")
+  district   District              @relation(fields: [leaid], references: [leaid])
+  activities PlanActivityContact[]
 
   @@index([leaid])
   @@map("contacts")
@@ -294,8 +300,9 @@ model TerritoryPlan {
   updatedAt   DateTime                @updatedAt @map("updated_at")
 
   // Relations
-  districts TerritoryPlanDistrict[]
-  state     State?                  @relation(fields: [stateFips], references: [fips])
+  districts  TerritoryPlanDistrict[]
+  activities PlanActivity[]
+  state      State?                  @relation(fields: [stateFips], references: [fips])
 
   @@index([userId])
   @@index([stateFips])
@@ -311,4 +318,78 @@ model TerritoryPlanDistrict {
 
   @@id([planId, districtLeaid])
   @@map("territory_plan_districts")
+}
+
+// ===== Plan Activities =====
+// Tracks sales activities (visits, emails, meetings, etc.) for territory plans
+
+model PlanActivity {
+  id            String    @id @default(uuid())
+  planId        String    @map("plan_id")
+  districtLeaid String?   @map("district_leaid") @db.VarChar(7) // null = plan-level activity
+  type          String    @db.VarChar(30) // email_campaign, in_person_visit, sales_meeting, conference, phone_call
+  title         String    @db.VarChar(255)
+  notes         String?
+  activityDate  DateTime  @map("activity_date")
+  status        String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  plan     TerritoryPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  district District?              @relation(fields: [districtLeaid], references: [leaid])
+  contacts PlanActivityContact[]
+
+  @@index([planId])
+  @@index([planId, activityDate])
+  @@map("plan_activities")
+}
+
+// Junction table for linking activities to contacts
+model PlanActivityContact {
+  activityId String       @map("activity_id")
+  contactId  Int          @map("contact_id")
+  activity   PlanActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  contact    Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, contactId])
+  @@map("plan_activity_contacts")
+}
+
+// ===== User Profile & Goals =====
+// Tracks user setup state and fiscal year targets
+
+model UserProfile {
+  id                String    @id @db.Uuid
+  email             String    @unique @db.VarChar(255)
+  fullName          String?   @map("full_name") @db.VarChar(255)
+  avatarUrl         String?   @map("avatar_url") @db.VarChar(500)
+  hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  lastLoginAt       DateTime? @map("last_login_at")
+
+  goals UserGoal[]
+
+  @@map("user_profiles")
+}
+
+model UserGoal {
+  id                 Int      @id @default(autoincrement())
+  userId             String   @map("user_id") @db.Uuid
+  fiscalYear         Int      @map("fiscal_year")
+  revenueTarget      Decimal? @map("revenue_target") @db.Decimal(15, 2)
+  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
+  pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  newDistrictsTarget Int?     @map("new_districts_target")
+  drawDownTarget     Decimal? @map("draw_down_target") @db.Decimal(15, 2)
+  quotaTarget        Decimal? @map("quota_target") @db.Decimal(15, 2)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fiscalYear])
+  @@index([userId])
+  @@map("user_goals")
 }
