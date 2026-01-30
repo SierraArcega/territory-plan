@@ -121,7 +121,8 @@ export async function GET(
       territoryPlanIds: district.territoryPlans.map((tp) => tp.planId),
 
       // Education data (now on district)
-      educationData: district.financeDataYear != null ? {
+      // Include if ANY education data exists (finance, staff, poverty, or graduation)
+      educationData: (district.financeDataYear != null || district.staffDataYear != null || district.saipeDataYear != null || district.graduationDataYear != null) ? {
         leaid: district.leaid,
         totalRevenue: toNumber(district.totalRevenue),
         federalRevenue: toNumber(district.federalRevenue),

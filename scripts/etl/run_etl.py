@@ -34,7 +34,7 @@ from loaders.fullmind import (
     load_fullmind_csv,
     get_valid_leaids,
     categorize_records,
-    insert_fullmind_data,
+    update_districts_with_fullmind_data,
     insert_unmatched_accounts,
     generate_match_report,
 )
@@ -297,8 +297,8 @@ def run_fullmind_etl(
     # Categorize
     matched, unmatched = categorize_records(records, valid_leaids)
 
-    # Insert data
-    insert_fullmind_data(connection_string, matched)
+    # Update districts with Fullmind data
+    update_districts_with_fullmind_data(connection_string, matched)
     insert_unmatched_accounts(connection_string, unmatched)
 
     # Generate report
@@ -456,12 +456,23 @@ Examples:
 
     args = parser.parse_args()
 
-    # Get connection string
-    connection_string = os.environ.get("DATABASE_URL")
+    # Get connection string - prefer DIRECT_URL for Python scripts (no pgbouncer)
+    connection_string = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
     if not connection_string:
-        print("Error: DATABASE_URL environment variable not set")
+        print("Error: DIRECT_URL or DATABASE_URL environment variable not set")
         print("Set it in .env file or environment")
         sys.exit(1)
+
+    # Strip Supabase-specific query params that psycopg2 doesn't understand
+    if "?" in connection_string:
+        base_url = connection_string.split("?")[0]
+        params = connection_string.split("?")[1] if "?" in connection_string else ""
+        # Keep only standard postgres params, remove pgbouncer, sslmode if causing issues
+        valid_params = []
+        for param in params.split("&"):
+            if param and not param.startswith("pgbouncer"):
+                valid_params.append(param)
+        connection_string = base_url + ("?" + "&".join(valid_params) if valid_params else "")
 
     # Verify database
     if not verify_database_connection(connection_string):

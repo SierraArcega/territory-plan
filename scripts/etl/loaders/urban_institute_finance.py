@@ -1,11 +1,15 @@
 """
 Urban Institute Finance Data API Loader
 
-Fetches school district finance data from the Urban Institute's Education Data Portal API.
+Fetches school district finance data from the Urban Institute's Education Data Portal API
+and updates the districts table directly.
 Includes revenue sources (federal/state/local) and per-pupil expenditure.
 
 API Docs: https://educationdata.urban.org/documentation/
 Endpoint: /school-districts/ccd/finance/{year}/
+
+Note: As of Jan 2026, finance data is stored directly on the districts table
+(consolidated schema) rather than a separate district_education_data table.
 """
 
 import os
@@ -112,7 +116,7 @@ def upsert_finance_data(
     batch_size: int = 1000,
 ) -> dict:
     """
-    Upsert finance data into district_education_data table.
+    Update districts table with finance data.
 
     Args:
         connection_string: PostgreSQL connection string
@@ -162,62 +166,40 @@ def upsert_finance_data(
         if is_valid(r.get("total_revenue")) or is_valid(r.get("salaries_total"))
     ]
 
-    upsert_sql = """
-        INSERT INTO district_education_data (
-            leaid, total_revenue, federal_revenue, state_revenue, local_revenue,
-            total_expenditure, expenditure_per_pupil, finance_data_year,
-            salaries_total, salaries_instruction, salaries_teachers_regular,
-            salaries_teachers_special_ed, salaries_teachers_vocational, salaries_teachers_other,
-            salaries_support_admin, salaries_support_instructional, benefits_total,
-            created_at, updated_at
+    # Create temp table for efficient bulk updates
+    cur.execute("""
+        CREATE TEMP TABLE finance_updates (
+            leaid VARCHAR(7) PRIMARY KEY,
+            total_revenue NUMERIC,
+            federal_revenue NUMERIC,
+            state_revenue NUMERIC,
+            local_revenue NUMERIC,
+            total_expenditure NUMERIC,
+            expenditure_per_pupil NUMERIC,
+            finance_data_year INTEGER,
+            salaries_total NUMERIC,
+            salaries_instruction NUMERIC,
+            salaries_teachers_regular NUMERIC,
+            salaries_teachers_special_ed NUMERIC,
+            salaries_teachers_vocational NUMERIC,
+            salaries_teachers_other NUMERIC,
+            salaries_support_admin NUMERIC,
+            salaries_support_instructional NUMERIC,
+            benefits_total NUMERIC
         )
-        SELECT v.leaid::varchar(7),
-               v.total_revenue::numeric,
-               v.federal_revenue::numeric,
-               v.state_revenue::numeric,
-               v.local_revenue::numeric,
-               v.total_expenditure::numeric,
-               v.expenditure_per_pupil::numeric,
-               v.finance_data_year::integer,
-               v.salaries_total::numeric,
-               v.salaries_instruction::numeric,
-               v.salaries_teachers_regular::numeric,
-               v.salaries_teachers_special_ed::numeric,
-               v.salaries_teachers_vocational::numeric,
-               v.salaries_teachers_other::numeric,
-               v.salaries_support_admin::numeric,
-               v.salaries_support_instructional::numeric,
-               v.benefits_total::numeric,
-               NOW(), NOW()
-        FROM (VALUES %s) AS v(
+    """)
+
+    insert_temp_sql = """
+        INSERT INTO finance_updates (
             leaid, total_revenue, federal_revenue, state_revenue, local_revenue,
             total_expenditure, expenditure_per_pupil, finance_data_year,
             salaries_total, salaries_instruction, salaries_teachers_regular,
             salaries_teachers_special_ed, salaries_teachers_vocational, salaries_teachers_other,
             salaries_support_admin, salaries_support_instructional, benefits_total
-        )
-        WHERE v.leaid IN (SELECT leaid FROM districts)
-        ON CONFLICT (leaid) DO UPDATE SET
-            total_revenue = EXCLUDED.total_revenue,
-            federal_revenue = EXCLUDED.federal_revenue,
-            state_revenue = EXCLUDED.state_revenue,
-            local_revenue = EXCLUDED.local_revenue,
-            total_expenditure = EXCLUDED.total_expenditure,
-            expenditure_per_pupil = EXCLUDED.expenditure_per_pupil,
-            finance_data_year = EXCLUDED.finance_data_year,
-            salaries_total = EXCLUDED.salaries_total,
-            salaries_instruction = EXCLUDED.salaries_instruction,
-            salaries_teachers_regular = EXCLUDED.salaries_teachers_regular,
-            salaries_teachers_special_ed = EXCLUDED.salaries_teachers_special_ed,
-            salaries_teachers_vocational = EXCLUDED.salaries_teachers_vocational,
-            salaries_teachers_other = EXCLUDED.salaries_teachers_other,
-            salaries_support_admin = EXCLUDED.salaries_support_admin,
-            salaries_support_instructional = EXCLUDED.salaries_support_instructional,
-            benefits_total = EXCLUDED.benefits_total,
-            updated_at = NOW()
+        ) VALUES %s
     """
 
-    # Prepare values - only include records that have matching districts
+    # Prepare values
     values = [
         (
             r["leaid"],
@@ -244,27 +226,55 @@ def upsert_finance_data(
     updated_count = 0
     failed_count = 0
 
-    print(f"Upserting {len(values)} finance records...")
+    print(f"Loading {len(values)} finance records into temp table...")
 
-    for i in tqdm(range(0, len(values), batch_size), desc="Upserting finance data"):
+    for i in tqdm(range(0, len(values), batch_size), desc="Loading temp table"):
         batch = values[i:i+batch_size]
         try:
             execute_values(
-                cur, upsert_sql, batch,
+                cur, insert_temp_sql, batch,
                 template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             )
-            updated_count += cur.rowcount
         except Exception as e:
             print(f"Error in batch {i//batch_size}: {e}")
             failed_count += len(batch)
             conn.rollback()
             continue
 
+    # Bulk update districts from temp table
+    print("Updating districts table...")
+    cur.execute("""
+        UPDATE districts d SET
+            total_revenue = u.total_revenue,
+            federal_revenue = u.federal_revenue,
+            state_revenue = u.state_revenue,
+            local_revenue = u.local_revenue,
+            total_expenditure = u.total_expenditure,
+            expenditure_per_pupil = u.expenditure_per_pupil,
+            finance_data_year = u.finance_data_year,
+            salaries_total = u.salaries_total,
+            salaries_instruction = u.salaries_instruction,
+            salaries_teachers_regular = u.salaries_teachers_regular,
+            salaries_teachers_special_ed = u.salaries_teachers_special_ed,
+            salaries_teachers_vocational = u.salaries_teachers_vocational,
+            salaries_teachers_other = u.salaries_teachers_other,
+            salaries_support_admin = u.salaries_support_admin,
+            salaries_support_instructional = u.salaries_support_instructional,
+            benefits_total = u.benefits_total
+        FROM finance_updates u
+        WHERE d.leaid = u.leaid
+    """)
+    updated_count = cur.rowcount
+    print(f"Updated {updated_count} district records")
+
+    # Drop temp table
+    cur.execute("DROP TABLE finance_updates")
+
     conn.commit()
 
     # Get count of records with finance data
     cur.execute("""
-        SELECT COUNT(*) FROM district_education_data
+        SELECT COUNT(*) FROM districts
         WHERE expenditure_per_pupil IS NOT NULL
     """)
     total_with_finance = cur.fetchone()[0]
