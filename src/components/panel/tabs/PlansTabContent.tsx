@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useTerritoryPlans } from "@/lib/api";
+import { useTerritoryPlans, useCreateTerritoryPlan } from "@/lib/api";
 import PlanDashboard from "../plans/PlanDashboard";
+import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
 
 type PlanView = { type: "list" } | { type: "dashboard"; planId: string };
 
@@ -13,6 +14,21 @@ interface PlansTabContentProps {
 export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const [view, setView] = useState<PlanView>({ type: "list" });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const createPlan = useCreateTerritoryPlan();
+
+  const handleCreatePlan = async (data: PlanFormData) => {
+    await createPlan.mutateAsync({
+      name: data.name,
+      description: data.description || undefined,
+      owner: data.owner || undefined,
+      color: data.color,
+      status: data.status,
+      startDate: data.startDate || undefined,
+      endDate: data.endDate || undefined,
+    });
+    // Modal closes automatically on submit success via PlanFormModal
+  };
 
   if (isLoading) {
     return (
@@ -59,7 +75,7 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
           Create a plan to organize your target districts
         </p>
         <button
-          onClick={() => {/* Create modal will be added in Task 9 */}}
+          onClick={() => setShowCreateModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,6 +83,12 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
           </svg>
           Create Plan
         </button>
+        <PlanFormModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreatePlan}
+          title="Create Territory Plan"
+        />
       </div>
     );
   }
@@ -169,7 +191,7 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
       {/* Create plan CTA */}
       <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50">
         <button
-          onClick={() => {/* Create modal will be added in Task 9 */}}
+          onClick={() => setShowCreateModal(true)}
           className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,6 +200,12 @@ export default function PlansTabContent({ stateCode }: PlansTabContentProps) {
           Create New Plan
         </button>
       </div>
+      <PlanFormModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreatePlan}
+        title="Create Territory Plan"
+      />
     </div>
   );
 }
