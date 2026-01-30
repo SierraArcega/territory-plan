@@ -775,3 +775,111 @@ export function useUpdateState() {
     },
   });
 }
+
+// ===== User Profile & Goals =====
+
+// User goal with targets and calculated actuals for progress tracking
+export interface UserGoal {
+  id: number;
+  fiscalYear: number;
+  revenueTarget: number | null;
+  takeTarget: number | null;
+  pipelineTarget: number | null;
+  newDistrictsTarget: number | null;
+  // Calculated actuals from territory plan districts
+  revenueActual: number;
+  takeActual: number;
+  pipelineActual: number;
+  newDistrictsActual: number;
+}
+
+// User profile synced from Supabase Auth
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  hasCompletedSetup: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string | null;
+  goals: UserGoal[];
+}
+
+// Get user profile - also upserts profile on first call
+export function useProfile() {
+  return useQuery({
+    queryKey: ["profile"],
+    queryFn: () => fetchJson<UserProfile>(`${API_BASE}/profile`),
+    staleTime: 2 * 60 * 1000, // 2 minutes - profile may change during session
+  });
+}
+
+// Update user profile (fullName, hasCompletedSetup)
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { fullName?: string; hasCompletedSetup?: boolean }) =>
+      fetchJson<UserProfile>(`${API_BASE}/profile`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+// Create or update a user goal (upserts by fiscalYear)
+export function useUpsertUserGoal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      fiscalYear: number;
+      revenueTarget?: number | null;
+      takeTarget?: number | null;
+      pipelineTarget?: number | null;
+      newDistrictsTarget?: number | null;
+    }) =>
+      fetchJson<UserGoal>(`${API_BASE}/profile/goals`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+// Delete a user goal
+export function useDeleteUserGoal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (fiscalYear: number) =>
+      fetchJson<{ success: boolean }>(`${API_BASE}/profile/goals/${fiscalYear}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
+// Logout user
+export function useLogout() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<{ success: boolean }>(`${API_BASE}/auth/logout`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      // Clear all cached data on logout
+      queryClient.clear();
+    },
+  });
+}
