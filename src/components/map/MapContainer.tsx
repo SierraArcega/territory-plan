@@ -19,6 +19,9 @@ const US_BOUNDS: maplibregl.LngLatBoundsLike = [
   [-66, 50], // Northeast
 ];
 
+// Panel width constant for viewport calculations
+const PANEL_WIDTH = 420;
+
 // State bounding boxes for zoom (approximate centers and zoom levels)
 const STATE_BOUNDS: Record<string, { center: [number, number]; zoom: number }> = {
   AL: { center: [-86.9, 32.8], zoom: 6.5 },
