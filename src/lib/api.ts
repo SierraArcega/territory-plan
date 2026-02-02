@@ -92,6 +92,8 @@ export interface Contact {
   linkedinUrl: string | null;
   persona: string | null;
   seniorityLevel: string | null;
+  createdAt: string;
+  lastEnrichedAt: string | null;
 }
 
 export interface DistrictEducationData {
