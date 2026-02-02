@@ -175,6 +175,7 @@ export async function POST(request: NextRequest) {
               linkedinUrl: linkedinUrl || existing.linkedinUrl,
               seniorityLevel: seniorityLevel || existing.seniorityLevel,
               persona: persona || existing.persona,
+              lastEnrichedAt: new Date(),
             },
           });
           contactsUpdated++;
@@ -191,6 +192,7 @@ export async function POST(request: NextRequest) {
               seniorityLevel,
               persona,
               isPrimary: false,
+              lastEnrichedAt: new Date(),
             },
           });
           contactsCreated++;
@@ -214,6 +216,7 @@ export async function POST(request: NextRequest) {
               linkedinUrl: linkedinUrl || existing.linkedinUrl,
               seniorityLevel: seniorityLevel || existing.seniorityLevel,
               persona: persona || existing.persona,
+              lastEnrichedAt: new Date(),
             },
           });
           contactsUpdated++;
@@ -229,6 +232,7 @@ export async function POST(request: NextRequest) {
               seniorityLevel,
               persona,
               isPrimary: false,
+              lastEnrichedAt: new Date(),
             },
           });
           contactsCreated++;
