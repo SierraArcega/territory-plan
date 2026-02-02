@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useDistrictDetail, useStateDetail } from "@/lib/api";
 import { useMapStore } from "@/lib/store";
 import StateDistrictsList from "../state/StateDistrictsList";
@@ -17,19 +18,186 @@ import CompetitorSpend from "../CompetitorSpend";
 import NotesEditor from "../NotesEditor";
 import TagsEditor from "../TagsEditor";
 import ContactsList from "../ContactsList";
+import type { DistrictDetail } from "@/lib/api";
+
+type DistrictSubTab = "info" | "data" | "contacts";
 
 interface DistrictTabContentProps {
   leaid: string | null;
   stateCode: string | null;
 }
 
+// Tab button component
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+        active
+          ? "text-[#F37167]"
+          : "text-gray-500 hover:text-[#403770]"
+      }`}
+    >
+      {children}
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F37167]" />
+      )}
+    </button>
+  );
+}
+
+// Sub-tabs bar component
+function DistrictSubTabs({
+  activeTab,
+  onTabChange,
+  contactsCount,
+}: {
+  activeTab: DistrictSubTab;
+  onTabChange: (tab: DistrictSubTab) => void;
+  contactsCount: number;
+}) {
+  return (
+    <div className="flex border-b border-gray-200 bg-white px-2">
+      <TabButton
+        active={activeTab === "info"}
+        onClick={() => onTabChange("info")}
+      >
+        District Info
+      </TabButton>
+      <TabButton
+        active={activeTab === "data"}
+        onClick={() => onTabChange("data")}
+      >
+        Data + Demographics
+      </TabButton>
+      <TabButton
+        active={activeTab === "contacts"}
+        onClick={() => onTabChange("contacts")}
+      >
+        Contacts ({contactsCount})
+      </TabButton>
+    </div>
+  );
+}
+
+// Tab 1: District Info content
+function DistrictInfoTab({
+  data,
+  leaid,
+}: {
+  data: DistrictDetail;
+  leaid: string;
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto">
+      {/* Fullmind Data */}
+      {data.fullmindData && (
+        <FullmindMetrics fullmindData={data.fullmindData} />
+      )}
+
+      {/* Competitor Spend */}
+      <CompetitorSpend leaid={leaid} />
+
+      {/* Action Buttons */}
+      <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex gap-2">
+        <AddToPlanButton
+          leaid={leaid}
+          existingPlanIds={data.territoryPlanIds}
+        />
+        <FindSimilarDistricts
+          district={data.district}
+          educationData={data.educationData}
+          enrollmentDemographics={data.enrollmentDemographics}
+        />
+      </div>
+
+      {/* District Info */}
+      <DistrictInfo district={data.district} />
+
+      {/* Tags Editor */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <TagsEditor leaid={leaid} tags={data.tags} />
+      </div>
+
+      {/* Notes Editor */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <NotesEditor leaid={leaid} edits={data.edits} />
+      </div>
+    </div>
+  );
+}
+
+// Tab 2: Data + Demographics content
+function DataDemographicsTab({ data }: { data: DistrictDetail }) {
+  return (
+    <div className="flex-1 overflow-y-auto">
+      {/* Demographics Chart */}
+      {data.enrollmentDemographics && (
+        <DemographicsChart demographics={data.enrollmentDemographics} />
+      )}
+
+      {/* Student Populations */}
+      <StudentPopulations
+        district={data.district}
+        educationData={data.educationData}
+      />
+
+      {/* Academic Metrics */}
+      {data.educationData && (
+        <AcademicMetrics educationData={data.educationData} />
+      )}
+
+      {/* Finance Data */}
+      {data.educationData && (
+        <FinanceData educationData={data.educationData} />
+      )}
+
+      {/* Staffing/Salaries */}
+      {data.educationData && (
+        <StaffingSalaries educationData={data.educationData} />
+      )}
+    </div>
+  );
+}
+
+// Tab 3: Contacts content
+function ContactsTab({
+  leaid,
+  contacts,
+}: {
+  leaid: string;
+  contacts: DistrictDetail["contacts"];
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="px-6 py-4">
+        <ContactsList leaid={leaid} contacts={contacts} />
+      </div>
+    </div>
+  );
+}
+
 export default function DistrictTabContent({ leaid, stateCode }: DistrictTabContentProps) {
+  const [activeSubTab, setActiveSubTab] = useState<DistrictSubTab>("info");
   const { data, isLoading, error } = useDistrictDetail(leaid);
   const goBackToDistrictsList = useMapStore((s) => s.goBackToDistrictsList);
 
   // Get state name for back link - must be called unconditionally (hooks rule)
   const districtStateAbbrev = data?.district.stateAbbrev || stateCode;
   const { data: stateData } = useStateDetail(districtStateAbbrev);
+
+  // Reset to "info" tab when switching districts
+  useEffect(() => {
+    setActiveSubTab("info");
+  }, [leaid]);
 
   // Case 1: No leaid and no stateCode - show empty state
   if (!leaid && !stateCode) {
@@ -65,7 +233,7 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
     );
   }
 
-  // Case 3: Have leaid - show district detail (existing code)
+  // Case 3: Have leaid - show district detail
   // TypeScript narrowing: at this point leaid must be non-null
   if (!leaid) {
     return null;
@@ -95,7 +263,7 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full flex flex-col">
       {/* Back to state districts link - only show if we have state context */}
       {stateCode && (
         <button
@@ -109,66 +277,30 @@ export default function DistrictTabContent({ leaid, stateCode }: DistrictTabCont
         </button>
       )}
 
-      {/* Group 1: Identity */}
+      {/* District Header - always visible */}
       <DistrictHeader
         district={data.district}
         fullmindData={data.fullmindData}
         tags={data.tags}
       />
 
-      {/* Fullmind Data - First section if exists */}
-      {data.fullmindData && (
-        <FullmindMetrics fullmindData={data.fullmindData} />
-      )}
-
-      {/* Competitor Spend - after Fullmind data */}
-      <CompetitorSpend leaid={leaid} />
-
-      {/* Action Buttons */}
-      <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex gap-2">
-        <AddToPlanButton
-          leaid={leaid}
-          existingPlanIds={data.territoryPlanIds}
-        />
-        <FindSimilarDistricts
-          district={data.district}
-          educationData={data.educationData}
-          enrollmentDemographics={data.enrollmentDemographics}
-        />
-      </div>
-
-      <DistrictInfo district={data.district} />
-
-      {/* Group 2: Student Body */}
-      {data.enrollmentDemographics && (
-        <DemographicsChart demographics={data.enrollmentDemographics} />
-      )}
-      <StudentPopulations
-        district={data.district}
-        educationData={data.educationData}
+      {/* Tab bar - fixed below header */}
+      <DistrictSubTabs
+        activeTab={activeSubTab}
+        onTabChange={setActiveSubTab}
+        contactsCount={data.contacts.length}
       />
-      {data.educationData && (
-        <AcademicMetrics educationData={data.educationData} />
-      )}
 
-      {/* Group 3: Financial */}
-      {data.educationData && (
-        <FinanceData educationData={data.educationData} />
+      {/* Tab content - scrolls independently */}
+      {activeSubTab === "info" && (
+        <DistrictInfoTab data={data} leaid={leaid} />
       )}
-      {data.educationData && (
-        <StaffingSalaries educationData={data.educationData} />
+      {activeSubTab === "data" && (
+        <DataDemographicsTab data={data} />
       )}
-
-      {/* Group 4: Sales/CRM */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <TagsEditor leaid={leaid} tags={data.tags} />
-      </div>
-      <div className="px-6 py-4 border-b border-gray-100">
-        <NotesEditor leaid={leaid} edits={data.edits} />
-      </div>
-      <div className="px-6 py-4">
-        <ContactsList leaid={leaid} contacts={data.contacts} />
-      </div>
+      {activeSubTab === "contacts" && (
+        <ContactsTab leaid={leaid} contacts={data.contacts} />
+      )}
     </div>
   );
 }
