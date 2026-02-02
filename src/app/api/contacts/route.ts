@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { leaid, name, title, email, phone, isPrimary } = body;
+    const { leaid, salutation, name, title, email, phone, isPrimary, linkedinUrl, persona, seniorityLevel } = body;
 
     if (!leaid || !name) {
       return NextResponse.json(
@@ -38,11 +38,15 @@ export async function POST(request: NextRequest) {
     const contact = await prisma.contact.create({
       data: {
         leaid,
+        salutation: salutation || null,
         name,
         title: title || null,
         email: email || null,
         phone: phone || null,
         isPrimary: isPrimary || false,
+        linkedinUrl: linkedinUrl || null,
+        persona: persona || null,
+        seniorityLevel: seniorityLevel || null,
       },
     });
 

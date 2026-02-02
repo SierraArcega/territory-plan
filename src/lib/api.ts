@@ -83,11 +83,15 @@ export interface Service {
 export interface Contact {
   id: number;
   leaid: string;
+  salutation: string | null;
   name: string;
   title: string | null;
   email: string | null;
   phone: string | null;
   isPrimary: boolean;
+  linkedinUrl: string | null;
+  persona: string | null;
+  seniorityLevel: string | null;
 }
 
 export interface DistrictEducationData {
@@ -409,6 +413,35 @@ export function useDeleteContact() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+    },
+  });
+}
+
+// Clay contact lookup - triggers Clay webhook to find and enrich contacts
+export interface ClayLookupResponse {
+  success: boolean;
+  message: string;
+  district?: {
+    leaid: string;
+    name: string;
+    state: string | null;
+  };
+  error?: string;
+}
+
+export function useTriggerClayLookup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (leaid: string) =>
+      fetchJson<ClayLookupResponse>(`${API_BASE}/contacts/clay-lookup`, {
+        method: "POST",
+        body: JSON.stringify({ leaid }),
+      }),
+    onSuccess: (_, leaid) => {
+      // Invalidate district query to refetch contacts once Clay responds
+      // Note: Contacts will appear after Clay processes and calls our webhook
+      queryClient.invalidateQueries({ queryKey: ["district", leaid] });
     },
   });
 }
