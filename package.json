@@ -16,6 +16,7 @@
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
+    "@opensearch-project/opensearch": "^3.5.1",
     "@prisma/client": "^5.22.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
