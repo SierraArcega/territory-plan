@@ -133,6 +133,11 @@ model District {
   totalEnrollment           Int? @map("total_enrollment")
   demographicsDataYear      Int? @map("demographics_data_year")
 
+  // ===== External Links =====
+  // Source: District links CSV via ETL
+  websiteUrl  String? @map("website_url") @db.VarChar(255)
+  jobBoardUrl String? @map("job_board_url") @db.VarChar(1000)
+
   // ===== User Edits =====
   // Source: App users (shared across team)
   notes          String?

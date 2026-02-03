@@ -23,6 +23,9 @@ export interface District {
   numberOfSchools: number | null;
   specEdStudents: number | null;
   ellStudents: number | null;
+  // External links
+  websiteUrl: string | null;
+  jobBoardUrl: string | null;
 }
 
 export interface FullmindData {

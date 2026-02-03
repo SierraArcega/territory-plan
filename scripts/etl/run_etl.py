@@ -39,6 +39,13 @@ from loaders.fullmind import (
     insert_unmatched_accounts,
     generate_match_report,
 )
+from loaders.district_links import (
+    load_district_links_csv,
+    get_valid_leaids as get_valid_leaids_links,
+    categorize_records as categorize_links,
+    update_district_links,
+    generate_report as generate_links_report,
+)
 
 
 def verify_database_connection(connection_string: str) -> bool:
@@ -309,6 +316,45 @@ def run_fullmind_etl(
     return summary
 
 
+def run_district_links_etl(
+    connection_string: str,
+    csv_path: Path,
+    output_dir: str = "./reports",
+) -> dict:
+    """
+    Run District Links CSV ETL.
+
+    Returns match summary dict.
+    """
+    print("\n" + "="*60)
+    print("Loading District Links Data")
+    print("="*60)
+
+    if not csv_path.exists():
+        raise FileNotFoundError(f"District links CSV not found: {csv_path}")
+
+    print(f"Loading from: {csv_path}")
+
+    # Parse CSV
+    records = load_district_links_csv(csv_path)
+
+    # Get valid LEAIDs
+    valid_leaids = get_valid_leaids_links(connection_string)
+    print(f"Found {len(valid_leaids)} valid district LEAIDs in database")
+
+    # Categorize
+    matched, unmatched = categorize_links(records, valid_leaids)
+
+    # Update districts with links
+    update_district_links(connection_string, matched)
+
+    # Generate report
+    output_path = Path(output_dir)
+    summary = generate_links_report(matched, unmatched, output_path)
+
+    return summary
+
+
 def print_database_stats(connection_string: str):
     """Print summary statistics from database."""
     import psycopg2
@@ -444,6 +490,8 @@ Examples:
                         help="Run all education data ETL (finance, poverty, demographics, graduation, staff)")
     parser.add_argument("--fullmind", type=str,
                         help="Run Fullmind CSV ETL with specified file")
+    parser.add_argument("--district-links", type=str,
+                        help="Run District Links CSV ETL with specified file (website & job board URLs)")
     parser.add_argument("--seed-states", action="store_true",
                         help="Seed states table with reference data (FIPS, abbreviations, names)")
     parser.add_argument("--refresh-states", action="store_true",
@@ -496,8 +544,8 @@ Examples:
     # Check if any ETL step specified
     any_step = (
         args.all or args.boundaries or args.enrollment or args.fullmind or
-        args.finance or args.poverty or args.demographics or args.graduation or
-        args.staff or args.county_income or args.education_data or
+        args.district_links or args.finance or args.poverty or args.demographics or
+        args.graduation or args.staff or args.county_income or args.education_data or
         args.seed_states or args.refresh_states
     )
     if not any_step:
@@ -546,6 +594,14 @@ Examples:
         run_fullmind_etl(
             connection_string,
             csv_path=Path(args.fullmind),
+            output_dir=args.output_dir
+        )
+
+    # District Links ETL
+    if args.district_links:
+        run_district_links_etl(
+            connection_string,
+            csv_path=Path(args.district_links),
             output_dir=args.output_dir
         )
 
