@@ -1,4 +1,8 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+// Navigation tab types - these match the sidebar tabs
+export type TabId = "map" | "plans" | "goals" | "data" | "profile";
 
 export type StatusFilter = "all" | "customer" | "pipeline" | "customer_pipeline" | "no_data";
 export type MetricType =
@@ -55,6 +59,10 @@ export interface ClickRipple {
 export type PanelType = 'district' | 'state' | null;
 
 interface MapState {
+  // Navigation state - which tab is active and sidebar collapse state
+  activeTab: TabId;
+  sidebarCollapsed: boolean;
+  // Map-specific state
   selectedLeaid: string | null;
   hoveredLeaid: string | null;
   metricType: MetricType;
@@ -81,6 +89,10 @@ interface MapState {
 }
 
 interface MapActions {
+  // Navigation actions
+  setActiveTab: (tab: TabId) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  // Map/district actions
   setSelectedLeaid: (leaid: string | null) => void;
   setHoveredLeaid: (leaid: string | null) => void;
   setMetricType: (metric: MetricType) => void;
@@ -136,27 +148,36 @@ const initialTooltip: TooltipState = {
 // Counter for generating unique ripple IDs
 let rippleIdCounter = 0;
 
-export const useMapStore = create<MapState & MapActions>((set) => ({
-  // State
-  selectedLeaid: null,
-  hoveredLeaid: null,
-  metricType: "net_invoicing",
-  fiscalYear: "fy26",
-  filters: initialFilters,
-  sidePanelOpen: false,
-  activePanelType: null,
-  selectedStateCode: null,
-  tooltip: initialTooltip,
-  clickRipples: [],
-  touchPreviewLeaid: null,
-  multiSelectMode: false,
-  selectedLeaids: new Set<string>(),
-  currentPlanId: null,
-  similarDistrictLeaids: [],
-  vendorLayerVisible: false,
+export const useMapStore = create<MapState & MapActions>()(
+  persist(
+    (set) => ({
+      // Navigation state
+      activeTab: "map" as TabId,
+      sidebarCollapsed: false,
+      // Map state
+      selectedLeaid: null,
+      hoveredLeaid: null,
+      metricType: "net_invoicing",
+      fiscalYear: "fy26",
+      filters: initialFilters,
+      sidePanelOpen: false,
+      activePanelType: null,
+      selectedStateCode: null,
+      tooltip: initialTooltip,
+      clickRipples: [],
+      touchPreviewLeaid: null,
+      multiSelectMode: false,
+      selectedLeaids: new Set<string>(),
+      currentPlanId: null,
+      similarDistrictLeaids: [],
+      vendorLayerVisible: false,
 
-  // Actions
-  setSelectedLeaid: (leaid) =>
+      // Navigation actions
+      setActiveTab: (tab) => set({ activeTab: tab }),
+      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+
+      // Map/district actions
+      setSelectedLeaid: (leaid) =>
     set({
       selectedLeaid: leaid,
       sidePanelOpen: leaid !== null,
@@ -267,7 +288,17 @@ export const useMapStore = create<MapState & MapActions>((set) => ({
   // Vendor layer toggle
   toggleVendorLayer: () =>
     set((s) => ({ vendorLayerVisible: !s.vendorLayerVisible })),
-}));
+    }),
+    {
+      name: "territory-plan-storage",
+      // Only persist navigation preferences, not transient UI state
+      partialize: (state) => ({
+        sidebarCollapsed: state.sidebarCollapsed,
+        // Don't persist activeTab - we'll sync with URL instead
+      }),
+    }
+  )
+);
 
 // Selector helpers
 export const selectFilters = (state: MapState) => state.filters;
@@ -280,4 +311,10 @@ export const selectPanelState = (state: MapState) => ({
   selectedStateCode: state.selectedStateCode,
   selectedLeaid: state.selectedLeaid,
   sidePanelOpen: state.sidePanelOpen,
+});
+
+// Navigation state selector
+export const selectNavigation = (state: MapState) => ({
+  activeTab: state.activeTab,
+  sidebarCollapsed: state.sidebarCollapsed,
 });
