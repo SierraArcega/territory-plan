@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import {
   useReconciliationUnmatched,
   useReconciliationFragmented,
   ReconciliationFilters,
   ReconciliationUnmatchedAccount,
+  ReconciliationFragmentedDistrict,
 } from "@/lib/api";
 
 type TabType = "unmatched" | "fragmented";
@@ -126,11 +127,9 @@ export default function DataView() {
           <UnmatchedTable data={unmatchedData} searchTerm={searchTerm} />
         )}
 
-        {/* Fragmented placeholder */}
-        {!isLoading && !error && activeTab === "fragmented" && (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-            {fragmentedData?.length || 0} fragmented districts (table coming next)
-          </div>
+        {/* Fragmented Accounts Table */}
+        {!isLoading && !error && activeTab === "fragmented" && fragmentedData && (
+          <FragmentedTable data={fragmentedData} searchTerm={searchTerm} />
         )}
       </main>
     </div>
@@ -203,6 +202,139 @@ function UnmatchedTable({
                 {row.opportunity_count}
               </td>
             </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FragmentedTable({
+  data,
+  searchTerm,
+}: {
+  data: ReconciliationFragmentedDistrict[];
+  searchTerm: string;
+}) {
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  const filtered = data.filter(
+    (item) =>
+      item.district_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.nces_id.includes(searchTerm) ||
+      item.account_variants.some((v) =>
+        v.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+  );
+
+  if (filtered.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+        No account fragmentation issues found.
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <table className="w-full">
+        <thead className="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              NCES ID
+            </th>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              District Name
+            </th>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              State
+            </th>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              Account Variants
+            </th>
+            <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+              Similarity
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((row) => (
+            <Fragment key={row.nces_id}>
+              <tr
+                onClick={() =>
+                  setExpandedRow(expandedRow === row.nces_id ? null : row.nces_id)
+                }
+                className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+              >
+                <td className="px-4 py-3 text-sm text-gray-600 font-mono">
+                  {row.nces_id}
+                </td>
+                <td className="px-4 py-3 text-sm text-[#403770] font-medium">
+                  {row.district_name || "Unknown"}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  {row.state || "—"}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  <div className="flex gap-1 flex-wrap">
+                    {row.account_variants.slice(0, 2).map((v, i) => (
+                      <span
+                        key={i}
+                        className={`px-2 py-0.5 rounded text-xs ${
+                          v.source === "sessions"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {v.name.length > 25 ? v.name.slice(0, 25) + "..." : v.name}
+                      </span>
+                    ))}
+                    {row.account_variants.length > 2 && (
+                      <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
+                        +{row.account_variants.length - 2} more
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm text-right">
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      row.similarity_score < 0.5
+                        ? "bg-red-100 text-red-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {Math.round(row.similarity_score * 100)}%
+                  </span>
+                </td>
+              </tr>
+              {expandedRow === row.nces_id && (
+                <tr className="bg-gray-50">
+                  <td colSpan={5} className="px-4 py-4">
+                    <div className="text-sm text-gray-600">
+                      <strong className="text-gray-900">All Account Variants:</strong>
+                      <div className="mt-2 space-y-1">
+                        {row.account_variants.map((v, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs ${
+                                v.source === "sessions"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {v.source}
+                            </span>
+                            <span>{v.name}</span>
+                            <span className="text-gray-400">({v.count} records)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>
