@@ -320,7 +320,7 @@ function FragmentedTable({
                       <span
                         key={i}
                         className={`px-2 py-0.5 rounded text-xs ${
-                          v.source === "sessions"
+                          v.source === "districts"
                             ? "bg-blue-100 text-blue-700"
                             : "bg-amber-100 text-amber-700"
                         }`}
@@ -357,7 +357,7 @@ function FragmentedTable({
                           <div key={i} className="flex items-center gap-2">
                             <span
                               className={`px-2 py-0.5 rounded text-xs ${
-                                v.source === "sessions"
+                                v.source === "districts"
                                   ? "bg-blue-100 text-blue-700"
                                   : "bg-amber-100 text-amber-700"
                               }`}
