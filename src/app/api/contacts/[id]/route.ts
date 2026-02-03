@@ -19,7 +19,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, title, email, phone, isPrimary } = body;
+    const { salutation, name, title, email, phone, isPrimary, linkedinUrl, persona, seniorityLevel } = body;
 
     // Get existing contact
     const existing = await prisma.contact.findUnique({
@@ -44,11 +44,15 @@ export async function PUT(
     const contact = await prisma.contact.update({
       where: { id: contactId },
       data: {
+        salutation: salutation !== undefined ? salutation : undefined,
         name: name !== undefined ? name : undefined,
         title: title !== undefined ? title : undefined,
         email: email !== undefined ? email : undefined,
         phone: phone !== undefined ? phone : undefined,
         isPrimary: isPrimary !== undefined ? isPrimary : undefined,
+        linkedinUrl: linkedinUrl !== undefined ? linkedinUrl : undefined,
+        persona: persona !== undefined ? persona : undefined,
+        seniorityLevel: seniorityLevel !== undefined ? seniorityLevel : undefined,
       },
     });
 
