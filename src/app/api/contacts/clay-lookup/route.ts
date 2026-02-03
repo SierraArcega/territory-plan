@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         state: district.stateAbbrev,
         city: district.cityLocation,
         // Include our webhook URL for Clay to send results back
-        callback_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://territory-plan.vercel.app"}/api/webhooks/clay`,
+        callback_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://plan.fullmindlearning.com"}/api/webhooks/clay`,
       }),
     });
 
