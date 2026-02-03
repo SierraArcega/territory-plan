@@ -1207,6 +1207,40 @@ export interface ReconciliationFilters {
   limit?: number;
 }
 
+// Reconciliation hooks (fetch from FastAPI via proxy)
+export function useReconciliationUnmatched(filters: ReconciliationFilters = {}) {
+  const params = new URLSearchParams();
+  params.set("type", "unmatched");
+  if (filters.state) params.set("state", filters.state);
+  if (filters.salesExec) params.set("salesExec", filters.salesExec);
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  return useQuery({
+    queryKey: ["reconciliation", "unmatched", filters],
+    queryFn: () =>
+      fetchJson<ReconciliationUnmatchedAccount[]>(
+        `${API_BASE}/data/reconciliation?${params}`
+      ),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useReconciliationFragmented(filters: ReconciliationFilters = {}) {
+  const params = new URLSearchParams();
+  params.set("type", "fragmented");
+  if (filters.state) params.set("state", filters.state);
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  return useQuery({
+    queryKey: ["reconciliation", "fragmented", filters],
+    queryFn: () =>
+      fetchJson<ReconciliationFragmentedDistrict[]>(
+        `${API_BASE}/data/reconciliation?${params}`
+      ),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 // Logout user
 export function useLogout() {
   const queryClient = useQueryClient();
