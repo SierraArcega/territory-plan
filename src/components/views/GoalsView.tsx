@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useGoalDashboard, useProfile, useUpsertUserGoal } from "@/lib/api";
+import { useGoalDashboard, useUpsertUserGoal } from "@/lib/api";
+import { useMapStore } from "@/lib/store";
 
 // Get default fiscal year based on current date
+// If we're past June (month >= 6), we're in the next fiscal year
 function getDefaultFiscalYear(): number {
   const now = new Date();
   const month = now.getMonth();
@@ -14,6 +15,7 @@ function getDefaultFiscalYear(): number {
 
 const FISCAL_YEARS = [2025, 2026, 2027, 2028, 2029];
 
+// Format currency with optional compact mode for large numbers
 function formatCurrency(value: number | null | undefined, compact = false): string {
   if (value === null || value === undefined) return "-";
   if (compact && Math.abs(value) >= 1000000) {
@@ -31,6 +33,7 @@ function formatPercent(current: number, target: number | null): string {
   return `${Math.round(percent)}%`;
 }
 
+// Progress card shows a metric with current value, target, and progress bar
 interface ProgressCardProps {
   label: string;
   current: number;
@@ -68,14 +71,14 @@ function ProgressCard({ label, current, target, format = "currency", color }: Pr
   );
 }
 
-// Parse a currency string to number
+// Parse currency string to number (handles $, commas, etc.)
 function parseCurrency(value: string): number | null {
   const cleaned = value.replace(/[^0-9.-]/g, "");
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? null : parsed;
 }
 
-// Tooltip component - positions to the right to avoid container clipping
+// Tooltip with info icon - shows explanation on hover
 function Tooltip({ text }: { text: string }) {
   return (
     <div className="group relative inline-block ml-1">
@@ -100,10 +103,14 @@ function Tooltip({ text }: { text: string }) {
   );
 }
 
-// Constants for goal calculations
+// Constants for goal calculations (matching Fullmind's comp structure)
 const BASE_SALARY = 130000;
 const COMMISSION_RATE = 0.10; // 10% of take
 const PIPELINE_MULTIPLIER = 5; // 5x pipeline to revenue
+
+// ============================================================================
+// Goal Editor Modal - allows users to set/edit their fiscal year goals
+// ============================================================================
 
 interface GoalEditorModalProps {
   isOpen: boolean;
@@ -122,7 +129,7 @@ interface GoalEditorModalProps {
 function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEditorModalProps) {
   const upsertGoalMutation = useUpsertUserGoal();
 
-  // User inputs
+  // User inputs - these drive the calculated goals
   const [earningsTarget, setEarningsTarget] = useState("");
   const [takeRatePercent, setTakeRatePercent] = useState("");
   const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
@@ -143,7 +150,7 @@ function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEdit
     setError(null);
   }, [isOpen, currentGoals]);
 
-  // Calculate derived goals
+  // Calculate derived goals from user inputs
   const earnings = parseCurrency(earningsTarget);
   const takeRate = parseFloat(takeRatePercent) || 0;
 
@@ -361,14 +368,20 @@ function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGoals }: GoalEdit
   );
 }
 
-export default function GoalsDashboardPage() {
+// ============================================================================
+// GoalsView - Main goals dashboard component
+// ============================================================================
+
+export default function GoalsView() {
   const [selectedYear, setSelectedYear] = useState(getDefaultFiscalYear());
   const [showGoalEditor, setShowGoalEditor] = useState(false);
-  const { data: profile } = useProfile();
   const { data: dashboard, isLoading, error } = useGoalDashboard(selectedYear);
 
+  // Get setActiveTab for navigation
+  const setActiveTab = useMapStore((state) => state.setActiveTab);
+
   return (
-    <div className="min-h-screen bg-[#FFFCFA]">
+    <div className="h-full overflow-auto bg-[#FFFCFA]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -378,15 +391,15 @@ export default function GoalsDashboardPage() {
               Track your targets and plan progress
             </p>
           </div>
-          <Link
-            href="/plans"
+          <button
+            onClick={() => setActiveTab("plans")}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             View Plans
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -553,21 +566,21 @@ export default function GoalsDashboardPage() {
                 <h2 className="text-lg font-semibold text-[#403770]">
                   FY{String(selectedYear).slice(-2)} Plans
                 </h2>
-                <Link
-                  href="/plans"
+                <button
+                  onClick={() => setActiveTab("plans")}
                   className="text-sm text-[#403770] hover:text-[#F37167] transition-colors"
                 >
                   View all plans →
-                </Link>
+                </button>
               </div>
 
               {dashboard.plans.length > 0 ? (
                 <div className="space-y-3">
                   {dashboard.plans.map((plan) => (
-                    <Link
+                    <button
                       key={plan.id}
-                      href={`/plans/${plan.id}`}
-                      className="block bg-white rounded-lg border border-gray-200 p-4 hover:border-[#403770] transition-colors"
+                      onClick={() => setActiveTab("plans")}
+                      className="block w-full text-left bg-white rounded-lg border border-gray-200 p-4 hover:border-[#403770] transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -591,7 +604,7 @@ export default function GoalsDashboardPage() {
                           </p>
                         </div>
                       </div>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -612,15 +625,15 @@ export default function GoalsDashboardPage() {
                   <p className="text-gray-500 mb-4">
                     No plans for FY{String(selectedYear).slice(-2)} yet
                   </p>
-                  <Link
-                    href="/plans"
+                  <button
+                    onClick={() => setActiveTab("plans")}
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     Create a Plan
-                  </Link>
+                  </button>
                 </div>
               )}
             </section>
