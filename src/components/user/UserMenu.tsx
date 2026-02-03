@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProfile, useLogout } from "@/lib/api";
+import { useMapStore } from "@/lib/store";
 
 // Generate initials from a name (e.g., "John Smith" -> "JS")
 function getInitials(name: string | null, email: string): string {
@@ -25,6 +25,7 @@ export default function UserMenu() {
 
   const { data: profile, isLoading } = useProfile();
   const logoutMutation = useLogout();
+  const setActiveTab = useMapStore((state) => state.setActiveTab);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -123,12 +124,14 @@ export default function UserMenu() {
             </div>
           </div>
 
-          {/* Menu Items */}
+          {/* Menu Items - navigate via sidebar tabs */}
           <div className="py-1">
-            <Link
-              href="/goals"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            <button
+              onClick={() => {
+                setActiveTab("goals");
+                setIsOpen(false);
+              }}
+              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <svg
                 className="w-4 h-4 text-gray-400"
@@ -144,11 +147,13 @@ export default function UserMenu() {
                 />
               </svg>
               Goals Dashboard
-            </Link>
-            <Link
-              href="/profile"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("profile");
+                setIsOpen(false);
+              }}
+              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <svg
                 className="w-4 h-4 text-gray-400"
@@ -164,7 +169,7 @@ export default function UserMenu() {
                 />
               </svg>
               Profile
-            </Link>
+            </button>
           </div>
 
           {/* Sign Out */}
