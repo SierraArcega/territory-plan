@@ -31,6 +31,38 @@ export default function DataView() {
   const isLoading = activeTab === "unmatched" ? unmatchedLoading : fragmentedLoading;
   const error = activeTab === "unmatched" ? unmatchedError : fragmentedError;
 
+  const handleExport = () => {
+    const data = activeTab === "unmatched" ? unmatchedData : fragmentedData;
+    if (!data) return;
+
+    let csv = "";
+    if (activeTab === "unmatched") {
+      csv = "Account Name,State,Sales Exec,Total Revenue,Opportunity Count\n";
+      csv += (data as ReconciliationUnmatchedAccount[])
+        .map(
+          (row) =>
+            `"${row.account_name}","${row.state || ""}","${row.sales_exec || ""}",${row.total_revenue},${row.opportunity_count}`
+        )
+        .join("\n");
+    } else {
+      csv = "NCES ID,District Name,State,Account Variants,Similarity Score\n";
+      csv += (data as ReconciliationFragmentedDistrict[])
+        .map(
+          (row) =>
+            `"${row.nces_id}","${row.district_name || ""}","${row.state || ""}","${row.account_variants.map((v) => v.name).join("; ")}",${row.similarity_score}`
+        )
+        .join("\n");
+    }
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${activeTab}-accounts-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
       {/* Header */}
@@ -105,6 +137,13 @@ export default function DataView() {
               <option value="FL">Florida</option>
               <option value="IL">Illinois</option>
             </select>
+            <button
+              onClick={handleExport}
+              disabled={!unmatchedData && !fragmentedData}
+              className="px-4 py-2 bg-[#C4E7E6] text-[#403770] rounded-lg font-medium hover:bg-[#b3dbd9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Export CSV
+            </button>
           </div>
         </div>
 
