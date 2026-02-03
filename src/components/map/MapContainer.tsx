@@ -493,7 +493,20 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         filter: ["==", ["get", "leaid"], ""],
       });
 
-      // Selected district highlight layer
+      // Selected district fill layer (subtle fill to show selection)
+      map.current.addLayer({
+        id: "district-selected-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        paint: {
+          "fill-color": "#403770", // Plum
+          "fill-opacity": 0.15,
+        },
+        filter: ["==", ["get", "leaid"], ""],
+      });
+
+      // Selected district highlight layer (outline)
       map.current.addLayer({
         id: "district-selected",
         type: "line",
@@ -501,7 +514,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         "source-layer": "districts",
         paint: {
           "line-color": "#403770", // Plum
-          "line-width": 1.5,
+          "line-width": 3,
         },
         filter: ["==", ["get", "leaid"], ""],
       });
@@ -568,15 +581,18 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     };
   }, []);
 
-  // Update selected district filter
+  // Update selected district filter (both fill and outline layers)
   useEffect(() => {
     if (!map.current?.isStyleLoaded()) return;
 
-    map.current.setFilter("district-selected", [
+    const filter: maplibregl.FilterSpecification = [
       "==",
       ["get", "leaid"],
       selectedLeaid || "",
-    ]);
+    ];
+
+    map.current.setFilter("district-selected-fill", filter);
+    map.current.setFilter("district-selected", filter);
   }, [selectedLeaid]);
 
   // Sync hoveredLeaid from store to map layer
@@ -675,6 +691,45 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       (source as unknown as { setTiles: (tiles: string[]) => void }).setTiles([
         `${window.location.origin}/api/tiles/{z}/{x}/{y}${stateParam}`,
       ]);
+    }
+  }, [selectedState]);
+
+  // Update layer filters when selected state changes - ensures only districts
+  // from the selected state are rendered, even if cached tiles from other states exist
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+
+    // State filter condition (reused across layers)
+    const stateCondition: maplibregl.FilterSpecification = [
+      "==",
+      ["get", "state_abbrev"],
+      selectedState,
+    ];
+
+    // Filter for customer districts (has customer_category)
+    const customerFilter: maplibregl.FilterSpecification = selectedState
+      ? ["all", ["has", "customer_category"], stateCondition]
+      : ["has", "customer_category"];
+
+    // Filter for non-customer districts (no customer_category)
+    const nonCustomerFilter: maplibregl.FilterSpecification = selectedState
+      ? ["all", ["!", ["has", "customer_category"]], stateCondition]
+      : ["!", ["has", "customer_category"]];
+
+    // Apply filters to customer district layers
+    if (map.current.getLayer("district-customer-fill")) {
+      map.current.setFilter("district-customer-fill", customerFilter);
+    }
+    if (map.current.getLayer("district-customer-boundary")) {
+      map.current.setFilter("district-customer-boundary", customerFilter);
+    }
+
+    // Apply filters to non-customer district layers
+    if (map.current.getLayer("district-fill")) {
+      map.current.setFilter("district-fill", nonCustomerFilter);
+    }
+    if (map.current.getLayer("district-boundary")) {
+      map.current.setFilter("district-boundary", nonCustomerFilter);
     }
   }, [selectedState]);
 
