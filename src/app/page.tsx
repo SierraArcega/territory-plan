@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/lib/store";
 import AppShell from "@/components/layout/AppShell";
@@ -31,6 +31,28 @@ function isValidTab(tab: string | null): tab is TabId {
  * The URL is synced with the active tab state, allowing for shareable links.
  */
 export default function Home() {
+  // Wrap in Suspense because useSearchParams requires it for static generation
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+// Loading fallback shown during initial load
+function LoadingFallback() {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-[#FFFCFA]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#F37167] border-t-transparent mx-auto mb-4" />
+        <p className="text-[#403770] font-medium">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+// Actual home content with URL param handling
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
