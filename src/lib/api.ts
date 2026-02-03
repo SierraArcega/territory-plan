@@ -86,11 +86,17 @@ export interface Service {
 export interface Contact {
   id: number;
   leaid: string;
+  salutation: string | null;
   name: string;
   title: string | null;
   email: string | null;
   phone: string | null;
   isPrimary: boolean;
+  linkedinUrl: string | null;
+  persona: string | null;
+  seniorityLevel: string | null;
+  createdAt: string;
+  lastEnrichedAt: string | null;
 }
 
 export interface DistrictEducationData {
@@ -376,7 +382,7 @@ export function useCreateContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (contact: Omit<Contact, "id">) =>
+    mutationFn: (contact: { leaid: string; name: string } & Partial<Omit<Contact, "id" | "leaid" | "name" | "createdAt" | "lastEnrichedAt">>) =>
       fetchJson<Contact>(`${API_BASE}/contacts`, {
         method: "POST",
         body: JSON.stringify(contact),
@@ -391,7 +397,7 @@ export function useUpdateContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }: Contact) =>
+    mutationFn: ({ id, leaid, ...data }: { id: number; leaid: string } & Partial<Omit<Contact, "id" | "leaid">>) =>
       fetchJson<Contact>(`${API_BASE}/contacts/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
