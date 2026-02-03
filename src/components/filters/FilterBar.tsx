@@ -4,7 +4,6 @@ import { useMapStore, StatusFilter, TabId } from "@/lib/store";
 import { useStates, useSalesExecutives } from "@/lib/api";
 import SearchBox from "./SearchBox";
 import MultiSelectToggle from "./MultiSelectToggle";
-import UserMenu from "@/components/user/UserMenu";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All Districts" },
@@ -139,17 +138,8 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
 
             {/* Multi-Select Toggle */}
             <MultiSelectToggle />
-
-            {/* Divider before User Menu */}
-            <div className="h-6 border-l border-gray-200" />
           </>
         )}
-
-        {/* Spacer when not on map tab - pushes user menu to the right */}
-        {!isMapTab && <div className="flex-1" />}
-
-        {/* User Menu - always visible */}
-        <UserMenu />
       </div>
 
       {/* Active Filters Summary - only shown on Map tab when filters active */}
