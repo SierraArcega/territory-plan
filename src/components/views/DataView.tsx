@@ -5,6 +5,7 @@ import {
   useReconciliationUnmatched,
   useReconciliationFragmented,
   ReconciliationFilters,
+  ReconciliationUnmatchedAccount,
 } from "@/lib/api";
 
 type TabType = "unmatched" | "fragmented";
@@ -120,15 +121,91 @@ export default function DataView() {
           </div>
         )}
 
-        {/* Content placeholder */}
-        {!isLoading && !error && (
+        {/* Unmatched Accounts Table */}
+        {!isLoading && !error && activeTab === "unmatched" && unmatchedData && (
+          <UnmatchedTable data={unmatchedData} searchTerm={searchTerm} />
+        )}
+
+        {/* Fragmented placeholder */}
+        {!isLoading && !error && activeTab === "fragmented" && (
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-            {activeTab === "unmatched"
-              ? `${unmatchedData?.length || 0} unmatched accounts`
-              : `${fragmentedData?.length || 0} fragmented districts`}
+            {fragmentedData?.length || 0} fragmented districts (table coming next)
           </div>
         )}
       </main>
+    </div>
+  );
+}
+
+function UnmatchedTable({
+  data,
+  searchTerm,
+}: {
+  data: ReconciliationUnmatchedAccount[];
+  searchTerm: string;
+}) {
+  const filtered = data.filter(
+    (item) =>
+      item.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.sales_exec?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (filtered.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+        No unmatched accounts found.
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <table className="w-full">
+        <thead className="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              Account Name
+            </th>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              State
+            </th>
+            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+              Sales Exec
+            </th>
+            <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+              Total Revenue
+            </th>
+            <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+              Opps
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((row) => (
+            <tr
+              key={row.account_id}
+              className="border-b border-gray-100 hover:bg-gray-50"
+            >
+              <td className="px-4 py-3 text-sm text-[#403770] font-medium">
+                {row.account_name}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {row.state || "—"}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {row.sales_exec || "Unassigned"}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900 text-right font-mono">
+                ${row.total_revenue.toLocaleString()}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                {row.opportunity_count}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
