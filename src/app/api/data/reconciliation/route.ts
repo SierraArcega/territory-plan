@@ -49,6 +49,9 @@ interface FragmentedDistrict {
   similarity_score: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type OpenSearchResponse = any;
+
 async function getMatchedAccountIds(client: Client): Promise<Set<string>> {
   const query = {
     size: 0,
@@ -65,7 +68,7 @@ async function getMatchedAccountIds(client: Client): Promise<Set<string>> {
   };
 
   try {
-    const response = await client.search({
+    const response: OpenSearchResponse = await client.search({
       index: DISTRICTS_INDEX,
       body: query,
     });
@@ -110,7 +113,7 @@ async function getUnmatchedAccounts(
     },
   };
 
-  const response = await client.search({
+  const response: OpenSearchResponse = await client.search({
     index: OPPORTUNITIES_INDEX,
     body: query,
   });
@@ -175,7 +178,7 @@ async function getFragmentedAccounts(
     },
   };
 
-  const [districtResponse, oppResponse] = await Promise.all([
+  const [districtResponse, oppResponse]: OpenSearchResponse[] = await Promise.all([
     client.search({ index: DISTRICTS_INDEX, body: districtQuery }),
     client.search({ index: OPPORTUNITIES_INDEX, body: oppQuery }),
   ]);
