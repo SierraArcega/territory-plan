@@ -205,15 +205,21 @@ model CompetitorSpend {
 }
 
 model Contact {
-  id         Int                   @id @default(autoincrement())
-  leaid      String                @db.VarChar(7)
-  name       String                @db.VarChar(255)
-  title      String?               @db.VarChar(100)
-  email      String?               @db.VarChar(255)
-  phone      String?               @db.VarChar(50)
-  isPrimary  Boolean               @default(false) @map("is_primary")
-  district   District              @relation(fields: [leaid], references: [leaid])
-  activities PlanActivityContact[]
+  id             Int                   @id @default(autoincrement())
+  leaid          String                @db.VarChar(7)
+  salutation     String?               @db.VarChar(20)
+  name           String                @db.VarChar(255)
+  title          String?               @db.VarChar(255)
+  email          String?               @db.VarChar(255)
+  phone          String?               @db.VarChar(50)
+  isPrimary      Boolean               @default(false) @map("is_primary")
+  linkedinUrl    String?               @db.VarChar(500) @map("linkedin_url")
+  persona        String?               @db.VarChar(100)
+  seniorityLevel String?               @db.VarChar(100) @map("seniority_level")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  lastEnrichedAt DateTime?             @map("last_enriched_at")
+  district       District              @relation(fields: [leaid], references: [leaid])
+  activities     PlanActivityContact[]
 
   @@index([leaid])
   @@map("contacts")
