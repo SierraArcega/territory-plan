@@ -61,6 +61,8 @@ export async function GET(
         numberOfSchools: district.numberOfSchools,
         specEdStudents: district.specEdStudents,
         ellStudents: district.ellStudents,
+        websiteUrl: district.websiteUrl,
+        jobBoardUrl: district.jobBoardUrl,
       },
 
       // Fullmind CRM data (now on district)
