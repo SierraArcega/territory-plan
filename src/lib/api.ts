@@ -1176,6 +1176,37 @@ export function useGoalDashboard(fiscalYear: number | null) {
   });
 }
 
+// ===== Data Reconciliation (FastAPI) =====
+
+export interface ReconciliationUnmatchedAccount {
+  account_id: string;
+  account_name: string;
+  state: string | null;
+  sales_exec: string | null;
+  total_revenue: number;
+  opportunity_count: number;
+}
+
+export interface ReconciliationAccountVariant {
+  name: string;
+  source: "sessions" | "opportunities";
+  count: number;
+}
+
+export interface ReconciliationFragmentedDistrict {
+  nces_id: string;
+  district_name: string | null;
+  state: string | null;
+  account_variants: ReconciliationAccountVariant[];
+  similarity_score: number;
+}
+
+export interface ReconciliationFilters {
+  state?: string;
+  salesExec?: string;
+  limit?: number;
+}
+
 // Logout user
 export function useLogout() {
   const queryClient = useQueryClient();
