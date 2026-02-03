@@ -1189,7 +1189,7 @@ export interface ReconciliationUnmatchedAccount {
 
 export interface ReconciliationAccountVariant {
   name: string;
-  source: "sessions" | "opportunities";
+  source: "districts" | "opportunities";
   count: number;
 }
 
