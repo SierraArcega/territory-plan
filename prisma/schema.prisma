@@ -155,6 +155,7 @@ model District {
   territoryPlans  TerritoryPlanDistrict[]
   planActivities  PlanActivity[]
   competitorSpend CompetitorSpend[]
+  activityLinks   ActivityDistrict[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -220,6 +221,7 @@ model Contact {
   lastEnrichedAt DateTime?             @map("last_enriched_at")
   district       District              @relation(fields: [leaid], references: [leaid])
   activities     PlanActivityContact[]
+  activityLinks  ActivityContact[]
 
   @@index([leaid])
   @@map("contacts")
@@ -293,6 +295,7 @@ model State {
   // ===== Relations =====
   districts      District[]
   territoryPlans TerritoryPlan[]
+  activityLinks  ActivityState[]
 
   @@map("states")
 }
@@ -313,9 +316,10 @@ model TerritoryPlan {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  districts  TerritoryPlanDistrict[]
-  activities PlanActivity[]
-  state      State?                  @relation(fields: [stateFips], references: [fips])
+  districts     TerritoryPlanDistrict[]
+  activities    PlanActivity[]
+  state         State?                  @relation(fields: [stateFips], references: [fips])
+  activityLinks ActivityPlan[]
 
   @@index([userId])
   @@index([userId, fiscalYear])
@@ -376,6 +380,75 @@ model PlanActivityContact {
 
   @@id([activityId, contactId])
   @@map("plan_activity_contacts")
+}
+
+// ===== Flexible Activities System =====
+// Replaces PlanActivity - activities can now link to multiple plans, districts, contacts, states
+
+model Activity {
+  id              String   @id @default(uuid())
+  type            String   @db.VarChar(30) // conference, road_trip, email_campaign, etc.
+  title           String   @db.VarChar(255)
+  notes           String?
+  startDate       DateTime @map("start_date")
+  endDate         DateTime? @map("end_date")
+  status          String   @default("planned") @db.VarChar(20) // planned, completed, cancelled
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations (all many-to-many via junction tables)
+  plans     ActivityPlan[]
+  districts ActivityDistrict[]
+  contacts  ActivityContact[]
+  states    ActivityState[]
+
+  @@index([createdByUserId])
+  @@index([type])
+  @@index([startDate])
+  @@map("activities")
+}
+
+model ActivityPlan {
+  activityId String        @map("activity_id")
+  planId     String        @map("plan_id")
+  activity   Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  plan       TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, planId])
+  @@map("activity_plans")
+}
+
+model ActivityDistrict {
+  activityId       String   @map("activity_id")
+  districtLeaid    String   @map("district_leaid") @db.VarChar(7)
+  warningDismissed Boolean  @default(false) @map("warning_dismissed")
+  activity         Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  district         District @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+
+  @@id([activityId, districtLeaid])
+  @@map("activity_districts")
+}
+
+model ActivityContact {
+  activityId String   @map("activity_id")
+  contactId  Int      @map("contact_id")
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, contactId])
+  @@map("activity_contacts")
+}
+
+model ActivityState {
+  activityId String   @map("activity_id")
+  stateFips  String   @map("state_fips") @db.VarChar(2)
+  isExplicit Boolean  @default(false) @map("is_explicit")
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  state      State    @relation(fields: [stateFips], references: [fips], onDelete: Cascade)
+
+  @@id([activityId, stateFips])
+  @@map("activity_states")
 }
 
 // ===== User Profile & Goals =====
