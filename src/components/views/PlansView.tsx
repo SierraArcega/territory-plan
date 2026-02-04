@@ -8,12 +8,19 @@ import {
   useUpdateTerritoryPlan,
   useDeleteTerritoryPlan,
   useRemoveDistrictFromPlan,
+  usePlanContacts,
+  useActivities,
+  useCreateActivity,
+  useUpdateActivity,
+  useDeleteActivity,
+  type ActivityListItem,
 } from "@/lib/api";
+import { type ActivityFormData } from "@/components/plans/ActivityFormModal";
 import { useMapStore } from "@/lib/store";
 import PlanCard from "@/components/plans/PlanCard";
 import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
-import DistrictsTable from "@/components/plans/DistrictsTable";
-import ActivitiesPanel from "@/components/plans/ActivitiesPanel";
+import ActivityFormModal from "@/components/plans/ActivityFormModal";
+import PlanTabs from "@/components/plans/PlanTabs";
 import ViewToggle from "@/components/common/ViewToggle";
 import PlansTable from "@/components/plans/PlansTable";
 
@@ -251,14 +258,22 @@ interface PlanDetailViewProps {
 function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
 
   // Get setActiveTab to navigate to map for "Add from Map" link
   const setActiveTab = useMapStore((state) => state.setActiveTab);
 
   const { data: plan, isLoading, error } = useTerritoryPlan(planId);
+  const { data: activitiesResponse } = useActivities({ planId });
+  const activities = activitiesResponse?.activities || [];
+  const { data: contacts = [] } = usePlanContacts(planId);
   const updatePlan = useUpdateTerritoryPlan();
   const deletePlan = useDeleteTerritoryPlan();
   const removeDistrict = useRemoveDistrictFromPlan();
+  const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
+  const deleteActivity = useDeleteActivity();
 
   const handleUpdatePlan = async (data: PlanFormData) => {
     await updatePlan.mutateAsync({
@@ -281,6 +296,49 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
 
   const handleRemoveDistrict = async (leaid: string) => {
     await removeDistrict.mutateAsync({ planId, leaid });
+  };
+
+  const handleEditActivity = (activity: ActivityListItem) => {
+    setEditingActivity(activity);
+    setShowActivityModal(true);
+  };
+
+  const handleDeleteActivity = async (activityId: string) => {
+    await deleteActivity.mutateAsync(activityId);
+  };
+
+  const handleActivityModalClose = () => {
+    setShowActivityModal(false);
+    setEditingActivity(null);
+  };
+
+  const handleCreateActivity = async (data: ActivityFormData) => {
+    await createActivity.mutateAsync({
+      type: data.type,
+      title: data.title,
+      startDate: new Date(data.startDate).toISOString(),
+      endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
+      status: data.status,
+      planIds: [planId],
+      districtLeaids: data.districtLeaid ? [data.districtLeaid] : undefined,
+      contactIds: data.contactIds.length > 0 ? data.contactIds : undefined,
+      notes: data.notes || undefined,
+    });
+    handleActivityModalClose();
+  };
+
+  const handleUpdateActivitySubmit = async (data: ActivityFormData) => {
+    if (!editingActivity) return;
+    await updateActivity.mutateAsync({
+      activityId: editingActivity.id,
+      type: data.type,
+      title: data.title,
+      startDate: new Date(data.startDate).toISOString(),
+      endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
+      status: data.status,
+      notes: data.notes || undefined,
+    });
+    handleActivityModalClose();
   };
 
   if (isLoading) {
@@ -411,39 +469,55 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
         </div>
       </div>
 
-      {/* Main content: 50/50 split - Districts | Activities */}
+      {/* Main content: Tabbed interface for Districts, Activities, Contacts */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left side: Districts */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-[#403770]">
-                Districts ({plan.districts.length})
-              </h2>
-              <button
-                onClick={() => setActiveTab("map")}
-                className="inline-flex items-center gap-2 text-sm text-[#403770] hover:text-[#F37167] transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add from Map
-              </button>
-            </div>
-            <DistrictsTable
-              planId={planId}
-              districts={plan.districts}
-              onRemove={handleRemoveDistrict}
-              isRemoving={removeDistrict.isPending}
-            />
-          </div>
-
-          {/* Right side: Activities */}
-          <div className="lg:border-l lg:border-gray-200 lg:pl-8">
-            <ActivitiesPanel planId={planId} districts={plan.districts} />
-          </div>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setActiveTab("map")}
+            className="inline-flex items-center gap-2 text-sm text-[#403770] hover:text-[#F37167] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            Add Districts from Map
+          </button>
+          <button
+            onClick={() => setShowActivityModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Activity
+          </button>
         </div>
+
+        <PlanTabs
+          planId={planId}
+          districts={plan.districts}
+          activities={activities}
+          contacts={contacts}
+          onRemoveDistrict={handleRemoveDistrict}
+          isRemovingDistrict={removeDistrict.isPending}
+          onEditActivity={handleEditActivity}
+          onDeleteActivity={handleDeleteActivity}
+          isDeletingActivity={deleteActivity.isPending}
+        />
       </main>
+
+      {/* Activity Form Modal */}
+      <ActivityFormModal
+        isOpen={showActivityModal}
+        onClose={handleActivityModalClose}
+        onSubmit={editingActivity ? handleUpdateActivitySubmit : handleCreateActivity}
+        districts={plan.districts.map(d => ({
+          leaid: d.leaid,
+          name: d.name,
+          stateAbbrev: d.stateAbbrev,
+        }))}
+        initialData={editingActivity}
+        title={editingActivity ? "Edit Activity" : "New Activity"}
+      />
 
       {/* Edit Modal */}
       <PlanFormModal
