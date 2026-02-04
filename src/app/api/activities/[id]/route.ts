@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const activity = await prisma.activity.findUnique({
-      where: { id, createdByUserId: user.id },
+      where: { id },
       include: {
         plans: {
           include: { plan: { select: { id: true, name: true, color: true } } },
@@ -39,6 +39,11 @@ export async function GET(
 
     if (!activity) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    // Allow viewing if user owns it OR if it has no owner (backwards compatibility)
+    if (activity.createdByUserId && activity.createdByUserId !== user.id) {
+      return NextResponse.json({ error: "Not authorized to view this activity" }, { status: 403 });
     }
 
     // Get plan districts for computing isInPlan
@@ -128,13 +133,18 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify ownership
+    // Verify activity exists and user can edit it
     const existing = await prisma.activity.findUnique({
-      where: { id, createdByUserId: user.id },
+      where: { id },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    // Allow editing if user owns it OR if it has no owner (backwards compatibility)
+    if (existing.createdByUserId && existing.createdByUserId !== user.id) {
+      return NextResponse.json({ error: "Not authorized to edit this activity" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -218,13 +228,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify ownership and delete
+    // Verify activity exists
     const activity = await prisma.activity.findUnique({
-      where: { id, createdByUserId: user.id },
+      where: { id },
     });
 
     if (!activity) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    // Allow deleting if user owns it OR if it has no owner (backwards compatibility)
+    if (activity.createdByUserId && activity.createdByUserId !== user.id) {
+      return NextResponse.json({ error: "Not authorized to delete this activity" }, { status: 403 });
     }
 
     await prisma.activity.delete({ where: { id } });

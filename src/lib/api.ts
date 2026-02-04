@@ -992,7 +992,7 @@ export function useUpdateActivity() {
       notes?: string | null;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify(data),
       }),
     onSuccess: (_, variables) => {
