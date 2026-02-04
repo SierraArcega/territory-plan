@@ -36,6 +36,17 @@ const PlansIcon = () => (
   </svg>
 );
 
+const ActivitiesIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+    />
+  </svg>
+);
+
 const GoalsIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -86,6 +97,7 @@ const ChevronRight = () => (
 const MAIN_TABS: Tab[] = [
   { id: "map", label: "Map", icon: <MapIcon /> },
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
+  { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "goals", label: "Goals", icon: <GoalsIcon /> },
   { id: "data", label: "Data", icon: <DataIcon /> },
 ];
