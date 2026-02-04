@@ -64,7 +64,8 @@ export const CATEGORY_LABELS: Record<ActivityCategory, string> = {
 };
 
 // Activity status types and config
-export type ActivityStatus = "planned" | "completed" | "cancelled";
+export const VALID_ACTIVITY_STATUSES = ["planned", "completed", "cancelled"] as const;
+export type ActivityStatus = (typeof VALID_ACTIVITY_STATUSES)[number];
 
 export const ACTIVITY_STATUS_CONFIG: Record<
   ActivityStatus,

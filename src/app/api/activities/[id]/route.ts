@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { getCategoryForType, ALL_ACTIVITY_TYPES, type ActivityType } from "@/lib/activityTypes";
+import { getCategoryForType, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityType } from "@/lib/activityTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -149,11 +149,32 @@ export async function PATCH(
     }
 
     // Validate status if provided
-    if (status && !["planned", "completed", "cancelled"].includes(status)) {
+    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
       return NextResponse.json(
-        { error: "status must be one of: planned, completed, cancelled" },
+        { error: `status must be one of: ${VALID_ACTIVITY_STATUSES.join(", ")}` },
         { status: 400 }
       );
+    }
+
+    // Validate dates if provided
+    if (startDate !== undefined) {
+      const parsedStart = new Date(startDate);
+      if (isNaN(parsedStart.getTime())) {
+        return NextResponse.json(
+          { error: "startDate must be a valid date" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (endDate !== undefined && endDate !== null) {
+      const parsedEnd = new Date(endDate);
+      if (isNaN(parsedEnd.getTime())) {
+        return NextResponse.json(
+          { error: "endDate must be a valid date" },
+          { status: 400 }
+        );
+      }
     }
 
     const activity = await prisma.activity.update({
