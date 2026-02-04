@@ -213,6 +213,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate status if provided
+    if (status && !["planned", "completed", "cancelled"].includes(status)) {
+      return NextResponse.json(
+        { error: "status must be one of: planned, completed, cancelled" },
+        { status: 400 }
+      );
+    }
+
     // Get states derived from districts
     const derivedStates = new Set<string>();
     if (districtLeaids.length > 0) {
@@ -280,7 +288,45 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(transformActivity(activity));
+    // Transform the activity response inline (type-safe via Prisma inference)
+    return NextResponse.json({
+      id: activity.id,
+      type: activity.type,
+      category: getCategoryForType(activity.type as ActivityType),
+      title: activity.title,
+      notes: activity.notes,
+      startDate: activity.startDate.toISOString(),
+      endDate: activity.endDate?.toISOString() ?? null,
+      status: activity.status,
+      createdByUserId: activity.createdByUserId,
+      createdAt: activity.createdAt.toISOString(),
+      updatedAt: activity.updatedAt.toISOString(),
+      needsPlanAssociation: activity.plans.length === 0,
+      hasUnlinkedDistricts: false, // Will be computed on fetch
+      plans: activity.plans.map((p) => ({
+        planId: p.plan.id,
+        planName: p.plan.name,
+        planColor: p.plan.color,
+      })),
+      districts: activity.districts.map((d) => ({
+        leaid: d.district.leaid,
+        name: d.district.name,
+        stateAbbrev: d.district.stateAbbrev,
+        warningDismissed: d.warningDismissed,
+        isInPlan: false, // Will be computed on fetch
+      })),
+      contacts: activity.contacts.map((c) => ({
+        id: c.contact.id,
+        name: c.contact.name,
+        title: c.contact.title,
+      })),
+      states: activity.states.map((s) => ({
+        fips: s.state.fips,
+        abbrev: s.state.abbrev,
+        name: s.state.name,
+        isExplicit: s.isExplicit,
+      })),
+    });
   } catch (error) {
     console.error("Error creating activity:", error);
     return NextResponse.json(
@@ -288,46 +334,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// Helper to transform activity for response
-function transformActivity(activity: any) {
-  return {
-    id: activity.id,
-    type: activity.type,
-    category: getCategoryForType(activity.type as ActivityType),
-    title: activity.title,
-    notes: activity.notes,
-    startDate: activity.startDate.toISOString(),
-    endDate: activity.endDate?.toISOString() ?? null,
-    status: activity.status,
-    createdByUserId: activity.createdByUserId,
-    createdAt: activity.createdAt.toISOString(),
-    updatedAt: activity.updatedAt.toISOString(),
-    needsPlanAssociation: activity.plans.length === 0,
-    hasUnlinkedDistricts: false, // Will be computed on fetch
-    plans: activity.plans.map((p: any) => ({
-      planId: p.plan.id,
-      planName: p.plan.name,
-      planColor: p.plan.color,
-    })),
-    districts: activity.districts.map((d: any) => ({
-      leaid: d.district.leaid,
-      name: d.district.name,
-      stateAbbrev: d.district.stateAbbrev,
-      warningDismissed: d.warningDismissed,
-      isInPlan: false, // Will be computed on fetch
-    })),
-    contacts: activity.contacts.map((c: any) => ({
-      id: c.contact.id,
-      name: c.contact.name,
-      title: c.contact.title,
-    })),
-    states: activity.states.map((s: any) => ({
-      fips: s.state.fips,
-      abbrev: s.state.abbrev,
-      name: s.state.name,
-      isExplicit: s.isExplicit,
-    })),
-  };
 }
