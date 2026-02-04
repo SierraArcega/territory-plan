@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 
 // GET /api/activities - List activities with filtering
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
     const user = await getUser();
     if (!user) {
@@ -78,44 +80,62 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count for pagination (before computed filters)
-    const totalInDb = await prisma.activity.count({ where });
+    const queryStart = Date.now();
 
-    // Fetch activities with relations
-    const activities = await prisma.activity.findMany({
-      where,
-      include: {
-        plans: {
-          include: {
-            plan: {
-              select: { id: true, name: true, color: true },
+    // Run count and findMany in parallel for better performance
+    // Using select instead of include to fetch only what's needed for the list view
+    const [totalInDb, activities] = await Promise.all([
+      // Query 1: Get total count for pagination (before computed filters)
+      prisma.activity.count({ where }),
+
+      // Query 2: Fetch activities with minimal data needed for list view
+      prisma.activity.findMany({
+        where,
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          startDate: true,
+          endDate: true,
+          status: true,
+          // Only fetch the IDs and flags we need for list view, not full related objects
+          plans: {
+            select: { planId: true },
+          },
+          districts: {
+            select: {
+              districtLeaid: true,
+              warningDismissed: true,
+            },
+          },
+          states: {
+            select: {
+              state: { select: { abbrev: true } },
             },
           },
         },
-        districts: {
-          include: {
-            district: {
-              select: { leaid: true, name: true, stateAbbrev: true },
-            },
-          },
-        },
-        states: {
-          include: {
-            state: { select: { fips: true, abbrev: true, name: true } },
-          },
-        },
-      },
-      orderBy: { startDate: "desc" },
-      take: limit,
-      skip: offset,
-    });
+        orderBy: { startDate: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+    ]);
+
+    const mainQueryTime = Date.now() - queryStart;
 
     // Get all plan districts for computing hasUnlinkedDistricts
+    // This query is fast since we're only fetching IDs
+    const planDistrictsStart = Date.now();
     const planIds = [...new Set(activities.flatMap((a) => a.plans.map((p) => p.planId)))];
-    const planDistricts = await prisma.territoryPlanDistrict.findMany({
-      where: { planId: { in: planIds } },
-      select: { planId: true, districtLeaid: true },
-    });
+
+    // Only run this query if there are plans to check
+    const planDistricts = planIds.length > 0
+      ? await prisma.territoryPlanDistrict.findMany({
+          where: { planId: { in: planIds } },
+          select: { planId: true, districtLeaid: true },
+        })
+      : [];
+
+    const planDistrictsTime = Date.now() - planDistrictsStart;
 
     // Map plan -> set of district leaids
     const planDistrictMap = new Map<string, Set<string>>();
@@ -160,6 +180,13 @@ export async function GET(request: NextRequest) {
         if (hasUnlinkedDistricts && !a.hasUnlinkedDistricts) return false;
         return true;
       });
+
+    const totalTime = Date.now() - startTime;
+
+    // Log timing in development for debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Activities API] Total: ${totalTime}ms | Main query: ${mainQueryTime}ms | Plan districts: ${planDistrictsTime}ms | Count: ${activities.length}`);
+    }
 
     return NextResponse.json({
       activities: transformed,
