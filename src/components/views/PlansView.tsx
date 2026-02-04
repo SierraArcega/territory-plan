@@ -14,6 +14,8 @@ import PlanCard from "@/components/plans/PlanCard";
 import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
 import DistrictsTable from "@/components/plans/DistrictsTable";
 import ActivitiesPanel from "@/components/plans/ActivitiesPanel";
+import ViewToggle from "@/components/common/ViewToggle";
+import PlansTable from "@/components/plans/PlansTable";
 
 // Helper to format dates nicely
 function formatDate(dateString: string | null): string {
@@ -96,6 +98,7 @@ interface PlansListViewProps {
 }
 
 function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: PlansListViewProps) {
+  const [view, setView] = useState<"cards" | "table">("cards");
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const createPlan = useCreateTerritoryPlan();
 
@@ -123,20 +126,26 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               Manage your territory plans and assigned districts
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Create Plan
-          </button>
+          <div className="flex items-center gap-4">
+            {/* View toggle - hidden on mobile */}
+            <div className="hidden md:block">
+              <ViewToggle view={view} onViewChange={setView} />
+            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Create Plan
+            </button>
+          </div>
         </div>
       </header>
 
@@ -165,17 +174,21 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             </div>
           </div>
         ) : plans && plans.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                onClick={() => onSelectPlan(plan.id)}
-                className="cursor-pointer"
-              >
-                <PlanCard plan={plan} />
-              </div>
-            ))}
-          </div>
+          view === "cards" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  onClick={() => onSelectPlan(plan.id)}
+                  className="cursor-pointer"
+                >
+                  <PlanCard plan={plan} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <PlansTable plans={plans} onSelectPlan={onSelectPlan} />
+          )
         ) : (
           <div className="text-center py-20">
             <svg
