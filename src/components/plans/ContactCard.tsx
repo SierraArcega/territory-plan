@@ -12,6 +12,12 @@ import {
   type SeniorityLevel,
 } from "@/lib/contactTypes";
 
+interface ContactCardProps {
+  contact: Contact;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}
+
 export default function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 

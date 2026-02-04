@@ -47,6 +47,12 @@ function DeleteConfirmModal({ contact, onConfirm, onCancel }: DeleteConfirmModal
   );
 }
 
+interface ContactsTableProps {
+  contacts: Contact[];
+  onEdit?: (contact: Contact) => void;
+  onDelete?: (contactId: number) => void;
+}
+
 export default function ContactsTable({ contacts, onEdit, onDelete }: ContactsTableProps) {
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
 
