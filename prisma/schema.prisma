@@ -153,7 +153,6 @@ model District {
   contacts        Contact[]
   districtTags    DistrictTag[]
   territoryPlans  TerritoryPlanDistrict[]
-  planActivities  PlanActivity[]
   competitorSpend CompetitorSpend[]
   activityLinks   ActivityDistrict[]
 
@@ -206,21 +205,20 @@ model CompetitorSpend {
 }
 
 model Contact {
-  id             Int                   @id @default(autoincrement())
-  leaid          String                @db.VarChar(7)
-  salutation     String?               @db.VarChar(20)
-  name           String                @db.VarChar(255)
-  title          String?               @db.VarChar(255)
-  email          String?               @db.VarChar(255)
-  phone          String?               @db.VarChar(50)
-  isPrimary      Boolean               @default(false) @map("is_primary")
-  linkedinUrl    String?               @db.VarChar(500) @map("linkedin_url")
-  persona        String?               @db.VarChar(100)
-  seniorityLevel String?               @db.VarChar(100) @map("seniority_level")
-  createdAt      DateTime              @default(now()) @map("created_at")
-  lastEnrichedAt DateTime?             @map("last_enriched_at")
-  district       District              @relation(fields: [leaid], references: [leaid])
-  activities     PlanActivityContact[]
+  id             Int               @id @default(autoincrement())
+  leaid          String            @db.VarChar(7)
+  salutation     String?           @db.VarChar(20)
+  name           String            @db.VarChar(255)
+  title          String?           @db.VarChar(255)
+  email          String?           @db.VarChar(255)
+  phone          String?           @db.VarChar(50)
+  isPrimary      Boolean           @default(false) @map("is_primary")
+  linkedinUrl    String?           @map("linkedin_url") @db.VarChar(500)
+  persona        String?           @db.VarChar(100)
+  seniorityLevel String?           @map("seniority_level") @db.VarChar(100)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  lastEnrichedAt DateTime?         @map("last_enriched_at")
+  district       District          @relation(fields: [leaid], references: [leaid])
   activityLinks  ActivityContact[]
 
   @@index([leaid])
@@ -317,7 +315,6 @@ model TerritoryPlan {
 
   // Relations
   districts     TerritoryPlanDistrict[]
-  activities    PlanActivity[]
   state         State?                  @relation(fields: [stateFips], references: [fips])
   activityLinks ActivityPlan[]
 
@@ -346,56 +343,20 @@ model TerritoryPlanDistrict {
   @@map("territory_plan_districts")
 }
 
-// ===== Plan Activities =====
-// Tracks sales activities (visits, emails, meetings, etc.) for territory plans
-
-model PlanActivity {
-  id            String   @id @default(uuid())
-  planId        String   @map("plan_id")
-  districtLeaid String?  @map("district_leaid") @db.VarChar(7) // null = plan-level activity
-  type          String   @db.VarChar(30) // email_campaign, in_person_visit, sales_meeting, conference, phone_call
-  title         String   @db.VarChar(255)
-  notes         String?
-  activityDate  DateTime @map("activity_date")
-  status        String   @default("planned") @db.VarChar(20) // planned, completed, cancelled
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  plan     TerritoryPlan         @relation(fields: [planId], references: [id], onDelete: Cascade)
-  district District?             @relation(fields: [districtLeaid], references: [leaid])
-  contacts PlanActivityContact[]
-
-  @@index([planId])
-  @@index([planId, activityDate])
-  @@map("plan_activities")
-}
-
-// Junction table for linking activities to contacts
-model PlanActivityContact {
-  activityId String       @map("activity_id")
-  contactId  Int          @map("contact_id")
-  activity   PlanActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  contact    Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
-
-  @@id([activityId, contactId])
-  @@map("plan_activity_contacts")
-}
-
-// ===== Flexible Activities System =====
+// ===== Activities System =====
 // Replaces PlanActivity - activities can now link to multiple plans, districts, contacts, states
 
 model Activity {
-  id              String   @id @default(uuid())
-  type            String   @db.VarChar(30) // conference, road_trip, email_campaign, etc.
-  title           String   @db.VarChar(255)
+  id              String    @id @default(uuid())
+  type            String    @db.VarChar(30) // conference, road_trip, email_campaign, etc.
+  title           String    @db.VarChar(255)
   notes           String?
-  startDate       DateTime @map("start_date")
+  startDate       DateTime  @map("start_date")
   endDate         DateTime? @map("end_date")
-  status          String   @default("planned") @db.VarChar(20) // planned, completed, cancelled
-  createdByUserId String?  @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  status          String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations (all many-to-many via junction tables)
   plans     ActivityPlan[]

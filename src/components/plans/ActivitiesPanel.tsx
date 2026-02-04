@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from "react";
 import {
-  usePlanActivities,
-  useCreatePlanActivity,
-  useUpdatePlanActivity,
-  useDeletePlanActivity,
+  useActivities,
+  useCreateActivity,
+  useUpdateActivity,
+  useDeleteActivity,
   useDistrictDetail,
-  type PlanActivity,
+  type ActivityListItem,
   type TerritoryPlanDistrict,
 } from "@/lib/api";
 import ActivityCard from "./ActivityCard";
@@ -21,17 +21,18 @@ interface ActivitiesPanelProps {
 
 export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelProps) {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingActivity, setEditingActivity] = useState<PlanActivity | null>(null);
+  const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
   // Track which district is selected in the form to fetch its contacts
   const [selectedDistrictLeaid, setSelectedDistrictLeaid] = useState<string | null>(null);
 
-  // Fetch activities for this plan
-  const { data: activities, isLoading } = usePlanActivities(planId);
+  // Fetch activities for this plan using the new Activity system
+  const { data: activitiesResponse, isLoading } = useActivities({ planId });
+  const activities = activitiesResponse?.activities;
 
-  // Mutations
-  const createActivity = useCreatePlanActivity();
-  const updateActivity = useUpdatePlanActivity();
-  const deleteActivity = useDeletePlanActivity();
+  // Mutations using the new Activity system
+  const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
+  const deleteActivity = useDeleteActivity();
 
   // Fetch contacts for the selected district (for the form)
   const { data: districtDetail } = useDistrictDetail(selectedDistrictLeaid);
@@ -59,12 +60,13 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
   // Handle creating a new activity
   const handleCreateActivity = async (data: ActivityFormData) => {
     await createActivity.mutateAsync({
-      planId,
       type: data.type,
       title: data.title,
-      activityDate: new Date(data.activityDate).toISOString(),
+      startDate: new Date(data.startDate).toISOString(),
+      endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
       status: data.status,
-      districtLeaid: data.districtLeaid,
+      planIds: [planId], // Link to this plan
+      districtLeaids: data.districtLeaid ? [data.districtLeaid] : undefined,
       contactIds: data.contactIds.length > 0 ? data.contactIds : undefined,
       notes: data.notes || undefined,
     });
@@ -74,26 +76,26 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
   const handleUpdateActivity = async (data: ActivityFormData) => {
     if (!editingActivity) return;
     await updateActivity.mutateAsync({
-      planId,
       activityId: editingActivity.id,
       type: data.type,
       title: data.title,
-      activityDate: new Date(data.activityDate).toISOString(),
+      startDate: new Date(data.startDate).toISOString(),
+      endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
       status: data.status,
-      districtLeaid: data.districtLeaid,
-      contactIds: data.contactIds,
       notes: data.notes || undefined,
     });
   };
 
   // Handle deleting an activity
   const handleDeleteActivity = async (activityId: string) => {
-    await deleteActivity.mutateAsync({ planId, activityId });
+    await deleteActivity.mutateAsync(activityId);
   };
 
   // Open edit modal with selected activity
-  const handleEditClick = (activity: PlanActivity) => {
-    setSelectedDistrictLeaid(activity.districtLeaid);
+  const handleEditClick = (activity: ActivityListItem) => {
+    // Note: ActivityListItem doesn't include district details, so we clear selection
+    // The form will show the activity data but districts are handled separately in the new system
+    setSelectedDistrictLeaid(null);
     setEditingActivity(activity);
   };
 

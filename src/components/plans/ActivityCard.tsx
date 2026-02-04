@@ -1,24 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { type ActivityListItem } from "@/lib/api";
 import {
-  type PlanActivity,
-  type PlanActivityType,
   ACTIVITY_TYPE_LABELS,
+  ACTIVITY_TYPE_ICONS,
   ACTIVITY_STATUS_CONFIG,
-} from "@/lib/api";
-
-// Icons for each activity type
-const ACTIVITY_ICONS: Record<PlanActivityType, string> = {
-  email_campaign: "📧",
-  in_person_visit: "🏢",
-  sales_meeting: "🤝",
-  conference: "🎤",
-  phone_call: "📞",
-};
+  type ActivityType,
+} from "@/lib/activityTypes";
 
 interface ActivityCardProps {
-  activity: PlanActivity;
+  activity: ActivityListItem;
   onEdit: () => void;
   onDelete: () => void;
   isDeleting?: boolean;
@@ -30,31 +22,45 @@ export default function ActivityCard({
   onDelete,
   isDeleting = false,
 }: ActivityCardProps) {
-  const [showNotes, setShowNotes] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const statusConfig = ACTIVITY_STATUS_CONFIG[activity.status];
-  const typeLabel = ACTIVITY_TYPE_LABELS[activity.type];
-  const typeIcon = ACTIVITY_ICONS[activity.type];
+  const typeLabel = ACTIVITY_TYPE_LABELS[activity.type as ActivityType] || activity.type;
+  const typeIcon = ACTIVITY_TYPE_ICONS[activity.type as ActivityType] || "📋";
 
-  // Format date nicely
-  const formattedDate = new Date(activity.activityDate).toLocaleDateString("en-US", {
+  // Format start date nicely
+  const formattedDate = new Date(activity.startDate).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 
+  // Format date range if end date is different from start date
+  const hasDateRange = activity.endDate && activity.endDate !== activity.startDate;
+  const formattedEndDate = activity.endDate
+    ? new Date(activity.endDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
+
   // Determine if activity is in the past or future
-  const activityDate = new Date(activity.activityDate);
+  const startDate = new Date(activity.startDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const isPast = activityDate < today;
-  const isToday = activityDate.toDateString() === today.toDateString();
+  const isPast = startDate < today;
+  const isToday = startDate.toDateString() === today.toDateString();
 
-  // Scope display text
-  const scopeText = activity.districtLeaid
-    ? `${activity.districtName}${activity.districtState ? ` (${activity.districtState})` : ""}`
-    : "All districts";
+  // Scope display text - show district count and states
+  const scopeText =
+    activity.districtCount > 0
+      ? `${activity.districtCount} district${activity.districtCount !== 1 ? "s" : ""}${
+          activity.stateAbbrevs.length > 0 ? ` (${activity.stateAbbrevs.join(", ")})` : ""
+        }`
+      : activity.stateAbbrevs.length > 0
+        ? activity.stateAbbrevs.join(", ")
+        : "All districts";
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition-colors">
@@ -78,49 +84,21 @@ export default function ActivityCard({
       {/* Date and scope row */}
       <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
         <span className={`${isToday ? "text-[#F37167] font-medium" : isPast ? "text-gray-400" : ""}`}>
-          {isToday ? "Today" : formattedDate}
+          {isToday ? "Today" : hasDateRange ? `${formattedDate} - ${formattedEndDate}` : formattedDate}
         </span>
         <span className="text-gray-300">•</span>
         <span className="truncate">{scopeText}</span>
       </div>
 
-      {/* Contacts (if any) */}
-      {activity.contacts.length > 0 && (
-        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+      {/* Plan count indicator */}
+      {activity.planCount > 1 && (
+        <div className="flex items-center gap-1.5 mb-3">
           <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          {activity.contacts.map((contact, idx) => (
-            <span key={contact.id} className="text-xs text-gray-600">
-              {contact.name}
-              {idx < activity.contacts.length - 1 && ","}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Notes preview (truncated) */}
-      {activity.notes && (
-        <div className="mb-3">
-          <button
-            onClick={() => setShowNotes(!showNotes)}
-            className="text-xs text-gray-500 hover:text-[#403770] flex items-center gap-1"
-          >
-            <svg
-              className={`w-3 h-3 transition-transform ${showNotes ? "rotate-90" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            {showNotes ? "Hide notes" : "Show notes"}
-          </button>
-          {showNotes && (
-            <p className="mt-2 text-sm text-gray-600 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">
-              {activity.notes}
-            </p>
-          )}
+          <span className="text-xs text-gray-500">
+            In {activity.planCount} plans
+          </span>
         </div>
       )}
 
