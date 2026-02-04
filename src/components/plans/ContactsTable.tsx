@@ -5,39 +5,12 @@
 
 import { useState } from "react";
 import type { Contact } from "@/lib/api";
-
-interface ContactsTableProps {
-  contacts: Contact[];
-  onEdit?: (contact: Contact) => void;
-  onDelete?: (contactId: number) => void;
-}
-
-// Persona badge colors
-const PERSONA_COLORS: Record<string, { bg: string; text: string }> = {
-  champion: { bg: "#EDFFE3", text: "#4A7C4E" },
-  decision_maker: { bg: "#EEF5F8", text: "#3B6B83" },
-  influencer: { bg: "#FFF3E0", text: "#B86E00" },
-  end_user: { bg: "#F3E8FF", text: "#7C3AED" },
-};
-
-// Seniority badge colors
-const SENIORITY_COLORS: Record<string, { bg: string; text: string }> = {
-  c_level: { bg: "#403770", text: "#FFFFFF" },
-  vp: { bg: "#6EA3BE", text: "#FFFFFF" },
-  director: { bg: "#8AA891", text: "#FFFFFF" },
-  manager: { bg: "#C4E7E6", text: "#403770" },
-  individual: { bg: "#F3F4F6", text: "#6B7280" },
-};
-
-function formatPersona(persona: string | null): string {
-  if (!persona) return "";
-  return persona.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function formatSeniority(seniority: string | null): string {
-  if (!seniority) return "";
-  return seniority.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
+import {
+  PERSONA_COLORS,
+  SENIORITY_COLORS,
+  type Persona,
+  type SeniorityLevel,
+} from "@/lib/contactTypes";
 
 // Delete confirmation modal
 interface DeleteConfirmModalProps {
@@ -140,8 +113,8 @@ export default function ContactsTable({ contacts, onEdit, onDelete }: ContactsTa
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
             {contacts.map((contact) => {
-              const personaColors = contact.persona ? PERSONA_COLORS[contact.persona] : null;
-              const seniorityColors = contact.seniorityLevel ? SENIORITY_COLORS[contact.seniorityLevel] : null;
+              const personaColors = contact.persona ? PERSONA_COLORS[contact.persona as Persona] : null;
+              const seniorityColors = contact.seniorityLevel ? SENIORITY_COLORS[contact.seniorityLevel as SeniorityLevel] : null;
 
               return (
                 <tr
@@ -207,7 +180,7 @@ export default function ContactsTable({ contacts, onEdit, onDelete }: ContactsTa
                           color: personaColors?.text || "#6B7280",
                         }}
                       >
-                        {formatPersona(contact.persona)}
+                        {contact.persona}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400 italic">—</span>
@@ -224,7 +197,7 @@ export default function ContactsTable({ contacts, onEdit, onDelete }: ContactsTa
                           color: seniorityColors?.text || "#6B7280",
                         }}
                       >
-                        {formatSeniority(contact.seniorityLevel)}
+                        {contact.seniorityLevel}
                       </span>
                     ) : (
                       <span className="text-sm text-gray-400 italic">—</span>
