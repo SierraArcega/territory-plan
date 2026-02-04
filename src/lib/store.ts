@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // Navigation tab types - these match the sidebar tabs
-export type TabId = "map" | "plans" | "goals" | "data" | "profile";
+export type TabId = "map" | "plans" | "activities" | "goals" | "data" | "profile";
 
 export type StatusFilter = "all" | "customer" | "pipeline" | "customer_pipeline" | "no_data";
 export type MetricType =

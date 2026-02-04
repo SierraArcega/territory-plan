@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "map" | "plans" | "goals" | "data" | "profile";
+type TabId = "map" | "plans" | "activities" | "goals" | "data" | "profile";
 
 interface Tab {
   id: TabId;
