@@ -117,8 +117,13 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
   // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     if (planToDelete) {
-      await deletePlan.mutateAsync(planToDelete.id);
-      setPlanToDelete(null);
+      try {
+        await deletePlan.mutateAsync(planToDelete.id);
+        setPlanToDelete(null);
+      } catch (error) {
+        console.error("PlansTable delete failed:", error);
+        // Keep modal open so user can retry
+      }
     }
   };
 
@@ -199,6 +204,8 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                   <span
                     className="w-4 h-4 rounded-full block"
                     style={{ backgroundColor: plan.color }}
+                    aria-label={`Plan color indicator`}
+                    role="presentation"
                   />
                 </td>
 
