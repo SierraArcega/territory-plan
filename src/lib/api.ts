@@ -523,6 +523,16 @@ export function useTerritoryPlan(planId: string | null) {
   });
 }
 
+export function usePlanContacts(planId: string | null) {
+  return useQuery({
+    queryKey: ["planContacts", planId],
+    queryFn: () =>
+      fetchJson<Contact[]>(`${API_BASE}/territory-plans/${planId}/contacts`),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
 export function useCreateTerritoryPlan() {
   const queryClient = useQueryClient();
 
