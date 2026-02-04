@@ -1,20 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { type ActivityListItem, type Contact } from "@/lib/api";
 import {
-  type PlanActivityType,
-  type PlanActivityStatus,
-  type PlanActivity,
-  type Contact,
+  type ActivityType,
+  type ActivityStatus,
+  ACTIVITY_CATEGORIES,
   ACTIVITY_TYPE_LABELS,
-} from "@/lib/api";
+  ACTIVITY_TYPE_ICONS,
+  CATEGORY_LABELS,
+  VALID_ACTIVITY_STATUSES,
+} from "@/lib/activityTypes";
 
-// Form data structure
+// Form data structure - updated for new Activity system
 export interface ActivityFormData {
-  type: PlanActivityType;
+  type: ActivityType;
   title: string;
-  activityDate: string;
-  status: PlanActivityStatus;
+  startDate: string;
+  endDate: string | null;
+  status: ActivityStatus;
   districtLeaid: string | null;
   contactIds: number[];
   notes: string;
@@ -35,25 +39,28 @@ interface ActivityFormModalProps {
   districts: DistrictOption[];
   // Contacts for the selected district (passed from parent)
   contacts?: Contact[];
-  // Initial data for editing (optional)
-  initialData?: PlanActivity | null;
+  // Initial data for editing (optional) - now uses ActivityListItem
+  initialData?: ActivityListItem | null;
   title?: string;
 }
 
-// Activity type options with icons
-const ACTIVITY_TYPES: { value: PlanActivityType; label: string; icon: string }[] = [
-  { value: "email_campaign", label: ACTIVITY_TYPE_LABELS.email_campaign, icon: "📧" },
-  { value: "in_person_visit", label: ACTIVITY_TYPE_LABELS.in_person_visit, icon: "🏢" },
-  { value: "sales_meeting", label: ACTIVITY_TYPE_LABELS.sales_meeting, icon: "🤝" },
-  { value: "conference", label: ACTIVITY_TYPE_LABELS.conference, icon: "🎤" },
-  { value: "phone_call", label: ACTIVITY_TYPE_LABELS.phone_call, icon: "📞" },
-];
+// Build activity type options grouped by category
+const ACTIVITY_TYPES_BY_CATEGORY = Object.entries(ACTIVITY_CATEGORIES).map(([category, types]) => ({
+  category: category as keyof typeof ACTIVITY_CATEGORIES,
+  categoryLabel: CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS],
+  types: types.map((type) => ({
+    value: type as ActivityType,
+    label: ACTIVITY_TYPE_LABELS[type as ActivityType],
+    icon: ACTIVITY_TYPE_ICONS[type as ActivityType],
+  })),
+}));
 
-const STATUS_OPTIONS: { value: PlanActivityStatus; label: string }[] = [
-  { value: "planned", label: "Planned" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-];
+const STATUS_OPTIONS: { value: ActivityStatus; label: string }[] = VALID_ACTIVITY_STATUSES.map(
+  (status) => ({
+    value: status,
+    label: status.charAt(0).toUpperCase() + status.slice(1),
+  })
+);
 
 export default function ActivityFormModal({
   isOpen,
@@ -64,11 +71,12 @@ export default function ActivityFormModal({
   initialData,
   title = "Add Activity",
 }: ActivityFormModalProps) {
-  // Form state
+  // Form state - updated for new Activity system with date range
   const [formData, setFormData] = useState<ActivityFormData>({
     type: "email_campaign",
     title: "",
-    activityDate: new Date().toISOString().split("T")[0],
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: null,
     status: "planned",
     districtLeaid: null,
     contactIds: [],
@@ -77,30 +85,36 @@ export default function ActivityFormModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEndDate, setShowEndDate] = useState(false);
 
   // Reset form when modal opens/closes or initialData changes
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
+        const hasEndDate = initialData.endDate && initialData.endDate !== initialData.startDate;
         setFormData({
-          type: initialData.type,
+          type: initialData.type as ActivityType,
           title: initialData.title,
-          activityDate: initialData.activityDate.split("T")[0],
+          startDate: initialData.startDate.split("T")[0],
+          endDate: hasEndDate ? initialData.endDate!.split("T")[0] : null,
           status: initialData.status,
-          districtLeaid: initialData.districtLeaid,
-          contactIds: initialData.contacts.map((c) => c.id),
-          notes: initialData.notes || "",
+          districtLeaid: null, // ActivityListItem doesn't have district details
+          contactIds: [], // ActivityListItem doesn't have contact details
+          notes: "",
         });
+        setShowEndDate(!!hasEndDate);
       } else {
         setFormData({
           type: "email_campaign",
           title: "",
-          activityDate: new Date().toISOString().split("T")[0],
+          startDate: new Date().toISOString().split("T")[0],
+          endDate: null,
           status: "planned",
           districtLeaid: null,
           contactIds: [],
           notes: "",
         });
+        setShowEndDate(false);
       }
       setError(null);
     }
@@ -153,26 +167,33 @@ export default function ActivityFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Activity Type */}
+          {/* Activity Type - grouped by category */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Activity Type <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {ACTIVITY_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, type: type.value }))}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                    formData.type === type.value
-                      ? "border-[#403770] bg-[#403770]/5 text-[#403770]"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <span>{type.icon}</span>
-                  <span className="truncate">{type.label}</span>
-                </button>
+            <div className="space-y-3">
+              {ACTIVITY_TYPES_BY_CATEGORY.map(({ category, categoryLabel, types }) => (
+                <div key={category}>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{categoryLabel}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {types.map((type) => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, type: type.value }))}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                          formData.type === type.value
+                            ? "border-[#403770] bg-[#403770]/5 text-[#403770]"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <span>{type.icon}</span>
+                        <span className="truncate">{type.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -194,39 +215,95 @@ export default function ActivityFormModal({
             />
           </div>
 
-          {/* Date and Status row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="activity-date" className="block text-sm font-medium text-gray-700 mb-1">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="activity-date"
-                type="date"
-                required
-                value={formData.activityDate}
-                onChange={(e) => setFormData((prev) => ({ ...prev, activityDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] outline-none text-sm"
-              />
+          {/* Date Range and Status */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="activity-start-date" className="block text-sm font-medium text-gray-700 mb-1">
+                  {showEndDate ? "Start Date" : "Date"} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="activity-start-date"
+                  type="date"
+                  required
+                  value={formData.startDate}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] outline-none text-sm"
+                />
+              </div>
+              {showEndDate ? (
+                <div>
+                  <label htmlFor="activity-end-date" className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date
+                  </label>
+                  <input
+                    id="activity-end-date"
+                    type="date"
+                    value={formData.endDate || ""}
+                    min={formData.startDate}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, endDate: e.target.value || null }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] outline-none text-sm"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="activity-status" className="block text-sm font-medium text-gray-700 mb-1">
+                    Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="activity-status"
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, status: e.target.value as ActivityStatus }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] outline-none text-sm"
+                  >
+                    {STATUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
-            <div>
-              <label htmlFor="activity-status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="activity-status"
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, status: e.target.value as PlanActivityStatus }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] outline-none text-sm"
+            {/* Toggle for date range / Status when showing end date */}
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEndDate(!showEndDate);
+                  if (showEndDate) {
+                    setFormData((prev) => ({ ...prev, endDate: null }));
+                  }
+                }}
+                className="text-xs text-[#403770] hover:underline"
               >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                {showEndDate ? "Use single date" : "Add end date (multi-day event)"}
+              </button>
+              {showEndDate && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="activity-status-inline" className="text-xs text-gray-500">
+                    Status:
+                  </label>
+                  <select
+                    id="activity-status-inline"
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, status: e.target.value as ActivityStatus }))
+                    }
+                    className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-[#403770]/20 focus:border-[#403770] outline-none"
+                  >
+                    {STATUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 

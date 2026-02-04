@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useCreateActivity, useTerritoryPlans } from "@/lib/api";
+import { useCreateActivity, useTerritoryPlans, useStates } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -30,6 +30,7 @@ export default function ActivityFormModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
   const { data: plans } = useTerritoryPlans();
+  const { data: states } = useStates();
 
   // Form state
   const [type, setType] = useState<ActivityType>(
@@ -46,6 +47,7 @@ export default function ActivityFormModal({
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>(
     defaultPlanId ? [defaultPlanId] : []
   );
+  const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -60,6 +62,7 @@ export default function ActivityFormModal({
       setNotes("");
       setStatus("planned");
       setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
+      setSelectedStateFips([]);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
@@ -92,6 +95,7 @@ export default function ActivityFormModal({
         notes: notes.trim() || undefined,
         status,
         planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+        stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
       });
       onClose();
     } catch (error) {
@@ -104,6 +108,14 @@ export default function ActivityFormModal({
       prev.includes(planId)
         ? prev.filter((id) => id !== planId)
         : [...prev, planId]
+    );
+  };
+
+  const toggleState = (fips: string) => {
+    setSelectedStateFips((prev) =>
+      prev.includes(fips)
+        ? prev.filter((f) => f !== fips)
+        : [...prev, fips]
     );
   };
 
@@ -251,6 +263,37 @@ export default function ActivityFormModal({
                   Activities without plans will be flagged for follow-up
                 </p>
               )}
+            </div>
+
+            {/* States selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                States
+              </label>
+              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
+                {states && states.length > 0 ? (
+                  states.map((state) => (
+                    <label
+                      key={state.fips}
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStateFips.includes(state.fips)}
+                        onChange={() => toggleState(state.fips)}
+                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {state.name} ({state.abbrev})
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm text-gray-500">
+                    Loading states...
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Notes */}
