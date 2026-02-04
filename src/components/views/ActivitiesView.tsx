@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useActivities } from "@/lib/api";
+import {
+  useActivities,
+  useUpdateActivity,
+  useDeleteActivity,
+  type ActivityListItem,
+} from "@/lib/api";
 import {
   type ActivityCategory,
-  CATEGORY_LABELS,
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_STATUS_CONFIG,
 } from "@/lib/activityTypes";
 import ActivityFormModal from "@/components/activities/ActivityFormModal";
+import EditActivityFormModal, { type ActivityFormData } from "@/components/plans/ActivityFormModal";
 
 // Tab options for category filtering
 type CategoryTab = "all" | ActivityCategory;
@@ -41,6 +46,7 @@ export default function ActivitiesView() {
   const [needsPlanFilter, setNeedsPlanFilter] = useState(false);
   const [hasUnlinkedFilter, setHasUnlinkedFilter] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
 
   // Build query params based on filters
   const queryParams = {
@@ -50,6 +56,39 @@ export default function ActivitiesView() {
   };
 
   const { data, isLoading, error } = useActivities(queryParams);
+  const updateActivity = useUpdateActivity();
+  const deleteActivity = useDeleteActivity();
+
+  // Handle updating an activity
+  const handleUpdateActivity = async (formData: ActivityFormData) => {
+    if (!editingActivity) return;
+    await updateActivity.mutateAsync({
+      activityId: editingActivity.id,
+      type: formData.type,
+      title: formData.title,
+      startDate: new Date(formData.startDate).toISOString(),
+      endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
+      status: formData.status,
+      notes: formData.notes || undefined,
+    });
+  };
+
+  // Handle deleting an activity
+  const handleDeleteActivity = async (activityId: string) => {
+    if (confirm("Are you sure you want to delete this activity?")) {
+      await deleteActivity.mutateAsync(activityId);
+    }
+  };
+
+  // Open edit modal
+  const handleEditClick = (activity: ActivityListItem) => {
+    setEditingActivity(activity);
+  };
+
+  // Close edit modal
+  const handleCloseEditModal = () => {
+    setEditingActivity(null);
+  };
 
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
@@ -259,6 +298,33 @@ export default function ActivitiesView() {
                         {activity.stateAbbrevs.length > 3 && ` +${activity.stateAbbrevs.length - 3}`}
                       </span>
                     )}
+                    {/* Action buttons */}
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(activity);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-[#403770] hover:bg-gray-100 rounded transition-colors"
+                        title="Edit activity"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteActivity(activity.id);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Delete activity"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -303,12 +369,24 @@ export default function ActivitiesView() {
         )}
       </main>
 
-      {/* Activity Form Modal */}
+      {/* Activity Form Modal (Create) */}
       <ActivityFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         defaultCategory={activeTab === "all" ? undefined : activeTab}
       />
+
+      {/* Edit Activity Modal */}
+      {editingActivity && (
+        <EditActivityFormModal
+          isOpen={!!editingActivity}
+          onClose={handleCloseEditModal}
+          onSubmit={handleUpdateActivity}
+          districts={[]}
+          initialData={editingActivity}
+          title="Edit Activity"
+        />
+      )}
     </div>
   );
 }
