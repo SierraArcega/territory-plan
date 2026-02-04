@@ -721,19 +721,10 @@ export default function PlanTabs({
                   {tab.count}
                 </span>
 
-                {/* Active tab indicator - dashed line accent */}
+                {/* Active tab indicator - solid line accent */}
                 {isActive && (
                   <span
-                    className="absolute bottom-0 left-0 right-0 h-0.5"
-                    style={{
-                      background: `repeating-linear-gradient(
-                        to right,
-                        #F37167,
-                        #F37167 6px,
-                        transparent 6px,
-                        transparent 10px
-                      )`,
-                    }}
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F37167]"
                   />
                 )}
               </button>
