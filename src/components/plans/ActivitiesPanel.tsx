@@ -141,10 +141,8 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
           )}
         </div>
         <div className="flex items-center gap-3">
-          {/* View toggle - hidden on mobile */}
-          <div className="hidden md:block">
-            <ViewToggle view={view} onViewChange={setView} />
-          </div>
+          {/* View toggle */}
+          <ViewToggle view={view} onViewChange={setView} />
           <button
             onClick={handleAddClick}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
