@@ -377,6 +377,7 @@ model ActivityPlan {
   plan       TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@id([activityId, planId])
+  @@index([planId]) // Speed up lookups by plan
   @@map("activity_plans")
 }
 
@@ -388,6 +389,7 @@ model ActivityDistrict {
   district         District @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
 
   @@id([activityId, districtLeaid])
+  @@index([districtLeaid]) // Speed up lookups by district
   @@map("activity_districts")
 }
 
@@ -409,6 +411,7 @@ model ActivityState {
   state      State    @relation(fields: [stateFips], references: [fips], onDelete: Cascade)
 
   @@id([activityId, stateFips])
+  @@index([stateFips]) // Speed up lookups by state
   @@map("activity_states")
 }
 
