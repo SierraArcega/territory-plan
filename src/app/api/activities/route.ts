@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, type ActivityCategory, type ActivityType } from "@/lib/activityTypes";
+import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityCategory, type ActivityType } from "@/lib/activityTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -214,9 +214,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate status if provided
-    if (status && !["planned", "completed", "cancelled"].includes(status)) {
+    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
       return NextResponse.json(
-        { error: "status must be one of: planned, completed, cancelled" },
+        { error: `status must be one of: ${VALID_ACTIVITY_STATUSES.join(", ")}` },
         { status: 400 }
       );
     }
