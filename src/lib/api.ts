@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { StatusFilter, FiscalYear, MetricType } from "./store";
+import type { ActivityType, ActivityCategory, ActivityStatus } from "./activityTypes";
 
 // Types
 export interface District {
@@ -961,6 +962,77 @@ export function useDeletePlanActivity() {
       queryClient.invalidateQueries({ queryKey: ["planActivities", variables.planId] });
     },
   });
+}
+
+// ===== Flexible Activities =====
+
+export interface ActivityPlanLink {
+  planId: string;
+  planName: string;
+  planColor: string;
+}
+
+export interface ActivityDistrictLink {
+  leaid: string;
+  name: string;
+  stateAbbrev: string | null;
+  warningDismissed: boolean;
+  isInPlan: boolean; // computed: is this district in any of the activity's linked plans?
+}
+
+export interface ActivityContactLink {
+  id: number;
+  name: string;
+  title: string | null;
+}
+
+export interface ActivityStateLink {
+  fips: string;
+  abbrev: string;
+  name: string;
+  isExplicit: boolean;
+}
+
+export interface Activity {
+  id: string;
+  type: ActivityType;
+  category: ActivityCategory; // computed from type
+  title: string;
+  notes: string | null;
+  startDate: string;
+  endDate: string | null;
+  status: ActivityStatus;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Computed flags
+  needsPlanAssociation: boolean;
+  hasUnlinkedDistricts: boolean;
+  // Relations
+  plans: ActivityPlanLink[];
+  districts: ActivityDistrictLink[];
+  contacts: ActivityContactLink[];
+  states: ActivityStateLink[];
+}
+
+export interface ActivityListItem {
+  id: string;
+  type: ActivityType;
+  category: ActivityCategory;
+  title: string;
+  startDate: string;
+  endDate: string | null;
+  status: ActivityStatus;
+  needsPlanAssociation: boolean;
+  hasUnlinkedDistricts: boolean;
+  planCount: number;
+  districtCount: number;
+  stateAbbrevs: string[];
+}
+
+export interface ActivitiesResponse {
+  activities: ActivityListItem[];
+  total: number;
 }
 
 // ===== User Profile & Goals =====
