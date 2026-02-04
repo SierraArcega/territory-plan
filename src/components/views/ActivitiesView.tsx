@@ -9,6 +9,7 @@ import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_STATUS_CONFIG,
 } from "@/lib/activityTypes";
+import ActivityFormModal from "@/components/activities/ActivityFormModal";
 
 // Tab options for category filtering
 type CategoryTab = "all" | ActivityCategory;
@@ -39,6 +40,7 @@ export default function ActivitiesView() {
   const [activeTab, setActiveTab] = useState<CategoryTab>("all");
   const [needsPlanFilter, setNeedsPlanFilter] = useState(false);
   const [hasUnlinkedFilter, setHasUnlinkedFilter] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Build query params based on filters
   const queryParams = {
@@ -61,6 +63,7 @@ export default function ActivitiesView() {
             </p>
           </div>
           <button
+            onClick={() => setIsModalOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,6 +286,7 @@ export default function ActivitiesView() {
               Create your first activity to start tracking conferences, outreach campaigns, and sales meetings.
             </p>
             <button
+              onClick={() => setIsModalOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,6 +302,13 @@ export default function ActivitiesView() {
           </div>
         )}
       </main>
+
+      {/* Activity Form Modal */}
+      <ActivityFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        defaultCategory={activeTab === "all" ? undefined : activeTab}
+      />
     </div>
   );
 }
