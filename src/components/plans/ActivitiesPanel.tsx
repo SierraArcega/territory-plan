@@ -12,6 +12,8 @@ import {
 } from "@/lib/api";
 import ActivityCard from "./ActivityCard";
 import ActivityFormModal, { type ActivityFormData } from "./ActivityFormModal";
+import ViewToggle from "@/components/common/ViewToggle";
+import ActivitiesTable from "./ActivitiesTable";
 
 interface ActivitiesPanelProps {
   planId: string;
@@ -24,6 +26,7 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
   const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
   // Track which district is selected in the form to fetch its contacts
   const [selectedDistrictLeaid, setSelectedDistrictLeaid] = useState<string | null>(null);
+  const [view, setView] = useState<"cards" | "table">("cards");
 
   // Fetch activities for this plan using the new Activity system
   const { data: activitiesResponse, isLoading } = useActivities({ planId });
@@ -137,15 +140,21 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
             </p>
           )}
         </div>
-        <button
-          onClick={handleAddClick}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add
-        </button>
+        <div className="flex items-center gap-3">
+          {/* View toggle - hidden on mobile */}
+          <div className="hidden md:block">
+            <ViewToggle view={view} onViewChange={setView} />
+          </div>
+          <button
+            onClick={handleAddClick}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add
+          </button>
+        </div>
       </div>
 
       {/* Activity list */}
@@ -155,15 +164,24 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#403770] border-t-transparent" />
           </div>
         ) : activities && activities.length > 0 ? (
-          activities.map((activity) => (
-            <ActivityCard
-              key={activity.id}
-              activity={activity}
-              onEdit={() => handleEditClick(activity)}
-              onDelete={() => handleDeleteActivity(activity.id)}
+          view === "cards" ? (
+            activities.map((activity) => (
+              <ActivityCard
+                key={activity.id}
+                activity={activity}
+                onEdit={() => handleEditClick(activity)}
+                onDelete={() => handleDeleteActivity(activity.id)}
+                isDeleting={deleteActivity.isPending}
+              />
+            ))
+          ) : (
+            <ActivitiesTable
+              activities={activities}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteActivity}
               isDeleting={deleteActivity.isPending}
             />
-          ))
+          )
         ) : (
           <div className="text-center py-12">
             <svg
