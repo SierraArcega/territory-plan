@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { getCategoryForType, ACTIVITY_CATEGORIES, type ActivityCategory, type ActivityType } from "@/lib/activityTypes";
+import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, type ActivityCategory, type ActivityType } from "@/lib/activityTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -173,4 +173,161 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// POST /api/activities - Create a new activity
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      type,
+      title,
+      notes,
+      startDate,
+      endDate,
+      status = "planned",
+      planIds = [],
+      districtLeaids = [],
+      contactIds = [],
+      stateFips = [], // explicit states
+    } = body;
+
+    // Validate required fields
+    if (!type || !title || !startDate) {
+      return NextResponse.json(
+        { error: "type, title, and startDate are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate type is valid
+    if (!ALL_ACTIVITY_TYPES.includes(type)) {
+      return NextResponse.json(
+        { error: `Invalid activity type: ${type}` },
+        { status: 400 }
+      );
+    }
+
+    // Get states derived from districts
+    const derivedStates = new Set<string>();
+    if (districtLeaids.length > 0) {
+      const districts = await prisma.district.findMany({
+        where: { leaid: { in: districtLeaids } },
+        select: { stateFips: true },
+      });
+      districts.forEach((d) => derivedStates.add(d.stateFips));
+    }
+
+    // Create activity with all relations
+    const activity = await prisma.activity.create({
+      data: {
+        type,
+        title: title.trim(),
+        notes: notes?.trim() || null,
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        status,
+        createdByUserId: user.id,
+        plans: {
+          create: planIds.map((planId: string) => ({ planId })),
+        },
+        districts: {
+          create: districtLeaids.map((leaid: string) => ({
+            districtLeaid: leaid,
+            warningDismissed: false,
+          })),
+        },
+        contacts: {
+          create: contactIds.map((contactId: number) => ({ contactId })),
+        },
+        states: {
+          create: [
+            // Derived states (from districts)
+            ...[...derivedStates].map((fips) => ({
+              stateFips: fips,
+              isExplicit: false,
+            })),
+            // Explicit states (user-added)
+            ...stateFips
+              .filter((fips: string) => !derivedStates.has(fips))
+              .map((fips: string) => ({
+                stateFips: fips,
+                isExplicit: true,
+              })),
+          ],
+        },
+      },
+      include: {
+        plans: {
+          include: { plan: { select: { id: true, name: true, color: true } } },
+        },
+        districts: {
+          include: {
+            district: { select: { leaid: true, name: true, stateAbbrev: true } },
+          },
+        },
+        contacts: {
+          include: { contact: { select: { id: true, name: true, title: true } } },
+        },
+        states: {
+          include: { state: { select: { fips: true, abbrev: true, name: true } } },
+        },
+      },
+    });
+
+    return NextResponse.json(transformActivity(activity));
+  } catch (error) {
+    console.error("Error creating activity:", error);
+    return NextResponse.json(
+      { error: "Failed to create activity" },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper to transform activity for response
+function transformActivity(activity: any) {
+  return {
+    id: activity.id,
+    type: activity.type,
+    category: getCategoryForType(activity.type as ActivityType),
+    title: activity.title,
+    notes: activity.notes,
+    startDate: activity.startDate.toISOString(),
+    endDate: activity.endDate?.toISOString() ?? null,
+    status: activity.status,
+    createdByUserId: activity.createdByUserId,
+    createdAt: activity.createdAt.toISOString(),
+    updatedAt: activity.updatedAt.toISOString(),
+    needsPlanAssociation: activity.plans.length === 0,
+    hasUnlinkedDistricts: false, // Will be computed on fetch
+    plans: activity.plans.map((p: any) => ({
+      planId: p.plan.id,
+      planName: p.plan.name,
+      planColor: p.plan.color,
+    })),
+    districts: activity.districts.map((d: any) => ({
+      leaid: d.district.leaid,
+      name: d.district.name,
+      stateAbbrev: d.district.stateAbbrev,
+      warningDismissed: d.warningDismissed,
+      isInPlan: false, // Will be computed on fetch
+    })),
+    contacts: activity.contacts.map((c: any) => ({
+      id: c.contact.id,
+      name: c.contact.name,
+      title: c.contact.title,
+    })),
+    states: activity.states.map((s: any) => ({
+      fips: s.state.fips,
+      abbrev: s.state.abbrev,
+      name: s.state.name,
+      isExplicit: s.isExplicit,
+    })),
+  };
 }
