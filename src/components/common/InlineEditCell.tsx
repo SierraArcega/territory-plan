@@ -64,6 +64,13 @@ export default function InlineEditCell(props: InlineEditCellProps) {
     }
   }, [isEditing]);
 
+  // Clear success flash timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    if (!showSuccess) return;
+    const timer = setTimeout(() => setShowSuccess(false), 500);
+    return () => clearTimeout(timer);
+  }, [showSuccess]);
+
   // Get display value for rendering
   const getDisplayValue = (): string => {
     if (!value) return placeholder;
@@ -94,9 +101,9 @@ export default function InlineEditCell(props: InlineEditCellProps) {
       setIsEditing(false);
       // Show success flash
       setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 500);
-    } catch {
-      // Keep editing mode on error
+    } catch (error) {
+      // Keep editing mode on error so user can retry
+      console.error("InlineEditCell save failed:", error);
     } finally {
       setIsSaving(false);
     }
@@ -140,9 +147,9 @@ export default function InlineEditCell(props: InlineEditCellProps) {
         await onSave(newValue);
         setIsEditing(false);
         setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 500);
-      } catch {
-        // Keep editing mode on error
+      } catch (error) {
+        // Keep editing mode on error so user can retry
+        console.error("InlineEditCell save failed:", error);
       } finally {
         setIsSaving(false);
       }
@@ -174,7 +181,12 @@ export default function InlineEditCell(props: InlineEditCellProps) {
         onClick={() => setIsEditing(true)}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && setIsEditing(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsEditing(true);
+          }
+        }}
       >
         <span className={!value ? "text-gray-400" : ""}>
           {getDisplayValue()}
