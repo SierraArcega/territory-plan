@@ -4,8 +4,9 @@
 // Features: Tab navigation with dashed line accent, view toggle per tab,
 // filter bar with saved views support
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { TerritoryPlanDistrict, ActivityListItem, Contact } from "@/lib/api";
+import { PERSONAS, SENIORITY_LEVELS } from "@/lib/contactTypes";
 import ViewToggle from "@/components/common/ViewToggle";
 import FilterBar, { type FilterConfig, type SavedView } from "./FilterBar";
 import DistrictsTable from "./DistrictsTable";
@@ -94,26 +95,15 @@ const ACTIVITY_FILTERS: FilterConfig[] = [
 const CONTACT_FILTERS: FilterConfig[] = [
   {
     id: "persona",
-    label: "Persona",
+    label: "Department",
     type: "select",
-    options: [
-      { value: "champion", label: "Champion" },
-      { value: "decision_maker", label: "Decision Maker" },
-      { value: "influencer", label: "Influencer" },
-      { value: "end_user", label: "End User" },
-    ],
+    options: PERSONAS.map(p => ({ value: p, label: p })),
   },
   {
     id: "seniority",
     label: "Seniority",
     type: "select",
-    options: [
-      { value: "c_level", label: "C-Level" },
-      { value: "vp", label: "VP" },
-      { value: "director", label: "Director" },
-      { value: "manager", label: "Manager" },
-      { value: "individual", label: "Individual" },
-    ],
+    options: SENIORITY_LEVELS.map(s => ({ value: s, label: s })),
   },
   {
     id: "isPrimary",
@@ -145,7 +135,7 @@ const ACTIVITY_SORT_OPTIONS = [
 const CONTACT_SORT_OPTIONS = [
   { value: "name", label: "Name" },
   { value: "title", label: "Title" },
-  { value: "persona", label: "Persona" },
+  { value: "persona", label: "Department" },
   { value: "seniority", label: "Seniority" },
 ];
 
@@ -164,8 +154,9 @@ const ACTIVITY_GROUP_OPTIONS = [
 
 const CONTACT_GROUP_OPTIONS = [
   { value: "none", label: "No Grouping" },
-  { value: "persona", label: "By Persona" },
+  { value: "persona", label: "By Department" },
   { value: "seniority", label: "By Seniority" },
+  { value: "district", label: "By District" },
 ];
 
 // localStorage key for saved views
@@ -634,9 +625,12 @@ export default function PlanTabs({
 
       case "contacts": {
         const filtered = getFilteredContacts();
+        // Create district name lookup for grouping by district
+        const districtNameMap = new Map(districts.map(d => [d.leaid, d.name]));
         const grouped = groupData(filtered, groupBy, (c) => {
           if (groupBy === "persona") return c.persona || "";
           if (groupBy === "seniority") return c.seniorityLevel || "";
+          if (groupBy === "district") return districtNameMap.get(c.leaid) || c.leaid;
           return "all";
         });
 
@@ -657,7 +651,7 @@ export default function PlanTabs({
                 {groupBy !== "none" && (
                   <h3 className="text-sm font-semibold text-[#403770] mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#C4E7E6]" />
-                    {group.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) || "Unspecified"}
+                    {group || "Unspecified"}
                     <span className="text-gray-400 font-normal">({items.length})</span>
                   </h3>
                 )}
