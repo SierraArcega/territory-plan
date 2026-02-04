@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getCategoryForType, ACTIVITY_CATEGORIES, type ActivityCategory, type ActivityType } from "@/lib/activityTypes";
@@ -22,9 +23,11 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const limit = parseInt(searchParams.get("limit") || "100");
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     // Build where clause
-    const where: any = {
+    const where: Prisma.ActivityWhereInput = {
       createdByUserId: user.id,
     };
 
@@ -53,10 +56,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by date range
-    if (startDate) {
+    // When both startDate and endDate are provided, find activities that overlap with the range
+    // - Activity starts on or after startDate
+    // - Activity ends on or before endDate (or if no endDate, startDate is before the filter endDate)
+    if (startDate && endDate) {
+      where.AND = [
+        { startDate: { gte: new Date(startDate) } },
+        {
+          OR: [
+            { endDate: { lte: new Date(endDate) } },
+            { endDate: null, startDate: { lte: new Date(endDate) } },
+          ],
+        },
+      ];
+    } else if (startDate) {
       where.startDate = { gte: new Date(startDate) };
-    }
-    if (endDate) {
+    } else if (endDate) {
       where.OR = [
         { endDate: { lte: new Date(endDate) } },
         { endDate: null, startDate: { lte: new Date(endDate) } },
@@ -88,6 +103,8 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { startDate: "desc" },
+      take: limit,
+      skip: offset,
     });
 
     // Get all plan districts for computing hasUnlinkedDistricts
