@@ -442,12 +442,12 @@ export default function PlanTabs({
     return result;
   }, [contacts, searchTerms.contacts, filters.contacts, sortConfigs.contacts]);
 
-  // Group data
-  const groupData = <T extends Record<string, unknown>>(
+  // Group data - generic function to group items by a key
+  function groupData<T>(
     data: T[],
     groupBy: string,
     getGroupValue: (item: T) => string
-  ): Map<string, T[]> => {
+  ): Map<string, T[]> {
     if (groupBy === "none") {
       return new Map([["all", data]]);
     }
@@ -461,7 +461,7 @@ export default function PlanTabs({
     });
 
     return groups;
-  };
+  }
 
   // Save view handler
   const handleSaveView = useCallback((name: string) => {
