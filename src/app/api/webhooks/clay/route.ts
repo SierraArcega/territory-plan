@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { normalizePersona, normalizeSeniorityLevel } from "@/lib/contactTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -151,8 +152,9 @@ export async function POST(request: NextRequest) {
       const phone = contact.phone || contact.work_phone;
       const title = contact.title || contact.job_title;
       const linkedinUrl = contact.linkedin_url || contact.linkedinUrl;
-      const seniorityLevel = contact.seniority_level || contact.seniority;
-      const persona = contact.persona || contact.department;
+      // Normalize persona and seniority to canonical values (null if invalid)
+      const seniorityLevel = normalizeSeniorityLevel(contact.seniority_level || contact.seniority);
+      const persona = normalizePersona(contact.persona || contact.department);
 
       // Upsert: update if exists (by email within district), create if not
       if (email) {
