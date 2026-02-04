@@ -5,45 +5,18 @@
 
 import { useState } from "react";
 import type { Contact } from "@/lib/api";
-
-interface ContactCardProps {
-  contact: Contact;
-  onEdit?: () => void;
-  onDelete?: () => void;
-}
-
-// Persona badge colors
-const PERSONA_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  champion: { bg: "#EDFFE3", text: "#4A7C4E", border: "#BBE8A8" },
-  decision_maker: { bg: "#EEF5F8", text: "#3B6B83", border: "#B8D4E3" },
-  influencer: { bg: "#FFF3E0", text: "#B86E00", border: "#FFD699" },
-  end_user: { bg: "#F3E8FF", text: "#7C3AED", border: "#DDD6FE" },
-};
-
-// Seniority badge colors
-const SENIORITY_COLORS: Record<string, { bg: string; text: string }> = {
-  c_level: { bg: "#403770", text: "#FFFFFF" },
-  vp: { bg: "#6EA3BE", text: "#FFFFFF" },
-  director: { bg: "#8AA891", text: "#FFFFFF" },
-  manager: { bg: "#C4E7E6", text: "#403770" },
-  individual: { bg: "#F3F4F6", text: "#6B7280" },
-};
-
-function formatPersona(persona: string | null): string {
-  if (!persona) return "";
-  return persona.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function formatSeniority(seniority: string | null): string {
-  if (!seniority) return "";
-  return seniority.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
+import {
+  PERSONA_COLORS,
+  SENIORITY_COLORS,
+  type Persona,
+  type SeniorityLevel,
+} from "@/lib/contactTypes";
 
 export default function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const personaColors = contact.persona ? PERSONA_COLORS[contact.persona] : null;
-  const seniorityColors = contact.seniorityLevel ? SENIORITY_COLORS[contact.seniorityLevel] : null;
+  const personaColors = contact.persona ? PERSONA_COLORS[contact.persona as Persona] : null;
+  const seniorityColors = contact.seniorityLevel ? SENIORITY_COLORS[contact.seniorityLevel as SeniorityLevel] : null;
 
   const handleDelete = () => {
     if (onDelete) {
@@ -157,7 +130,7 @@ export default function ContactCard({ contact, onEdit, onDelete }: ContactCardPr
               border: `1px solid ${personaColors?.border || "#E5E7EB"}`,
             }}
           >
-            {formatPersona(contact.persona)}
+            {contact.persona}
           </span>
         )}
         {contact.seniorityLevel && (
@@ -168,7 +141,7 @@ export default function ContactCard({ contact, onEdit, onDelete }: ContactCardPr
               color: seniorityColors?.text || "#6B7280",
             }}
           >
-            {formatSeniority(contact.seniorityLevel)}
+            {contact.seniorityLevel}
           </span>
         )}
       </div>
