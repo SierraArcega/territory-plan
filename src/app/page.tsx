@@ -6,12 +6,13 @@ import { useMapStore, TabId } from "@/lib/store";
 import AppShell from "@/components/layout/AppShell";
 import MapView from "@/components/views/MapView";
 import PlansView from "@/components/views/PlansView";
+import ActivitiesView from "@/components/views/ActivitiesView";
 import GoalsView from "@/components/views/GoalsView";
 import DataView from "@/components/views/DataView";
 import ProfileView from "@/components/views/ProfileView";
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["map", "plans", "goals", "data", "profile"];
+const VALID_TABS: TabId[] = ["map", "plans", "activities", "goals", "data", "profile"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -131,6 +132,8 @@ function HomeContent() {
             onPlanChange={handlePlanChange}
           />
         );
+      case "activities":
+        return <ActivitiesView />;
       case "goals":
         return <GoalsView />;
       case "data":
