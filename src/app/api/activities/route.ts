@@ -78,6 +78,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Get total count for pagination (before computed filters)
+    const totalInDb = await prisma.activity.count({ where });
+
     // Fetch activities with relations
     const activities = await prisma.activity.findMany({
       where,
@@ -161,6 +164,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       activities: transformed,
       total: transformed.length,
+      totalInDb, // total matching the base filters, before computed flag filtering
     });
   } catch (error) {
     console.error("Error fetching activities:", error);
