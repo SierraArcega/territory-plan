@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { isValidPersona, isValidSeniorityLevel } from "@/lib/contactTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,22 @@ export async function POST(request: NextRequest) {
     if (!leaid || !name) {
       return NextResponse.json(
         { error: "leaid and name are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate persona if provided
+    if (persona && !isValidPersona(persona)) {
+      return NextResponse.json(
+        { error: "Invalid persona value" },
+        { status: 400 }
+      );
+    }
+
+    // Validate seniority level if provided
+    if (seniorityLevel && !isValidSeniorityLevel(seniorityLevel)) {
+      return NextResponse.json(
+        { error: "Invalid seniority level value" },
         { status: 400 }
       );
     }

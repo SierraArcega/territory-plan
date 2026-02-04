@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { isValidPersona, isValidSeniorityLevel } from "@/lib/contactTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,22 @@ export async function PUT(
 
     const body = await request.json();
     const { salutation, name, title, email, phone, isPrimary, linkedinUrl, persona, seniorityLevel } = body;
+
+    // Validate persona if provided (allow empty string to clear)
+    if (persona && !isValidPersona(persona)) {
+      return NextResponse.json(
+        { error: "Invalid persona value" },
+        { status: 400 }
+      );
+    }
+
+    // Validate seniority level if provided (allow empty string to clear)
+    if (seniorityLevel && !isValidSeniorityLevel(seniorityLevel)) {
+      return NextResponse.json(
+        { error: "Invalid seniority level value" },
+        { status: 400 }
+      );
+    }
 
     // Get existing contact
     const existing = await prisma.contact.findUnique({
