@@ -8,6 +8,7 @@ import {
   useTriggerClayLookup,
   type Contact,
 } from "@/lib/api";
+import { PERSONAS, SENIORITY_LEVELS } from "@/lib/contactTypes";
 
 interface ContactsListProps {
   leaid: string;
@@ -374,20 +375,26 @@ function ContactForm({
         className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
       />
       <div className="flex gap-2">
-        <input
-          type="text"
+        <select
           value={formData.persona}
           onChange={(e) => setFormData({ ...formData, persona: e.target.value })}
-          placeholder="Persona"
           className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-        />
-        <input
-          type="text"
+        >
+          <option value="">Select Department...</option>
+          {PERSONAS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select
           value={formData.seniorityLevel}
           onChange={(e) => setFormData({ ...formData, seniorityLevel: e.target.value })}
-          placeholder="Seniority Level"
           className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-        />
+        >
+          <option value="">Select Seniority...</option>
+          {SENIORITY_LEVELS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input
