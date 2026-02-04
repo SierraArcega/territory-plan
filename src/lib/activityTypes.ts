@@ -3,7 +3,7 @@
 export const ACTIVITY_CATEGORIES = {
   events: ["conference", "road_trip", "trade_show", "school_visit_day"],
   outreach: ["email_campaign", "phone_call", "linkedin_message"],
-  meetings: ["sales_meeting", "demo", "proposal_review"],
+  meetings: ["discovery_call", "demo", "proposal_review", "customer_check_in"],
 } as const;
 
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
@@ -34,9 +34,10 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   phone_call: "Phone Call",
   linkedin_message: "LinkedIn Message",
   // Meetings
-  sales_meeting: "Sales Meeting",
+  discovery_call: "Discovery Call",
   demo: "Demo",
   proposal_review: "Proposal Review",
+  customer_check_in: "Customer Check-In",
 };
 
 // Icons for each activity type (emoji for simplicity)
@@ -51,9 +52,10 @@ export const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
   phone_call: "📞",
   linkedin_message: "💼",
   // Meetings
-  sales_meeting: "🤝",
+  discovery_call: "🔍",
   demo: "🖥️",
   proposal_review: "📋",
+  customer_check_in: "🤝",
 };
 
 // Category display labels
@@ -80,5 +82,5 @@ export const ACTIVITY_STATUS_CONFIG: Record<
 export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> = {
   events: "conference",
   outreach: "email_campaign",
-  meetings: "sales_meeting",
+  meetings: "discovery_call",
 };
