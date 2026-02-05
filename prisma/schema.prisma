@@ -142,6 +142,7 @@ model District {
   // Source: App users (shared across team)
   notes          String?
   owner          String?   @db.VarChar(100)
+  ownerId        String?   @map("owner_id") @db.Uuid
   notesUpdatedAt DateTime? @map("notes_updated_at")
 
   // ===== PostGIS Geometry (managed outside Prisma) =====
@@ -150,6 +151,7 @@ model District {
 
   // ===== Relations =====
   state           State?                  @relation(fields: [stateFips], references: [fips])
+  ownerUser       UserProfile?            @relation("DistrictOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   contacts        Contact[]
   districtTags    DistrictTag[]
   territoryPlans  TerritoryPlanDistrict[]
@@ -162,6 +164,7 @@ model District {
   @@index([stateAbbrev, isCustomer])
   @@index([stateAbbrev, hasOpenPipeline])
   @@index([salesExecutive])
+  @@index([ownerId])
   @@map("districts")
 }
 
@@ -282,8 +285,9 @@ model State {
   avgPovertyRate         Decimal? @map("avg_poverty_rate") @db.Decimal(5, 2)
 
   // ===== Territory Management =====
-  territoryOwner String? @map("territory_owner") @db.VarChar(100)
-  notes          String?
+  territoryOwner   String? @map("territory_owner") @db.VarChar(100)
+  territoryOwnerId String? @map("territory_owner_id") @db.Uuid
+  notes            String?
 
   // ===== Timestamps =====
   aggregatesUpdatedAt DateTime? @map("aggregates_updated_at")
@@ -291,10 +295,12 @@ model State {
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   // ===== Relations =====
-  districts      District[]
-  territoryPlans TerritoryPlan[]
-  activityLinks  ActivityState[]
+  districts          District[]
+  territoryPlans     TerritoryPlan[]
+  activityLinks      ActivityState[]
+  territoryOwnerUser UserProfile? @relation("StateTerritoryOwner", fields: [territoryOwnerId], references: [id], onDelete: SetNull)
 
+  @@index([territoryOwnerId])
   @@map("states")
 }
 
@@ -316,6 +322,7 @@ model TerritoryPlan {
   // Relations
   districts     TerritoryPlanDistrict[]
   state         State?                  @relation(fields: [stateFips], references: [fips])
+  user          UserProfile?            @relation("PlanOwner", fields: [userId], references: [id], onDelete: SetNull)
   activityLinks ActivityPlan[]
 
   @@index([userId])
@@ -359,10 +366,11 @@ model Activity {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations (all many-to-many via junction tables)
-  plans     ActivityPlan[]
-  districts ActivityDistrict[]
-  contacts  ActivityContact[]
-  states    ActivityState[]
+  createdByUser UserProfile?    @relation("ActivityCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  plans         ActivityPlan[]
+  districts     ActivityDistrict[]
+  contacts      ActivityContact[]
+  states        ActivityState[]
 
   @@index([createdByUserId])
   @@index([type])
@@ -430,6 +438,12 @@ model UserProfile {
 
   // Relation to user's fiscal year goals
   goals UserGoal[]
+
+  // Reverse relations for ownership
+  territoryPlans          TerritoryPlan[] @relation("PlanOwner")
+  createdActivities       Activity[]      @relation("ActivityCreator")
+  ownedDistricts          District[]      @relation("DistrictOwner")
+  territoryOwnerForStates State[]         @relation("StateTerritoryOwner")
 
   @@map("user_profiles")
 }
