@@ -10,7 +10,7 @@ export async function PUT(
   try {
     const { leaid } = await params;
     const body = await request.json();
-    const { notes, owner } = body;
+    const { notes, owner, ownerId } = body;
 
     // Update notes and owner directly on the district
     const district = await prisma.district.update({
@@ -18,6 +18,7 @@ export async function PUT(
       data: {
         notes: notes !== undefined ? notes : undefined,
         owner: owner !== undefined ? owner : undefined,
+        ownerId: ownerId !== undefined ? ownerId : undefined,
         notesUpdatedAt: new Date(),
       },
     });
@@ -26,6 +27,7 @@ export async function PUT(
       leaid: district.leaid,
       notes: district.notes,
       owner: district.owner,
+      ownerId: district.ownerId,
       updatedAt: district.notesUpdatedAt?.toISOString() ?? null,
     });
   } catch (error) {

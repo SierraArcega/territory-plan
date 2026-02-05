@@ -41,10 +41,7 @@ export async function GET(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow viewing if user owns it OR if it has no owner (backwards compatibility)
-    if (activity.createdByUserId && activity.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to view this activity" }, { status: 403 });
-    }
+    // Team view: all users can view any activity
 
     // Get plan districts for computing isInPlan
     const planIds = activity.plans.map((p) => p.planId);
@@ -136,15 +133,20 @@ export async function PATCH(
     // Verify activity exists and user can edit it
     const existing = await prisma.activity.findUnique({
       where: { id },
+      include: { createdByUser: { select: { fullName: true } } },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow editing if user owns it OR if it has no owner (backwards compatibility)
+    // Ownership check - only the creator can edit
     if (existing.createdByUserId && existing.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to edit this activity" }, { status: 403 });
+      const creatorName = existing.createdByUser?.fullName || "another user";
+      return NextResponse.json(
+        { error: `This activity was created by ${creatorName}. You can only edit your own activities.` },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
@@ -231,15 +233,20 @@ export async function DELETE(
     // Verify activity exists
     const activity = await prisma.activity.findUnique({
       where: { id },
+      include: { createdByUser: { select: { fullName: true } } },
     });
 
     if (!activity) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow deleting if user owns it OR if it has no owner (backwards compatibility)
+    // Ownership check - only the creator can delete
     if (activity.createdByUserId && activity.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to delete this activity" }, { status: 403 });
+      const creatorName = activity.createdByUser?.fullName || "another user";
+      return NextResponse.json(
+        { error: `This activity was created by ${creatorName}. You can only delete your own activities.` },
+        { status: 403 }
+      );
     }
 
     await prisma.activity.delete({ where: { id } });

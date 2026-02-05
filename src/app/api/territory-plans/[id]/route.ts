@@ -14,8 +14,11 @@ export async function GET(
     const user = await getUser();
 
     const plan = await prisma.territoryPlan.findUnique({
-      where: { id, userId: user?.id },
+      where: { id },
       include: {
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true },
+        },
         districts: {
           include: {
             district: {
@@ -63,6 +66,15 @@ export async function GET(
       endDate: plan.endDate?.toISOString() ?? null,
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
+      userId: plan.userId,
+      ownerUser: plan.user
+        ? {
+            id: plan.user.id,
+            fullName: plan.user.fullName,
+            email: plan.user.email,
+            avatarUrl: plan.user.avatarUrl,
+          }
+        : null,
       districts: plan.districts.map((pd) => ({
         leaid: pd.districtLeaid,
         addedAt: pd.addedAt.toISOString(),
@@ -105,15 +117,30 @@ export async function PUT(
     const body = await request.json();
     const { name, description, owner, color, status, fiscalYear, startDate, endDate } = body;
 
-    // Check if plan exists and belongs to user
+    // Check if plan exists
     const existing = await prisma.territoryPlan.findUnique({
-      where: { id, userId: user?.id },
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     if (!existing) {
       return NextResponse.json(
         { error: "Territory plan not found" },
         { status: 404 }
+      );
+    }
+
+    // Check ownership
+    if (existing.userId !== user?.id) {
+      return NextResponse.json(
+        {
+          error: `This plan belongs to ${existing.user?.fullName || "another user"}. You can only edit your own plans.`,
+        },
+        { status: 403 }
       );
     }
 
@@ -160,6 +187,9 @@ export async function PUT(
         _count: {
           select: { districts: true },
         },
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true },
+        },
       },
     });
 
@@ -176,6 +206,15 @@ export async function PUT(
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
       districtCount: plan._count.districts,
+      userId: plan.userId,
+      ownerUser: plan.user
+        ? {
+            id: plan.user.id,
+            fullName: plan.user.fullName,
+            email: plan.user.email,
+            avatarUrl: plan.user.avatarUrl,
+          }
+        : null,
     });
   } catch (error) {
     console.error("Error updating territory plan:", error);
@@ -195,9 +234,14 @@ export async function DELETE(
     const { id } = await params;
     const user = await getUser();
 
-    // Check if plan exists and belongs to user
+    // Check if plan exists
     const existing = await prisma.territoryPlan.findUnique({
-      where: { id, userId: user?.id },
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, fullName: true, email: true, avatarUrl: true },
+        },
+      },
     });
 
     if (!existing) {
@@ -207,9 +251,19 @@ export async function DELETE(
       );
     }
 
+    // Check ownership
+    if (existing.userId !== user?.id) {
+      return NextResponse.json(
+        {
+          error: `This plan belongs to ${existing.user?.fullName || "another user"}. You can only edit your own plans.`,
+        },
+        { status: 403 }
+      );
+    }
+
     // Delete will cascade to TerritoryPlanDistrict due to onDelete: Cascade
     await prisma.territoryPlan.delete({
-      where: { id, userId: user?.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

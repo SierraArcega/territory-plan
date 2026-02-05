@@ -28,10 +28,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    // Build where clause
-    const where: Prisma.ActivityWhereInput = {
-      createdByUserId: user.id,
-    };
+    // Build where clause - show all activities (team view)
+    const where: Prisma.ActivityWhereInput = {};
 
     // Filter by category (maps to types)
     if (category && ACTIVITY_CATEGORIES[category]) {
@@ -98,6 +96,7 @@ export async function GET(request: NextRequest) {
           startDate: true,
           endDate: true,
           status: true,
+          createdByUserId: true,
           // Only fetch the IDs and flags we need for list view, not full related objects
           plans: {
             select: { planId: true },
@@ -168,6 +167,7 @@ export async function GET(request: NextRequest) {
           startDate: activity.startDate.toISOString(),
           endDate: activity.endDate?.toISOString() ?? null,
           status: activity.status,
+          createdByUserId: activity.createdByUserId,
           needsPlanAssociation: needsPlan,
           hasUnlinkedDistricts: hasUnlinked,
           planCount: activity.plans.length,

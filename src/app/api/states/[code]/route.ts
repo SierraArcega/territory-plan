@@ -90,7 +90,6 @@ export async function GET(
         where: {
           stateFips: state.fips,
           status: { not: "archived" },
-          userId: user?.id,
         },
         orderBy: { updatedAt: "desc" },
         include: {
@@ -163,7 +162,6 @@ export async function GET(
       ? await prisma.territoryPlan.findMany({
           where: {
             status: { not: "archived" },
-            userId: user?.id,
             districts: {
               some: { districtLeaid: { in: leaidList } },
             },
@@ -222,7 +220,7 @@ export async function PUT(
     const { code } = await params;
     const stateCode = code.toUpperCase();
     const body = await request.json();
-    const { notes, territoryOwner } = body;
+    const { notes, territoryOwner, territoryOwnerId } = body;
 
     // Check if state exists
     let state = await prisma.state.findUnique({
@@ -251,6 +249,7 @@ export async function PUT(
           name: STATE_NAMES[stateCode] || stateCode,
           notes: notes ?? undefined,
           territoryOwner: territoryOwner ?? undefined,
+          territoryOwnerId: territoryOwnerId ?? undefined,
         },
       });
     } else {
@@ -260,6 +259,7 @@ export async function PUT(
         data: {
           ...(notes !== undefined && { notes }),
           ...(territoryOwner !== undefined && { territoryOwner }),
+          ...(territoryOwnerId !== undefined && { territoryOwnerId }),
         },
       });
     }
@@ -268,6 +268,7 @@ export async function PUT(
       code: state.abbrev,
       notes: state.notes,
       territoryOwner: state.territoryOwner,
+      territoryOwnerId: state.territoryOwnerId,
     });
   } catch (error) {
     console.error("Error updating state:", error);
