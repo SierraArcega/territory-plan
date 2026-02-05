@@ -67,6 +67,7 @@ export interface DistrictEdits {
   leaid: string;
   notes: string | null;
   owner: string | null;
+  ownerId: string | null;
   updatedAt: string;
 }
 
@@ -224,6 +225,8 @@ export interface TerritoryPlan {
   createdAt: string;
   updatedAt: string;
   districtCount: number;
+  userId: string | null;
+  ownerUser: PlatformUser | null;
 }
 
 export interface TerritoryPlanDistrict {
@@ -326,14 +329,16 @@ export function useUpdateDistrictEdits() {
       leaid,
       notes,
       owner,
+      ownerId,
     }: {
       leaid: string;
       notes?: string;
       owner?: string;
+      ownerId?: string | null;
     }) =>
       fetchJson<DistrictEdits>(`${API_BASE}/districts/${leaid}/edits`, {
         method: "PUT",
-        body: JSON.stringify({ notes, owner }),
+        body: JSON.stringify({ notes, owner, ownerId }),
       }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
@@ -762,6 +767,7 @@ export interface StateDetail {
   name: string;
   aggregates: StateAggregates;
   territoryOwner: string | null;
+  territoryOwnerId: string | null;
   notes: string | null;
   territoryPlans: StateTerritoryPlan[];
 }
@@ -830,16 +836,18 @@ export function useUpdateState() {
       stateCode,
       notes,
       territoryOwner,
+      territoryOwnerId,
     }: {
       stateCode: string;
       notes?: string;
       territoryOwner?: string;
+      territoryOwnerId?: string | null;
     }) =>
-      fetchJson<{ code: string; notes: string | null; territoryOwner: string | null }>(
+      fetchJson<{ code: string; notes: string | null; territoryOwner: string | null; territoryOwnerId: string | null }>(
         `${API_BASE}/states/${stateCode}`,
         {
           method: "PUT",
-          body: JSON.stringify({ notes, territoryOwner }),
+          body: JSON.stringify({ notes, territoryOwner, territoryOwnerId }),
         }
       ),
     onSuccess: (_, variables) => {
@@ -907,6 +915,7 @@ export interface ActivityListItem {
   startDate: string;
   endDate: string | null;
   status: ActivityStatus;
+  createdByUserId: string | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
   planCount: number;

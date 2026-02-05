@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUpdateDistrictEdits, type DistrictEdits } from "@/lib/api";
+import { useUpdateDistrictEdits, useUsers, type DistrictEdits } from "@/lib/api";
 
 interface NotesEditorProps {
   leaid: string;
@@ -11,21 +11,29 @@ interface NotesEditorProps {
 export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
   const [notes, setNotes] = useState(edits?.notes || "");
   const [owner, setOwner] = useState(edits?.owner || "");
+  const [ownerId, setOwnerId] = useState(edits?.ownerId || "");
   const [isEditing, setIsEditing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   const updateMutation = useUpdateDistrictEdits();
+  const { data: users } = useUsers();
 
   // Reset when edits change
   useEffect(() => {
     setNotes(edits?.notes || "");
     setOwner(edits?.owner || "");
+    setOwnerId(edits?.ownerId || "");
     setIsDirty(false);
   }, [edits]);
 
   const handleSave = async () => {
     try {
-      await updateMutation.mutateAsync({ leaid, notes, owner });
+      await updateMutation.mutateAsync({
+        leaid,
+        notes,
+        owner,
+        ownerId: ownerId || null,
+      });
       setIsEditing(false);
       setIsDirty(false);
     } catch (error) {
@@ -33,9 +41,17 @@ export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
     }
   };
 
+  const handleOwnerChange = (userId: string) => {
+    setOwnerId(userId);
+    const selectedUser = users?.find((u) => u.id === userId);
+    setOwner(selectedUser ? selectedUser.fullName || selectedUser.email : "");
+    setIsDirty(true);
+  };
+
   const handleCancel = () => {
     setNotes(edits?.notes || "");
     setOwner(edits?.owner || "");
+    setOwnerId(edits?.ownerId || "");
     setIsEditing(false);
     setIsDirty(false);
   };
@@ -59,16 +75,18 @@ export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
           {/* Owner */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">Owner</label>
-            <input
-              type="text"
-              value={owner}
-              onChange={(e) => {
-                setOwner(e.target.value);
-                setIsDirty(true);
-              }}
-              placeholder="Assign an owner..."
+            <select
+              value={ownerId}
+              onChange={(e) => handleOwnerChange(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-            />
+            >
+              <option value="">Unassigned</option>
+              {users?.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName || user.email}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Notes */}

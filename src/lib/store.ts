@@ -21,6 +21,7 @@ interface Filters {
   statusFilter: StatusFilter;
   salesExecutive: string | null;
   searchQuery: string;
+  ownerUserId: string | null; // null = "All Users"
 }
 
 // Tooltip types
@@ -101,6 +102,7 @@ interface MapActions {
   setStatusFilter: (status: StatusFilter) => void;
   setSalesExecutive: (exec: string | null) => void;
   setSearchQuery: (query: string) => void;
+  setOwnerFilter: (userId: string | null) => void;
   setSidePanelOpen: (open: boolean) => void;
   clearFilters: () => void;
   // Unified panel actions
@@ -135,6 +137,7 @@ const initialFilters: Filters = {
   statusFilter: "all",
   salesExecutive: null,
   searchQuery: "",
+  ownerUserId: null,
 };
 
 const initialTooltip: TooltipState = {
@@ -196,6 +199,8 @@ export const useMapStore = create<MapState & MapActions>()(
     set((s) => ({ filters: { ...s.filters, salesExecutive: exec } })),
   setSearchQuery: (query) =>
     set((s) => ({ filters: { ...s.filters, searchQuery: query } })),
+  setOwnerFilter: (userId) =>
+    set((s) => ({ filters: { ...s.filters, ownerUserId: userId } })),
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
   clearFilters: () => set({ filters: initialFilters }),
 

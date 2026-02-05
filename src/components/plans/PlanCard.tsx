@@ -125,10 +125,10 @@ export default function PlanCard({ plan }: PlanCardProps) {
       </div>
 
       {/* Owner */}
-      {plan.owner && (
+      {(plan.ownerUser || plan.owner) && (
         <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm">
           <span className="text-gray-400">Owner:</span>
-          <span className="text-[#403770] font-medium">{plan.owner}</span>
+          <span className="text-[#403770] font-medium">{plan.ownerUser?.fullName || plan.owner}</span>
         </div>
       )}
     </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMapStore, StatusFilter, TabId } from "@/lib/store";
-import { useStates, useSalesExecutives } from "@/lib/api";
+import { useStates, useSalesExecutives, useUsers, useProfile } from "@/lib/api";
 import SearchBox from "./SearchBox";
 import MultiSelectToggle from "./MultiSelectToggle";
 
@@ -26,12 +26,15 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
     setStateFilter,
     setStatusFilter,
     setSalesExecutive,
+    setOwnerFilter,
     clearFilters,
     setActiveTab,
   } = useMapStore();
 
   const { data: states } = useStates();
   const { data: salesExecs } = useSalesExecutives();
+  const { data: users } = useUsers();
+  const { data: profile } = useProfile();
 
   // Check if we're on the map tab - only show filters there
   const isMapTab = activeTab === "map";
@@ -40,7 +43,8 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
     filters.stateAbbrev ||
     filters.statusFilter !== "all" ||
     filters.salesExecutive ||
-    filters.searchQuery;
+    filters.searchQuery ||
+    filters.ownerUserId;
 
   // Common compact input styling
   const selectStyle =
@@ -110,6 +114,23 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
               ))}
             </select>
 
+            {/* Owner Filter */}
+            <select
+              value={filters.ownerUserId || ""}
+              onChange={(e) => setOwnerFilter(e.target.value || null)}
+              className={selectStyle}
+            >
+              <option value="">All Users</option>
+              {profile && (
+                <option value={profile.id}>My Items</option>
+              )}
+              {users?.filter(u => u.id !== profile?.id).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName || user.email}
+                </option>
+              ))}
+            </select>
+
             {/* Clear Filters */}
             {hasActiveFilters && (
               <button
@@ -165,6 +186,13 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
           {filters.searchQuery && (
             <span className="px-2 py-0.5 bg-[#C4E7E6] text-[#403770] rounded">
               &quot;{filters.searchQuery}&quot;
+            </span>
+          )}
+          {filters.ownerUserId && (
+            <span className="px-2 py-0.5 bg-[#C4E7E6] text-[#403770] rounded">
+              {filters.ownerUserId === profile?.id
+                ? "My Items"
+                : users?.find(u => u.id === filters.ownerUserId)?.fullName || "User"}
             </span>
           )}
         </div>

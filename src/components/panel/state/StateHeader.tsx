@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { StateDetail, useUpdateState } from "@/lib/api";
+import { StateDetail, useUpdateState, useUsers } from "@/lib/api";
 
 interface StateHeaderProps {
   state: StateDetail;
@@ -10,25 +10,39 @@ interface StateHeaderProps {
 export default function StateHeader({ state }: StateHeaderProps) {
   const [isEditingOwner, setIsEditingOwner] = useState(false);
   const [ownerValue, setOwnerValue] = useState(state.territoryOwner || "");
+  const [ownerUserId, setOwnerUserId] = useState(state.territoryOwnerId || "");
   const updateState = useUpdateState();
+  const { data: users } = useUsers();
   const { aggregates } = state;
 
   // Sync with props when they change
   useEffect(() => {
     setOwnerValue(state.territoryOwner || "");
-  }, [state.territoryOwner]);
+    setOwnerUserId(state.territoryOwnerId || "");
+  }, [state.territoryOwner, state.territoryOwnerId]);
+
+  const handleOwnerSelect = useCallback((userId: string) => {
+    setOwnerUserId(userId);
+    const selectedUser = users?.find((u) => u.id === userId);
+    setOwnerValue(selectedUser ? selectedUser.fullName || selectedUser.email : "");
+  }, [users]);
 
   const handleSaveOwner = useCallback(() => {
     updateState.mutate(
-      { stateCode: state.code, territoryOwner: ownerValue },
+      {
+        stateCode: state.code,
+        territoryOwner: ownerValue,
+        territoryOwnerId: ownerUserId || null,
+      },
       { onSuccess: () => setIsEditingOwner(false) }
     );
-  }, [updateState, state.code, ownerValue]);
+  }, [updateState, state.code, ownerValue, ownerUserId]);
 
   const handleCancelOwner = useCallback(() => {
     setOwnerValue(state.territoryOwner || "");
+    setOwnerUserId(state.territoryOwnerId || "");
     setIsEditingOwner(false);
-  }, [state.territoryOwner]);
+  }, [state.territoryOwner, state.territoryOwnerId]);
 
   // Format large numbers
   const formatNumber = (n: number | null) => {
@@ -47,14 +61,19 @@ export default function StateHeader({ state }: StateHeaderProps) {
             <span className="text-gray-300">•</span>
             {isEditingOwner ? (
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={ownerValue}
-                  onChange={(e) => setOwnerValue(e.target.value)}
-                  placeholder="Owner name"
+                <select
+                  value={ownerUserId}
+                  onChange={(e) => handleOwnerSelect(e.target.value)}
                   className="px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#403770]"
                   autoFocus
-                />
+                >
+                  <option value="">Unassigned</option>
+                  {users?.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.fullName || user.email}
+                    </option>
+                  ))}
+                </select>
                 <button
                   onClick={handleSaveOwner}
                   disabled={updateState.isPending}

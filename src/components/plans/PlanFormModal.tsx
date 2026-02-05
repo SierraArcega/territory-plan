@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { TerritoryPlan } from "@/lib/api";
+import { useUsers } from "@/lib/api";
 
 interface PlanFormModalProps {
   isOpen: boolean;
@@ -76,6 +77,7 @@ export default function PlanFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { data: users } = useUsers();
 
   // Reset form when modal opens/closes or initialData changes
   useEffect(() => {
@@ -253,13 +255,18 @@ export default function PlanFormModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Owner
               </label>
-              <input
-                type="text"
+              <select
                 value={formData.owner}
                 onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                placeholder="e.g., John Smith"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-              />
+              >
+                <option value="">Unassigned</option>
+                {users?.map((user) => (
+                  <option key={user.id} value={user.fullName || user.email}>
+                    {user.fullName || user.email}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Date Range */}

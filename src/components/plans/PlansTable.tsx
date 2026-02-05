@@ -8,6 +8,7 @@ import { useState } from "react";
 import {
   useUpdateTerritoryPlan,
   useDeleteTerritoryPlan,
+  useUsers,
   type TerritoryPlan,
 } from "@/lib/api";
 import InlineEditCell from "@/components/common/InlineEditCell";
@@ -15,6 +16,7 @@ import InlineEditCell from "@/components/common/InlineEditCell";
 interface PlansTableProps {
   plans: TerritoryPlan[];
   onSelectPlan: (planId: string) => void;
+  currentUserId?: string | null;
 }
 
 // Status options for the dropdown
@@ -100,11 +102,21 @@ function DeleteConfirmModal({
   );
 }
 
-export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
+export default function PlansTable({ plans, onSelectPlan, currentUserId }: PlansTableProps) {
   const [planToDelete, setPlanToDelete] = useState<TerritoryPlan | null>(null);
 
   const updatePlan = useUpdateTerritoryPlan();
   const deletePlan = useDeleteTerritoryPlan();
+  const { data: users } = useUsers();
+
+  // Build owner options for inline select
+  const ownerOptions = [
+    { value: "", label: "Unassigned" },
+    ...(users?.map((u) => ({
+      value: u.fullName || u.email,
+      label: u.fullName || u.email,
+    })) || []),
+  ];
 
   // Handle inline field updates
   const handleFieldUpdate = async (
@@ -198,7 +210,10 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {plans.map((plan) => (
+            {plans.map((plan) => {
+              const isOwner = !currentUserId || plan.userId === currentUserId;
+
+              return (
               <tr
                 key={plan.id}
                 className="hover:bg-gray-50 transition-colors"
@@ -213,36 +228,49 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                   />
                 </td>
 
-                {/* Name (editable) */}
+                {/* Name */}
                 <td className="px-2 py-1 truncate">
-                  <InlineEditCell
-                    type="text"
-                    value={plan.name}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "name", value)}
-                    className="text-sm font-medium text-[#403770] truncate"
-                  />
+                  {isOwner ? (
+                    <InlineEditCell
+                      type="text"
+                      value={plan.name}
+                      onSave={async (value) => handleFieldUpdate(plan.id, "name", value)}
+                      className="text-sm font-medium text-[#403770] truncate"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-[#403770] truncate block">{plan.name}</span>
+                  )}
                 </td>
 
-                {/* Description (editable, truncated) */}
+                {/* Description */}
                 <td className="px-2 py-1 truncate">
-                  <InlineEditCell
-                    type="textarea"
-                    value={plan.description}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "description", value)}
-                    placeholder="Add description..."
-                    className="text-xs text-gray-600 truncate"
-                  />
+                  {isOwner ? (
+                    <InlineEditCell
+                      type="textarea"
+                      value={plan.description}
+                      onSave={async (value) => handleFieldUpdate(plan.id, "description", value)}
+                      placeholder="Add description..."
+                      className="text-xs text-gray-600 truncate"
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-600 truncate block">{plan.description || ""}</span>
+                  )}
                 </td>
 
-                {/* Owner (editable) */}
+                {/* Owner */}
                 <td className="px-2 py-1">
-                  <InlineEditCell
-                    type="text"
-                    value={plan.owner}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "owner", value)}
-                    placeholder="Assign owner..."
-                    className="text-xs text-gray-600"
-                  />
+                  {isOwner ? (
+                    <InlineEditCell
+                      type="select"
+                      value={plan.owner || ""}
+                      onSave={async (value) => handleFieldUpdate(plan.id, "owner", value)}
+                      options={ownerOptions}
+                      placeholder="Assign owner..."
+                      className="text-xs text-gray-600"
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-600">{plan.ownerUser?.fullName || plan.owner || "Unassigned"}</span>
+                  )}
                 </td>
 
                 {/* FY Badge (display only) */}
@@ -252,36 +280,48 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                   </span>
                 </td>
 
-                {/* Status (editable select) */}
+                {/* Status */}
                 <td className="px-2 py-1">
-                  <InlineEditCell
-                    type="select"
-                    value={plan.status}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "status", value)}
-                    options={STATUS_OPTIONS}
-                    className={`text-xs font-medium px-1.5 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}
-                  />
+                  {isOwner ? (
+                    <InlineEditCell
+                      type="select"
+                      value={plan.status}
+                      onSave={async (value) => handleFieldUpdate(plan.id, "status", value)}
+                      options={STATUS_OPTIONS}
+                      className={`text-xs font-medium px-1.5 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}
+                    />
+                  ) : (
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}>
+                      {formatStatusLabel(plan.status)}
+                    </span>
+                  )}
                 </td>
 
-                {/* Dates (editable date pickers) */}
+                {/* Dates */}
                 <td className="px-2 py-1">
-                  <div className="flex items-center gap-0.5 text-xs text-gray-600">
-                    <InlineEditCell
-                      type="date"
-                      value={plan.startDate}
-                      onSave={async (value) => handleFieldUpdate(plan.id, "startDate", value)}
-                      placeholder="Start"
-                      className="text-xs"
-                    />
-                    <span className="text-gray-400">-</span>
-                    <InlineEditCell
-                      type="date"
-                      value={plan.endDate}
-                      onSave={async (value) => handleFieldUpdate(plan.id, "endDate", value)}
-                      placeholder="End"
-                      className="text-xs"
-                    />
-                  </div>
+                  {isOwner ? (
+                    <div className="flex items-center gap-0.5 text-xs text-gray-600">
+                      <InlineEditCell
+                        type="date"
+                        value={plan.startDate}
+                        onSave={async (value) => handleFieldUpdate(plan.id, "startDate", value)}
+                        placeholder="Start"
+                        className="text-xs"
+                      />
+                      <span className="text-gray-400">-</span>
+                      <InlineEditCell
+                        type="date"
+                        value={plan.endDate}
+                        onSave={async (value) => handleFieldUpdate(plan.id, "endDate", value)}
+                        placeholder="End"
+                        className="text-xs"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-600">
+                      {formatDate(plan.startDate)}{plan.startDate && plan.endDate ? " - " : ""}{formatDate(plan.endDate)}
+                    </span>
+                  )}
                 </td>
 
                 {/* Districts (clickable to navigate) */}
@@ -304,17 +344,24 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                     >
                       View
                     </button>
-                    <button
-                      onClick={() => setPlanToDelete(plan)}
-                      className="text-xs text-red-500 hover:text-red-700 transition-colors"
-                      aria-label="Delete plan"
-                    >
-                      Delete
-                    </button>
+                    {isOwner ? (
+                      <button
+                        onClick={() => setPlanToDelete(plan)}
+                        className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                        aria-label="Delete plan"
+                      >
+                        Delete
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-gray-400" title={`Owned by ${plan.ownerUser?.fullName || plan.owner || "another user"}`}>
+                        View Only
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot className="bg-gray-50 border-t border-gray-200" aria-label="footer">
             <tr>
