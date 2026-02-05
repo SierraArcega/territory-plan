@@ -43,13 +43,17 @@ function formatStatusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-// Format date for display
+// Format date for display as MM/DD/YYYY
+// Extracts the YYYY-MM-DD portion first so it works with both
+// bare date strings ("2026-02-05") and full ISO strings ("2026-02-05T00:00:00.000Z").
 function formatDate(dateString: string | null): string {
   if (!dateString) return "";
-  const date = new Date(dateString + "T00:00:00");
+  const datePart = dateString.split("T")[0];
+  const date = new Date(datePart + "T00:00:00");
   return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
   });
 }
 
@@ -158,37 +162,37 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
   return (
     <div className="overflow-hidden border border-gray-200 rounded-lg bg-white">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="w-full table-fixed divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th
-                className="w-[40px] px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                className="w-[28px] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
                 aria-label="Color"
               >
                 {/* Color dot column */}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[18%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Name
               </th>
-              <th className="w-[200px] max-w-[200px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[22%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Description
               </th>
-              <th className="w-[120px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[12%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Owner
               </th>
-              <th className="w-[60px] px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[40px] px-1 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 FY
               </th>
-              <th className="w-[100px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[10%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Status
               </th>
-              <th className="w-[160px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[16%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Dates
               </th>
-              <th className="w-[80px] px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Districts
+              <th className="w-[44px] px-2 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                Dist.
               </th>
-              <th className="w-[60px] px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[56px] px-2 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -200,9 +204,9 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                 className="hover:bg-gray-50 transition-colors"
               >
                 {/* Color dot */}
-                <td className="px-3 py-3">
+                <td className="px-2 py-1.5">
                   <span
-                    className="w-4 h-4 rounded-full block"
+                    className="w-3 h-3 rounded-full block"
                     style={{ backgroundColor: plan.color }}
                     aria-label={`Plan color indicator`}
                     role="presentation"
@@ -210,58 +214,58 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                 </td>
 
                 {/* Name (editable) */}
-                <td className="px-4 py-2">
+                <td className="px-2 py-1 truncate">
                   <InlineEditCell
                     type="text"
                     value={plan.name}
                     onSave={async (value) => handleFieldUpdate(plan.id, "name", value)}
-                    className="font-medium text-[#403770]"
+                    className="text-sm font-medium text-[#403770] truncate"
                   />
                 </td>
 
                 {/* Description (editable, truncated) */}
-                <td className="px-4 py-2 max-w-[200px]">
+                <td className="px-2 py-1 truncate">
                   <InlineEditCell
                     type="textarea"
                     value={plan.description}
                     onSave={async (value) => handleFieldUpdate(plan.id, "description", value)}
                     placeholder="Add description..."
-                    className="text-sm text-gray-600 truncate"
+                    className="text-xs text-gray-600 truncate"
                   />
                 </td>
 
                 {/* Owner (editable) */}
-                <td className="px-4 py-2">
+                <td className="px-2 py-1">
                   <InlineEditCell
                     type="text"
                     value={plan.owner}
                     onSave={async (value) => handleFieldUpdate(plan.id, "owner", value)}
                     placeholder="Assign owner..."
-                    className="text-sm text-gray-600"
+                    className="text-xs text-gray-600"
                   />
                 </td>
 
                 {/* FY Badge (display only) */}
-                <td className="px-3 py-3 text-center">
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-[#403770] text-white">
+                <td className="px-1 py-1.5 text-center">
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-[#403770] text-white">
                     FY{String(plan.fiscalYear).slice(-2)}
                   </span>
                 </td>
 
                 {/* Status (editable select) */}
-                <td className="px-4 py-2">
+                <td className="px-2 py-1">
                   <InlineEditCell
                     type="select"
                     value={plan.status}
                     onSave={async (value) => handleFieldUpdate(plan.id, "status", value)}
                     options={STATUS_OPTIONS}
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}
+                    className={`text-xs font-medium px-1.5 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}
                   />
                 </td>
 
                 {/* Dates (editable date pickers) */}
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
+                <td className="px-2 py-1">
+                  <div className="flex items-center gap-0.5 text-xs text-gray-600">
                     <InlineEditCell
                       type="date"
                       value={plan.startDate}
@@ -281,18 +285,18 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                 </td>
 
                 {/* Districts (clickable to navigate) */}
-                <td className="px-3 py-3 text-center">
+                <td className="px-2 py-1.5 text-center">
                   <button
                     onClick={() => onSelectPlan(plan.id)}
-                    className="text-sm font-medium text-[#403770] hover:text-[#F37167] transition-colors"
+                    className="text-xs font-medium text-[#403770] hover:text-[#F37167] transition-colors"
                   >
                     {plan.districtCount}
                   </button>
                 </td>
 
                 {/* Actions */}
-                <td className="px-3 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
+                <td className="px-2 py-1.5 text-right">
+                  <div className="flex items-center justify-end gap-1.5">
                     <button
                       onClick={() => onSelectPlan(plan.id)}
                       className="text-xs text-[#403770] hover:text-[#F37167] transition-colors"
@@ -314,18 +318,18 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
           </tbody>
           <tfoot className="bg-gray-50 border-t border-gray-200" aria-label="footer">
             <tr>
-              <td className="px-3 py-3"></td>
-              <td className="px-4 py-3" colSpan={6}>
-                <span className="text-sm font-semibold text-gray-700">
+              <td className="px-2 py-2"></td>
+              <td className="px-2 py-2" colSpan={6}>
+                <span className="text-xs font-semibold text-gray-700">
                   Total ({plans.length} plans)
                 </span>
               </td>
-              <td className="px-3 py-3 text-center">
-                <span className="text-sm font-semibold text-gray-700">
+              <td className="px-2 py-2 text-center">
+                <span className="text-xs font-semibold text-gray-700">
                   {totalDistrictCount}
                 </span>
               </td>
-              <td className="px-3 py-3"></td>
+              <td className="px-2 py-2"></td>
             </tr>
           </tfoot>
         </table>

@@ -31,12 +31,16 @@ interface DateProps extends BaseProps {
 
 type InlineEditCellProps = TextProps | TextareaProps | SelectProps | DateProps;
 
-// Format date for display (e.g., "Feb 4, 2026")
+// Format date for display as MM/DD/YYYY (e.g., "02/05/2026")
+// Extracts the YYYY-MM-DD portion first so it works with both
+// bare date strings ("2026-02-05") and full ISO strings ("2026-02-05T00:00:00.000Z").
+// The "T00:00:00" suffix (without Z) forces local-time parsing to avoid off-by-one timezone issues.
 function formatDate(dateString: string): string {
-  const date = new Date(dateString + "T00:00:00");
+  const datePart = dateString.split("T")[0];
+  const date = new Date(datePart + "T00:00:00");
   return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     year: "numeric",
   });
 }
@@ -45,8 +49,16 @@ export default function InlineEditCell(props: InlineEditCellProps) {
   const { type, value, onSave, placeholder = "—", className = "" } = props;
   const options = type === "select" ? props.options : [];
 
+  // For date inputs, normalize ISO strings ("2026-02-05T00:00:00.000Z") to "YYYY-MM-DD"
+  // since HTML <input type="date"> requires that format.
+  const normalizeValue = (v: string | null): string => {
+    if (!v) return "";
+    if (type === "date" && v.includes("T")) return v.split("T")[0];
+    return v;
+  };
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(value ?? "");
+  const [editValue, setEditValue] = useState(normalizeValue(value));
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -54,7 +66,7 @@ export default function InlineEditCell(props: InlineEditCellProps) {
 
   // Sync editValue when value prop changes
   useEffect(() => {
-    setEditValue(value ?? "");
+    setEditValue(normalizeValue(value));
   }, [value]);
 
   // Focus input when entering edit mode
@@ -158,17 +170,17 @@ export default function InlineEditCell(props: InlineEditCellProps) {
     }
   };
 
-  // Base container styles
+  // Base container styles — compact padding to fit neatly in table cells
   const containerStyles = `
-    cursor-pointer px-2 py-1 rounded transition-colors
+    cursor-pointer px-1.5 py-0.5 rounded transition-colors
     hover:bg-[#C4E7E6]/30
     ${showSuccess ? "bg-green-100" : ""}
     ${className}
   `.trim();
 
-  // Input styles
+  // Input styles — compact to match display size
   const inputStyles = `
-    w-full px-2 py-1 rounded border border-gray-300
+    w-full px-1.5 py-0.5 text-sm rounded border border-gray-300
     ring-2 ring-[#403770]
     focus:outline-none
   `.trim();
