@@ -39,12 +39,16 @@ const STATUS_OPTIONS = VALID_ACTIVITY_STATUSES.map((status) => ({
   label: ACTIVITY_STATUS_CONFIG[status as ActivityStatus]?.label || status,
 }));
 
-// Format date for display
+// Format date for display as MM/DD/YYYY
+// Extracts the YYYY-MM-DD portion first so it works with both
+// bare date strings ("2026-02-05") and full ISO strings ("2026-02-05T00:00:00.000Z").
 function formatDate(dateString: string): string {
-  const date = new Date(dateString + "T00:00:00");
+  const datePart = dateString.split("T")[0];
+  const date = new Date(datePart + "T00:00:00");
   return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
   });
 }
 
@@ -163,31 +167,31 @@ export default function ActivitiesTable({
   return (
     <div className="overflow-hidden border border-gray-200 rounded-lg bg-white">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="w-full table-fixed divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th
-                className="w-[40px] px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                className="w-[28px] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
                 aria-label="Icon"
               >
                 {/* Icon column */}
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[30%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Title
               </th>
-              <th className="w-[120px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[15%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Type
               </th>
-              <th className="w-[100px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[12%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Status
               </th>
-              <th className="w-[140px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[18%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Date
               </th>
-              <th className="w-[120px] px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[15%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Scope
               </th>
-              <th className="w-[80px] px-3 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[60px] px-2 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -212,45 +216,45 @@ export default function ActivitiesTable({
                   className="hover:bg-gray-50 transition-colors"
                 >
                   {/* Icon */}
-                  <td className="px-3 py-3 text-center text-xl">
+                  <td className="px-2 py-1.5 text-center text-base">
                     <span>{typeIcon}</span>
                   </td>
 
                   {/* Title (editable) */}
-                  <td className="px-4 py-2">
+                  <td className="px-2 py-1 truncate">
                     <InlineEditCell
                       type="text"
                       value={activity.title}
                       onSave={async (value) => handleFieldUpdate(activity.id, "title", value)}
-                      className="font-medium text-[#403770]"
+                      className="text-sm font-medium text-[#403770] truncate"
                     />
                   </td>
 
                   {/* Type (editable select) */}
-                  <td className="px-4 py-2">
+                  <td className="px-2 py-1">
                     <InlineEditCell
                       type="select"
                       value={activity.type}
                       onSave={async (value) => handleFieldUpdate(activity.id, "type", value)}
                       options={TYPE_OPTIONS}
-                      className="text-sm text-gray-600"
+                      className="text-xs text-gray-600"
                     />
                   </td>
 
                   {/* Status (editable select) */}
-                  <td className="px-4 py-2">
+                  <td className="px-2 py-1">
                     <InlineEditCell
                       type="select"
                       value={activity.status}
                       onSave={async (value) => handleFieldUpdate(activity.id, "status", value)}
                       options={STATUS_OPTIONS}
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full inline-block`}
+                      className="text-xs font-medium px-1.5 py-0.5 rounded-full inline-block"
                     />
                   </td>
 
                   {/* Date (editable) */}
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <td className="px-2 py-1">
+                    <div className="flex items-center gap-0.5 text-xs text-gray-600">
                       <InlineEditCell
                         type="date"
                         value={activity.startDate}
@@ -272,13 +276,13 @@ export default function ActivitiesTable({
                   </td>
 
                   {/* Scope (display only) */}
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-2 py-1.5 text-xs text-gray-600 truncate max-w-[100px]">
                     {formatScope(activity.districtCount, activity.stateAbbrevs)}
                   </td>
 
                   {/* Actions */}
-                  <td className="px-3 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-2 py-1.5 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         onClick={() => onEdit(activity)}
                         className="text-xs text-[#403770] hover:text-[#F37167] transition-colors"
