@@ -260,6 +260,22 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// Platform users (for owner dropdowns)
+export interface PlatformUser {
+  id: string;
+  email: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: () => fetchJson<PlatformUser[]>(`${API_BASE}/users`),
+    staleTime: 10 * 60 * 1000, // 10 minutes - users rarely change
+  });
+}
+
 // District queries
 export function useDistricts(params: {
   state?: string | null;
