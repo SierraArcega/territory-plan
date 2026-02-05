@@ -13,6 +13,7 @@ import {
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
+  useProfile,
   type ActivityListItem,
 } from "@/lib/api";
 import { type ActivityFormData } from "@/components/plans/ActivityFormModal";
@@ -108,6 +109,13 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const [view, setView] = useState<"cards" | "table">("cards");
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const createPlan = useCreateTerritoryPlan();
+  const { data: profile } = useProfile();
+  const ownerUserId = useMapStore((s) => s.filters.ownerUserId);
+
+  // Filter plans by owner if filter is active
+  const filteredPlans = plans?.filter(
+    (p) => !ownerUserId || p.userId === ownerUserId
+  );
 
   const handleCreatePlan = async (data: PlanFormData) => {
     await createPlan.mutateAsync({
@@ -180,10 +188,10 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               <p className="text-sm">{error.message}</p>
             </div>
           </div>
-        ) : plans && plans.length > 0 ? (
+        ) : filteredPlans && filteredPlans.length > 0 ? (
           view === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {plans.map((plan) => (
+              {filteredPlans.map((plan) => (
                 <div
                   key={plan.id}
                   onClick={() => onSelectPlan(plan.id)}
@@ -194,7 +202,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               ))}
             </div>
           ) : (
-            <PlansTable plans={plans} onSelectPlan={onSelectPlan} />
+            <PlansTable plans={filteredPlans} onSelectPlan={onSelectPlan} currentUserId={profile?.id || null} />
           )
         ) : (
           <div className="text-center py-20">
@@ -268,8 +276,12 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   const { data: activitiesResponse } = useActivities({ planId });
   const activities = activitiesResponse?.activities || [];
   const { data: contacts = [] } = usePlanContacts(planId);
+  const { data: profile } = useProfile();
   const updatePlan = useUpdateTerritoryPlan();
   const deletePlan = useDeleteTerritoryPlan();
+
+  // Determine if current user owns this plan
+  const isOwner = !plan || !profile ? true : plan.userId === profile.id;
   const removeDistrict = useRemoveDistrictFromPlan();
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
@@ -403,24 +415,32 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
               Back to Plans
             </button>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 border border-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
+              {isOwner ? (
+                <>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 border border-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <span className="px-3 py-1.5 text-sm font-medium text-gray-500 bg-gray-100 rounded-lg">
+                  View Only
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -451,10 +471,10 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
                 <span>
                   {plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}
                 </span>
-                {plan.owner && (
+                {(plan.ownerUser || plan.owner) && (
                   <>
                     <span>•</span>
-                    <span>Owner: <span className="text-[#403770] font-medium">{plan.owner}</span></span>
+                    <span>Owner: <span className="text-[#403770] font-medium">{plan.ownerUser?.fullName || plan.owner}</span></span>
                   </>
                 )}
                 {dateRange && (

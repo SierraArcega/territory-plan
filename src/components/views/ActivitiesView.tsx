@@ -5,8 +5,10 @@ import {
   useActivities,
   useUpdateActivity,
   useDeleteActivity,
+  useProfile,
   type ActivityListItem,
 } from "@/lib/api";
+import { useMapStore } from "@/lib/store";
 import {
   type ActivityCategory,
   ACTIVITY_TYPE_LABELS,
@@ -61,6 +63,13 @@ export default function ActivitiesView() {
   const { data, isLoading, error } = useActivities(queryParams);
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
+  const { data: profile } = useProfile();
+  const ownerUserId = useMapStore((s) => s.filters.ownerUserId);
+
+  // Filter activities by owner if filter is active
+  const filteredActivities = data?.activities.filter(
+    (a) => !ownerUserId || a.createdByUserId === ownerUserId
+  );
 
   // Handle updating an activity
   const handleUpdateActivity = async (formData: ActivityFormData) => {
@@ -195,13 +204,14 @@ export default function ActivitiesView() {
               <p className="text-sm">{error.message}</p>
             </div>
           </div>
-        ) : data && data.activities.length > 0 ? (
+        ) : filteredActivities && filteredActivities.length > 0 ? (
           view === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.activities.map((activity) => {
+              {filteredActivities.map((activity) => {
                 const statusConfig = ACTIVITY_STATUS_CONFIG[activity.status];
                 const typeLabel = ACTIVITY_TYPE_LABELS[activity.type];
                 const typeIcon = ACTIVITY_TYPE_ICONS[activity.type];
+                const isOwner = !profile || activity.createdByUserId === profile.id;
 
                 return (
                   <div
@@ -307,30 +317,36 @@ export default function ActivitiesView() {
                       )}
                       {/* Action buttons */}
                       <div className="ml-auto flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditClick(activity);
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-[#403770] hover:bg-gray-100 rounded transition-colors"
-                          title="Edit activity"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteActivity(activity.id);
-                          }}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                          title="Delete activity"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        {isOwner ? (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(activity);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-[#403770] hover:bg-gray-100 rounded transition-colors"
+                              title="Edit activity"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteActivity(activity.id);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title="Delete activity"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-gray-400">View Only</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -339,7 +355,7 @@ export default function ActivitiesView() {
             </div>
           ) : (
             <ActivitiesTable
-              activities={data.activities}
+              activities={filteredActivities}
               onEdit={handleEditClick}
               onDelete={handleDeleteActivity}
               isDeleting={deleteActivity.isPending}
