@@ -6,7 +6,7 @@
   <string>com.territory-plan.snapshot</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/local/bin/npx</string>
+    <string>/opt/homebrew/bin/npx</string>
     <string>tsx</string>
     <string>scripts/snapshot-data.ts</string>
     <string>--push</string>

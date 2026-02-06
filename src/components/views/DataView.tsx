@@ -118,7 +118,7 @@ export default function DataView() {
     let csv = "";
     if (activeTab === "unmatched") {
       if (!unmatchedData) return;
-      csv = "Account Name,State,Sales Exec,Total Revenue,Opportunity Count\n";
+      csv = "Account Name,State,Sales Exec,Opportunity Value,Opportunity Count\n";
       csv += unmatchedData
         .map(
           (row) =>
@@ -136,7 +136,7 @@ export default function DataView() {
         .join("\n");
     } else if (activeTab === "duplicates") {
       if (!duplicateGroups.length) return;
-      csv = "Group Name,State,District ID,District Name,NCES ID,Orphaned,Opps,Schools,Sessions,Courses,Total Revenue\n";
+      csv = "Group Name,State,District ID,District Name,NCES ID,Orphaned,Opps,Schools,Sessions,Courses,Opportunity Value\n";
       csv += duplicateGroups
         .flatMap((g) =>
           g.districts.map(
@@ -157,10 +157,10 @@ export default function DataView() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-[#FFFCFA]">
+    <div className="h-full flex flex-col overflow-hidden bg-[#FFFCFA]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+        <div className="max-w-[1400px] mx-auto">
           <h1 className="text-2xl font-bold text-[#403770]">Data Reconciliation</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Review data quality issues affecting actuals accuracy
@@ -169,7 +169,7 @@ export default function DataView() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-6">
+      <main className="max-w-[1400px] w-full mx-auto px-6 py-6 flex-1 overflow-auto min-h-0">
         {/* Tabs — Duplicate Districts is first/primary */}
         <div className="flex gap-2 mb-6">
           <button
@@ -370,7 +370,7 @@ function DuplicateDistrictsView({
           No duplicate groups match the current search.
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-auto divide-y divide-gray-100">
           {filtered.map((group) => {
             const isExpanded = expandedGroup === group.key;
             return (
@@ -446,7 +446,7 @@ function DuplicateDistrictsView({
                             Courses
                           </th>
                           <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Revenue
+                            Opportunity Value
                           </th>
                         </tr>
                       </thead>
@@ -583,23 +583,23 @@ function UnmatchedTable({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-auto">
       <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
+        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
           <tr>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               Account Name
             </th>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               State
             </th>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               Sales Exec
             </th>
-            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Total Revenue
+            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+              Opportunity Value
             </th>
-            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               Opps
             </th>
           </tr>
@@ -664,24 +664,24 @@ function FragmentedTable({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-auto">
       <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
+        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
           <tr>
-            <th className="w-8 px-2 py-2"></th>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="w-8 px-2 py-2 bg-gray-50"></th>
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               NCES ID
             </th>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               District Name
             </th>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               State
             </th>
-            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               Account Variants
             </th>
-            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
               Similarity
             </th>
           </tr>
