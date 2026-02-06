@@ -280,19 +280,19 @@ function UnmatchedTable({
       <table className="w-full">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               Account Name
             </th>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               State
             </th>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               Sales Exec
             </th>
-            <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               Total Revenue
             </th>
-            <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               Opps
             </th>
           </tr>
@@ -303,19 +303,19 @@ function UnmatchedTable({
               key={row.account_id}
               className="border-b border-gray-100 hover:bg-gray-50"
             >
-              <td className="px-4 py-3 text-sm text-[#403770] font-medium">
+              <td className="px-3 py-2 text-sm text-[#403770] font-medium">
                 {row.account_name}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="px-3 py-2 text-xs text-gray-600">
                 {row.state || "—"}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="px-3 py-2 text-xs text-gray-600">
                 {row.sales_exec || "Unassigned"}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-900 text-right font-mono">
+              <td className="px-3 py-2 text-sm text-gray-900 text-right font-mono">
                 ${row.total_revenue.toLocaleString()}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600 text-right">
+              <td className="px-3 py-2 text-xs text-gray-600 text-right">
                 {row.opportunity_count}
               </td>
             </tr>
@@ -357,19 +357,20 @@ function FragmentedTable({
       <table className="w-full">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="w-8 px-2 py-2"></th>
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               NCES ID
             </th>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               District Name
             </th>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               State
             </th>
-            <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               Account Variants
             </th>
-            <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">
+            <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
               Similarity
             </th>
           </tr>
@@ -383,21 +384,30 @@ function FragmentedTable({
                 }
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
               >
-                <td className="px-4 py-3 text-sm text-gray-600 font-mono">
+                {/* Chevron indicator */}
+                <td className="w-8 px-2 py-2 text-gray-400">
+                  <svg
+                    className={`w-4 h-4 transition-transform ${expandedRow === row.nces_id ? "rotate-90" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </td>
+                <td className="px-3 py-2 text-xs text-gray-600 font-mono">
                   {row.nces_id}
                 </td>
-                <td className="px-4 py-3 text-sm text-[#403770] font-medium">
+                <td className="px-3 py-2 text-sm text-[#403770] font-medium">
                   {row.district_name || "Unknown"}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className="px-3 py-2 text-xs text-gray-600">
                   {row.state || "—"}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className="px-3 py-2 text-xs text-gray-600">
                   <div className="flex gap-1 flex-wrap">
                     {row.account_variants.slice(0, 2).map((v, i) => (
                       <span
                         key={i}
-                        className={`px-2 py-0.5 rounded text-xs ${
+                        className={`px-1.5 py-0.5 rounded text-xs ${
                           v.source === "districts"
                             ? "bg-blue-100 text-blue-700"
                             : "bg-amber-100 text-amber-700"
@@ -407,15 +417,15 @@ function FragmentedTable({
                       </span>
                     ))}
                     {row.account_variants.length > 2 && (
-                      <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
+                      <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
                         +{row.account_variants.length - 2} more
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-right">
+                <td className="px-3 py-2 text-xs text-right">
                   <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                       row.similarity_score < 0.5
                         ? "bg-red-100 text-red-700"
                         : "bg-yellow-100 text-yellow-700"
@@ -427,7 +437,7 @@ function FragmentedTable({
               </tr>
               {expandedRow === row.nces_id && (
                 <tr className="bg-gray-50">
-                  <td colSpan={5} className="px-4 py-4">
+                  <td colSpan={6} className="px-3 py-3">
                     <div className="text-sm text-gray-600">
                       <strong className="text-gray-900">All Account Variants:</strong>
                       <div className="mt-2 space-y-1">
@@ -496,8 +506,21 @@ function DistrictProfilesView({
       );
     }
 
-    // Sort
+    // Sort: always group by state first, then by selected field within each state
     result = [...result].sort((a, b) => {
+      // Primary sort: state alphabetically
+      const stateA = (a.state || "ZZZ").toUpperCase();
+      const stateB = (b.state || "ZZZ").toUpperCase();
+      if (stateA !== stateB) return stateA.localeCompare(stateB);
+
+      // Secondary sort: by selected field (or alphabetically by name for default)
+      if (sortField === "entities" && sortDir === "desc") {
+        // Default sort: alphabetical by name within state
+        const nameA = (a.district_name || "").toLowerCase();
+        const nameB = (b.district_name || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+
       let aVal: number, bVal: number;
       switch (sortField) {
         case "schools": aVal = a.schools.count; bVal = b.schools.count; break;
@@ -586,49 +609,74 @@ function DistrictProfilesView({
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                <th className="w-8 px-2 py-2"></th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   District
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   District ID
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   NCES ID
                 </th>
                 <th
                   onClick={() => handleSort("schools")}
-                  className="text-right px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:text-[#403770] select-none"
+                  className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-[#403770] select-none"
                 >
                   Schools{sortIcon("schools")}
                 </th>
                 <th
                   onClick={() => handleSort("sessions")}
-                  className="text-right px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:text-[#403770] select-none"
+                  className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-[#403770] select-none"
                 >
                   Sessions{sortIcon("sessions")}
                 </th>
                 <th
                   onClick={() => handleSort("opps")}
-                  className="text-right px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:text-[#403770] select-none"
+                  className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-[#403770] select-none"
                 >
                   Opps{sortIcon("opps")}
                 </th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Data Sources
                 </th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
+              {filtered.map((row, idx) => {
+                // Show a state group header when the state changes
+                const prevState = idx > 0 ? filtered[idx - 1].state : null;
+                const showStateHeader = row.state !== prevState;
+
+                return (
                 <Fragment key={row.district_id}>
+                  {showStateHeader && (
+                    <tr className="bg-[#403770]/5">
+                      <td colSpan={8} className="px-3 py-1.5">
+                        <span className="text-xs font-semibold text-[#403770] uppercase tracking-wider">
+                          {row.state || "Unknown State"}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
                   <tr
                     onClick={() =>
                       setExpandedRow(expandedRow === row.district_id ? null : row.district_id)
                     }
                     className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                   >
+                    {/* Chevron indicator */}
+                    <td className="w-8 px-2 py-2 text-gray-400">
+                      <svg
+                        className={`w-4 h-4 transition-transform ${expandedRow === row.district_id ? "rotate-90" : ""}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </td>
+
                     {/* District Name + State */}
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="text-sm text-[#403770] font-medium">
                         {row.district_name || "Unknown District"}
                       </div>
@@ -636,13 +684,13 @@ function DistrictProfilesView({
                     </td>
 
                     {/* District ID + orphaned badge */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600 font-mono">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-600 font-mono">
                           {row.district_id}
                         </span>
                         {row.data_quality.is_orphaned && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                          <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
                             Orphaned
                           </span>
                         )}
@@ -650,34 +698,34 @@ function DistrictProfilesView({
                     </td>
 
                     {/* NCES ID or Missing badge */}
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-3 py-2 text-xs">
                       {row.nces_id ? (
                         <span className="text-gray-600 font-mono">{row.nces_id}</span>
                       ) : (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                        <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
                           Missing
                         </span>
                       )}
                     </td>
 
                     {/* Counts */}
-                    <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                    <td className="px-3 py-2 text-xs text-gray-600 text-right">
                       {row.schools.count.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                    <td className="px-3 py-2 text-xs text-gray-600 text-right">
                       {row.sessions.count.toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                    <td className="px-3 py-2 text-xs text-gray-600 text-right">
                       {row.opportunities.count.toLocaleString()}
                     </td>
 
                     {/* Data sources */}
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <div className="flex gap-1 flex-wrap">
                         {row.referenced_by.map((source) => (
                           <span
                             key={source}
-                            className="px-2 py-0.5 rounded text-xs bg-[#C4E7E6] text-[#403770]"
+                            className="px-1.5 py-0.5 rounded text-xs bg-[#C4E7E6] text-[#403770]"
                           >
                             {source}
                           </span>
@@ -689,7 +737,7 @@ function DistrictProfilesView({
                   {/* Expanded detail row */}
                   {expandedRow === row.district_id && (
                     <tr className="bg-gray-50">
-                      <td colSpan={7} className="px-6 py-5">
+                      <td colSpan={8} className="px-4 py-4">
                         <div className="grid grid-cols-2 gap-6">
                           {/* Left: Entity breakdown */}
                           <div>
@@ -769,7 +817,8 @@ function DistrictProfilesView({
                     </tr>
                   )}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
