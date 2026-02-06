@@ -815,10 +815,10 @@
       ]
     },
     "courses": {
-      "count": 1779
+      "count": 1780
     },
     "totals": {
-      "entity_count": 34296,
+      "entity_count": 34297,
       "total_revenue": 4842798.1304187775
     },
     "data_quality": {
@@ -2961,8 +2961,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 1359,
-      "revenue": 216540.63846588135,
+      "count": 1360,
+      "revenue": 216601.63846588135,
       "schools_in_sessions": [
         "Smithtown Central School District"
       ]
@@ -2971,8 +2971,8 @@
       "count": 636
     },
     "totals": {
-      "entity_count": 2028,
-      "total_revenue": 1080292.8406143188
+      "entity_count": 2029,
+      "total_revenue": 1080353.8406143188
     },
     "data_quality": {
       "has_nces": true,
@@ -5002,8 +5002,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 3384,
-      "revenue": 198208.54251289368,
+      "count": 3389,
+      "revenue": 198538.34250831604,
       "schools_in_sessions": [
         "Dunkirk City School District"
       ]
@@ -5012,8 +5012,8 @@
       "count": 162
     },
     "totals": {
-      "entity_count": 3558,
-      "total_revenue": 684161.5425128937
+      "entity_count": 3563,
+      "total_revenue": 684491.342508316
     },
     "data_quality": {
       "has_nces": true,
