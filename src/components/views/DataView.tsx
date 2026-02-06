@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, useMemo, Fragment } from "react";
 import {
   useReconciliationUnmatched,
   useReconciliationFragmented,
+  useDistrictProfiles,
   ReconciliationFilters,
   ReconciliationUnmatchedAccount,
   ReconciliationFragmentedDistrict,
+  DistrictProfile,
+  DistrictProfileFilters,
 } from "@/lib/api";
 
-type TabType = "unmatched" | "fragmented";
+type TabType = "unmatched" | "fragmented" | "profiles";
 
 export default function DataView() {
   const [activeTab, setActiveTab] = useState<TabType>("unmatched");
@@ -28,11 +31,31 @@ export default function DataView() {
     error: fragmentedError,
   } = useReconciliationFragmented(filters);
 
-  const isLoading = activeTab === "unmatched" ? unmatchedLoading : fragmentedLoading;
-  const error = activeTab === "unmatched" ? unmatchedError : fragmentedError;
+  // District profiles state — separate filters since this endpoint has different params
+  const [profileFilters, setProfileFilters] = useState<DistrictProfileFilters>({});
+  const [profileStatusFilter, setProfileStatusFilter] = useState<"all" | "orphaned" | "valid">("all");
+
+  const {
+    data: profilesData,
+    isLoading: profilesLoading,
+    error: profilesError,
+  } = useDistrictProfiles(profileFilters);
+
+  const isLoading =
+    activeTab === "unmatched" ? unmatchedLoading :
+    activeTab === "fragmented" ? fragmentedLoading :
+    profilesLoading;
+
+  const error =
+    activeTab === "unmatched" ? unmatchedError :
+    activeTab === "fragmented" ? fragmentedError :
+    profilesError;
 
   const handleExport = () => {
-    const data = activeTab === "unmatched" ? unmatchedData : fragmentedData;
+    const data =
+      activeTab === "unmatched" ? unmatchedData :
+      activeTab === "fragmented" ? fragmentedData :
+      profilesData;
     if (!data) return;
 
     let csv = "";
@@ -44,12 +67,21 @@ export default function DataView() {
             `"${row.account_name}","${row.state || ""}","${row.sales_exec || ""}",${row.total_revenue},${row.opportunity_count}`
         )
         .join("\n");
-    } else {
+    } else if (activeTab === "fragmented") {
       csv = "NCES ID,District Name,State,Account Variants,Similarity Score\n";
       csv += (data as ReconciliationFragmentedDistrict[])
         .map(
           (row) =>
             `"${row.nces_id}","${row.district_name || ""}","${row.state || ""}","${row.account_variants.map((v) => v.name).join("; ")}",${row.similarity_score}`
+        )
+        .join("\n");
+    } else if (activeTab === "profiles") {
+      const profileData = data as DistrictProfile[];
+      csv = "District Name,District ID,State,NCES ID,Orphaned,Schools,Sessions,Opportunities,Courses,Entity Count\n";
+      csv += profileData
+        .map(
+          (row) =>
+            `"${row.district_name || ""}","${row.district_id}","${row.state || ""}","${row.nces_id || ""}",${row.data_quality.is_orphaned},${row.schools.count},${row.sessions.count},${row.opportunities.count},${row.courses.count},${row.totals.entity_count}`
         )
         .join("\n");
     }
@@ -109,6 +141,21 @@ export default function DataView() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("profiles")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "profiles"
+                ? "bg-[#403770] text-white"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            District Profiles
+            {profilesData && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-white/20">
+                {profilesData.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Filter Bar */}
@@ -124,22 +171,44 @@ export default function DataView() {
               />
             </div>
             <select
-              value={filters.state || ""}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, state: e.target.value || undefined }))
-              }
+              value={activeTab === "profiles" ? (profileFilters.state || "") : (filters.state || "")}
+              onChange={(e) => {
+                if (activeTab === "profiles") {
+                  setProfileFilters((f) => ({ ...f, state: e.target.value || undefined }));
+                } else {
+                  setFilters((f) => ({ ...f, state: e.target.value || undefined }));
+                }
+              }}
               className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20"
             >
               <option value="">All States</option>
-              <option value="CA">California</option>
-              <option value="TX">Texas</option>
-              <option value="NY">New York</option>
-              <option value="FL">Florida</option>
-              <option value="IL">Illinois</option>
+              {activeTab === "profiles" && profilesData
+                ? [...new Set(profilesData.map((d) => d.state).filter(Boolean))].sort().map((st) => (
+                    <option key={st} value={st!}>{st}</option>
+                  ))
+                : <>
+                    <option value="CA">California</option>
+                    <option value="TX">Texas</option>
+                    <option value="NY">New York</option>
+                    <option value="FL">Florida</option>
+                    <option value="IL">Illinois</option>
+                  </>
+              }
             </select>
+            {activeTab === "profiles" && (
+              <select
+                value={profileStatusFilter}
+                onChange={(e) => setProfileStatusFilter(e.target.value as "all" | "orphaned" | "valid")}
+                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20"
+              >
+                <option value="all">All Status</option>
+                <option value="orphaned">Orphaned Only</option>
+                <option value="valid">Valid Only</option>
+              </select>
+            )}
             <button
               onClick={handleExport}
-              disabled={!unmatchedData && !fragmentedData}
+              disabled={!unmatchedData && !fragmentedData && !profilesData}
               className="px-4 py-2 bg-[#C4E7E6] text-[#403770] rounded-lg font-medium hover:bg-[#b3dbd9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Export CSV
@@ -169,6 +238,15 @@ export default function DataView() {
         {/* Fragmented Accounts Table */}
         {!isLoading && !error && activeTab === "fragmented" && fragmentedData && (
           <FragmentedTable data={fragmentedData} searchTerm={searchTerm} />
+        )}
+
+        {/* District Profiles */}
+        {!isLoading && !error && activeTab === "profiles" && profilesData && (
+          <DistrictProfilesView
+            data={profilesData}
+            searchTerm={searchTerm}
+            statusFilter={profileStatusFilter}
+          />
         )}
       </main>
     </div>
