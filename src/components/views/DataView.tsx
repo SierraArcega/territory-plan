@@ -376,16 +376,19 @@ function DuplicateDistrictsView({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
 
-                  {/* Name + state */}
+                  {/* Name + state + NCES suggestion */}
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-[#403770]">
-                      {group.displayName}
-                    </span>
-                    {group.state && (
-                      <span className="ml-2 text-xs text-gray-400">
-                        ({group.state})
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-[#403770]">
+                        {group.displayName}
                       </span>
-                    )}
+                      {group.state && (
+                        <span className="text-xs text-gray-400">
+                          ({group.state})
+                        </span>
+                      )}
+                      <GroupNcesSuggestion group={group} />
+                    </div>
                   </div>
 
                   {/* Badges */}
@@ -460,9 +463,11 @@ function DuplicateDistrictsView({
                               </span>
                             </td>
 
-                            {/* NCES ID — show actual or suggested */}
+                            {/* NCES ID */}
                             <td className="px-2 py-2">
-                              <NcesCell district={d} />
+                              <span className="text-xs text-gray-600 font-mono">
+                                {d.nces_id || "—"}
+                              </span>
                             </td>
 
                             {/* Counts */}
@@ -501,50 +506,49 @@ function DuplicateDistrictsView({
 }
 
 // =============================================================================
-// NCES Cell — shows actual NCES ID or a suggested match from our districts DB
+// Group-level NCES suggestion — shown in the header row next to the name
 // =============================================================================
 
-function NcesCell({ district }: { district: DistrictProfile }) {
-  // If the district already has an NCES ID, just show it
-  if (district.nces_id) {
+function GroupNcesSuggestion({ group }: { group: DuplicateGroup }) {
+  // If any district in the group already has an NCES ID, no suggestion needed
+  const existingNces = group.districts.find((d) => d.nces_id);
+  const needsSuggestion = !existingNces;
+
+  const { data, isLoading } = useNcesLookup(
+    group.displayName,
+    group.state,
+    needsSuggestion
+  );
+
+  if (existingNces) {
     return (
-      <span className="text-xs text-gray-600 font-mono">
-        {district.nces_id}
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono text-gray-500 bg-gray-100 rounded">
+        NCES {existingNces.nces_id}
       </span>
     );
   }
 
-  // Otherwise, auto-lookup a suggestion
-  return <NcesSuggestion name={district.district_name} state={district.state} />;
-}
-
-function NcesSuggestion({ name, state }: { name: string | null; state: string | null }) {
-  const { data, isLoading } = useNcesLookup(name, state, true);
-
   if (isLoading) {
-    return <span className="text-xs text-gray-400">Looking up...</span>;
+    return (
+      <span className="text-[10px] text-gray-400 italic">looking up NCES...</span>
+    );
   }
 
   if (!data?.match) {
-    return <span className="text-xs text-gray-400">—</span>;
+    return null;
   }
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-gray-600 font-mono">{data.match.leaid}</span>
-        <span className={`px-1.5 py-0 text-[10px] font-medium rounded-full ${
-          data.confidence === "exact"
-            ? "bg-blue-100 text-blue-700"
-            : "bg-blue-50 text-blue-500"
-        }`}>
-          Suggested
-        </span>
-      </div>
-      <span className="text-[10px] text-gray-400 leading-tight">
-        {data.match.name}
+    <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 text-[10px] rounded bg-blue-50 text-blue-600" title={`Matched: ${data.match.name}`}>
+      <span className="font-mono">NCES {data.match.leaid}</span>
+      <span className={`px-1 rounded-full font-medium ${
+        data.confidence === "exact"
+          ? "bg-blue-100 text-blue-700"
+          : "bg-blue-100/50 text-blue-500"
+      }`}>
+        Suggested
       </span>
-    </div>
+    </span>
   );
 }
 
