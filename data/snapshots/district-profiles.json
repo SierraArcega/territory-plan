@@ -29,7 +29,7 @@
     },
     "sessions": {
       "count": 29886,
-      "revenue": 1690219.8168878555,
+      "revenue": 1689825.0768976212,
       "schools_in_sessions": [
         "Richland School District Two",
         "Westwood High School",
@@ -43,7 +43,7 @@
     },
     "totals": {
       "entity_count": 31701,
-      "total_revenue": 18642062.160881996
+      "total_revenue": 18641667.42089176
     },
     "data_quality": {
       "has_nces": true,
@@ -281,104 +281,6 @@
     "totals": {
       "entity_count": 5,
       "total_revenue": 3970100
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592246405202",
-    "district_name": "Barstow Unified School District",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": "604020",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 5,
-      "revenue": 6484397.5,
-      "account_names_used": [
-        "Barstow Unified School District"
-      ]
-    },
-    "schools": {
-      "count": 15,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 4863,
-      "revenue": 1793643.436920166,
-      "schools_in_sessions": [
-        "Barstow Unified School District",
-        "Skyline North Elementary",
-        "Lenwood Elementary School",
-        "Barstow STEM Academy",
-        "Montara Elementary"
-      ]
-    },
-    "courses": {
-      "count": 62
-    },
-    "totals": {
-      "entity_count": 4945,
-      "total_revenue": 8278040.936920166
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592246404970",
-    "district_name": "Barstow Unified School District",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 2,
-      "revenue": 1696000,
-      "account_names_used": [
-        "Barstow Unified School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 1696000
     },
     "data_quality": {
       "has_nces": false,
@@ -699,8 +601,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 48721,
-      "revenue": 1654254.9206142426,
+      "count": 48849,
+      "revenue": 1667217.4506130219,
       "schools_in_sessions": [
         "Enlarged City School District of Middletown",
         "Fullmind Demo School"
@@ -710,8 +612,8 @@
       "count": 2316
     },
     "totals": {
-      "entity_count": 51078,
-      "total_revenue": 6143780.826864243
+      "entity_count": 51206,
+      "total_revenue": 6156743.356863022
     },
     "data_quality": {
       "has_nces": true,
@@ -903,7 +805,7 @@
     },
     "sessions": {
       "count": 32465,
-      "revenue": 1239443.2099494934,
+      "revenue": 1234468.3999500275,
       "schools_in_sessions": [
         "Tierra Buena Elementary School",
         "Butte Vista Elementary School",
@@ -917,7 +819,7 @@
     },
     "totals": {
       "entity_count": 34296,
-      "total_revenue": 4847772.940418243
+      "total_revenue": 4842798.1304187775
     },
     "data_quality": {
       "has_nces": true,
@@ -1092,7 +994,7 @@
     },
     "sessions": {
       "count": 3470,
-      "revenue": 232743.95399475098,
+      "revenue": 238707.3833656311,
       "schools_in_sessions": [
         "Elmsford School District"
       ]
@@ -1102,7 +1004,7 @@
     },
     "totals": {
       "entity_count": 3720,
-      "total_revenue": 3431121.735244751
+      "total_revenue": 3437085.164615631
     },
     "data_quality": {
       "has_nces": true,
@@ -1276,8 +1178,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 3890,
-      "revenue": 637618.0636329651,
+      "count": 3891,
+      "revenue": 637613.9236297607,
       "schools_in_sessions": [
         "North Syracuse School District"
       ]
@@ -1286,8 +1188,8 @@
       "count": 755
     },
     "totals": {
-      "entity_count": 4673,
-      "total_revenue": 3232257.575351715
+      "entity_count": 4674,
+      "total_revenue": 3232253.4353485107
     },
     "data_quality": {
       "has_nces": true,
@@ -3872,6 +3774,100 @@
     }
   },
   {
+    "district_id": "17592246396739",
+    "district_name": "Port Jervis City School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": "3623520",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 6,
+      "revenue": 501539,
+      "account_names_used": [
+        "Port Jervis City School District"
+      ]
+    },
+    "schools": {
+      "count": 5,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 7639,
+      "revenue": 342227.3859567642,
+      "schools_in_sessions": [
+        "Port Jervis City School District"
+      ]
+    },
+    "courses": {
+      "count": 249
+    },
+    "totals": {
+      "entity_count": 7899,
+      "total_revenue": 843766.3859567642
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592188077542",
+    "district_name": "Port Jervis City School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 4,
+      "revenue": 253441,
+      "account_names_used": [
+        "Port Jervis City School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 4,
+      "total_revenue": 253441
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592288467451",
     "district_name": "Onamia Public School District",
     "state": "MN",
@@ -3956,100 +3952,6 @@
     "totals": {
       "entity_count": 2,
       "total_revenue": 163369.296875
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592246396739",
-    "district_name": "Port Jervis City School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3623520",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 6,
-      "revenue": 501539,
-      "account_names_used": [
-        "Port Jervis City School District"
-      ]
-    },
-    "schools": {
-      "count": 5,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 7605,
-      "revenue": 338778.76594638824,
-      "schools_in_sessions": [
-        "Port Jervis City School District"
-      ]
-    },
-    "courses": {
-      "count": 249
-    },
-    "totals": {
-      "entity_count": 7865,
-      "total_revenue": 840317.7659463882
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188077542",
-    "district_name": "Port Jervis City School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 4,
-      "revenue": 253441,
-      "account_names_used": [
-        "Port Jervis City School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 4,
-      "total_revenue": 253441
     },
     "data_quality": {
       "has_nces": false,
@@ -5100,8 +5002,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 3381,
-      "revenue": 197943.10251045227,
+      "count": 3384,
+      "revenue": 198208.54251289368,
       "schools_in_sessions": [
         "Dunkirk City School District"
       ]
@@ -5110,8 +5012,8 @@
       "count": 162
     },
     "totals": {
-      "entity_count": 3555,
-      "total_revenue": 683896.1025104523
+      "entity_count": 3558,
+      "total_revenue": 684161.5425128937
     },
     "data_quality": {
       "has_nces": true,
@@ -5563,8 +5465,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 2576,
-      "revenue": 131948.4515171051,
+      "count": 2582,
+      "revenue": 132404.90152168274,
       "schools_in_sessions": [
         "Onteora School District"
       ]
@@ -5573,8 +5475,8 @@
       "count": 149
     },
     "totals": {
-      "entity_count": 2743,
-      "total_revenue": 596031.6605014801
+      "entity_count": 2749,
+      "total_revenue": 596488.1105060577
     },
     "data_quality": {
       "has_nces": true,
@@ -8313,6 +8215,100 @@
     }
   },
   {
+    "district_id": "17592297177239",
+    "district_name": "Wappingers School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": "3629880",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 18,
+      "revenue": 353795,
+      "account_names_used": [
+        "Wappingers School District"
+      ]
+    },
+    "schools": {
+      "count": 16,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 2196,
+      "revenue": 86392.29159927368,
+      "schools_in_sessions": [
+        "Wappingers School District"
+      ]
+    },
+    "courses": {
+      "count": 396
+    },
+    "totals": {
+      "entity_count": 2626,
+      "total_revenue": 440187.2915992737
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592191139680",
+    "district_name": "Wappingers School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 16,
+      "revenue": 291475,
+      "account_names_used": [
+        "Wappingers School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 16,
+      "total_revenue": 291475
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592284312058",
     "district_name": "Henry County Schools",
     "state": "GA",
@@ -8400,100 +8396,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177239",
-    "district_name": "Wappingers School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3629880",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 18,
-      "revenue": 353795,
-      "account_names_used": [
-        "Wappingers School District"
-      ]
-    },
-    "schools": {
-      "count": 16,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 2186,
-      "revenue": 85396.55159378052,
-      "schools_in_sessions": [
-        "Wappingers School District"
-      ]
-    },
-    "courses": {
-      "count": 396
-    },
-    "totals": {
-      "entity_count": 2616,
-      "total_revenue": 439191.5515937805
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592191139680",
-    "district_name": "Wappingers School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 16,
-      "revenue": 291475,
-      "account_names_used": [
-        "Wappingers School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 16,
-      "total_revenue": 291475
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -8988,7 +8890,7 @@
     },
     "sessions": {
       "count": 1794,
-      "revenue": 162790.32498931885,
+      "revenue": 162672.19498825073,
       "schools_in_sessions": [
         "Waterloo Central School District"
       ]
@@ -8998,7 +8900,7 @@
     },
     "totals": {
       "entity_count": 1881,
-      "total_revenue": 420399.26248931885
+      "total_revenue": 420281.13248825073
     },
     "data_quality": {
       "has_nces": true,
@@ -11442,7 +11344,7 @@
     },
     "sessions": {
       "count": 2645,
-      "revenue": 113121.02331161499,
+      "revenue": 113093.72330856323,
       "schools_in_sessions": [
         "Canajoharie School District"
       ]
@@ -11452,7 +11354,7 @@
     },
     "totals": {
       "entity_count": 2734,
-      "total_revenue": 337215.515499115
+      "total_revenue": 337188.21549606323
     },
     "data_quality": {
       "has_nces": true,
@@ -13370,7 +13272,7 @@
     },
     "sessions": {
       "count": 1483,
-      "revenue": 57733.89098548889,
+      "revenue": 57491.400983810425,
       "schools_in_sessions": [
         "Chappaqua School District"
       ]
@@ -13380,7 +13282,7 @@
     },
     "totals": {
       "entity_count": 1901,
-      "total_revenue": 285007.8909854889
+      "total_revenue": 284765.4009838104
     },
     "data_quality": {
       "has_nces": true,
@@ -14320,8 +14222,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 1588,
-      "revenue": 46865.100257873535,
+      "count": 1589,
+      "revenue": 46983.440254211426,
       "schools_in_sessions": [
         "Shoreham - Wading River School District"
       ]
@@ -14330,8 +14232,8 @@
       "count": 112
     },
     "totals": {
-      "entity_count": 1713,
-      "total_revenue": 259213.10025787354
+      "entity_count": 1714,
+      "total_revenue": 259331.44025421143
     },
     "data_quality": {
       "has_nces": true,
@@ -27348,6 +27250,100 @@
     }
   },
   {
+    "district_id": "17592297177465",
+    "district_name": "Honeoye Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": "3614670",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 8,
+      "revenue": 94938.4697265625,
+      "account_names_used": [
+        "Honeoye Central School District"
+      ]
+    },
+    "schools": {
+      "count": 3,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 843,
+      "revenue": 43936.52996253967,
+      "schools_in_sessions": [
+        "Honeoye Central School District"
+      ]
+    },
+    "courses": {
+      "count": 25
+    },
+    "totals": {
+      "entity_count": 879,
+      "total_revenue": 138874.99968910217
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592226149466",
+    "district_name": "Honeoye Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 8,
+      "revenue": 94938.4697265625,
+      "account_names_used": [
+        "Honeoye Central School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 8,
+      "total_revenue": 94938.4697265625
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592188521620",
     "district_name": "Peekskill City School District",
     "state": "NY",
@@ -29364,100 +29360,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177465",
-    "district_name": "Honeoye Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3614670",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 8,
-      "revenue": 70828.75012207031,
-      "account_names_used": [
-        "Honeoye Central School District"
-      ]
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 843,
-      "revenue": 43218.929960250854,
-      "schools_in_sessions": [
-        "Honeoye Central School District"
-      ]
-    },
-    "courses": {
-      "count": 25
-    },
-    "totals": {
-      "entity_count": 879,
-      "total_revenue": 114047.68008232117
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592226149466",
-    "district_name": "Honeoye Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 8,
-      "revenue": 70828.75012207031,
-      "account_names_used": [
-        "Honeoye Central School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 8,
-      "total_revenue": 70828.75012207031
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
