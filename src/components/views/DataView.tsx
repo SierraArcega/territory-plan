@@ -5,6 +5,7 @@ import {
   useReconciliationUnmatched,
   useReconciliationFragmented,
   useDistrictProfiles,
+  useNcesLookup,
   ReconciliationFilters,
   ReconciliationUnmatchedAccount,
   ReconciliationFragmentedDistrict,
@@ -410,7 +411,10 @@ function DuplicateDistrictsView({
                             Status
                           </th>
                           <th className="text-left px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            District ID
+                            LMS ID
+                          </th>
+                          <th className="text-left px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            NCES ID
                           </th>
                           <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Opps
@@ -449,11 +453,16 @@ function DuplicateDistrictsView({
                               )}
                             </td>
 
-                            {/* District ID */}
+                            {/* LMS ID */}
                             <td className="px-2 py-2">
                               <span className="text-xs text-gray-600 font-mono">
                                 {d.district_id}
                               </span>
+                            </td>
+
+                            {/* NCES ID — show actual or suggested */}
+                            <td className="px-2 py-2">
+                              <NcesCell district={d} />
                             </td>
 
                             {/* Counts */}
@@ -487,6 +496,54 @@ function DuplicateDistrictsView({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// =============================================================================
+// NCES Cell — shows actual NCES ID or a suggested match from our districts DB
+// =============================================================================
+
+function NcesCell({ district }: { district: DistrictProfile }) {
+  // If the district already has an NCES ID, just show it
+  if (district.nces_id) {
+    return (
+      <span className="text-xs text-gray-600 font-mono">
+        {district.nces_id}
+      </span>
+    );
+  }
+
+  // Otherwise, auto-lookup a suggestion
+  return <NcesSuggestion name={district.district_name} state={district.state} />;
+}
+
+function NcesSuggestion({ name, state }: { name: string | null; state: string | null }) {
+  const { data, isLoading } = useNcesLookup(name, state, true);
+
+  if (isLoading) {
+    return <span className="text-xs text-gray-400">Looking up...</span>;
+  }
+
+  if (!data?.match) {
+    return <span className="text-xs text-gray-400">—</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-gray-600 font-mono">{data.match.leaid}</span>
+        <span className={`px-1.5 py-0 text-[10px] font-medium rounded-full ${
+          data.confidence === "exact"
+            ? "bg-blue-100 text-blue-700"
+            : "bg-blue-50 text-blue-500"
+        }`}>
+          Suggested
+        </span>
+      </div>
+      <span className="text-[10px] text-gray-400 leading-tight">
+        {data.match.name}
+      </span>
     </div>
   );
 }
