@@ -458,3 +458,322 @@ function FragmentedTable({
     </div>
   );
 }
+
+// DistrictProfilesView — summary cards + sortable table with expandable detail rows
+function DistrictProfilesView({
+  data,
+  searchTerm,
+  statusFilter,
+}: {
+  data: DistrictProfile[];
+  searchTerm: string;
+  statusFilter: "all" | "orphaned" | "valid";
+}) {
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<"entities" | "schools" | "sessions" | "opps">("entities");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Filter by search term and status
+  const filtered = useMemo(() => {
+    let result = data;
+
+    // Status filter
+    if (statusFilter === "orphaned") {
+      result = result.filter((d) => d.data_quality.is_orphaned);
+    } else if (statusFilter === "valid") {
+      result = result.filter((d) => !d.data_quality.is_orphaned);
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (d) =>
+          d.district_name?.toLowerCase().includes(term) ||
+          d.district_id.includes(term) ||
+          d.nces_id?.includes(term) ||
+          d.state?.toLowerCase().includes(term)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let aVal: number, bVal: number;
+      switch (sortField) {
+        case "schools": aVal = a.schools.count; bVal = b.schools.count; break;
+        case "sessions": aVal = a.sessions.count; bVal = b.sessions.count; break;
+        case "opps": aVal = a.opportunities.count; bVal = b.opportunities.count; break;
+        default: aVal = a.totals.entity_count; bVal = b.totals.entity_count;
+      }
+      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+    });
+
+    return result;
+  }, [data, searchTerm, statusFilter, sortField, sortDir]);
+
+  // Summary stats computed from the full (unfiltered) dataset
+  const stats = useMemo(() => {
+    const orphanedCount = data.filter((d) => d.data_quality.is_orphaned).length;
+    const missingNcesCount = data.filter((d) => !d.data_quality.has_nces).length;
+    const uniqueStates = new Set(data.map((d) => d.state).filter(Boolean)).size;
+    return { orphanedCount, missingNcesCount, total: data.length, uniqueStates };
+  }, [data]);
+
+  // Toggle sort: if clicking the same field, flip direction; otherwise set new field desc
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  };
+
+  // Small helper for the sort indicator arrow
+  const sortIcon = (field: typeof sortField) =>
+    sortField === field ? (sortDir === "desc" ? " \u2193" : " \u2191") : "";
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Orphaned Districts */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-sm font-medium text-gray-500">Orphaned Districts</p>
+          <p className="text-3xl font-bold text-[#F37167] mt-1">
+            {stats.orphanedCount.toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            IDs referenced but not in district index
+          </p>
+        </div>
+
+        {/* Missing NCES */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-sm font-medium text-gray-500">Missing NCES ID</p>
+          <p className="text-3xl font-bold text-amber-500 mt-1">
+            {stats.missingNcesCount.toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Districts without federal reporting ID
+          </p>
+        </div>
+
+        {/* Total Districts */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="text-sm font-medium text-gray-500">Total Districts</p>
+          <p className="text-3xl font-bold text-[#6EA3BE] mt-1">
+            {stats.total.toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Across {stats.uniqueStates} states
+          </p>
+        </div>
+      </div>
+
+      {/* Results count */}
+      <p className="text-sm text-gray-500">
+        Showing {filtered.length} of {data.length} district profiles
+      </p>
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+          No district profiles match the current filters.
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                  District
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                  District ID
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                  NCES ID
+                </th>
+                <th
+                  onClick={() => handleSort("schools")}
+                  className="text-right px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:text-[#403770] select-none"
+                >
+                  Schools{sortIcon("schools")}
+                </th>
+                <th
+                  onClick={() => handleSort("sessions")}
+                  className="text-right px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:text-[#403770] select-none"
+                >
+                  Sessions{sortIcon("sessions")}
+                </th>
+                <th
+                  onClick={() => handleSort("opps")}
+                  className="text-right px-4 py-3 text-sm font-medium text-gray-600 cursor-pointer hover:text-[#403770] select-none"
+                >
+                  Opps{sortIcon("opps")}
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">
+                  Data Sources
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row) => (
+                <Fragment key={row.district_id}>
+                  <tr
+                    onClick={() =>
+                      setExpandedRow(expandedRow === row.district_id ? null : row.district_id)
+                    }
+                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                  >
+                    {/* District Name + State */}
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-[#403770] font-medium">
+                        {row.district_name || "Unknown District"}
+                      </div>
+                      <div className="text-xs text-gray-400">{row.state || "\u2014"}</div>
+                    </td>
+
+                    {/* District ID + orphaned badge */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 font-mono">
+                          {row.district_id}
+                        </span>
+                        {row.data_quality.is_orphaned && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                            Orphaned
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* NCES ID or Missing badge */}
+                    <td className="px-4 py-3 text-sm">
+                      {row.nces_id ? (
+                        <span className="text-gray-600 font-mono">{row.nces_id}</span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                          Missing
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Counts */}
+                    <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                      {row.schools.count.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                      {row.sessions.count.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                      {row.opportunities.count.toLocaleString()}
+                    </td>
+
+                    {/* Data sources */}
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 flex-wrap">
+                        {row.referenced_by.map((source) => (
+                          <span
+                            key={source}
+                            className="px-2 py-0.5 rounded text-xs bg-[#C4E7E6] text-[#403770]"
+                          >
+                            {source}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Expanded detail row */}
+                  {expandedRow === row.district_id && (
+                    <tr className="bg-gray-50">
+                      <td colSpan={7} className="px-6 py-5">
+                        <div className="grid grid-cols-2 gap-6">
+                          {/* Left: Entity breakdown */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                              Entity Breakdown
+                            </h4>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                <p className="text-xs text-gray-500">Opportunities</p>
+                                <p className="text-lg font-semibold text-[#403770]">
+                                  {row.opportunities.count.toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                <p className="text-xs text-gray-500">Schools</p>
+                                <p className="text-lg font-semibold text-[#403770]">
+                                  {row.schools.count.toLocaleString()}
+                                </p>
+                                {row.schools.sample_names.length > 0 && (
+                                  <p className="text-xs text-gray-400 mt-1 truncate">
+                                    {row.schools.sample_names.slice(0, 3).join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                <p className="text-xs text-gray-500">Sessions</p>
+                                <p className="text-lg font-semibold text-[#403770]">
+                                  {row.sessions.count.toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                <p className="text-xs text-gray-500">Courses</p>
+                                <p className="text-lg font-semibold text-[#403770]">
+                                  {row.courses.count.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Data quality checklist */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                              Data Quality
+                            </h4>
+                            <div className="space-y-2">
+                              {[
+                                { label: "Has NCES ID", ok: row.data_quality.has_nces },
+                                { label: "Has State", ok: row.data_quality.has_state },
+                                { label: "Has Opportunities", ok: row.data_quality.has_opps },
+                                { label: "Has Schools", ok: row.data_quality.has_schools },
+                                { label: "Has Sessions", ok: row.data_quality.has_sessions },
+                                { label: "In District Index", ok: !row.data_quality.is_orphaned },
+                              ].map(({ label, ok }) => (
+                                <div key={label} className="flex items-center gap-2 text-sm">
+                                  <span className={ok ? "text-green-600" : "text-red-500"}>
+                                    {ok ? "\u2713" : "\u2717"}
+                                  </span>
+                                  <span className={ok ? "text-gray-700" : "text-gray-500"}>
+                                    {label}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* State sources */}
+                            {row.state_sources && row.state_sources.length > 0 && (
+                              <div className="mt-4 pt-3 border-t border-gray-200">
+                                <p className="text-xs text-gray-500">
+                                  State from:{" "}
+                                  {row.state_sources.map(([source]) => source).join(", ")}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
