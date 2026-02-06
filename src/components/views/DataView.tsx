@@ -6,6 +6,7 @@ import {
   useReconciliationFragmented,
   useDistrictProfiles,
   useNcesLookup,
+  useSnapshotMetadata,
   ReconciliationFilters,
   ReconciliationUnmatchedAccount,
   ReconciliationFragmentedDistrict,
@@ -65,6 +66,8 @@ export default function DataView() {
     isLoading: profilesLoading,
     error: profilesError,
   } = useDistrictProfiles(profileFilters);
+
+  const { data: snapshotMeta } = useSnapshotMetadata();
 
   const isLoading =
     activeTab === "duplicates" ? profilesLoading :
@@ -215,6 +218,17 @@ export default function DataView() {
             )}
           </button>
         </div>
+
+        {snapshotMeta && snapshotMeta.mode === "static" && snapshotMeta.lastRefreshed && (
+          <div className="text-xs text-gray-400 text-right px-4">
+            Data as of {new Date(snapshotMeta.lastRefreshed).toLocaleString()}
+          </div>
+        )}
+        {snapshotMeta && snapshotMeta.mode === "live" && (
+          <div className="text-xs text-emerald-500 text-right px-4">
+            ● Live
+          </div>
+        )}
 
         {/* Filter Bar */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
