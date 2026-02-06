@@ -235,6 +235,7 @@ Fullmind CRM accounts that couldn't be matched to a district.
 
 ### `data_refresh_logs` - ETL Audit Trail
 
+
 Records of ETL runs for tracking data freshness.
 
 | Column | Type | Description |
