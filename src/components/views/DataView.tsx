@@ -510,23 +510,13 @@ function DuplicateDistrictsView({
 // =============================================================================
 
 function GroupNcesSuggestion({ group }: { group: DuplicateGroup }) {
-  // If any district in the group already has an NCES ID, no suggestion needed
-  const existingNces = group.districts.find((d) => d.nces_id);
-  const needsSuggestion = !existingNces;
-
+  // Always look up the suggested NCES — even if some districts already have one,
+  // the existing value might differ from what our districts DB suggests.
   const { data, isLoading } = useNcesLookup(
     group.displayName,
     group.state,
-    needsSuggestion
+    true
   );
-
-  if (existingNces) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono text-gray-500 bg-gray-100 rounded">
-        NCES {existingNces.nces_id}
-      </span>
-    );
-  }
 
   if (isLoading) {
     return (
