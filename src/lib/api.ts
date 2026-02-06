@@ -1377,6 +1377,85 @@ export function useReconciliationFragmented(filters: ReconciliationFilters = {})
   });
 }
 
+// ===== District Profiles (FastAPI) =====
+
+export interface DistrictProfileOpportunities {
+  count: number;
+  revenue: number;
+  account_names_used: string[];
+}
+
+export interface DistrictProfileSchools {
+  count: number;
+  sample_names: string[];
+}
+
+export interface DistrictProfileSessions {
+  count: number;
+  revenue: number;
+  schools_in_sessions: string[];
+}
+
+export interface DistrictProfileCourses {
+  count: number;
+}
+
+export interface DistrictProfileTotals {
+  entity_count: number;
+  total_revenue: number;
+}
+
+export interface DistrictProfileDataQuality {
+  has_nces: boolean;
+  has_state: boolean;
+  is_orphaned: boolean;
+  has_opps: boolean;
+  has_schools: boolean;
+  has_sessions: boolean;
+}
+
+export interface DistrictProfile {
+  district_id: string;
+  district_name: string;
+  state: string | null;
+  state_sources: [string, string][];
+  nces_id: string | null;
+  exists_in_index: boolean;
+  referenced_by: string[];
+  opportunities: DistrictProfileOpportunities;
+  schools: DistrictProfileSchools;
+  sessions: DistrictProfileSessions;
+  courses: DistrictProfileCourses;
+  totals: DistrictProfileTotals;
+  data_quality: DistrictProfileDataQuality;
+}
+
+export interface DistrictProfileFilters {
+  include_orphaned?: boolean;
+  min_total_entities?: number;
+  state?: string;
+  limit?: number;
+}
+
+export function useDistrictProfiles(filters: DistrictProfileFilters = {}) {
+  const params = new URLSearchParams();
+  if (filters.include_orphaned !== undefined)
+    params.set("include_orphaned", String(filters.include_orphaned));
+  if (filters.min_total_entities)
+    params.set("min_total_entities", filters.min_total_entities.toString());
+  if (filters.state) params.set("state", filters.state);
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  return useQuery({
+    queryKey: ["reconciliation", "district-profiles", filters],
+    queryFn: () =>
+      fetchJson<DistrictProfile[]>(
+        `${API_BASE}/data/district-profiles?${params}`
+      ),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 // Logout user
 export function useLogout() {
   const queryClient = useQueryClient();
