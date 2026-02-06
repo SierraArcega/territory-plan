@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@opensearch-project/opensearch";
+import fs from "node:fs";
+import path from "node:path";
 
 // OpenSearch client - lazy initialized
 let osClient: Client | null = null;
@@ -255,6 +257,20 @@ export async function GET(request: NextRequest) {
       { error: "Invalid type. Must be 'unmatched' or 'fragmented'" },
       { status: 400 }
     );
+  }
+
+  // Static data mode — serve snapshot file instead of querying OpenSearch
+  if (process.env.USE_STATIC_DATA === "true") {
+    try {
+      const filePath = path.join(process.cwd(), `data/snapshots/${type}.json`);
+      const raw = fs.readFileSync(filePath, "utf-8");
+      return NextResponse.json(JSON.parse(raw));
+    } catch {
+      return NextResponse.json(
+        { error: `Static data file for ${type} not found. Run: npm run snapshot` },
+        { status: 503 }
+      );
+    }
   }
 
   try {
