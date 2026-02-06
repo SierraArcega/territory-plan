@@ -1437,6 +1437,25 @@ export interface DistrictProfileFilters {
   limit?: number;
 }
 
+export interface NcesLookupResult {
+  match: { leaid: string; name: string; state: string | null } | null;
+  confidence: "exact" | "partial" | "none";
+}
+
+export function useNcesLookup(name: string | null, state: string | null, enabled: boolean) {
+  const params = new URLSearchParams();
+  if (name) params.set("name", name);
+  if (state) params.set("state", state);
+
+  return useQuery({
+    queryKey: ["nces-lookup", name, state],
+    queryFn: () =>
+      fetchJson<NcesLookupResult>(`${API_BASE}/districts/nces-lookup?${params}`),
+    enabled: enabled && !!name,
+    staleTime: 30 * 60 * 1000, // 30 minutes — NCES data doesn't change often
+  });
+}
+
 export function useDistrictProfiles(filters: DistrictProfileFilters = {}) {
   const params = new URLSearchParams();
   if (filters.include_orphaned !== undefined)
