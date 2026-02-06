@@ -1456,6 +1456,20 @@ export function useNcesLookup(name: string | null, state: string | null, enabled
   });
 }
 
+export interface SnapshotMetadata {
+  mode: "live" | "static";
+  lastRefreshed?: string | null;
+  counts?: Record<string, number>;
+}
+
+export function useSnapshotMetadata() {
+  return useQuery({
+    queryKey: ["snapshot-metadata"],
+    queryFn: () => fetchJson<SnapshotMetadata>(`${API_BASE}/data/snapshot-metadata`),
+    staleTime: 60 * 1000, // 1 minute
+  });
+}
+
 export function useDistrictProfiles(filters: DistrictProfileFilters = {}) {
   const params = new URLSearchParams();
   if (filters.include_orphaned !== undefined)
