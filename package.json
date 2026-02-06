@@ -12,7 +12,9 @@
     "test:coverage": "vitest --coverage",
     "db:seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "snapshot": "tsx scripts/snapshot-data.ts",
-    "snapshot:push": "tsx scripts/snapshot-data.ts --push"
+    "snapshot:push": "tsx scripts/snapshot-data.ts --push",
+    "snapshot:install-cron": "cp scripts/com.territory-plan.snapshot.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.territory-plan.snapshot.plist",
+    "snapshot:uninstall-cron": "launchctl unload ~/Library/LaunchAgents/com.territory-plan.snapshot.plist && rm ~/Library/LaunchAgents/com.territory-plan.snapshot.plist"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
