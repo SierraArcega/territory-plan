@@ -31,6 +31,31 @@ const ENDPOINTS = [
   },
 ];
 
+// Must match normalizeName() in DataView.tsx exactly
+function normalizeName(name: string | null): string {
+  if (!name) return "";
+  return name
+    .toUpperCase()
+    .replace(
+      /SCHOOL DISTRICT|PUBLIC SCHOOLS|UNIFIED SCHOOL DISTRICT|CITY SCHOOLS|COUNTY SCHOOLS|SCHOOLS|DISTRICT/g,
+      ""
+    )
+    .trim();
+}
+
+// Filter to only districts that appear in duplicate groups (2+ per normalized name+state)
+function filterToDuplicates(districts: Record<string, unknown>[]): Record<string, unknown>[] {
+  const groups: Record<string, Record<string, unknown>[]> = {};
+  for (const d of districts) {
+    const key = `${normalizeName(d.district_name as string)}|${(d.state as string) || ""}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(d);
+  }
+  return Object.values(groups)
+    .filter((g) => g.length > 1)
+    .flat();
+}
+
 function appendLog(message: string) {
   const timestamp = new Date().toISOString();
   const line = `${timestamp} | ${message}\n`;
@@ -45,7 +70,16 @@ async function snapshotEndpoint(
   if (!response.ok) {
     throw new Error(`${endpoint.name}: HTTP ${response.status}`);
   }
-  const data = await response.json();
+  let data = await response.json();
+
+  // For district-profiles, pre-filter to only duplicate groups to reduce payload
+  // from ~11MB (21k districts) to ~1.2MB (~2k districts in duplicate groups)
+  if (endpoint.name === "district-profiles" && Array.isArray(data)) {
+    const totalCount = data.length;
+    data = filterToDuplicates(data);
+    console.log(`  Filtered district-profiles: ${totalCount} → ${data.length} (duplicates only)`);
+  }
+
   const count = Array.isArray(data) ? data.length : 1;
   fs.writeFileSync(
     path.join(SNAPSHOT_DIR, endpoint.file),
