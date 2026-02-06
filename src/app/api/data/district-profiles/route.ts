@@ -3,8 +3,25 @@
 // Query params are forwarded as-is to the upstream endpoint.
 
 import { NextRequest, NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
 
 export async function GET(request: NextRequest) {
+  // Static data mode — serve snapshot file instead of proxying to FastAPI
+  if (process.env.USE_STATIC_DATA === "true") {
+    try {
+      const filePath = path.join(process.cwd(), "data/snapshots/district-profiles.json");
+      const raw = fs.readFileSync(filePath, "utf-8");
+      return NextResponse.json(JSON.parse(raw));
+    } catch {
+      return NextResponse.json(
+        { error: "Static data file not found. Run: npm run snapshot" },
+        { status: 503 }
+      );
+    }
+  }
+
+  // Live mode — proxy to FastAPI
   const fastApiUrl = process.env.FASTAPI_URL;
   if (!fastApiUrl) {
     return NextResponse.json(
