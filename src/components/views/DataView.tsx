@@ -12,10 +12,35 @@ import {
   DistrictProfileFilters,
 } from "@/lib/api";
 
-type TabType = "unmatched" | "fragmented" | "profiles";
+type TabType = "duplicates" | "unmatched" | "fragmented";
+
+// Name normalization for duplicate detection — strips common suffixes so
+// "Richland School District Two" and "Richland Two" group together.
+// Matches the algorithm from the API spec.
+function normalizeName(name: string | null): string {
+  if (!name) return "";
+  return name
+    .toUpperCase()
+    .replace(
+      /SCHOOL DISTRICT|PUBLIC SCHOOLS|UNIFIED SCHOOL DISTRICT|CITY SCHOOLS|COUNTY SCHOOLS|SCHOOLS|DISTRICT/g,
+      ""
+    )
+    .trim();
+}
+
+// A group of district profiles that share the same normalized name + state
+interface DuplicateGroup {
+  key: string; // "NORMALIZED_NAME|STATE"
+  displayName: string; // Original name from the first district in the group
+  state: string | null;
+  districts: DistrictProfile[];
+  totalRevenue: number;
+  totalEntities: number;
+}
 
 export default function DataView() {
-  const [activeTab, setActiveTab] = useState<TabType>("unmatched");
+  // "duplicates" is the default/primary tab
+  const [activeTab, setActiveTab] = useState<TabType>("duplicates");
   const [filters, setFilters] = useState<ReconciliationFilters>({});
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -31,9 +56,8 @@ export default function DataView() {
     error: fragmentedError,
   } = useReconciliationFragmented(filters);
 
-  // District profiles state — separate filters since this endpoint has different params
-  const [profileFilters, setProfileFilters] = useState<DistrictProfileFilters>({});
-  const [profileStatusFilter, setProfileStatusFilter] = useState<"all" | "orphaned" | "valid">("all");
+  // District profiles — fetches all districts from FastAPI (default limit is 50,000)
+  const [profileFilters] = useState<DistrictProfileFilters>({});
 
   const {
     data: profilesData,
@@ -42,46 +66,79 @@ export default function DataView() {
   } = useDistrictProfiles(profileFilters);
 
   const isLoading =
+    activeTab === "duplicates" ? profilesLoading :
     activeTab === "unmatched" ? unmatchedLoading :
-    activeTab === "fragmented" ? fragmentedLoading :
-    profilesLoading;
+    fragmentedLoading;
 
   const error =
+    activeTab === "duplicates" ? profilesError :
     activeTab === "unmatched" ? unmatchedError :
-    activeTab === "fragmented" ? fragmentedError :
-    profilesError;
+    fragmentedError;
+
+  // Compute duplicate groups from the full profiles dataset
+  const duplicateGroups = useMemo(() => {
+    if (!profilesData) return [];
+
+    // Group by normalized name + state (states are already 2-letter codes from API)
+    const groups: Record<string, DistrictProfile[]> = {};
+    for (const d of profilesData) {
+      const key = `${normalizeName(d.district_name)}|${d.state || ""}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(d);
+    }
+
+    // Only keep groups with 2+ entries (actual duplicates)
+    const dupeGroups: DuplicateGroup[] = Object.entries(groups)
+      .filter(([, districts]) => districts.length > 1)
+      .map(([key, districts]) => ({
+        key,
+        displayName: districts[0].district_name || "Unknown",
+        state: districts[0].state,
+        districts: districts.sort((a, b) => {
+          // Sort within group: valid (non-orphaned) first, then orphaned
+          if (a.data_quality.is_orphaned !== b.data_quality.is_orphaned) {
+            return a.data_quality.is_orphaned ? 1 : -1;
+          }
+          return b.totals.total_revenue - a.totals.total_revenue;
+        }),
+        totalRevenue: districts.reduce((sum, d) => sum + d.totals.total_revenue, 0),
+        totalEntities: districts.reduce((sum, d) => sum + d.totals.entity_count, 0),
+      }))
+      // Sort by revenue impact (highest first)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    return dupeGroups;
+  }, [profilesData]);
 
   const handleExport = () => {
-    const data =
-      activeTab === "unmatched" ? unmatchedData :
-      activeTab === "fragmented" ? fragmentedData :
-      profilesData;
-    if (!data) return;
-
     let csv = "";
     if (activeTab === "unmatched") {
+      if (!unmatchedData) return;
       csv = "Account Name,State,Sales Exec,Total Revenue,Opportunity Count\n";
-      csv += (data as ReconciliationUnmatchedAccount[])
+      csv += unmatchedData
         .map(
           (row) =>
             `"${row.account_name}","${row.state || ""}","${row.sales_exec || ""}",${row.total_revenue},${row.opportunity_count}`
         )
         .join("\n");
     } else if (activeTab === "fragmented") {
+      if (!fragmentedData) return;
       csv = "NCES ID,District Name,State,Account Variants,Similarity Score\n";
-      csv += (data as ReconciliationFragmentedDistrict[])
+      csv += fragmentedData
         .map(
           (row) =>
             `"${row.nces_id}","${row.district_name || ""}","${row.state || ""}","${row.account_variants.map((v) => v.name).join("; ")}",${row.similarity_score}`
         )
         .join("\n");
-    } else if (activeTab === "profiles") {
-      const profileData = data as DistrictProfile[];
-      csv = "District Name,District ID,State,NCES ID,Orphaned,Schools,Sessions,Opportunities,Courses,Entity Count\n";
-      csv += profileData
-        .map(
-          (row) =>
-            `"${row.district_name || ""}","${row.district_id}","${row.state || ""}","${row.nces_id || ""}",${row.data_quality.is_orphaned},${row.schools.count},${row.sessions.count},${row.opportunities.count},${row.courses.count},${row.totals.entity_count}`
+    } else if (activeTab === "duplicates") {
+      if (!duplicateGroups.length) return;
+      csv = "Group Name,State,District ID,District Name,NCES ID,Orphaned,Opps,Schools,Sessions,Courses,Total Revenue\n";
+      csv += duplicateGroups
+        .flatMap((g) =>
+          g.districts.map(
+            (d) =>
+              `"${g.displayName}","${g.state || ""}","${d.district_id}","${d.district_name || ""}","${d.nces_id || ""}",${d.data_quality.is_orphaned},${d.opportunities.count},${d.schools.count},${d.sessions.count},${d.courses.count},${d.totals.total_revenue}`
+          )
         )
         .join("\n");
     }
@@ -90,7 +147,7 @@ export default function DataView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${activeTab}-accounts-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `${activeTab}-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -109,8 +166,23 @@ export default function DataView() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-6">
-        {/* Tabs */}
+        {/* Tabs — Duplicate Districts is first/primary */}
         <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab("duplicates")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "duplicates"
+                ? "bg-[#403770] text-white"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Duplicate Districts
+            {duplicateGroups.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-white/20">
+                {duplicateGroups.length}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => setActiveTab("unmatched")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -141,21 +213,6 @@ export default function DataView() {
               </span>
             )}
           </button>
-          <button
-            onClick={() => setActiveTab("profiles")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === "profiles"
-                ? "bg-[#403770] text-white"
-                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            District Profiles
-            {profilesData && (
-              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-white/20">
-                {profilesData.length}
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Filter Bar */}
@@ -170,45 +227,24 @@ export default function DataView() {
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770]"
               />
             </div>
-            <select
-              value={activeTab === "profiles" ? (profileFilters.state || "") : (filters.state || "")}
-              onChange={(e) => {
-                if (activeTab === "profiles") {
-                  setProfileFilters((f) => ({ ...f, state: e.target.value || undefined }));
-                } else {
-                  setFilters((f) => ({ ...f, state: e.target.value || undefined }));
-                }
-              }}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20"
-            >
-              <option value="">All States</option>
-              {activeTab === "profiles" && profilesData
-                ? [...new Set(profilesData.map((d) => d.state).filter(Boolean))].sort().map((st) => (
-                    <option key={st} value={st!}>{st}</option>
-                  ))
-                : <>
-                    <option value="CA">California</option>
-                    <option value="TX">Texas</option>
-                    <option value="NY">New York</option>
-                    <option value="FL">Florida</option>
-                    <option value="IL">Illinois</option>
-                  </>
-              }
-            </select>
-            {activeTab === "profiles" && (
+            {activeTab !== "duplicates" && (
               <select
-                value={profileStatusFilter}
-                onChange={(e) => setProfileStatusFilter(e.target.value as "all" | "orphaned" | "valid")}
+                value={filters.state || ""}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, state: e.target.value || undefined }))
+                }
                 className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20"
               >
-                <option value="all">All Status</option>
-                <option value="orphaned">Orphaned Only</option>
-                <option value="valid">Valid Only</option>
+                <option value="">All States</option>
+                <option value="CA">California</option>
+                <option value="TX">Texas</option>
+                <option value="NY">New York</option>
+                <option value="FL">Florida</option>
+                <option value="IL">Illinois</option>
               </select>
             )}
             <button
               onClick={handleExport}
-              disabled={!unmatchedData && !fragmentedData && !profilesData}
               className="px-4 py-2 bg-[#C4E7E6] text-[#403770] rounded-lg font-medium hover:bg-[#b3dbd9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Export CSV
@@ -226,8 +262,16 @@ export default function DataView() {
         {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-            Failed to load data. Make sure the FastAPI service is running.
+            Failed to load data. Make sure the data service is running.
           </div>
+        )}
+
+        {/* Duplicate Districts */}
+        {!isLoading && !error && activeTab === "duplicates" && profilesData && (
+          <DuplicateDistrictsView
+            groups={duplicateGroups}
+            searchTerm={searchTerm}
+          />
         )}
 
         {/* Unmatched Accounts Table */}
@@ -239,19 +283,217 @@ export default function DataView() {
         {!isLoading && !error && activeTab === "fragmented" && fragmentedData && (
           <FragmentedTable data={fragmentedData} searchTerm={searchTerm} />
         )}
-
-        {/* District Profiles */}
-        {!isLoading && !error && activeTab === "profiles" && profilesData && (
-          <DistrictProfilesView
-            data={profilesData}
-            searchTerm={searchTerm}
-            statusFilter={profileStatusFilter}
-          />
-        )}
       </main>
     </div>
   );
 }
+
+// =============================================================================
+// Duplicate Districts View — groups districts by normalized name + state
+// =============================================================================
+
+function DuplicateDistrictsView({
+  groups,
+  searchTerm,
+}: {
+  groups: DuplicateGroup[];
+  searchTerm: string;
+}) {
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+  // Filter groups by search term
+  const filtered = useMemo(() => {
+    if (!searchTerm) return groups;
+    const term = searchTerm.toLowerCase();
+    return groups.filter(
+      (g) =>
+        g.displayName.toLowerCase().includes(term) ||
+        g.state?.toLowerCase().includes(term) ||
+        g.districts.some(
+          (d) =>
+            d.district_id.includes(term) ||
+            d.nces_id?.includes(term)
+        )
+    );
+  }, [groups, searchTerm]);
+
+  // Compute unique states from filtered groups for the summary
+  const uniqueStates = useMemo(
+    () => new Set(filtered.map((g) => g.state).filter(Boolean)).size,
+    [filtered]
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Summary bar */}
+      <div className="bg-white rounded-lg border border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div>
+            <span className="text-2xl font-bold text-[#F37167]">
+              {filtered.length.toLocaleString()}
+            </span>
+            <span className="text-sm text-gray-500 ml-2">
+              duplicate groups
+            </span>
+          </div>
+          <div className="h-8 w-px bg-gray-200" />
+          <div>
+            <span className="text-sm text-gray-500">across </span>
+            <span className="text-sm font-semibold text-gray-700">
+              {uniqueStates} states
+            </span>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400">
+          Sorted by revenue impact (highest first)
+        </p>
+      </div>
+
+      {/* Group list */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+          No duplicate groups match the current search.
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden divide-y divide-gray-100">
+          {filtered.map((group) => {
+            const isExpanded = expandedGroup === group.key;
+            return (
+              <div key={group.key}>
+                {/* Group header row */}
+                <button
+                  onClick={() =>
+                    setExpandedGroup(isExpanded ? null : group.key)
+                  }
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                >
+                  {/* Chevron */}
+                  <svg
+                    className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+
+                  {/* Name + state */}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-[#403770]">
+                      {group.displayName}
+                    </span>
+                    {group.state && (
+                      <span className="ml-2 text-xs text-gray-400">
+                        ({group.state})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Badges */}
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700 shrink-0">
+                    {group.districts.length} IDs
+                  </span>
+
+                  {/* Revenue */}
+                  {group.totalRevenue > 0 && (
+                    <span className="text-xs font-mono text-gray-500 shrink-0">
+                      ${group.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </button>
+
+                {/* Expanded: show each district in the group */}
+                {isExpanded && (
+                  <div className="bg-gray-50 px-4 py-3 border-t border-gray-100">
+                    <table className="w-full">
+                      <thead>
+                        <tr>
+                          <th className="text-left px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                            Status
+                          </th>
+                          <th className="text-left px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            District ID
+                          </th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Opps
+                          </th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Schools
+                          </th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sessions
+                          </th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Courses
+                          </th>
+                          <th className="text-right px-2 py-1 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Revenue
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.districts.map((d) => (
+                          <tr key={d.district_id} className="border-t border-gray-200">
+                            {/* Status badge */}
+                            <td className="px-2 py-2">
+                              {!d.data_quality.is_orphaned && d.data_quality.has_nces ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                  <span>&#10003;</span> VALID
+                                </span>
+                              ) : d.data_quality.is_orphaned ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                                  <span>&#10007;</span> ORPHANED
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                                  NO NCES
+                                </span>
+                              )}
+                            </td>
+
+                            {/* District ID */}
+                            <td className="px-2 py-2">
+                              <span className="text-xs text-gray-600 font-mono">
+                                {d.district_id}
+                              </span>
+                            </td>
+
+                            {/* Counts */}
+                            <td className="px-2 py-2 text-xs text-gray-600 text-right">
+                              {d.opportunities.count.toLocaleString()}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-gray-600 text-right">
+                              {d.schools.count.toLocaleString()}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-gray-600 text-right">
+                              {d.sessions.count.toLocaleString()}
+                            </td>
+                            <td className="px-2 py-2 text-xs text-gray-600 text-right">
+                              {d.courses.count.toLocaleString()}
+                            </td>
+
+                            {/* Revenue */}
+                            <td className="px-2 py-2 text-xs text-gray-900 text-right font-mono">
+                              {d.totals.total_revenue > 0
+                                ? `$${d.totals.total_revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                                : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// Unmatched Accounts Table
+// =============================================================================
 
 function UnmatchedTable({
   data,
@@ -325,6 +567,10 @@ function UnmatchedTable({
     </div>
   );
 }
+
+// =============================================================================
+// Fragmented Accounts Table
+// =============================================================================
 
 function FragmentedTable({
   data,
@@ -465,364 +711,6 @@ function FragmentedTable({
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-// DistrictProfilesView — summary cards + sortable table with expandable detail rows
-function DistrictProfilesView({
-  data,
-  searchTerm,
-  statusFilter,
-}: {
-  data: DistrictProfile[];
-  searchTerm: string;
-  statusFilter: "all" | "orphaned" | "valid";
-}) {
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<"entities" | "schools" | "sessions" | "opps">("entities");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-
-  // Filter by search term and status
-  const filtered = useMemo(() => {
-    let result = data;
-
-    // Status filter
-    if (statusFilter === "orphaned") {
-      result = result.filter((d) => d.data_quality.is_orphaned);
-    } else if (statusFilter === "valid") {
-      result = result.filter((d) => !d.data_quality.is_orphaned);
-    }
-
-    // Search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (d) =>
-          d.district_name?.toLowerCase().includes(term) ||
-          d.district_id.includes(term) ||
-          d.nces_id?.includes(term) ||
-          d.state?.toLowerCase().includes(term)
-      );
-    }
-
-    // Sort: always group by state first, then by selected field within each state
-    result = [...result].sort((a, b) => {
-      // Primary sort: state alphabetically
-      const stateA = (a.state || "ZZZ").toUpperCase();
-      const stateB = (b.state || "ZZZ").toUpperCase();
-      if (stateA !== stateB) return stateA.localeCompare(stateB);
-
-      // Secondary sort: by selected field (or alphabetically by name for default)
-      if (sortField === "entities" && sortDir === "desc") {
-        // Default sort: alphabetical by name within state
-        const nameA = (a.district_name || "").toLowerCase();
-        const nameB = (b.district_name || "").toLowerCase();
-        return nameA.localeCompare(nameB);
-      }
-
-      let aVal: number, bVal: number;
-      switch (sortField) {
-        case "schools": aVal = a.schools.count; bVal = b.schools.count; break;
-        case "sessions": aVal = a.sessions.count; bVal = b.sessions.count; break;
-        case "opps": aVal = a.opportunities.count; bVal = b.opportunities.count; break;
-        default: aVal = a.totals.entity_count; bVal = b.totals.entity_count;
-      }
-      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
-    });
-
-    return result;
-  }, [data, searchTerm, statusFilter, sortField, sortDir]);
-
-  // Summary stats computed from the full (unfiltered) dataset
-  const stats = useMemo(() => {
-    const orphanedCount = data.filter((d) => d.data_quality.is_orphaned).length;
-    const missingNcesCount = data.filter((d) => !d.data_quality.has_nces).length;
-    const uniqueStates = new Set(data.map((d) => d.state).filter(Boolean)).size;
-    return { orphanedCount, missingNcesCount, total: data.length, uniqueStates };
-  }, [data]);
-
-  // Toggle sort: if clicking the same field, flip direction; otherwise set new field desc
-  const handleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setSortField(field);
-      setSortDir("desc");
-    }
-  };
-
-  // Small helper for the sort indicator arrow
-  const sortIcon = (field: typeof sortField) =>
-    sortField === field ? (sortDir === "desc" ? " \u2193" : " \u2191") : "";
-
-  return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Orphaned Districts */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-sm font-medium text-gray-500">Orphaned Districts</p>
-          <p className="text-3xl font-bold text-[#F37167] mt-1">
-            {stats.orphanedCount.toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            IDs referenced but not in district index
-          </p>
-        </div>
-
-        {/* Missing NCES */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-sm font-medium text-gray-500">Missing NCES ID</p>
-          <p className="text-3xl font-bold text-amber-500 mt-1">
-            {stats.missingNcesCount.toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Districts without federal reporting ID
-          </p>
-        </div>
-
-        {/* Total Districts */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-sm font-medium text-gray-500">Total Districts</p>
-          <p className="text-3xl font-bold text-[#6EA3BE] mt-1">
-            {stats.total.toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Across {stats.uniqueStates} states
-          </p>
-        </div>
-      </div>
-
-      {/* Results count */}
-      <p className="text-sm text-gray-500">
-        Showing {filtered.length} of {data.length} district profiles
-      </p>
-
-      {/* Table */}
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
-          No district profiles match the current filters.
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="w-8 px-2 py-2"></th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  District
-                </th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  District ID
-                </th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  NCES ID
-                </th>
-                <th
-                  onClick={() => handleSort("schools")}
-                  className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-[#403770] select-none"
-                >
-                  Schools{sortIcon("schools")}
-                </th>
-                <th
-                  onClick={() => handleSort("sessions")}
-                  className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-[#403770] select-none"
-                >
-                  Sessions{sortIcon("sessions")}
-                </th>
-                <th
-                  onClick={() => handleSort("opps")}
-                  className="text-right px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-[#403770] select-none"
-                >
-                  Opps{sortIcon("opps")}
-                </th>
-                <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data Sources
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row, idx) => {
-                // Show a state group header when the state changes
-                const prevState = idx > 0 ? filtered[idx - 1].state : null;
-                const showStateHeader = row.state !== prevState;
-
-                return (
-                <Fragment key={row.district_id}>
-                  {showStateHeader && (
-                    <tr className="bg-[#403770]/5">
-                      <td colSpan={8} className="px-3 py-1.5">
-                        <span className="text-xs font-semibold text-[#403770] uppercase tracking-wider">
-                          {row.state || "Unknown State"}
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                  <tr
-                    onClick={() =>
-                      setExpandedRow(expandedRow === row.district_id ? null : row.district_id)
-                    }
-                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                  >
-                    {/* Chevron indicator */}
-                    <td className="w-8 px-2 py-2 text-gray-400">
-                      <svg
-                        className={`w-4 h-4 transition-transform ${expandedRow === row.district_id ? "rotate-90" : ""}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </td>
-
-                    {/* District Name + State */}
-                    <td className="px-3 py-2">
-                      <div className="text-sm text-[#403770] font-medium">
-                        {row.district_name || "Unknown District"}
-                      </div>
-                      <div className="text-xs text-gray-400">{row.state || "\u2014"}</div>
-                    </td>
-
-                    {/* District ID + orphaned badge */}
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-600 font-mono">
-                          {row.district_id}
-                        </span>
-                        {row.data_quality.is_orphaned && (
-                          <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
-                            Orphaned
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* NCES ID or Missing badge */}
-                    <td className="px-3 py-2 text-xs">
-                      {row.nces_id ? (
-                        <span className="text-gray-600 font-mono">{row.nces_id}</span>
-                      ) : (
-                        <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
-                          Missing
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Counts */}
-                    <td className="px-3 py-2 text-xs text-gray-600 text-right">
-                      {row.schools.count.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-600 text-right">
-                      {row.sessions.count.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-600 text-right">
-                      {row.opportunities.count.toLocaleString()}
-                    </td>
-
-                    {/* Data sources */}
-                    <td className="px-3 py-2">
-                      <div className="flex gap-1 flex-wrap">
-                        {row.referenced_by.map((source) => (
-                          <span
-                            key={source}
-                            className="px-1.5 py-0.5 rounded text-xs bg-[#C4E7E6] text-[#403770]"
-                          >
-                            {source}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-
-                  {/* Expanded detail row */}
-                  {expandedRow === row.district_id && (
-                    <tr className="bg-gray-50">
-                      <td colSpan={8} className="px-4 py-4">
-                        <div className="grid grid-cols-2 gap-6">
-                          {/* Left: Entity breakdown */}
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                              Entity Breakdown
-                            </h4>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-white rounded-lg border border-gray-200 p-3">
-                                <p className="text-xs text-gray-500">Opportunities</p>
-                                <p className="text-lg font-semibold text-[#403770]">
-                                  {row.opportunities.count.toLocaleString()}
-                                </p>
-                              </div>
-                              <div className="bg-white rounded-lg border border-gray-200 p-3">
-                                <p className="text-xs text-gray-500">Schools</p>
-                                <p className="text-lg font-semibold text-[#403770]">
-                                  {row.schools.count.toLocaleString()}
-                                </p>
-                                {row.schools.sample_names.length > 0 && (
-                                  <p className="text-xs text-gray-400 mt-1 truncate">
-                                    {row.schools.sample_names.slice(0, 3).join(", ")}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="bg-white rounded-lg border border-gray-200 p-3">
-                                <p className="text-xs text-gray-500">Sessions</p>
-                                <p className="text-lg font-semibold text-[#403770]">
-                                  {row.sessions.count.toLocaleString()}
-                                </p>
-                              </div>
-                              <div className="bg-white rounded-lg border border-gray-200 p-3">
-                                <p className="text-xs text-gray-500">Courses</p>
-                                <p className="text-lg font-semibold text-[#403770]">
-                                  {row.courses.count.toLocaleString()}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Right: Data quality checklist */}
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                              Data Quality
-                            </h4>
-                            <div className="space-y-2">
-                              {[
-                                { label: "Has NCES ID", ok: row.data_quality.has_nces },
-                                { label: "Has State", ok: row.data_quality.has_state },
-                                { label: "Has Opportunities", ok: row.data_quality.has_opps },
-                                { label: "Has Schools", ok: row.data_quality.has_schools },
-                                { label: "Has Sessions", ok: row.data_quality.has_sessions },
-                                { label: "In District Index", ok: !row.data_quality.is_orphaned },
-                              ].map(({ label, ok }) => (
-                                <div key={label} className="flex items-center gap-2 text-sm">
-                                  <span className={ok ? "text-green-600" : "text-red-500"}>
-                                    {ok ? "\u2713" : "\u2717"}
-                                  </span>
-                                  <span className={ok ? "text-gray-700" : "text-gray-500"}>
-                                    {label}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* State sources */}
-                            {row.state_sources && row.state_sources.length > 0 && (
-                              <div className="mt-4 pt-3 border-t border-gray-200">
-                                <p className="text-xs text-gray-500">
-                                  State from:{" "}
-                                  {row.state_sources.map(([source]) => source).join(", ")}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 }
