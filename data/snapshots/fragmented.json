@@ -1,5 +1,84 @@
 [
   {
+    "nces_id": "3680820",
+    "district_name": "Eastern Suffolk BOCES",
+    "state": "NY",
+    "account_variants": [
+      {
+        "name": "Eastern Suffolk BOCES",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Quogue",
+        "source": "opportunities",
+        "count": 12
+      },
+      {
+        "name": "Malverne School District",
+        "source": "opportunities",
+        "count": 6
+      },
+      {
+        "name": "East Rockaway School District",
+        "source": "opportunities",
+        "count": 4
+      }
+    ],
+    "similarity_score": 0.25
+  },
+  {
+    "nces_id": "3680540",
+    "district_name": "Nassau BOCES",
+    "state": "NY",
+    "account_variants": [
+      {
+        "name": "Nassau BOCES",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Port Washington School District",
+        "source": "opportunities",
+        "count": 10
+      },
+      {
+        "name": "Wantagh School District",
+        "source": "opportunities",
+        "count": 9
+      },
+      {
+        "name": "Westbury School District",
+        "source": "opportunities",
+        "count": 3
+      }
+    ],
+    "similarity_score": 0.25
+  },
+  {
+    "nces_id": "17592246333666 ",
+    "district_name": "Richland County School District 1",
+    "state": "SC",
+    "account_variants": [
+      {
+        "name": "Richland County School District 1",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Westwood High School",
+        "source": "opportunities",
+        "count": 6
+      },
+      {
+        "name": "Richland School District Two",
+        "source": "opportunities",
+        "count": 1
+      }
+    ],
+    "similarity_score": 0.33
+  },
+  {
     "nces_id": "60225000099",
     "district_name": "Alta Dutch Flat Elementary",
     "state": "CA",
@@ -18,125 +97,35 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "3680820",
-    "district_name": "Eastern Suffolk BOCES",
+    "nces_id": "3630960",
+    "district_name": "Westbury School District",
     "state": "NY",
     "account_variants": [
+      {
+        "name": "Westbury School District",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Nassau BOCES",
+        "source": "opportunities",
+        "count": 3
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
+    "nces_id": "3618210",
+    "district_name": "Malverne School District",
+    "state": "NY",
+    "account_variants": [
+      {
+        "name": "Malverne School District",
+        "source": "districts",
+        "count": 1
+      },
       {
         "name": "Eastern Suffolk BOCES",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Island Trees School District",
-        "source": "opportunities",
-        "count": 4
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "17592292316429",
-    "district_name": "Highland Falls-Fort Montgomery CSD",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "Highland Falls-Fort Montgomery CSD",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Highland Falls-Fort Montgomery Central School District",
-        "source": "opportunities",
-        "count": 4
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "5500083",
-    "district_name": "One City Schools",
-    "state": "WI",
-    "account_variants": [
-      {
-        "name": "One City Schools",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "One City schools",
-        "source": "opportunities",
-        "count": 1
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "17592296044922",
-    "district_name": "Shade Canyon School District",
-    "state": "CA",
-    "account_variants": [
-      {
-        "name": "Shade Canyon School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Shade Canyon School",
-        "source": "opportunities",
-        "count": 2
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "643170 ",
-    "district_name": "Yuba City Unified School District",
-    "state": "CA",
-    "account_variants": [
-      {
-        "name": "Yuba City Unified School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Sutter County Superintendent of Schools",
-        "source": "opportunities",
-        "count": 2
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "17592271184327",
-    "district_name": "Massena Central School District",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "Massena Central School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Massena School District",
-        "source": "opportunities",
-        "count": 1
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "17592238766946 ",
-    "district_name": "East Aurora Union Free",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "East Aurora Union Free",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "East Aurora Union Free School District",
         "source": "opportunities",
         "count": 6
       }
@@ -144,53 +133,35 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "17592246333666 ",
-    "district_name": "Richland County School District 1",
+    "nces_id": "4503390",
+    "district_name": "Richland School District Two",
     "state": "SC",
     "account_variants": [
       {
-        "name": "Richland County School District 1",
+        "name": "Richland School District Two",
         "source": "districts",
         "count": 1
       },
       {
-        "name": "Westwood High School",
+        "name": "Richland County School District 1",
         "source": "opportunities",
-        "count": 7
+        "count": 1
       }
     ],
     "similarity_score": 0.5
   },
   {
-    "nces_id": "3620850",
-    "district_name": "Niagara - Wheatfield School District",
+    "nces_id": "3609960",
+    "district_name": "East Rockaway School District",
     "state": "NY",
     "account_variants": [
       {
-        "name": "Niagara - Wheatfield School District",
+        "name": "East Rockaway School District",
         "source": "districts",
         "count": 1
       },
       {
-        "name": "Niagara-Wheatfield School District(dupe)",
-        "source": "opportunities",
-        "count": 10
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "4503780",
-    "district_name": "Williamsburg County School District",
-    "state": "SC",
-    "account_variants": [
-      {
-        "name": "Williamsburg County School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Williamsburg",
+        "name": "Eastern Suffolk BOCES",
         "source": "opportunities",
         "count": 4
       }
@@ -198,17 +169,17 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "17592246338277 ",
-    "district_name": "LEXINGTON DISTRICT 1",
-    "state": "SC",
+    "nces_id": "3623580",
+    "district_name": "Port Washington School District",
+    "state": "NY",
     "account_variants": [
       {
-        "name": "LEXINGTON DISTRICT 1",
+        "name": "Port Washington School District",
         "source": "districts",
         "count": 1
       },
       {
-        "name": "LEXINGTON DISTRICT 1(dupe)",
+        "name": "Nassau BOCES",
         "source": "opportunities",
         "count": 10
       }
@@ -216,19 +187,91 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "3624990",
-    "district_name": "Roosevelt School District - Active",
+    "nces_id": "3631320",
+    "district_name": "Whitesboro Central School District",
     "state": "NY",
     "account_variants": [
       {
-        "name": "Roosevelt School District - Active",
+        "name": "Whitesboro Central School District",
         "source": "districts",
         "count": 1
       },
       {
-        "name": "Roosevelt School District",
+        "name": "Whitesboro",
         "source": "opportunities",
-        "count": 7
+        "count": 6
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
+    "nces_id": "17592238765583",
+    "district_name": "Academy of God",
+    "state": "TN",
+    "account_variants": [
+      {
+        "name": "Academy of God",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Metropolitan Nashville Public Schools",
+        "source": "opportunities",
+        "count": 1
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
+    "nces_id": "3017010/3017040",
+    "district_name": "Lodge Grass Public Schools",
+    "state": "MT",
+    "account_variants": [
+      {
+        "name": "Lodge Grass Public Schools",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Hardin Middle School",
+        "source": "opportunities",
+        "count": 1
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
+    "nces_id": "3629850",
+    "district_name": "Wantagh School District",
+    "state": "NY",
+    "account_variants": [
+      {
+        "name": "Wantagh School District",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Nassau BOCES",
+        "source": "opportunities",
+        "count": 9
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
+    "nces_id": "3624060",
+    "district_name": "Quogue",
+    "state": "NY",
+    "account_variants": [
+      {
+        "name": "Quogue",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Eastern Suffolk BOCES",
+        "source": "opportunities",
+        "count": 12
       }
     ],
     "similarity_score": 0.5
@@ -270,17 +313,17 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "9999999999",
-    "district_name": "Fullmind Unicorns QA",
-    "state": "NY",
+    "nces_id": "301331000394",
+    "district_name": "Hardin Middle School",
+    "state": "MT",
     "account_variants": [
       {
-        "name": "Fullmind Unicorns QA",
+        "name": "Hardin Middle School",
         "source": "districts",
         "count": 1
       },
       {
-        "name": "Fullmind Demo QA",
+        "name": "Lodge Grass Public Schools",
         "source": "opportunities",
         "count": 1
       }
@@ -288,91 +331,19 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "228547",
-    "district_name": "Tarrant County College",
-    "state": "TX",
+    "nces_id": "4703180",
+    "district_name": "Metropolitan Nashville Public Schools",
+    "state": "TN",
     "account_variants": [
       {
-        "name": "Tarrant County College",
+        "name": "Metropolitan Nashville Public Schools",
         "source": "districts",
         "count": 1
       },
       {
-        "name": "Tarrant County College(dupe)",
+        "name": "Academy of God",
         "source": "opportunities",
-        "count": 6
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "123456",
-    "district_name": "Sumter School District",
-    "state": "SC",
-    "account_variants": [
-      {
-        "name": "Sumter School District",
-        "source": "districts",
         "count": 1
-      },
-      {
-        "name": "Alice Drive Middle School",
-        "source": "opportunities",
-        "count": 2
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "3629910",
-    "district_name": "Warrensburg Central",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "Warrensburg Central",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Warrensburg Central School District(dupe)",
-        "source": "opportunities",
-        "count": 3
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "17592249522759",
-    "district_name": "Hampton County School District 02",
-    "state": "SC",
-    "account_variants": [
-      {
-        "name": "Hampton County School District 02",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Hampton County School District",
-        "source": "opportunities",
-        "count": 2
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "3615540",
-    "district_name": "Islip Union Free School District",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "Islip Union Free School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Islip School District",
-        "source": "opportunities",
-        "count": 15
       }
     ],
     "similarity_score": 0.5

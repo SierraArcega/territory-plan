@@ -2,186 +2,18 @@
   {
     "account_id": "17592192005474",
     "account_name": "Richland School District Two",
-    "state": "SOUTH CAROLINA",
+    "state": null,
     "sales_exec": "Steve Pines",
-    "total_revenue": 9964290.373046875,
-    "opportunity_count": 66
-  },
-  {
-    "account_id": "17592239003676",
-    "account_name": "Colleton County School District",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 6299956.179931641,
-    "opportunity_count": 20
-  },
-  {
-    "account_id": "17592239032948",
-    "account_name": "Richland County School District 1",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 3970100,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592188843779",
-    "account_name": "Sumter School District",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Melodie Blackwood",
-    "total_revenue": 3284231.2890625,
-    "opportunity_count": 18
-  },
-  {
-    "account_id": "17592188329786",
-    "account_name": "Browning Public Schools",
-    "state": "MONTANA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 2860667.4727783203,
-    "opportunity_count": 26
-  },
-  {
-    "account_id": "17592190455786",
-    "account_name": "Elmsford School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 2822350,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592226799341",
-    "account_name": "Houston Independent School District",
-    "state": "TEXAS",
-    "sales_exec": "Marneé Grant",
-    "total_revenue": 2286055,
-    "opportunity_count": 19
-  },
-  {
-    "account_id": "17592192382526",
-    "account_name": "Yuba City Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 2092890,
-    "opportunity_count": 10
+    "total_revenue": 1340236.580078125,
+    "opportunity_count": 21
   },
   {
     "account_id": "17592188843463",
     "account_name": "FLORENCE DISTRICT 3",
     "state": "SOUTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 1995947.609375,
-    "opportunity_count": 23
-  },
-  {
-    "account_id": "17592238970244",
-    "account_name": "Chester County School District",
-    "state": "SOUTH CAROLINA",
     "sales_exec": "Steve Pines",
-    "total_revenue": 1924467,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592191613033",
-    "account_name": "Lawrence Union Free School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 1845427.326171875,
-    "opportunity_count": 34
-  },
-  {
-    "account_id": "17592191469037",
-    "account_name": "North Syracuse School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 1797830.5,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592191515703",
-    "account_name": "Enlarged City School District of Middletown",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 1786550,
-    "opportunity_count": 25
-  },
-  {
-    "account_id": "17592246405005",
-    "account_name": "Abbeville County School District",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Melodie Blackwood",
-    "total_revenue": 1280200,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592246567498",
-    "account_name": "Fayette County Public Schools",
-    "state": "TENNESSEE",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 1091500,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592246339018",
-    "account_name": "Allendale School District 01",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": " ",
-    "total_revenue": 937250,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592191523636",
-    "account_name": "New Rochelle City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 830000,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592246375495",
-    "account_name": "Vallejo City Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 809139,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592191844246",
-    "account_name": "Amityville School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 800945.80078125,
+    "total_revenue": 811500,
     "opportunity_count": 13
-  },
-  {
-    "account_id": "17592238970246",
-    "account_name": "Lewis County Schools",
-    "state": "WEST VIRGINIA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 788480,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592193477406",
-    "account_name": "Williamsburg",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 734893,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592190779555",
-    "account_name": "Middletown Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 713059.80078125,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592246426135",
-    "account_name": "Darlington County School District",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 699200,
-    "opportunity_count": 5
   },
   {
     "account_id": "17592246426163",
@@ -192,68 +24,20 @@
     "opportunity_count": 5
   },
   {
-    "account_id": "17592234450106",
-    "account_name": "Whitesboro Central School District",
+    "account_id": "17592236331191",
+    "account_name": "Whitesboro",
     "state": "NEW YORK",
     "sales_exec": "Kris Tedesco",
     "total_revenue": 698198,
     "opportunity_count": 6
   },
   {
-    "account_id": "17592188068490",
-    "account_name": "Poughkeepsie City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 679337.078125,
-    "opportunity_count": 12
-  },
-  {
-    "account_id": "17592191730602",
-    "account_name": "Elmira City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 671674,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592188843690",
-    "account_name": "LEXINGTON DISTRICT 1(dupe)",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 641984.62109375,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592238996739",
-    "account_name": "Moore County Schools",
-    "state": "NORTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 624593,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592199051538",
-    "account_name": "Chowchilla Elementary School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 599592.6875,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592191139113",
-    "account_name": "Smithtown Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 569538.37890625,
-    "opportunity_count": 15
-  },
-  {
-    "account_id": "17592188053956",
-    "account_name": "Sullivan County BOCES",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 542006.3203125,
-    "opportunity_count": 8
+    "account_id": "17592236333733",
+    "account_name": "The University of Texas Rio Grande Valley",
+    "state": "TEXAS",
+    "sales_exec": "Yvette Ramos",
+    "total_revenue": 506440.27001953125,
+    "opportunity_count": 73
   },
   {
     "account_id": "17592295242445",
@@ -272,132 +56,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592249809963",
-    "account_name": "Hampton County School District",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Melodie Blackwood",
-    "total_revenue": 491220,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592246405424",
-    "account_name": "Mathis Independent School District",
-    "state": "TEXAS",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 471300,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592191434647",
-    "account_name": "Port Chester-Rye School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 455962,
-    "opportunity_count": 15
-  },
-  {
-    "account_id": "17592246466811",
-    "account_name": "Konocti Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 452170,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592187744220",
-    "account_name": "Mahopac School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 444652,
-    "opportunity_count": 15
-  },
-  {
-    "account_id": "17592191996361",
-    "account_name": "Port Byron School District",
-    "state": "NEW YORK",
-    "sales_exec": "Dawn Longuil",
-    "total_revenue": 440604.3681640625,
-    "opportunity_count": 22
-  },
-  {
-    "account_id": "17592236505927",
-    "account_name": "Wake County Schools",
-    "state": "NORTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 425000,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188843596",
-    "account_name": "Saratoga Springs City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 418600,
-    "opportunity_count": 6
-  },
-  {
     "account_id": "17592297177493",
     "account_name": "Saratoga Springs City School District",
     "state": "NEW YORK",
     "sales_exec": "Brooke Fera",
     "total_revenue": 418600,
     "opportunity_count": 6
-  },
-  {
-    "account_id": "17592191438099",
-    "account_name": "Auburn City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 416435.5,
-    "opportunity_count": 21
-  },
-  {
-    "account_id": "17592240769333",
-    "account_name": "Mechanicville City School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 389275.400390625,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592239500540",
-    "account_name": "San Leandro Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 384675,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188521594",
-    "account_name": "Onteora School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 370574,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592283312101",
-    "account_name": "Berkeley County School District 01",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 350000,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188111649",
-    "account_name": "Newburgh City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 333635.79833984375,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592191993104",
-    "account_name": "Rotterdam-Mohonasen School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 326520,
-    "opportunity_count": 9
   },
   {
     "account_id": "17592297178162",
@@ -408,46 +72,6 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592232047823",
-    "account_name": "Geneva City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 324183,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592188521542",
-    "account_name": "Nassau BOCES",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 295420.25,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592191139680",
-    "account_name": "Wappingers School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 291475,
-    "opportunity_count": 16
-  },
-  {
-    "account_id": "17592188132463",
-    "account_name": "Iredell-Statesville Schools",
-    "state": "NORTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 280956,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592190775328",
-    "account_name": "Islip School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sean Drake",
-    "total_revenue": 276911.23669433594,
-    "opportunity_count": 15
-  },
-  {
     "account_id": "17592186838330",
     "account_name": "Calhoun County Public Schools",
     "state": "SOUTH CAROLINA",
@@ -456,68 +80,12 @@
     "opportunity_count": 11
   },
   {
-    "account_id": "17592193476736",
-    "account_name": "Eastern Suffolk BOCES",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 271699,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188843879",
-    "account_name": "Two Rivers Public Charter School",
-    "state": "WASHINGTON",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 268910,
-    "opportunity_count": 7
-  },
-  {
     "account_id": "17592238767643",
     "account_name": "Two Rivers Public Charter School",
     "state": "WASHINGTON",
     "sales_exec": "Steve Pines",
     "total_revenue": 268910,
     "opportunity_count": 7
-  },
-  {
-    "account_id": "17592236776574",
-    "account_name": "Ithaca City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 262554,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592255886009",
-    "account_name": "Pee Dee Math, Science, and Technology Academy",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 259718,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188843616",
-    "account_name": "Middle Country School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 258520.380859375,
-    "opportunity_count": 11
-  },
-  {
-    "account_id": "17592188077542",
-    "account_name": "Port Jervis City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sara Hukkanen",
-    "total_revenue": 253441,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592244842825",
-    "account_name": "Democracy Preparatory Charter School",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 251560.509765625,
-    "opportunity_count": 5
   },
   {
     "account_id": "17592297003457",
@@ -536,44 +104,12 @@
     "opportunity_count": 5
   },
   {
-    "account_id": "17592191693299",
-    "account_name": "Niagara-Wheatfield School District(dupe)",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 237301,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592232050091",
-    "account_name": "Georgetown County School District",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 222503,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592187828577",
-    "account_name": "King Center Charter School",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 221537.5,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592236574016",
-    "account_name": "Cambridge Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 219240.89990234375,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592191985057",
-    "account_name": "Jericho School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 217463.5703125,
-    "opportunity_count": 14
+    "account_id": "17592236333687",
+    "account_name": "GEAR UP New Hampshire",
+    "state": "NEW HAMPSHIRE",
+    "sales_exec": "Taylor Yoon",
+    "total_revenue": 225938,
+    "opportunity_count": 5
   },
   {
     "account_id": "17592191781181",
@@ -592,84 +128,20 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592190778417",
-    "account_name": "West Islip School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 208586.30078125,
-    "opportunity_count": 14
-  },
-  {
-    "account_id": "17592241851065",
-    "account_name": "Nottoway County Public Schools",
-    "state": "VIRGINIA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 208250,
-    "opportunity_count": 4
+    "account_id": "17592188329786",
+    "account_name": "Browning Public Schools",
+    "state": "MONTANA",
+    "sales_exec": "Sierra Arcega",
+    "total_revenue": 205856,
+    "opportunity_count": 5
   },
   {
     "account_id": "17592188519140",
     "account_name": "Liberty School District",
     "state": "NEW YORK",
-    "sales_exec": "Sara Hukkanen",
+    "sales_exec": "Rachel Reynoso",
     "total_revenue": 204191.2998046875,
     "opportunity_count": 7
-  },
-  {
-    "account_id": "17592194493180",
-    "account_name": "Utica City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 203350,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188843447",
-    "account_name": "Carle Place School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 200865.650390625,
-    "opportunity_count": 12
-  },
-  {
-    "account_id": "17592191420228",
-    "account_name": "Patchogue - Medford School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 196194.21084594727,
-    "opportunity_count": 18
-  },
-  {
-    "account_id": "17592246522929",
-    "account_name": "Sierra-Plumas Joint Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 189496.55859375,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592190775661",
-    "account_name": "Seaford School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 187940.68994140625,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592191923626",
-    "account_name": "Chappaqua School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 180274,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592188843867",
-    "account_name": "Westminster School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 179200,
-    "opportunity_count": 2
   },
   {
     "account_id": "17592246346594",
@@ -680,30 +152,6 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592188843481",
-    "account_name": "Connetquot Central School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 176531.73974609375,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592191953936",
-    "account_name": "Eldred School District",
-    "state": "NEW YORK",
-    "sales_exec": "Hayley Spira Bauer",
-    "total_revenue": 175856,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592191592231",
-    "account_name": "Greater Johnstown School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 174810,
-    "opportunity_count": 10
-  },
-  {
     "account_id": "17592238767028",
     "account_name": "Greater Johnstown",
     "state": "NEW YORK",
@@ -712,130 +160,18 @@
     "opportunity_count": 10
   },
   {
-    "account_id": "17592191139687",
-    "account_name": "Pelham School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 174540,
+    "account_id": "17592246333760",
+    "account_name": "Sul Ross State University - SSS",
+    "state": "TEXAS",
+    "sales_exec": "Yvette Ramos",
+    "total_revenue": 152880,
     "opportunity_count": 7
-  },
-  {
-    "account_id": "17592190763038",
-    "account_name": "Katonah-Lewisboro School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 174455,
-    "opportunity_count": 14
-  },
-  {
-    "account_id": "17592194989574",
-    "account_name": "Lucerne Elementary School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 173075,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592246622454",
-    "account_name": "Seed PCS (District)",
-    "state": "DISTRICT OF COLUMBIA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 171651.0029296875,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592192011580",
-    "account_name": "Ridge View High School",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 165055,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592284310606",
-    "account_name": "Onamia Public School District",
-    "state": "MINNESOTA",
-    "sales_exec": "Tony Skauge",
-    "total_revenue": 163369.296875,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592257023088",
-    "account_name": "Gouverneur School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 159146.8330078125,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188062075",
-    "account_name": "Roosevelt School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 153527.30004882812,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592190779016",
-    "account_name": "Commercial Township School District",
-    "state": "NEW JERSEY",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 148783.64990234375,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592188843670",
-    "account_name": "Harborfields School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sean Drake",
-    "total_revenue": 144169.83984375,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592236387892",
-    "account_name": "Whitney Point Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 142410,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592188429900",
-    "account_name": "Bayport - Blue Point School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 141450.9599609375,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592191980469",
-    "account_name": "Williamsville School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 139873.25,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592188091400",
-    "account_name": "Newfield Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Tracy Walters",
-    "total_revenue": 138932,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592190541945",
-    "account_name": "Syosset Central School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 138914.580078125,
-    "opportunity_count": 11
   },
   {
     "account_id": "17592188843489",
     "account_name": "Comsewogue School District",
     "state": "NEW YORK",
-    "sales_exec": " ",
+    "sales_exec": "Brooke Fera",
     "total_revenue": 138782.859375,
     "opportunity_count": 8
   },
@@ -843,137 +179,9 @@
     "account_id": "17592188843578",
     "account_name": "MiraCosta College/Oceanside Unified School District",
     "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
+    "sales_exec": "Colleen Riley",
     "total_revenue": 133839,
     "opportunity_count": 5
-  },
-  {
-    "account_id": "17592246631973",
-    "account_name": "Copper River School District",
-    "state": "ALASKA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 132913.83984375,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592191415703",
-    "account_name": "Hauppauge School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 130524.88037109375,
-    "opportunity_count": 12
-  },
-  {
-    "account_id": "17592242957776",
-    "account_name": "Greece Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 128107,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188016177",
-    "account_name": "Batavia City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 127400,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592190541975",
-    "account_name": "Mattituck - Cutchogue School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 126750,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592240276780",
-    "account_name": "Niskayuna Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 125837.69921875,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592259485062",
-    "account_name": "Urban Assembly Institute of Math And Science For Young Women",
-    "state": "NEW YORK",
-    "sales_exec": "Hayley Spira Bauer",
-    "total_revenue": 125000,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592190777817",
-    "account_name": "Starpoint School District",
-    "state": "NEW YORK",
-    "sales_exec": "Tracy Walters",
-    "total_revenue": 123500,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592222178579",
-    "account_name": "Holland Patent Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 122000,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188518978",
-    "account_name": "Lakeland School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 121266,
-    "opportunity_count": 16
-  },
-  {
-    "account_id": "17592188843664",
-    "account_name": "Webster School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 118197.5,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592247428385",
-    "account_name": "Dunkirk City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 117000,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592247419176",
-    "account_name": "Lancaster County School District 01",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 115000,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592186930123",
-    "account_name": "Tarrant County College(dupe)",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 112474.798828125,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188521566",
-    "account_name": "North Salem School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sara Hukkanen",
-    "total_revenue": 112000,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592284314063",
-    "account_name": "Columbia County Schools",
-    "state": "GEORGIA",
-    "sales_exec": "Melodie Blackwood",
-    "total_revenue": 110412.8984375,
-    "opportunity_count": 2
   },
   {
     "account_id": "17592294631647",
@@ -981,46 +189,6 @@
     "state": "GEORGIA",
     "sales_exec": "Melodie Blackwood",
     "total_revenue": 110412.8984375,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188843883",
-    "account_name": "Westbury School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 109750,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592193635420",
-    "account_name": "East Ramapo Central School District (Spring Valley)",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 107834,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592233784919",
-    "account_name": "Medina Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 104000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592190116331",
-    "account_name": "Shoreham - Wading River School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 103870,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592187450883",
-    "account_name": "Thornton Township High School District 205",
-    "state": "ILLINOIS",
-    "sales_exec": " ",
-    "total_revenue": 103241.283203125,
     "opportunity_count": 2
   },
   {
@@ -1032,76 +200,12 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592241155113",
-    "account_name": "Rochester Community Unit School District 3A",
-    "state": "ILLINOIS",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 101943.5,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592191139128",
-    "account_name": "Eastport South Manor School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 101665.30078125,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592188843837",
-    "account_name": "Wantagh School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 101406.5,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592245837794",
-    "account_name": "Gwinnett Homeschool and Private School",
-    "state": "GEORGIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 100262.5,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188054258",
-    "account_name": "Southampton School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 100080,
-    "opportunity_count": 4
-  },
-  {
     "account_id": "17592188148838",
     "account_name": "GEAR UP New Hampshire",
     "state": "NEW HAMPSHIRE",
     "sales_exec": "Cory Shaw",
     "total_revenue": 100000,
     "opportunity_count": 3
-  },
-  {
-    "account_id": "17592236333687",
-    "account_name": "GEAR UP New Hampshire",
-    "state": "NEW HAMPSHIRE",
-    "sales_exec": "Cory Shaw",
-    "total_revenue": 100000,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592247238751",
-    "account_name": "Sonoma Valley Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 100000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592257128781",
-    "account_name": "Brooklyn High School For Law And Technology",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 100000,
-    "opportunity_count": 1
   },
   {
     "account_id": "17592296990585",
@@ -1117,38 +221,6 @@
     "state": null,
     "sales_exec": "Kris Tedesco",
     "total_revenue": 100000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592191497776",
-    "account_name": "Cato-Meridian School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 99785,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592188843529",
-    "account_name": "Quogue",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 99379.21875,
-    "opportunity_count": 12
-  },
-  {
-    "account_id": "17592188843759",
-    "account_name": "Oceanside School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 99277,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592246284130",
-    "account_name": "Danville Independent Schools",
-    "state": "KENTUCKY",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 97850,
     "opportunity_count": 1
   },
   {
@@ -1168,22 +240,6 @@
     "opportunity_count": 9
   },
   {
-    "account_id": "17592226149466",
-    "account_name": "Honeoye Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 94938.4697265625,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592243271268",
-    "account_name": "Rural Schools Innovation Zone",
-    "state": "TEXAS",
-    "sales_exec": "Melodie Blackwood",
-    "total_revenue": 94529.4501953125,
-    "opportunity_count": 7
-  },
-  {
     "account_id": "17592280524701",
     "account_name": "Pathways Academy Charter School",
     "state": "TEXAS",
@@ -1200,116 +256,12 @@
     "opportunity_count": 17
   },
   {
-    "account_id": "17592236333733",
-    "account_name": "The University of Texas Rio Grande Valley",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 90570,
-    "opportunity_count": 17
-  },
-  {
-    "account_id": "17592188527002",
-    "account_name": "Beacon City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sara Hukkanen",
-    "total_revenue": 87191.5,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592190777007",
-    "account_name": "Plainview Old-Bethpage School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 86076.279296875,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592284313090",
-    "account_name": "Brooklyn High School For Music And Theater",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 85108.5625,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592252963553",
-    "account_name": "Calhoun Falls Charter",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 80000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592297007405",
-    "account_name": "Earl Monroe New Renaissance Basketball School",
-    "state": null,
-    "sales_exec": "Hayley Spira Bauer",
-    "total_revenue": 78333,
-    "opportunity_count": 2
-  },
-  {
     "account_id": "17592297178717",
     "account_name": "Jemez Valley Public Schools",
     "state": null,
     "sales_exec": "Melodie Blackwood",
     "total_revenue": 77562.8203125,
     "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188527168",
-    "account_name": "Bethpage School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 77520,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592233266203",
-    "account_name": "Calistoga Joint Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 76877.75,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188139795",
-    "account_name": "Hempstead School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 76657.5,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188843561",
-    "account_name": "Jamestown Public Schools",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 76447,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592284950416",
-    "account_name": "One City schools",
-    "state": "WISCONSIN",
-    "sales_exec": "Tony Skauge",
-    "total_revenue": 76380.1484375,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188432144",
-    "account_name": "Cooperstown School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 75225,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592188430546",
-    "account_name": "Brewster School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sara Hukkanen",
-    "total_revenue": 75000,
-    "opportunity_count": 7
   },
   {
     "account_id": "17592295298834",
@@ -1320,68 +272,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592242586642",
-    "account_name": "Palo Alto Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 74625,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592257671670",
-    "account_name": "Sutter County Superintendent of Schools",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 74439.73046875,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188053977",
-    "account_name": "South Huntington School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 73232.400390625,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592188371958",
-    "account_name": "Ardsley School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 73000,
-    "opportunity_count": 4
-  },
-  {
     "account_id": "17592188843501",
     "account_name": "Fonda-Fultonville School District",
     "state": "NEW YORK",
     "sales_exec": "Kris Tedesco",
     "total_revenue": 70175,
     "opportunity_count": 6
-  },
-  {
-    "account_id": "17592190542218",
-    "account_name": "Rockville Centre School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 70112.5,
-    "opportunity_count": 13
-  },
-  {
-    "account_id": "17592238997726",
-    "account_name": "Lewiston-Porter Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 70080,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592191467907",
-    "account_name": "Canajoharie School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 69385.5,
-    "opportunity_count": 7
   },
   {
     "account_id": "17592238767502",
@@ -1392,38 +288,6 @@
     "opportunity_count": 3
   },
   {
-    "account_id": "17592190542183",
-    "account_name": "Herricks School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 66984,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188004617",
-    "account_name": "Dryden School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 65244.3503112793,
-    "opportunity_count": 11
-  },
-  {
-    "account_id": "17592288460756",
-    "account_name": "Waterloo Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 65124.80859375,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592297007199",
-    "account_name": "Elmsford Union Free School District",
-    "state": null,
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 65000,
-    "opportunity_count": 1
-  },
-  {
     "account_id": "17592238766892",
     "account_name": "Cato-Meridian",
     "state": "NEW YORK",
@@ -1432,124 +296,12 @@
     "opportunity_count": 10
   },
   {
-    "account_id": "17592188843801",
-    "account_name": "Mayfield School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 61700,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592240507269",
-    "account_name": "Greene Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 61620,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592236806620",
-    "account_name": "East Aurora Union Free School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 60948,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188843763",
-    "account_name": "Nanuet School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 60691.9599609375,
-    "opportunity_count": 9
-  },
-  {
-    "account_id": "17592190112010",
-    "account_name": "Solvay School District",
+    "account_id": "17592246338236",
+    "account_name": "Hudson Falls School District",
     "state": "NEW YORK",
     "sales_exec": "Paul Sheffield",
-    "total_revenue": 60285,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592193636697",
-    "account_name": "Kingston City School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 59624.60009765625,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592241856384",
-    "account_name": "Green Island Union Free School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 59500,
+    "total_revenue": 57800,
     "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188843781",
-    "account_name": "Westhill School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 57938,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592188843640",
-    "account_name": "Alice Drive Middle School",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 57850,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592190542151",
-    "account_name": "Port Washington School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 56886.080078125,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592188843584",
-    "account_name": "Haldane School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 55820,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592188843630",
-    "account_name": "Roslyn School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 54649,
-    "opportunity_count": 11
-  },
-  {
-    "account_id": "17592188843704",
-    "account_name": "Mount Pleasant Cottage School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 54304,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592295270937",
-    "account_name": "Lancaster County School District 1",
-    "state": null,
-    "sales_exec": "Melodie Blackwood",
-    "total_revenue": 54094.869140625,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188843565",
-    "account_name": "Frankfort-Schuyler School District",
-    "state": "NEW YORK",
-    "sales_exec": "Tracy Walters",
-    "total_revenue": 53595,
-    "opportunity_count": 9
   },
   {
     "account_id": "17592238766999",
@@ -1560,35 +312,11 @@
     "opportunity_count": 9
   },
   {
-    "account_id": "17592187985397",
-    "account_name": "Weedsport School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 53471.75,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592192008564",
-    "account_name": "Richland Northeast High",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 53085,
-    "opportunity_count": 6
-  },
-  {
     "account_id": "17592297178293",
     "account_name": "Charlotte-Mecklenburg Schools",
     "state": null,
     "sales_exec": "Melodie Blackwood",
     "total_revenue": 52837.090087890625,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188843604",
-    "account_name": "Project Stay, Inc.",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 50740,
     "opportunity_count": 2
   },
   {
@@ -1600,68 +328,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188843735",
-    "account_name": "Mount Markham Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 49071,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188843737",
-    "account_name": "Oyster Bay East Norwich School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 48761.5,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592237182370",
-    "account_name": "Tully Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 48383,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592212145126",
-    "account_name": "Warrensburg Central School District(dupe)",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 48328,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592292343494",
-    "account_name": "Cazenovia Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 47752,
-    "opportunity_count": 2
-  },
-  {
     "account_id": "17592188843427",
     "account_name": "Bridgehampton School District",
     "state": "NEW YORK",
     "sales_exec": "Paul Sheffield",
     "total_revenue": 46491,
     "opportunity_count": 9
-  },
-  {
-    "account_id": "17592188139507",
-    "account_name": "Highland Falls-Fort Montgomery Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 45721,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592194758035",
-    "account_name": "Orchard Park Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 45160,
-    "opportunity_count": 3
   },
   {
     "account_id": "17592293731213",
@@ -1680,38 +352,6 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592237226461",
-    "account_name": "Candor Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 44800,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188066540",
-    "account_name": "Putnam Valley School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 44000,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188168720",
-    "account_name": "Bemus Point School District",
-    "state": "NEW YORK",
-    "sales_exec": "Tracy Walters",
-    "total_revenue": 42677,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592188843660",
-    "account_name": "Whitehall School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 42400,
-    "opportunity_count": 3
-  },
-  {
     "account_id": "17592297177659",
     "account_name": "Whitehall School District",
     "state": "NEW YORK",
@@ -1720,52 +360,12 @@
     "opportunity_count": 3
   },
   {
-    "account_id": "17592239795135",
-    "account_name": "Sherburne-Earlville Central School District",
+    "account_id": "17592297177537",
+    "account_name": "Bath Central School District",
     "state": "NEW YORK",
     "sales_exec": "Mike O'Donnell",
-    "total_revenue": 40376,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188843769",
-    "account_name": "North Babylon School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sean Drake",
-    "total_revenue": 39570,
-    "opportunity_count": 11
-  },
-  {
-    "account_id": "17592232483696",
-    "account_name": "Camden Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 39437,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188153768",
-    "account_name": "East Rockaway School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 39037.5,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592192018269",
-    "account_name": "Westwood High School",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 38525,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592190776076",
-    "account_name": "Duanesburg School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 38177,
-    "opportunity_count": 5
+    "total_revenue": 41680,
+    "opportunity_count": 2
   },
   {
     "account_id": "17592238766943",
@@ -1776,28 +376,12 @@
     "opportunity_count": 5
   },
   {
-    "account_id": "17592246779337",
-    "account_name": "Central Valley School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 37608.44921875,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592239104634",
-    "account_name": "Marathon Central School District",
+    "account_id": "17592246331492",
+    "account_name": "Arkport School District",
     "state": "NEW YORK",
     "sales_exec": "Mike O'Donnell",
-    "total_revenue": 37259,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592216246772",
-    "account_name": "Academy of God",
-    "state": "TENNESSEE",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 36443.69921875,
-    "opportunity_count": 1
+    "total_revenue": 37650,
+    "opportunity_count": 4
   },
   {
     "account_id": "17592297177466",
@@ -1816,30 +400,6 @@
     "opportunity_count": 7
   },
   {
-    "account_id": "17592249809960",
-    "account_name": "Camden-Fairview School District",
-    "state": "ARKANSAS",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 35350,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592193851091",
-    "account_name": "East Bloomfield Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 35258.19921875,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592190775743",
-    "account_name": "East Williston School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 35225.5,
-    "opportunity_count": 11
-  },
-  {
     "account_id": "17592188843803",
     "account_name": "Wichita State University",
     "state": "KANSAS",
@@ -1856,60 +416,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592252177303",
-    "account_name": "Ticonderoga Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 34824.400390625,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592239879930",
-    "account_name": "Spencer-Van Etten Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 34400,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592294633713",
-    "account_name": "Shade Canyon School",
-    "state": "OREGON",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 33007.76171875,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188843557",
-    "account_name": "GEAR UP Alabama",
-    "state": "ALABAMA",
-    "sales_exec": "Kristi Dorman",
-    "total_revenue": 32750,
-    "opportunity_count": 4
-  },
-  {
     "account_id": "17592246333599",
     "account_name": "GEAR UP Alabama",
     "state": "ALABAMA",
     "sales_exec": " ",
     "total_revenue": 32750,
     "opportunity_count": 4
-  },
-  {
-    "account_id": "17592191139109",
-    "account_name": "Rocky Point School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 32733.66015625,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592188843469",
-    "account_name": "Burnt Hills-Ballston Lake School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 31759.699996948242,
-    "opportunity_count": 6
   },
   {
     "account_id": "17592188371832",
@@ -1920,44 +432,20 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592247211817",
-    "account_name": "Seacoast Classical Academy",
-    "state": "NEW HAMPSHIRE",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 31238.05078125,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188843555",
-    "account_name": "South Colonie School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 30213,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592252701673",
-    "account_name": "Paterson Charter School for Science and Technology",
-    "state": "NEW JERSEY",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 30000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592297007449",
-    "account_name": "NYC Dept of Education",
-    "state": null,
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 30000,
-    "opportunity_count": 1
-  },
-  {
     "account_id": "17592297177419",
     "account_name": "Goshen Central School District",
     "state": null,
     "sales_exec": "Kris Tedesco",
     "total_revenue": 29566,
     "opportunity_count": 2
+  },
+  {
+    "account_id": "17592192018269",
+    "account_name": "Westwood High School",
+    "state": "SOUTH CAROLINA",
+    "sales_exec": "Steve Pines",
+    "total_revenue": 28000,
+    "opportunity_count": 6
   },
   {
     "account_id": "17592188151131",
@@ -1968,28 +456,12 @@
     "opportunity_count": 5
   },
   {
-    "account_id": "17592188843843",
-    "account_name": "UTRGV- Lyford & Raymondville",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 25373,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188522816",
-    "account_name": "Southern Cayuga School District",
-    "state": "NEW YORK",
-    "sales_exec": "Tracy Walters",
-    "total_revenue": 25141.25,
-    "opportunity_count": 10
-  },
-  {
-    "account_id": "17592188843858",
-    "account_name": "Malverne School District",
-    "state": "NEW YORK",
+    "account_id": "17592297177859",
+    "account_name": "Winslow Township School District",
+    "state": null,
     "sales_exec": "Brooke Fera",
     "total_revenue": 25000,
-    "opportunity_count": 6
+    "opportunity_count": 1
   },
   {
     "account_id": "17592246338366",
@@ -2000,22 +472,6 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592257982378",
-    "account_name": "P.S. 180 Seeall Academy",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 24999,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592191645737",
-    "account_name": "Greenport School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 24851.389892578125,
-    "opportunity_count": 9
-  },
-  {
     "account_id": "17592297177368",
     "account_name": "Fort Plain Central School District",
     "state": null,
@@ -2024,51 +480,11 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592190775338",
-    "account_name": "Pearl River School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 23970,
-    "opportunity_count": 6
-  },
-  {
-    "account_id": "17592190777115",
-    "account_name": "Calaveras County Office of Education",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 23750,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592232075340",
-    "account_name": "Otsego Northern Catskills BOCES",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 23395,
-    "opportunity_count": 3
-  },
-  {
     "account_id": "17592237982708",
     "account_name": "Otsego Northern Catskills BOCES",
     "state": "NEW YORK",
     "sales_exec": "Mike O'Donnell",
     "total_revenue": 23395,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188843437",
-    "account_name": "Hewlett Woodmere School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 22682,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592188843688",
-    "account_name": "LEARN Inc.",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 22635,
     "opportunity_count": 3
   },
   {
@@ -2104,68 +520,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592284312135",
-    "account_name": "Clinton Community School District",
-    "state": "IOWA",
-    "sales_exec": "Tony Skauge",
-    "total_revenue": 19992,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592238969848",
-    "account_name": "Liverpool Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 18200,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592188843751",
-    "account_name": "Sul Ross State University - SSS",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 18150,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592246333760",
-    "account_name": "Sul Ross State University - SSS",
-    "state": "TEXAS",
-    "sales_exec": "Tomi Toyama",
-    "total_revenue": 18150,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592284319646",
-    "account_name": "Lemont Township High School District 210(dupe)",
-    "state": "ILLINOIS",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 17679.990234375,
-    "opportunity_count": 1
-  },
-  {
     "account_id": "17592295285398",
     "account_name": "Groton School District",
     "state": null,
     "sales_exec": "Brooke Fera",
     "total_revenue": 17000,
     "opportunity_count": 1
-  },
-  {
-    "account_id": "17592241754487",
-    "account_name": "Jackson County Schools",
-    "state": "WEST VIRGINIA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 16720,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188843712",
-    "account_name": "Port Jefferson School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 15383.979995727539,
-    "opportunity_count": 8
   },
   {
     "account_id": "17592297177395",
@@ -2192,22 +552,6 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188518823",
-    "account_name": "Ichabod Crane Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 14000,
-    "opportunity_count": 5
-  },
-  {
-    "account_id": "17592188843839",
-    "account_name": "West Canada Valley School District",
-    "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 14000,
-    "opportunity_count": 5
-  },
-  {
     "account_id": "17592297177211",
     "account_name": "Ichabod Crane Central School District",
     "state": "NEW YORK",
@@ -2219,25 +563,17 @@
     "account_id": "17592297177315",
     "account_name": "West Canada Valley School District",
     "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
+    "sales_exec": "Kris Tedesco",
     "total_revenue": 14000,
     "opportunity_count": 5
   },
   {
-    "account_id": "17592237216017",
-    "account_name": "Herkimer Central School District",
+    "account_id": "17592297177191",
+    "account_name": "Horseheads School District",
     "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 12441.16015625,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592286392623",
-    "account_name": "Columbus Community School District",
-    "state": "IOWA",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 11225.6103515625,
-    "opportunity_count": 1
+    "sales_exec": "Mike O'Donnell",
+    "total_revenue": 12500,
+    "opportunity_count": 4
   },
   {
     "account_id": "17592188843813",
@@ -2248,67 +584,11 @@
     "opportunity_count": 3
   },
   {
-    "account_id": "17592188113578",
-    "account_name": "Massena School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 10750,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592236672806",
-    "account_name": "Long County School District",
-    "state": "GEORGIA",
-    "sales_exec": "Joy Panko",
-    "total_revenue": 10208,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188361268",
-    "account_name": "Lodge Grass Public Schools",
-    "state": "MONTANA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 10000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592193637411",
-    "account_name": "Lynbrook Union Free School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 10000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592274734964",
-    "account_name": "Old National Trail Special Services Cooperative",
-    "state": "INDIANA",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 10000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188008430",
-    "account_name": "Washingtonville Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 9950,
-    "opportunity_count": 3
-  },
-  {
-    "account_id": "17592291360687",
-    "account_name": "Yellow Springs Exempted Village School District",
-    "state": "OHIO",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 9946,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592186851379",
-    "account_name": "Yosemite Community College District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 9640,
+    "account_id": "17592297177760",
+    "account_name": "River Dell Regional High School District",
+    "state": null,
+    "sales_exec": "Brooke Fera",
+    "total_revenue": 9811,
     "opportunity_count": 2
   },
   {
@@ -2318,14 +598,6 @@
     "sales_exec": "Monica Sherwood",
     "total_revenue": 9640,
     "opportunity_count": 2
-  },
-  {
-    "account_id": "17592186875198",
-    "account_name": "Ferris State University",
-    "state": "MICHIGAN",
-    "sales_exec": " ",
-    "total_revenue": 9193.7998046875,
-    "opportunity_count": 1
   },
   {
     "account_id": "17592246333410",
@@ -2352,14 +624,6 @@
     "opportunity_count": 4
   },
   {
-    "account_id": "17592236636091",
-    "account_name": "Sherman Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 8722,
-    "opportunity_count": 2
-  },
-  {
     "account_id": "17592188167699",
     "account_name": "Central Lakes College",
     "state": "MINNESOTA",
@@ -2368,44 +632,20 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592233673482",
-    "account_name": "Williamson Central School District",
+    "account_id": "17592246348313",
+    "account_name": "Hyde Park Central School District",
     "state": "NEW YORK",
     "sales_exec": "Kris Tedesco",
-    "total_revenue": 7500,
-    "opportunity_count": 1
+    "total_revenue": 7158,
+    "opportunity_count": 3
   },
   {
-    "account_id": "17592188843429",
-    "account_name": "California State University-Monterey Bay",
-    "state": "CALIFORNIA",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 7120,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592256638671",
-    "account_name": "Viborg-Hurley School District 60-6",
-    "state": "SOUTH DAKOTA",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 7090,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592295357235",
-    "account_name": "Invent Learning Hub (District)",
-    "state": null,
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 6116,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592237307675",
-    "account_name": "Wissahickon Charter School (District)",
-    "state": "PENNSYLVANIA",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 5898.75,
-    "opportunity_count": 1
+    "account_id": "17592297177316",
+    "account_name": "Alexandria School District",
+    "state": "NEW YORK",
+    "sales_exec": " ",
+    "total_revenue": 6950,
+    "opportunity_count": 4
   },
   {
     "account_id": "17592238298751",
@@ -2416,30 +656,6 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188843891",
-    "account_name": "Shawnee State University",
-    "state": "OHIO",
-    "sales_exec": "Luis Perez",
-    "total_revenue": 5748,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592236632607",
-    "account_name": "Metropolitan Expeditionary Learning School - Mels",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 5385.27978515625,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592247955798",
-    "account_name": "Spencerport Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 5021,
-    "opportunity_count": 2
-  },
-  {
     "account_id": "17592295298301",
     "account_name": "Chester Academy",
     "state": "NEW HAMPSHIRE",
@@ -2448,84 +664,20 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592250099697",
-    "account_name": "Invent Learning Hub",
-    "state": "INDIANA",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 5000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592254480667",
-    "account_name": "Falls City Public Schools",
-    "state": "NEBRASKA",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 5000,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592186955496",
-    "account_name": "Eel River Charter School",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 2756.25,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592291707097",
-    "account_name": "West Northfield School District 31",
-    "state": "ILLINOIS",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 2574.2900390625,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188518852",
-    "account_name": "Island Trees School District",
+    "account_id": "17592297178613",
+    "account_name": "Babylon School District",
     "state": "NEW YORK",
     "sales_exec": " ",
-    "total_revenue": 2500,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592245614799",
-    "account_name": "Gorham-Middlesex Central School District (Marcus Whitman)",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 2100,
+    "total_revenue": 3150,
     "opportunity_count": 1
   },
   {
-    "account_id": "17592285354738",
-    "account_name": "Grayslake Community Consolidated School District 46",
-    "state": "ILLINOIS",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 1299.989990234375,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592297177760",
-    "account_name": "River Dell Regional High School District",
+    "account_id": "17592238767745",
+    "account_name": "iTutor Animals New LMS",
     "state": null,
-    "sales_exec": "Brooke Fera",
-    "total_revenue": 811,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592240619378",
-    "account_name": "University Of Minnesota-Duluth",
-    "state": "MINNESOTA",
-    "sales_exec": "Mike O'Donnell",
-    "total_revenue": 645,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188120882",
-    "account_name": "Fullmind Demo QA",
-    "state": "NEW YORK",
-    "sales_exec": "Kamal Balu",
-    "total_revenue": 1,
-    "opportunity_count": 1
+    "sales_exec": "MarilynTest AccountSetu",
+    "total_revenue": 3,
+    "opportunity_count": 5
   },
   {
     "account_id": "17592295667915",
@@ -2536,26 +688,18 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592186838444",
-    "account_name": "Fullmind Test School",
+    "account_id": "17592250366426",
+    "account_name": "Itutor Test school",
     "state": "NEW YORK",
     "sales_exec": "Cory Shaw",
     "total_revenue": 0,
     "opportunity_count": 2
   },
   {
-    "account_id": "17592250366426",
-    "account_name": "Itutor Test school",
+    "account_id": "17592188053956",
+    "account_name": "Sullivan County BOCES",
     "state": "NEW YORK",
-    "sales_exec": "Patrick Scianna",
-    "total_revenue": 0,
-    "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188078024",
-    "account_name": "Pine Bush Central School District",
-    "state": "NEW YORK",
-    "sales_exec": "Sara Hukkanen",
+    "sales_exec": "Kris Tedesco",
     "total_revenue": 0,
     "opportunity_count": 1
   },
@@ -2572,14 +716,6 @@
     "account_name": "Simpson University",
     "state": "CALIFORNIA",
     "sales_exec": "Cory Shaw",
-    "total_revenue": 0,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592250822991",
-    "account_name": "West Contra Costa Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
     "total_revenue": 0,
     "opportunity_count": 1
   },
