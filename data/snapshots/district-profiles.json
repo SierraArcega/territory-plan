@@ -1959,7 +1959,7 @@
     },
     "sessions": {
       "count": 3080,
-      "revenue": 77685,
+      "revenue": 75165,
       "schools_in_sessions": [
         "Academy of God",
         "F.H Jenkins Elementary"
@@ -1970,7 +1970,7 @@
     },
     "totals": {
       "entity_count": 3325,
-      "total_revenue": 560505.06640625
+      "total_revenue": 557985.06640625
     },
     "data_quality": {
       "has_nces": true,

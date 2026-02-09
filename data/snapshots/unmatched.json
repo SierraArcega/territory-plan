@@ -59,7 +59,7 @@
     "account_id": "17592297177493",
     "account_name": "Saratoga Springs City School District",
     "state": "NEW YORK",
-    "sales_exec": "Sharon C.",
+    "sales_exec": "Brooke Fera",
     "total_revenue": 418600,
     "opportunity_count": 6
   },
@@ -291,7 +291,7 @@
     "account_id": "17592238766892",
     "account_name": "Cato-Meridian",
     "state": "NEW YORK",
-    "sales_exec": "Mike O'Donnell",
+    "sales_exec": "Tracy Walters",
     "total_revenue": 63785,
     "opportunity_count": 10
   },
@@ -555,7 +555,7 @@
     "account_id": "17592297177211",
     "account_name": "Ichabod Crane Central School District",
     "state": "NEW YORK",
-    "sales_exec": "Sharon C.",
+    "sales_exec": "Kris Tedesco",
     "total_revenue": 14000,
     "opportunity_count": 5
   },
@@ -674,8 +674,8 @@
   {
     "account_id": "17592238767745",
     "account_name": "iTutor Animals New LMS",
-    "state": "NEW JERSEY",
-    "sales_exec": " ",
+    "state": null,
+    "sales_exec": "MarilynTest AccountSetu",
     "total_revenue": 3,
     "opportunity_count": 5
   },
