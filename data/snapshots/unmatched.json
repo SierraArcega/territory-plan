@@ -10,8 +10,8 @@
   {
     "account_id": "17592188843463",
     "account_name": "FLORENCE DISTRICT 3",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
+    "state": null,
+    "sales_exec": null,
     "total_revenue": 811500,
     "opportunity_count": 13
   },
@@ -107,7 +107,7 @@
     "account_id": "17592236333687",
     "account_name": "GEAR UP New Hampshire",
     "state": "NEW HAMPSHIRE",
-    "sales_exec": "Taylor Yoon",
+    "sales_exec": "Colleen Riley",
     "total_revenue": 225938,
     "opportunity_count": 5
   },
@@ -115,7 +115,7 @@
     "account_id": "17592191781181",
     "account_name": "Westhampton Beach School District",
     "state": "NEW YORK",
-    "sales_exec": " ",
+    "sales_exec": "Taylor Yoon",
     "total_revenue": 212813,
     "opportunity_count": 13
   },
@@ -171,7 +171,7 @@
     "account_id": "17592188843489",
     "account_name": "Comsewogue School District",
     "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
+    "sales_exec": " ",
     "total_revenue": 138782.859375,
     "opportunity_count": 8
   },
@@ -328,14 +328,6 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188843427",
-    "account_name": "Bridgehampton School District",
-    "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 46491,
-    "opportunity_count": 9
-  },
-  {
     "account_id": "17592293731213",
     "account_name": "Fort Yates Public Schools",
     "state": "NORTH DAKOTA",
@@ -395,7 +387,7 @@
     "account_id": "17592188843467",
     "account_name": "Long Beach School District",
     "state": "NEW YORK",
-    "sales_exec": " ",
+    "sales_exec": "Taylor Yoon",
     "total_revenue": 35375,
     "opportunity_count": 7
   },
