@@ -295,24 +295,6 @@
     "similarity_score": 0.5
   },
   {
-    "nces_id": "602250",
-    "district_name": "Alta-Dutch Flat Union Elementary School District",
-    "state": "CA",
-    "account_variants": [
-      {
-        "name": "Alta-Dutch Flat Union Elementary School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Alta Dutch Flat Elementary",
-        "source": "opportunities",
-        "count": 1
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
     "nces_id": "301331000394",
     "district_name": "Hardin Middle School",
     "state": "MT",
@@ -324,6 +306,24 @@
       },
       {
         "name": "Lodge Grass Public Schools",
+        "source": "opportunities",
+        "count": 1
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
+    "nces_id": "602250",
+    "district_name": "Alta-Dutch Flat Union Elementary School District",
+    "state": "CA",
+    "account_variants": [
+      {
+        "name": "Alta-Dutch Flat Union Elementary School District",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Alta Dutch Flat Elementary",
         "source": "opportunities",
         "count": 1
       }
