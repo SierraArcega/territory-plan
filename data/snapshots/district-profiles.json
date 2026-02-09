@@ -5164,10 +5164,10 @@
       ]
     },
     "courses": {
-      "count": 20
+      "count": 21
     },
     "totals": {
-      "entity_count": 155,
+      "entity_count": 156,
       "total_revenue": 313939
     },
     "data_quality": {
@@ -8885,7 +8885,7 @@
       ]
     },
     "schools": {
-      "count": 4,
+      "count": 5,
       "sample_names": []
     },
     "sessions": {
@@ -8896,10 +8896,10 @@
       ]
     },
     "courses": {
-      "count": 5
+      "count": 67
     },
     "totals": {
-      "entity_count": 117,
+      "entity_count": 180,
       "total_revenue": 227313
     },
     "data_quality": {
@@ -13525,7 +13525,7 @@
       ]
     },
     "schools": {
-      "count": 30,
+      "count": 31,
       "sample_names": []
     },
     "sessions": {
@@ -13539,7 +13539,7 @@
       "count": 4
     },
     "totals": {
-      "entity_count": 59,
+      "entity_count": 60,
       "total_revenue": 156519
     },
     "data_quality": {
@@ -15627,10 +15627,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 45
+      "count": 84
     },
     "totals": {
-      "entity_count": 61,
+      "entity_count": 100,
       "total_revenue": 148782.859375
     },
     "data_quality": {
@@ -17534,10 +17534,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 5
+      "count": 37
     },
     "totals": {
-      "entity_count": 23,
+      "entity_count": 55,
       "total_revenue": 105106
     },
     "data_quality": {
@@ -26350,10 +26350,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 0
+      "count": 1
     },
     "totals": {
-      "entity_count": 11,
+      "entity_count": 12,
       "total_revenue": 75377
     },
     "data_quality": {
@@ -29799,10 +29799,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 0
+      "count": 3
     },
     "totals": {
-      "entity_count": 9,
+      "entity_count": 12,
       "total_revenue": 60615.6796875
     },
     "data_quality": {
@@ -30879,7 +30879,7 @@
       ]
     },
     "schools": {
-      "count": 3,
+      "count": 4,
       "sample_names": []
     },
     "sessions": {
@@ -30891,10 +30891,10 @@
       ]
     },
     "courses": {
-      "count": 8
+      "count": 10
     },
     "totals": {
-      "entity_count": 344,
+      "entity_count": 347,
       "total_revenue": 57660
     },
     "data_quality": {
@@ -50689,7 +50689,7 @@
       ]
     },
     "schools": {
-      "count": 0,
+      "count": 1,
       "sample_names": []
     },
     "sessions": {
@@ -50698,10 +50698,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 0
+      "count": 2
     },
     "totals": {
-      "entity_count": 2,
+      "entity_count": 5,
       "total_revenue": 20480
     },
     "data_quality": {
@@ -50709,7 +50709,7 @@
       "has_state": true,
       "is_orphaned": false,
       "has_opps": true,
-      "has_schools": false,
+      "has_schools": true,
       "has_sessions": false
     }
   },
@@ -55958,7 +55958,7 @@
       ]
     },
     "schools": {
-      "count": 4,
+      "count": 5,
       "sample_names": []
     },
     "sessions": {
@@ -55967,10 +55967,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 0
+      "count": 22
     },
     "totals": {
-      "entity_count": 9,
+      "entity_count": 32,
       "total_revenue": 11062
     },
     "data_quality": {
@@ -60720,7 +60720,7 @@
       ]
     },
     "schools": {
-      "count": 0,
+      "count": 1,
       "sample_names": []
     },
     "sessions": {
@@ -60729,10 +60729,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 0
+      "count": 3
     },
     "totals": {
-      "entity_count": 4,
+      "entity_count": 8,
       "total_revenue": 9000
     },
     "data_quality": {
@@ -60740,7 +60740,7 @@
       "has_state": true,
       "is_orphaned": false,
       "has_opps": true,
-      "has_schools": false,
+      "has_schools": true,
       "has_sessions": false
     }
   },
@@ -60993,7 +60993,7 @@
       ]
     },
     "schools": {
-      "count": 3,
+      "count": 4,
       "sample_names": []
     },
     "sessions": {
@@ -61007,7 +61007,7 @@
       "count": 5
     },
     "totals": {
-      "entity_count": 41,
+      "entity_count": 42,
       "total_revenue": 8675
     },
     "data_quality": {
