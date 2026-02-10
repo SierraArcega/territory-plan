@@ -777,24 +777,26 @@ export default function PlanTabs({
         )}
       </div>
 
-      {/* Filter Bar — hidden on Tasks tab */}
-      {activeTab !== "tasks" && <FilterBar
-        filters={config.filters}
-        activeFilters={filters[activeTab]}
-        onFilterChange={(newFilters) => setFilters(prev => ({ ...prev, [activeTab]: newFilters }))}
-        searchTerm={searchTerms[activeTab]}
-        onSearchChange={(term) => setSearchTerms(prev => ({ ...prev, [activeTab]: term }))}
-        sortOptions={config.sortOptions}
-        currentSort={sortConfigs[activeTab]}
-        onSortChange={(sort) => setSortConfigs(prev => ({ ...prev, [activeTab]: sort }))}
-        groupOptions={config.groupOptions}
-        currentGroup={groupByConfigs[activeTab]}
-        onGroupChange={(group) => setGroupByConfigs(prev => ({ ...prev, [activeTab]: group }))}
-        savedViews={tabSavedViews}
-        onSaveView={handleSaveView}
-        onLoadView={handleLoadView}
-        onDeleteView={handleDeleteView}
-      />
+      {/* Filter Bar — hidden on Tasks tab which uses its own UI */}
+      {activeTab !== "tasks" && (
+        <FilterBar
+          filters={config.filters}
+          activeFilters={filters[activeTab]}
+          onFilterChange={(newFilters) => setFilters(prev => ({ ...prev, [activeTab]: newFilters }))}
+          searchTerm={searchTerms[activeTab]}
+          onSearchChange={(term) => setSearchTerms(prev => ({ ...prev, [activeTab]: term }))}
+          sortOptions={config.sortOptions}
+          currentSort={sortConfigs[activeTab]}
+          onSortChange={(sort) => setSortConfigs(prev => ({ ...prev, [activeTab]: sort }))}
+          groupOptions={config.groupOptions}
+          currentGroup={groupByConfigs[activeTab]}
+          onGroupChange={(group) => setGroupByConfigs(prev => ({ ...prev, [activeTab]: group }))}
+          savedViews={tabSavedViews}
+          onSaveView={handleSaveView}
+          onLoadView={handleLoadView}
+          onDeleteView={handleDeleteView}
+        />
+      )}
 
       {/* Tab Content */}
       <div className="min-h-[200px]">
