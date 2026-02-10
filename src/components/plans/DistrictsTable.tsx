@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { TerritoryPlanDistrict } from "@/lib/api";
-import DistrictTargetEditor from "./DistrictTargetEditor";
+import { useUpdateDistrictTargets, type TerritoryPlanDistrict } from "@/lib/api";
+import InlineEditCell from "@/components/common/InlineEditCell";
 
 interface DistrictsTableProps {
   planId: string;
@@ -56,22 +56,22 @@ function ConfirmRemoveDialog({
   );
 }
 
-function formatEnrollment(enrollment: number | null): string {
-  if (!enrollment) return "N/A";
-  return enrollment.toLocaleString();
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 function formatCurrency(value: number | null): string {
   if (value === null || value === undefined) return "-";
   return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function formatCurrencyDisplay(value: string): string {
+  const num = parseFloat(value.replace(/[,$\s]/g, ""));
+  if (isNaN(num)) return "-";
+  return `$${num.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function parseCurrency(value: string): number | null {
+  const cleaned = value.replace(/[,$\s]/g, "");
+  if (!cleaned) return null;
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? null : parsed;
 }
 
 export default function DistrictsTable({
@@ -81,7 +81,7 @@ export default function DistrictsTable({
   isRemoving,
 }: DistrictsTableProps) {
   const [confirmRemove, setConfirmRemove] = useState<TerritoryPlanDistrict | null>(null);
-  const [editingDistrict, setEditingDistrict] = useState<TerritoryPlanDistrict | null>(null);
+  const updateTargets = useUpdateDistrictTargets();
 
   const handleRemoveClick = (district: TerritoryPlanDistrict) => {
     setConfirmRemove(district);
@@ -143,58 +143,72 @@ export default function DistrictsTable({
   );
 
   return (
-    <div className="overflow-hidden border border-gray-200 rounded-lg">
+    <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+        <table className="min-w-full">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50/80">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 District
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 State
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Revenue Target
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Pipeline Target
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Services
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Actions
-              </th>
+              <th className="w-20 px-3 py-3" />
             </tr>
           </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {districts.map((district) => (
-            <tr key={district.leaid} className="hover:bg-gray-50 transition-colors">
+        <tbody>
+          {districts.map((district, idx) => {
+            const isLast = idx === districts.length - 1;
+            return (
+            <tr
+              key={district.leaid}
+              className={`group transition-colors duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""}`}
+            >
               <td className="px-4 py-3">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-[#403770]">
-                    {district.name}
-                  </span>
-                  <span className="text-xs text-gray-400 font-mono">
-                    {district.leaid}
-                  </span>
-                </div>
+                <span className="text-sm font-medium text-[#403770]">
+                  {district.name}
+                </span>
               </td>
               <td className="px-4 py-3">
-                <span className="text-sm text-gray-600">
+                <span className="text-[13px] text-gray-600">
                   {district.stateAbbrev || "N/A"}
                 </span>
               </td>
               <td className="px-4 py-3 text-right">
-                <span className="text-sm text-gray-600">
-                  {formatCurrency(district.revenueTarget)}
-                </span>
+                <InlineEditCell
+                  type="text"
+                  value={district.revenueTarget != null ? String(district.revenueTarget) : null}
+                  onSave={async (value) => {
+                    const parsed = parseCurrency(value);
+                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, revenueTarget: parsed });
+                  }}
+                  placeholder="-"
+                  className="text-[13px] text-gray-600 text-right"
+                  displayFormat={formatCurrencyDisplay}
+                />
               </td>
               <td className="px-4 py-3 text-right">
-                <span className="text-sm text-gray-600">
-                  {formatCurrency(district.pipelineTarget)}
-                </span>
+                <InlineEditCell
+                  type="text"
+                  value={district.pipelineTarget != null ? String(district.pipelineTarget) : null}
+                  onSave={async (value) => {
+                    const parsed = parseCurrency(value);
+                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, pipelineTarget: parsed });
+                  }}
+                  placeholder="-"
+                  className="text-[13px] text-gray-600 text-right"
+                  displayFormat={formatCurrencyDisplay}
+                />
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-wrap gap-1">
@@ -219,56 +233,51 @@ export default function DistrictsTable({
                   )}
                 </div>
               </td>
-              <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => setEditingDistrict(district)}
-                    className="text-sm text-[#403770] hover:text-[#F37167] transition-colors"
-                  >
-                    Edit Targets
-                  </button>
+              <td className="px-3 py-3">
+                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   <Link
                     href={`/?leaid=${district.leaid}`}
-                    className="text-sm text-gray-500 hover:text-[#403770] transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-[#403770] rounded-md hover:bg-gray-100 transition-colors"
+                    aria-label="View on map"
+                    title="View on Map"
                   >
-                    Map
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
                   </Link>
                   <button
                     onClick={() => handleRemoveClick(district)}
                     disabled={isRemoving}
-                    className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+                    aria-label="Remove district"
+                    title="Remove"
                   >
-                    Remove
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
-        {/* Totals row */}
-        <tfoot className="bg-gray-50 border-t border-gray-200">
-          <tr>
-            <td className="px-4 py-3">
-              <span className="text-sm font-semibold text-gray-700">
-                Total ({districts.length} districts)
-              </span>
-            </td>
-            <td className="px-4 py-3"></td>
-            <td className="px-4 py-3 text-right">
-              <span className="text-sm font-semibold text-gray-700">
-                {formatCurrency(totals.revenueTarget)}
-              </span>
-            </td>
-            <td className="px-4 py-3 text-right">
-              <span className="text-sm font-semibold text-gray-700">
-                {formatCurrency(totals.pipelineTarget)}
-              </span>
-            </td>
-            <td className="px-4 py-3"></td>
-            <td className="px-4 py-3"></td>
-          </tr>
-        </tfoot>
         </table>
+      </div>
+      {/* Footer */}
+      <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between">
+        <span className="text-[12px] font-medium text-gray-400 tracking-wide">
+          {districts.length} district{districts.length !== 1 ? "s" : ""}
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-[12px] text-gray-400">
+            Rev: <span className="font-medium text-gray-500">{formatCurrency(totals.revenueTarget)}</span>
+          </span>
+          <span className="text-[12px] text-gray-400">
+            Pipeline: <span className="font-medium text-gray-500">{formatCurrency(totals.pipelineTarget)}</span>
+          </span>
+        </div>
       </div>
 
       {/* Confirm Remove Dialog */}
@@ -281,15 +290,6 @@ export default function DistrictsTable({
         />
       )}
 
-      {/* District Target Editor */}
-      {editingDistrict && (
-        <DistrictTargetEditor
-          isOpen={!!editingDistrict}
-          onClose={() => setEditingDistrict(null)}
-          planId={planId}
-          district={editingDistrict}
-        />
-      )}
     </div>
   );
 }
