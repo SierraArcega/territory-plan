@@ -7,12 +7,6 @@
 
 import { useState, useMemo, useCallback } from "react";
 import type { Contact } from "@/lib/api";
-import {
-  PERSONA_COLORS,
-  SENIORITY_COLORS,
-  type Persona,
-  type SeniorityLevel,
-} from "@/lib/contactTypes";
 
 // Generate a consistent color from a contact's name for their avatar
 // Uses the brand palette so every avatar feels intentional
@@ -234,12 +228,6 @@ export default function ContactsTable({
             <tbody>
               {contacts.map((contact, idx) => {
                 const isSelected = selectedIds.has(contact.id);
-                const personaColors = contact.persona
-                  ? PERSONA_COLORS[contact.persona as Persona]
-                  : null;
-                const seniorityColors = contact.seniorityLevel
-                  ? SENIORITY_COLORS[contact.seniorityLevel as SeniorityLevel]
-                  : null;
                 const districtName = districtNameMap?.get(contact.leaid);
                 const avatarColor = getAvatarColor(contact.name);
                 const initials = getInitials(contact.name);
@@ -324,16 +312,10 @@ export default function ContactsTable({
                       )}
                     </td>
 
-                    {/* Department badge */}
+                    {/* Department */}
                     <td className="px-4 py-3">
                       {contact.persona ? (
-                        <span
-                          className="inline-block px-2.5 py-0.5 text-[11px] font-medium rounded-full whitespace-nowrap"
-                          style={{
-                            backgroundColor: personaColors?.bg || "#F3F4F6",
-                            color: personaColors?.text || "#6B7280",
-                          }}
-                        >
+                        <span className="text-[13px] text-[#403770]/70 whitespace-nowrap">
                           {contact.persona}
                         </span>
                       ) : (
@@ -341,16 +323,10 @@ export default function ContactsTable({
                       )}
                     </td>
 
-                    {/* Seniority badge */}
+                    {/* Seniority */}
                     <td className="px-4 py-3">
                       {contact.seniorityLevel ? (
-                        <span
-                          className="inline-block px-2.5 py-0.5 text-[11px] font-medium rounded-full whitespace-nowrap"
-                          style={{
-                            backgroundColor: seniorityColors?.bg || "#F3F4F6",
-                            color: seniorityColors?.text || "#6B7280",
-                          }}
-                        >
+                        <span className="text-[13px] text-[#403770]/70 whitespace-nowrap">
                           {contact.seniorityLevel}
                         </span>
                       ) : (

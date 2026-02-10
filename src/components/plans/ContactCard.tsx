@@ -5,12 +5,6 @@
 
 import { useState } from "react";
 import type { Contact } from "@/lib/api";
-import {
-  PERSONA_COLORS,
-  SENIORITY_COLORS,
-  type Persona,
-  type SeniorityLevel,
-} from "@/lib/contactTypes";
 
 interface ContactCardProps {
   contact: Contact;
@@ -21,9 +15,6 @@ interface ContactCardProps {
 
 export default function ContactCard({ contact, districtName, onEdit, onDelete }: ContactCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const personaColors = contact.persona ? PERSONA_COLORS[contact.persona as Persona] : null;
-  const seniorityColors = contact.seniorityLevel ? SENIORITY_COLORS[contact.seniorityLevel as SeniorityLevel] : null;
 
   const handleDelete = () => {
     if (onDelete) {
@@ -136,32 +127,14 @@ export default function ContactCard({ contact, districtName, onEdit, onDelete }:
         )}
       </div>
 
-      {/* Badges */}
-      <div className="flex flex-wrap gap-1.5">
-        {contact.persona && (
-          <span
-            className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full"
-            style={{
-              backgroundColor: personaColors?.bg || "#F3F4F6",
-              color: personaColors?.text || "#6B7280",
-              border: `1px solid ${personaColors?.border || "#E5E7EB"}`,
-            }}
-          >
-            {contact.persona}
-          </span>
-        )}
-        {contact.seniorityLevel && (
-          <span
-            className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full"
-            style={{
-              backgroundColor: seniorityColors?.bg || "#F3F4F6",
-              color: seniorityColors?.text || "#6B7280",
-            }}
-          >
-            {contact.seniorityLevel}
-          </span>
-        )}
-      </div>
+      {/* Department & Seniority */}
+      {(contact.persona || contact.seniorityLevel) && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">
+          {contact.persona && <span>{contact.persona}</span>}
+          {contact.persona && contact.seniorityLevel && <span>&middot;</span>}
+          {contact.seniorityLevel && <span>{contact.seniorityLevel}</span>}
+        </div>
+      )}
 
       {/* Inline Delete Confirmation */}
       {showDeleteConfirm && (
