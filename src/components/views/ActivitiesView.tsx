@@ -141,7 +141,8 @@ export default function ActivitiesView() {
       {/* Content */}
       {isCalendar ? (
         <>
-          {/* Calendar top bar */}
+          {/* Calendar top bar — just a back-to-table link, the "New Activity"
+              button now lives in the CalendarView right panel */}
           <div className="px-6 py-2 bg-white border-b border-gray-200 flex items-center gap-3">
             <button
               onClick={() => setView("table")}
@@ -151,16 +152,6 @@ export default function ActivitiesView() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Table View
-            </button>
-            <div className="flex-1" />
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Activity
             </button>
           </div>
           <div className="flex-1 min-h-0">
@@ -184,6 +175,7 @@ export default function ActivitiesView() {
                 onEditActivity={handleEditClick}
                 onDeleteActivity={handleDeleteActivity}
                 unscheduledActivities={unscheduledActivities}
+                onNewActivity={() => setIsModalOpen(true)}
               />
             )}
           </div>
