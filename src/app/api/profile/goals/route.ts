@@ -131,9 +131,10 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating/updating goal:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error creating/updating goal:", message, error);
     return NextResponse.json(
-      { error: "Failed to save goal" },
+      { error: `Failed to save goal: ${message}` },
       { status: 500 }
     );
   }
