@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "map" | "plans" | "activities" | "goals" | "data" | "profile";
+type TabId = "map" | "plans" | "activities" | "tasks" | "goals" | "data" | "profile";
 
 interface Tab {
   id: TabId;
@@ -44,6 +44,16 @@ const ActivitiesIcon = () => (
       strokeWidth={2}
       d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
     />
+  </svg>
+);
+
+// Task list icon — checkbox with lines, distinct from Plans clipboard
+const TasksIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7l2 2 4-4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 7h6" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 17l2 2 4-4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 17h6" />
   </svg>
 );
 
@@ -98,6 +108,7 @@ const MAIN_TABS: Tab[] = [
   { id: "map", label: "Map", icon: <MapIcon /> },
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
+  { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
   { id: "goals", label: "Goals", icon: <GoalsIcon /> },
   { id: "data", label: "Data", icon: <DataIcon /> },
 ];
