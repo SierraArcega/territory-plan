@@ -14,11 +14,12 @@ import {
 
 interface ContactCardProps {
   contact: Contact;
+  districtName?: string;
   onEdit?: () => void;
   onDelete?: () => void;
 }
 
-export default function ContactCard({ contact, onEdit, onDelete }: ContactCardProps) {
+export default function ContactCard({ contact, districtName, onEdit, onDelete }: ContactCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const personaColors = contact.persona ? PERSONA_COLORS[contact.persona as Persona] : null;
@@ -98,6 +99,16 @@ export default function ContactCard({ contact, onEdit, onDelete }: ContactCardPr
           )}
         </div>
       </div>
+
+      {/* District Name */}
+      {districtName && (
+        <div className="flex items-center gap-1.5 mb-2">
+          <svg className="w-3.5 h-3.5 text-[#6EA3BE] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          <span className="text-xs text-[#403770]/70 truncate">{districtName}</span>
+        </div>
+      )}
 
       {/* Contact Info */}
       <div className="space-y-1.5 mb-3">

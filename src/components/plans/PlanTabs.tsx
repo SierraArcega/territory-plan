@@ -638,6 +638,8 @@ export default function PlanTabs({
           return (
             <ContactsTable
               contacts={filtered}
+              districtNameMap={districtNameMap}
+              totalCount={contacts.length}
               onEdit={onEditContact}
               onDelete={onDeleteContact}
             />
@@ -658,6 +660,8 @@ export default function PlanTabs({
                 {view === "table" ? (
                   <ContactsTable
                     contacts={items}
+                    districtNameMap={districtNameMap}
+                    totalCount={contacts.length}
                     onEdit={onEditContact}
                     onDelete={onDeleteContact}
                   />
@@ -667,6 +671,7 @@ export default function PlanTabs({
                       <ContactCard
                         key={contact.id}
                         contact={contact}
+                        districtName={districtNameMap.get(contact.leaid)}
                         onEdit={onEditContact ? () => onEditContact(contact) : undefined}
                         onDelete={onDeleteContact ? () => onDeleteContact(contact.id) : undefined}
                       />
