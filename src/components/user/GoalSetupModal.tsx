@@ -67,7 +67,18 @@ export default function GoalSetupModal() {
       await updateProfileMutation.mutateAsync({ hasCompletedSetup: true });
     } catch (err) {
       console.error("Error skipping setup:", err);
-      setError("Something went wrong. Please try again.");
+      const message =
+        err instanceof Error ? err.message : "Unknown error";
+      if (
+        message.includes("Session expired") ||
+        message.includes("401")
+      ) {
+        setError(
+          "Your session has expired. Please refresh the page and try again."
+        );
+      } else {
+        setError(`Something went wrong: ${message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +109,18 @@ export default function GoalSetupModal() {
       await updateProfileMutation.mutateAsync({ hasCompletedSetup: true });
     } catch (err) {
       console.error("Error saving goals:", err);
-      setError("Something went wrong. Please try again.");
+      const message =
+        err instanceof Error ? err.message : "Unknown error";
+      if (
+        message.includes("Session expired") ||
+        message.includes("401")
+      ) {
+        setError(
+          "Your session has expired. Please refresh the page and try again."
+        );
+      } else {
+        setError(`Something went wrong: ${message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
