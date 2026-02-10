@@ -17460,16 +17460,18 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
+      "count": 7,
+      "revenue": 572.9499893188477,
+      "schools_in_sessions": [
+        "River Dell Regional High School"
+      ]
     },
     "courses": {
       "count": 1
     },
     "totals": {
-      "entity_count": 5,
-      "total_revenue": 9811
+      "entity_count": 12,
+      "total_revenue": 10383.949989318848
     },
     "data_quality": {
       "has_nces": false,
@@ -17477,7 +17479,7 @@
       "is_orphaned": false,
       "has_opps": true,
       "has_schools": true,
-      "has_sessions": false
+      "has_sessions": true
     }
   },
   {
