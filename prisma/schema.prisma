@@ -155,6 +155,7 @@ model District {
   territoryPlans  TerritoryPlanDistrict[]
   competitorSpend CompetitorSpend[]
   activityLinks   ActivityDistrict[]
+  taskLinks       TaskDistrict[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -220,6 +221,7 @@ model Contact {
   lastEnrichedAt DateTime?         @map("last_enriched_at")
   district       District          @relation(fields: [leaid], references: [leaid])
   activityLinks  ActivityContact[]
+  taskLinks      TaskContact[]
 
   @@index([leaid])
   @@map("contacts")
@@ -317,6 +319,7 @@ model TerritoryPlan {
   districts     TerritoryPlanDistrict[]
   state         State?                  @relation(fields: [stateFips], references: [fips])
   activityLinks ActivityPlan[]
+  taskLinks     TaskPlan[]
 
   @@index([userId])
   @@index([userId, fiscalYear])
@@ -363,6 +366,7 @@ model Activity {
   districts ActivityDistrict[]
   contacts  ActivityContact[]
   states    ActivityState[]
+  taskLinks TaskActivity[]
 
   @@index([createdByUserId])
   @@index([type])
@@ -486,4 +490,76 @@ model UserGoal {
   @@unique([userId, fiscalYear]) // One goal record per user per fiscal year
   @@index([userId])
   @@map("user_goals")
+}
+
+// ===== Task Tracking System =====
+// Tasks can be standalone or linked to any combination of districts, plans, activities, and contacts
+// Supports kanban board workflow with drag-and-drop reordering
+
+model Task {
+  id              String    @id @default(uuid())
+  title           String    @db.VarChar(255)
+  description     String?
+  status          String    @default("todo") @db.VarChar(20) // todo, in_progress, blocked, done
+  priority        String    @default("medium") @db.VarChar(10) // low, medium, high, urgent
+  dueDate         DateTime? @map("due_date")
+  position        Int       @default(0) // ordering within kanban column
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations (all many-to-many via junction tables)
+  districts  TaskDistrict[]
+  plans      TaskPlan[]
+  activities TaskActivity[]
+  contacts   TaskContact[]
+
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model TaskDistrict {
+  taskId        String   @map("task_id")
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  district      District @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+
+  @@id([taskId, districtLeaid])
+  @@index([districtLeaid])
+  @@map("task_districts")
+}
+
+model TaskPlan {
+  taskId String        @map("task_id")
+  planId String        @map("plan_id")
+  task   Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  plan   TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, planId])
+  @@index([planId])
+  @@map("task_plans")
+}
+
+model TaskActivity {
+  taskId     String   @map("task_id")
+  activityId String   @map("activity_id")
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, activityId])
+  @@index([activityId])
+  @@map("task_activities")
+}
+
+model TaskContact {
+  taskId    String  @map("task_id")
+  contactId Int     @map("contact_id")
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, contactId])
+  @@index([contactId])
+  @@map("task_contacts")
 }
