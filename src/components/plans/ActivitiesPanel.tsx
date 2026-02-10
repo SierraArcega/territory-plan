@@ -142,7 +142,7 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
         </div>
         <div className="flex items-center gap-3">
           {/* View toggle */}
-          <ViewToggle view={view} onViewChange={setView} />
+          <ViewToggle view={view} onViewChange={(v) => setView(v as "cards" | "table")} />
           <button
             onClick={handleAddClick}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
