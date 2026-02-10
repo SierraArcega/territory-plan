@@ -364,7 +364,7 @@ export default function PlanTabs({
       let comparison = 0;
       switch (sort.field) {
         case "startDate":
-          comparison = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+          comparison = (a.startDate ? new Date(a.startDate).getTime() : Infinity) - (b.startDate ? new Date(b.startDate).getTime() : Infinity);
           break;
         case "title":
           comparison = a.title.localeCompare(b.title);
