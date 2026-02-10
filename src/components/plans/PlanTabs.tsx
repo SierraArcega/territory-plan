@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { TerritoryPlanDistrict, ActivityListItem, Contact } from "@/lib/api";
+import { useTasks } from "@/lib/api";
 import { PERSONAS, SENIORITY_LEVELS } from "@/lib/contactTypes";
 import ViewToggle from "@/components/common/ViewToggle";
 import FilterBar, { type FilterConfig, type SavedView } from "./FilterBar";
@@ -15,8 +16,9 @@ import ActivitiesTable from "./ActivitiesTable";
 import ActivityCard from "./ActivityCard";
 import ContactsTable from "./ContactsTable";
 import ContactCard from "./ContactCard";
+import TaskList from "@/components/tasks/TaskList";
 
-type TabId = "districts" | "activities" | "contacts";
+type TabId = "districts" | "activities" | "contacts" | "tasks";
 
 interface Tab {
   id: TabId;
@@ -180,6 +182,7 @@ export default function PlanTabs({
     districts: "table",
     activities: "table",
     contacts: "table",
+    tasks: "table",
   });
 
   // Filter state per tab
@@ -187,6 +190,7 @@ export default function PlanTabs({
     districts: {},
     activities: {},
     contacts: {},
+    tasks: {},
   });
 
   // Search state per tab
@@ -194,6 +198,7 @@ export default function PlanTabs({
     districts: "",
     activities: "",
     contacts: "",
+    tasks: "",
   });
 
   // Sort state per tab
@@ -201,6 +206,7 @@ export default function PlanTabs({
     districts: { field: "name", direction: "asc" },
     activities: { field: "startDate", direction: "desc" },
     contacts: { field: "name", direction: "asc" },
+    tasks: { field: "createdAt", direction: "desc" },
   });
 
   // Group state per tab
@@ -208,7 +214,11 @@ export default function PlanTabs({
     districts: "none",
     activities: "none",
     contacts: "none",
+    tasks: "none",
   });
+
+  // Fetch task count for the tab badge
+  const { data: tasksData } = useTasks({ planId });
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -259,6 +269,16 @@ export default function PlanTabs({
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: "tasks",
+      label: "Tasks",
+      count: tasksData?.totalCount || 0,
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7l2 2 4-4M14 7h6M4 17l2 2 4-4M14 17h6" />
         </svg>
       ),
     },
@@ -502,6 +522,12 @@ export default function PlanTabs({
           sortOptions: CONTACT_SORT_OPTIONS,
           groupOptions: CONTACT_GROUP_OPTIONS,
         };
+      case "tasks":
+        return {
+          filters: [],
+          sortOptions: [],
+          groupOptions: [],
+        };
     }
   };
 
@@ -683,6 +709,15 @@ export default function PlanTabs({
           </div>
         );
       }
+
+      case "tasks": {
+        // Tasks tab uses the reusable TaskList component — filtered by planId
+        return (
+          <div className="py-2">
+            <TaskList planId={planId} />
+          </div>
+        );
+      }
     }
   };
 
@@ -731,17 +766,19 @@ export default function PlanTabs({
           })}
         </nav>
 
-        {/* View Toggle */}
-        <div className="pb-3">
-          <ViewToggle
-            view={views[activeTab]}
-            onViewChange={(view) => setViews(prev => ({ ...prev, [activeTab]: view as "cards" | "table" }))}
-          />
-        </div>
+        {/* View Toggle — hidden on Tasks tab which has its own UI */}
+        {activeTab !== "tasks" && (
+          <div className="pb-3">
+            <ViewToggle
+              view={views[activeTab]}
+              onViewChange={(view) => setViews(prev => ({ ...prev, [activeTab]: view as "cards" | "table" }))}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Filter Bar */}
-      <FilterBar
+      {/* Filter Bar — hidden on Tasks tab */}
+      {activeTab !== "tasks" && <FilterBar
         filters={config.filters}
         activeFilters={filters[activeTab]}
         onFilterChange={(newFilters) => setFilters(prev => ({ ...prev, [activeTab]: newFilters }))}

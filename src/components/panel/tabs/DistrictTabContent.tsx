@@ -18,6 +18,7 @@ import CompetitorSpend from "../CompetitorSpend";
 import NotesEditor from "../NotesEditor";
 import TagsEditor from "../TagsEditor";
 import ContactsList from "../ContactsList";
+import TaskList from "@/components/tasks/TaskList";
 import type { DistrictDetail } from "@/lib/api";
 
 type DistrictSubTab = "info" | "data" | "contacts";
@@ -130,6 +131,12 @@ function DistrictInfoTab({
       {/* Notes Editor */}
       <div className="px-6 py-4 border-b border-gray-100">
         <NotesEditor leaid={leaid} edits={data.edits} />
+      </div>
+
+      {/* Tasks linked to this district */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tasks</h3>
+        <TaskList leaid={leaid} compact />
       </div>
     </div>
   );
