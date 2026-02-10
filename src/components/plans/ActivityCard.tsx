@@ -29,11 +29,13 @@ export default function ActivityCard({
   const typeIcon = ACTIVITY_TYPE_ICONS[activity.type as ActivityType] || "📋";
 
   // Format start date nicely
-  const formattedDate = new Date(activity.startDate).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formattedDate = activity.startDate
+    ? new Date(activity.startDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "Unscheduled";
 
   // Format date range if end date is different from start date
   const hasDateRange = activity.endDate && activity.endDate !== activity.startDate;
@@ -46,11 +48,11 @@ export default function ActivityCard({
     : null;
 
   // Determine if activity is in the past or future
-  const startDate = new Date(activity.startDate);
+  const startDate = activity.startDate ? new Date(activity.startDate) : null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const isPast = startDate < today;
-  const isToday = startDate.toDateString() === today.toDateString();
+  const isPast = startDate ? startDate < today : false;
+  const isToday = startDate ? startDate.toDateString() === today.toDateString() : false;
 
   // Scope display text - show district count and states
   const scopeText =
