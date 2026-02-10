@@ -495,21 +495,23 @@ export function useSalesExecutives() {
 }
 
 // States list
-export function useStates() {
+export function useStates(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["states"],
     queryFn: () =>
       fetchJson<{ fips: string; abbrev: string; name: string }[]>(`${API_BASE}/states`),
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - states are static
+    enabled: options?.enabled,
   });
 }
 
 // Territory Plans
-export function useTerritoryPlans() {
+export function useTerritoryPlans(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["territoryPlans"],
     queryFn: () => fetchJson<TerritoryPlan[]>(`${API_BASE}/territory-plans`),
     staleTime: 2 * 60 * 1000, // 2 minutes - plans may change during session
+    enabled: options?.enabled,
   });
 }
 

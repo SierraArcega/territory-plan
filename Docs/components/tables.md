@@ -1,5 +1,6 @@
 # Table Component Guide
 
+
 Standard styling for all CRM-style data tables in the territory planner. These conventions were established during the contacts table redesign (Feb 2026) and applied consistently across ContactsTable, DistrictsTable, and ActivitiesTable.
 
 ## Wrapper

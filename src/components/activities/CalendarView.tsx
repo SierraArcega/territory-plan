@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, memo } from "react";
 import {
   format,
   startOfMonth,
@@ -45,6 +45,9 @@ interface CalendarViewProps {
 
 type CalendarMode = "month" | "week";
 
+// Shared empty array to avoid new reference on every render for days with no activities
+const EMPTY_ACTIVITIES: ActivityListItem[] = [];
+
 // ============================================================================
 // CalendarView (main component)
 // ============================================================================
@@ -83,24 +86,35 @@ export default function CalendarView({
     return map;
   }, [activities]);
 
-  // Navigation
-  const goToToday = () => setCurrentDate(new Date());
-  const goPrev = () =>
-    setCurrentDate((d) =>
-      calendarMode === "month" ? subMonths(d, 1) : subWeeks(d, 1)
-    );
-  const goNext = () =>
-    setCurrentDate((d) =>
-      calendarMode === "month" ? addMonths(d, 1) : addWeeks(d, 1)
-    );
+  // Memoized navigation callbacks
+  const goToToday = useCallback(() => setCurrentDate(new Date()), []);
+  const goPrev = useCallback(
+    () =>
+      setCurrentDate((d) =>
+        calendarMode === "month" ? subMonths(d, 1) : subWeeks(d, 1)
+      ),
+    [calendarMode]
+  );
+  const goNext = useCallback(
+    () =>
+      setCurrentDate((d) =>
+        calendarMode === "month" ? addMonths(d, 1) : addWeeks(d, 1)
+      ),
+    [calendarMode]
+  );
 
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = useCallback((date: Date) => {
     setQuickAddDate(date);
-  };
+  }, []);
 
-  const handleQuickAddClose = () => {
+  const handleQuickAddClose = useCallback(() => {
     setQuickAddDate(null);
-  };
+  }, []);
+
+  const handleToggleSidebar = useCallback(
+    () => setSidebarOpen((prev) => !prev),
+    []
+  );
 
   return (
     <div className="flex h-full">
@@ -115,7 +129,7 @@ export default function CalendarView({
           onNext={goNext}
           onToday={goToToday}
           sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onToggleSidebar={handleToggleSidebar}
           unscheduledCount={unscheduledActivities.length}
         />
 
@@ -163,7 +177,7 @@ export default function CalendarView({
 // CalendarHeader
 // ============================================================================
 
-function CalendarHeader({
+const CalendarHeader = memo(function CalendarHeader({
   currentDate,
   calendarMode,
   onModeChange,
@@ -276,7 +290,7 @@ function CalendarHeader({
       </div>
     </div>
   );
-}
+});
 
 // ============================================================================
 // MonthGrid
@@ -284,7 +298,7 @@ function CalendarHeader({
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function MonthGrid({
+const MonthGrid = memo(function MonthGrid({
   currentDate,
   activitiesByDate,
   onDayClick,
@@ -334,7 +348,7 @@ function MonthGrid({
       <div className="flex-1 grid grid-cols-7 auto-rows-fr">
         {weeks.flat().map((day) => {
           const key = format(day, "yyyy-MM-dd");
-          const dayActivities = activitiesByDate.get(key) || [];
+          const dayActivities = activitiesByDate.get(key) || EMPTY_ACTIVITIES;
           const inMonth = isSameMonth(day, currentDate);
           const today = isToday(day);
           const isQuickAddTarget = quickAddDate && isSameDay(day, quickAddDate);
@@ -346,7 +360,7 @@ function MonthGrid({
               activities={dayActivities}
               inMonth={inMonth}
               isToday={today}
-              onClick={() => onDayClick(day)}
+              onDayClick={onDayClick}
               onActivityClick={onActivityClick}
               showQuickAdd={!!isQuickAddTarget}
               onQuickAddClose={onQuickAddClose}
@@ -357,13 +371,13 @@ function MonthGrid({
       </div>
     </div>
   );
-}
+});
 
 // ============================================================================
 // WeekGrid
 // ============================================================================
 
-function WeekGrid({
+const WeekGrid = memo(function WeekGrid({
   currentDate,
   activitiesByDate,
   onDayClick,
@@ -416,7 +430,7 @@ function WeekGrid({
       <div className="flex-1 grid grid-cols-7">
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
-          const dayActivities = activitiesByDate.get(key) || [];
+          const dayActivities = activitiesByDate.get(key) || EMPTY_ACTIVITIES;
           const today = isToday(day);
           const isQuickAddTarget = quickAddDate && isSameDay(day, quickAddDate);
 
@@ -427,7 +441,7 @@ function WeekGrid({
               activities={dayActivities}
               inMonth
               isToday={today}
-              onClick={() => onDayClick(day)}
+              onDayClick={onDayClick}
               onActivityClick={onActivityClick}
               showQuickAdd={!!isQuickAddTarget}
               onQuickAddClose={onQuickAddClose}
@@ -438,18 +452,18 @@ function WeekGrid({
       </div>
     </div>
   );
-}
+});
 
 // ============================================================================
 // DayCell
 // ============================================================================
 
-function DayCell({
+const DayCell = memo(function DayCell({
   date,
   activities,
   inMonth,
   isToday: today,
-  onClick,
+  onDayClick,
   onActivityClick,
   showQuickAdd,
   onQuickAddClose,
@@ -459,7 +473,7 @@ function DayCell({
   activities: ActivityListItem[];
   inMonth: boolean;
   isToday: boolean;
-  onClick: () => void;
+  onDayClick: (date: Date) => void;
   onActivityClick: (activity: ActivityListItem) => void;
   showQuickAdd: boolean;
   onQuickAddClose: () => void;
@@ -479,7 +493,7 @@ function DayCell({
       onClick={(e) => {
         // Only open quick-add if clicking the cell background, not an event chip
         if ((e.target as HTMLElement).closest("[data-event-chip]")) return;
-        onClick();
+        onDayClick(date);
       }}
     >
       {/* Date number (only in month view) */}
@@ -506,10 +520,7 @@ function DayCell({
             key={activity.id}
             activity={activity}
             compact={compact}
-            onClick={(e) => {
-              e.stopPropagation();
-              onActivityClick(activity);
-            }}
+            onActivityClick={onActivityClick}
           />
         ))}
         {overflowCount > 0 && (
@@ -533,20 +544,20 @@ function DayCell({
       )}
     </div>
   );
-}
+});
 
 // ============================================================================
 // EventChip
 // ============================================================================
 
-function EventChip({
+const EventChip = memo(function EventChip({
   activity,
   compact,
-  onClick,
+  onActivityClick,
 }: {
   activity: ActivityListItem;
   compact: boolean;
-  onClick: (e: React.MouseEvent) => void;
+  onActivityClick: (activity: ActivityListItem) => void;
 }) {
   const statusConfig = ACTIVITY_STATUS_CONFIG[activity.status];
   const typeIcon = ACTIVITY_TYPE_ICONS[activity.type];
@@ -555,7 +566,10 @@ function EventChip({
   return (
     <div
       data-event-chip
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onActivityClick(activity);
+      }}
       className={`group/chip flex items-center gap-1 rounded cursor-pointer transition-all hover:shadow-sm ${
         compact ? "px-1 py-0.5 text-[11px]" : "px-2 py-1 text-xs"
       }`}
@@ -576,7 +590,7 @@ function EventChip({
       )}
     </div>
   );
-}
+});
 
 // ============================================================================
 // QuickAddForm
@@ -712,7 +726,7 @@ function QuickAddForm({
 // UnscheduledSidebar
 // ============================================================================
 
-function UnscheduledSidebar({
+const UnscheduledSidebar = memo(function UnscheduledSidebar({
   activities,
   onActivityClick,
 }: {
@@ -787,4 +801,4 @@ function UnscheduledSidebar({
       </div>
     </div>
   );
-}
+});

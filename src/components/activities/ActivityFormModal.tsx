@@ -29,8 +29,8 @@ export default function ActivityFormModal({
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
-  const { data: plans } = useTerritoryPlans();
-  const { data: states } = useStates();
+  const { data: plans } = useTerritoryPlans({ enabled: isOpen });
+  const { data: states } = useStates({ enabled: isOpen });
 
   // Form state
   const [type, setType] = useState<ActivityType>(
