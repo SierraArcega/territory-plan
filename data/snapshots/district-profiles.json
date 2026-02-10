@@ -2483,104 +2483,6 @@
     }
   },
   {
-    "district_id": "17592236333733",
-    "district_name": "The University of Texas Rio Grande Valley",
-    "state": "TX",
-    "state_sources": [
-      [
-        "district",
-        "TX"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 73,
-      "revenue": 506440.27001953125,
-      "account_names_used": [
-        "The University of Texas Rio Grande Valley"
-      ]
-    },
-    "schools": {
-      "count": 19,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 1614,
-      "revenue": 520,
-      "schools_in_sessions": [
-        "UTRGV- La Grulla & Rio Grande City",
-        "Lyford Upward Bound",
-        "Raymondville Upward Bound",
-        "UTRGV- Willacy Talent Search",
-        "UTRGV - Student Success Services"
-      ]
-    },
-    "courses": {
-      "count": 304
-    },
-    "totals": {
-      "entity_count": 2010,
-      "total_revenue": 506960.27001953125
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188053720",
-    "district_name": "The University of Texas Rio Grande Valley",
-    "state": "TX",
-    "state_sources": [
-      [
-        "district",
-        "TX"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 17,
-      "revenue": 90570,
-      "account_names_used": [
-        "The University of Texas Rio Grande Valley"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 17,
-      "total_revenue": 90570
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284311022",
     "district_name": "Glynn County School District",
     "state": "GA",
@@ -3036,102 +2938,6 @@
     }
   },
   {
-    "district_id": "17592296962651",
-    "district_name": "Gwinnett County Public Schools",
-    "state": "GA",
-    "state_sources": [
-      [
-        "district",
-        "GA"
-      ]
-    ],
-    "nces_id": "1302550",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 6,
-      "revenue": 444357.5,
-      "account_names_used": [
-        "Gwinnett County Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 141,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 799,
-      "revenue": 37750,
-      "schools_in_sessions": [
-        "Gwinnett County Public Schools",
-        "Sweetwater Middle School"
-      ]
-    },
-    "courses": {
-      "count": 100
-    },
-    "totals": {
-      "entity_count": 1046,
-      "total_revenue": 482107.5
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592191142284",
-    "district_name": "Gwinnett County Public Schools",
-    "state": "GA",
-    "state_sources": [
-      [
-        "district",
-        "GA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities",
-      "schools"
-    ],
-    "opportunities": {
-      "count": 2,
-      "revenue": 349049.25,
-      "account_names_used": [
-        "Gwinnett County Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 349049.25
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284313638",
     "district_name": "Bamberg County School District",
     "state": "SC",
@@ -3310,6 +3116,102 @@
       "has_opps": false,
       "has_schools": true,
       "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592191142284",
+    "district_name": "Gwinnett County Public Schools",
+    "state": "GA",
+    "state_sources": [
+      [
+        "district",
+        "GA"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 6,
+      "revenue": 444357.5,
+      "account_names_used": [
+        "Gwinnett County Public Schools"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 7,
+      "total_revenue": 444357.5
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592296962651",
+    "district_name": "Gwinnett County Public Schools",
+    "state": "GA",
+    "state_sources": [
+      [
+        "district",
+        "GA"
+      ]
+    ],
+    "nces_id": "1302550",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 2,
+      "revenue": 349049.25,
+      "account_names_used": [
+        "Gwinnett County Public Schools"
+      ]
+    },
+    "schools": {
+      "count": 141,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 799,
+      "revenue": 37750,
+      "schools_in_sessions": [
+        "Gwinnett County Public Schools",
+        "Sweetwater Middle School"
+      ]
+    },
+    "courses": {
+      "count": 100
+    },
+    "totals": {
+      "entity_count": 1042,
+      "total_revenue": 386799.25
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
     }
   },
   {
@@ -5131,150 +5033,6 @@
     }
   },
   {
-    "district_id": "17592236333814",
-    "district_name": "Calhoun County Public Schools",
-    "state": "SC",
-    "state_sources": [
-      [
-        "district",
-        "SC"
-      ]
-    ],
-    "nces_id": "4501250",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 18,
-      "revenue": 313939,
-      "account_names_used": [
-        "Calhoun County Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 7,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 110,
-      "revenue": 0,
-      "schools_in_sessions": [
-        "Calhoun County High School",
-        "St. Matthews K8 School",
-        "Sandy Run K8 School"
-      ]
-    },
-    "courses": {
-      "count": 21
-    },
-    "totals": {
-      "entity_count": 156,
-      "total_revenue": 313939
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592186838330",
-    "district_name": "Calhoun County Public Schools",
-    "state": "SC",
-    "state_sources": [
-      [
-        "district",
-        "SC"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 11,
-      "revenue": 272850,
-      "account_names_used": [
-        "Calhoun County Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 11,
-      "total_revenue": 272850
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843743",
-    "district_name": "Palo Alto College",
-    "state": "TX",
-    "state_sources": [
-      [
-        "district",
-        "TX"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities",
-      "schools"
-    ],
-    "opportunities": {
-      "count": 12,
-      "revenue": 306121,
-      "account_names_used": [
-        "Palo Alto College"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 13,
-      "total_revenue": 306121
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592296960397",
     "district_name": "Palo Alto College",
     "state": "TX",
@@ -5288,8 +5046,8 @@
     "exists_in_index": true,
     "referenced_by": [],
     "opportunities": {
-      "count": 2,
-      "revenue": 73396,
+      "count": 12,
+      "revenue": 306121,
       "account_names_used": [
         "Palo Alto College"
       ]
@@ -5309,8 +5067,8 @@
       "count": 100
     },
     "totals": {
-      "entity_count": 133,
-      "total_revenue": 73396
+      "entity_count": 143,
+      "total_revenue": 306121
     },
     "data_quality": {
       "has_nces": true,
@@ -5319,6 +5077,54 @@
       "has_opps": true,
       "has_schools": true,
       "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592188843743",
+    "district_name": "Palo Alto College",
+    "state": "TX",
+    "state_sources": [
+      [
+        "district",
+        "TX"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 2,
+      "revenue": 73396,
+      "account_names_used": [
+        "Palo Alto College"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 73396
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
     }
   },
   {
@@ -8865,192 +8671,6 @@
     }
   },
   {
-    "district_id": "17592236333681",
-    "district_name": "Westhampton Beach School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3631020",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 17,
-      "revenue": 227313,
-      "account_names_used": [
-        "Westhampton Beach School District"
-      ]
-    },
-    "schools": {
-      "count": 5,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 91,
-      "revenue": 0,
-      "schools_in_sessions": [
-        "East Quogue"
-      ]
-    },
-    "courses": {
-      "count": 67
-    },
-    "totals": {
-      "entity_count": 180,
-      "total_revenue": 227313
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592191781181",
-    "district_name": "Westhampton Beach School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 13,
-      "revenue": 212813,
-      "account_names_used": [
-        "Westhampton Beach School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 13,
-      "total_revenue": 212813
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592236333687",
-    "district_name": "GEAR UP New Hampshire",
-    "state": "NH",
-    "state_sources": [
-      [
-        "district",
-        "NH"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 5,
-      "revenue": 225938,
-      "account_names_used": [
-        "GEAR UP New Hampshire"
-      ]
-    },
-    "schools": {
-      "count": 7,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 12,
-      "total_revenue": 225938
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188148838",
-    "district_name": "GEAR UP New Hampshire",
-    "state": "NH",
-    "state_sources": [
-      [
-        "district",
-        "NH"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 3,
-      "revenue": 100000,
-      "account_names_used": [
-        "GEAR UP New Hampshire"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 100000
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284311990",
     "district_name": "Prince William County Public Schools",
     "state": "VA",
@@ -9320,100 +8940,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177605",
-    "district_name": "Liberty School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3617220",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 8,
-      "revenue": 213191.2998046875,
-      "account_names_used": [
-        "Liberty School District"
-      ]
-    },
-    "schools": {
-      "count": 9,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 513,
-      "revenue": 8485.48003578186,
-      "schools_in_sessions": [
-        "Liberty High School"
-      ]
-    },
-    "courses": {
-      "count": 9
-    },
-    "totals": {
-      "entity_count": 539,
-      "total_revenue": 221676.77984046936
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188519140",
-    "district_name": "Liberty School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 7,
-      "revenue": 204191.2998046875,
-      "account_names_used": [
-        "Liberty School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 7,
-      "total_revenue": 204191.2998046875
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -13505,100 +13031,6 @@
     }
   },
   {
-    "district_id": "17592236333764",
-    "district_name": "MiraCosta College/Oceanside Unified School District",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": "628250",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 8,
-      "revenue": 156519,
-      "account_names_used": [
-        "MiraCosta College/Oceanside Unified School District"
-      ]
-    },
-    "schools": {
-      "count": 31,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 17,
-      "revenue": 0,
-      "schools_in_sessions": [
-        "Cesar Chavez Middle School"
-      ]
-    },
-    "courses": {
-      "count": 4
-    },
-    "totals": {
-      "entity_count": 60,
-      "total_revenue": 156519
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188843578",
-    "district_name": "MiraCosta College/Oceanside Unified School District",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 5,
-      "revenue": 133839,
-      "account_names_used": [
-        "MiraCosta College/Oceanside Unified School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 5,
-      "total_revenue": 133839
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592188519216",
     "district_name": "Longwood Central School District",
     "state": "NY",
@@ -15598,98 +15030,6 @@
     }
   },
   {
-    "district_id": "17592273442850",
-    "district_name": "Comsewogue School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3615780",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 9,
-      "revenue": 148782.859375,
-      "account_names_used": [
-        "Comsewogue School District"
-      ]
-    },
-    "schools": {
-      "count": 7,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 84
-    },
-    "totals": {
-      "entity_count": 100,
-      "total_revenue": 148782.859375
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843489",
-    "district_name": "Comsewogue School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 8,
-      "revenue": 138782.859375,
-      "account_names_used": [
-        "Comsewogue School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 8,
-      "total_revenue": 138782.859375
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284311436",
     "district_name": "Howard Lake-Waverly-Winsted",
     "state": "MN",
@@ -17501,98 +16841,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592246338280",
-    "district_name": "Locust Valley School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3617700",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 10,
-      "revenue": 105106,
-      "account_names_used": [
-        "Locust Valley School District"
-      ]
-    },
-    "schools": {
-      "count": 8,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 37
-    },
-    "totals": {
-      "entity_count": 55,
-      "total_revenue": 105106
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843606",
-    "district_name": "Locust Valley School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 9,
-      "revenue": 95106,
-      "account_names_used": [
-        "Locust Valley School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 9,
-      "total_revenue": 95106
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -26321,98 +25569,6 @@
     }
   },
   {
-    "district_id": "17592297177367",
-    "district_name": "Fonda-Fultonville School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "17592246333592",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 7,
-      "revenue": 75377,
-      "account_names_used": [
-        "Fonda-Fultonville School District"
-      ]
-    },
-    "schools": {
-      "count": 4,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 1
-    },
-    "totals": {
-      "entity_count": 12,
-      "total_revenue": 75377
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843501",
-    "district_name": "Fonda-Fultonville School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 6,
-      "revenue": 70175,
-      "account_names_used": [
-        "Fonda-Fultonville School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 6,
-      "total_revenue": 70175
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284310910",
     "district_name": "Judson Independent School District",
     "state": "TX",
@@ -29770,98 +28926,6 @@
     }
   },
   {
-    "district_id": "17592297177418",
-    "district_name": "Florida Union Free School District Schools",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "3625320",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 6,
-      "revenue": 60615.6796875,
-      "account_names_used": [
-        "Florida Union Free School District Schools"
-      ]
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 3
-    },
-    "totals": {
-      "entity_count": 12,
-      "total_revenue": 60615.6796875
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188151131",
-    "district_name": "Florida Union Free School District Schools",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 5,
-      "revenue": 26040,
-      "account_names_used": [
-        "Florida Union Free School District Schools"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 5,
-      "total_revenue": 26040
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284316049",
     "district_name": "Malden Public School",
     "state": "MA",
@@ -30855,101 +29919,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592236333693",
-    "district_name": "Wichita State University",
-    "state": "KS",
-    "state_sources": [
-      [
-        "district",
-        "KS"
-      ]
-    ],
-    "nces_id": "156125",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 7,
-      "revenue": 57660,
-      "account_names_used": [
-        "Wichita State University"
-      ]
-    },
-    "schools": {
-      "count": 4,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 326,
-      "revenue": 0,
-      "schools_in_sessions": [
-        "Wichita",
-        "Kansas City"
-      ]
-    },
-    "courses": {
-      "count": 10
-    },
-    "totals": {
-      "entity_count": 347,
-      "total_revenue": 57660
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188843803",
-    "district_name": "Wichita State University",
-    "state": "KS",
-    "state_sources": [
-      [
-        "district",
-        "KS"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 3,
-      "revenue": 35110,
-      "account_names_used": [
-        "Wichita State University"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 35110
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -40950,102 +39919,6 @@
     }
   },
   {
-    "district_id": "17592276048177",
-    "district_name": "Long Beach School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ],
-      [
-        "opportunities",
-        "MS"
-      ]
-    ],
-    "nces_id": "3617730",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 9,
-      "revenue": 42875,
-      "account_names_used": [
-        "Long Beach School District"
-      ]
-    },
-    "schools": {
-      "count": 7,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 16,
-      "total_revenue": 42875
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843467",
-    "district_name": "Long Beach School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 7,
-      "revenue": 35375,
-      "account_names_used": [
-        "Long Beach School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 7,
-      "total_revenue": 35375
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592188519013",
     "district_name": "Levittown School District",
     "state": "NY",
@@ -45308,77 +44181,73 @@
     }
   },
   {
-    "district_id": "17592236333811",
-    "district_name": "Delaware Technical Community College",
-    "state": "DE",
+    "district_id": "17592188843439",
+    "district_name": "GateWay Community College",
+    "state": "AZ",
     "state_sources": [
       [
         "district",
-        "DE"
-      ]
-    ],
-    "nces_id": "13090701",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 7,
-      "revenue": 26669.8798828125,
-      "account_names_used": [
-        "Delaware Technical Community College"
-      ]
-    },
-    "schools": {
-      "count": 6,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 7,
-      "revenue": 0,
-      "schools_in_sessions": [
-        "Delaware Technical Community College STEM",
-        "Delaware Technical UBMS"
-      ]
-    },
-    "courses": {
-      "count": 2
-    },
-    "totals": {
-      "entity_count": 22,
-      "total_revenue": 26669.8798828125
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188843499",
-    "district_name": "Delaware Technical Community College",
-    "state": "DE",
-    "state_sources": [
-      [
-        "district",
-        "DE"
+        "AZ"
       ]
     ],
     "nces_id": null,
     "exists_in_index": false,
     "referenced_by": [
-      "opportunities"
+      "opportunities",
+      "schools"
     ],
     "opportunities": {
-      "count": 1,
-      "revenue": 0,
+      "count": 2,
+      "revenue": 27781.2001953125,
       "account_names_used": [
-        "Delaware Technical Community College"
+        "GateWay Community College"
       ]
     },
     "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
       "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 27781.2001953125
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295271368",
+    "district_name": "GateWay Community College",
+    "state": "AZ",
+    "state_sources": [
+      [
+        "district",
+        "AZ"
+      ]
+    ],
+    "nces_id": "105145",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
       "sample_names": []
     },
     "sessions": {
@@ -45394,11 +44263,11 @@
       "total_revenue": 0
     },
     "data_quality": {
-      "has_nces": false,
+      "has_nces": true,
       "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
       "has_sessions": false
     }
   },
@@ -50669,98 +49538,6 @@
     }
   },
   {
-    "district_id": "17592246333717",
-    "district_name": "United Friends of the Children",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 2,
-      "revenue": 20480,
-      "account_names_used": [
-        "United Friends of the Children"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 2
-    },
-    "totals": {
-      "entity_count": 5,
-      "total_revenue": 20480
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843626",
-    "district_name": "United Friends of the Children",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 2,
-      "revenue": 20480,
-      "account_names_used": [
-        "United Friends of the Children"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 20480
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592188165941",
     "district_name": "Cornwall Central School District Schools",
     "state": "NY",
@@ -55300,6 +54077,150 @@
     }
   },
   {
+    "district_id": "17592295190926",
+    "district_name": "Massena Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": "17592271184327",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 1,
+      "revenue": 10750,
+      "account_names_used": [
+        "Massena Central School District",
+        "Massena School District"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 4,
+      "revenue": 2746.679931640625,
+      "schools_in_sessions": [
+        "Massena Central School District"
+      ]
+    },
+    "courses": {
+      "count": 1
+    },
+    "totals": {
+      "entity_count": 7,
+      "total_revenue": 13496.679931640625
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592188113578",
+    "district_name": "Massena Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 10750,
+      "account_names_used": [
+        "Massena Central School District",
+        "Massena School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 10750
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592249583867",
+    "district_name": "Massena Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 2975.570068359375,
+      "account_names_used": [
+        "Massena Central School District"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 2975.570068359375
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592284312293",
     "district_name": "Riley Community Consolidated School District 18",
     "state": "IL",
@@ -55934,102 +54855,6 @@
     }
   },
   {
-    "district_id": "17592236333770",
-    "district_name": "Rochester Institute Of Technology",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ],
-      [
-        "opportunities",
-        "CA"
-      ]
-    ],
-    "nces_id": "195003",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 5,
-      "revenue": 11062,
-      "account_names_used": [
-        "Rochester Institute Of Technology"
-      ]
-    },
-    "schools": {
-      "count": 5,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 22
-    },
-    "totals": {
-      "entity_count": 32,
-      "total_revenue": 11062
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188843813",
-    "district_name": "Rochester Institute Of Technology",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 3,
-      "revenue": 11062,
-      "account_names_used": [
-        "Rochester Institute Of Technology"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 11062
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592246348313",
     "district_name": "Hyde Park Central School District",
     "state": "NY",
@@ -56478,150 +55303,6 @@
       "has_opps": false,
       "has_schools": true,
       "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188113578",
-    "district_name": "Massena Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 10750,
-      "account_names_used": [
-        "Massena Central School District",
-        "Massena School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 10750
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592249583867",
-    "district_name": "Massena Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities",
-      "schools"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 10750,
-      "account_names_used": [
-        "Massena Central School District",
-        "Massena School District"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 10750
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295190926",
-    "district_name": "Massena Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": "17592271184327",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 1,
-      "revenue": 2975.570068359375,
-      "account_names_used": [
-        "Massena Central School District"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 4,
-      "revenue": 2746.679931640625,
-      "schools_in_sessions": [
-        "Massena Central School District"
-      ]
-    },
-    "courses": {
-      "count": 1
-    },
-    "totals": {
-      "entity_count": 7,
-      "total_revenue": 5722.25
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
     }
   },
   {
@@ -60700,98 +59381,6 @@
     }
   },
   {
-    "district_id": "17592246333700",
-    "district_name": "Weld County School District 6",
-    "state": "CO",
-    "state_sources": [
-      [
-        "district",
-        "CO"
-      ]
-    ],
-    "nces_id": "800270",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 4,
-      "revenue": 9000,
-      "account_names_used": [
-        "Weld County School District 6"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 3
-    },
-    "totals": {
-      "entity_count": 8,
-      "total_revenue": 9000
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592187927024",
-    "district_name": "Weld County School District 6",
-    "state": "CO",
-    "state_sources": [
-      [
-        "district",
-        "CO"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 4,
-      "revenue": 9000,
-      "account_names_used": [
-        "Weld County School District 6"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 4,
-      "total_revenue": 9000
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592188843668",
     "district_name": "Yorktown School District",
     "state": "NY",
@@ -60973,100 +59562,6 @@
     }
   },
   {
-    "district_id": "17592236333672",
-    "district_name": "Simpson University",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": "123457",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 3,
-      "revenue": 8675,
-      "account_names_used": [
-        "Simpson University"
-      ]
-    },
-    "schools": {
-      "count": 4,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 30,
-      "revenue": 0,
-      "schools_in_sessions": [
-        "Dunsmuir High School"
-      ]
-    },
-    "courses": {
-      "count": 5
-    },
-    "totals": {
-      "entity_count": 42,
-      "total_revenue": 8675
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592188843696",
-    "district_name": "Simpson University",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 0,
-      "account_names_used": [
-        "Simpson University"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284311040",
     "district_name": "North Colonie Central School District",
     "state": "NY",
@@ -61153,98 +59648,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592236333755",
-    "district_name": "Central Lakes College",
-    "state": "MN",
-    "state_sources": [
-      [
-        "district",
-        "MN"
-      ]
-    ],
-    "nces_id": "173203",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 3,
-      "revenue": 8070,
-      "account_names_used": [
-        "Central Lakes College"
-      ]
-    },
-    "schools": {
-      "count": 9,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 12,
-      "total_revenue": 8070
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592188167699",
-    "district_name": "Central Lakes College",
-    "state": "MN",
-    "state_sources": [
-      [
-        "district",
-        "MN"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 8070,
-      "account_names_used": [
-        "Central Lakes College"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 8070
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -66619,231 +65022,6 @@
     }
   },
   {
-    "district_id": "17592295326111",
-    "district_name": "Ringling Public Schools",
-    "state": "OK",
-    "state_sources": [
-      [
-        "district",
-        "OK"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592284311755",
-    "district_name": "Ringling Public Schools",
-    "state": "OK",
-    "state_sources": [
-      [
-        "district",
-        "OK"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities",
-      "schools"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 0,
-      "account_names_used": [
-        "Ringling Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295274147",
-    "district_name": "Santee School District",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": "635880",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 11,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 11,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592284319349",
-    "district_name": "Santee School District",
-    "state": "CA",
-    "state_sources": [
-      [
-        "district",
-        "CA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities",
-      "schools"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 0,
-      "account_names_used": [
-        "Santee School District"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295198690",
-    "district_name": "Southern Local School District",
-    "state": "OH",
-    "state_sources": [
-      [
-        "district",
-        "OH"
-      ]
-    ],
-    "nces_id": "3904853",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 2,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592295231118",
     "district_name": "Southern Local School District",
     "state": "OH",
@@ -66930,135 +65108,16 @@
     }
   },
   {
-    "district_id": "17592295270128",
-    "district_name": "Geneva County Schools",
-    "state": "AL",
+    "district_id": "17592295198690",
+    "district_name": "Southern Local School District",
+    "state": "OH",
     "state_sources": [
       [
         "district",
-        "AL"
+        "OH"
       ]
     ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 10,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 10,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295318129",
-    "district_name": "Geneva City Schools",
-    "state": "AL",
-    "state_sources": [
-      [
-        "district",
-        "AL"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592296984983",
-    "district_name": "Discovery Charter School (District)",
-    "state": "",
-    "state_sources": [],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": false,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295209580",
-    "district_name": "Discovery Charter School (District)",
-    "state": "",
-    "state_sources": [],
-    "nces_id": null,
+    "nces_id": "3904853",
     "exists_in_index": true,
     "referenced_by": [],
     "opportunities": {
@@ -67080,511 +65139,6 @@
     },
     "totals": {
       "entity_count": 2,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": false,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295297964",
-    "district_name": "Discovery Charter School (District)",
-    "state": "",
-    "state_sources": [],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": false,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592296983202",
-    "district_name": "Discovery Charter School (District)",
-    "state": "",
-    "state_sources": [],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": false,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592296983122",
-    "district_name": "Discovery Charter School (District)",
-    "state": "",
-    "state_sources": [],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": false,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297178644",
-    "district_name": "Clark County School District",
-    "state": "NV",
-    "state_sources": [
-      [
-        "district",
-        "NV"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 18,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 1
-    },
-    "totals": {
-      "entity_count": 19,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592284311580",
-    "district_name": "Clark County School District",
-    "state": "NV",
-    "state_sources": [
-      [
-        "district",
-        "NV"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 0,
-      "account_names_used": [
-        "Clark County School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297178189",
-    "district_name": "Franklin Township School District",
-    "state": "NJ",
-    "state_sources": [
-      [
-        "district",
-        "NJ"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 10,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 10,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177981",
-    "district_name": "Franklin Township School District",
-    "state": "NJ",
-    "state_sources": [
-      [
-        "district",
-        "NJ"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297178254",
-    "district_name": "Franklin Township School District",
-    "state": "NJ",
-    "state_sources": [
-      [
-        "district",
-        "NJ"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177950",
-    "district_name": "Franklin Township School District",
-    "state": "NJ",
-    "state_sources": [
-      [
-        "district",
-        "NJ"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295352351",
-    "district_name": "Crestview Local School District",
-    "state": "OH",
-    "state_sources": [
-      [
-        "district",
-        "OH"
-      ]
-    ],
-    "nces_id": "3904643",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295326596",
-    "district_name": "Crestview Local School District",
-    "state": "OH",
-    "state_sources": [
-      [
-        "district",
-        "OH"
-      ]
-    ],
-    "nces_id": "3905035",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 4,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 4,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295275156",
-    "district_name": "Crestview Local School District",
-    "state": "OH",
-    "state_sources": [
-      [
-        "district",
-        "OH"
-      ]
-    ],
-    "nces_id": "3904942",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 3,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 3,
       "total_revenue": 0
     },
     "data_quality": {
@@ -68312,6 +65866,135 @@
     }
   },
   {
+    "district_id": "17592295326596",
+    "district_name": "Crestview Local School District",
+    "state": "OH",
+    "state_sources": [
+      [
+        "district",
+        "OH"
+      ]
+    ],
+    "nces_id": "3905035",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 4,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 4,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295352351",
+    "district_name": "Crestview Local School District",
+    "state": "OH",
+    "state_sources": [
+      [
+        "district",
+        "OH"
+      ]
+    ],
+    "nces_id": "3904643",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 3,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295275156",
+    "district_name": "Crestview Local School District",
+    "state": "OH",
+    "state_sources": [
+      [
+        "district",
+        "OH"
+      ]
+    ],
+    "nces_id": "3904942",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 3,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592295260843",
     "district_name": "Springfield Local School District",
     "state": "OH",
@@ -68433,6 +66116,726 @@
     },
     "data_quality": {
       "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295326111",
+    "district_name": "Ringling Public Schools",
+    "state": "OK",
+    "state_sources": [
+      [
+        "district",
+        "OK"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 3,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592284311755",
+    "district_name": "Ringling Public Schools",
+    "state": "OK",
+    "state_sources": [
+      [
+        "district",
+        "OK"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 0,
+      "account_names_used": [
+        "Ringling Public Schools"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295274147",
+    "district_name": "Santee School District",
+    "state": "CA",
+    "state_sources": [
+      [
+        "district",
+        "CA"
+      ]
+    ],
+    "nces_id": "635880",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 11,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 11,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592284319349",
+    "district_name": "Santee School District",
+    "state": "CA",
+    "state_sources": [
+      [
+        "district",
+        "CA"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 0,
+      "account_names_used": [
+        "Santee School District"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295270128",
+    "district_name": "Geneva County Schools",
+    "state": "AL",
+    "state_sources": [
+      [
+        "district",
+        "AL"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 10,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 10,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295318129",
+    "district_name": "Geneva City Schools",
+    "state": "AL",
+    "state_sources": [
+      [
+        "district",
+        "AL"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 3,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592296984983",
+    "district_name": "Discovery Charter School (District)",
+    "state": "",
+    "state_sources": [],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": false,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295209580",
+    "district_name": "Discovery Charter School (District)",
+    "state": "",
+    "state_sources": [],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 2,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": false,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295297964",
+    "district_name": "Discovery Charter School (District)",
+    "state": "",
+    "state_sources": [],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": false,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592296983202",
+    "district_name": "Discovery Charter School (District)",
+    "state": "",
+    "state_sources": [],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": false,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592296983122",
+    "district_name": "Discovery Charter School (District)",
+    "state": "",
+    "state_sources": [],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": false,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297178644",
+    "district_name": "Clark County School District",
+    "state": "NV",
+    "state_sources": [
+      [
+        "district",
+        "NV"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 18,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 1
+    },
+    "totals": {
+      "entity_count": 19,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592284311580",
+    "district_name": "Clark County School District",
+    "state": "NV",
+    "state_sources": [
+      [
+        "district",
+        "NV"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 0,
+      "account_names_used": [
+        "Clark County School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297178189",
+    "district_name": "Franklin Township School District",
+    "state": "NJ",
+    "state_sources": [
+      [
+        "district",
+        "NJ"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 10,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 10,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297177981",
+    "district_name": "Franklin Township School District",
+    "state": "NJ",
+    "state_sources": [
+      [
+        "district",
+        "NJ"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297178254",
+    "district_name": "Franklin Township School District",
+    "state": "NJ",
+    "state_sources": [
+      [
+        "district",
+        "NJ"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297177950",
+    "district_name": "Franklin Township School District",
+    "state": "NJ",
+    "state_sources": [
+      [
+        "district",
+        "NJ"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 3,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 3,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
       "has_state": true,
       "is_orphaned": false,
       "has_opps": false,
@@ -71309,49 +69712,6 @@
     }
   },
   {
-    "district_id": "17592295273772",
-    "district_name": "Buckeye Local School District",
-    "state": "OH",
-    "state_sources": [
-      [
-        "district",
-        "OH"
-      ]
-    ],
-    "nces_id": "3904585",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 4,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 4,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592295304222",
     "district_name": "Buckeye Local School District",
     "state": "OH",
@@ -71383,6 +69743,49 @@
     },
     "totals": {
       "entity_count": 5,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295273772",
+    "district_name": "Buckeye Local School District",
+    "state": "OH",
+    "state_sources": [
+      [
+        "district",
+        "OH"
+      ]
+    ],
+    "nces_id": "3904585",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 4,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 4,
       "total_revenue": 0
     },
     "data_quality": {
@@ -71482,6 +69885,187 @@
       "is_orphaned": true,
       "has_opps": true,
       "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295256523",
+    "district_name": "Boston Public Schools",
+    "state": "MA",
+    "state_sources": [
+      [
+        "district",
+        "MA"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 117,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 117,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592284319086",
+    "district_name": "Boston Public Schools",
+    "state": "MA",
+    "state_sources": [
+      [
+        "district",
+        "MA"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 0,
+      "account_names_used": [
+        "Boston Public Schools"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592295363991",
+    "district_name": "Allentown City School District",
+    "state": "PA",
+    "state_sources": [
+      [
+        "district",
+        "PA"
+      ]
+    ],
+    "nces_id": "4202280",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 22,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 22,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592284317398",
+    "district_name": "Allentown City School District",
+    "state": "PA",
+    "state_sources": [
+      [
+        "district",
+        "PA"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 0,
+      "account_names_used": [
+        "Allentown City School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -71820,187 +70404,6 @@
       "revenue": 0,
       "account_names_used": [
         "Holland Central School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295256523",
-    "district_name": "Boston Public Schools",
-    "state": "MA",
-    "state_sources": [
-      [
-        "district",
-        "MA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 117,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 117,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592284319086",
-    "district_name": "Boston Public Schools",
-    "state": "MA",
-    "state_sources": [
-      [
-        "district",
-        "MA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities",
-      "schools"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 0,
-      "account_names_used": [
-        "Boston Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 1,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295363991",
-    "district_name": "Allentown City School District",
-    "state": "PA",
-    "state_sources": [
-      [
-        "district",
-        "PA"
-      ]
-    ],
-    "nces_id": "4202280",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 0,
-      "revenue": 0,
-      "account_names_used": []
-    },
-    "schools": {
-      "count": 22,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 22,
-      "total_revenue": 0
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": false,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592284317398",
-    "district_name": "Allentown City School District",
-    "state": "PA",
-    "state_sources": [
-      [
-        "district",
-        "PA"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 0,
-      "account_names_used": [
-        "Allentown City School District"
       ]
     },
     "schools": {

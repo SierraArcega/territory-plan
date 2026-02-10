@@ -3,7 +3,7 @@
     "account_id": "17592192005474",
     "account_name": "Richland School District Two",
     "state": null,
-    "sales_exec": "Steve Pines",
+    "sales_exec": null,
     "total_revenue": 1340236.580078125,
     "opportunity_count": 21
   },
@@ -22,14 +22,6 @@
     "sales_exec": "Joy Panko",
     "total_revenue": 699200,
     "opportunity_count": 5
-  },
-  {
-    "account_id": "17592236331191",
-    "account_name": "Whitesboro",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 698198,
-    "opportunity_count": 6
   },
   {
     "account_id": "17592236333733",
@@ -72,14 +64,6 @@
     "opportunity_count": 2
   },
   {
-    "account_id": "17592186838330",
-    "account_name": "Calhoun County Public Schools",
-    "state": "SOUTH CAROLINA",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 272850,
-    "opportunity_count": 11
-  },
-  {
     "account_id": "17592238767643",
     "account_name": "Two Rivers Public Charter School",
     "state": "WASHINGTON",
@@ -99,7 +83,7 @@
     "account_id": "17592191599741",
     "account_name": "Metropolitan Nashville Public Schools",
     "state": "TENNESSEE",
-    "sales_exec": "Melodie Blackwood",
+    "sales_exec": "Joy Panko",
     "total_revenue": 240754.6796875,
     "opportunity_count": 5
   },
@@ -107,17 +91,9 @@
     "account_id": "17592236333687",
     "account_name": "GEAR UP New Hampshire",
     "state": "NEW HAMPSHIRE",
-    "sales_exec": "Colleen Riley",
+    "sales_exec": "Cory Shaw",
     "total_revenue": 225938,
     "opportunity_count": 5
-  },
-  {
-    "account_id": "17592191781181",
-    "account_name": "Westhampton Beach School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 212813,
-    "opportunity_count": 13
   },
   {
     "account_id": "17592295330103",
@@ -136,14 +112,6 @@
     "opportunity_count": 5
   },
   {
-    "account_id": "17592188519140",
-    "account_name": "Liberty School District",
-    "state": "NEW YORK",
-    "sales_exec": "Rachel Reynoso",
-    "total_revenue": 204191.2998046875,
-    "opportunity_count": 7
-  },
-  {
     "account_id": "17592246346594",
     "account_name": "Westminster School District",
     "state": "CALIFORNIA",
@@ -155,7 +123,7 @@
     "account_id": "17592238767028",
     "account_name": "Greater Johnstown",
     "state": "NEW YORK",
-    "sales_exec": " ",
+    "sales_exec": "Brooke Fera",
     "total_revenue": 174810,
     "opportunity_count": 10
   },
@@ -166,22 +134,6 @@
     "sales_exec": "Yvette Ramos",
     "total_revenue": 152880,
     "opportunity_count": 7
-  },
-  {
-    "account_id": "17592188843489",
-    "account_name": "Comsewogue School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 138782.859375,
-    "opportunity_count": 8
-  },
-  {
-    "account_id": "17592188843578",
-    "account_name": "MiraCosta College/Oceanside Unified School District",
-    "state": "CALIFORNIA",
-    "sales_exec": "Colleen Riley",
-    "total_revenue": 133839,
-    "opportunity_count": 5
   },
   {
     "account_id": "17592294631647",
@@ -198,14 +150,6 @@
     "sales_exec": " ",
     "total_revenue": 103241.283203125,
     "opportunity_count": 2
-  },
-  {
-    "account_id": "17592188148838",
-    "account_name": "GEAR UP New Hampshire",
-    "state": "NEW HAMPSHIRE",
-    "sales_exec": "Cory Shaw",
-    "total_revenue": 100000,
-    "opportunity_count": 3
   },
   {
     "account_id": "17592296990585",
@@ -232,28 +176,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188843606",
-    "account_name": "Locust Valley School District",
-    "state": "NEW YORK",
-    "sales_exec": " ",
-    "total_revenue": 95106,
-    "opportunity_count": 9
-  },
-  {
     "account_id": "17592280524701",
     "account_name": "Pathways Academy Charter School",
     "state": "TEXAS",
     "sales_exec": "Melodie Blackwood",
     "total_revenue": 92644.5693359375,
     "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188053720",
-    "account_name": "The University of Texas Rio Grande Valley",
-    "state": "TEXAS",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 90570,
-    "opportunity_count": 17
   },
   {
     "account_id": "17592297178717",
@@ -272,28 +200,12 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188843501",
-    "account_name": "Fonda-Fultonville School District",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 70175,
-    "opportunity_count": 6
-  },
-  {
     "account_id": "17592238767502",
     "account_name": "Project Stay, Inc.",
     "state": "TEXAS",
     "sales_exec": "Yvette Ramos",
     "total_revenue": 68670,
     "opportunity_count": 3
-  },
-  {
-    "account_id": "17592238766892",
-    "account_name": "Cato-Meridian",
-    "state": "NEW YORK",
-    "sales_exec": "Tracy Walters",
-    "total_revenue": 63785,
-    "opportunity_count": 10
   },
   {
     "account_id": "17592246338236",
@@ -384,22 +296,6 @@
     "opportunity_count": 1
   },
   {
-    "account_id": "17592188843467",
-    "account_name": "Long Beach School District",
-    "state": "NEW YORK",
-    "sales_exec": "Taylor Yoon",
-    "total_revenue": 35375,
-    "opportunity_count": 7
-  },
-  {
-    "account_id": "17592188843803",
-    "account_name": "Wichita State University",
-    "state": "KANSAS",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 35110,
-    "opportunity_count": 3
-  },
-  {
     "account_id": "17592295333446",
     "account_name": "Lake Park Audubon School District",
     "state": null,
@@ -438,14 +334,6 @@
     "sales_exec": "Steve Pines",
     "total_revenue": 28000,
     "opportunity_count": 6
-  },
-  {
-    "account_id": "17592188151131",
-    "account_name": "Florida Union Free School District Schools",
-    "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
-    "total_revenue": 26040,
-    "opportunity_count": 5
   },
   {
     "account_id": "17592297177859",
@@ -488,14 +376,6 @@
     "opportunity_count": 3
   },
   {
-    "account_id": "17592188843626",
-    "account_name": "United Friends of the Children",
-    "state": "CALIFORNIA",
-    "sales_exec": "Monica Sherwood",
-    "total_revenue": 20480,
-    "opportunity_count": 2
-  },
-  {
     "account_id": "17592246333717",
     "account_name": "United Friends of the Children",
     "state": "CALIFORNIA",
@@ -509,6 +389,14 @@
     "state": null,
     "sales_exec": "Kris Tedesco",
     "total_revenue": 20000,
+    "opportunity_count": 1
+  },
+  {
+    "account_id": "17592284319646",
+    "account_name": "Lemont Township High School District 210(dupe)",
+    "state": "ILLINOIS",
+    "sales_exec": "Mike O'Donnell",
+    "total_revenue": 17679.990234375,
     "opportunity_count": 1
   },
   {
@@ -568,12 +456,12 @@
     "opportunity_count": 4
   },
   {
-    "account_id": "17592188843813",
-    "account_name": "Rochester Institute Of Technology",
+    "account_id": "17592188113578",
+    "account_name": "Massena School District",
     "state": "NEW YORK",
-    "sales_exec": "Paul Sheffield",
-    "total_revenue": 11062,
-    "opportunity_count": 3
+    "sales_exec": " ",
+    "total_revenue": 10750,
+    "opportunity_count": 1
   },
   {
     "account_id": "17592297177760",
@@ -605,22 +493,6 @@
     "state": null,
     "sales_exec": "Monica Sherwood",
     "total_revenue": 9053.349609375,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592187927024",
-    "account_name": "Weld County School District 6",
-    "state": "COLORADO",
-    "sales_exec": " ",
-    "total_revenue": 9000,
-    "opportunity_count": 4
-  },
-  {
-    "account_id": "17592188167699",
-    "account_name": "Central Lakes College",
-    "state": "MINNESOTA",
-    "sales_exec": "Yvette Ramos",
-    "total_revenue": 8070,
     "opportunity_count": 1
   },
   {
@@ -692,22 +564,6 @@
     "account_name": "Sullivan County BOCES",
     "state": "NEW YORK",
     "sales_exec": "Kris Tedesco",
-    "total_revenue": 0,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188843499",
-    "account_name": "Delaware Technical Community College",
-    "state": "DELAWARE",
-    "sales_exec": "Steve Pines",
-    "total_revenue": 0,
-    "opportunity_count": 1
-  },
-  {
-    "account_id": "17592188843696",
-    "account_name": "Simpson University",
-    "state": "CALIFORNIA",
-    "sales_exec": "Cory Shaw",
     "total_revenue": 0,
     "opportunity_count": 1
   },

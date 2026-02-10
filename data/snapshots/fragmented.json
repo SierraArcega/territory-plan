@@ -169,6 +169,24 @@
     "similarity_score": 0.5
   },
   {
+    "nces_id": "17592271184327",
+    "district_name": "Massena Central School District",
+    "state": "NY",
+    "account_variants": [
+      {
+        "name": "Massena Central School District",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Massena School District",
+        "source": "opportunities",
+        "count": 1
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
     "nces_id": "3623580",
     "district_name": "Port Washington School District",
     "state": "NY",
@@ -182,24 +200,6 @@
         "name": "Nassau BOCES",
         "source": "opportunities",
         "count": 10
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "3631320",
-    "district_name": "Whitesboro Central School District",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "Whitesboro Central School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Whitesboro",
-        "source": "opportunities",
-        "count": 6
       }
     ],
     "similarity_score": 0.5
@@ -272,24 +272,6 @@
         "name": "Eastern Suffolk BOCES",
         "source": "opportunities",
         "count": 12
-      }
-    ],
-    "similarity_score": 0.5
-  },
-  {
-    "nces_id": "3606690",
-    "district_name": "Cato-Meridian School District",
-    "state": "NY",
-    "account_variants": [
-      {
-        "name": "Cato-Meridian School District",
-        "source": "districts",
-        "count": 1
-      },
-      {
-        "name": "Cato-Meridian",
-        "source": "opportunities",
-        "count": 10
       }
     ],
     "similarity_score": 0.5
