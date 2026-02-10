@@ -1,6 +1,6 @@
 "use client";
 
-import { StateDetail } from "@/lib/api";
+import { StateDetail, useTasks } from "@/lib/api";
 
 interface StateStatsProps {
   state: StateDetail;
@@ -8,6 +8,10 @@ interface StateStatsProps {
 
 export default function StateStats({ state }: StateStatsProps) {
   const { aggregates } = state;
+
+  // Fetch all user tasks — we count how many are NOT done for the summary
+  const { data: tasksData } = useTasks();
+  const openTaskCount = tasksData?.tasks.filter((t) => t.status !== "done").length ?? 0;
 
   // Format currency
   const formatCurrency = (n: number | null) => {
@@ -42,7 +46,7 @@ export default function StateStats({ state }: StateStatsProps) {
           </svg>
           Business Metrics
         </h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="text-sm font-medium text-gray-700">
               {formatCurrency(aggregates.totalPipelineValue)}
@@ -54,6 +58,12 @@ export default function StateStats({ state }: StateStatsProps) {
               {formatNumber(aggregates.totalSchools)}
             </div>
             <div className="text-xs text-gray-500">Total Schools</div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="text-sm font-medium text-gray-700">
+              {openTaskCount}
+            </div>
+            <div className="text-xs text-gray-500">Open Tasks</div>
           </div>
         </div>
       </div>
