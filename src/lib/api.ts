@@ -256,7 +256,27 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    throw new Error(`API Error: ${res.status} ${res.statusText}`);
+    // Try to read the error body for more context
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body.error || JSON.stringify(body);
+    } catch {
+      // Response body isn't JSON (e.g., HTML from a redirect)
+      if (res.redirected) {
+        detail = "Session expired - please refresh the page";
+      }
+    }
+    throw new Error(
+      detail
+        ? `${res.status}: ${detail}`
+        : `API Error: ${res.status} ${res.statusText}`
+    );
+  }
+  // Verify we actually got JSON (not HTML from a redirect)
+  const contentType = res.headers.get("content-type");
+  if (contentType && !contentType.includes("application/json")) {
+    throw new Error("Session expired - please refresh the page");
   }
   return res.json();
 }
@@ -380,6 +400,38 @@ export function useRemoveDistrictTag() {
 }
 
 // Contacts
+
+export interface ContactListItem {
+  id: number;
+  leaid: string;
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  isPrimary: boolean;
+  districtName: string | null;
+}
+
+export interface ContactsResponse {
+  contacts: ContactListItem[];
+  total: number;
+}
+
+export function useContacts(params: { search?: string; limit?: number } = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.search) searchParams.set("search", params.search);
+  if (params.limit) searchParams.set("limit", params.limit.toString());
+
+  const queryString = searchParams.toString();
+  const url = `${API_BASE}/contacts${queryString ? `?${queryString}` : ""}`;
+
+  return useQuery({
+    queryKey: ["contacts", params],
+    queryFn: () => fetchJson<ContactsResponse>(url),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useCreateContact() {
   const queryClient = useQueryClient();
 

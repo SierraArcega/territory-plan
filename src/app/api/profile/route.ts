@@ -251,9 +251,10 @@ export async function PUT(request: NextRequest) {
       goals: goalsWithActuals,
     });
   } catch (error) {
-    console.error("Error updating profile:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error updating profile:", message, error);
     return NextResponse.json(
-      { error: "Failed to update profile" },
+      { error: `Failed to update profile: ${message}` },
       { status: 500 }
     );
   }
