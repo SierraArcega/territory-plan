@@ -50,38 +50,31 @@ export default function GoalSetupModal() {
   const [newDistrictsTarget, setNewDistrictsTarget] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("goalSetupDismissed") === "true";
+    }
+    return false;
+  });
 
-  // Don't show if profile not loaded or setup already completed
-  if (!profile || profile.hasCompletedSetup) {
+  // Don't show if profile not loaded, setup already completed, or dismissed this session
+  if (!profile || profile.hasCompletedSetup || dismissed) {
     return null;
   }
 
   const displayName = profile.fullName || profile.email.split("@")[0];
 
-  // Handle skip - just mark setup as complete without saving goals
-  const handleSkip = async () => {
-    setIsSubmitting(true);
-    setError(null);
+  // Dismiss the modal client-side (persists for this browser session)
+  const handleDismiss = () => {
+    sessionStorage.setItem("goalSetupDismissed", "true");
+    setDismissed(true);
+  };
 
-    try {
-      await updateProfileMutation.mutateAsync({ hasCompletedSetup: true });
-    } catch (err) {
-      console.error("Error skipping setup:", err);
-      const message =
-        err instanceof Error ? err.message : "Unknown error";
-      if (
-        message.includes("Session expired") ||
-        message.includes("401")
-      ) {
-        setError(
-          "Your session has expired. Please refresh the page and try again."
-        );
-      } else {
-        setError(`Something went wrong: ${message}`);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  // Handle skip - dismiss immediately, then try to mark setup as complete in the background
+  const handleSkip = () => {
+    handleDismiss();
+    // Fire-and-forget: mark setup complete server-side so modal doesn't reappear on next login
+    updateProfileMutation.mutate({ hasCompletedSetup: true });
   };
 
   // Handle save - save goals and mark setup as complete
@@ -107,6 +100,7 @@ export default function GoalSetupModal() {
 
       // Mark setup as complete
       await updateProfileMutation.mutateAsync({ hasCompletedSetup: true });
+      handleDismiss();
     } catch (err) {
       console.error("Error saving goals:", err);
       const message =
@@ -134,7 +128,17 @@ export default function GoalSetupModal() {
       {/* Modal */}
       <div className="relative bg-[#FFFCFA] rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Header with welcome message - Robin's Egg background */}
-        <div className="px-6 py-5 bg-[#C4E7E6]">
+        <div className="px-6 py-5 bg-[#C4E7E6] relative">
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="absolute top-3 right-3 p-1 text-[#403770]/50 hover:text-[#403770] transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           <h2 className="text-xl font-bold text-[#403770]">
             Welcome to Territory Plan Builder!
           </h2>
