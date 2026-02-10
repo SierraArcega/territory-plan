@@ -86,7 +86,7 @@ export async function GET(
       category: getCategoryForType(activity.type as ActivityType),
       title: activity.title,
       notes: activity.notes,
-      startDate: activity.startDate.toISOString(),
+      startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
       createdByUserId: activity.createdByUserId,
@@ -167,7 +167,7 @@ export async function PATCH(
     }
 
     // Validate dates if provided
-    if (startDate !== undefined) {
+    if (startDate !== undefined && startDate !== null) {
       const parsedStart = new Date(startDate);
       if (isNaN(parsedStart.getTime())) {
         return NextResponse.json(
@@ -193,7 +193,9 @@ export async function PATCH(
         ...(type && { type }),
         ...(title && { title: title.trim() }),
         ...(notes !== undefined && { notes: notes?.trim() || null }),
-        ...(startDate && { startDate: new Date(startDate) }),
+        ...(startDate !== undefined && {
+          startDate: startDate ? new Date(startDate) : null,
+        }),
         ...(endDate !== undefined && {
           endDate: endDate ? new Date(endDate) : null,
         }),

@@ -867,7 +867,7 @@ export interface Activity {
   category: ActivityCategory; // computed from type
   title: string;
   notes: string | null;
-  startDate: string;
+  startDate: string | null;
   endDate: string | null;
   status: ActivityStatus;
   createdByUserId: string | null;
@@ -888,7 +888,7 @@ export interface ActivityListItem {
   type: ActivityType;
   category: ActivityCategory;
   title: string;
-  startDate: string;
+  startDate: string | null;
   endDate: string | null;
   status: ActivityStatus;
   needsPlanAssociation: boolean;
@@ -913,6 +913,7 @@ export interface ActivitiesParams {
   status?: ActivityStatus;
   startDateFrom?: string;
   startDateTo?: string;
+  unscheduled?: boolean;
   needsPlanAssociation?: boolean;
   hasUnlinkedDistricts?: boolean;
   limit?: number;
@@ -930,6 +931,7 @@ export function useActivities(params: ActivitiesParams = {}) {
   if (params.status) searchParams.set("status", params.status);
   if (params.startDateFrom) searchParams.set("startDateFrom", params.startDateFrom);
   if (params.startDateTo) searchParams.set("startDateTo", params.startDateTo);
+  if (params.unscheduled) searchParams.set("unscheduled", "true");
   if (params.needsPlanAssociation !== undefined)
     searchParams.set("needsPlanAssociation", params.needsPlanAssociation.toString());
   if (params.hasUnlinkedDistricts !== undefined)
@@ -965,7 +967,7 @@ export function useCreateActivity() {
     mutationFn: (data: {
       type: ActivityType;
       title: string;
-      startDate: string;
+      startDate?: string | null;
       endDate?: string | null;
       status?: ActivityStatus;
       notes?: string | null;
@@ -996,7 +998,7 @@ export function useUpdateActivity() {
       activityId: string;
       type?: ActivityType;
       title?: string;
-      startDate?: string;
+      startDate?: string | null;
       endDate?: string | null;
       status?: ActivityStatus;
       notes?: string | null;

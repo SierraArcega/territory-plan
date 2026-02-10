@@ -235,25 +235,29 @@ export default function ActivitiesTable({
 
                   {/* Date (editable) */}
                   <td className="px-2 py-1">
-                    <div className="flex items-center gap-0.5 text-xs text-gray-600">
-                      <InlineEditCell
-                        type="date"
-                        value={activity.startDate}
-                        onSave={async (value) => handleFieldUpdate(activity.id, "startDate", value)}
-                        className="text-xs"
-                      />
-                      {hasDateRange && (
-                        <>
-                          <span className="text-gray-400">-</span>
-                          <InlineEditCell
-                            type="date"
-                            value={activity.endDate}
-                            onSave={async (value) => handleFieldUpdate(activity.id, "endDate", value)}
-                            className="text-xs"
-                          />
-                        </>
-                      )}
-                    </div>
+                    {activity.startDate ? (
+                      <div className="flex items-center gap-0.5 text-xs text-gray-600">
+                        <InlineEditCell
+                          type="date"
+                          value={activity.startDate}
+                          onSave={async (value) => handleFieldUpdate(activity.id, "startDate", value)}
+                          className="text-xs"
+                        />
+                        {hasDateRange && (
+                          <>
+                            <span className="text-gray-400">-</span>
+                            <InlineEditCell
+                              type="date"
+                              value={activity.endDate}
+                              onSave={async (value) => handleFieldUpdate(activity.id, "endDate", value)}
+                              className="text-xs"
+                            />
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Unscheduled</span>
+                    )}
                   </td>
 
                   {/* Scope (display only) */}

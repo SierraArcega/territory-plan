@@ -95,7 +95,7 @@ export default function ActivityFormModal({
         setFormData({
           type: initialData.type as ActivityType,
           title: initialData.title,
-          startDate: initialData.startDate.split("T")[0],
+          startDate: initialData.startDate ? initialData.startDate.split("T")[0] : "",
           endDate: hasEndDate ? initialData.endDate!.split("T")[0] : null,
           status: initialData.status,
           districtLeaid: null, // ActivityListItem doesn't have district details
@@ -220,12 +220,11 @@ export default function ActivityFormModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="activity-start-date" className="block text-sm font-medium text-gray-700 mb-1">
-                  {showEndDate ? "Start Date" : "Date"} <span className="text-red-500">*</span>
+                  {showEndDate ? "Start Date" : "Date"}
                 </label>
                 <input
                   id="activity-start-date"
                   type="date"
-                  required
                   value={formData.startDate}
                   onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] outline-none text-sm"

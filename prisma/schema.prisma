@@ -351,7 +351,7 @@ model Activity {
   type            String    @db.VarChar(30) // conference, road_trip, email_campaign, etc.
   title           String    @db.VarChar(255)
   notes           String?
-  startDate       DateTime  @map("start_date")
+  startDate       DateTime? @map("start_date")
   endDate         DateTime? @map("end_date")
   status          String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
   createdByUserId String?   @map("created_by_user_id") @db.Uuid

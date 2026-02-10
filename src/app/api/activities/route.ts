@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const unscheduled = searchParams.get("unscheduled") === "true";
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -57,13 +58,14 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Filter by date range
-    // When both startDate and endDate are provided, find activities that overlap with the range
-    // - Activity starts on or after startDate
-    // - Activity ends on or before endDate (or if no endDate, startDate is before the filter endDate)
-    if (startDate && endDate) {
+    // Filter for unscheduled activities (no startDate)
+    if (unscheduled) {
+      where.startDate = null;
+    } else if (startDate && endDate) {
+      // Filter by date range
+      // When both startDate and endDate are provided, find activities that overlap with the range
       where.AND = [
-        { startDate: { gte: new Date(startDate) } },
+        { startDate: { not: null, gte: new Date(startDate) } },
         {
           OR: [
             { endDate: { lte: new Date(endDate) } },
@@ -72,11 +74,11 @@ export async function GET(request: NextRequest) {
         },
       ];
     } else if (startDate) {
-      where.startDate = { gte: new Date(startDate) };
+      where.startDate = { not: null, gte: new Date(startDate) };
     } else if (endDate) {
       where.OR = [
         { endDate: { lte: new Date(endDate) } },
-        { endDate: null, startDate: { lte: new Date(endDate) } },
+        { endDate: null, startDate: { not: null, lte: new Date(endDate) } },
       ];
     }
 
@@ -114,7 +116,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { startDate: "desc" },
+        orderBy: { startDate: { sort: "desc", nulls: "last" } },
         take: limit,
         skip: offset,
       }),
@@ -165,7 +167,7 @@ export async function GET(request: NextRequest) {
           type: activity.type as ActivityType,
           category: getCategoryForType(activity.type as ActivityType),
           title: activity.title,
-          startDate: activity.startDate.toISOString(),
+          startDate: activity.startDate?.toISOString() ?? null,
           endDate: activity.endDate?.toISOString() ?? null,
           status: activity.status,
           needsPlanAssociation: needsPlan,
@@ -232,9 +234,9 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!type || !title || !startDate) {
+    if (!type || !title) {
       return NextResponse.json(
-        { error: "type, title, and startDate are required" },
+        { error: "type and title are required" },
         { status: 400 }
       );
     }
@@ -271,7 +273,7 @@ export async function POST(request: NextRequest) {
         type,
         title: title.trim(),
         notes: notes?.trim() || null,
-        startDate: new Date(startDate),
+        startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         status,
         createdByUserId: user.id,
@@ -329,7 +331,7 @@ export async function POST(request: NextRequest) {
       category: getCategoryForType(activity.type as ActivityType),
       title: activity.title,
       notes: activity.notes,
-      startDate: activity.startDate.toISOString(),
+      startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
       createdByUserId: activity.createdByUserId,
