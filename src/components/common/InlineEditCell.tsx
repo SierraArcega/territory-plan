@@ -10,6 +10,8 @@ interface BaseProps {
   onSave: (value: string) => Promise<void>;
   placeholder?: string;
   className?: string;
+  /** Optional formatter for display mode (e.g. currency formatting). Receives raw value string. */
+  displayFormat?: (value: string) => string;
 }
 
 interface TextProps extends BaseProps {
@@ -46,7 +48,7 @@ function formatDate(dateString: string): string {
 }
 
 export default function InlineEditCell(props: InlineEditCellProps) {
-  const { type, value, onSave, placeholder = "—", className = "" } = props;
+  const { type, value, onSave, placeholder = "—", className = "", displayFormat } = props;
   const options = type === "select" ? props.options : [];
 
   // For date inputs, normalize ISO strings ("2026-02-05T00:00:00.000Z") to "YYYY-MM-DD"
@@ -94,6 +96,10 @@ export default function InlineEditCell(props: InlineEditCellProps) {
 
     if (type === "date") {
       return formatDate(value);
+    }
+
+    if (displayFormat) {
+      return displayFormat(value);
     }
 
     return value;

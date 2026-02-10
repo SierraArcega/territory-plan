@@ -105,7 +105,7 @@ interface PlansListViewProps {
 }
 
 function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: PlansListViewProps) {
-  const [view, setView] = useState<"cards" | "table">("cards");
+  const [view, setView] = useState<"cards" | "table">("table");
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const createPlan = useCreateTerritoryPlan();
 
@@ -389,89 +389,79 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
 
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
-      {/* Header with breadcrumb */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
+      {/* Compact header: back + title + badges | actions */}
+      <header className="bg-white border-b border-gray-200 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={onBack}
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-[#403770] transition-colors"
+              className="p-1 text-gray-400 hover:text-[#403770] transition-colors flex-shrink-0"
+              aria-label="Back to Plans"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back to Plans
             </button>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-500 border border-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
-            </div>
+            <span
+              className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: plan.color }}
+            />
+            <h1 className="text-lg font-bold text-[#403770] truncate">{plan.name}</h1>
+            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#403770] text-white flex-shrink-0">
+              FY{String(plan.fiscalYear).slice(-2)}
+            </span>
+            <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full flex-shrink-0 ${statusBadge.className}`}>
+              {statusBadge.label}
+            </span>
+            {/* Meta info inline */}
+            <span className="hidden md:flex items-center gap-2 text-[12px] text-gray-400 ml-2 flex-shrink-0">
+              <span>{plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}</span>
+              {plan.owner && (
+                <>
+                  <span>·</span>
+                  <span>{plan.owner}</span>
+                </>
+              )}
+              {dateRange && (
+                <>
+                  <span>·</span>
+                  <span>{dateRange}</span>
+                </>
+              )}
+              {plan.description && (
+                <>
+                  <span>·</span>
+                  <span className="truncate max-w-[200px]" title={plan.description}>{plan.description}</span>
+                </>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-500 border border-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Plan Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex items-start gap-4">
-            <span
-              className="w-6 h-6 rounded-full flex-shrink-0 mt-1"
-              style={{ backgroundColor: plan.color }}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl font-bold text-[#403770]">{plan.name}</h1>
-                <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-[#403770] text-white">
-                  FY{String(plan.fiscalYear).slice(-2)}
-                </span>
-                <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${statusBadge.className}`}>
-                  {statusBadge.label}
-                </span>
-              </div>
-              {plan.description && (
-                <p className="text-gray-600 mb-3">{plan.description}</p>
-              )}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                <span>
-                  {plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}
-                </span>
-                {plan.owner && (
-                  <>
-                    <span>•</span>
-                    <span>Owner: <span className="text-[#403770] font-medium">{plan.owner}</span></span>
-                  </>
-                )}
-                {dateRange && (
-                  <>
-                    <span>•</span>
-                    <span>{dateRange}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main content: Tabbed interface for Districts, Activities, Contacts */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
+      <main className="max-w-7xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setActiveTab("map")}
             className="inline-flex items-center gap-2 text-sm text-[#403770] hover:text-[#F37167] transition-colors"

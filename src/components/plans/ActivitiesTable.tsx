@@ -39,19 +39,6 @@ const STATUS_OPTIONS = VALID_ACTIVITY_STATUSES.map((status) => ({
   label: ACTIVITY_STATUS_CONFIG[status as ActivityStatus]?.label || status,
 }));
 
-// Format date for display as MM/DD/YYYY
-// Extracts the YYYY-MM-DD portion first so it works with both
-// bare date strings ("2026-02-05") and full ISO strings ("2026-02-05T00:00:00.000Z").
-function formatDate(dateString: string): string {
-  const datePart = dateString.split("T")[0];
-  const date = new Date(datePart + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-  });
-}
-
 // Format scope text: "X district(s) (STATE, STATE)"
 function formatScope(districtCount: number, stateAbbrevs: string[]): string {
   if (districtCount === 0 && stateAbbrevs.length === 0) {
@@ -165,55 +152,49 @@ export default function ActivitiesTable({
   }
 
   return (
-    <div className="overflow-hidden border border-gray-200 rounded-lg bg-white">
+    <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
+        <table className="w-full table-fixed">
+          <thead>
+            <tr className="border-b border-gray-200 bg-gray-50/80">
               <th
-                className="w-[28px] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                className="w-[28px] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider"
                 aria-label="Icon"
               >
                 {/* Icon column */}
               </th>
-              <th className="w-[30%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[30%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Title
               </th>
-              <th className="w-[15%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[15%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Type
               </th>
-              <th className="w-[12%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[12%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Status
               </th>
-              <th className="w-[18%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[18%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Date
               </th>
-              <th className="w-[15%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[15%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Scope
               </th>
-              <th className="w-[60px] px-2 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Actions
-              </th>
+              <th className="w-20 px-3 py-3" />
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
-            {activities.map((activity) => {
+          <tbody>
+            {activities.map((activity, idx) => {
               const typeIcon = ACTIVITY_TYPE_ICONS[activity.type as ActivityType] || "📋";
-              const typeLabel = ACTIVITY_TYPE_LABELS[activity.type as ActivityType] || activity.type;
-              const statusConfig = ACTIVITY_STATUS_CONFIG[activity.status as ActivityStatus];
+              const isLast = idx === activities.length - 1;
 
               // Format date display
               const hasDateRange =
                 activity.endDate &&
                 activity.endDate !== activity.startDate;
-              const dateDisplay = hasDateRange
-                ? `${formatDate(activity.startDate)} - ${formatDate(activity.endDate!)}`
-                : formatDate(activity.startDate);
 
               return (
                 <tr
                   key={activity.id}
-                  className="hover:bg-gray-50 transition-colors"
+                  className={`group transition-colors duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""}`}
                 >
                   {/* Icon */}
                   <td className="px-2 py-1.5 text-center text-base">
@@ -241,14 +222,14 @@ export default function ActivitiesTable({
                     />
                   </td>
 
-                  {/* Status (editable select) */}
+                  {/* Status (editable select — plain text, no badge) */}
                   <td className="px-2 py-1">
                     <InlineEditCell
                       type="select"
                       value={activity.status}
                       onSave={async (value) => handleFieldUpdate(activity.id, "status", value)}
                       options={STATUS_OPTIONS}
-                      className="text-xs font-medium px-1.5 py-0.5 rounded-full inline-block"
+                      className="text-xs text-gray-600"
                     />
                   </td>
 
@@ -276,26 +257,32 @@ export default function ActivitiesTable({
                   </td>
 
                   {/* Scope (display only) */}
-                  <td className="px-2 py-1.5 text-xs text-gray-600 truncate max-w-[100px]">
+                  <td className="px-2 py-1.5 text-[13px] text-gray-600 truncate max-w-[100px]">
                     {formatScope(activity.districtCount, activity.stateAbbrevs)}
                   </td>
 
-                  {/* Actions */}
-                  <td className="px-2 py-1.5 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+                  {/* Actions — appear on hover */}
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                       <button
                         onClick={() => onEdit(activity)}
-                        className="text-xs text-[#403770] hover:text-[#F37167] transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-[#403770] rounded-md hover:bg-gray-100 transition-colors"
                         aria-label="Edit activity"
+                        title="Edit"
                       >
-                        Edit
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
                       </button>
                       <button
                         onClick={() => setActivityToDelete(activity)}
-                        className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
                         aria-label="Delete activity"
+                        title="Delete"
                       >
-                        Delete
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
                   </td>
@@ -304,6 +291,12 @@ export default function ActivitiesTable({
             })}
           </tbody>
         </table>
+      </div>
+      {/* Footer */}
+      <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60">
+        <span className="text-[12px] font-medium text-gray-400 tracking-wide">
+          {activities.length} activit{activities.length !== 1 ? "ies" : "y"}
+        </span>
       </div>
 
       {/* Delete Confirmation Modal */}
