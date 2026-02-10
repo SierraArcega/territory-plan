@@ -29,7 +29,8 @@ const CATEGORY_TABS: { key: CategoryTab; label: string }[] = [
 ];
 
 // Helper to format dates nicely
-function formatDateRange(startDate: string, endDate: string | null): string {
+function formatDateRange(startDate: string | null, endDate: string | null): string {
+  if (!startDate) return "Unscheduled";
   const start = new Date(startDate).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -69,7 +70,7 @@ export default function ActivitiesView() {
       activityId: editingActivity.id,
       type: formData.type,
       title: formData.title,
-      startDate: new Date(formData.startDate).toISOString(),
+      startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
       endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
       status: formData.status,
       notes: formData.notes || undefined,
