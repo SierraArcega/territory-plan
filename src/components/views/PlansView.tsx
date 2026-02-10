@@ -136,7 +136,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
           <div className="flex items-center gap-4">
             {/* View toggle - hidden on mobile */}
             <div className="hidden md:block">
-              <ViewToggle view={view} onViewChange={setView} />
+              <ViewToggle view={view} onViewChange={(v) => setView(v as "cards" | "table")} />
             </div>
             <button
               onClick={() => setShowCreateModal(true)}

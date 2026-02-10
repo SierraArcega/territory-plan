@@ -735,7 +735,7 @@ export default function PlanTabs({
         <div className="pb-3">
           <ViewToggle
             view={views[activeTab]}
-            onViewChange={(view) => setViews(prev => ({ ...prev, [activeTab]: view }))}
+            onViewChange={(view) => setViews(prev => ({ ...prev, [activeTab]: view as "cards" | "table" }))}
           />
         </div>
       </div>
