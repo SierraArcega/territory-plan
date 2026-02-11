@@ -128,7 +128,7 @@ export default function UserMenu() {
           <div className="py-1">
             <button
               onClick={() => {
-                setActiveTab("goals");
+                setActiveTab("home");
                 setIsOpen(false);
               }}
               className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
