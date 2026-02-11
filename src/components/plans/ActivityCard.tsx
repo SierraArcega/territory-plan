@@ -8,6 +8,7 @@ import {
   ACTIVITY_STATUS_CONFIG,
   type ActivityType,
 } from "@/lib/activityTypes";
+import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
 
 interface ActivityCardProps {
   activity: ActivityListItem;
@@ -91,6 +92,22 @@ export default function ActivityCard({
         <span className="text-gray-300">•</span>
         <span className="truncate">{scopeText}</span>
       </div>
+
+      {/* Outcome badge — shows what happened when the activity was completed */}
+      {activity.outcomeType && OUTCOME_CONFIGS[activity.outcomeType as OutcomeType] && (
+        <div className="mb-3">
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+            style={{
+              backgroundColor: OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].bgColor,
+              color: OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].color,
+            }}
+          >
+            {OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].icon}{" "}
+            {OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].label}
+          </span>
+        </div>
+      )}
 
       {/* Plan count indicator */}
       {activity.planCount > 1 && (
