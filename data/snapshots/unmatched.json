@@ -322,7 +322,7 @@
   {
     "account_id": "17592297177419",
     "account_name": "Goshen Central School District",
-    "state": "NEW YORK",
+    "state": null,
     "sales_exec": "Kris Tedesco",
     "total_revenue": 29566,
     "opportunity_count": 2
