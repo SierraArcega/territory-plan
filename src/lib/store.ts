@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // Navigation tab types - these match the sidebar tabs
-export type TabId = "map" | "plans" | "activities" | "tasks" | "goals" | "data" | "profile";
+export type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "data" | "profile";
 
 export type StatusFilter = "all" | "customer" | "pipeline" | "customer_pipeline" | "no_data";
 export type MetricType =
@@ -152,7 +152,7 @@ export const useMapStore = create<MapState & MapActions>()(
   persist(
     (set) => ({
       // Navigation state
-      activeTab: "map" as TabId,
+      activeTab: "home" as TabId,
       sidebarCollapsed: false,
       // Map state
       selectedLeaid: null,
