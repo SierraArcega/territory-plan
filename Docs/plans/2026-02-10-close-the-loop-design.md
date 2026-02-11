@@ -1,5 +1,7 @@
 # Close the Loop — Design Document
 
+> **Status: Implemented** — All three phases shipped on the `feature/close-the-loop` branch (February 2026). See the [implementation plan](./2026-02-10-close-the-loop-implementation.md) for step-by-step details.
+
 ## Problem
 
 Territory plans are created but become static documents. Activities happen in the real world (meetings, calls, events) but reps don't log them, so plans look empty even when work is being done. There's no connection between "I did these things" and "I'm making progress toward my goals." The full feedback loop is broken: hard to input → no visibility → plans feel stale → less motivation to input.

@@ -69,6 +69,21 @@ districts                    — Core district data (~13,000 records)
 territory_plans             — Saved territory plans
 └── territory_plan_districts — Districts in each plan
 
+activities                  — Sales activities (meetings, outreach, events)
+├── activity_plans          — Activity-to-plan links
+├── activity_districts      — Activity-to-district links
+├── activity_contacts       — Activity-to-contact links
+└── activity_states         — Activity-to-state links
+
+tasks                       — Follow-up tasks (kanban board)
+├── task_plans              — Task-to-plan links
+├── task_districts          — Task-to-district links
+├── task_activities         — Task-to-activity links
+└── task_contacts           — Task-to-contact links
+
+calendar_connections        — Google Calendar OAuth tokens per user
+calendar_events             — Staged calendar events (inbox before confirmation)
+
 tags                        — Tag definitions (name, color)
 unmatched_accounts          — Accounts without district match
 data_refresh_logs           — ETL audit trail
@@ -111,6 +126,17 @@ Used for:
 - Metrics over time
 - Pipeline summary visualizations
 
+## External Integrations
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **googleapis** | latest | Google Calendar API client for two-way calendar sync |
+
+Used for:
+- Pulling calendar events for the Calendar Inbox
+- Pushing activities back to Google Calendar
+- OAuth token management for calendar read/write access
+
 ## API Layer
 
 ### Route Structure (`src/app/api/`)
@@ -133,6 +159,19 @@ Used for:
 /api/contacts               — Contact management
 /api/unmatched              — Unmatched accounts
 /api/customer-dots          — Customer location markers
+
+/api/calendar/connect       — Initiate Google Calendar OAuth
+/api/calendar/callback      — Handle OAuth callback
+/api/calendar/disconnect    — Remove calendar connection
+/api/calendar/status        — Check connection status + settings
+/api/calendar/sync          — Trigger calendar sync
+/api/calendar/events        — List staged calendar events (inbox)
+/api/calendar/events/[id]   — Confirm/dismiss a calendar event
+/api/calendar/events/batch-confirm — Bulk-confirm high-confidence events
+
+/api/progress/activities    — Activity metrics (counts, trends, coverage)
+/api/progress/outcomes      — Outcome metrics (funnel, distribution)
+/api/progress/plans         — Plan engagement metrics
 ```
 
 ## Testing
@@ -183,13 +222,25 @@ territory-plan/
 │   │   ├── map/           — MapContainer, Legend, Controls, Tooltip
 │   │   ├── panel/         — SidePanel, district info sections
 │   │   ├── filters/       — FilterBar, SearchBox
-│   │   └── plans/         — Plan cards, modals, tables
+│   │   ├── plans/         — Plan cards, modals, tables
+│   │   ├── activities/    — ActivityFormModal, CalendarView, OutcomePopover
+│   │   ├── calendar/      — CalendarInbox, CalendarEventCard, CalendarSyncBadge
+│   │   ├── progress/      — LeadingIndicatorsPanel, LaggingIndicatorsPanel, FunnelChart
+│   │   ├── tasks/         — TaskDetailModal, TaskBoard
+│   │   ├── goals/         — GoalEditorModal, ProgressCard
+│   │   └── common/        — InlineEditCell, ViewToggle
 │   ├── lib/
 │   │   ├── store.ts       — Zustand store
-│   │   ├── api.ts         — API client functions
+│   │   ├── api.ts         — API client functions + React Query hooks
 │   │   ├── prisma.ts      — Prisma client singleton
 │   │   ├── db.ts          — pg Pool singleton
-│   │   └── autoTags.ts    — Auto-tagging logic
+│   │   ├── autoTags.ts    — Auto-tagging logic
+│   │   ├── google-calendar.ts — Google Calendar API client
+│   │   ├── calendar-sync.ts   — Sync engine with smart matching
+│   │   ├── calendar-push.ts   — Push activities to Google Calendar
+│   │   ├── activityTypes.ts   — Activity type/category definitions
+│   │   ├── outcomeTypes.ts    — Outcome type definitions and configs
+│   │   └── taskTypes.ts       — Task status/priority definitions
 │   ├── hooks/
 │   │   └── useIsTouchDevice.ts
 │   └── test/
@@ -222,6 +273,11 @@ npm test         # Run tests
 
 ```bash
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
+
+# Google Calendar integration (required for calendar sync)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3005/api/calendar/callback
 ```
 
 ## Performance Considerations
