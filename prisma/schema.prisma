@@ -361,6 +361,17 @@ model Activity {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
+  // ===== Calendar Sync Fields =====
+  // Links activity to a Google Calendar event for two-way sync
+  googleEventId String? @unique @map("google_event_id")
+  // Tracks whether this activity was created manually or pulled from calendar
+  source        String  @default("manual") @db.VarChar(20) // manual, calendar_sync
+
+  // ===== Outcome Tracking =====
+  // Captures what resulted from the activity (set on completion)
+  outcome     String? @db.VarChar(500) // free-text outcome note
+  outcomeType String? @map("outcome_type") @db.VarChar(30) // positive_progress, neutral, negative, follow_up_needed, etc.
+
   // Relations (all many-to-many via junction tables)
   plans     ActivityPlan[]
   districts ActivityDistrict[]
@@ -433,7 +444,9 @@ model UserProfile {
   lastLoginAt       DateTime? @map("last_login_at")
 
   // Relation to user's fiscal year goals
-  goals UserGoal[]
+  goals              UserGoal[]
+  // Relation to Google Calendar connection (one per user)
+  calendarConnection CalendarConnection?
 
   @@map("user_profiles")
 }
@@ -562,4 +575,64 @@ model TaskContact {
   @@id([taskId, contactId])
   @@index([contactId])
   @@map("task_contacts")
+}
+
+// ===== Google Calendar Integration =====
+// Stores OAuth tokens for a user's Google Calendar connection
+// One connection per user — enables two-way sync between activities and calendar events
+
+model CalendarConnection {
+  id                 String    @id @default(uuid())
+  userId             String    @unique @map("user_id") @db.Uuid
+  googleAccountEmail String    @map("google_account_email") @db.VarChar(255)
+  accessToken        String    @map("access_token") // encrypted at rest
+  refreshToken       String    @map("refresh_token") // encrypted at rest
+  tokenExpiresAt     DateTime  @map("token_expires_at")
+  companyDomain      String    @map("company_domain") @db.VarChar(100) // e.g. "fullmindlearning.com" — filters internal attendees
+  syncEnabled        Boolean   @default(true) @map("sync_enabled")
+  lastSyncAt         DateTime? @map("last_sync_at")
+  status             String    @default("connected") @db.VarChar(20) // connected, disconnected, error
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user   UserProfile     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events CalendarEvent[]
+
+  @@map("calendar_connections")
+}
+
+// ===== Calendar Event Staging =====
+// Incoming Google Calendar events land here for rep review before becoming Activities
+// Smart matching suggests district/contact/plan associations based on attendee emails
+
+model CalendarEvent {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id") @db.Uuid
+  connectionId          String   @map("connection_id")
+  googleEventId         String   @map("google_event_id")
+  title                 String   @db.VarChar(500)
+  description           String?
+  startTime             DateTime @map("start_time")
+  endTime               DateTime @map("end_time")
+  location              String?  @db.VarChar(500)
+  attendees             Json     @default("[]") // [{email, name, responseStatus}]
+  status                String   @default("pending") @db.VarChar(20) // pending, confirmed, dismissed, cancelled
+  suggestedActivityType String?  @map("suggested_activity_type") @db.VarChar(30)
+  suggestedDistrictId   String?  @map("suggested_district_id") @db.VarChar(7)
+  suggestedContactIds   Json?    @map("suggested_contact_ids") // [contactId, ...]
+  suggestedPlanId       String?  @map("suggested_plan_id")
+  matchConfidence       String   @default("none") @db.VarChar(10) // high, medium, low, none
+  activityId            String?  @map("activity_id") // populated when rep confirms → Activity created
+  lastSyncedAt          DateTime @map("last_synced_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, googleEventId])
+  @@index([userId, status])
+  @@index([activityId])
+  @@map("calendar_events")
 }
