@@ -101,6 +101,8 @@ export async function GET(request: NextRequest) {
           startDate: true,
           endDate: true,
           status: true,
+          source: true,
+          outcomeType: true,
           // Only fetch the IDs and flags we need for list view, not full related objects
           plans: {
             select: { planId: true },
@@ -171,6 +173,8 @@ export async function GET(request: NextRequest) {
           startDate: activity.startDate?.toISOString() ?? null,
           endDate: activity.endDate?.toISOString() ?? null,
           status: activity.status,
+          source: activity.source || "manual",
+          outcomeType: activity.outcomeType,
           needsPlanAssociation: needsPlan,
           hasUnlinkedDistricts: hasUnlinked,
           planCount: activity.plans.length,

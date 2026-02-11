@@ -3,8 +3,10 @@
 // ActivitiesTable - Table view for activities with inline editing.
 // Displays all activities in a tabular format with columns for icon, title,
 // type, status, dates, scope, and actions.
+// When status changes to "completed", an OutcomePopover appears so the
+// rep can tag what resulted from the activity (e.g. "Moved Forward", "Got Reply").
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   useUpdateActivity,
   type ActivityListItem,
@@ -18,7 +20,9 @@ import {
   type ActivityType,
   type ActivityStatus,
 } from "@/lib/activityTypes";
+import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
 import InlineEditCell from "@/components/common/InlineEditCell";
+import OutcomePopover from "@/components/activities/OutcomePopover";
 
 interface ActivitiesTableProps {
   activities: ActivityListItem[];
@@ -103,10 +107,14 @@ export default function ActivitiesTable({
   isDeleting = false,
 }: ActivitiesTableProps) {
   const [activityToDelete, setActivityToDelete] = useState<ActivityListItem | null>(null);
+  // Track which activity just got marked "completed" so we can show the outcome popover
+  const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
+  // Refs map: activity ID -> status cell element, used to anchor the popover
+  const statusCellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
 
   const updateActivity = useUpdateActivity();
 
-  // Handle inline field updates
+  // Handle inline field updates — intercepts status → "completed" to show outcome popover
   const handleFieldUpdate = async (
     activityId: string,
     field: string,
@@ -116,7 +124,29 @@ export default function ActivitiesTable({
       activityId,
       [field]: value,
     });
+
+    // If the status was just changed to "completed", trigger the outcome popover
+    if (field === "status" && value === "completed") {
+      const activity = activities.find((a) => a.id === activityId);
+      if (activity && !activity.outcomeType) {
+        setOutcomeActivity({ ...activity, status: "completed" as ActivityStatus });
+      }
+    }
   };
+
+  const getStatusCellRef = useCallback(
+    (id: string) => (el: HTMLTableCellElement | null) => {
+      if (el) statusCellRefs.current.set(id, el);
+      else statusCellRefs.current.delete(id);
+    },
+    []
+  );
+
+  // Build a ref object pointing to the status cell of the outcome-target activity
+  const outcomeAnchorRef = useRef<HTMLElement | null>(null);
+  if (outcomeActivity) {
+    outcomeAnchorRef.current = statusCellRefs.current.get(outcomeActivity.id) || null;
+  }
 
   // Handle delete confirmation
   const handleDeleteConfirm = () => {
@@ -222,15 +252,31 @@ export default function ActivitiesTable({
                     />
                   </td>
 
-                  {/* Status (editable select — plain text, no badge) */}
-                  <td className="px-2 py-1">
-                    <InlineEditCell
-                      type="select"
-                      value={activity.status}
-                      onSave={async (value) => handleFieldUpdate(activity.id, "status", value)}
-                      options={STATUS_OPTIONS}
-                      className="text-xs text-gray-600"
-                    />
+                  {/* Status (editable select) + outcome badge if tagged */}
+                  <td className="px-2 py-1" ref={getStatusCellRef(activity.id)}>
+                    <div className="flex items-center gap-1.5">
+                      <InlineEditCell
+                        type="select"
+                        value={activity.status}
+                        onSave={async (value) => handleFieldUpdate(activity.id, "status", value)}
+                        options={STATUS_OPTIONS}
+                        className="text-xs text-gray-600"
+                      />
+                      {/* Show outcome badge if activity has been tagged */}
+                      {activity.outcomeType && OUTCOME_CONFIGS[activity.outcomeType as OutcomeType] && (
+                        <span
+                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap"
+                          style={{
+                            backgroundColor: OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].bgColor,
+                            color: OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].color,
+                          }}
+                          title={OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].description}
+                        >
+                          {OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].icon}{" "}
+                          {OUTCOME_CONFIGS[activity.outcomeType as OutcomeType].label}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Date (editable) */}
@@ -310,6 +356,15 @@ export default function ActivitiesTable({
           onConfirm={handleDeleteConfirm}
           onCancel={() => setActivityToDelete(null)}
           isDeleting={isDeleting}
+        />
+      )}
+
+      {/* Outcome Popover — appears after marking an activity "completed" */}
+      {outcomeActivity && (
+        <OutcomePopover
+          activity={outcomeActivity}
+          anchorRef={outcomeAnchorRef}
+          onClose={() => setOutcomeActivity(null)}
         />
       )}
     </div>

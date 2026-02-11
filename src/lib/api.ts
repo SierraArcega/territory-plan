@@ -1065,6 +1065,8 @@ export function useUpdateActivity() {
       endDate?: string | null;
       status?: ActivityStatus;
       notes?: string | null;
+      outcome?: string | null;
+      outcomeType?: string | null;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",
