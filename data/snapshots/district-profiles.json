@@ -39944,7 +39944,7 @@
     },
     "sessions": {
       "count": 359,
-      "revenue": 13078.330165863037,
+      "revenue": 13022.210166931152,
       "schools_in_sessions": [
         "Goshen Central High School"
       ]
@@ -39954,7 +39954,7 @@
     },
     "totals": {
       "entity_count": 383,
-      "total_revenue": 42644.33016586304
+      "total_revenue": 42588.21016693115
     },
     "data_quality": {
       "has_nces": false,
