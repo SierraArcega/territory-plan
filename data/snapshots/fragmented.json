@@ -187,6 +187,24 @@
     "similarity_score": 0.5
   },
   {
+    "nces_id": "17592250100173 ",
+    "district_name": "Invent Learning Hub",
+    "state": "IN",
+    "account_variants": [
+      {
+        "name": "Invent Learning Hub",
+        "source": "districts",
+        "count": 1
+      },
+      {
+        "name": "Invent Learning Hub (District)",
+        "source": "opportunities",
+        "count": 2
+      }
+    ],
+    "similarity_score": 0.5
+  },
+  {
     "nces_id": "3623580",
     "district_name": "Port Washington School District",
     "state": "NY",
