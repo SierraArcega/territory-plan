@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useUpdateActivity, type ActivityListItem } from "@/lib/api";
+import { useUpdateActivity, useCreateTask, type ActivityListItem } from "@/lib/api";
 import { getCategoryForType, type ActivityType } from "@/lib/activityTypes";
 import {
   OUTCOMES_BY_CATEGORY,
@@ -31,6 +31,7 @@ export default function OutcomePopover({
   const [showNote, setShowNote] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const updateActivity = useUpdateActivity();
+  const createTask = useCreateTask();
 
   const category = getCategoryForType(activity.type as ActivityType);
   const outcomes = OUTCOMES_BY_CATEGORY[category];
@@ -92,11 +93,36 @@ export default function OutcomePopover({
   const handleSave = async () => {
     if (!selectedOutcome) return;
 
+    const config = OUTCOME_CONFIGS[selectedOutcome];
+
+    // Save the outcome to the activity
     await updateActivity.mutateAsync({
       activityId: activity.id,
       outcomeType: selectedOutcome,
       outcome: note.trim() || null,
     });
+
+    // If this outcome type triggers auto-task creation, create a linked task.
+    // "follow_up" → high priority, due in 3 days
+    // "prep" → medium priority, due in 7 days
+    if (config.autoTask) {
+      const isFollowUp = config.autoTask === "follow_up";
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + (isFollowUp ? 3 : 7));
+
+      createTask.mutate({
+        title: isFollowUp
+          ? `Follow up: ${activity.title}`
+          : `Prep for meeting: ${activity.title}`,
+        description: note.trim()
+          ? `Auto-created from outcome "${config.label}" — ${note.trim()}`
+          : `Auto-created from outcome "${config.label}" on activity "${activity.title}"`,
+        priority: isFollowUp ? "high" : "medium",
+        dueDate: dueDate.toISOString(),
+        activityIds: [activity.id],
+      });
+    }
+
     onClose();
   };
 
@@ -184,10 +210,10 @@ export default function OutcomePopover({
             </button>
             <button
               onClick={handleSave}
-              disabled={!selectedOutcome || updateActivity.isPending}
+              disabled={!selectedOutcome || updateActivity.isPending || createTask.isPending}
               className="px-4 py-1.5 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {updateActivity.isPending ? "Saving..." : "Save"}
+              {updateActivity.isPending || createTask.isPending ? "Saving..." : "Save"}
             </button>
           </div>
 
