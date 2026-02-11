@@ -22,6 +22,7 @@ import {
   ACTIVITY_STATUS_CONFIG,
   type ActivityType,
 } from "@/lib/activityTypes";
+import CalendarInboxWidget from "@/components/calendar/CalendarInboxWidget";
 
 // ============================================================================
 // Helpers
@@ -636,6 +637,11 @@ export default function HomeView() {
               )}
             </div>
           </div>
+
+          {/* ============================================================ */}
+          {/* 2.5 Calendar Inbox Widget                                    */}
+          {/* ============================================================ */}
+          <CalendarInboxWidget onNavigateToActivities={() => setActiveTab("activities")} />
 
           {/* ============================================================ */}
           {/* 3. Activities Calendar (BOTTOM)                              */}
