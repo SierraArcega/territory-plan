@@ -23,6 +23,8 @@ import {
   type ActivityType,
 } from "@/lib/activityTypes";
 import CalendarInboxWidget from "@/components/calendar/CalendarInboxWidget";
+import LeadingIndicatorsPanel from "@/components/progress/LeadingIndicatorsPanel";
+import LaggingIndicatorsPanel from "@/components/progress/LaggingIndicatorsPanel";
 
 // ============================================================================
 // Helpers
@@ -642,6 +644,14 @@ export default function HomeView() {
           {/* 2.5 Calendar Inbox Widget                                    */}
           {/* ============================================================ */}
           <CalendarInboxWidget onNavigateToActivities={() => setActiveTab("activities")} />
+
+          {/* ============================================================ */}
+          {/* 2.7 Progress Panels — Leading & Lagging Indicators           */}
+          {/* ============================================================ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <LeadingIndicatorsPanel />
+            <LaggingIndicatorsPanel />
+          </div>
 
           {/* ============================================================ */}
           {/* 3. Activities Calendar (BOTTOM)                              */}
