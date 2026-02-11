@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "map" | "plans" | "activities" | "tasks" | "goals" | "data" | "profile";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "data" | "profile";
 
 interface Tab {
   id: TabId;
@@ -57,13 +57,13 @@ const TasksIcon = () => (
   </svg>
 );
 
-const GoalsIcon = () => (
+const HomeIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M13 10V3L4 14h7v7l9-11h-7z"
+      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"
     />
   </svg>
 );
@@ -105,11 +105,11 @@ const ChevronRight = () => (
 
 // Main navigation tabs (top section of sidebar)
 const MAIN_TABS: Tab[] = [
+  { id: "home", label: "Home", icon: <HomeIcon /> },
   { id: "map", label: "Map", icon: <MapIcon /> },
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
-  { id: "goals", label: "Goals", icon: <GoalsIcon /> },
   { id: "data", label: "Data", icon: <DataIcon /> },
 ];
 

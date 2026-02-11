@@ -8,12 +8,12 @@ import MapView from "@/components/views/MapView";
 import PlansView from "@/components/views/PlansView";
 import ActivitiesView from "@/components/views/ActivitiesView";
 import TasksView from "@/components/views/TasksView";
-import GoalsView from "@/components/views/GoalsView";
+import HomeView from "@/components/views/HomeView";
 import DataView from "@/components/views/DataView";
 import ProfileView from "@/components/views/ProfileView";
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["map", "plans", "activities", "tasks", "goals", "data", "profile"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "data", "profile"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -23,10 +23,10 @@ function isValidTab(tab: string | null): tab is TabId {
  * Main app page - renders the AppShell with sidebar navigation.
  *
  * URL structure:
- * - /?tab=map (default)
+ * - / or /?tab=home (default)
+ * - /?tab=map
  * - /?tab=plans
  * - /?tab=plans&plan=<planId>
- * - /?tab=goals
  * - /?tab=data
  * - /?tab=profile
  *
@@ -93,8 +93,8 @@ function HomeContent() {
     // Build new URL params
     const params = new URLSearchParams();
 
-    // Only add tab param if not "map" (default)
-    if (activeTab !== "map") {
+    // Only add tab param if not "home" (default)
+    if (activeTab !== "home") {
       params.set("tab", activeTab);
     }
 
@@ -137,14 +137,14 @@ function HomeContent() {
         return <ActivitiesView />;
       case "tasks":
         return <TasksView />;
-      case "goals":
-        return <GoalsView />;
+      case "home":
+        return <HomeView />;
       case "data":
         return <DataView />;
       case "profile":
         return <ProfileView />;
       default:
-        return <MapView />;
+        return <HomeView />;
     }
   };
 
