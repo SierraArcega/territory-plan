@@ -146,14 +146,18 @@ function TaskCheckbox({
 type TaskTab = "upcoming" | "overdue" | "completed";
 const MAX_VISIBLE_TASKS = 7;
 const MAX_VISIBLE_PLANS = 7;
+const FISCAL_YEARS = [2025, 2026, 2027, 2028, 2029];
 
 export default function HomeView() {
   const currentFiscalYear = getDefaultFiscalYear();
   const today = getToday();
 
+  // Goals fiscal year selection
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
+
   // Data fetching
   const { data: profile } = useProfile();
-  const { data: dashboard } = useGoalDashboard(currentFiscalYear);
+  const { data: dashboard } = useGoalDashboard(selectedFiscalYear);
   const { data: plans } = useTerritoryPlans();
   const { data: allTasksData } = useTasks({});
   const { data: activitiesData } = useActivities({ startDateFrom: today, startDateTo: today });
@@ -477,10 +481,29 @@ export default function HomeView() {
           {/* Goal Progress with Donut Charts                              */}
           {/* ============================================================ */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-5 flex items-center justify-between border-b border-gray-50">
-              <h2 className="text-base font-semibold text-[#403770]">
-                FY{String(currentFiscalYear).slice(-2)} Goals
-              </h2>
+            <div className="px-6 pt-5 pb-0 flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-[#403770] mb-3">Goals</h2>
+                {/* Fiscal year tabs */}
+                <div className="flex gap-1 border-b border-gray-100">
+                  {FISCAL_YEARS.map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => setSelectedFiscalYear(year)}
+                      className={`px-3 py-2 text-sm font-medium transition-colors relative ${
+                        selectedFiscalYear === year
+                          ? "text-[#403770]"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      FY{String(year).slice(-2)}
+                      {selectedFiscalYear === year && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#403770]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 onClick={() => setShowGoalEditor(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#F37167] hover:bg-[#e0605a] rounded-lg transition-colors"
@@ -542,7 +565,7 @@ export default function HomeView() {
                   />
                 </svg>
                 <p className="text-[#403770] font-medium mb-1">
-                  Track your FY{String(currentFiscalYear).slice(-2)} progress
+                  Track your FY{String(selectedFiscalYear).slice(-2)} progress
                 </p>
                 <p className="text-sm text-gray-400 mb-4">Set your goals to see charts here</p>
                 <button
@@ -582,7 +605,7 @@ export default function HomeView() {
       <GoalEditorModal
         isOpen={showGoalEditor}
         onClose={() => setShowGoalEditor(false)}
-        fiscalYear={currentFiscalYear}
+        fiscalYear={selectedFiscalYear}
         currentGoals={dashboard?.goals || null}
       />
     </div>
