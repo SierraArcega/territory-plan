@@ -205,37 +205,37 @@ function MiniCalendar({
   return (
     <div>
       {/* Month nav */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => onMonthChange(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-[#403770] transition-colors"
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#403770] transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <span className="text-sm font-semibold text-[#403770]">
+        <span className="text-base font-semibold text-[#403770]">
           {currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
         </span>
         <button
           onClick={() => onMonthChange(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-[#403770] transition-colors"
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[#403770] transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 mb-1">
+      <div className="grid grid-cols-7 mb-2">
         {WEEKDAY_LABELS.map((d) => (
-          <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+          <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1.5">{d}</div>
         ))}
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 gap-y-1">
         {weeks.map((week, wi) =>
           week.map((day, di) => {
             const inMonth = day.getMonth() === currentMonth.getMonth();
@@ -249,19 +249,19 @@ function MiniCalendar({
                 key={`${wi}-${di}`}
                 onClick={() => onSelectDate(day)}
                 className={`
-                  relative flex flex-col items-center justify-center py-1.5 text-xs rounded-lg transition-colors
+                  relative flex flex-col items-center justify-center py-2.5 text-sm rounded-lg transition-colors
                   ${!inMonth ? "text-gray-300" : "text-[#403770]"}
                   ${isSelected ? "bg-[#403770] text-white" : "hover:bg-gray-50"}
-                  ${isToday && !isSelected ? "font-bold" : ""}
+                  ${isToday && !isSelected ? "font-bold ring-1 ring-[#F37167]/40 ring-inset" : ""}
                 `}
               >
                 <span>{day.getDate()}</span>
                 {dotCount > 0 && (
-                  <div className="flex gap-0.5 mt-0.5">
+                  <div className="flex gap-0.5 mt-1">
                     {Array.from({ length: Math.min(dotCount, 3) }).map((_, i) => (
                       <span
                         key={i}
-                        className={`w-1 h-1 rounded-full ${isSelected ? "bg-white/70" : "bg-[#F37167]"}`}
+                        className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white/70" : "bg-[#F37167]"}`}
                       />
                     ))}
                   </div>
@@ -652,10 +652,10 @@ export default function HomeView() {
             </div>
 
             <div className="px-6 pb-6">
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-                {/* Mini calendar (left, 2 cols) */}
-                <div className="lg:col-span-2">
+                {/* Mini calendar (left) */}
+                <div>
                   <MiniCalendar
                     activities={calActivities}
                     selectedDate={calSelectedDate}
@@ -665,8 +665,8 @@ export default function HomeView() {
                   />
                 </div>
 
-                {/* Selected day activity list (right, 3 cols) */}
-                <div className="lg:col-span-3">
+                {/* Selected day activity list (right) */}
+                <div>
                   <p className="text-sm font-medium text-[#403770] mb-3">
                     {calSelectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                   </p>
