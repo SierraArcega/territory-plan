@@ -90,6 +90,10 @@ export async function GET(
       startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
+      googleEventId: activity.googleEventId,
+      source: activity.source || "manual",
+      outcome: activity.outcome,
+      outcomeType: activity.outcomeType,
       createdByUserId: activity.createdByUserId,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
@@ -149,7 +153,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { type, title, notes, startDate, endDate, status } = body;
+    const { type, title, notes, startDate, endDate, status, outcome, outcomeType } = body;
 
     // Validate type if provided
     if (type && !ALL_ACTIVITY_TYPES.includes(type)) {
@@ -201,6 +205,8 @@ export async function PATCH(
           endDate: endDate ? new Date(endDate) : null,
         }),
         ...(status && { status }),
+        ...(outcome !== undefined && { outcome: outcome?.trim() || null }),
+        ...(outcomeType !== undefined && { outcomeType: outcomeType || null }),
       },
     });
 
