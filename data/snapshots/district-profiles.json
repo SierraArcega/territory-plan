@@ -39943,8 +39943,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 350,
-      "revenue": 13000.30016708374,
+      "count": 359,
+      "revenue": 13078.330165863037,
       "schools_in_sessions": [
         "Goshen Central High School"
       ]
@@ -39953,8 +39953,8 @@
       "count": 18
     },
     "totals": {
-      "entity_count": 374,
-      "total_revenue": 42566.30016708374
+      "entity_count": 383,
+      "total_revenue": 42644.33016586304
     },
     "data_quality": {
       "has_nces": false,
