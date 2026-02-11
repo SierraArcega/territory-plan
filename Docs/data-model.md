@@ -312,6 +312,92 @@ const planDistricts = await prisma.territoryPlanDistrict.findMany({
 
 ---
 
+### `activities` - Sales Activities
+
+Meetings, outreach, and events that reps perform as part of their territory plans.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `type` | VARCHAR(50) | Activity type (e.g., discovery_call, demo, conference) |
+| `title` | VARCHAR(255) | Activity title |
+| `notes` | TEXT | Free-form notes |
+| `start_date` | TIMESTAMP | When the activity starts |
+| `end_date` | TIMESTAMP | When the activity ends |
+| `status` | VARCHAR(20) | planned, completed, cancelled |
+| `source` | VARCHAR(20) | manual or calendar_sync |
+| `outcome` | TEXT | Free-text note about what happened |
+| `outcome_type` | VARCHAR(50) | Structured outcome (e.g., positive_progress, meeting_booked) |
+| `google_event_id` | VARCHAR(255) | Linked Google Calendar event ID (unique, nullable) |
+| `created_by_user_id` | UUID | Supabase user ID |
+
+**Junction tables:** `activity_plans`, `activity_districts`, `activity_contacts`, `activity_states`
+
+---
+
+### `tasks` - Follow-Up Tasks
+
+Kanban-style tasks linked to activities, plans, districts, and contacts.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `title` | VARCHAR(255) | Task title |
+| `description` | TEXT | Task description |
+| `status` | VARCHAR(20) | todo, in_progress, blocked, done |
+| `priority` | VARCHAR(10) | low, medium, high, urgent |
+| `due_date` | TIMESTAMP | When the task is due |
+| `position` | INT | Ordering within kanban column |
+| `created_by_user_id` | UUID | Supabase user ID |
+
+**Junction tables:** `task_plans`, `task_districts`, `task_activities`, `task_contacts`
+
+---
+
+### `calendar_connections` - Google Calendar OAuth
+
+Stores OAuth tokens for Google Calendar integration. One connection per user.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | CUID | Primary key |
+| `user_id` | UUID | FK to user_profiles (unique) |
+| `google_account_email` | VARCHAR(255) | Connected Google account |
+| `access_token` | TEXT | OAuth access token |
+| `refresh_token` | TEXT | OAuth refresh token |
+| `token_expires_at` | TIMESTAMP | Token expiration |
+| `company_domain` | VARCHAR(255) | e.g., "fullmindlearning.com" — filters internal attendees |
+| `sync_enabled` | BOOLEAN | Toggle sync on/off |
+| `last_sync_at` | TIMESTAMP | Last successful sync |
+| `status` | VARCHAR(20) | connected, disconnected, error |
+
+---
+
+### `calendar_events` - Staged Calendar Events (Inbox)
+
+Events pulled from Google Calendar that haven't been confirmed as Activities yet.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | CUID | Primary key |
+| `user_id` | UUID | FK to user_profiles |
+| `google_event_id` | VARCHAR(255) | Google's event ID (unique per user) |
+| `title` | VARCHAR(500) | Event title from Google |
+| `description` | TEXT | Event description |
+| `start_time` | TIMESTAMP | Event start |
+| `end_time` | TIMESTAMP | Event end |
+| `location` | TEXT | Event location |
+| `attendees` | JSON | Array of {email, displayName, responseStatus, self} |
+| `status` | VARCHAR(20) | pending, confirmed, dismissed |
+| `suggested_activity_type` | VARCHAR(50) | Auto-detected type |
+| `suggested_district_leaid` | VARCHAR(7) | Best-match district |
+| `suggested_contact_ids` | JSON | Matched contact IDs |
+| `suggested_plan_id` | UUID | Best-match plan |
+| `match_confidence` | VARCHAR(10) | high, medium, low, none |
+| `activity_id` | UUID | FK to activities (populated on confirm) |
+
+---
+
 ## Schema Evolution Notes
 
 **January 2026:** Consolidated schema migration
@@ -319,3 +405,10 @@ const planDistricts = await prisma.territoryPlanDistrict.findMany({
 - Simplifies queries (no JOINs needed for district data)
 - All data for a district is now in a single row
 - Notes are now shared across all users (previously per-user isolation)
+
+**February 2026:** Close the Loop feature set
+- Added `activities` table with junction tables for plans, districts, contacts, and states
+- Added `tasks` table with junction tables for plans, districts, activities, and contacts
+- Added `calendar_connections` and `calendar_events` tables for Google Calendar sync
+- Added outcome tracking fields (`outcome`, `outcome_type`) and calendar sync fields (`google_event_id`, `source`) to activities
+- Added `user_profiles` and `user_goals` tables for user settings and fiscal year targets

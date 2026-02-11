@@ -8,6 +8,9 @@ Set these in the Vercel dashboard (Settings → Environment Variables):
 |----------|-------|---------|
 | `USE_STATIC_DATA` | `true` | Serve snapshot JSON instead of proxying to FastAPI/OpenSearch |
 | `DATABASE_URL` | `postgresql://...` | Prisma/Supabase connection for NCES lookups |
+| `GOOGLE_CLIENT_ID` | `your-google-client-id` | Google OAuth client ID (for Calendar sync) |
+| `GOOGLE_CLIENT_SECRET` | `your-google-client-secret` | Google OAuth client secret |
+| `GOOGLE_REDIRECT_URI` | `https://your-domain/api/calendar/callback` | Google OAuth redirect URI |
 
 ## Refresh Data
 

@@ -1,5 +1,7 @@
 # Close the Loop — Implementation Plan
 
+> **Status: Complete** — All steps implemented and committed on `feature/close-the-loop`.
+
 ## Branch
 
 `feature/close-the-loop` (created from `main`)
