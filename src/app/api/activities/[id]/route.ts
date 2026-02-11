@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getCategoryForType, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityType } from "@/lib/activityTypes";
+import { updateActivityOnCalendar, deleteActivityFromCalendar } from "@/lib/calendar-push";
 
 export const dynamic = "force-dynamic";
 
@@ -203,6 +204,10 @@ export async function PATCH(
       },
     });
 
+    // Push changes to Google Calendar if the activity has a linked event
+    // Best-effort — doesn't block the response
+    updateActivityOnCalendar(user.id, activity.id);
+
     return NextResponse.json({
       id: activity.id,
       type: activity.type,
@@ -245,6 +250,11 @@ export async function DELETE(
     }
 
     await prisma.activity.delete({ where: { id } });
+
+    // Remove the corresponding Google Calendar event if one exists
+    if (activity.googleEventId) {
+      deleteActivityFromCalendar(user.id, id, activity.googleEventId);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
