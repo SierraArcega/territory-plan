@@ -1958,8 +1958,8 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 3080,
-      "revenue": 74829,
+      "count": 3087,
+      "revenue": 75711,
       "schools_in_sessions": [
         "Academy of God",
         "F.H Jenkins Elementary",
@@ -1970,8 +1970,8 @@
       "count": 69
     },
     "totals": {
-      "entity_count": 3325,
-      "total_revenue": 557649.06640625
+      "entity_count": 3332,
+      "total_revenue": 558531.06640625
     },
     "data_quality": {
       "has_nces": true,
@@ -39828,100 +39828,6 @@
     }
   },
   {
-    "district_id": "17592297177419",
-    "district_name": "Goshen Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 2,
-      "revenue": 29566,
-      "account_names_used": [
-        "Goshen Central School District"
-      ]
-    },
-    "schools": {
-      "count": 4,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 350,
-      "revenue": 13800.230167388916,
-      "schools_in_sessions": [
-        "Goshen Central High School"
-      ]
-    },
-    "courses": {
-      "count": 18
-    },
-    "totals": {
-      "entity_count": 374,
-      "total_revenue": 43366.230167388916
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592293911970",
-    "district_name": "Goshen Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 2,
-      "revenue": 29132.01953125,
-      "account_names_used": [
-        "Goshen Central School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 29132.01953125
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592188519013",
     "district_name": "Levittown School District",
     "state": "NY",
@@ -40009,6 +39915,100 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297177419",
+    "district_name": "Goshen Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 2,
+      "revenue": 29566,
+      "account_names_used": [
+        "Goshen Central School District"
+      ]
+    },
+    "schools": {
+      "count": 4,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 350,
+      "revenue": 13000.30016708374,
+      "schools_in_sessions": [
+        "Goshen Central High School"
+      ]
+    },
+    "courses": {
+      "count": 18
+    },
+    "totals": {
+      "entity_count": 374,
+      "total_revenue": 42566.30016708374
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592293911970",
+    "district_name": "Goshen Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 2,
+      "revenue": 29132.01953125,
+      "account_names_used": [
+        "Goshen Central School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 29132.01953125
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
       "has_sessions": false
     }
   },
