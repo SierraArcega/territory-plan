@@ -25,6 +25,7 @@ import ActivityFormModal from "@/components/activities/ActivityFormModal";
 import EditActivityFormModal, { type ActivityFormData } from "@/components/plans/ActivityFormModal";
 import ActivitiesTable from "@/components/plans/ActivitiesTable";
 import CalendarView from "@/components/activities/CalendarView";
+import CalendarInbox from "@/components/calendar/CalendarInbox";
 
 type CategoryTab = "all" | ActivityCategory;
 type ViewMode = "table" | "calendar";
@@ -182,6 +183,9 @@ export default function ActivitiesView() {
         </>
       ) : (
         <main className="max-w-6xl mx-auto px-6 py-6">
+          {/* Calendar Inbox — shows pending synced events at the top */}
+          <CalendarInbox />
+
           {/* Toolbar */}
           <div className="flex items-center flex-wrap gap-2 mb-3">
             {/* Category dropdown */}
