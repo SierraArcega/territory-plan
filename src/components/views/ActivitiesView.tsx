@@ -12,6 +12,7 @@ import {
   useActivities,
   useUpdateActivity,
   useDeleteActivity,
+  useActivityMetrics,
   type ActivityListItem,
 } from "@/lib/api";
 import {
@@ -81,6 +82,9 @@ export default function ActivitiesView() {
 
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
+
+  // Activity metrics for the summary bar (month view)
+  const { data: metrics } = useActivityMetrics("month");
 
   // Client-side search filtering
   const filteredActivities = useMemo(() => {
@@ -185,6 +189,26 @@ export default function ActivitiesView() {
         <main className="max-w-6xl mx-auto px-6 py-6">
           {/* Calendar Inbox — shows pending synced events at the top */}
           <CalendarInbox />
+
+          {/* Summary bar — inline metrics for the current month */}
+          {metrics && metrics.totalActivities > 0 && (
+            <div className="flex items-center flex-wrap gap-2 mb-3 px-3 py-2 bg-gray-50 rounded-lg text-[12px] text-gray-500">
+              <span className="font-medium text-[#403770]">
+                This month:
+              </span>
+              <span>{metrics.totalActivities} activities</span>
+              <span className="text-gray-300">&middot;</span>
+              <span>{metrics.bySource.calendar_sync} from calendar</span>
+              <span className="text-gray-300">&middot;</span>
+              <span>{metrics.bySource.manual} manual</span>
+              {metrics.byStatus.completed > 0 && (
+                <>
+                  <span className="text-gray-300">&middot;</span>
+                  <span className="text-[#8AA891]">{metrics.byStatus.completed} completed</span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Toolbar */}
           <div className="flex items-center flex-wrap gap-2 mb-3">

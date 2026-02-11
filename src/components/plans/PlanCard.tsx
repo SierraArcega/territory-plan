@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import type { TerritoryPlan } from "@/lib/api";
+import type { TerritoryPlan, PlanEngagement } from "@/lib/api";
 
 interface PlanCardProps {
   plan: TerritoryPlan;
+  /** Optional engagement data for health indicators */
+  engagement?: PlanEngagement;
 }
 
 function formatDate(dateString: string | null): string {
@@ -41,7 +43,24 @@ function getStatusBadge(status: string) {
   }
 }
 
-export default function PlanCard({ plan }: PlanCardProps) {
+// Compute activity recency label and color from the engagement data
+function getRecencyBadge(lastActivityDate: string | null) {
+  if (!lastActivityDate) {
+    return { label: "No activity", color: "#9CA3AF", bgColor: "#F3F4F6" };
+  }
+  const daysSince = Math.floor(
+    (Date.now() - new Date(lastActivityDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  if (daysSince <= 7) {
+    return { label: `Active ${daysSince}d ago`, color: "#8AA891", bgColor: "#EFF5F0" };
+  }
+  if (daysSince <= 21) {
+    return { label: `${Math.floor(daysSince / 7)}w ago`, color: "#D97706", bgColor: "#FEF3C7" };
+  }
+  return { label: `Stale — ${Math.floor(daysSince / 7)}w`, color: "#F37167", bgColor: "#FEF2F1" };
+}
+
+export default function PlanCard({ plan, engagement }: PlanCardProps) {
   const statusBadge = getStatusBadge(plan.status);
   const dateRange =
     plan.startDate || plan.endDate
@@ -124,9 +143,41 @@ export default function PlanCard({ plan }: PlanCardProps) {
         )}
       </div>
 
+      {/* Engagement bar — districts with at least one activity */}
+      {engagement && engagement.totalDistricts > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] text-gray-400">
+              {engagement.districtsWithActivity}/{engagement.totalDistricts} districts engaged
+            </span>
+            {/* Recency badge */}
+            {(() => {
+              const badge = getRecencyBadge(engagement.lastActivityDate);
+              return (
+                <span
+                  className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                  style={{ backgroundColor: badge.bgColor, color: badge.color }}
+                >
+                  {badge.label}
+                </span>
+              );
+            })()}
+          </div>
+          <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.round((engagement.districtsWithActivity / engagement.totalDistricts) * 100)}%`,
+                backgroundColor: plan.color,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Owner */}
       {plan.owner && (
-        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm">
+        <div className={`${engagement && engagement.totalDistricts > 0 ? "mt-2" : "mt-3 pt-3 border-t border-gray-100"} flex items-center gap-2 text-sm`}>
           <span className="text-gray-400">Owner:</span>
           <span className="text-[#403770] font-medium">{plan.owner}</span>
         </div>

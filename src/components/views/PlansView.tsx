@@ -14,6 +14,7 @@ import {
   useUpdateActivity,
   useDeleteActivity,
   type ActivityListItem,
+  usePlanEngagement,
 } from "@/lib/api";
 import { type ActivityFormData } from "@/components/plans/ActivityFormModal";
 import { useMapStore } from "@/lib/store";
@@ -107,7 +108,13 @@ interface PlansListViewProps {
 function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: PlansListViewProps) {
   const [view, setView] = useState<"cards" | "table">("table");
   const { data: plans, isLoading, error } = useTerritoryPlans();
+  const { data: engagementData } = usePlanEngagement();
   const createPlan = useCreateTerritoryPlan();
+
+  // Build a map from planId → engagement data for quick lookup
+  const engagementMap = new Map(
+    (engagementData || []).map((e) => [e.planId, e])
+  );
 
   const handleCreatePlan = async (data: PlanFormData) => {
     await createPlan.mutateAsync({
@@ -189,7 +196,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
                   onClick={() => onSelectPlan(plan.id)}
                   className="cursor-pointer"
                 >
-                  <PlanCard plan={plan} />
+                  <PlanCard plan={plan} engagement={engagementMap.get(plan.id)} />
                 </div>
               ))}
             </div>
