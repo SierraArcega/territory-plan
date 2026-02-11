@@ -146,14 +146,14 @@ function TaskCheckbox({
 type TaskTab = "upcoming" | "overdue" | "completed";
 const MAX_VISIBLE_TASKS = 7;
 const MAX_VISIBLE_PLANS = 7;
-const FISCAL_YEARS = [2025, 2026, 2027, 2028, 2029];
+const FISCAL_YEARS = [2026, 2027, 2028, 2029];
 
 export default function HomeView() {
   const currentFiscalYear = getDefaultFiscalYear();
   const today = getToday();
 
   // Goals fiscal year selection
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(2027);
 
   // Data fetching
   const { data: profile } = useProfile();
