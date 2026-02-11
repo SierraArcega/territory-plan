@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityCategory, type ActivityType } from "@/lib/activityTypes";
+import { pushActivityToCalendar } from "@/lib/calendar-push";
 
 export const dynamic = "force-dynamic";
 
@@ -323,6 +324,10 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Push to Google Calendar if user has a connected calendar
+    // This is best-effort — if it fails, the activity is still created
+    pushActivityToCalendar(user.id, activity.id);
 
     // Transform the activity response inline (type-safe via Prisma inference)
     return NextResponse.json({
