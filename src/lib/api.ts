@@ -2148,3 +2148,72 @@ export function useBatchConfirmCalendarEvents() {
     },
   });
 }
+
+// ─── Progress Dashboard Types & Hooks ────────────────────────────────
+
+export type ProgressPeriod = "month" | "quarter" | "fiscal_year";
+
+export interface ActivityMetrics {
+  period: { start: string; end: string };
+  totalActivities: number;
+  byCategory: { events: number; outreach: number; meetings: number };
+  bySource: { manual: number; calendar_sync: number };
+  byStatus: { planned: number; completed: number; cancelled: number };
+  byPlan: Array<{ planId: string; planName: string; planColor: string; count: number }>;
+  trend: { current: number; previous: number; changePercent: number };
+  planCoveragePercent: number;
+}
+
+export interface OutcomeMetrics {
+  totalWithOutcome: number;
+  totalCompleted: number;
+  outcomeRate: number;
+  byOutcomeType: Record<string, number>;
+  funnel: {
+    discoveryCallsCompleted: number;
+    demosCompleted: number;
+    proposalsReviewed: number;
+    positiveOutcomes: number;
+  };
+  districtsEngaged: number;
+  totalDistrictsInPlans: number;
+}
+
+export interface PlanEngagement {
+  planId: string;
+  planName: string;
+  planColor: string;
+  totalDistricts: number;
+  districtsWithActivity: number;
+  lastActivityDate: string | null;
+  activityCount: number;
+}
+
+// Activity metrics — counts by category, source, status, plan, with trends
+export function useActivityMetrics(period: ProgressPeriod = "month") {
+  return useQuery({
+    queryKey: ["progress", "activities", period],
+    queryFn: () =>
+      fetchJson<ActivityMetrics>(`${API_BASE}/progress/activities?period=${period}`),
+    staleTime: 5 * 60 * 1000, // 5 minutes — dashboard data doesn't need to be real-time
+  });
+}
+
+// Outcome metrics — distribution, funnel, district engagement
+export function useOutcomeMetrics(period: ProgressPeriod = "month") {
+  return useQuery({
+    queryKey: ["progress", "outcomes", period],
+    queryFn: () =>
+      fetchJson<OutcomeMetrics>(`${API_BASE}/progress/outcomes?period=${period}`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Plan engagement — per-plan district coverage and activity recency
+export function usePlanEngagement() {
+  return useQuery({
+    queryKey: ["progress", "plans"],
+    queryFn: () => fetchJson<PlanEngagement[]>(`${API_BASE}/progress/plans`),
+    staleTime: 5 * 60 * 1000,
+  });
+}
