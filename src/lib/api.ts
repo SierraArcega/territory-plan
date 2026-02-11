@@ -928,6 +928,12 @@ export interface Activity {
   createdByUserId: string | null;
   createdAt: string;
   updatedAt: string;
+  // Calendar sync fields
+  googleEventId: string | null;
+  source: "manual" | "calendar_sync";
+  // Outcome tracking fields
+  outcome: string | null;
+  outcomeType: string | null;
   // Computed flags
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
@@ -946,6 +952,8 @@ export interface ActivityListItem {
   startDate: string | null;
   endDate: string | null;
   status: ActivityStatus;
+  source: "manual" | "calendar_sync";
+  outcomeType: string | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
   planCount: number;
@@ -1913,6 +1921,228 @@ export function useLogout() {
     onSuccess: () => {
       // Clear all cached data on logout
       queryClient.clear();
+    },
+  });
+}
+
+// ===== Google Calendar Sync =====
+// Types and hooks for calendar connection, event inbox, sync, and confirm/dismiss actions
+
+// Calendar connection status returned by /api/calendar/status
+export interface CalendarConnection {
+  id: string;
+  googleAccountEmail: string;
+  companyDomain: string;
+  syncEnabled: boolean;
+  lastSyncAt: string | null;
+  status: "connected" | "disconnected" | "error";
+  createdAt: string;
+}
+
+export interface CalendarStatusResponse {
+  connected: boolean;
+  connection: CalendarConnection | null;
+  pendingCount: number;
+}
+
+// Calendar event attendee (stored as JSON in the CalendarEvent table)
+export interface CalendarEventAttendee {
+  email: string;
+  name: string | null;
+  responseStatus: string;
+}
+
+// Calendar event returned by /api/calendar/events (enriched with suggestion names)
+export interface CalendarEvent {
+  id: string;
+  googleEventId: string;
+  title: string;
+  description: string | null;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  attendees: CalendarEventAttendee[];
+  status: "pending" | "confirmed" | "dismissed" | "cancelled";
+  suggestedActivityType: ActivityType | null;
+  suggestedDistrictId: string | null;
+  suggestedDistrictName: string | null;
+  suggestedDistrictState: string | null;
+  suggestedContactIds: number[] | null;
+  suggestedContacts: Array<{ id: number; name: string; title: string | null; email: string | null }>;
+  suggestedPlanId: string | null;
+  suggestedPlanName: string | null;
+  suggestedPlanColor: string | null;
+  matchConfidence: "high" | "medium" | "low" | "none";
+  activityId: string | null;
+  lastSyncedAt: string;
+}
+
+export interface CalendarInboxResponse {
+  events: CalendarEvent[];
+  total: number;
+  pendingCount: number;
+}
+
+// Sync result returned by POST /api/calendar/sync
+export interface CalendarSyncResult {
+  eventsProcessed: number;
+  newEvents: number;
+  updatedEvents: number;
+  cancelledEvents: number;
+  errors: string[];
+}
+
+// --- Calendar Connection Hooks ---
+
+// Check if the user has a Google Calendar connection and get its status
+export function useCalendarConnection() {
+  return useQuery({
+    queryKey: ["calendarConnection"],
+    queryFn: () => fetchJson<CalendarStatusResponse>(`${API_BASE}/calendar/status`),
+    staleTime: 5 * 60 * 1000, // 5 minutes — connection status doesn't change often
+  });
+}
+
+// Disconnect Google Calendar
+export function useDisconnectCalendar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<{ success: boolean }>(`${API_BASE}/calendar/disconnect`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+    },
+  });
+}
+
+// Update calendar connection settings (sync toggle, company domain)
+export function useUpdateCalendarSettings() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { syncEnabled?: boolean; companyDomain?: string }) =>
+      fetchJson<{ connection: CalendarConnection }>(
+        `${API_BASE}/calendar/status`,
+        { method: "PATCH", body: JSON.stringify(data) }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+    },
+  });
+}
+
+// --- Calendar Sync Hooks ---
+
+// Trigger a calendar sync — pulls events from Google Calendar and stages them
+export function useTriggerCalendarSync() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<CalendarSyncResult>(`${API_BASE}/calendar/sync`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      // Refresh inbox and connection status after sync
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+    },
+  });
+}
+
+// --- Calendar Inbox Hooks ---
+
+// List calendar events (defaults to pending = the inbox)
+export function useCalendarInbox(status?: string) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+
+  return useQuery({
+    queryKey: ["calendarEvents", status || "pending"],
+    queryFn: () =>
+      fetchJson<CalendarInboxResponse>(
+        `${API_BASE}/calendar/events?${params.toString()}`
+      ),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// Get just the pending count (for badge display on nav tabs)
+// Uses the same endpoint as useCalendarConnection which returns pendingCount
+export function useCalendarInboxCount() {
+  return useQuery({
+    queryKey: ["calendarConnection"],
+    queryFn: () => fetchJson<CalendarStatusResponse>(`${API_BASE}/calendar/status`),
+    staleTime: 2 * 60 * 1000,
+    select: (data) => data.pendingCount,
+  });
+}
+
+// Confirm a calendar event → creates an Activity
+export function useConfirmCalendarEvent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      eventId,
+      ...overrides
+    }: {
+      eventId: string;
+      activityType?: string;
+      title?: string;
+      planIds?: string[];
+      districtLeaids?: string[];
+      contactIds?: number[];
+      notes?: string;
+    }) =>
+      fetchJson<{ activityId: string }>(
+        `${API_BASE}/calendar/events/${eventId}`,
+        { method: "POST", body: JSON.stringify(overrides) }
+      ),
+    onSuccess: () => {
+      // Refresh inbox, activities, and connection (pending count changes)
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// Dismiss a calendar event (hide from inbox)
+export function useDismissCalendarEvent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (eventId: string) =>
+      fetchJson<{ success: boolean }>(
+        `${API_BASE}/calendar/events/${eventId}`,
+        { method: "PATCH" }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+    },
+  });
+}
+
+// Batch confirm all high-confidence pending events
+export function useBatchConfirmCalendarEvents() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<{ confirmed: number; activityIds: string[] }>(
+        `${API_BASE}/calendar/events/batch-confirm`,
+        { method: "POST" }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
     },
   });
 }
