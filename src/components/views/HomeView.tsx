@@ -338,7 +338,6 @@ export default function HomeView() {
 
   // Plans
   const displayPlans = plans?.slice(0, MAX_VISIBLE_PLANS) || [];
-  const hasMorePlans = (plans?.length || 0) > MAX_VISIBLE_PLANS;
 
   // Header stats
   const totalOverdueCount = overdueTasks.length;
@@ -510,11 +509,9 @@ export default function HomeView() {
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
               <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                 <h2 className="text-base font-semibold text-[#403770]">My Plans</h2>
-                {hasMorePlans && (
-                  <button onClick={() => setActiveTab("plans")} className="text-xs text-gray-400 hover:text-[#403770] transition-colors">
-                    View all &rarr;
-                  </button>
-                )}
+                <button onClick={() => setActiveTab("plans")} className="text-xs text-gray-400 hover:text-[#403770] transition-colors">
+                  View all &rarr;
+                </button>
               </div>
               <div className="flex-1 px-5 pb-5">
                 <div className="grid grid-cols-2 gap-3">
@@ -533,11 +530,13 @@ export default function HomeView() {
                     <button
                       key={plan.id}
                       onClick={() => {
-                        const params = new URLSearchParams();
+                        // Push URL with plan param, then dispatch popstate so
+                        // page.tsx reads both tab and plan from the URL
+                        const params = new URLSearchParams(window.location.search);
                         params.set("tab", "plans");
                         params.set("plan", plan.id);
-                        window.history.replaceState(null, "", `?${params.toString()}`);
-                        setActiveTab("plans");
+                        window.history.pushState(null, "", `?${params.toString()}`);
+                        window.dispatchEvent(new PopStateEvent("popstate"));
                       }}
                       className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:shadow-md transition-all text-left"
                     >
