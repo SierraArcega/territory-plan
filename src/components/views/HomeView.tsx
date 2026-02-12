@@ -51,7 +51,7 @@ function getToday(): string {
 
 function formatTaskDate(dueDate: string | null): string {
   if (!dueDate) return "";
-  const date = new Date(dueDate + "T00:00:00");
+  const date = new Date(dueDate);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -335,7 +335,6 @@ export default function HomeView() {
   const displayedTasks =
     taskTab === "upcoming" ? upcomingTasks : taskTab === "overdue" ? overdueTasks : completedTasks;
   const visibleTasks = displayedTasks.slice(0, MAX_VISIBLE_TASKS);
-  const hasMoreTasks = displayedTasks.length > MAX_VISIBLE_TASKS;
 
   // Plans
   const displayPlans = plans?.slice(0, MAX_VISIBLE_PLANS) || [];
@@ -561,7 +560,12 @@ export default function HomeView() {
             {/* ---- My Tasks (right, 3 cols) ---- */}
             <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
               <div className="px-5 pt-5">
-                <h2 className="text-base font-semibold text-[#403770] mb-3">My Tasks</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-semibold text-[#403770]">My Tasks</h2>
+                  <button onClick={() => setActiveTab("tasks")} className="text-xs text-gray-400 hover:text-[#403770] transition-colors">
+                    View all &rarr;
+                  </button>
+                </div>
                 <div className="flex gap-1 border-b border-gray-100">
                   {([
                     { key: "upcoming" as const, label: "Upcoming" },
@@ -630,13 +634,6 @@ export default function HomeView() {
                   })
                 )}
               </div>
-              {hasMoreTasks && (
-                <div className="px-5 py-3 border-t border-gray-50">
-                  <button onClick={() => setActiveTab("tasks")} className="text-sm text-gray-400 hover:text-[#403770] transition-colors">
-                    Show more
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
