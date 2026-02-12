@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/lib/store";
 import AppShell from "@/components/layout/AppShell";
@@ -69,6 +69,12 @@ function HomeContent() {
   // Track the selected plan ID for PlansView (from URL)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
+  // Ref-based flag so the sync effect never runs before init completes.
+  // Using a ref (not state) avoids batching issues between Zustand and React setState.
+  const initializedRef = useRef(false);
+  // Tracks whether the current state change came from browser back/forward
+  const isPopstateRef = useRef(false);
+
   // Initialize state from URL params on mount
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -83,36 +89,63 @@ function HomeContent() {
     if (planParam) {
       setSelectedPlanId(planParam);
     }
+
+    // Mark as initialized synchronously — the sync effect (which runs later in
+    // the same commit or on the next render) will see this immediately via the ref.
+    initializedRef.current = true;
   }, []); // Only run once on mount
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      isPopstateRef.current = true;
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      setActiveTab(isValidTab(tabParam) ? tabParam : "home");
+      setSelectedPlanId(params.get("plan"));
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [setActiveTab]);
 
   // Sync URL when activeTab changes (from sidebar clicks)
   useEffect(() => {
-    const currentTab = searchParams.get("tab");
-    const currentPlan = searchParams.get("plan");
+    // Skip until the init effect has read URL params and set Zustand state.
+    if (!initializedRef.current) return;
 
-    // Build new URL params
-    const params = new URLSearchParams();
+    // Skip URL push if this change came from browser back/forward
+    if (isPopstateRef.current) {
+      isPopstateRef.current = false;
+      return;
+    }
 
-    // Only add tab param if not "home" (default)
-    if (activeTab !== "home") {
+    // Start from the current URL params so we preserve any extra params
+    // (e.g. calendarConnected=true) that other components manage.
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Sync the tab param
+    if (activeTab === "home") {
+      params.delete("tab");
+    } else {
       params.set("tab", activeTab);
     }
 
-    // Keep plan param if on plans tab
+    // Sync the plan param
     if (activeTab === "plans" && selectedPlanId) {
       params.set("plan", selectedPlanId);
+    } else {
+      params.delete("plan");
     }
 
-    // Update URL without navigation (replace, not push)
+    // Build the new URL
     const newUrl = params.toString() ? `?${params.toString()}` : "/";
-
-    // Only update if changed
-    const currentUrl = currentTab || currentPlan
+    const currentUrl = searchParams.toString()
       ? `?${searchParams.toString()}`
       : "/";
 
     if (newUrl !== currentUrl) {
-      router.replace(newUrl, { scroll: false });
+      router.push(newUrl, { scroll: false });
     }
   }, [activeTab, selectedPlanId, router, searchParams]);
 
