@@ -10,6 +10,7 @@ interface DistrictsTableProps {
   districts: TerritoryPlanDistrict[];
   onRemove: (leaid: string) => void;
   isRemoving?: boolean;
+  onDistrictClick?: (leaid: string) => void;
 }
 
 interface ConfirmRemoveDialogProps {
@@ -79,6 +80,7 @@ export default function DistrictsTable({
   districts,
   onRemove,
   isRemoving,
+  onDistrictClick,
 }: DistrictsTableProps) {
   const [confirmRemove, setConfirmRemove] = useState<TerritoryPlanDistrict | null>(null);
   const updateTargets = useUpdateDistrictTargets();
@@ -172,7 +174,8 @@ export default function DistrictsTable({
             return (
             <tr
               key={district.leaid}
-              className={`group transition-colors duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""}`}
+              className={`group transition-colors duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""} ${onDistrictClick ? "cursor-pointer" : ""}`}
+              onClick={() => onDistrictClick?.(district.leaid)}
             >
               <td className="px-4 py-3">
                 <span className="text-sm font-medium text-[#403770]">
@@ -184,7 +187,7 @@ export default function DistrictsTable({
                   {district.stateAbbrev || "N/A"}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                 <InlineEditCell
                   type="text"
                   value={district.revenueTarget != null ? String(district.revenueTarget) : null}
@@ -197,7 +200,7 @@ export default function DistrictsTable({
                   displayFormat={formatCurrencyDisplay}
                 />
               </td>
-              <td className="px-4 py-3 text-right">
+              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                 <InlineEditCell
                   type="text"
                   value={district.pipelineTarget != null ? String(district.pipelineTarget) : null}
@@ -233,7 +236,7 @@ export default function DistrictsTable({
                   )}
                 </div>
               </td>
-              <td className="px-3 py-3">
+              <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                   <Link
                     href={`/?leaid=${district.leaid}`}

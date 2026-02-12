@@ -39,6 +39,9 @@ interface PlanTabsProps {
   isDeletingActivity?: boolean;
   onEditContact?: (contact: Contact) => void;
   onDeleteContact?: (contactId: number) => void;
+  // Click handlers for opening the district detail panel
+  onDistrictClick?: (leaid: string) => void;
+  onContactClick?: (leaid: string, contactId: number) => void;
 }
 
 // Filter configurations per tab
@@ -176,6 +179,8 @@ export default function PlanTabs({
   isDeletingActivity,
   onEditContact,
   onDeleteContact,
+  onDistrictClick,
+  onContactClick,
 }: PlanTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("districts");
   const [views, setViews] = useState<Record<TabId, "cards" | "table">>({
@@ -555,6 +560,7 @@ export default function PlanTabs({
               districts={filtered}
               onRemove={onRemoveDistrict}
               isRemoving={isRemovingDistrict}
+              onDistrictClick={onDistrictClick}
             />
           );
         }
@@ -576,6 +582,7 @@ export default function PlanTabs({
                     districts={items}
                     onRemove={onRemoveDistrict}
                     isRemoving={isRemovingDistrict}
+                    onDistrictClick={onDistrictClick}
                   />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -584,6 +591,7 @@ export default function PlanTabs({
                         key={district.leaid}
                         district={district}
                         onRemove={() => onRemoveDistrict(district.leaid)}
+                        onClick={onDistrictClick ? () => onDistrictClick(district.leaid) : undefined}
                       />
                     ))}
                   </div>
@@ -668,6 +676,7 @@ export default function PlanTabs({
               totalCount={contacts.length}
               onEdit={onEditContact}
               onDelete={onDeleteContact}
+              onContactClick={onContactClick}
             />
           );
         }
@@ -690,6 +699,7 @@ export default function PlanTabs({
                     totalCount={contacts.length}
                     onEdit={onEditContact}
                     onDelete={onDeleteContact}
+                    onContactClick={onContactClick}
                   />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -700,6 +710,7 @@ export default function PlanTabs({
                         districtName={districtNameMap.get(contact.leaid)}
                         onEdit={onEditContact ? () => onEditContact(contact) : undefined}
                         onDelete={onDeleteContact ? () => onDeleteContact(contact.id) : undefined}
+                        onClick={onContactClick ? () => onContactClick(contact.leaid, contact.id) : undefined}
                       />
                     ))}
                   </div>
