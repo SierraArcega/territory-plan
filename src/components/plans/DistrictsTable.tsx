@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useUpdateDistrictTargets, type TerritoryPlanDistrict } from "@/lib/api";
+import { useUpdateDistrictTargets, useServices, type TerritoryPlanDistrict } from "@/lib/api";
 import InlineEditCell from "@/components/common/InlineEditCell";
 
 interface DistrictsTableProps {
@@ -53,6 +53,151 @@ function ConfirmRemoveDialog({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Inline service selector popover for the table
+function InlineServiceSelector({
+  planId,
+  district,
+}: {
+  planId: string;
+  district: TerritoryPlanDistrict;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { data: allServices = [] } = useServices();
+  const updateTargets = useUpdateDistrictTargets();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const selectedIds = district.targetServices?.map((s) => s.id) || [];
+
+  const toggleService = async (serviceId: number) => {
+    const newIds = selectedIds.includes(serviceId)
+      ? selectedIds.filter((id) => id !== serviceId)
+      : [...selectedIds, serviceId];
+    await updateTargets.mutateAsync({
+      planId,
+      leaid: district.leaid,
+      serviceIds: newIds,
+    });
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="flex flex-wrap gap-1 items-center min-h-[28px] w-full text-left rounded-md px-1 -mx-1 hover:bg-gray-100 transition-colors group/svc"
+      >
+        {district.targetServices && district.targetServices.length > 0 ? (
+          <>
+            {district.targetServices.slice(0, 3).map((service) => (
+              <span
+                key={service.id}
+                className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white"
+                style={{ backgroundColor: service.color }}
+                title={service.name}
+              >
+                {service.name.length > 12
+                  ? `${service.name.slice(0, 12)}...`
+                  : service.name}
+              </span>
+            ))}
+            {district.targetServices.length > 3 && (
+              <span className="text-xs text-gray-400">
+                +{district.targetServices.length - 3}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-xs text-gray-400 italic">Add services...</span>
+        )}
+        <svg
+          className="w-3 h-3 text-gray-300 group-hover/svc:text-gray-500 ml-auto flex-shrink-0 transition-colors"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 left-0 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-[280px] overflow-y-auto">
+          {allServices.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-gray-400 italic">
+              No services available
+            </div>
+          ) : (
+            allServices.map((service) => {
+              const isSelected = selectedIds.includes(service.id);
+              return (
+                <button
+                  key={service.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleService(service.id);
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${
+                    isSelected
+                      ? "bg-gray-50 text-[#403770]"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                      isSelected
+                        ? "bg-[#403770] border-[#403770]"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {isSelected && (
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </span>
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: service.color }}
+                  />
+                  <span className="truncate">{service.name}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -213,28 +358,8 @@ export default function DistrictsTable({
                   displayFormat={formatCurrencyDisplay}
                 />
               </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-1">
-                  {district.targetServices && district.targetServices.length > 0 ? (
-                    district.targetServices.slice(0, 3).map((service) => (
-                      <span
-                        key={service.id}
-                        className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white"
-                        style={{ backgroundColor: service.color }}
-                        title={service.name}
-                      >
-                        {service.name.length > 12 ? `${service.name.slice(0, 12)}...` : service.name}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">-</span>
-                  )}
-                  {district.targetServices && district.targetServices.length > 3 && (
-                    <span className="text-xs text-gray-400">
-                      +{district.targetServices.length - 3}
-                    </span>
-                  )}
-                </div>
+              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                <InlineServiceSelector planId={planId} district={district} />
               </td>
               <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
