@@ -6,12 +6,16 @@
 // and adds a plan-specific context section at the top showing targets,
 // services, notes, tags, and recent activities for that district in the plan.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useDistrictDetail,
   useActivities,
+  useUpdateDistrictTargets,
+  useServices,
   type TerritoryPlanDistrict,
 } from "@/lib/api";
+import InlineEditCell from "@/components/common/InlineEditCell";
+import ServiceSelector from "@/components/plans/ServiceSelector";
 import DistrictHeader from "@/components/panel/DistrictHeader";
 import FullmindMetrics from "@/components/panel/FullmindMetrics";
 import DistrictInfo from "@/components/panel/DistrictInfo";
@@ -36,10 +40,25 @@ interface PlanDistrictPanelProps {
   onClose: () => void;
 }
 
-// Format currency for display
+// Format currency for display (used in read-only spots like activities)
 function formatCurrency(value: number | null): string {
   if (value === null || value === undefined) return "Not set";
   return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+// Format a raw string value as currency for InlineEditCell display mode
+function formatCurrencyDisplay(value: string): string {
+  const num = parseFloat(value.replace(/[,$\s]/g, ""));
+  if (isNaN(num)) return "—";
+  return `$${num.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+// Parse a user-entered currency string into a number (or null)
+function parseCurrencyInput(value: string): number | null {
+  const cleaned = value.replace(/[,$\s]/g, "");
+  if (!cleaned) return null;
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? null : parsed;
 }
 
 // Format activity type for display
@@ -77,6 +96,13 @@ export default function PlanDistrictPanel({
   });
   const recentActivities = (activitiesResponse?.activities || []).slice(0, 3);
 
+  // Mutation for saving targets and services
+  const updateTargets = useUpdateDistrictTargets();
+  // Fetch available services for the service selector
+  const { data: allServices = [] } = useServices();
+  // Track whether the service selector dropdown is open
+  const [showServiceSelector, setShowServiceSelector] = useState(false);
+
   // Ref for the contacts section — scroll to it when opened from contacts tab
   const contactsRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -103,14 +129,8 @@ export default function PlanDistrictPanel({
 
   return (
     <>
-      {/* Backdrop overlay — click to close */}
-      <div
-        className="fixed inset-0 bg-black/20 z-30 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Sliding panel */}
-      <div className="fixed top-0 right-0 h-full w-[420px] bg-white shadow-xl z-40 flex flex-col overflow-hidden panel-slide-in">
+      {/* Sliding panel — no backdrop so the plan content stays visible and clickable */}
+      <div className="fixed top-0 right-0 h-full w-[420px] bg-white shadow-xl z-40 flex flex-col overflow-hidden panel-slide-in border-l border-gray-200">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -155,32 +175,57 @@ export default function PlanDistrictPanel({
                     Plan Targets
                   </h3>
 
-                  {/* Revenue & Pipeline Targets */}
+                  {/* Revenue & Pipeline Targets — click to edit */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
                         Revenue Target
                       </div>
-                      <div className="text-sm font-semibold text-[#403770]">
-                        {formatCurrency(planDistrict.revenueTarget)}
-                      </div>
+                      <InlineEditCell
+                        type="text"
+                        value={planDistrict.revenueTarget != null ? String(planDistrict.revenueTarget) : null}
+                        onSave={async (value) => {
+                          const parsed = parseCurrencyInput(value);
+                          await updateTargets.mutateAsync({ planId, leaid, revenueTarget: parsed });
+                        }}
+                        placeholder="Set target"
+                        className="text-sm font-semibold text-[#403770]"
+                        displayFormat={formatCurrencyDisplay}
+                      />
                     </div>
                     <div>
                       <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
                         Pipeline Target
                       </div>
-                      <div className="text-sm font-semibold text-[#6EA3BE]">
-                        {formatCurrency(planDistrict.pipelineTarget)}
-                      </div>
+                      <InlineEditCell
+                        type="text"
+                        value={planDistrict.pipelineTarget != null ? String(planDistrict.pipelineTarget) : null}
+                        onSave={async (value) => {
+                          const parsed = parseCurrencyInput(value);
+                          await updateTargets.mutateAsync({ planId, leaid, pipelineTarget: parsed });
+                        }}
+                        placeholder="Set target"
+                        className="text-sm font-semibold text-[#6EA3BE]"
+                        displayFormat={formatCurrencyDisplay}
+                      />
                     </div>
                   </div>
 
-                  {/* Targeted Services */}
-                  {planDistrict.targetServices && planDistrict.targetServices.length > 0 && (
-                    <div className="mb-3">
-                      <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">
+                  {/* Targeted Services — click to add/remove */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="text-[10px] text-gray-400 uppercase tracking-wide">
                         Targeted Services
                       </div>
+                      <button
+                        onClick={() => setShowServiceSelector(!showServiceSelector)}
+                        className="text-[10px] text-[#403770] hover:text-[#F37167] transition-colors font-medium"
+                      >
+                        {showServiceSelector ? "Done" : "Edit"}
+                      </button>
+                    </div>
+                    {/* Service badges (always visible) */}
+                    {planDistrict.targetServices && planDistrict.targetServices.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {planDistrict.targetServices.map((service) => (
                           <span
@@ -192,8 +237,24 @@ export default function PlanDistrictPanel({
                           </span>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      !showServiceSelector && (
+                        <p className="text-xs text-gray-400 italic">No services targeted</p>
+                      )
+                    )}
+                    {/* Service selector dropdown (shown when editing) */}
+                    {showServiceSelector && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <ServiceSelector
+                          services={allServices}
+                          selectedIds={planDistrict.targetServices?.map(s => s.id) || []}
+                          onChange={async (ids) => {
+                            await updateTargets.mutateAsync({ planId, leaid, serviceIds: ids });
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   {/* Plan-specific Tags */}
                   {planDistrict.tags && planDistrict.tags.length > 0 && (
