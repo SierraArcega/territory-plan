@@ -84,6 +84,8 @@ interface ContactsTableProps {
   totalCount?: number;
   onEdit?: (contact: Contact) => void;
   onDelete?: (contactId: number) => void;
+  // Clicking a contact row opens the district detail panel for their district
+  onContactClick?: (leaid: string, contactId: number) => void;
 }
 
 export default function ContactsTable({
@@ -92,6 +94,7 @@ export default function ContactsTable({
   totalCount,
   onEdit,
   onDelete,
+  onContactClick,
 }: ContactsTableProps) {
   // Track which contact IDs are selected for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -243,10 +246,12 @@ export default function ContactsTable({
                         ? "bg-[#C4E7E6]/15 hover:bg-[#C4E7E6]/25"
                         : "hover:bg-gray-50/70"
                       }
+                      ${onContactClick ? "cursor-pointer" : ""}
                     `}
+                    onClick={() => onContactClick?.(contact.leaid, contact.id)}
                   >
                     {/* Checkbox */}
-                    <td className="pl-4 pr-2 py-3">
+                    <td className="pl-4 pr-2 py-3" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -288,7 +293,7 @@ export default function ContactsTable({
                     </td>
 
                     {/* Email */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       {contact.email ? (
                         <a
                           href={`mailto:${contact.email}`}
@@ -343,7 +348,7 @@ export default function ContactsTable({
                     </td>
 
                     {/* Actions — appear on hover */}
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                         {contact.linkedinUrl && (
                           <a

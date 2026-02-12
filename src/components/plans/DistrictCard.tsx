@@ -10,6 +10,7 @@ import type { TerritoryPlanDistrict } from "@/lib/api";
 interface DistrictCardProps {
   district: TerritoryPlanDistrict;
   onRemove: () => void;
+  onClick?: () => void;
 }
 
 function formatCurrency(value: number | null): string {
@@ -22,7 +23,7 @@ function formatEnrollment(enrollment: number | null): string {
   return enrollment.toLocaleString();
 }
 
-export default function DistrictCard({ district, onRemove }: DistrictCardProps) {
+export default function DistrictCard({ district, onRemove, onClick }: DistrictCardProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   const hasTargets = district.revenueTarget || district.pipelineTarget;
@@ -33,7 +34,10 @@ export default function DistrictCard({ district, onRemove }: DistrictCardProps) 
   };
 
   return (
-    <div className="group relative bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:border-[#C4E7E6] transition-all">
+    <div
+      className={`group relative bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:border-[#C4E7E6] transition-all ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
       {/* Header: District Name + State */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
@@ -56,7 +60,7 @@ export default function DistrictCard({ district, onRemove }: DistrictCardProps) 
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
           <Link
             href={`/?leaid=${district.leaid}`}
             className="p-1 text-gray-400 hover:text-[#403770] transition-colors"

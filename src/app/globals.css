@@ -149,6 +149,19 @@ body {
 }
 
 /* ============================================
+   Side Panel Slide-in
+   ============================================ */
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.panel-slide-in {
+  animation: slideInRight 200ms ease-out forwards;
+}
+
+/* ============================================
    Tile Loading Indicator
    ============================================ */
 

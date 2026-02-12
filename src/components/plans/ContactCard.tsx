@@ -11,9 +11,10 @@ interface ContactCardProps {
   districtName?: string;
   onEdit?: () => void;
   onDelete?: () => void;
+  onClick?: () => void;
 }
 
-export default function ContactCard({ contact, districtName, onEdit, onDelete }: ContactCardProps) {
+export default function ContactCard({ contact, districtName, onEdit, onDelete, onClick }: ContactCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDelete = () => {
@@ -25,11 +26,12 @@ export default function ContactCard({ contact, districtName, onEdit, onDelete }:
 
   return (
     <div
-      className="group relative bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:border-[#C4E7E6] transition-all"
+      className={`group relative bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:border-[#C4E7E6] transition-all ${onClick ? "cursor-pointer" : ""}`}
       style={{
         borderLeftWidth: contact.isPrimary ? "3px" : undefined,
         borderLeftColor: contact.isPrimary ? "#F37167" : undefined,
       }}
+      onClick={onClick}
     >
       {/* Header: Name + Primary Badge */}
       <div className="flex items-start justify-between mb-2">
@@ -52,7 +54,7 @@ export default function ContactCard({ contact, districtName, onEdit, onDelete }:
         </div>
 
         {/* Actions dropdown trigger */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
           {contact.linkedinUrl && (
             <a
               href={contact.linkedinUrl}
@@ -102,7 +104,7 @@ export default function ContactCard({ contact, districtName, onEdit, onDelete }:
       )}
 
       {/* Contact Info */}
-      <div className="space-y-1.5 mb-3">
+      <div className="space-y-1.5 mb-3" onClick={(e) => e.stopPropagation()}>
         {contact.email && (
           <a
             href={`mailto:${contact.email}`}

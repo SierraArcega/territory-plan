@@ -22,13 +22,15 @@ import PlanCard from "@/components/plans/PlanCard";
 import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
 import ActivityFormModal from "@/components/plans/ActivityFormModal";
 import PlanTabs from "@/components/plans/PlanTabs";
+import PlanDistrictPanel from "@/components/plans/PlanDistrictPanel";
 import ViewToggle from "@/components/common/ViewToggle";
 import PlansTable from "@/components/plans/PlansTable";
 
 // Helper to format dates nicely
 function formatDate(dateString: string | null): string {
   if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("en-US", {
+  const datePart = dateString.split("T")[0];
+  return new Date(datePart + "T00:00:00").toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -268,6 +270,10 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
 
+  // District detail panel state — tracks which district is open and optional contact highlight
+  const [panelLeaid, setPanelLeaid] = useState<string | null>(null);
+  const [highlightContactId, setHighlightContactId] = useState<number | null>(null);
+
   // Get setActiveTab to navigate to map for "Add from Map" link
   const setActiveTab = useMapStore((state) => state.setActiveTab);
 
@@ -317,6 +323,23 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   const handleActivityModalClose = () => {
     setShowActivityModal(false);
     setEditingActivity(null);
+  };
+
+  // Open the district detail panel when a district is clicked
+  const handleDistrictClick = (leaid: string) => {
+    setPanelLeaid(leaid);
+    setHighlightContactId(null);
+  };
+
+  // Open the district detail panel when a contact is clicked, with contact highlighted
+  const handleContactClick = (leaid: string, contactId: number) => {
+    setPanelLeaid(leaid);
+    setHighlightContactId(contactId);
+  };
+
+  const handleClosePanel = () => {
+    setPanelLeaid(null);
+    setHighlightContactId(null);
   };
 
   const handleCreateActivity = async (data: ActivityFormData) => {
@@ -499,8 +522,22 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
           onEditActivity={handleEditActivity}
           onDeleteActivity={handleDeleteActivity}
           isDeletingActivity={deleteActivity.isPending}
+          onDistrictClick={handleDistrictClick}
+          onContactClick={handleContactClick}
         />
       </main>
+
+      {/* District Detail Panel — opens when clicking a district or contact */}
+      {panelLeaid && (
+        <PlanDistrictPanel
+          leaid={panelLeaid}
+          planId={planId}
+          planColor={plan.color}
+          planDistrict={plan.districts.find((d) => d.leaid === panelLeaid)}
+          highlightContactId={highlightContactId}
+          onClose={handleClosePanel}
+        />
+      )}
 
       {/* Activity Form Modal */}
       <ActivityFormModal
