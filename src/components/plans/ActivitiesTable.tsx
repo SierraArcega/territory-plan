@@ -3,10 +3,10 @@
 // ActivitiesTable - Table view for activities with inline editing.
 // Displays all activities in a tabular format with columns for icon, title,
 // type, status, dates, scope, and actions.
-// When status changes to "completed", an OutcomePopover appears so the
+// When status changes to "completed", an OutcomeModal appears so the
 // rep can tag what resulted from the activity (e.g. "Moved Forward", "Got Reply").
 
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import {
   useUpdateActivity,
   type ActivityListItem,
@@ -22,7 +22,7 @@ import {
 } from "@/lib/activityTypes";
 import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
 import InlineEditCell from "@/components/common/InlineEditCell";
-import OutcomePopover from "@/components/activities/OutcomePopover";
+import OutcomeModal from "@/components/activities/OutcomeModal";
 
 interface ActivitiesTableProps {
   activities: ActivityListItem[];
@@ -107,10 +107,8 @@ export default function ActivitiesTable({
   isDeleting = false,
 }: ActivitiesTableProps) {
   const [activityToDelete, setActivityToDelete] = useState<ActivityListItem | null>(null);
-  // Track which activity just got marked "completed" so we can show the outcome popover
+  // Track which activity just got marked "completed" so we can show the outcome modal
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
-  // Refs map: activity ID -> status cell element, used to anchor the popover
-  const statusCellRefs = useRef<Map<string, HTMLTableCellElement>>(new Map());
 
   const updateActivity = useUpdateActivity();
 
@@ -133,20 +131,6 @@ export default function ActivitiesTable({
       }
     }
   };
-
-  const getStatusCellRef = useCallback(
-    (id: string) => (el: HTMLTableCellElement | null) => {
-      if (el) statusCellRefs.current.set(id, el);
-      else statusCellRefs.current.delete(id);
-    },
-    []
-  );
-
-  // Build a ref object pointing to the status cell of the outcome-target activity
-  const outcomeAnchorRef = useRef<HTMLElement | null>(null);
-  if (outcomeActivity) {
-    outcomeAnchorRef.current = statusCellRefs.current.get(outcomeActivity.id) || null;
-  }
 
   // Handle delete confirmation
   const handleDeleteConfirm = () => {
@@ -253,7 +237,7 @@ export default function ActivitiesTable({
                   </td>
 
                   {/* Status (editable select) + outcome badge if tagged */}
-                  <td className="px-2 py-1" ref={getStatusCellRef(activity.id)}>
+                  <td className="px-2 py-1">
                     <div className="flex items-center gap-1.5">
                       <InlineEditCell
                         type="select"
@@ -359,11 +343,19 @@ export default function ActivitiesTable({
         />
       )}
 
-      {/* Outcome Popover — appears after marking an activity "completed" */}
+      {/* Outcome Modal — appears after marking an activity "completed" */}
       {outcomeActivity && (
-        <OutcomePopover
-          activity={outcomeActivity}
-          anchorRef={outcomeAnchorRef}
+        <OutcomeModal
+          activity={{
+            id: outcomeActivity.id,
+            type: outcomeActivity.type,
+            title: outcomeActivity.title,
+          }}
+          sourceContext={{
+            planIds: undefined,
+            districtLeaids: undefined,
+            contactIds: undefined,
+          }}
           onClose={() => setOutcomeActivity(null)}
         />
       )}

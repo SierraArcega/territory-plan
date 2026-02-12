@@ -16,6 +16,7 @@ import {
   ACTIVITY_TYPE_ICONS,
   type ActivityType,
 } from "@/lib/activityTypes";
+import OutcomeModal from "@/components/activities/OutcomeModal";
 
 // Confidence level → left border color
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -42,6 +43,8 @@ export default function CalendarEventCard({
   onEditAndConfirm,
 }: CalendarEventCardProps) {
   const [isExiting, setIsExiting] = useState(false);
+  const [showOutcomeModal, setShowOutcomeModal] = useState(false);
+  const [createdActivityId, setCreatedActivityId] = useState<string | null>(null);
 
   const confirmMutation = useConfirmCalendarEvent();
   const dismissMutation = useDismissCalendarEvent();
@@ -61,10 +64,15 @@ export default function CalendarEventCard({
   const isPast = startDate < new Date();
 
   // Handle confirm — creates Activity with smart suggestions
+  // If the event is in the past, show the OutcomeModal after confirming
   const handleConfirm = async () => {
     setIsExiting(true);
     try {
-      await confirmMutation.mutateAsync({ eventId: event.id });
+      const result = await confirmMutation.mutateAsync({ eventId: event.id });
+      if (isPast && result.activityId) {
+        setCreatedActivityId(result.activityId);
+        setShowOutcomeModal(true);
+      }
     } catch {
       setIsExiting(false);
     }
@@ -89,6 +97,7 @@ export default function CalendarEventCard({
     : null;
 
   return (
+    <>
     <div
       className={`
         bg-white rounded-lg border border-gray-200 border-l-4 ${confidenceBorder}
@@ -243,5 +252,23 @@ export default function CalendarEventCard({
         </div>
       </div>
     </div>
+
+    {/* OutcomeModal — shown after confirming a past event */}
+    {showOutcomeModal && createdActivityId && (
+      <OutcomeModal
+        activity={{
+          id: createdActivityId,
+          type: event.suggestedActivityType || "customer_check_in",
+          title: event.title,
+        }}
+        sourceContext={{
+          planIds: event.suggestedPlanId ? [event.suggestedPlanId] : undefined,
+          districtLeaids: event.suggestedDistrictId ? [event.suggestedDistrictId] : undefined,
+          contactIds: event.suggestedContactIds || undefined,
+        }}
+        onClose={() => setShowOutcomeModal(false)}
+      />
+    )}
+    </>
   );
 }
