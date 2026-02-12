@@ -3192,7 +3192,7 @@
       "sample_names": []
     },
     "sessions": {
-      "count": 799,
+      "count": 833,
       "revenue": 37750,
       "schools_in_sessions": [
         "Gwinnett County Public Schools",
@@ -3203,7 +3203,7 @@
       "count": 100
     },
     "totals": {
-      "entity_count": 1042,
+      "entity_count": 1076,
       "total_revenue": 386799.25
     },
     "data_quality": {
@@ -21024,6 +21024,104 @@
     }
   },
   {
+    "district_id": "17592295346626",
+    "district_name": "Kingman Unified School District",
+    "state": "AZ",
+    "state_sources": [
+      [
+        "district",
+        "AZ"
+      ]
+    ],
+    "nces_id": "400295",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 4,
+      "revenue": 72822.5810546875,
+      "account_names_used": [
+        "Kingman Unified School District"
+      ]
+    },
+    "schools": {
+      "count": 15,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 843,
+      "revenue": 25575.98014831543,
+      "schools_in_sessions": [
+        "Kingman High School",
+        "Kingman Middle School",
+        "Lee Williams High School",
+        "La Senita Elementary School",
+        "Manzanita Elementary School"
+      ]
+    },
+    "courses": {
+      "count": 8
+    },
+    "totals": {
+      "entity_count": 870,
+      "total_revenue": 98398.56120300293
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592294784210",
+    "district_name": "Kingman Unified School District",
+    "state": "AZ",
+    "state_sources": [
+      [
+        "district",
+        "AZ"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 2,
+      "revenue": 14713.6904296875,
+      "account_names_used": [
+        "Kingman Unified School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 14713.6904296875
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592191704928",
     "district_name": "Johnson City School District",
     "state": "NY",
@@ -21110,104 +21208,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592295346626",
-    "district_name": "Kingman Unified School District",
-    "state": "AZ",
-    "state_sources": [
-      [
-        "district",
-        "AZ"
-      ]
-    ],
-    "nces_id": "400295",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 4,
-      "revenue": 72822.5810546875,
-      "account_names_used": [
-        "Kingman Unified School District"
-      ]
-    },
-    "schools": {
-      "count": 15,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 797,
-      "revenue": 22635.200134277344,
-      "schools_in_sessions": [
-        "Kingman High School",
-        "Kingman Middle School",
-        "Lee Williams High School",
-        "La Senita Elementary School",
-        "Manzanita Elementary School"
-      ]
-    },
-    "courses": {
-      "count": 8
-    },
-    "totals": {
-      "entity_count": 824,
-      "total_revenue": 95457.78118896484
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592294784210",
-    "district_name": "Kingman Unified School District",
-    "state": "AZ",
-    "state_sources": [
-      [
-        "district",
-        "AZ"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 2,
-      "revenue": 14713.6904296875,
-      "account_names_used": [
-        "Kingman Unified School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 2,
-      "total_revenue": 14713.6904296875
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
