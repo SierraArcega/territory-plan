@@ -322,7 +322,7 @@
   {
     "account_id": "17592297177419",
     "account_name": "Goshen Central School District",
-    "state": null,
+    "state": "NEW YORK",
     "sales_exec": "Kris Tedesco",
     "total_revenue": 29566,
     "opportunity_count": 2
@@ -435,7 +435,7 @@
     "account_id": "17592297177211",
     "account_name": "Ichabod Crane Central School District",
     "state": "NEW YORK",
-    "sales_exec": "Kris Tedesco",
+    "sales_exec": "Brooke Fera",
     "total_revenue": 14000,
     "opportunity_count": 5
   },
@@ -498,7 +498,7 @@
   {
     "account_id": "17592295357235",
     "account_name": "Invent Learning Hub (District)",
-    "state": null,
+    "state": "INDIANA",
     "sales_exec": "Mike O'Donnell",
     "total_revenue": 7904.639892578125,
     "opportunity_count": 2
