@@ -51,7 +51,7 @@
     "account_id": "17592297177493",
     "account_name": "Saratoga Springs City School District",
     "state": "NEW YORK",
-    "sales_exec": "Sharon C.",
+    "sales_exec": "Brooke Fera",
     "total_revenue": 418600,
     "opportunity_count": 6
   },
@@ -83,7 +83,7 @@
     "account_id": "17592191599741",
     "account_name": "Metropolitan Nashville Public Schools",
     "state": "TENNESSEE",
-    "sales_exec": "Monica Sherwood",
+    "sales_exec": "Joy Panko",
     "total_revenue": 240754.6796875,
     "opportunity_count": 5
   },
@@ -219,7 +219,7 @@
     "account_id": "17592238766999",
     "account_name": "Frankfort-Schuyler",
     "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
+    "sales_exec": "Tracy Walters",
     "total_revenue": 53595,
     "opportunity_count": 9
   },
@@ -322,7 +322,7 @@
   {
     "account_id": "17592297177419",
     "account_name": "Goshen Central School District",
-    "state": "NEW YORK",
+    "state": null,
     "sales_exec": "Kris Tedesco",
     "total_revenue": 29566,
     "opportunity_count": 2
