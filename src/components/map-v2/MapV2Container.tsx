@@ -12,6 +12,8 @@ import MapV2Tooltip from "./MapV2Tooltip";
 // Throttle interval for hover handlers
 const HOVER_THROTTLE_MS = 50;
 
+const SCHOOL_MIN_ZOOM = 9;
+
 // US bounds
 const US_BOUNDS: maplibregl.LngLatBoundsLike = [
   [-125, 24],
@@ -95,10 +97,16 @@ const STATE_NAME_TO_ABBREV: Record<string, string> = {
   "American Samoa": "AS", "Northern Mariana Islands": "MP",
 };
 
+// Inverted: abbreviation → state name (for highlighting filtered states)
+const ABBREV_TO_STATE_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(STATE_NAME_TO_ABBREV).map(([name, abbrev]) => [abbrev, name])
+);
+
 export default function MapV2Container() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const schoolFetchController = useRef<AbortController | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const isTouchDevice = useIsTouchDevice();
   const { data: profile } = useProfile();
@@ -106,24 +114,16 @@ export default function MapV2Container() {
   // Refs for hover optimization
   const lastHoveredLeaidRef = useRef<string | null>(null);
   const lastHoverTimeRef = useRef(0);
+  const tooltipElRef = useRef<HTMLDivElement>(null);
 
-  const {
-    selectedLeaid,
-    hoveredLeaid,
-    activeVendors,
-    filterOwner,
-    filterPlanId,
-    panelState,
-    selectDistrict,
-    selectState,
-    setHoveredLeaid,
-    showTooltip,
-    hideTooltip,
-    updateTooltipPosition,
-    addClickRipple,
-    addDistrictToPlan,
-    toggleDistrictSelection,
-  } = useMapV2Store();
+  // === Render-triggering state (granular selectors) ===
+  const selectedLeaid = useMapV2Store((s) => s.selectedLeaid);
+  const activeVendors = useMapV2Store((s) => s.activeVendors);
+  const filterOwner = useMapV2Store((s) => s.filterOwner);
+  const filterPlanId = useMapV2Store((s) => s.filterPlanId);
+  const filterStates = useMapV2Store((s) => s.filterStates);
+  const clickRipples = useMapV2Store((s) => s.clickRipples);
+  const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
 
   // Initialize map
   useEffect(() => {
@@ -162,10 +162,10 @@ export default function MapV2Container() {
         data: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
       });
 
-      // Add district tiles source
+      // Add district tiles source (cache-bust via version param)
       map.current.addSource("districts", {
         type: "vector",
-        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}`],
+        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=2`],
         minzoom: 3.5,
         maxzoom: 12,
       });
@@ -204,6 +204,31 @@ export default function MapV2Container() {
         paint: {
           "line-color": "#F37167",
           "line-width": 3,
+        },
+      });
+
+      // State filter fill (subtle highlight for selected states)
+      map.current.addLayer({
+        id: "state-filter-fill",
+        type: "fill",
+        source: "states",
+        filter: ["==", ["get", "name"], ""],
+        paint: {
+          "fill-color": "#403770",
+          "fill-opacity": 0.06,
+        },
+      });
+
+      // State filter outline (prominent border for selected states)
+      map.current.addLayer({
+        id: "state-filter-outline",
+        type: "line",
+        source: "states",
+        filter: ["==", ["get", "name"], ""],
+        paint: {
+          "line-color": "#403770",
+          "line-width": 2.5,
+          "line-opacity": 0.7,
         },
       });
 
@@ -307,6 +332,82 @@ export default function MapV2Container() {
         },
       });
 
+      // === SCHOOL LAYERS ===
+
+      // Empty GeoJSON source with clustering enabled
+      map.current.addSource("schools", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
+      });
+
+      // Cluster circles
+      map.current.addLayer({
+        id: "schools-clusters",
+        type: "circle",
+        source: "schools",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "#64748B",
+          "circle-radius": [
+            "step", ["get", "point_count"],
+            14,
+            10, 18,
+            50, 22,
+          ],
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+        minzoom: SCHOOL_MIN_ZOOM,
+      });
+
+      // Cluster count labels
+      map.current.addLayer({
+        id: "schools-cluster-count",
+        type: "symbol",
+        source: "schools",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-size": 12,
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        },
+        paint: {
+          "text-color": "#ffffff",
+        },
+        minzoom: SCHOOL_MIN_ZOOM,
+      });
+
+      // Individual school dots (unclustered)
+      map.current.addLayer({
+        id: "schools-unclustered",
+        type: "circle",
+        source: "schools",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": [
+            "match", ["get", "schoolLevel"],
+            1, "#3B82F6",
+            2, "#10B981",
+            3, "#F59E0B",
+            "#6B7280",
+          ],
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            SCHOOL_MIN_ZOOM, 3,
+            12, 5,
+            15, 7,
+          ],
+          "circle-opacity": 0.9,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff",
+        },
+        minzoom: SCHOOL_MIN_ZOOM,
+      });
+
       setMapReady(true);
     });
 
@@ -316,25 +417,74 @@ export default function MapV2Container() {
     };
   }, []);
 
-  // Handle district hover
+  // Clear hover — accesses store via getState(), no subscriptions needed
+  const clearHover = useCallback(() => {
+    if (!map.current) return;
+    lastHoveredLeaidRef.current = null;
+    map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
+    map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+    map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
+    map.current.getCanvas().style.cursor = "";
+    useMapV2Store.getState().hideTooltip();
+  }, []);
+
+  // Load school GeoJSON for current viewport
+  const loadSchoolsForViewport = useCallback(() => {
+    if (!map.current || !mapReady) return;
+    if (map.current.getZoom() < SCHOOL_MIN_ZOOM) {
+      // Clear schools when zoomed out
+      const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData({ type: "FeatureCollection", features: [] });
+      }
+      return;
+    }
+
+    // Abort previous in-flight request
+    if (schoolFetchController.current) {
+      schoolFetchController.current.abort();
+    }
+    schoolFetchController.current = new AbortController();
+
+    const bounds = map.current.getBounds();
+    const boundsParam = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+
+    fetch(`/api/schools/geojson?bounds=${boundsParam}`, {
+      signal: schoolFetchController.current.signal,
+    })
+      .then((res) => res.json())
+      .then((geojson) => {
+        if (!map.current) return;
+        const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
+        if (source) {
+          source.setData(geojson);
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error("Failed to load schools:", err);
+        }
+      });
+  }, [mapReady]);
+
+  // Handle district hover — actions via getState(), tooltip position via DOM ref
   const handleDistrictHover = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
+
+      // Skip hover processing during pan/zoom — avoids competing with GPU tile rendering
+      if (map.current.isMoving()) return;
 
       const now = Date.now();
       if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
       lastHoverTimeRef.current = now;
 
-      const queryLayers = [
-        "district-base-fill",
-        ...VENDOR_IDS.map((v) => `district-${v}-fill`),
-      ];
-      const activeLayers = queryLayers.filter(
-        (id) => map.current?.getLayer(id)
-      );
-      const features = map.current.queryRenderedFeatures(e.point, {
-        layers: activeLayers,
-      });
+      // Query only the base fill layer — same source-layer, same properties, 1 layer vs 5
+      const features = map.current.getLayer("district-base-fill")
+        ? map.current.queryRenderedFeatures(e.point, {
+            layers: ["district-base-fill"],
+          })
+        : [];
 
       if (features.length > 0) {
         const feature = features[0];
@@ -342,13 +492,12 @@ export default function MapV2Container() {
 
         if (leaid && leaid !== lastHoveredLeaidRef.current) {
           lastHoveredLeaidRef.current = leaid;
-          setHoveredLeaid(leaid);
 
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
           map.current.getCanvas().style.cursor = "pointer";
 
-          showTooltip(e.point.x, e.point.y, {
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
             type: "district",
             leaid,
             name: feature.properties?.name || "Unknown",
@@ -358,11 +507,38 @@ export default function MapV2Container() {
             salesExecutive: feature.properties?.sales_executive,
           });
         } else if (leaid === lastHoveredLeaidRef.current) {
-          updateTooltipPosition(e.point.x, e.point.y);
+          // Same district — update tooltip position directly via DOM, no store write
+          if (tooltipElRef.current) {
+            tooltipElRef.current.style.left = `${e.point.x + 12}px`;
+            tooltipElRef.current.style.top = `${e.point.y - 8}px`;
+          }
         }
       } else {
-        // Check state hover at low zoom
-        if (map.current.getZoom() < 6) {
+        // Check for school hover
+        const schoolFeatures = map.current.getLayer("schools-unclustered")
+          ? map.current.queryRenderedFeatures(e.point, {
+              layers: ["schools-unclustered"],
+            })
+          : [];
+
+        if (schoolFeatures.length > 0) {
+          const props = schoolFeatures[0].properties;
+          lastHoveredLeaidRef.current = null;
+          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
+          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+          map.current.getCanvas().style.cursor = "pointer";
+
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+            type: "school",
+            name: props?.name || "Unknown School",
+            leaid: props?.leaid,
+            enrollment: props?.enrollment,
+            schoolLevel: props?.schoolLevel,
+            lograde: props?.lograde,
+            higrade: props?.higrade,
+          });
+        } else if (map.current.getZoom() < 6) {
+          // Check state hover at low zoom
           const stateFeatures = map.current.queryRenderedFeatures(e.point, {
             layers: ["state-fill"],
           });
@@ -373,7 +549,7 @@ export default function MapV2Container() {
             if (stateName) {
               map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
               map.current.getCanvas().style.cursor = "pointer";
-              showTooltip(e.point.x, e.point.y, {
+              useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
                 type: "state",
                 stateName,
                 stateCode,
@@ -387,54 +563,84 @@ export default function MapV2Container() {
         }
       }
     },
-    [mapReady, setHoveredLeaid, showTooltip, updateTooltipPosition]
+    [mapReady, clearHover]
   );
 
-  const clearHover = useCallback(() => {
-    if (!map.current) return;
-    lastHoveredLeaidRef.current = null;
-    setHoveredLeaid(null);
-    map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
-    map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
-    map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
-    map.current.getCanvas().style.cursor = "";
-    hideTooltip();
-  }, [setHoveredLeaid, hideTooltip]);
-
-  // Handle map click
+  // Handle map click — all store access via getState()
   const handleClick = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
 
-      // Check for district click
-      const districtFeatures = map.current.queryRenderedFeatures(e.point, {
-        layers: [
-          "district-base-fill",
-          ...VENDOR_IDS.map((v) => `district-${v}-fill`),
-        ].filter((id) => map.current?.getLayer(id)),
-      });
+      // Check for school cluster click — zoom in
+      const clusterFeatures = map.current.getLayer("schools-clusters")
+        ? map.current.queryRenderedFeatures(e.point, {
+            layers: ["schools-clusters"],
+          })
+        : [];
+
+      if (clusterFeatures.length > 0) {
+        const clusterId = clusterFeatures[0].properties?.cluster_id;
+        const source = map.current.getSource("schools") as maplibregl.GeoJSONSource;
+        source.getClusterExpansionZoom(clusterId).then((zoom) => {
+          const geo = clusterFeatures[0].geometry;
+          if (geo.type === "Point") {
+            map.current?.easeTo({
+              center: geo.coordinates as [number, number],
+              zoom: zoom,
+              duration: 500,
+            });
+          }
+        });
+        return;
+      }
+
+      // Check for individual school click — select parent district
+      const schoolFeatures = map.current.getLayer("schools-unclustered")
+        ? map.current.queryRenderedFeatures(e.point, {
+            layers: ["schools-unclustered"],
+          })
+        : [];
+
+      if (schoolFeatures.length > 0) {
+        const leaid = schoolFeatures[0].properties?.leaid;
+        if (leaid) {
+          const store = useMapV2Store.getState();
+          store.addClickRipple(e.point.x, e.point.y, "coral");
+          store.selectDistrict(leaid);
+        }
+        return;
+      }
+
+      // Check for district click — query base fill only (same source-layer, same properties)
+      const districtFeatures = map.current.getLayer("district-base-fill")
+        ? map.current.queryRenderedFeatures(e.point, {
+            layers: ["district-base-fill"],
+          })
+        : [];
 
       if (districtFeatures.length > 0) {
         const leaid = districtFeatures[0].properties?.leaid;
         if (!leaid) return;
 
+        const store = useMapV2Store.getState();
+
         // Visual feedback
-        addClickRipple(e.point.x, e.point.y, "plum");
+        store.addClickRipple(e.point.x, e.point.y, "plum");
 
         // In PLAN_ADD mode, shift+click or regular click adds to plan
-        if (panelState === "PLAN_ADD") {
-          addDistrictToPlan(leaid);
+        if (store.panelState === "PLAN_ADD") {
+          store.addDistrictToPlan(leaid);
           return;
         }
 
         // Shift+click toggles multi-select
         if (e.originalEvent.shiftKey) {
-          toggleDistrictSelection(leaid);
+          store.toggleDistrictSelection(leaid);
           return;
         }
 
         // Regular click selects district
-        selectDistrict(leaid);
+        store.selectDistrict(leaid);
 
         // Zoom to district
         const bounds = districtFeatures[0].geometry;
@@ -472,8 +678,9 @@ export default function MapV2Container() {
           const stateName = stateFeatures[0].properties?.name;
           const stateCode = STATE_NAME_TO_ABBREV[stateName];
           if (stateCode && STATE_BBOX[stateCode]) {
-            addClickRipple(e.point.x, e.point.y, "coral");
-            selectState(stateCode);
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "coral");
+            store.selectState(stateCode);
             map.current.fitBounds(STATE_BBOX[stateCode], {
               padding: { top: 50, bottom: 50, left: 380, right: 50 },
               duration: 800,
@@ -482,7 +689,7 @@ export default function MapV2Container() {
         }
       }
     },
-    [mapReady, panelState, selectDistrict, selectState, addClickRipple, addDistrictToPlan, toggleDistrictSelection]
+    [mapReady]
   );
 
   // Attach/detach event handlers
@@ -493,12 +700,26 @@ export default function MapV2Container() {
     map.current.on("click", handleClick);
     map.current.on("mouseleave", clearHover);
 
-    return () => {
-      map.current?.off("mousemove", handleDistrictHover);
-      map.current?.off("click", handleClick);
-      map.current?.off("mouseleave", clearHover);
+    // Load schools on viewport change (debounced)
+    let schoolDebounceTimer: ReturnType<typeof setTimeout>;
+    const handleMoveEnd = () => {
+      clearTimeout(schoolDebounceTimer);
+      schoolDebounceTimer = setTimeout(loadSchoolsForViewport, 300);
     };
-  }, [mapReady, handleDistrictHover, handleClick, clearHover]);
+    map.current.on("moveend", handleMoveEnd);
+
+    // Initial load
+    loadSchoolsForViewport();
+
+    return () => {
+      const m = map.current;
+      m?.off("mousemove", handleDistrictHover);
+      m?.off("click", handleClick);
+      m?.off("mouseleave", clearHover);
+      m?.off("moveend", handleMoveEnd);
+      clearTimeout(schoolDebounceTimer);
+    };
+  }, [mapReady, handleDistrictHover, handleClick, clearHover, loadSchoolsForViewport]);
 
   // Update selected district highlight
   useEffect(() => {
@@ -528,7 +749,7 @@ export default function MapV2Container() {
   // Apply filter expression to all layers
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    const filter = buildFilterExpression(filterOwner, filterPlanId);
+    const filter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
 
     // Apply to base layers
     map.current.setFilter("district-base-fill", filter);
@@ -545,7 +766,25 @@ export default function MapV2Container() {
         : vendorFilter;
       map.current.setFilter(layerId, combined);
     }
-  }, [filterOwner, filterPlanId, mapReady]);
+  }, [filterOwner, filterPlanId, filterStates, mapReady]);
+
+  // Highlight filtered states with outline + subtle fill
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    if (filterStates.length === 0) {
+      // No states selected — hide highlights
+      map.current.setFilter("state-filter-fill", ["==", ["get", "name"], ""]);
+      map.current.setFilter("state-filter-outline", ["==", ["get", "name"], ""]);
+    } else {
+      const stateNames = filterStates
+        .map((abbrev) => ABBREV_TO_STATE_NAME[abbrev])
+        .filter(Boolean);
+      const nameFilter: any = ["in", ["get", "name"], ["literal", stateNames]];
+      map.current.setFilter("state-filter-fill", nameFilter);
+      map.current.setFilter("state-filter-outline", nameFilter);
+    }
+  }, [filterStates, mapReady]);
 
   // Handle Escape key
   useEffect(() => {
@@ -606,9 +845,6 @@ export default function MapV2Container() {
     };
   }, [mapReady, profile?.locationLat, profile?.locationLng, profile?.location]);
 
-  const clickRipples = useMapV2Store((s) => s.clickRipples);
-  const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
-
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="w-full h-full" />
@@ -624,7 +860,7 @@ export default function MapV2Container() {
       ))}
 
       {/* Tooltip */}
-      <MapV2Tooltip />
+      <MapV2Tooltip ref={tooltipElRef} />
     </div>
   );
 }
