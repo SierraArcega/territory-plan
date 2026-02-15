@@ -55,8 +55,9 @@ export default function FloatingPanel() {
             className="absolute bottom-4 left-4 right-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M2 10L10 14L18 10" stroke="#403770" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M2 6L10 10L18 6L10 2L2 6Z" stroke="#403770" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="10" cy="10" r="7.5" stroke="#403770" strokeWidth="1.5" />
+              <circle cx="10" cy="10" r="1.5" fill="#403770" />
+              <path d="M10 4V6.5M10 13.5V16M4 10H6.5M13.5 10H16" stroke="#403770" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <span className="text-sm font-medium text-gray-700">Explore Districts</span>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto">
