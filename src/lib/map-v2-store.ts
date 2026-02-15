@@ -20,7 +20,7 @@ export type LayerType =
   | "revenue";
 
 // Icon bar navigation
-export type IconBarTab = "home" | "layers" | "plans" | "settings";
+export type IconBarTab = "home" | "search" | "plans" | "settings";
 
 // Tooltip data for v2
 export interface V2TooltipData {
@@ -79,6 +79,9 @@ interface MapV2State {
 
   // Responsive
   panelCollapsed: boolean;
+
+  // Layer bubble
+  layerBubbleOpen: boolean;
 }
 
 interface MapV2Actions {
@@ -126,6 +129,10 @@ interface MapV2Actions {
   // Responsive
   setPanelCollapsed: (collapsed: boolean) => void;
   togglePanel: () => void;
+
+  // Layer bubble
+  setLayerBubbleOpen: (open: boolean) => void;
+  toggleLayerBubble: () => void;
 }
 
 let rippleId = 0;
@@ -154,6 +161,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   tooltip: initialTooltip,
   clickRipples: [],
   panelCollapsed: false,
+  layerBubbleOpen: false,
 
   // Panel navigation
   setPanelState: (state) =>
@@ -184,7 +192,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     set((s) => ({
       activeIconTab: tab,
       // Reset to browse when switching tabs
-      panelState: tab === "home" || tab === "layers" ? "BROWSE" : s.panelState,
+      panelState: tab === "home" || tab === "search" ? "BROWSE" : s.panelState,
       panelHistory: [],
     })),
 
@@ -305,4 +313,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   // Responsive
   setPanelCollapsed: (collapsed) => set({ panelCollapsed: collapsed }),
   togglePanel: () => set((s) => ({ panelCollapsed: !s.panelCollapsed })),
+
+  // Layer bubble
+  setLayerBubbleOpen: (open) => set({ layerBubbleOpen: open }),
+  toggleLayerBubble: () => set((s) => ({ layerBubbleOpen: !s.layerBubbleOpen })),
 }));
