@@ -1,6 +1,7 @@
 "use client";
 
 import { useMapV2Store } from "@/lib/map-v2-store";
+import DistrictCard from "./right-panels/DistrictCard";
 
 export default function RightPanel() {
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
@@ -30,11 +31,16 @@ export default function RightPanel() {
         </button>
       </div>
 
-      {/* Content - placeholder for now, later tasks will fill these */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto p-3">
-        <div className="text-center py-8 text-xs text-gray-400">
-          {rightPanelContent.type} — {rightPanelContent.id || "new"}
-        </div>
+        {rightPanelContent.type === "district_card" && rightPanelContent.id && (
+          <DistrictCard leaid={rightPanelContent.id} />
+        )}
+        {!["district_card"].includes(rightPanelContent.type) && (
+          <div className="text-center py-8 text-xs text-gray-400">
+            {rightPanelContent.type} — coming soon
+          </div>
+        )}
       </div>
     </div>
   );
