@@ -8,10 +8,22 @@ export type PanelState =
   | "STATE"
   | "PLAN_NEW"
   | "PLAN_VIEW"
-  | "PLAN_ADD";
+  | "PLAN_ADD"
+  | "PLAN_OVERVIEW"
+  | "PLAN_TASKS"
+  | "PLAN_CONTACTS"
+  | "PLAN_PERF";
 
 // Icon bar navigation
 export type IconBarTab = "home" | "search" | "plans" | "settings";
+
+// Plan workspace sections
+export type PlanSection = "overview" | "tasks" | "contacts" | "performance";
+
+export interface RightPanelContent {
+  type: "district_card" | "task_form" | "task_edit" | "contact_detail" | "contact_form";
+  id?: string;
+}
 
 // Tooltip data for v2
 export interface V2TooltipData {
@@ -61,6 +73,8 @@ interface MapV2State {
 
   // Plan state
   activePlanId: string | null;
+  planSection: PlanSection;
+  rightPanelContent: RightPanelContent | null;
   planDistrictLeaids: Set<string>;
 
   // Multi-select (for Flow A: select -> plan)
@@ -111,6 +125,11 @@ interface MapV2Actions {
   removeDistrictFromPlan: (leaid: string) => void;
   finishAddingDistricts: () => void;
 
+  // Plan workspace
+  setPlanSection: (section: PlanSection) => void;
+  openRightPanel: (content: RightPanelContent) => void;
+  closeRightPanel: () => void;
+
   // Multi-select
   toggleDistrictSelection: (leaid: string) => void;
   clearSelectedDistricts: () => void;
@@ -160,6 +179,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   selectedStateCode: null,
   hoveredLeaid: null,
   activePlanId: null,
+  planSection: "overview" as PlanSection,
+  rightPanelContent: null as RightPanelContent | null,
   planDistrictLeaids: new Set<string>(),
   selectedLeaids: new Set<string>(),
   searchQuery: "",
@@ -264,8 +285,10 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   viewPlan: (planId) =>
     set((s) => ({
       activePlanId: planId,
-      panelState: "PLAN_VIEW",
+      panelState: "PLAN_OVERVIEW",
       panelHistory: [...s.panelHistory, s.panelState],
+      planSection: "overview" as PlanSection,
+      rightPanelContent: null,
     })),
 
   addDistrictToPlan: (leaid) =>
@@ -287,6 +310,21 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       panelState: "PLAN_VIEW",
       panelHistory: [...s.panelHistory, s.panelState],
     })),
+
+  // Plan workspace
+  setPlanSection: (section) => {
+    const sectionToState: Record<PlanSection, PanelState> = {
+      overview: "PLAN_OVERVIEW",
+      tasks: "PLAN_TASKS",
+      contacts: "PLAN_CONTACTS",
+      performance: "PLAN_PERF",
+    };
+    set({ planSection: section, panelState: sectionToState[section], rightPanelContent: null });
+  },
+
+  openRightPanel: (content) => set({ rightPanelContent: content }),
+
+  closeRightPanel: () => set({ rightPanelContent: null }),
 
   // Multi-select
   toggleDistrictSelection: (leaid) =>
