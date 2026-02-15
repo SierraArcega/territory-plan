@@ -2,6 +2,7 @@
 
 import { useMapV2Store } from "@/lib/map-v2-store";
 import DistrictCard from "./right-panels/DistrictCard";
+import TaskForm from "./right-panels/TaskForm";
 
 export default function RightPanel() {
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
@@ -36,7 +37,13 @@ export default function RightPanel() {
         {rightPanelContent.type === "district_card" && rightPanelContent.id && (
           <DistrictCard leaid={rightPanelContent.id} />
         )}
-        {!["district_card"].includes(rightPanelContent.type) && (
+        {rightPanelContent.type === "task_form" && (
+          <TaskForm preLinkedLeaid={rightPanelContent.id} />
+        )}
+        {rightPanelContent.type === "task_edit" && rightPanelContent.id && (
+          <TaskForm taskId={rightPanelContent.id} />
+        )}
+        {!["district_card", "task_form", "task_edit"].includes(rightPanelContent.type) && (
           <div className="text-center py-8 text-xs text-gray-400">
             {rightPanelContent.type} — coming soon
           </div>
