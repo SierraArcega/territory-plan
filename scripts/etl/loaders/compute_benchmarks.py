@@ -276,7 +276,7 @@ def compute_district_trends(connection_string: str) -> int:
         trends AS (
             SELECT
                 l.leaid,
-                -- SWD trend: % change in count
+                -- SWD trend: pct change in count
                 CASE
                     WHEN b.spec_ed_students IS NOT NULL AND b.spec_ed_students > 0
                          AND l.spec_ed_students IS NOT NULL
@@ -284,7 +284,7 @@ def compute_district_trends(connection_string: str) -> int:
                          / b.spec_ed_students) * 100, 2)
                     ELSE NULL
                 END AS swd_trend,
-                -- ELL trend: % change in count
+                -- ELL trend: pct change in count
                 CASE
                     WHEN b.ell_students IS NOT NULL AND b.ell_students > 0
                          AND l.ell_students IS NOT NULL
