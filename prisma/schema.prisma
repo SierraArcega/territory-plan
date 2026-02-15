@@ -90,8 +90,6 @@ model District {
   // ===== Graduation Data =====
   // Source: Urban Institute API (graduation endpoint)
   graduationRateTotal  Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
-  graduationRateMale   Decimal? @map("graduation_rate_male") @db.Decimal(5, 2)
-  graduationRateFemale Decimal? @map("graduation_rate_female") @db.Decimal(5, 2)
   graduationDataYear   Int?     @map("graduation_data_year")
 
   // ===== Staffing & Salaries =====
@@ -148,6 +146,52 @@ model District {
   geometry Unsupported("geometry(MultiPolygon, 4326)")?
   centroid Unsupported("geometry(Point, 4326)")?
 
+  // ===== Charter School Aggregates =====
+  // Cached from schools table via ETL post-processing
+  charterSchoolCount Int? @map("charter_school_count")
+  charterEnrollment  Int? @map("charter_enrollment")
+
+  // ===== Staffing Ratios (computed post-ETL) =====
+  // Computed from enrollment and FTE data after ETL runs
+  studentTeacherRatio     Decimal? @map("student_teacher_ratio") @db.Decimal(8, 2)
+  studentStaffRatio       Decimal? @map("student_staff_ratio") @db.Decimal(8, 2)
+  spedStudentTeacherRatio Decimal? @map("sped_student_teacher_ratio") @db.Decimal(8, 2)
+
+  // ===== Special Education Finance =====
+  // Source: Urban Institute API (finance endpoint) - sped expenditure detail
+  spedExpenditureTotal       Decimal? @map("sped_expenditure_total") @db.Decimal(15, 2)
+  spedExpenditureInstruction Decimal? @map("sped_expenditure_instruction") @db.Decimal(15, 2)
+  spedExpenditureSupport     Decimal? @map("sped_expenditure_support") @db.Decimal(15, 2)
+  spedExpenditurePerStudent  Decimal? @map("sped_expenditure_per_student") @db.Decimal(12, 2)
+
+  // ===== ESSER / COVID Relief Funding =====
+  // Source: Urban Institute API (finance endpoint) - federal COVID relief
+  esserFundingTotal    Decimal? @map("esser_funding_total") @db.Decimal(15, 2)
+  esserSpendingTotal   Decimal? @map("esser_spending_total") @db.Decimal(15, 2)
+  esserSpendingInstruction Decimal? @map("esser_spending_instruction") @db.Decimal(15, 2)
+
+  // ===== Assessment Data =====
+  // Source: Urban Institute API (EdFacts assessments endpoint)
+  mathProficiencyPct  Decimal? @map("math_proficiency_pct") @db.Decimal(5, 2)
+  readProficiencyPct  Decimal? @map("read_proficiency_pct") @db.Decimal(5, 2)
+  assessmentDataYear  Int?     @map("assessment_data_year")
+
+  // ===== Technology & Capital Spending =====
+  // Source: Urban Institute API (finance endpoint)
+  techSpending       Decimal? @map("tech_spending") @db.Decimal(15, 2)
+  capitalOutlayTotal Decimal? @map("capital_outlay_total") @db.Decimal(15, 2)
+  debtOutstanding    Decimal? @map("debt_outstanding") @db.Decimal(15, 2)
+
+  // ===== Outsourcing Signals =====
+  // Source: Urban Institute API (finance endpoint) - districts paying external providers
+  paymentsToCharterSchools  Decimal? @map("payments_to_charter_schools") @db.Decimal(15, 2)
+  paymentsToPrivateSchools  Decimal? @map("payments_to_private_schools") @db.Decimal(15, 2)
+
+  // ===== Trend Signals (computed after historical backfill) =====
+  enrollmentTrend3yr       Decimal? @map("enrollment_trend_3yr") @db.Decimal(8, 2)
+  staffingTrend3yr         Decimal? @map("staffing_trend_3yr") @db.Decimal(8, 2)
+  vacancyPressureSignal    Decimal? @map("vacancy_pressure_signal") @db.Decimal(8, 2)
+
   // ===== Relations =====
   state           State?                  @relation(fields: [stateFips], references: [fips])
   contacts        Contact[]
@@ -156,6 +200,9 @@ model District {
   competitorSpend CompetitorSpend[]
   activityLinks   ActivityDistrict[]
   taskLinks       TaskDistrict[]
+  schools         School[]
+  dataHistory     DistrictDataHistory[]
+  gradeEnrollment DistrictGradeEnrollment[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -163,6 +210,8 @@ model District {
   @@index([stateAbbrev, isCustomer])
   @@index([stateAbbrev, hasOpenPipeline])
   @@index([salesExecutive])
+  @@index([studentTeacherRatio])
+  @@index([vacancyPressureSignal])
   @@map("districts")
 }
 
@@ -171,6 +220,7 @@ model Tag {
   name         String        @unique @db.VarChar(50)
   color        String        @db.VarChar(7)
   districtTags DistrictTag[]
+  schoolTags   SchoolTag[]
 
   @@map("tags")
 }
@@ -222,6 +272,7 @@ model Contact {
   district       District          @relation(fields: [leaid], references: [leaid])
   activityLinks  ActivityContact[]
   taskLinks      TaskContact[]
+  schoolContacts SchoolContact[]
 
   @@index([leaid])
   @@map("contacts")
@@ -282,6 +333,13 @@ model State {
   avgExpenditurePerPupil Decimal? @map("avg_expenditure_per_pupil") @db.Decimal(12, 2)
   avgGraduationRate      Decimal? @map("avg_graduation_rate") @db.Decimal(5, 2)
   avgPovertyRate         Decimal? @map("avg_poverty_rate") @db.Decimal(5, 2)
+  avgChronicAbsenteeismRate Decimal? @map("avg_chronic_absenteeism_rate") @db.Decimal(5, 2)
+  avgStudentTeacherRatio    Decimal? @map("avg_student_teacher_ratio") @db.Decimal(8, 2)
+  avgSwdPct                 Decimal? @map("avg_swd_pct") @db.Decimal(5, 2)
+  avgEllPct                 Decimal? @map("avg_ell_pct") @db.Decimal(5, 2)
+  avgEnrollment             Int?     @map("avg_enrollment")
+  avgMathProficiency        Decimal? @map("avg_math_proficiency") @db.Decimal(5, 2)
+  avgReadProficiency        Decimal? @map("avg_read_proficiency") @db.Decimal(5, 2)
 
   // ===== Territory Management =====
   territoryOwner String? @map("territory_owner") @db.VarChar(100)
@@ -296,8 +354,31 @@ model State {
   districts      District[]
   territoryPlans TerritoryPlan[]
   activityLinks  ActivityState[]
+  assessments    StateAssessment[]
 
   @@map("states")
+}
+
+// ===== State Assessment Programs =====
+// Reference table: which standardized tests each state administers
+// One row per assessment program per state (e.g., PA has PSSA + Keystone)
+// ~80-100 rows total, updated ~once per year when states change programs
+model StateAssessment {
+  id            Int      @id @default(autoincrement())
+  stateFips     String   @map("state_fips") @db.VarChar(2)
+  name          String   @db.VarChar(150)
+  subjects      String   @db.VarChar(255)
+  grades        String   @db.VarChar(100)
+  testingWindow String   @map("testing_window") @db.VarChar(255)
+  vendor        String?  @db.VarChar(150)
+  notes         String?
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  state State @relation(fields: [stateFips], references: [fips])
+
+  @@unique([stateFips, name])
+  @@index([stateFips])
+  @@map("state_assessments")
 }
 
 model TerritoryPlan {
@@ -635,4 +716,142 @@ model CalendarEvent {
   @@index([userId, status])
   @@index([activityId])
   @@map("calendar_events")
+}
+
+// ===== Schools =====
+// Generic school table — supports charter schools now, traditional public schools later
+// Source: Urban Institute Education Data API (school-level CCD endpoints)
+
+model School {
+  ncessch          String    @id @db.VarChar(12) // NCES 12-char school ID
+  leaid            String    @db.VarChar(7) // Parent district
+  schoolName       String    @map("school_name") @db.VarChar(255)
+  charter          Int       @default(0) // 0=traditional, 1=charter
+  schoolLevel      Int?      @map("school_level") // 1=Primary, 2=Middle, 3=High, 4=Other
+  schoolType       Int?      @map("school_type")
+  lograde          String?   @db.VarChar(10)
+  higrade          String?   @db.VarChar(10)
+  schoolStatus     Int?      @map("school_status") // 1=Open, 2=Closed, etc.
+  latitude         Decimal?  @db.Decimal(10, 7)
+  longitude        Decimal?  @db.Decimal(10, 7)
+  streetAddress    String?   @map("street_address") @db.VarChar(255)
+  city             String?   @db.VarChar(100)
+  stateAbbrev      String?   @map("state_abbrev") @db.VarChar(2)
+  zip              String?   @db.VarChar(10)
+  countyName       String?   @map("county_name") @db.VarChar(100)
+  phone            String?   @db.VarChar(20)
+  urbanCentricLocale Int?    @map("urban_centric_locale")
+  enrollment       Int?
+  directoryDataYear Int?     @map("directory_data_year")
+
+  // ===== Lightweight CRM Fields =====
+  owner          String?   @db.VarChar(100)
+  notes          String?
+  notesUpdatedAt DateTime? @map("notes_updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // ===== Relations =====
+  district          District                  @relation(fields: [leaid], references: [leaid])
+  enrollmentHistory SchoolEnrollmentHistory[]
+  schoolTags        SchoolTag[]
+  schoolContacts    SchoolContact[]
+
+  @@index([leaid])
+  @@index([charter])
+  @@index([stateAbbrev])
+  @@index([charter, stateAbbrev])
+  @@map("schools")
+}
+
+model SchoolEnrollmentHistory {
+  id        Int    @id @default(autoincrement())
+  ncessch   String @db.VarChar(12)
+  year      Int
+  enrollment Int?
+
+  school School @relation(fields: [ncessch], references: [ncessch], onDelete: Cascade)
+
+  @@unique([ncessch, year])
+  @@index([ncessch])
+  @@map("school_enrollment_history")
+}
+
+model SchoolTag {
+  schoolId String @map("school_id") @db.VarChar(12)
+  tagId    Int    @map("tag_id")
+  school   School @relation(fields: [schoolId], references: [ncessch], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([schoolId, tagId])
+  @@map("school_tags")
+}
+
+model SchoolContact {
+  schoolId  String  @map("school_id") @db.VarChar(12)
+  contactId Int     @map("contact_id")
+  school    School  @relation(fields: [schoolId], references: [ncessch], onDelete: Cascade)
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([schoolId, contactId])
+  @@map("school_contacts")
+}
+
+// ===== Historical Time-Series Data =====
+// Tracks year-over-year changes for trend analysis (staffing pressure, budget changes, etc.)
+// One row per (leaid, year, source) — enables multi-year comparisons
+model DistrictDataHistory {
+  id        Int      @id @default(autoincrement())
+  leaid     String   @db.VarChar(7)
+  year      Int
+  source    String   @db.VarChar(30) // ccd_directory, ccd_finance, saipe, edfacts_grad, edfacts_assess
+
+  // Enrollment & Staffing (for vacancy pressure analysis)
+  enrollment      Int?
+  teachersFte     Decimal? @map("teachers_fte") @db.Decimal(10, 2)
+  staffTotalFte   Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
+  specEdStudents  Int?     @map("spec_ed_students")
+
+  // Finance (for budget capacity analysis)
+  totalRevenue      Decimal? @map("total_revenue") @db.Decimal(15, 2)
+  totalExpenditure  Decimal? @map("total_expenditure") @db.Decimal(15, 2)
+  expenditurePp     Decimal? @map("expenditure_pp") @db.Decimal(12, 2)
+  federalRevenue    Decimal? @map("federal_revenue") @db.Decimal(15, 2)
+  stateRevenue      Decimal? @map("state_revenue") @db.Decimal(15, 2)
+  localRevenue      Decimal? @map("local_revenue") @db.Decimal(15, 2)
+  spedExpenditure   Decimal? @map("sped_expenditure") @db.Decimal(15, 2)
+
+  // Outcomes
+  povertyPct       Decimal? @map("poverty_pct") @db.Decimal(5, 2)
+  graduationRate   Decimal? @map("graduation_rate") @db.Decimal(5, 2)
+  mathProficiency  Decimal? @map("math_proficiency") @db.Decimal(5, 2)
+  readProficiency  Decimal? @map("read_proficiency") @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@unique([leaid, year, source])
+  @@index([leaid])
+  @@index([year])
+  @@index([source])
+  @@map("district_data_history")
+}
+
+// ===== Grade-Level Enrollment =====
+// Enrollment broken down by grade level per district per year
+// Enables analysis of grade-mix for staffing product fit
+model DistrictGradeEnrollment {
+  id         Int    @id @default(autoincrement())
+  leaid      String @db.VarChar(7)
+  year       Int
+  grade      String @db.VarChar(10) // K, 01, 02, ... 12, PK, UG
+  enrollment Int?
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@unique([leaid, year, grade])
+  @@index([leaid])
+  @@index([year])
+  @@map("district_grade_enrollment")
 }
