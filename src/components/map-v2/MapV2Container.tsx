@@ -4,8 +4,9 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/lib/map-v2-store";
-import { getLayerConfig } from "@/lib/map-v2-layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, buildFilterExpression } from "@/lib/map-v2-layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
+import { useProfile } from "@/lib/api";
 import MapV2Tooltip from "./MapV2Tooltip";
 
 // Throttle interval for hover handlers
@@ -97,8 +98,10 @@ const STATE_NAME_TO_ABBREV: Record<string, string> = {
 export default function MapV2Container() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const isTouchDevice = useIsTouchDevice();
+  const { data: profile } = useProfile();
 
   // Refs for hover optimization
   const lastHoveredLeaidRef = useRef<string | null>(null);
@@ -107,7 +110,9 @@ export default function MapV2Container() {
   const {
     selectedLeaid,
     hoveredLeaid,
-    activeLayer,
+    activeVendors,
+    filterOwner,
+    filterPlanId,
     panelState,
     selectDistrict,
     selectState,
@@ -202,72 +207,52 @@ export default function MapV2Container() {
         },
       });
 
-      // District customer fill (default layer — colors by customer status)
+      // Base fill for all districts (light gray background)
       map.current.addLayer({
-        id: "district-customer-fill",
+        id: "district-base-fill",
         type: "fill",
         source: "districts",
         "source-layer": "districts",
-        filter: ["has", "customer_category"],
-        paint: {
-          "fill-color": [
-            "match",
-            ["get", "customer_category"],
-            "multi_year", "#403770",
-            "new", "#22C55E",
-            "lapsed", "#F37167",
-            "pipeline", "#F59E0B",
-            "target", "#6EA3BE",
-            "#E5E7EB",
-          ],
-          "fill-opacity": 0.65,
-          "fill-opacity-transition": { duration: 150 },
-        },
-      });
-
-      // District customer boundary
-      map.current.addLayer({
-        id: "district-customer-boundary",
-        type: "line",
-        source: "districts",
-        "source-layer": "districts",
-        filter: ["has", "customer_category"],
-        paint: {
-          "line-color": "#374151",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.2, 5, 0.4, 7, 0.8, 10, 1.2],
-          "line-opacity": 0.6,
-        },
-      });
-
-      // Base fill for non-customer districts (zoom >= 6)
-      map.current.addLayer({
-        id: "district-fill",
-        type: "fill",
-        source: "districts",
-        "source-layer": "districts",
-        filter: ["!", ["has", "customer_category"]],
-        minzoom: 6,
+        minzoom: 5,
         paint: {
           "fill-color": "#E5E7EB",
-          "fill-opacity": 0.5,
-          "fill-opacity-transition": { duration: 150 },
+          "fill-opacity": 0.4,
         },
       });
 
-      // Non-customer boundary
+      // Base boundary for all districts
       map.current.addLayer({
-        id: "district-boundary",
+        id: "district-base-boundary",
         type: "line",
         source: "districts",
         "source-layer": "districts",
-        filter: ["!", ["has", "customer_category"]],
-        minzoom: 6,
+        minzoom: 5,
         paint: {
           "line-color": "#374151",
-          "line-width": 1,
-          "line-opacity": 0.6,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.2, 7, 0.6, 10, 1],
+          "line-opacity": 0.4,
         },
       });
+
+      // Per-vendor fill layers (stacked, semi-transparent)
+      for (const vendorId of ["fullmind", "proximity", "elevate", "tbt"] as const) {
+        const config = VENDOR_CONFIGS[vendorId];
+        map.current.addLayer({
+          id: `district-${vendorId}-fill`,
+          type: "fill",
+          source: "districts",
+          "source-layer": "districts",
+          filter: ["has", config.tileProperty],
+          paint: {
+            "fill-color": config.fillColor as any,
+            "fill-opacity": config.fillOpacity,
+            "fill-opacity-transition": { duration: 150 },
+          },
+          layout: {
+            visibility: vendorId === "fullmind" ? "visible" : "none",
+          },
+        });
+      }
 
       // Hover highlight fill
       map.current.addLayer({
@@ -340,11 +325,15 @@ export default function MapV2Container() {
       if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
       lastHoverTimeRef.current = now;
 
+      const queryLayers = [
+        "district-base-fill",
+        ...VENDOR_IDS.map((v) => `district-${v}-fill`),
+      ];
+      const activeLayers = queryLayers.filter(
+        (id) => map.current?.getLayer(id)
+      );
       const features = map.current.queryRenderedFeatures(e.point, {
-        layers: [
-          "district-customer-fill",
-          "district-fill",
-        ],
+        layers: activeLayers,
       });
 
       if (features.length > 0) {
@@ -365,8 +354,7 @@ export default function MapV2Container() {
             name: feature.properties?.name || "Unknown",
             stateAbbrev: feature.properties?.state_abbrev,
             enrollment: feature.properties?.enrollment,
-            customerCategory: feature.properties?.customer_category,
-            dominantVendor: feature.properties?.dominant_vendor,
+            customerCategory: feature.properties?.fullmind_category,
             salesExecutive: feature.properties?.sales_executive,
           });
         } else if (leaid === lastHoveredLeaidRef.current) {
@@ -420,7 +408,10 @@ export default function MapV2Container() {
 
       // Check for district click
       const districtFeatures = map.current.queryRenderedFeatures(e.point, {
-        layers: ["district-customer-fill", "district-fill"],
+        layers: [
+          "district-base-fill",
+          ...VENDOR_IDS.map((v) => `district-${v}-fill`),
+        ].filter((id) => map.current?.getLayer(id)),
       });
 
       if (districtFeatures.length > 0) {
@@ -519,37 +510,42 @@ export default function MapV2Container() {
     map.current.setFilter("district-selected", filter);
   }, [selectedLeaid, mapReady]);
 
-  // Update map paint when active layer changes
+  // Toggle vendor layer visibility
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    const config = getLayerConfig(activeLayer);
-
-    // Update the customer fill layer paint
-    map.current.setPaintProperty(
-      "district-customer-fill",
-      "fill-color",
-      config.fillColor
-    );
-    map.current.setPaintProperty(
-      "district-customer-fill",
-      "fill-opacity",
-      config.fillOpacity
-    );
-
-    // Show/hide non-customer districts based on layer
-    if (config.showAllDistricts) {
-      // Remove the customer_category filter so all districts show
-      map.current.setFilter("district-customer-fill", null);
-      // Hide the gray base layer since we're coloring everything
-      map.current.setLayoutProperty("district-fill", "visibility", "none");
-      map.current.setLayoutProperty("district-boundary", "visibility", "none");
-    } else {
-      // Only show districts with customer_category
-      map.current.setFilter("district-customer-fill", ["has", "customer_category"]);
-      map.current.setLayoutProperty("district-fill", "visibility", "visible");
-      map.current.setLayoutProperty("district-boundary", "visibility", "visible");
+    for (const vendorId of VENDOR_IDS) {
+      const layerId = `district-${vendorId}-fill`;
+      if (map.current.getLayer(layerId)) {
+        map.current.setLayoutProperty(
+          layerId,
+          "visibility",
+          activeVendors.has(vendorId) ? "visible" : "none"
+        );
+      }
     }
-  }, [activeLayer, mapReady]);
+  }, [activeVendors, mapReady]);
+
+  // Apply filter expression to all layers
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const filter = buildFilterExpression(filterOwner, filterPlanId);
+
+    // Apply to base layers
+    map.current.setFilter("district-base-fill", filter);
+    map.current.setFilter("district-base-boundary", filter);
+
+    // Apply to each vendor layer (combine with the vendor's own "has" filter)
+    for (const vendorId of VENDOR_IDS) {
+      const layerId = `district-${vendorId}-fill`;
+      if (!map.current.getLayer(layerId)) continue;
+      const config = VENDOR_CONFIGS[vendorId];
+      const vendorFilter: any = ["has", config.tileProperty];
+      const combined = filter
+        ? ["all", vendorFilter, filter]
+        : vendorFilter;
+      map.current.setFilter(layerId, combined);
+    }
+  }, [filterOwner, filterPlanId, mapReady]);
 
   // Handle Escape key
   useEffect(() => {
@@ -568,6 +564,47 @@ export default function MapV2Container() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Home marker
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    // Remove old marker
+    if (homeMarkerRef.current) {
+      homeMarkerRef.current.remove();
+      homeMarkerRef.current = null;
+    }
+
+    if (!profile?.locationLat || !profile?.locationLng) return;
+
+    // Create custom marker element
+    const el = document.createElement("div");
+    el.className = "home-marker";
+    el.style.cssText = `
+      width: 32px; height: 32px; border-radius: 50%;
+      background: #403770; border: 2px solid white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(64,55,112,0.4);
+      cursor: pointer; transition: transform 0.15s ease;
+    `;
+    el.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+    el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.15)"; });
+    el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
+
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([profile.locationLng, profile.locationLat])
+      .setPopup(
+        new maplibregl.Popup({ offset: 20, closeButton: false, className: "home-popup" })
+          .setHTML(`<div style="font-size:12px;font-weight:600;color:#403770;">Home &mdash; ${profile.location || "My Location"}</div>`)
+      )
+      .addTo(map.current);
+
+    homeMarkerRef.current = marker;
+
+    return () => {
+      marker.remove();
+    };
+  }, [mapReady, profile?.locationLat, profile?.locationLng, profile?.location]);
 
   const clickRipples = useMapV2Store((s) => s.clickRipples);
   const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
