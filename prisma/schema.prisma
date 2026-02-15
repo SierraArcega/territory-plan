@@ -811,6 +811,8 @@ model DistrictDataHistory {
   teachersFte     Decimal? @map("teachers_fte") @db.Decimal(10, 2)
   staffTotalFte   Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
   specEdStudents  Int?     @map("spec_ed_students")
+  ellStudents     Int?     @map("ell_students")
+  chronicAbsenteeismRate Decimal? @map("chronic_absenteeism_rate") @db.Decimal(5, 2)
 
   // Finance (for budget capacity analysis)
   totalRevenue      Decimal? @map("total_revenue") @db.Decimal(15, 2)
