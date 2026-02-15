@@ -1,229 +1,135 @@
 import type { ExpressionSpecification } from "maplibre-gl";
 
 // ============================================
-// Vendor base colors (from plan spec)
+// Vendor definitions
 // ============================================
-export const VENDOR_COLORS: Record<string, string> = {
-  Fullmind: "#403770",
-  "Proximity Learning": "#F37167",
-  "Elevate K12": "#6EA3BE",
-  "Tutored By Teachers": "#FFCF70",
-};
 
-// ============================================
-// Customer category colors
-// ============================================
-export const CUSTOMER_COLORS: Record<string, string> = {
-  multi_year: "#403770",
-  new: "#22C55E",
-  lapsed: "#F37167",
-  pipeline: "#F59E0B",
-  target: "#6EA3BE",
-};
+export type VendorId = "fullmind" | "proximity" | "elevate" | "tbt";
 
-export const CUSTOMER_LABELS: Record<string, string> = {
-  multi_year: "Multi-year Customer",
-  new: "New This Year",
-  lapsed: "Lapsed Customer",
-  pipeline: "In Pipeline",
-  target: "Target",
-};
+export interface VendorConfig {
+  id: VendorId;
+  label: string;
+  /** The tile property that holds this vendor's category */
+  tileProperty: string;
+  /** Fill color expression: match on category → brand tint/shade */
+  fillColor: ExpressionSpecification;
+  fillOpacity: number;
+  /** Tooltip describing the shading progression */
+  shadingTooltip: string;
+}
 
-// ============================================
-// State colors — a warm palette for 50 states
-// ============================================
-const STATE_PALETTE = [
-  "#403770", "#F37167", "#6EA3BE", "#FFCF70", "#22C55E",
-  "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#06B6D4",
-  "#A855F7", "#EF4444", "#10B981", "#F59E0B", "#3B82F6",
-  "#D946EF", "#84CC16", "#0EA5E9", "#FB923C", "#6366F1",
+// Fullmind shading: target (lightest) → expansion_pipeline (darkest)
+// Plus existing customer categories: lapsed, new, multi_year
+// Colors from brand Plum tint/shade table
+const FULLMIND_FILL: ExpressionSpecification = [
+  "match",
+  ["get", "fullmind_category"],
+  "target", "#ecebf1",             // Plum 90% tint (lightest)
+  "new_pipeline", "#b3afc6",       // Plum 50% tint
+  "renewal_pipeline", "#665f8d",   // Plum 20% shade
+  "expansion_pipeline", "#403770", // Plum (full)
+  "lapsed", "#d9d7e2",             // Plum 80% tint
+  "new", "#8c87a9",                // Plum 40% tint
+  "multi_year", "#403770",         // Plum (full)
+  "rgba(0,0,0,0)",                 // Transparent if no category
 ];
 
-export function getStateColor(stateCode: string): string {
-  // Simple hash to pick a consistent color per state
-  let hash = 0;
-  for (let i = 0; i < stateCode.length; i++) {
-    hash = stateCode.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return STATE_PALETTE[Math.abs(hash) % STATE_PALETTE.length];
-}
+// Competitor shading: churned (lightest) → multi_year (darkest)
+// Colors from brand Coral tint/shade table
+const PROXIMITY_FILL: ExpressionSpecification = [
+  "match",
+  ["get", "proximity_category"],
+  "churned", "#fef1f0",   // Coral 90% tint (lightest)
+  "new", "#f58d85",        // Coral 20% tint
+  "multi_year", "#F37167", // Coral (full)
+  "rgba(0,0,0,0)",
+];
+
+// Colors from brand Steel Blue tint/shade table
+const ELEVATE_FILL: ExpressionSpecification = [
+  "match",
+  ["get", "elevate_category"],
+  "churned", "#f1f6f9",   // Steel Blue 90% tint (lightest)
+  "new", "#8bb5cb",        // Steel Blue 20% tint
+  "multi_year", "#6EA3BE", // Steel Blue (full)
+  "rgba(0,0,0,0)",
+];
+
+// Colors from brand Golden tint/shade table
+const TBT_FILL: ExpressionSpecification = [
+  "match",
+  ["get", "tbt_category"],
+  "churned", "#fffaf1",   // Golden 90% tint (lightest)
+  "new", "#ffd98d",        // Golden 20% tint
+  "multi_year", "#FFCF70", // Golden (full)
+  "rgba(0,0,0,0)",
+];
+
+export const VENDOR_CONFIGS: Record<VendorId, VendorConfig> = {
+  fullmind: {
+    id: "fullmind",
+    label: "Fullmind",
+    tileProperty: "fullmind_category",
+    fillColor: FULLMIND_FILL,
+    fillOpacity: 0.55,
+    shadingTooltip: "target \u203a pipeline \u203a renewal \u203a expansion",
+  },
+  proximity: {
+    id: "proximity",
+    label: "Proximity Learning",
+    tileProperty: "proximity_category",
+    fillColor: PROXIMITY_FILL,
+    fillOpacity: 0.55,
+    shadingTooltip: "churned \u203a new \u203a multi-year",
+  },
+  elevate: {
+    id: "elevate",
+    label: "Elevate K12",
+    tileProperty: "elevate_category",
+    fillColor: ELEVATE_FILL,
+    fillOpacity: 0.55,
+    shadingTooltip: "churned \u203a new \u203a multi-year",
+  },
+  tbt: {
+    id: "tbt",
+    label: "Tutored by Teachers",
+    tileProperty: "tbt_category",
+    fillColor: TBT_FILL,
+    fillOpacity: 0.55,
+    shadingTooltip: "churned \u203a new \u203a multi-year",
+  },
+};
+
+export const VENDOR_IDS: VendorId[] = ["fullmind", "proximity", "elevate", "tbt"];
 
 // ============================================
-// Paint expressions per layer type
+// Filter helpers
 // ============================================
 
-export type LayerType =
-  | "customers"
-  | "state"
-  | "owner"
-  | "territory_plan"
-  | "competitors"
-  | "enrollment"
-  | "revenue";
+/**
+ * Build a combined MapLibre filter expression from active filters.
+ * Returns null if no filters are active (show all districts).
+ */
+export function buildFilterExpression(
+  filterOwner: string | null,
+  filterPlanId: string | null,
+): ExpressionSpecification | null {
+  const conditions: ExpressionSpecification[] = [];
 
-export interface LayerConfig {
-  fillColor: ExpressionSpecification | string;
-  fillOpacity: number;
-  /** Whether to show non-customer districts */
-  showAllDistricts: boolean;
-  /** Legend entries */
-  legend: Array<{ color: string; label: string }>;
-}
-
-export function getLayerConfig(layer: LayerType): LayerConfig {
-  switch (layer) {
-    case "customers":
-      return {
-        fillColor: [
-          "match",
-          ["get", "customer_category"],
-          "multi_year", "#403770",
-          "new", "#22C55E",
-          "lapsed", "#F37167",
-          "pipeline", "#F59E0B",
-          "target", "#6EA3BE",
-          "#E5E7EB",
-        ] as ExpressionSpecification,
-        fillOpacity: 0.65,
-        showAllDistricts: false,
-        legend: [
-          { color: "#403770", label: "Multi-year" },
-          { color: "#22C55E", label: "New" },
-          { color: "#F37167", label: "Lapsed" },
-          { color: "#F59E0B", label: "Pipeline" },
-          { color: "#6EA3BE", label: "Target" },
-          { color: "#E5E7EB", label: "No data" },
-        ],
-      };
-
-    case "competitors":
-      return {
-        fillColor: [
-          "match",
-          ["get", "dominant_vendor"],
-          "Fullmind", "#403770",
-          "Proximity Learning", "#F37167",
-          "Elevate K12", "#6EA3BE",
-          "Tutored By Teachers", "#FFCF70",
-          "#E5E7EB",
-        ] as ExpressionSpecification,
-        fillOpacity: 0.7,
-        showAllDistricts: false,
-        legend: [
-          { color: "#403770", label: "Fullmind" },
-          { color: "#F37167", label: "Proximity Learning" },
-          { color: "#6EA3BE", label: "Elevate K12" },
-          { color: "#FFCF70", label: "Tutored By Teachers" },
-          { color: "#E5E7EB", label: "Other / None" },
-        ],
-      };
-
-    case "enrollment":
-      return {
-        fillColor: [
-          "interpolate",
-          ["linear"],
-          ["coalesce", ["get", "enrollment"], 0],
-          0, "#ecebf1",
-          1000, "#d9d7e2",
-          5000, "#b3afc6",
-          10000, "#8c87a9",
-          25000, "#665f8d",
-          50000, "#403770",
-        ] as ExpressionSpecification,
-        fillOpacity: 0.7,
-        showAllDistricts: true,
-        legend: [
-          { color: "#ecebf1", label: "< 1K" },
-          { color: "#d9d7e2", label: "1K–5K" },
-          { color: "#b3afc6", label: "5K–10K" },
-          { color: "#8c87a9", label: "10K–25K" },
-          { color: "#665f8d", label: "25K–50K" },
-          { color: "#403770", label: "50K+" },
-        ],
-      };
-
-    case "revenue":
-      return {
-        fillColor: [
-          "interpolate",
-          ["linear"],
-          ["coalesce", ["get", "net_invoicing"], 0],
-          0, "#ecebf1",
-          10000, "#d9d7e2",
-          50000, "#b3afc6",
-          100000, "#8c87a9",
-          250000, "#665f8d",
-          500000, "#403770",
-        ] as ExpressionSpecification,
-        fillOpacity: 0.7,
-        showAllDistricts: false,
-        legend: [
-          { color: "#ecebf1", label: "$0" },
-          { color: "#d9d7e2", label: "$10K" },
-          { color: "#b3afc6", label: "$50K" },
-          { color: "#8c87a9", label: "$100K" },
-          { color: "#665f8d", label: "$250K" },
-          { color: "#403770", label: "$500K+" },
-        ],
-      };
-
-    case "state":
-      return {
-        fillColor: [
-          "match",
-          ["get", "state_abbrev"],
-          "CA", "#403770", "TX", "#F37167", "NY", "#6EA3BE", "FL", "#FFCF70",
-          "IL", "#22C55E", "PA", "#8B5CF6", "OH", "#EC4899", "GA", "#14B8A6",
-          "NC", "#F97316", "MI", "#06B6D4", "NJ", "#A855F7", "VA", "#EF4444",
-          "WA", "#10B981", "AZ", "#F59E0B", "MA", "#3B82F6", "TN", "#D946EF",
-          "IN", "#84CC16", "MO", "#0EA5E9", "MD", "#FB923C", "WI", "#6366F1",
-          "#9CA3AF",
-        ] as ExpressionSpecification,
-        fillOpacity: 0.6,
-        showAllDistricts: true,
-        legend: [
-          { color: "#403770", label: "CA" },
-          { color: "#F37167", label: "TX" },
-          { color: "#6EA3BE", label: "NY" },
-          { color: "#FFCF70", label: "FL" },
-          { color: "#9CA3AF", label: "Other states" },
-        ],
-      };
-
-    case "owner":
-      return {
-        fillColor: [
-          "case",
-          ["has", "sales_executive"],
-          [
-            "match",
-            ["get", "sales_executive"],
-            "Unassigned", "#E5E7EB",
-            // Hash-based color — fallback to a steel blue
-            "#6EA3BE",
-          ],
-          "#E5E7EB",
-        ] as unknown as ExpressionSpecification,
-        fillOpacity: 0.6,
-        showAllDistricts: true,
-        legend: [
-          { color: "#6EA3BE", label: "Assigned" },
-          { color: "#E5E7EB", label: "Unassigned" },
-        ],
-      };
-
-    case "territory_plan":
-      return {
-        fillColor: "#9CA3AF" as string,
-        fillOpacity: 0.5,
-        showAllDistricts: false,
-        legend: [
-          { color: "#9CA3AF", label: "No plan assigned" },
-        ],
-      };
-
-    default:
-      return getLayerConfig("customers");
+  if (filterOwner) {
+    conditions.push(["==", ["get", "sales_executive"], filterOwner]);
   }
+
+  if (filterPlanId) {
+    // plan_ids is comma-separated; use "in" substring match
+    conditions.push([
+      "!=",
+      ["index-of", filterPlanId, ["coalesce", ["get", "plan_ids"], ""]],
+      -1,
+    ]);
+  }
+
+  if (conditions.length === 0) return null;
+  if (conditions.length === 1) return conditions[0];
+  return ["all", ...conditions] as ExpressionSpecification;
 }
