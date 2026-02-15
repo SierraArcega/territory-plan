@@ -5,7 +5,7 @@ import { useProfile } from "@/lib/api";
 
 const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
   { id: "home", icon: "home", label: "Home" },
-  { id: "layers", icon: "layers", label: "Layers" },
+  { id: "search", icon: "search", label: "Search" },
   { id: "plans", icon: "plans", label: "Plans" },
   { id: "settings", icon: "settings", label: "Settings" },
 ];
@@ -40,31 +40,21 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
   const color = active ? "#403770" : "#9CA3AF";
 
   switch (type) {
-    case "layers":
+    case "search":
       return (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M2 10L10 14L18 10"
+          <circle
+            cx="9"
+            cy="9"
+            r="5.5"
             stroke={color}
             strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
           />
           <path
-            d="M2 14L10 18L18 14"
+            d="M13.5 13.5L17 17"
             stroke={color}
             strokeWidth="1.5"
             strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.5"
-          />
-          <path
-            d="M2 6L10 10L18 6L10 2L2 6Z"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill={active ? color + "20" : "none"}
           />
         </svg>
       );
