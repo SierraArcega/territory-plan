@@ -94,6 +94,9 @@ interface MapV2State {
 
   // Layer bubble
   layerBubbleOpen: boolean;
+
+  // Schools layer
+  schoolsLayerVisible: boolean;
 }
 
 interface MapV2Actions {
@@ -154,6 +157,9 @@ interface MapV2Actions {
   // Layer bubble
   setLayerBubbleOpen: (open: boolean) => void;
   toggleLayerBubble: () => void;
+
+  // Schools layer
+  toggleSchoolsLayer: () => void;
 }
 
 let rippleId = 0;
@@ -188,6 +194,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   clickRipples: [],
   panelCollapsed: false,
   layerBubbleOpen: false,
+  schoolsLayerVisible: true,
 
   // Panel navigation
   setPanelState: (state) =>
@@ -380,4 +387,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   // Layer bubble
   setLayerBubbleOpen: (open) => set({ layerBubbleOpen: open }),
   toggleLayerBubble: () => set((s) => ({ layerBubbleOpen: !s.layerBubbleOpen })),
+
+  // Schools layer
+  toggleSchoolsLayer: () => set((s) => ({ schoolsLayerVisible: !s.schoolsLayerVisible })),
 }));

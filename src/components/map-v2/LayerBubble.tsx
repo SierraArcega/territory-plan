@@ -18,6 +18,11 @@ export default function LayerBubble() {
   const setFilterOwner = useMapV2Store((s) => s.setFilterOwner);
   const filterPlanId = useMapV2Store((s) => s.filterPlanId);
   const setFilterPlanId = useMapV2Store((s) => s.setFilterPlanId);
+  const filterStates = useMapV2Store((s) => s.filterStates);
+  const toggleFilterState = useMapV2Store((s) => s.toggleFilterState);
+  const setFilterStates = useMapV2Store((s) => s.setFilterStates);
+  const schoolsLayerVisible = useMapV2Store((s) => s.schoolsLayerVisible);
+  const toggleSchoolsLayer = useMapV2Store((s) => s.toggleSchoolsLayer);
   const layerBubbleOpen = useMapV2Store((s) => s.layerBubbleOpen);
   const setLayerBubbleOpen = useMapV2Store((s) => s.setLayerBubbleOpen);
   const ref = useRef<HTMLDivElement>(null);
@@ -25,6 +30,7 @@ export default function LayerBubble() {
   // Fetch filter options
   const [owners, setOwners] = useState<string[]>([]);
   const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
+  const [states, setStates] = useState<Array<{ abbrev: string; name: string }>>([]);
 
   useEffect(() => {
     fetch("/api/sales-executives")
@@ -35,6 +41,16 @@ export default function LayerBubble() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) =>
         setPlans(data.map?.((d: any) => ({ id: d.id, name: d.name })) || [])
+      )
+      .catch(() => {});
+    fetch("/api/states")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) =>
+        setStates(
+          (data as Array<{ abbrev: string; name: string }>).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          )
+        )
       )
       .catch(() => {});
   }, []);
@@ -66,7 +82,9 @@ export default function LayerBubble() {
 
   // Build summary text for the collapsed pill
   const vendorCount = activeVendors.size;
-  const filterCount = (filterOwner ? 1 : 0) + (filterPlanId ? 1 : 0);
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+
+  const filterCount = (filterOwner ? 1 : 0) + (filterPlanId ? 1 : 0) + (filterStates.length > 0 ? 1 : 0);
   let pillText = "";
   if (vendorCount === 1) {
     const v = VENDOR_CONFIGS[[...activeVendors][0]];
@@ -111,6 +129,58 @@ export default function LayerBubble() {
           <div className="px-3 pb-2 space-y-2">
             <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
               Filters
+            </div>
+
+            {/* State multi-select */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setStateDropdownOpen(!stateDropdownOpen)}
+                className="w-full flex items-center justify-between text-sm bg-gray-50 border border-gray-200/60 rounded-lg px-2.5 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30"
+              >
+                <span className={filterStates.length === 0 ? "text-gray-500" : "text-gray-700 truncate"}>
+                  {filterStates.length === 0
+                    ? "All States"
+                    : filterStates.length <= 3
+                      ? filterStates.sort().join(", ")
+                      : `${filterStates.length} states`}
+                </span>
+                <svg
+                  width="10" height="10" viewBox="0 0 10 10" fill="none"
+                  className={`text-gray-400 shrink-0 ml-1 transition-transform duration-150 ${stateDropdownOpen ? "rotate-180" : ""}`}
+                >
+                  <path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {stateDropdownOpen && (
+                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {filterStates.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterStates([])}
+                      className="w-full text-left text-xs text-plum hover:bg-gray-50 px-2.5 py-1.5 border-b border-gray-100"
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                  {states.map((s) => (
+                    <label
+                      key={s.abbrev}
+                      className="flex items-center gap-2 px-2.5 py-1 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filterStates.includes(s.abbrev)}
+                        onChange={() => toggleFilterState(s.abbrev)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                      />
+                      <span className="text-sm text-gray-700">{s.name}</span>
+                      <span className="text-xs text-gray-400 ml-auto">{s.abbrev}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Owner filter */}
@@ -182,6 +252,36 @@ export default function LayerBubble() {
             <p className="text-[11px] text-gray-400 italic mt-2 mb-1">
               Darker = deeper engagement
             </p>
+          </div>
+
+          {/* Data layers */}
+          <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5 mt-2">
+              Data Layers
+            </div>
+            <label
+              className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors group ${
+                schoolsLayerVisible ? "bg-blue-50" : "hover:bg-gray-50"
+              }`}
+              title="Show school locations as colored dots when zoomed in"
+            >
+              <input
+                type="checkbox"
+                checked={schoolsLayerVisible}
+                onChange={toggleSchoolsLayer}
+                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-500 focus:ring-blue-500/30"
+              />
+              <span
+                className={`text-sm ${schoolsLayerVisible ? "font-medium text-gray-800" : "text-gray-600"}`}
+              >
+                Schools
+              </span>
+              <div className="flex gap-0.5 ml-auto">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              </div>
+            </label>
           </div>
         </div>
       )}

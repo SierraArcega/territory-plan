@@ -122,6 +122,7 @@ export default function MapV2Container() {
   const filterOwner = useMapV2Store((s) => s.filterOwner);
   const filterPlanId = useMapV2Store((s) => s.filterPlanId);
   const filterStates = useMapV2Store((s) => s.filterStates);
+  const schoolsLayerVisible = useMapV2Store((s) => s.schoolsLayerVisible);
   const clickRipples = useMapV2Store((s) => s.clickRipples);
   const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
 
@@ -431,6 +432,7 @@ export default function MapV2Container() {
   // Load school GeoJSON for current viewport
   const loadSchoolsForViewport = useCallback(() => {
     if (!map.current || !mapReady) return;
+    if (!useMapV2Store.getState().schoolsLayerVisible) return;
     if (map.current.getZoom() < SCHOOL_MIN_ZOOM) {
       // Clear schools when zoomed out
       const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
@@ -748,6 +750,21 @@ export default function MapV2Container() {
       }
     }
   }, [activeVendors, mapReady]);
+
+  // Toggle schools layer visibility
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const visibility = schoolsLayerVisible ? "visible" : "none";
+    for (const layerId of ["schools-clusters", "schools-cluster-count", "schools-unclustered"]) {
+      if (map.current.getLayer(layerId)) {
+        map.current.setLayoutProperty(layerId, "visibility", visibility);
+      }
+    }
+    // Trigger a data load/clear when toggling on/off
+    if (schoolsLayerVisible) {
+      loadSchoolsForViewport();
+    }
+  }, [schoolsLayerVisible, mapReady, loadSchoolsForViewport]);
 
   // Apply filter expression to all layers
   useEffect(() => {
