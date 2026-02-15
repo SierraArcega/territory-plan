@@ -485,6 +485,7 @@ def compute_deltas_and_quartiles(connection_string: str) -> int:
     print(f"Computed state deltas for {state_delta_count} districts")
 
     # Step 2: Compute national deltas (vs US row)
+    # Only update districts that have at least one non-null metric to avoid unnecessary writes
     cur.execute("""
         UPDATE districts d SET
             absenteeism_vs_national = ROUND((d.chronic_absenteeism_rate - us.avg_chronic_absenteeism_rate)::numeric, 2),
@@ -497,36 +498,53 @@ def compute_deltas_and_quartiles(connection_string: str) -> int:
             expenditure_pp_vs_national = ROUND((d.expenditure_per_pupil - us.avg_expenditure_per_pupil)::numeric, 2)
         FROM states us
         WHERE us.fips = '00'
+          AND (d.chronic_absenteeism_rate IS NOT NULL
+               OR d.graduation_rate_total IS NOT NULL
+               OR d.student_teacher_ratio IS NOT NULL
+               OR d.swd_pct IS NOT NULL
+               OR d.ell_pct IS NOT NULL
+               OR d.math_proficiency_pct IS NOT NULL
+               OR d.read_proficiency_pct IS NOT NULL
+               OR d.expenditure_per_pupil IS NOT NULL)
     """)
     national_delta_count = cur.rowcount
     print(f"Computed national deltas for {national_delta_count} districts")
 
     # Step 3: Compute within-state quartile flags
     # Uses NTILE(4) to divide districts into 4 equal groups within each state
-    # For each metric, assigns: well_above (Q4), above (Q3), below (Q2), well_below (Q1)
+    # "well_above" always means "performing well" regardless of metric direction:
+    #   - higher_is_better=True (graduation, proficiency): sort ASC, Q4 = highest = best
+    #   - higher_is_better=False (absenteeism, STR): sort DESC, Q4 = lowest = best
     METRICS = [
         # (metric_column, quartile_column, higher_is_better)
         ("chronic_absenteeism_rate", "absenteeism_quartile_state", False),
         ("graduation_rate_total", "graduation_quartile_state", True),
         ("student_teacher_ratio", "student_teacher_ratio_quartile_state", False),
-        ("swd_pct", "swd_pct_quartile_state", False),  # Higher SWD% = more need, labeled "above"
-        ("ell_pct", "ell_pct_quartile_state", False),   # Same logic
+        ("swd_pct", "swd_pct_quartile_state", False),
+        ("ell_pct", "ell_pct_quartile_state", False),
         ("math_proficiency_pct", "math_proficiency_quartile_state", True),
         ("read_proficiency_pct", "read_proficiency_quartile_state", True),
-        ("expenditure_per_pupil", "expenditure_pp_quartile_state", False),  # Higher spend labeled "above"
+        ("expenditure_per_pupil", "expenditure_pp_quartile_state", False),
     ]
 
     for metric_col, quartile_col, higher_is_better in METRICS:
-        # NTILE(4) assigns 1 to lowest group, 4 to highest
-        # For higher_is_better metrics: Q4=well_above, Q1=well_below
-        # For lower_is_better metrics: Q4=well_above (high value), Q1=well_below (low value)
-        # This way "well_above" always means "notably high" regardless of metric direction
+        # Reset stale quartile values for districts that no longer have data
+        cur.execute(f"""
+            UPDATE districts SET {quartile_col} = NULL
+            WHERE {metric_col} IS NULL OR state_fips IS NULL
+        """)
+
+        # Sort direction determines what "well_above" means:
+        # higher_is_better=True: ASC sort → Q4 = highest values = best performing
+        # higher_is_better=False: DESC sort → Q4 = lowest values = best performing
+        sort_dir = "ASC" if higher_is_better else "DESC"
+
         cur.execute(f"""
             WITH ranked AS (
                 SELECT leaid,
                     NTILE(4) OVER (
                         PARTITION BY state_fips
-                        ORDER BY {metric_col} ASC NULLS LAST
+                        ORDER BY {metric_col} {sort_dir} NULLS LAST
                     ) AS quartile
                 FROM districts
                 WHERE {metric_col} IS NOT NULL
