@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { VendorId } from "@/lib/map-v2-layers";
 
 // Panel state machine
 export type PanelState =
@@ -8,16 +9,6 @@ export type PanelState =
   | "PLAN_NEW"
   | "PLAN_VIEW"
   | "PLAN_ADD";
-
-// Available layer types
-export type LayerType =
-  | "customers"
-  | "state"
-  | "owner"
-  | "territory_plan"
-  | "competitors"
-  | "enrollment"
-  | "revenue";
 
 // Icon bar navigation
 export type IconBarTab = "home" | "search" | "plans" | "settings";
@@ -50,8 +41,10 @@ interface MapV2State {
   panelState: PanelState;
   panelHistory: PanelState[];
 
-  // Active layer
-  activeLayer: LayerType;
+  // Multi-vendor layers
+  activeVendors: Set<VendorId>;
+  filterOwner: string | null;
+  filterPlanId: string | null;
 
   // Icon bar
   activeIconTab: IconBarTab;
@@ -89,8 +82,10 @@ interface MapV2Actions {
   setPanelState: (state: PanelState) => void;
   goBack: () => void;
 
-  // Layer
-  setActiveLayer: (layer: LayerType) => void;
+  // Vendor layers & filters
+  toggleVendor: (vendor: VendorId) => void;
+  setFilterOwner: (owner: string | null) => void;
+  setFilterPlanId: (planId: string | null) => void;
 
   // Icon bar
   setActiveIconTab: (tab: IconBarTab) => void;
@@ -149,7 +144,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   // Initial state
   panelState: "BROWSE",
   panelHistory: [],
-  activeLayer: "customers",
+  activeVendors: new Set<VendorId>(["fullmind"]),
+  filterOwner: null,
+  filterPlanId: null,
   activeIconTab: "home",
   selectedLeaid: null,
   selectedStateCode: null,
@@ -184,8 +181,20 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       };
     }),
 
-  // Layer
-  setActiveLayer: (layer) => set({ activeLayer: layer }),
+  // Vendor layers & filters
+  toggleVendor: (vendor) =>
+    set((s) => {
+      const next = new Set(s.activeVendors);
+      if (next.has(vendor)) {
+        if (next.size > 1) next.delete(vendor);
+      } else {
+        next.add(vendor);
+      }
+      return { activeVendors: next };
+    }),
+
+  setFilterOwner: (owner) => set({ filterOwner: owner }),
+  setFilterPlanId: (planId) => set({ filterPlanId: planId }),
 
   // Icon bar
   setActiveIconTab: (tab) =>
