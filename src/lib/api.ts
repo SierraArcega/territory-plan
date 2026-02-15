@@ -118,8 +118,6 @@ export interface DistrictEducationData {
   saipeDataYear: number | null;
   // Graduation data
   graduationRateTotal: number | null;
-  graduationRateMale: number | null;
-  graduationRateFemale: number | null;
   graduationDataYear: number | null;
   // Staffing & Salaries
   salariesTotal: number | null;
@@ -472,6 +470,8 @@ export function useDeleteContact() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["planContacts"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
 }
@@ -1193,6 +1193,13 @@ export interface UserProfile {
   email: string;
   fullName: string | null;
   avatarUrl: string | null;
+  jobTitle: string | null;
+  location: string | null;
+  locationLat: number | null;
+  locationLng: number | null;
+  phone: string | null;
+  slackUrl: string | null;
+  bio: string | null;
   hasCompletedSetup: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1214,7 +1221,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { fullName?: string; hasCompletedSetup?: boolean }) =>
+    mutationFn: (data: { fullName?: string; hasCompletedSetup?: boolean; jobTitle?: string; location?: string; locationLat?: number | null; locationLng?: number | null; phone?: string; slackUrl?: string; bio?: string }) =>
       fetchJson<UserProfile>(`${API_BASE}/profile`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -2145,6 +2152,137 @@ export function useBatchConfirmCalendarEvents() {
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
       queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// ===== Schools =====
+
+export interface School {
+  ncessch: string;
+  leaid: string;
+  schoolName: string;
+  charter: number;
+  schoolLevel: number | null;
+  lograde: string | null;
+  higrade: string | null;
+  enrollment: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  city: string | null;
+  stateAbbrev: string | null;
+  phone: string | null;
+  owner: string | null;
+  notes: string | null;
+  schoolStatus: number | null;
+}
+
+export interface SchoolDetail extends School {
+  enrollmentHistory: { year: number; enrollment: number | null }[];
+  tags: Tag[];
+  contacts: Contact[];
+  district: { leaid: string; name: string };
+  streetAddress: string | null;
+  zip: string | null;
+  countyName: string | null;
+  urbanCentricLocale: number | null;
+  schoolType: number | null;
+  directoryDataYear: number | null;
+  notesUpdatedAt: string | null;
+}
+
+export interface SchoolListItem {
+  ncessch: string;
+  leaid: string;
+  schoolName: string;
+  charter: number;
+  schoolLevel: number | null;
+  enrollment: number | null;
+  lograde: string | null;
+  higrade: string | null;
+  schoolStatus: number | null;
+  enrollmentHistory?: { year: number; enrollment: number | null }[];
+}
+
+// Schools by district (for district detail panel)
+export function useSchoolsByDistrict(leaid: string | null) {
+  return useQuery({
+    queryKey: ["schoolsByDistrict", leaid],
+    queryFn: () =>
+      fetchJson<{ schools: SchoolListItem[]; total: number }>(
+        `${API_BASE}/schools/by-district/${leaid}`
+      ),
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// School detail
+export function useSchoolDetail(ncessch: string | null) {
+  return useQuery({
+    queryKey: ["school", ncessch],
+    queryFn: () =>
+      fetchJson<SchoolDetail>(`${API_BASE}/schools/${ncessch}`),
+    enabled: !!ncessch,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// Update school CRM fields
+export function useUpdateSchoolEdits() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ncessch,
+      notes,
+      owner,
+    }: {
+      ncessch: string;
+      notes?: string;
+      owner?: string;
+    }) =>
+      fetchJson<{ ncessch: string; notes: string | null; owner: string | null; updatedAt: string }>(
+        `${API_BASE}/schools/${ncessch}/edits`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ notes, owner }),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
+      queryClient.invalidateQueries({ queryKey: ["schoolsByDistrict"] });
+    },
+  });
+}
+
+// Add tag to school
+export function useAddSchoolTag() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ncessch, tagId }: { ncessch: string; tagId: number }) =>
+      fetchJson<void>(`${API_BASE}/schools/${ncessch}/tags`, {
+        method: "POST",
+        body: JSON.stringify({ tagId }),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
+    },
+  });
+}
+
+// Remove tag from school
+export function useRemoveSchoolTag() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ncessch, tagId }: { ncessch: string; tagId: number }) =>
+      fetchJson<void>(`${API_BASE}/schools/${ncessch}/tags/${tagId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
     },
   });
 }

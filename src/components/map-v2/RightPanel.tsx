@@ -3,6 +3,7 @@
 import { useMapV2Store } from "@/lib/map-v2-store";
 import DistrictCard from "./right-panels/DistrictCard";
 import TaskForm from "./right-panels/TaskForm";
+import ContactDetail from "./right-panels/ContactDetail";
 
 export default function RightPanel() {
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
@@ -43,7 +44,10 @@ export default function RightPanel() {
         {rightPanelContent.type === "task_edit" && rightPanelContent.id && (
           <TaskForm taskId={rightPanelContent.id} />
         )}
-        {!["district_card", "task_form", "task_edit"].includes(rightPanelContent.type) && (
+        {rightPanelContent.type === "contact_detail" && rightPanelContent.id && (
+          <ContactDetail contactId={rightPanelContent.id} />
+        )}
+        {!["district_card", "task_form", "task_edit", "contact_detail"].includes(rightPanelContent.type) && (
           <div className="text-center py-8 text-xs text-gray-400">
             {rightPanelContent.type} — coming soon
           </div>
