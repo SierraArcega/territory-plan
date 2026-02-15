@@ -1,7 +1,7 @@
 "use client";
 
 import { useMapV2Store } from "@/lib/map-v2-store";
-import BrowsePanel from "./panels/BrowsePanel";
+import SearchPanel from "./panels/SearchPanel";
 import DistrictDetailPanel from "./panels/DistrictDetailPanel";
 import PlanFormPanel from "./panels/PlanFormPanel";
 import PlanViewPanel from "./panels/PlanViewPanel";
@@ -22,9 +22,10 @@ export default function PanelContent() {
   // Icon tab routing for BROWSE/STATE states
   if (activeIconTab === "home") return <PanelContentWrapper><HomePanel /></PanelContentWrapper>;
   if (activeIconTab === "plans") return <PanelContentWrapper><PlansListPanel /></PanelContentWrapper>;
+  if (activeIconTab === "search") return <PanelContentWrapper><SearchPanel /></PanelContentWrapper>;
 
-  // Default: browse with layers
-  return <PanelContentWrapper><BrowsePanel /></PanelContentWrapper>;
+  // Default: search panel
+  return <PanelContentWrapper><SearchPanel /></PanelContentWrapper>;
 }
 
 function PanelContentWrapper({ children }: { children: React.ReactNode }) {
