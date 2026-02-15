@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/lib/map-v2-store";
+import { getLayerConfig } from "@/lib/map-v2-layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import MapV2Tooltip from "./MapV2Tooltip";
 
@@ -517,6 +518,38 @@ export default function MapV2Container() {
     map.current.setFilter("district-selected-fill", filter);
     map.current.setFilter("district-selected", filter);
   }, [selectedLeaid, mapReady]);
+
+  // Update map paint when active layer changes
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const config = getLayerConfig(activeLayer);
+
+    // Update the customer fill layer paint
+    map.current.setPaintProperty(
+      "district-customer-fill",
+      "fill-color",
+      config.fillColor
+    );
+    map.current.setPaintProperty(
+      "district-customer-fill",
+      "fill-opacity",
+      config.fillOpacity
+    );
+
+    // Show/hide non-customer districts based on layer
+    if (config.showAllDistricts) {
+      // Remove the customer_category filter so all districts show
+      map.current.setFilter("district-customer-fill", null);
+      // Hide the gray base layer since we're coloring everything
+      map.current.setLayoutProperty("district-fill", "visibility", "none");
+      map.current.setLayoutProperty("district-boundary", "visibility", "none");
+    } else {
+      // Only show districts with customer_category
+      map.current.setFilter("district-customer-fill", ["has", "customer_category"]);
+      map.current.setLayoutProperty("district-fill", "visibility", "visible");
+      map.current.setLayoutProperty("district-boundary", "visibility", "visible");
+    }
+  }, [activeLayer, mapReady]);
 
   // Handle Escape key
   useEffect(() => {
