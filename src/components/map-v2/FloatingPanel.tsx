@@ -4,10 +4,25 @@ import { useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import IconBar from "./IconBar";
 import PanelContent from "./PanelContent";
+import RightPanel from "./RightPanel";
 
 export default function FloatingPanel() {
   const panelCollapsed = useMapV2Store((s) => s.panelCollapsed);
   const setPanelCollapsed = useMapV2Store((s) => s.setPanelCollapsed);
+  const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
+  const panelState = useMapV2Store((s) => s.panelState);
+
+  const isInPlanWorkspace =
+    panelState === "PLAN_OVERVIEW" ||
+    panelState === "PLAN_TASKS" ||
+    panelState === "PLAN_CONTACTS" ||
+    panelState === "PLAN_PERF";
+
+  const panelWidth = panelCollapsed
+    ? "w-[56px]"
+    : rightPanelContent && isInPlanWorkspace
+      ? "w-[656px]"
+      : "w-[376px]";
 
   // Auto-collapse on tablet viewport
   useEffect(() => {
@@ -31,17 +46,20 @@ export default function FloatingPanel() {
             flex flex-row overflow-hidden
             transition-all duration-300 ease-out
             panel-v2-enter
-            ${panelCollapsed ? "w-[56px] bottom-10" : "w-[500px] bottom-[380px]"}
+            ${panelWidth} ${panelCollapsed ? "bottom-10" : "bottom-[380px]"}
           `}
         >
           {/* Icon strip */}
           <IconBar />
 
-          {/* Content area */}
+          {/* Content area + optional right panel */}
           {!panelCollapsed && (
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden v2-scrollbar panel-content-enter">
-              <PanelContent />
-            </div>
+            <>
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden v2-scrollbar panel-content-enter">
+                <PanelContent />
+              </div>
+              {isInPlanWorkspace && <RightPanel />}
+            </>
           )}
         </div>
       </div>
