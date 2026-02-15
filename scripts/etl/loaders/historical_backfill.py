@@ -166,6 +166,11 @@ def backfill_ell_history(
     cur = conn.cursor()
     total_written = 0
 
+    # Pre-fetch known leaids to avoid FK violations
+    cur.execute("SELECT leaid FROM districts")
+    known_leaids = {row[0] for row in cur.fetchall()}
+    print(f"  Known districts: {len(known_leaids)}")
+
     for year in years:
         print(f"\nBackfilling ELL data for {year} (state by state)...")
         year_written = 0
@@ -181,6 +186,9 @@ def backfill_ell_history(
                     continue
 
                 leaid_str = str(leaid).zfill(7)
+                if leaid_str not in known_leaids:
+                    continue
+
                 ell = record.get("english_language_learners")
 
                 # Clean invalid values (Urban Institute uses -1/-2 for missing)
@@ -263,6 +271,11 @@ def backfill_absenteeism_history(
     cur = conn.cursor()
     total_written = 0
 
+    # Pre-fetch known leaids to avoid FK violations
+    cur.execute("SELECT leaid FROM districts")
+    known_leaids = {row[0] for row in cur.fetchall()}
+    print(f"  Known districts: {len(known_leaids)}")
+
     for year in years:
         print(f"\nBackfilling CRDC absenteeism data for {year} (state by state)...")
         # Accumulate school-level data by district
@@ -288,6 +301,8 @@ def backfill_absenteeism_history(
                     continue
 
                 leaid_str = str(leaid).zfill(7)
+                if leaid_str not in known_leaids:
+                    continue
                 chronic_absent = record.get("chronic_absent")
                 enrollment = record.get("enrollment_crdc")
 
