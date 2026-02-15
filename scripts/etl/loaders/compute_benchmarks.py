@@ -198,3 +198,251 @@ def compute_state_averages(connection_string: str) -> int:
     conn.close()
 
     return state_count + us_updated
+
+
+def compute_district_trends(connection_string: str) -> int:
+    """
+    Compute derived percentages and 3-year trends on the districts table.
+
+    Derived percentages:
+    - swd_pct = spec_ed_students / enrollment * 100
+    - ell_pct = ell_students / enrollment * 100
+
+    3-year trends (from district_data_history):
+    - swd_trend_3yr: % change in spec_ed_students count
+    - ell_trend_3yr: % change in ell_students count
+    - absenteeism_trend_3yr: point change in chronic_absenteeism_rate
+    - graduation_trend_3yr: point change in graduation_rate
+    - student_teacher_ratio_trend_3yr: point change in student-teacher ratio
+    - math_proficiency_trend_3yr: point change in math_proficiency
+    - read_proficiency_trend_3yr: point change in read_proficiency
+    - expenditure_pp_trend_3yr: % change in expenditure_pp
+
+    Returns:
+        Number of districts updated
+    """
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    # Step 1: Compute derived percentages from current district data
+    cur.execute("""
+        UPDATE districts SET
+            swd_pct = CASE
+                WHEN spec_ed_students IS NOT NULL AND enrollment IS NOT NULL AND enrollment > 0
+                THEN ROUND((spec_ed_students::numeric / enrollment * 100), 2)
+                ELSE NULL
+            END,
+            ell_pct = CASE
+                WHEN ell_students IS NOT NULL AND enrollment IS NOT NULL AND enrollment > 0
+                THEN ROUND((ell_students::numeric / enrollment * 100), 2)
+                ELSE NULL
+            END
+        WHERE enrollment IS NOT NULL AND enrollment > 0
+    """)
+    pct_count = cur.rowcount
+    print(f"Computed swd_pct/ell_pct for {pct_count} districts")
+
+    # Step 2: Find year range for trends from ccd_directory history
+    cur.execute("""
+        SELECT MIN(year), MAX(year) FROM district_data_history
+        WHERE source = 'ccd_directory'
+    """)
+    row = cur.fetchone()
+    if not row or row[0] is None:
+        print("No CCD directory history found. Skipping trends.")
+        conn.commit()
+        cur.close()
+        conn.close()
+        return pct_count
+
+    min_year, max_year = row
+    base_year = max(min_year, max_year - 3)
+    print(f"Computing trends: {base_year} → {max_year}")
+
+    # Step 3: Compute SWD and ELL trends (% change in count)
+    cur.execute("""
+        WITH base AS (
+            SELECT leaid, spec_ed_students, ell_students,
+                   enrollment, teachers_fte
+            FROM district_data_history
+            WHERE source = 'ccd_directory' AND year = %s
+        ),
+        latest AS (
+            SELECT leaid, spec_ed_students, ell_students,
+                   enrollment, teachers_fte
+            FROM district_data_history
+            WHERE source = 'ccd_directory' AND year = %s
+        ),
+        trends AS (
+            SELECT
+                l.leaid,
+                -- SWD trend: % change in count
+                CASE
+                    WHEN b.spec_ed_students IS NOT NULL AND b.spec_ed_students > 0
+                         AND l.spec_ed_students IS NOT NULL
+                    THEN ROUND(((l.spec_ed_students - b.spec_ed_students)::numeric
+                         / b.spec_ed_students) * 100, 2)
+                    ELSE NULL
+                END AS swd_trend,
+                -- ELL trend: % change in count
+                CASE
+                    WHEN b.ell_students IS NOT NULL AND b.ell_students > 0
+                         AND l.ell_students IS NOT NULL
+                    THEN ROUND(((l.ell_students - b.ell_students)::numeric
+                         / b.ell_students) * 100, 2)
+                    ELSE NULL
+                END AS ell_trend,
+                -- Student-teacher ratio trend: point change
+                CASE
+                    WHEN b.enrollment IS NOT NULL AND b.teachers_fte IS NOT NULL
+                         AND b.teachers_fte > 0
+                         AND l.enrollment IS NOT NULL AND l.teachers_fte IS NOT NULL
+                         AND l.teachers_fte > 0
+                    THEN ROUND((l.enrollment::numeric / l.teachers_fte)
+                         - (b.enrollment::numeric / b.teachers_fte), 2)
+                    ELSE NULL
+                END AS str_trend
+            FROM latest l
+            JOIN base b ON l.leaid = b.leaid
+        )
+        UPDATE districts d SET
+            swd_trend_3yr = t.swd_trend,
+            ell_trend_3yr = t.ell_trend,
+            student_teacher_ratio_trend_3yr = t.str_trend
+        FROM trends t
+        WHERE d.leaid = t.leaid
+    """, (base_year, max_year))
+    swd_ell_count = cur.rowcount
+    print(f"Computed SWD/ELL/STR trends for {swd_ell_count} districts")
+
+    # Step 4: Graduation trend (point change) from edfacts_grad history
+    cur.execute("""
+        SELECT MIN(year), MAX(year) FROM district_data_history
+        WHERE source = 'edfacts_grad' AND graduation_rate IS NOT NULL
+    """)
+    grad_row = cur.fetchone()
+    if grad_row and grad_row[0] is not None:
+        grad_base = max(grad_row[0], grad_row[1] - 3)
+        cur.execute("""
+            WITH base AS (
+                SELECT leaid, graduation_rate FROM district_data_history
+                WHERE source = 'edfacts_grad' AND year = %s
+            ),
+            latest AS (
+                SELECT leaid, graduation_rate FROM district_data_history
+                WHERE source = 'edfacts_grad' AND year = %s
+            )
+            UPDATE districts d SET
+                graduation_trend_3yr = ROUND((l.graduation_rate - b.graduation_rate)::numeric, 2)
+            FROM latest l
+            JOIN base b ON l.leaid = b.leaid
+            WHERE d.leaid = l.leaid
+              AND l.graduation_rate IS NOT NULL
+              AND b.graduation_rate IS NOT NULL
+        """, (grad_base, grad_row[1]))
+        print(f"Computed graduation trends for {cur.rowcount} districts")
+
+    # Step 5: Assessment trends (point change) from edfacts_assess history
+    cur.execute("""
+        SELECT MIN(year), MAX(year) FROM district_data_history
+        WHERE source = 'edfacts_assess' AND (math_proficiency IS NOT NULL OR read_proficiency IS NOT NULL)
+    """)
+    assess_row = cur.fetchone()
+    if assess_row and assess_row[0] is not None:
+        assess_base = max(assess_row[0], assess_row[1] - 3)
+        cur.execute("""
+            WITH base AS (
+                SELECT leaid, math_proficiency, read_proficiency FROM district_data_history
+                WHERE source = 'edfacts_assess' AND year = %s
+            ),
+            latest AS (
+                SELECT leaid, math_proficiency, read_proficiency FROM district_data_history
+                WHERE source = 'edfacts_assess' AND year = %s
+            )
+            UPDATE districts d SET
+                math_proficiency_trend_3yr = CASE
+                    WHEN l.math_proficiency IS NOT NULL AND b.math_proficiency IS NOT NULL
+                    THEN ROUND((l.math_proficiency - b.math_proficiency)::numeric, 2)
+                    ELSE NULL
+                END,
+                read_proficiency_trend_3yr = CASE
+                    WHEN l.read_proficiency IS NOT NULL AND b.read_proficiency IS NOT NULL
+                    THEN ROUND((l.read_proficiency - b.read_proficiency)::numeric, 2)
+                    ELSE NULL
+                END
+            FROM latest l
+            JOIN base b ON l.leaid = b.leaid
+            WHERE d.leaid = l.leaid
+        """, (assess_base, assess_row[1]))
+        print(f"Computed assessment trends for {cur.rowcount} districts")
+
+    # Step 6: Expenditure per pupil trend (% change) from ccd_finance history
+    cur.execute("""
+        SELECT MIN(year), MAX(year) FROM district_data_history
+        WHERE source = 'ccd_finance' AND expenditure_pp IS NOT NULL
+    """)
+    fin_row = cur.fetchone()
+    if fin_row and fin_row[0] is not None:
+        fin_base = max(fin_row[0], fin_row[1] - 3)
+        cur.execute("""
+            WITH base AS (
+                SELECT leaid, expenditure_pp FROM district_data_history
+                WHERE source = 'ccd_finance' AND year = %s
+            ),
+            latest AS (
+                SELECT leaid, expenditure_pp FROM district_data_history
+                WHERE source = 'ccd_finance' AND year = %s
+            )
+            UPDATE districts d SET
+                expenditure_pp_trend_3yr = CASE
+                    WHEN b.expenditure_pp IS NOT NULL AND b.expenditure_pp > 0
+                         AND l.expenditure_pp IS NOT NULL
+                    THEN ROUND(((l.expenditure_pp - b.expenditure_pp) / b.expenditure_pp * 100)::numeric, 2)
+                    ELSE NULL
+                END
+            FROM latest l
+            JOIN base b ON l.leaid = b.leaid
+            WHERE d.leaid = l.leaid
+        """, (fin_base, fin_row[1]))
+        print(f"Computed expenditure trends for {cur.rowcount} districts")
+
+    # Step 7: Absenteeism trend (point change) from crdc_absenteeism history
+    cur.execute("""
+        SELECT MIN(year), MAX(year) FROM district_data_history
+        WHERE source = 'crdc_absenteeism' AND chronic_absenteeism_rate IS NOT NULL
+    """)
+    abs_row = cur.fetchone()
+    if abs_row and abs_row[0] is not None and abs_row[0] != abs_row[1]:
+        # Use two most recent available years (biennial data)
+        cur.execute("""
+            SELECT DISTINCT year FROM district_data_history
+            WHERE source = 'crdc_absenteeism' AND chronic_absenteeism_rate IS NOT NULL
+            ORDER BY year DESC LIMIT 2
+        """)
+        abs_years = [r[0] for r in cur.fetchall()]
+        if len(abs_years) == 2:
+            cur.execute("""
+                WITH base AS (
+                    SELECT leaid, chronic_absenteeism_rate FROM district_data_history
+                    WHERE source = 'crdc_absenteeism' AND year = %s
+                ),
+                latest AS (
+                    SELECT leaid, chronic_absenteeism_rate FROM district_data_history
+                    WHERE source = 'crdc_absenteeism' AND year = %s
+                )
+                UPDATE districts d SET
+                    absenteeism_trend_3yr = ROUND(
+                        (l.chronic_absenteeism_rate - b.chronic_absenteeism_rate)::numeric, 2
+                    )
+                FROM latest l
+                JOIN base b ON l.leaid = b.leaid
+                WHERE d.leaid = l.leaid
+                  AND l.chronic_absenteeism_rate IS NOT NULL
+                  AND b.chronic_absenteeism_rate IS NOT NULL
+            """, (abs_years[1], abs_years[0]))  # [1]=older, [0]=newer
+            print(f"Computed absenteeism trends for {cur.rowcount} districts ({abs_years[1]}→{abs_years[0]})")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return pct_count
