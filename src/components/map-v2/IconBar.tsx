@@ -1,6 +1,7 @@
 "use client";
 
 import { useMapV2Store, type IconBarTab } from "@/lib/map-v2-store";
+import { useProfile } from "@/lib/api";
 
 const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
   { id: "home", icon: "home", label: "Home" },
@@ -9,30 +10,36 @@ const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
   { id: "settings", icon: "settings", label: "Settings" },
 ];
 
+function ProfileAvatar({ active, avatarUrl, initials }: { active: boolean; avatarUrl: string | null; initials: string }) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt="Profile"
+        className={`w-7 h-7 rounded-full object-cover ring-2 transition-all ${
+          active ? "ring-plum" : "ring-transparent"
+        }`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+        active
+          ? "bg-plum text-white ring-2 ring-plum/30"
+          : "bg-gray-200 text-gray-500"
+      }`}
+    >
+      {initials}
+    </div>
+  );
+}
+
 function TabIcon({ type, active }: { type: string; active: boolean }) {
   const color = active ? "#403770" : "#9CA3AF";
 
   switch (type) {
-    case "home":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M3 10L10 3L17 10V17C17 17.5523 16.5523 18 16 18H4C3.44772 18 3 17.5523 3 17V10Z"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill={active ? color + "20" : "none"}
-          />
-          <path
-            d="M8 18V12H12V18"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      );
     case "layers":
       return (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -103,40 +110,48 @@ export default function IconBar() {
   const activeIconTab = useMapV2Store((s) => s.activeIconTab);
   const setActiveIconTab = useMapV2Store((s) => s.setActiveIconTab);
   const startNewPlan = useMapV2Store((s) => s.startNewPlan);
+  const { data: profile } = useProfile();
+
+  const initials = profile?.fullName
+    ? profile.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
 
   return (
     <div className="flex flex-col items-center py-3 gap-1 w-[44px] border-r border-gray-200/60">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => {
-            if (tab.id === "plans") {
-              setActiveIconTab("plans");
-            } else {
-              setActiveIconTab(tab.id);
-            }
-          }}
-          className={`
-            w-9 h-9 rounded-xl flex items-center justify-center
-            transition-all duration-150 relative group
-            ${
-              activeIconTab === tab.id
-                ? "bg-plum/10 shadow-sm"
-                : "hover:bg-gray-100"
-            }
-          `}
-          title={tab.label}
-          aria-label={tab.label}
-          aria-current={activeIconTab === tab.id ? "page" : undefined}
-        >
-          <TabIcon type={tab.icon} active={activeIconTab === tab.id} />
+      {tabs.map((tab) => {
+        const isHome = tab.id === "home";
+        const isActive = activeIconTab === tab.id;
 
-          {/* Tooltip */}
-          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-            {tab.label}
-          </span>
-        </button>
-      ))}
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setActiveIconTab(tab.id)}
+            className={`
+              w-9 h-9 rounded-xl flex items-center justify-center
+              transition-all duration-150 relative group
+              ${isHome ? "" : isActive ? "bg-plum/10 shadow-sm" : "hover:bg-gray-100"}
+            `}
+            title={isHome ? profile?.fullName || "Home" : tab.label}
+            aria-label={isHome ? profile?.fullName || "Home" : tab.label}
+            aria-current={isActive ? "page" : undefined}
+          >
+            {isHome ? (
+              <ProfileAvatar
+                active={isActive}
+                avatarUrl={profile?.avatarUrl || null}
+                initials={initials}
+              />
+            ) : (
+              <TabIcon type={tab.icon} active={isActive} />
+            )}
+
+            {/* Tooltip */}
+            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              {isHome ? profile?.fullName || "Home" : tab.label}
+            </span>
+          </button>
+        );
+      })}
 
       {/* Spacer */}
       <div className="flex-1" />

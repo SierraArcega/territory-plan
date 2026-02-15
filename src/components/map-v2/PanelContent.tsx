@@ -7,6 +7,7 @@ import PlanFormPanel from "./panels/PlanFormPanel";
 import PlanViewPanel from "./panels/PlanViewPanel";
 import PlanAddPanel from "./panels/PlanAddPanel";
 import PlansListPanel from "./panels/PlansListPanel";
+import HomePanel from "./panels/HomePanel";
 
 export default function PanelContent() {
   const panelState = useMapV2Store((s) => s.panelState);
@@ -19,6 +20,7 @@ export default function PanelContent() {
   if (panelState === "DISTRICT") return <PanelContentWrapper><DistrictDetailPanel /></PanelContentWrapper>;
 
   // Icon tab routing for BROWSE/STATE states
+  if (activeIconTab === "home") return <PanelContentWrapper><HomePanel /></PanelContentWrapper>;
   if (activeIconTab === "plans") return <PanelContentWrapper><PlansListPanel /></PanelContentWrapper>;
 
   // Default: browse with layers

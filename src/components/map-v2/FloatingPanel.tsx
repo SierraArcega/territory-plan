@@ -26,12 +26,12 @@ export default function FloatingPanel() {
       <div className="hidden sm:block">
         <div
           className={`
-            absolute top-3 left-3 bottom-3 z-10
+            absolute top-10 left-12 z-10
             bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg
             flex flex-row overflow-hidden
             transition-all duration-300 ease-out
             panel-v2-enter
-            ${panelCollapsed ? "w-[56px]" : "w-[340px]"}
+            ${panelCollapsed ? "w-[56px] bottom-10" : "w-[500px] bottom-[380px]"}
           `}
         >
           {/* Icon strip */}
