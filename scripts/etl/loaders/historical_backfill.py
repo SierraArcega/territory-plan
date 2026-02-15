@@ -216,6 +216,120 @@ def backfill_ell_history(
     return total_written
 
 
+def backfill_absenteeism_history(
+    connection_string: str,
+    years: List[int] = None,
+    delay: float = 0.5,
+) -> int:
+    """
+    Backfill chronic absenteeism rates from CRDC for available years.
+
+    CRDC data is biennial: available years are 2011, 2013, 2015, 2017, 2020.
+    Fetches school-level data state-by-state, aggregates to district level,
+    and writes to district_data_history.
+
+    Args:
+        connection_string: PostgreSQL connection string
+        years: List of CRDC years (defaults to all available)
+        delay: Delay between API calls
+
+    Returns:
+        Total records written
+    """
+    import psycopg2
+    from psycopg2.extras import execute_values
+    from collections import defaultdict
+
+    AVAILABLE_YEARS = [2011, 2013, 2015, 2017, 2020]
+    if years is None:
+        years = AVAILABLE_YEARS
+    else:
+        # Filter to only valid CRDC years
+        years = [y for y in years if y in AVAILABLE_YEARS]
+        if not years:
+            print("No valid CRDC years provided. Available: 2011, 2013, 2015, 2017, 2020")
+            return 0
+
+    STATES = [
+        "01", "02", "04", "05", "06", "08", "09", "10", "11", "12",
+        "13", "15", "16", "17", "18", "19", "20", "21", "22", "23",
+        "24", "25", "26", "27", "28", "29", "30", "31", "32", "33",
+        "34", "35", "36", "37", "38", "39", "40", "41", "42", "44",
+        "45", "46", "47", "48", "49", "50", "51", "53", "54", "55",
+        "56",
+    ]
+
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+    total_written = 0
+
+    for year in years:
+        print(f"\nBackfilling CRDC absenteeism data for {year} (state by state)...")
+        # Accumulate school-level data by district
+        district_absent = defaultdict(int)
+        district_enrollment = defaultdict(int)
+
+        for fips in STATES:
+            url = f"{API_BASE_URL}/schools/crdc/chronic-absenteeism/{year}/"
+            results = _fetch_paginated(f"{url}?fips={int(fips)}", delay=delay)
+
+            for record in results:
+                leaid = record.get("leaid")
+                if not leaid:
+                    continue
+
+                # Only total records (not disaggregated)
+                is_total = (
+                    record.get("sex") == 99 and
+                    record.get("race") == 99 and
+                    record.get("disability") == 99
+                )
+                if not is_total:
+                    continue
+
+                leaid_str = str(leaid).zfill(7)
+                chronic_absent = record.get("chronic_absent")
+                enrollment = record.get("enrollment_crdc")
+
+                if chronic_absent is not None and chronic_absent >= 0:
+                    district_absent[leaid_str] += chronic_absent
+                if enrollment is not None and enrollment >= 0:
+                    district_enrollment[leaid_str] += enrollment
+
+            time.sleep(delay)
+
+        # Compute rates and write to history
+        batch = []
+        for leaid in district_absent:
+            absent_count = district_absent[leaid]
+            enrollment = district_enrollment.get(leaid, 0)
+            rate = None
+            if enrollment > 0:
+                rate = round((absent_count / enrollment) * 100, 2)
+            if rate is not None:
+                batch.append((leaid, year, 'crdc_absenteeism', rate))
+
+        if batch:
+            execute_values(
+                cur,
+                """
+                INSERT INTO district_data_history (leaid, year, source, chronic_absenteeism_rate)
+                VALUES %s
+                ON CONFLICT (leaid, year, source) DO UPDATE SET
+                    chronic_absenteeism_rate = EXCLUDED.chronic_absenteeism_rate
+                """,
+                batch,
+                template="(%s, %s, %s, %s)"
+            )
+            conn.commit()
+            total_written += len(batch)
+            print(f"  Wrote {len(batch)} absenteeism history records for {year}")
+
+    cur.close()
+    conn.close()
+    return total_written
+
+
 def backfill_finance_history(
     connection_string: str,
     years: List[int],
