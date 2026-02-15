@@ -569,17 +569,20 @@ export default function MapV2Container() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const clickRipples = useMapV2Store((s) => s.clickRipples);
+  const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
+
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="w-full h-full" />
 
       {/* Click ripples */}
-      {useMapV2Store.getState().clickRipples.map((ripple) => (
+      {clickRipples.map((ripple) => (
         <div
           key={ripple.id}
           className={`click-ripple click-ripple-${ripple.color}`}
           style={{ left: ripple.x, top: ripple.y }}
-          onAnimationEnd={() => useMapV2Store.getState().removeClickRipple(ripple.id)}
+          onAnimationEnd={() => removeClickRipple(ripple.id)}
         />
       ))}
 

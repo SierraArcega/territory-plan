@@ -10,7 +10,7 @@ export default function MultiSelectChip() {
   if (selectedLeaids.size === 0) return null;
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 animate-in slide-in-from-bottom-2 fade-in duration-200">
+    <div className="absolute bottom-6 left-1/2 z-20 chip-enter">
       <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 py-2.5 border border-gray-100">
         <span className="text-sm font-medium text-gray-700">
           {selectedLeaids.size} district{selectedLeaids.size !== 1 ? "s" : ""}{" "}

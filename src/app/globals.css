@@ -249,3 +249,80 @@ body {
   height: 1px;
   overflow: hidden;
 }
+
+/* ============================================
+   Map V2 - Panel Animations
+   ============================================ */
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes panelContentFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes staggerItem {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chipSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.panel-v2-enter {
+  animation: panelSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.panel-content-enter {
+  animation: panelContentFade 200ms ease-out forwards;
+}
+
+.stagger-item {
+  animation: staggerItem 200ms ease-out forwards;
+  opacity: 0;
+}
+
+.chip-enter {
+  animation: chipSlideUp 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Map V2 scrollbar - thinner, more subtle */
+.v2-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.v2-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.v2-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(64, 55, 112, 0.15);
+  border-radius: 2px;
+}
+
+.v2-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(64, 55, 112, 0.3);
+}
