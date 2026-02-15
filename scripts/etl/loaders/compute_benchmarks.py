@@ -548,3 +548,84 @@ def compute_deltas_and_quartiles(connection_string: str) -> int:
     cur.close()
     conn.close()
     return state_delta_count
+
+
+def compute_all_benchmarks(connection_string: str) -> Dict:
+    """
+    Run all benchmark computation steps in order.
+
+    Returns:
+        Summary dict with counts from each step
+    """
+    print("\n" + "=" * 60)
+    print("Computing District Benchmarks & Trends")
+    print("=" * 60)
+
+    print("\n--- Step 1: State & National Averages ---")
+    avg_count = compute_state_averages(connection_string)
+
+    print("\n--- Step 2: District Trends ---")
+    trend_count = compute_district_trends(connection_string)
+
+    print("\n--- Step 3: Deltas & Quartiles ---")
+    delta_count = compute_deltas_and_quartiles(connection_string)
+
+    # Log to data_refresh_logs
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO data_refresh_logs (
+            data_source, records_updated, records_failed,
+            status, started_at, completed_at
+        ) VALUES ('compute_benchmarks', %s, 0, 'success', NOW(), NOW())
+    """, (trend_count + delta_count,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return {
+        "state_averages": avg_count,
+        "district_trends": trend_count,
+        "deltas_and_quartiles": delta_count,
+    }
+
+
+def main():
+    """CLI entry point."""
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Compute district benchmarks & trends")
+    parser.add_argument("--averages", action="store_true", help="Compute state/national averages only")
+    parser.add_argument("--trends", action="store_true", help="Compute district trends only")
+    parser.add_argument("--deltas", action="store_true", help="Compute deltas and quartiles only")
+    parser.add_argument("--all", action="store_true", help="Run all steps (default if no flags)")
+    args = parser.parse_args()
+
+    connection_string = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
+    if not connection_string:
+        raise ValueError("DIRECT_URL or DATABASE_URL not set")
+
+    # Strip Supabase-specific params
+    if "?" in connection_string:
+        base_url = connection_string.split("?")[0]
+        params = connection_string.split("?")[1]
+        valid_params = [p for p in params.split("&") if p and not p.startswith("pgbouncer")]
+        connection_string = base_url + ("?" + "&".join(valid_params) if valid_params else "")
+
+    run_all = args.all or not (args.averages or args.trends or args.deltas)
+
+    if run_all:
+        result = compute_all_benchmarks(connection_string)
+        print(f"\nBenchmark computation complete: {result}")
+    else:
+        if args.averages:
+            compute_state_averages(connection_string)
+        if args.trends:
+            compute_district_trends(connection_string)
+        if args.deltas:
+            compute_deltas_and_quartiles(connection_string)
+
+
+if __name__ == "__main__":
+    main()
