@@ -452,7 +452,10 @@ export default function MapV2Container() {
     fetch(`/api/schools/geojson?bounds=${boundsParam}`, {
       signal: schoolFetchController.current.signal,
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((geojson) => {
         if (!map.current) return;
         const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
@@ -532,8 +535,8 @@ export default function MapV2Container() {
             type: "school",
             name: props?.name || "Unknown School",
             leaid: props?.leaid,
-            enrollment: props?.enrollment,
-            schoolLevel: props?.schoolLevel,
+            enrollment: Number(props?.enrollment) || 0,
+            schoolLevel: Number(props?.schoolLevel) || 4,
             lograde: props?.lograde,
             higrade: props?.higrade,
           });
