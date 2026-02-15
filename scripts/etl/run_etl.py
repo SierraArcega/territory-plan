@@ -862,9 +862,6 @@ def run_benchmarks(connection_string: str) -> dict:
 
     Returns summary dict.
     """
-    print("\n" + "=" * 60)
-    print("Computing District Benchmarks & Trends")
-    print("=" * 60)
 
     return compute_all_benchmarks(connection_string)
 
