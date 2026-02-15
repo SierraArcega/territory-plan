@@ -15,7 +15,7 @@ export type IconBarTab = "home" | "search" | "plans" | "settings";
 
 // Tooltip data for v2
 export interface V2TooltipData {
-  type: "state" | "district";
+  type: "state" | "district" | "school";
   stateName?: string;
   stateCode?: string;
   districtCount?: number;
@@ -26,6 +26,10 @@ export interface V2TooltipData {
   customerCategory?: string;
   dominantVendor?: string;
   salesExecutive?: string | null;
+  // School-specific
+  schoolLevel?: number;
+  lograde?: string;
+  higrade?: string;
 }
 
 export interface V2TooltipState {
@@ -45,6 +49,7 @@ interface MapV2State {
   activeVendors: Set<VendorId>;
   filterOwner: string | null;
   filterPlanId: string | null;
+  filterStates: string[];
 
   // Icon bar
   activeIconTab: IconBarTab;
@@ -86,6 +91,8 @@ interface MapV2Actions {
   toggleVendor: (vendor: VendorId) => void;
   setFilterOwner: (owner: string | null) => void;
   setFilterPlanId: (planId: string | null) => void;
+  setFilterStates: (states: string[]) => void;
+  toggleFilterState: (abbrev: string) => void;
 
   // Icon bar
   setActiveIconTab: (tab: IconBarTab) => void;
@@ -147,6 +154,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   activeVendors: new Set<VendorId>(["fullmind"]),
   filterOwner: null,
   filterPlanId: null,
+  filterStates: [],
   activeIconTab: "home",
   selectedLeaid: null,
   selectedStateCode: null,
@@ -195,6 +203,14 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
 
   setFilterOwner: (owner) => set({ filterOwner: owner }),
   setFilterPlanId: (planId) => set({ filterPlanId: planId }),
+  setFilterStates: (states) => set({ filterStates: states }),
+  toggleFilterState: (abbrev) =>
+    set((s) => {
+      const next = s.filterStates.includes(abbrev)
+        ? s.filterStates.filter((a) => a !== abbrev)
+        : [...s.filterStates, abbrev];
+      return { filterStates: next };
+    }),
 
   // Icon bar
   setActiveIconTab: (tab) =>

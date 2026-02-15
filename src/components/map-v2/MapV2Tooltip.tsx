@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, forwardRef } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -19,9 +19,22 @@ const CATEGORY_COLORS: Record<string, string> = {
   target: "#6EA3BE",
 };
 
-export default function MapV2Tooltip() {
+const SCHOOL_LEVEL_LABELS: Record<number, string> = {
+  1: "Elementary",
+  2: "Middle",
+  3: "High",
+  4: "Other",
+};
+
+const SCHOOL_LEVEL_COLORS: Record<number, string> = {
+  1: "#3B82F6",
+  2: "#10B981",
+  3: "#F59E0B",
+  4: "#6B7280",
+};
+
+const MapV2Tooltip = forwardRef<HTMLDivElement>(function MapV2Tooltip(_, ref) {
   const tooltip = useMapV2Store((s) => s.tooltip);
-  const hideTooltip = useMapV2Store((s) => s.hideTooltip);
 
   // Handle exit animation cleanup
   useEffect(() => {
@@ -42,6 +55,7 @@ export default function MapV2Tooltip() {
 
   return (
     <div
+      ref={ref}
       className={`
         absolute pointer-events-none z-30
         bg-white/95 backdrop-blur-sm rounded-xl shadow-lg
@@ -91,6 +105,31 @@ export default function MapV2Tooltip() {
           )}
         </>
       )}
+
+      {data.type === "school" && (
+        <>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: SCHOOL_LEVEL_COLORS[data.schoolLevel ?? 4] || "#6B7280" }}
+            />
+            <div className="text-sm font-medium text-gray-800 leading-tight">
+              {data.name}
+            </div>
+          </div>
+          <div className="text-xs text-gray-400 mt-0.5">
+            {SCHOOL_LEVEL_LABELS[data.schoolLevel ?? 4] || "School"}
+            {data.lograde && data.higrade ? ` · ${data.lograde}–${data.higrade}` : ""}
+          </div>
+          {data.enrollment != null && data.enrollment > 0 && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              {data.enrollment.toLocaleString()} students
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
-}
+});
+
+export default MapV2Tooltip;
