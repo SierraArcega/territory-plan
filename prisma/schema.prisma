@@ -192,6 +192,51 @@ model District {
   staffingTrend3yr         Decimal? @map("staffing_trend_3yr") @db.Decimal(8, 2)
   vacancyPressureSignal    Decimal? @map("vacancy_pressure_signal") @db.Decimal(8, 2)
 
+  // ===== Derived Percentages (computed post-ETL) =====
+  swdPct   Decimal? @map("swd_pct") @db.Decimal(5, 2)
+  ellPct   Decimal? @map("ell_pct") @db.Decimal(5, 2)
+
+  // ===== 3-Year Trends (computed from district_data_history) =====
+  swdTrend3yr                  Decimal? @map("swd_trend_3yr") @db.Decimal(8, 2)
+  ellTrend3yr                  Decimal? @map("ell_trend_3yr") @db.Decimal(8, 2)
+  absenteeismTrend3yr          Decimal? @map("absenteeism_trend_3yr") @db.Decimal(8, 2)
+  graduationTrend3yr           Decimal? @map("graduation_trend_3yr") @db.Decimal(8, 2)
+  studentTeacherRatioTrend3yr  Decimal? @map("student_teacher_ratio_trend_3yr") @db.Decimal(8, 2)
+  mathProficiencyTrend3yr      Decimal? @map("math_proficiency_trend_3yr") @db.Decimal(8, 2)
+  readProficiencyTrend3yr      Decimal? @map("read_proficiency_trend_3yr") @db.Decimal(8, 2)
+  expenditurePpTrend3yr        Decimal? @map("expenditure_pp_trend_3yr") @db.Decimal(8, 2)
+
+  // ===== State Comparison Deltas (district value minus state avg) =====
+  absenteeismVsState           Decimal? @map("absenteeism_vs_state") @db.Decimal(8, 2)
+  graduationVsState            Decimal? @map("graduation_vs_state") @db.Decimal(8, 2)
+  studentTeacherRatioVsState   Decimal? @map("student_teacher_ratio_vs_state") @db.Decimal(8, 2)
+  swdPctVsState                Decimal? @map("swd_pct_vs_state") @db.Decimal(8, 2)
+  ellPctVsState                Decimal? @map("ell_pct_vs_state") @db.Decimal(8, 2)
+  mathProficiencyVsState       Decimal? @map("math_proficiency_vs_state") @db.Decimal(8, 2)
+  readProficiencyVsState       Decimal? @map("read_proficiency_vs_state") @db.Decimal(8, 2)
+  expenditurePpVsState         Decimal? @map("expenditure_pp_vs_state") @db.Decimal(8, 2)
+
+  // ===== National Comparison Deltas (district value minus national avg) =====
+  absenteeismVsNational          Decimal? @map("absenteeism_vs_national") @db.Decimal(8, 2)
+  graduationVsNational           Decimal? @map("graduation_vs_national") @db.Decimal(8, 2)
+  studentTeacherRatioVsNational  Decimal? @map("student_teacher_ratio_vs_national") @db.Decimal(8, 2)
+  swdPctVsNational               Decimal? @map("swd_pct_vs_national") @db.Decimal(8, 2)
+  ellPctVsNational               Decimal? @map("ell_pct_vs_national") @db.Decimal(8, 2)
+  mathProficiencyVsNational      Decimal? @map("math_proficiency_vs_national") @db.Decimal(8, 2)
+  readProficiencyVsNational      Decimal? @map("read_proficiency_vs_national") @db.Decimal(8, 2)
+  expenditurePpVsNational        Decimal? @map("expenditure_pp_vs_national") @db.Decimal(8, 2)
+
+  // ===== Within-State Quartile Flags =====
+  // Values: well_above, above, below, well_below (4-tier by quartile rank)
+  absenteeismQuartileState          String? @map("absenteeism_quartile_state") @db.VarChar(15)
+  graduationQuartileState           String? @map("graduation_quartile_state") @db.VarChar(15)
+  studentTeacherRatioQuartileState  String? @map("student_teacher_ratio_quartile_state") @db.VarChar(15)
+  swdPctQuartileState               String? @map("swd_pct_quartile_state") @db.VarChar(15)
+  ellPctQuartileState               String? @map("ell_pct_quartile_state") @db.VarChar(15)
+  mathProficiencyQuartileState      String? @map("math_proficiency_quartile_state") @db.VarChar(15)
+  readProficiencyQuartileState      String? @map("read_proficiency_quartile_state") @db.VarChar(15)
+  expenditurePpQuartileState        String? @map("expenditure_pp_quartile_state") @db.VarChar(15)
+
   // ===== Relations =====
   state           State?                  @relation(fields: [stateFips], references: [fips])
   contacts        Contact[]
