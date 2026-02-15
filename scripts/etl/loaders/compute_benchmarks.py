@@ -446,3 +446,105 @@ def compute_district_trends(connection_string: str) -> int:
     cur.close()
     conn.close()
     return pct_count
+
+
+def compute_deltas_and_quartiles(connection_string: str) -> int:
+    """
+    Compute comparison deltas (vs state, vs national) and quartile flags.
+
+    Deltas: district value minus benchmark average (positive = above avg)
+
+    Quartile flags (within state):
+    - well_above: top 25% (Q4)
+    - above: 25-50% (Q3)
+    - below: 50-75% (Q2)
+    - well_below: bottom 25% (Q1)
+
+    Returns:
+        Number of districts updated
+    """
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    # Step 1: Compute state deltas
+    cur.execute("""
+        UPDATE districts d SET
+            absenteeism_vs_state = ROUND((d.chronic_absenteeism_rate - s.avg_chronic_absenteeism_rate)::numeric, 2),
+            graduation_vs_state = ROUND((d.graduation_rate_total - s.avg_graduation_rate)::numeric, 2),
+            student_teacher_ratio_vs_state = ROUND((d.student_teacher_ratio - s.avg_student_teacher_ratio)::numeric, 2),
+            swd_pct_vs_state = ROUND((d.swd_pct - s.avg_swd_pct)::numeric, 2),
+            ell_pct_vs_state = ROUND((d.ell_pct - s.avg_ell_pct)::numeric, 2),
+            math_proficiency_vs_state = ROUND((d.math_proficiency_pct - s.avg_math_proficiency)::numeric, 2),
+            read_proficiency_vs_state = ROUND((d.read_proficiency_pct - s.avg_read_proficiency)::numeric, 2),
+            expenditure_pp_vs_state = ROUND((d.expenditure_per_pupil - s.avg_expenditure_per_pupil)::numeric, 2)
+        FROM states s
+        WHERE d.state_fips = s.fips
+          AND s.fips != '00'
+    """)
+    state_delta_count = cur.rowcount
+    print(f"Computed state deltas for {state_delta_count} districts")
+
+    # Step 2: Compute national deltas (vs US row)
+    cur.execute("""
+        UPDATE districts d SET
+            absenteeism_vs_national = ROUND((d.chronic_absenteeism_rate - us.avg_chronic_absenteeism_rate)::numeric, 2),
+            graduation_vs_national = ROUND((d.graduation_rate_total - us.avg_graduation_rate)::numeric, 2),
+            student_teacher_ratio_vs_national = ROUND((d.student_teacher_ratio - us.avg_student_teacher_ratio)::numeric, 2),
+            swd_pct_vs_national = ROUND((d.swd_pct - us.avg_swd_pct)::numeric, 2),
+            ell_pct_vs_national = ROUND((d.ell_pct - us.avg_ell_pct)::numeric, 2),
+            math_proficiency_vs_national = ROUND((d.math_proficiency_pct - us.avg_math_proficiency)::numeric, 2),
+            read_proficiency_vs_national = ROUND((d.read_proficiency_pct - us.avg_read_proficiency)::numeric, 2),
+            expenditure_pp_vs_national = ROUND((d.expenditure_per_pupil - us.avg_expenditure_per_pupil)::numeric, 2)
+        FROM states us
+        WHERE us.fips = '00'
+    """)
+    national_delta_count = cur.rowcount
+    print(f"Computed national deltas for {national_delta_count} districts")
+
+    # Step 3: Compute within-state quartile flags
+    # Uses NTILE(4) to divide districts into 4 equal groups within each state
+    # For each metric, assigns: well_above (Q4), above (Q3), below (Q2), well_below (Q1)
+    METRICS = [
+        # (metric_column, quartile_column, higher_is_better)
+        ("chronic_absenteeism_rate", "absenteeism_quartile_state", False),
+        ("graduation_rate_total", "graduation_quartile_state", True),
+        ("student_teacher_ratio", "student_teacher_ratio_quartile_state", False),
+        ("swd_pct", "swd_pct_quartile_state", False),  # Higher SWD% = more need, labeled "above"
+        ("ell_pct", "ell_pct_quartile_state", False),   # Same logic
+        ("math_proficiency_pct", "math_proficiency_quartile_state", True),
+        ("read_proficiency_pct", "read_proficiency_quartile_state", True),
+        ("expenditure_per_pupil", "expenditure_pp_quartile_state", False),  # Higher spend labeled "above"
+    ]
+
+    for metric_col, quartile_col, higher_is_better in METRICS:
+        # NTILE(4) assigns 1 to lowest group, 4 to highest
+        # For higher_is_better metrics: Q4=well_above, Q1=well_below
+        # For lower_is_better metrics: Q4=well_above (high value), Q1=well_below (low value)
+        # This way "well_above" always means "notably high" regardless of metric direction
+        cur.execute(f"""
+            WITH ranked AS (
+                SELECT leaid,
+                    NTILE(4) OVER (
+                        PARTITION BY state_fips
+                        ORDER BY {metric_col} ASC NULLS LAST
+                    ) AS quartile
+                FROM districts
+                WHERE {metric_col} IS NOT NULL
+                  AND state_fips IS NOT NULL
+            )
+            UPDATE districts d SET
+                {quartile_col} = CASE r.quartile
+                    WHEN 4 THEN 'well_above'
+                    WHEN 3 THEN 'above'
+                    WHEN 2 THEN 'below'
+                    WHEN 1 THEN 'well_below'
+                END
+            FROM ranked r
+            WHERE d.leaid = r.leaid
+        """)
+        print(f"  {quartile_col}: {cur.rowcount} districts ranked")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return state_delta_count
