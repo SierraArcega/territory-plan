@@ -4,7 +4,7 @@ import { useMapV2Store } from "@/lib/map-v2-store";
 import SearchPanel from "./panels/SearchPanel";
 import DistrictDetailPanel from "./panels/DistrictDetailPanel";
 import PlanFormPanel from "./panels/PlanFormPanel";
-import PlanViewPanel from "./panels/PlanViewPanel";
+import PlanWorkspace from "./panels/PlanWorkspace";
 import PlanAddPanel from "./panels/PlanAddPanel";
 import PlansListPanel from "./panels/PlansListPanel";
 import HomePanel from "./panels/HomePanel";
@@ -15,7 +15,14 @@ export default function PanelContent() {
 
   // Plan-related states always show their specific panel
   if (panelState === "PLAN_NEW") return <PanelContentWrapper><PlanFormPanel /></PanelContentWrapper>;
-  if (panelState === "PLAN_VIEW") return <PanelContentWrapper><PlanViewPanel /></PanelContentWrapper>;
+
+  // Plan workspace states
+  if (["PLAN_OVERVIEW", "PLAN_TASKS", "PLAN_CONTACTS", "PLAN_PERF"].includes(panelState))
+    return <PanelContentWrapper><PlanWorkspace /></PanelContentWrapper>;
+
+  // PLAN_VIEW routes to PlanWorkspace (backwards compat for finishAddingDistricts)
+  if (panelState === "PLAN_VIEW") return <PanelContentWrapper><PlanWorkspace /></PanelContentWrapper>;
+
   if (panelState === "PLAN_ADD") return <PanelContentWrapper><PlanAddPanel /></PanelContentWrapper>;
   if (panelState === "DISTRICT") return <PanelContentWrapper><DistrictDetailPanel /></PanelContentWrapper>;
 
