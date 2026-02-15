@@ -54,5 +54,6 @@
   {"fips": "66", "abbrev": "GU", "name": "Guam"},
   {"fips": "69", "abbrev": "MP", "name": "Northern Mariana Islands"},
   {"fips": "72", "abbrev": "PR", "name": "Puerto Rico"},
-  {"fips": "78", "abbrev": "VI", "name": "U.S. Virgin Islands"}
+  {"fips": "78", "abbrev": "VI", "name": "U.S. Virgin Islands"},
+  {"fips": "00", "abbrev": "US", "name": "United States"}
 ]
