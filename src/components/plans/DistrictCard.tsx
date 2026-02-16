@@ -26,7 +26,7 @@ function formatEnrollment(enrollment: number | null): string {
 export default function DistrictCard({ district, onRemove, onClick }: DistrictCardProps) {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
-  const hasTargets = district.revenueTarget || district.pipelineTarget;
+  const hasTargets = district.renewalTarget || district.winbackTarget || district.expansionTarget || district.newBusinessTarget;
 
   const handleRemove = () => {
     onRemove();
@@ -84,23 +84,31 @@ export default function DistrictCard({ district, onRemove, onClick }: DistrictCa
 
       {/* Targets */}
       {hasTargets && (
-        <div className="grid grid-cols-2 gap-3 mb-3 p-2 bg-gray-50 rounded-lg">
-          <div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
-              Revenue
+        <div className="grid grid-cols-2 gap-2 mb-3 p-2 bg-gray-50 rounded-lg">
+          {district.renewalTarget != null && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Renewal</div>
+              <div className="text-sm font-semibold text-[#403770]">{formatCurrency(district.renewalTarget)}</div>
             </div>
-            <div className="text-sm font-semibold text-[#403770]">
-              {formatCurrency(district.revenueTarget)}
+          )}
+          {district.winbackTarget != null && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Winback</div>
+              <div className="text-sm font-semibold text-[#8AA891]">{formatCurrency(district.winbackTarget)}</div>
             </div>
-          </div>
-          <div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
-              Pipeline
+          )}
+          {district.expansionTarget != null && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Expansion</div>
+              <div className="text-sm font-semibold text-[#6EA3BE]">{formatCurrency(district.expansionTarget)}</div>
             </div>
-            <div className="text-sm font-semibold text-[#6EA3BE]">
-              {formatCurrency(district.pipelineTarget)}
+          )}
+          {district.newBusinessTarget != null && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">New Biz</div>
+              <div className="text-sm font-semibold text-[#D4A84B]">{formatCurrency(district.newBusinessTarget)}</div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -115,22 +123,31 @@ export default function DistrictCard({ district, onRemove, onClick }: DistrictCa
       )}
 
       {/* Services */}
-      {district.targetServices && district.targetServices.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {district.targetServices.slice(0, 4).map((service) => (
-            <span
-              key={service.id}
-              className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full text-white"
-              style={{ backgroundColor: service.color }}
-              title={service.name}
-            >
+      {/* Return Services */}
+      {district.returnServices && district.returnServices.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          <span className="text-[9px] text-gray-400 uppercase mr-1 self-center">Return:</span>
+          {district.returnServices.slice(0, 3).map((service) => (
+            <span key={service.id} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full text-white" style={{ backgroundColor: service.color }} title={service.name}>
               {service.name.length > 14 ? `${service.name.slice(0, 14)}...` : service.name}
             </span>
           ))}
-          {district.targetServices.length > 4 && (
-            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
-              +{district.targetServices.length - 4}
+          {district.returnServices.length > 3 && (
+            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">+{district.returnServices.length - 3}</span>
+          )}
+        </div>
+      )}
+      {/* New Services */}
+      {district.newServices && district.newServices.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          <span className="text-[9px] text-gray-400 uppercase mr-1 self-center">New:</span>
+          {district.newServices.slice(0, 3).map((service) => (
+            <span key={service.id} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full text-white" style={{ backgroundColor: service.color }} title={service.name}>
+              {service.name.length > 14 ? `${service.name.slice(0, 14)}...` : service.name}
             </span>
+          ))}
+          {district.newServices.length > 3 && (
+            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">+{district.newServices.length - 3}</span>
           )}
         </div>
       )}
