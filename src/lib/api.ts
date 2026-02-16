@@ -28,6 +28,9 @@ export interface District {
   // External links
   websiteUrl: string | null;
   jobBoardUrl: string | null;
+  // Centroid for tether line
+  centroidLat: number | null;
+  centroidLng: number | null;
 }
 
 export interface FullmindData {
@@ -223,6 +226,10 @@ export interface TerritoryPlan {
   createdAt: string;
   updatedAt: string;
   districtCount: number;
+  totalEnrollment: number;
+  stateCount: number;
+  taskCount: number;
+  completedTaskCount: number;
 }
 
 export interface TerritoryPlanDistrict {

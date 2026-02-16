@@ -39,6 +39,12 @@ export async function GET(
       );
     }
 
+    // Get centroid coordinates for tether line (PostGIS geometry → lat/lng)
+    const centroidResult = await prisma.$queryRaw<
+      { lat: number; lng: number }[]
+    >`SELECT ST_Y(centroid::geometry) as lat, ST_X(centroid::geometry) as lng FROM districts WHERE leaid = ${leaid} AND centroid IS NOT NULL LIMIT 1`;
+    const centroid = centroidResult.length > 0 ? centroidResult[0] : null;
+
     // Build response - data is now all on the district model
     // Keeping the same response shape for backward compatibility with frontend
     const response = {
@@ -63,6 +69,8 @@ export async function GET(
         ellStudents: district.ellStudents,
         websiteUrl: district.websiteUrl,
         jobBoardUrl: district.jobBoardUrl,
+        centroidLat: centroid ? Number(centroid.lat) : null,
+        centroidLng: centroid ? Number(centroid.lng) : null,
       },
 
       // Fullmind CRM data (now on district)
@@ -138,8 +146,6 @@ export async function GET(
         medianHouseholdIncome: toNumber(district.medianHouseholdIncome),
         saipeDataYear: district.saipeDataYear,
         graduationRateTotal: toNumber(district.graduationRateTotal),
-        graduationRateMale: toNumber(district.graduationRateMale),
-        graduationRateFemale: toNumber(district.graduationRateFemale),
         graduationDataYear: district.graduationDataYear,
         salariesTotal: toNumber(district.salariesTotal),
         salariesInstruction: toNumber(district.salariesInstruction),
