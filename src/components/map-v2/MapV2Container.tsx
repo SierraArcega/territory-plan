@@ -7,6 +7,7 @@ import { useMapV2Store } from "@/lib/map-v2-store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression } from "@/lib/map-v2-layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import { useProfile } from "@/lib/api";
+import { mapV2Ref } from "@/lib/map-v2-ref";
 import MapV2Tooltip from "./MapV2Tooltip";
 
 // Throttle interval for hover handlers
@@ -155,6 +156,8 @@ export default function MapV2Container() {
       minZoom: 2,
       maxZoom: 14,
     });
+
+    mapV2Ref.current = map.current;
 
     map.current.addControl(new maplibregl.NavigationControl(), "top-right");
 
@@ -443,6 +446,7 @@ export default function MapV2Container() {
     return () => {
       map.current?.remove();
       map.current = null;
+      mapV2Ref.current = null;
     };
   }, []);
 
