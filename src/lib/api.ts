@@ -1420,22 +1420,20 @@ export function usePlanDistrictDetail(planId: string | null, leaid: string | nul
 export function useUpdateDistrictTargets() {
   const queryClient = useQueryClient();
 
+  type UpdateVars = {
+    planId: string;
+    leaid: string;
+    renewalTarget?: number | null;
+    winbackTarget?: number | null;
+    expansionTarget?: number | null;
+    newBusinessTarget?: number | null;
+    notes?: string | null;
+    returnServiceIds?: number[];
+    newServiceIds?: number[];
+  };
+
   return useMutation({
-    mutationFn: ({
-      planId,
-      leaid,
-      ...data
-    }: {
-      planId: string;
-      leaid: string;
-      renewalTarget?: number | null;
-      winbackTarget?: number | null;
-      expansionTarget?: number | null;
-      newBusinessTarget?: number | null;
-      notes?: string | null;
-      returnServiceIds?: number[];
-      newServiceIds?: number[];
-    }) =>
+    mutationFn: ({ planId, leaid, ...data }: UpdateVars) =>
       fetchJson<PlanDistrictDetail>(
         `${API_BASE}/territory-plans/${planId}/districts/${leaid}`,
         {
@@ -1443,9 +1441,61 @@ export function useUpdateDistrictTargets() {
           body: JSON.stringify(data),
         }
       ),
-    onSuccess: (_, variables) => {
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["territoryPlan", variables.planId] });
+
+      const planKey = ["territoryPlan", variables.planId] as const;
+      const previousPlan = queryClient.getQueryData<TerritoryPlanDetail>(planKey);
+
+      if (previousPlan) {
+        // Optimistically update the specific district in the cached plan
+        const allServices = queryClient.getQueryData<Service[]>(["services"]) || [];
+
+        queryClient.setQueryData<TerritoryPlanDetail>(planKey, {
+          ...previousPlan,
+          districts: previousPlan.districts.map((d) => {
+            if (d.leaid !== variables.leaid) return d;
+            const updated = { ...d };
+
+            // Patch target fields that were sent
+            if (variables.renewalTarget !== undefined) updated.renewalTarget = variables.renewalTarget;
+            if (variables.winbackTarget !== undefined) updated.winbackTarget = variables.winbackTarget;
+            if (variables.expansionTarget !== undefined) updated.expansionTarget = variables.expansionTarget;
+            if (variables.newBusinessTarget !== undefined) updated.newBusinessTarget = variables.newBusinessTarget;
+            if (variables.notes !== undefined) updated.notes = variables.notes;
+
+            // Patch services if sent
+            if (variables.returnServiceIds !== undefined) {
+              updated.returnServices = variables.returnServiceIds
+                .map((id) => allServices.find((s) => s.id === id))
+                .filter((s): s is Service => !!s)
+                .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+            }
+            if (variables.newServiceIds !== undefined) {
+              updated.newServices = variables.newServiceIds
+                .map((id) => allServices.find((s) => s.id === id))
+                .filter((s): s is Service => !!s)
+                .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+            }
+
+            return updated;
+          }),
+        });
+      }
+
+      return { previousPlan };
+    },
+    onError: (_err, variables, context) => {
+      // Roll back to previous state on error
+      if (context?.previousPlan) {
+        queryClient.setQueryData(["territoryPlan", variables.planId], context.previousPlan);
+      }
+    },
+    onSettled: (_, _err, variables) => {
+      // Background-refresh the single district detail (lightweight)
       queryClient.invalidateQueries({ queryKey: ["planDistrict", variables.planId, variables.leaid] });
-      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+      // Debounce the dashboard refresh — it's not urgent
       queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
     },
   });
