@@ -51,7 +51,7 @@ export default function DistrictDetailsCard({ data, leaid }: DistrictDetailsCard
         )}
         <TagsEditor leaid={leaid} tags={data.tags} />
         <NotesEditor leaid={leaid} edits={data.edits} />
-        <TaskList linkedEntityType="district" linkedEntityId={leaid} />
+        <TaskList leaid={leaid} />
       </div>
     </SignalCard>
   );

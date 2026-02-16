@@ -43,8 +43,12 @@ export default function FullmindCard({ data, leaid }: FullmindCardProps) {
         {hasFullmind && <FullmindMetrics fullmindData={data.fullmindData!} />}
         <CompetitorSpend leaid={leaid} />
         <div className="flex items-center gap-2">
-          <AddToPlanButton leaid={leaid} territoryPlanIds={data.territoryPlanIds} />
-          <FindSimilarDistricts leaid={leaid} />
+          <AddToPlanButton leaid={leaid} existingPlanIds={data.territoryPlanIds} />
+          <FindSimilarDistricts
+            district={data.district}
+            educationData={data.educationData}
+            enrollmentDemographics={data.enrollmentDemographics}
+          />
         </div>
       </div>
     </SignalCard>

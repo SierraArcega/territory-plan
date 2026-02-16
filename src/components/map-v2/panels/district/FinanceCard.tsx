@@ -72,8 +72,11 @@ export default function FinanceCard({
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(val: number) => formatCurrency(val)}
-                        labelFormatter={(key: string) => REVENUE_COLORS[key]?.label ?? key}
+                        formatter={(val: number | undefined) => formatCurrency(val ?? null)}
+                        labelFormatter={(label: unknown) => {
+                          const key = String(label);
+                          return REVENUE_COLORS[key]?.label ?? key;
+                        }}
                       />
                     </PieChart>
                   </ResponsiveContainer>

@@ -61,6 +61,7 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         district={data.district}
         fullmindData={data.fullmindData}
         tags={data.tags}
+        trends={data.trends}
       />
 
       {/* Tab bar */}
