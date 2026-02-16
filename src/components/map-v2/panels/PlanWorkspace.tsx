@@ -7,6 +7,7 @@ import PlanOverviewSection from "./PlanOverviewSection";
 import PlanTasksSection from "./PlanTasksSection";
 import PlanContactsSection from "./PlanContactsSection";
 import PlanPerfSection from "./PlanPerfSection";
+import PlanActivitiesSection from "./PlanActivitiesSection";
 
 const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
   draft: { bg: "bg-gray-100", text: "text-gray-600" },
@@ -16,10 +17,16 @@ const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
 
 const ICON_TABS: { key: PlanSection; label: string; path: string; stroke?: boolean }[] = [
   {
-    key: "overview",
-    label: "Overview",
+    key: "districts",
+    label: "Districts",
     path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z",
     stroke: false,
+  },
+  {
+    key: "activities",
+    label: "Activities",
+    path: "M8 2V5M3 8H5M11 8H13M4.9 4.9L6.3 6.3M11.1 4.9L9.7 6.3M8 14C11.3 14 14 11.3 14 8S11.3 2 8 2 2 4.7 2 8 4.7 14 8 14Z",
+    stroke: true,
   },
   {
     key: "tasks",
@@ -116,7 +123,8 @@ export default function PlanWorkspace() {
 
       {/* Section content */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {planSection === "overview" && <PlanOverviewSection />}
+        {planSection === "districts" && <PlanOverviewSection />}
+        {planSection === "activities" && <PlanActivitiesSection />}
         {planSection === "tasks" && <PlanTasksSection />}
         {planSection === "contacts" && <PlanContactsSection />}
         {planSection === "performance" && <PlanPerfSection />}

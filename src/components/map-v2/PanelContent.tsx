@@ -17,7 +17,7 @@ export default function PanelContent() {
   if (panelState === "PLAN_NEW") return <PanelContentWrapper><PlanFormPanel /></PanelContentWrapper>;
 
   // Plan workspace states
-  if (["PLAN_OVERVIEW", "PLAN_TASKS", "PLAN_CONTACTS", "PLAN_PERF"].includes(panelState))
+  if (["PLAN_OVERVIEW", "PLAN_ACTIVITIES", "PLAN_TASKS", "PLAN_CONTACTS", "PLAN_PERF"].includes(panelState))
     return <PanelContentWrapper><PlanWorkspace /></PanelContentWrapper>;
 
   // PLAN_VIEW routes to PlanWorkspace (backwards compat for finishAddingDistricts)
