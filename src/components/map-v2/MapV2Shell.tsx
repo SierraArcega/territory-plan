@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import FloatingPanel from "./FloatingPanel";
 import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
+import SelectModePill from "./SelectModePill";
 
 // Dynamic import for MapLibre (no SSR)
 const MapV2Container = dynamic(() => import("./MapV2Container"), {
@@ -29,6 +30,9 @@ export default function MapV2Shell() {
 
       {/* Multi-select action chip */}
       <MultiSelectChip />
+
+      {/* Multi-select mode toggle */}
+      <SelectModePill />
 
       {/* Layer control bubble */}
       <LayerBubble />
