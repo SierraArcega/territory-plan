@@ -122,9 +122,10 @@ export async function GET(
       fiscalYear: goal.fiscalYear,
       earningsTarget: toNumber(goal.earningsTarget),
       takeRatePercent: toNumber(goal.takeRatePercent),
-      revenueTarget: toNumber(goal.revenueTarget),
-      takeTarget: toNumber(goal.takeTarget),
-      pipelineTarget: toNumber(goal.pipelineTarget),
+      renewalTarget: toNumber(goal.renewalTarget),
+      winbackTarget: toNumber(goal.winbackTarget),
+      expansionTarget: toNumber(goal.expansionTarget),
+      newBusinessTarget: toNumber(goal.newBusinessTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
       ...actuals,
       createdAt: goal.createdAt.toISOString(),
@@ -165,7 +166,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { earningsTarget, takeRatePercent, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget } = body;
+    const { earningsTarget, takeRatePercent, renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, takeTarget, newDistrictsTarget } = body;
 
     // Update the goal
     const goal = await prisma.userGoal.update({
@@ -178,9 +179,11 @@ export async function PUT(
       data: {
         earningsTarget: earningsTarget !== undefined ? earningsTarget : undefined,
         takeRatePercent: takeRatePercent !== undefined ? takeRatePercent : undefined,
-        revenueTarget: revenueTarget !== undefined ? revenueTarget : undefined,
+        renewalTarget: renewalTarget !== undefined ? renewalTarget : undefined,
+        winbackTarget: winbackTarget !== undefined ? winbackTarget : undefined,
+        expansionTarget: expansionTarget !== undefined ? expansionTarget : undefined,
+        newBusinessTarget: newBusinessTarget !== undefined ? newBusinessTarget : undefined,
         takeTarget: takeTarget !== undefined ? takeTarget : undefined,
-        pipelineTarget: pipelineTarget !== undefined ? pipelineTarget : undefined,
         newDistrictsTarget: newDistrictsTarget !== undefined ? newDistrictsTarget : undefined,
       },
     });
@@ -193,9 +196,10 @@ export async function PUT(
       fiscalYear: goal.fiscalYear,
       earningsTarget: toNumber(goal.earningsTarget),
       takeRatePercent: toNumber(goal.takeRatePercent),
-      revenueTarget: toNumber(goal.revenueTarget),
-      takeTarget: toNumber(goal.takeTarget),
-      pipelineTarget: toNumber(goal.pipelineTarget),
+      renewalTarget: toNumber(goal.renewalTarget),
+      winbackTarget: toNumber(goal.winbackTarget),
+      expansionTarget: toNumber(goal.expansionTarget),
+      newBusinessTarget: toNumber(goal.newBusinessTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
       ...actuals,
       createdAt: goal.createdAt.toISOString(),
