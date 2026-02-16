@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import type { VendorId } from "@/lib/map-v2-layers";
+import type { VendorId, SignalId, LocaleId } from "@/lib/map-v2-layers";
+
+// School type toggles: level 1-3 + charter
+export type SchoolType = "elementary" | "middle" | "high" | "charter";
+export const ALL_SCHOOL_TYPES: SchoolType[] = ["elementary", "middle", "high", "charter"];
 
 // Panel state machine
 export type PanelState =
@@ -80,6 +84,9 @@ interface MapV2State {
   // Multi-select (for Flow A: select -> plan)
   selectedLeaids: Set<string>;
 
+  // Multi-select mode (click-to-select without Shift)
+  multiSelectMode: boolean;
+
   // Search
   searchQuery: string;
 
@@ -95,8 +102,14 @@ interface MapV2State {
   // Layer bubble
   layerBubbleOpen: boolean;
 
-  // Schools layer
-  schoolsLayerVisible: boolean;
+  // Schools layer — which school types are visible
+  visibleSchoolTypes: Set<SchoolType>;
+
+  // Signal layer
+  activeSignal: SignalId | null;
+
+  // Locale layer
+  visibleLocales: Set<LocaleId>;
 }
 
 interface MapV2Actions {
@@ -138,6 +151,8 @@ interface MapV2Actions {
   clearSelectedDistricts: () => void;
   createPlanFromSelection: () => void;
 
+  toggleMultiSelectMode: () => void;
+
   // Search
   setSearchQuery: (query: string) => void;
 
@@ -159,7 +174,15 @@ interface MapV2Actions {
   toggleLayerBubble: () => void;
 
   // Schools layer
-  toggleSchoolsLayer: () => void;
+  toggleSchoolType: (type: SchoolType) => void;
+  setVisibleSchoolTypes: (types: Set<SchoolType>) => void;
+
+  // Signal layer
+  setActiveSignal: (signal: SignalId | null) => void;
+
+  // Locale layer
+  toggleLocale: (locale: LocaleId) => void;
+  setVisibleLocales: (locales: Set<LocaleId>) => void;
 }
 
 let rippleId = 0;
@@ -189,12 +212,15 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   rightPanelContent: null as RightPanelContent | null,
   planDistrictLeaids: new Set<string>(),
   selectedLeaids: new Set<string>(),
+  multiSelectMode: false,
   searchQuery: "",
   tooltip: initialTooltip,
   clickRipples: [],
   panelCollapsed: false,
   layerBubbleOpen: false,
-  schoolsLayerVisible: true,
+  visibleSchoolTypes: new Set<SchoolType>(ALL_SCHOOL_TYPES),
+  activeSignal: null,
+  visibleLocales: new Set<LocaleId>(),
 
   // Panel navigation
   setPanelState: (state) =>
@@ -353,6 +379,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       panelHistory: [...s.panelHistory, s.panelState],
     })),
 
+  toggleMultiSelectMode: () =>
+    set((s) => ({
+      multiSelectMode: !s.multiSelectMode,
+      // Clear selection when turning off
+      ...(!s.multiSelectMode ? {} : { selectedLeaids: new Set<string>() }),
+    })),
+
   // Search
   setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -389,5 +422,34 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   toggleLayerBubble: () => set((s) => ({ layerBubbleOpen: !s.layerBubbleOpen })),
 
   // Schools layer
-  toggleSchoolsLayer: () => set((s) => ({ schoolsLayerVisible: !s.schoolsLayerVisible })),
+  toggleSchoolType: (type) =>
+    set((s) => {
+      const next = new Set(s.visibleSchoolTypes);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return { visibleSchoolTypes: next };
+    }),
+  setVisibleSchoolTypes: (types) => set({ visibleSchoolTypes: types }),
+
+  // Signal layer — toggle off if same signal clicked again
+  setActiveSignal: (signal) =>
+    set((s) => ({
+      activeSignal: s.activeSignal === signal ? null : signal,
+    })),
+
+  // Locale layer
+  toggleLocale: (locale) =>
+    set((s) => {
+      const next = new Set(s.visibleLocales);
+      if (next.has(locale)) {
+        next.delete(locale);
+      } else {
+        next.add(locale);
+      }
+      return { visibleLocales: next };
+    }),
+  setVisibleLocales: (locales) => set({ visibleLocales: locales }),
 }));
