@@ -76,7 +76,7 @@ export default function StatePlans({ plans }: StatePlansProps) {
                 {plan.owner && (
                   <>
                     <span className="text-gray-300">|</span>
-                    <span>{plan.owner}</span>
+                    <span>{typeof plan.owner === "string" ? plan.owner : (plan.owner as { fullName: string | null }).fullName}</span>
                   </>
                 )}
               </div>

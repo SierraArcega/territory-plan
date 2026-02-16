@@ -40,10 +40,12 @@ function formatDate(dateString: string | null): string {
 // Status badge styling
 function getStatusBadge(status: string) {
   switch (status) {
-    case "draft":
-      return { label: "Draft", className: "bg-gray-200 text-gray-700" };
-    case "active":
-      return { label: "Active", className: "bg-[#8AA891] text-white" };
+    case "planning":
+      return { label: "Planning", className: "bg-gray-200 text-gray-700" };
+    case "working":
+      return { label: "Working", className: "bg-[#8AA891] text-white" };
+    case "stale":
+      return { label: "Stale", className: "bg-amber-200 text-amber-800" };
     case "archived":
       return { label: "Archived", className: "bg-gray-400 text-white" };
     default:
@@ -122,7 +124,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: (data as unknown as { ownerId?: string }).ownerId,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
@@ -293,7 +295,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       id: planId,
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: (data as unknown as { ownerId?: string }).ownerId,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
@@ -446,10 +448,10 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
             {/* Meta info inline */}
             <span className="hidden md:flex items-center gap-2 text-[12px] text-gray-400 ml-2 flex-shrink-0">
               <span>{plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}</span>
-              {plan.owner && (
+              {plan.owner?.fullName && (
                 <>
                   <span>·</span>
-                  <span>{plan.owner}</span>
+                  <span>{plan.owner.fullName}</span>
                 </>
               )}
               {dateRange && (

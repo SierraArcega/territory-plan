@@ -46,12 +46,14 @@ function formatDateHeader(): string {
 }
 
 function getToday(): string {
-  return new Date().toISOString().split("T")[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatTaskDate(dueDate: string | null): string {
   if (!dueDate) return "";
-  const date = new Date(dueDate);
+  const datePart = dueDate.split("T")[0];
+  const date = new Date(datePart + "T00:00:00");
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -173,8 +175,8 @@ function MiniCalendar({
     const map = new Map<string, number>();
     for (const a of activities) {
       if (!a.startDate) continue;
-      const start = new Date(a.startDate);
-      const end = a.endDate ? new Date(a.endDate) : start;
+      const start = new Date(a.startDate.split("T")[0] + "T00:00:00");
+      const end = a.endDate ? new Date(a.endDate.split("T")[0] + "T00:00:00") : start;
       const cursor = new Date(start);
       while (cursor <= end) {
         const key = toDateKey(cursor);
@@ -348,8 +350,8 @@ export default function HomeView() {
     const selKey = toDateKey(calSelectedDate);
     return calActivities.filter((a) => {
       if (!a.startDate) return false;
-      const start = new Date(a.startDate);
-      const end = a.endDate ? new Date(a.endDate) : start;
+      const start = new Date(a.startDate.split("T")[0] + "T00:00:00");
+      const end = a.endDate ? new Date(a.endDate.split("T")[0] + "T00:00:00") : start;
       const cursor = new Date(start);
       while (cursor <= end) {
         if (toDateKey(cursor) === selKey) return true;
@@ -376,7 +378,7 @@ export default function HomeView() {
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: (data as unknown as { ownerId?: string }).ownerId,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,

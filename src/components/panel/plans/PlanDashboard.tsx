@@ -25,7 +25,7 @@ export default function PlanDashboard({ planId, onBack }: PlanDashboardProps) {
       id: planId,
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: (data as unknown as { ownerId?: string }).ownerId,
       color: data.color,
       status: data.status,
       startDate: data.startDate || undefined,
@@ -106,7 +106,7 @@ export default function PlanDashboard({ planId, onBack }: PlanDashboardProps) {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-500 block">Owner</span>
-              <p className="font-medium text-gray-900">{plan.owner || "—"}</p>
+              <p className="font-medium text-gray-900">{plan.owner?.fullName || "\u2014"}</p>
             </div>
             <div>
               <span className="text-gray-500 block">Districts</span>
@@ -116,7 +116,7 @@ export default function PlanDashboard({ planId, onBack }: PlanDashboardProps) {
               <div>
                 <span className="text-gray-500 block">Start Date</span>
                 <p className="font-medium text-gray-900">
-                  {new Date(plan.startDate).toLocaleDateString()}
+                  {new Date(plan.startDate.split("T")[0] + "T00:00:00").toLocaleDateString()}
                 </p>
               </div>
             )}
@@ -124,7 +124,7 @@ export default function PlanDashboard({ planId, onBack }: PlanDashboardProps) {
               <div>
                 <span className="text-gray-500 block">End Date</span>
                 <p className="font-medium text-gray-900">
-                  {new Date(plan.endDate).toLocaleDateString()}
+                  {new Date(plan.endDate.split("T")[0] + "T00:00:00").toLocaleDateString()}
                 </p>
               </div>
             )}

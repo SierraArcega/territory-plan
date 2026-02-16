@@ -14,8 +14,9 @@ const PLAN_COLORS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "active", label: "Active" },
+  { value: "planning", label: "Planning" },
+  { value: "working", label: "Working" },
+  { value: "stale", label: "Stale" },
   { value: "archived", label: "Archived" },
 ];
 
@@ -33,7 +34,7 @@ export default function PlanEditForm() {
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("");
   const [color, setColor] = useState("#403770");
-  const [status, setStatus] = useState<"draft" | "active" | "archived">("active");
+  const [status, setStatus] = useState<"planning" | "working" | "stale" | "archived">("planning");
   const [fiscalYear, setFiscalYear] = useState(2026);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -42,9 +43,9 @@ export default function PlanEditForm() {
     if (plan) {
       setName(plan.name);
       setDescription(plan.description || "");
-      setOwner(plan.owner || "");
+      setOwner(plan.owner?.fullName || "");
       setColor(plan.color || "#403770");
-      setStatus(plan.status as "draft" | "active" | "archived");
+      setStatus(plan.status as "planning" | "working" | "stale" | "archived");
       setFiscalYear(plan.fiscalYear);
     }
   }, [plan]);
@@ -56,7 +57,6 @@ export default function PlanEditForm() {
         id: activePlanId,
         name: name.trim(),
         description: description.trim() || undefined,
-        owner: owner.trim() || undefined,
         color,
         status,
         fiscalYear,
@@ -120,7 +120,7 @@ export default function PlanEditForm() {
         </label>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value as "draft" | "active" | "archived")}
+          onChange={(e) => setStatus(e.target.value as "planning" | "working" | "stale" | "archived")}
           className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:border-gray-400 focus:outline-none focus:ring-0 transition-colors text-gray-700"
         >
           {STATUS_OPTIONS.map((opt) => (

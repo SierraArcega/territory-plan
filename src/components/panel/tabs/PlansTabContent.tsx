@@ -21,7 +21,7 @@ export default function PlansTabContent({ stateCode: _stateCode }: PlansTabConte
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: (data as unknown as { ownerId?: string }).ownerId,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
@@ -96,17 +96,18 @@ export default function PlansTabContent({ stateCode: _stateCode }: PlansTabConte
 
   // Status badge colors
   const statusColors: Record<string, { bg: string; text: string }> = {
-    active: { bg: "bg-green-100", text: "text-green-700" },
-    draft: { bg: "bg-yellow-100", text: "text-yellow-700" },
+    working: { bg: "bg-green-100", text: "text-green-700" },
+    planning: { bg: "bg-yellow-100", text: "text-yellow-700" },
+    stale: { bg: "bg-amber-100", text: "text-amber-700" },
     archived: { bg: "bg-gray-100", text: "text-gray-500" },
   };
 
-  // Filter to non-archived and sort by status (active first)
+  // Filter to non-archived and sort by status (working first)
   const visiblePlans = plans
     .filter((p) => p.status !== "archived")
     .sort((a, b) => {
-      if (a.status === "active" && b.status !== "active") return -1;
-      if (b.status === "active" && a.status !== "active") return 1;
+      if (a.status === "working" && b.status !== "working") return -1;
+      if (b.status === "working" && a.status !== "working") return 1;
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 
@@ -155,10 +156,10 @@ export default function PlansTabContent({ stateCode: _stateCode }: PlansTabConte
                     </svg>
                     {plan.districtCount} districts
                   </span>
-                  {plan.owner && (
+                  {plan.owner?.fullName && (
                     <>
                       <span className="text-gray-300">|</span>
-                      <span>{plan.owner}</span>
+                      <span>{plan.owner.fullName}</span>
                     </>
                   )}
                 </div>
