@@ -1,8 +1,6 @@
 "use client";
 
 import type { DistrictDetail } from "@/lib/api";
-import FullmindMetrics from "./FullmindMetrics";
-import CompetitorSpend from "./CompetitorSpend";
 import AddToPlanButton from "./AddToPlanButton";
 import FindSimilarDistricts from "./FindSimilarDistricts";
 import SignalCard from "./signals/SignalCard";
@@ -13,8 +11,6 @@ interface FullmindCardProps {
 }
 
 export default function FullmindCard({ data, leaid }: FullmindCardProps) {
-  const hasFullmind = data.fullmindData != null;
-
   return (
     <SignalCard
       icon={
@@ -40,8 +36,11 @@ export default function FullmindCard({ data, leaid }: FullmindCardProps) {
       }
     >
       <div className="space-y-3">
-        {hasFullmind && <FullmindMetrics fullmindData={data.fullmindData!} />}
-        <CompetitorSpend leaid={leaid} />
+        {data.fullmindData?.salesExecutive && (
+          <div className="text-xs text-gray-500">
+            SE: <span className="font-medium text-[#403770]">{data.fullmindData.salesExecutive}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <AddToPlanButton leaid={leaid} existingPlanIds={data.territoryPlanIds} />
           <FindSimilarDistricts

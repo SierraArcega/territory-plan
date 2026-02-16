@@ -8,6 +8,8 @@ import StaffingCard from "./StaffingCard";
 import StudentPopulationsCard from "./StudentPopulationsCard";
 import AcademicCard from "./AcademicCard";
 import FinanceCard from "./FinanceCard";
+import PurchasingHistoryCard from "./PurchasingHistoryCard";
+import CompetitorSpendCard from "./CompetitorSpendCard";
 import FullmindCard from "./FullmindCard";
 import DistrictDetailsCard from "./DistrictDetailsCard";
 import ContactsList from "./ContactsList";
@@ -98,6 +100,10 @@ export default function DistrictDetailPanel() {
                 educationData={data.educationData}
                 trends={data.trends}
               />
+
+              <PurchasingHistoryCard fullmindData={data.fullmindData} />
+
+              <CompetitorSpendCard leaid={selectedLeaid!} />
 
               <FullmindCard data={data} leaid={selectedLeaid!} />
 
