@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
+import DistrictInfoTab from "./DistrictInfoTab";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,23 +102,19 @@ export default function DistrictDetailPanel() {
             </div>
 
             {/* Tab content */}
-            <div className="p-3">
-              {activeTab === "info" && (
-                <div className="text-sm text-gray-400 py-4 text-center">
-                  District Info coming soon
-                </div>
-              )}
-              {activeTab === "data" && (
-                <div className="text-sm text-gray-400 py-4 text-center">
-                  Data + Demographics coming soon
-                </div>
-              )}
-              {activeTab === "contacts" && (
-                <div className="text-sm text-gray-400 py-4 text-center">
-                  Contacts coming soon
-                </div>
-              )}
-            </div>
+            {activeTab === "info" && (
+              <DistrictInfoTab data={data} leaid={selectedLeaid!} />
+            )}
+            {activeTab === "data" && (
+              <div className="p-3 text-sm text-gray-400 py-4 text-center">
+                Data + Demographics coming soon
+              </div>
+            )}
+            {activeTab === "contacts" && (
+              <div className="p-3 text-sm text-gray-400 py-4 text-center">
+                Contacts coming soon
+              </div>
+            )}
 
             <p className="text-[10px] text-gray-300 text-center pt-1 pb-3">
               LEAID: {selectedLeaid}
@@ -154,42 +151,6 @@ function TabButton({
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F37167]" />
       )}
     </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helper components (kept for future tab content)
-// ---------------------------------------------------------------------------
-
-function MetricCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-xl bg-gray-50 p-2.5">
-      <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5">
-        {label}
-      </div>
-      <div
-        className={`text-sm font-semibold ${accent ? "text-plum" : "text-gray-700"}`}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-gray-700">{value}</span>
-    </div>
   );
 }
 
