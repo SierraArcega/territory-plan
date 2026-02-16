@@ -1,46 +1,25 @@
 "use client";
 
-import type { District, FullmindData, Tag } from "@/lib/api";
+import type { District, FullmindData, Tag, DistrictTrends } from "@/lib/api";
+import SignalBadge from "./signals/SignalBadge";
 
 interface DistrictHeaderProps {
   district: District;
   fullmindData: FullmindData | null;
   tags: Tag[];
+  trends: DistrictTrends | null;
 }
 
-function formatEnrollment(enrollment: number | null): string {
-  if (!enrollment) return "N/A";
-  return enrollment.toLocaleString();
-}
-
-function formatGrades(lograde: string | null, higrade: string | null): string {
-  if (!lograde && !higrade) return "N/A";
-  const lo = lograde || "?";
-  const hi = higrade || "?";
-  const gradeMap: Record<string, string> = {
-    PK: "Pre-K",
-    KG: "K",
-    "01": "1",
-    "02": "2",
-    "03": "3",
-    "04": "4",
-    "05": "5",
-    "06": "6",
-    "07": "7",
-    "08": "8",
-    "09": "9",
-    "10": "10",
-    "11": "11",
-    "12": "12",
-    UG: "Ungraded",
-  };
-  return `${gradeMap[lo] || lo} - ${gradeMap[hi] || hi}`;
+function formatGrades(lo: string, hi: string): string {
+  const map: Record<string, string> = { PK: "Pre-K", KG: "K", "01": "1", "02": "2", "03": "3", "04": "4", "05": "5", "06": "6", "07": "7", "08": "8", "09": "9", "10": "10", "11": "11", "12": "12", UG: "Ungraded" };
+  return `${map[lo] || lo} – ${map[hi] || hi}`;
 }
 
 export default function DistrictHeader({
   district,
   fullmindData,
   tags,
+  trends,
 }: DistrictHeaderProps) {
   return (
     <div className="px-3 pt-3 pb-2 border-b border-gray-100 bg-gradient-to-b from-[#FFFCFA] to-white">
@@ -73,18 +52,8 @@ export default function DistrictHeader({
               className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gray-100 hover:bg-[#403770] hover:text-white text-gray-600 transition-colors"
               title="Visit Website"
             >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-                />
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
               </svg>
             </a>
           )}
@@ -96,18 +65,8 @@ export default function DistrictHeader({
               className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gray-100 hover:bg-[#403770] hover:text-white text-gray-600 transition-colors"
               title="View Job Board"
             >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </a>
           )}
@@ -129,48 +88,53 @@ export default function DistrictHeader({
         </div>
       )}
 
-      {/* District Info Grid */}
-      <div className="grid grid-cols-3 gap-3 mt-3 text-sm">
-        <div>
-          <span className="text-gray-500 text-xs">Enrollment</span>
-          <p className="font-medium text-[#403770]">
-            {formatEnrollment(district.enrollment)}
-          </p>
+      {/* Signal Strip */}
+      {trends && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <SignalBadge trend={trends.enrollmentTrend3yr} compact label={
+            trends.enrollmentTrend3yr != null
+              ? `${trends.enrollmentTrend3yr > 0 ? "↑" : trends.enrollmentTrend3yr < -0.5 ? "↓" : "—"} Enrollment`
+              : undefined
+          } />
+          <SignalBadge
+            trend={trends.studentTeacherRatioTrend3yr != null ? -trends.studentTeacherRatioTrend3yr : null}
+            compact
+            label={trends.studentTeacherRatioTrend3yr != null
+              ? `${trends.studentTeacherRatioTrend3yr > 0.5 ? "⚠" : "✓"} Staffing`
+              : undefined}
+          />
+          <SignalBadge trend={trends.graduationTrend3yr} isPointChange compact label={
+            trends.graduationTrend3yr != null
+              ? `${trends.graduationTrend3yr > 0 ? "↑" : trends.graduationTrend3yr < -0.5 ? "↓" : "—"} Graduation`
+              : undefined
+          } />
+          <SignalBadge trend={trends.expenditurePpTrend3yr} compact label={
+            trends.expenditurePpTrend3yr != null
+              ? `${trends.expenditurePpTrend3yr > 0 ? "↑" : trends.expenditurePpTrend3yr < -0.5 ? "↓" : "—"} Spend`
+              : undefined
+          } />
         </div>
-        <div>
-          <span className="text-gray-500 text-xs">Grades</span>
-          <p className="font-medium text-[#403770]">
-            {formatGrades(district.lograde, district.higrade)}
-          </p>
-        </div>
-        <div>
-          <span className="text-gray-500 text-xs">Schools</span>
-          <p className="font-medium text-[#403770]">
-            {district.numberOfSchools?.toLocaleString() ?? "N/A"}
-          </p>
-        </div>
+      )}
+
+      {/* Compact stats line */}
+      <div className="mt-2 text-xs text-gray-500">
+        {district.enrollment != null && (
+          <span>{district.enrollment.toLocaleString()} students</span>
+        )}
+        {district.lograde && district.higrade && (
+          <span> · {formatGrades(district.lograde, district.higrade)}</span>
+        )}
+        {district.numberOfSchools != null && (
+          <span> · {district.numberOfSchools} schools</span>
+        )}
       </div>
 
       {/* Sales Executive */}
       {fullmindData?.salesExecutive && (
-        <div className="mt-2 text-sm">
-          <span className="text-gray-500 text-xs">Sales Executive</span>
-          <p className="font-medium text-[#403770]">
-            {fullmindData.salesExecutive}
-          </p>
+        <div className="mt-1.5 text-xs text-gray-500">
+          SE: <span className="font-medium text-[#403770]">{fullmindData.salesExecutive}</span>
         </div>
       )}
-
-      {/* Account Name (if different from district name) */}
-      {fullmindData?.accountName &&
-        fullmindData.accountName !== district.name && (
-          <div className="mt-2 text-sm">
-            <span className="text-gray-500 text-xs">Account Name</span>
-            <p className="font-medium text-[#403770]">
-              {fullmindData.accountName}
-            </p>
-          </div>
-        )}
     </div>
   );
 }
