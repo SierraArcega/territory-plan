@@ -76,15 +76,17 @@ export async function GET(
         name: pd.district.name,
         stateAbbrev: pd.district.stateAbbrev,
         enrollment: pd.district.enrollment,
-        revenueTarget: pd.revenueTarget ? Number(pd.revenueTarget) : null,
-        pipelineTarget: pd.pipelineTarget ? Number(pd.pipelineTarget) : null,
+        renewalTarget: pd.renewalTarget ? Number(pd.renewalTarget) : null,
+        winbackTarget: pd.winbackTarget ? Number(pd.winbackTarget) : null,
+        expansionTarget: pd.expansionTarget ? Number(pd.expansionTarget) : null,
+        newBusinessTarget: pd.newBusinessTarget ? Number(pd.newBusinessTarget) : null,
         notes: pd.notes,
-        targetServices: pd.targetServices.map((ts) => ({
-          id: ts.service.id,
-          name: ts.service.name,
-          slug: ts.service.slug,
-          color: ts.service.color,
-        })),
+        returnServices: pd.targetServices
+          .filter((ts) => ts.category === "return_services")
+          .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
+        newServices: pd.targetServices
+          .filter((ts) => ts.category === "new_services")
+          .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
         tags: pd.district.districtTags.map((dt) => ({
           id: dt.tag.id,
           name: dt.tag.name,
