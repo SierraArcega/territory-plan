@@ -100,8 +100,9 @@ export default function PlanDistrictPanel({
   const updateTargets = useUpdateDistrictTargets();
   // Fetch available services for the service selector
   const { data: allServices = [] } = useServices();
-  // Track whether the service selector dropdown is open
-  const [showServiceSelector, setShowServiceSelector] = useState(false);
+  // Track whether the service selector dropdowns are open
+  const [showReturnServiceSelector, setShowReturnServiceSelector] = useState(false);
+  const [showNewServiceSelector, setShowNewServiceSelector] = useState(false);
 
   // Ref for the contacts section — scroll to it when opened from contacts tab
   const contactsRef = useRef<HTMLDivElement>(null);
@@ -175,18 +176,18 @@ export default function PlanDistrictPanel({
                     Plan Targets
                   </h3>
 
-                  {/* Revenue & Pipeline Targets — click to edit */}
+                  {/* Four Targets — 2x2 grid, click to edit */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-                        Revenue Target
+                        Renewal
                       </div>
                       <InlineEditCell
                         type="text"
-                        value={planDistrict.revenueTarget != null ? String(planDistrict.revenueTarget) : null}
+                        value={planDistrict.renewalTarget != null ? String(planDistrict.renewalTarget) : null}
                         onSave={async (value) => {
                           const parsed = parseCurrencyInput(value);
-                          await updateTargets.mutateAsync({ planId, leaid, revenueTarget: parsed });
+                          await updateTargets.mutateAsync({ planId, leaid, renewalTarget: parsed });
                         }}
                         placeholder="Set target"
                         className="text-sm font-semibold text-[#403770]"
@@ -195,39 +196,70 @@ export default function PlanDistrictPanel({
                     </div>
                     <div>
                       <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-                        Pipeline Target
+                        Winback
                       </div>
                       <InlineEditCell
                         type="text"
-                        value={planDistrict.pipelineTarget != null ? String(planDistrict.pipelineTarget) : null}
+                        value={planDistrict.winbackTarget != null ? String(planDistrict.winbackTarget) : null}
                         onSave={async (value) => {
                           const parsed = parseCurrencyInput(value);
-                          await updateTargets.mutateAsync({ planId, leaid, pipelineTarget: parsed });
+                          await updateTargets.mutateAsync({ planId, leaid, winbackTarget: parsed });
+                        }}
+                        placeholder="Set target"
+                        className="text-sm font-semibold text-[#8AA891]"
+                        displayFormat={formatCurrencyDisplay}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
+                        Expansion
+                      </div>
+                      <InlineEditCell
+                        type="text"
+                        value={planDistrict.expansionTarget != null ? String(planDistrict.expansionTarget) : null}
+                        onSave={async (value) => {
+                          const parsed = parseCurrencyInput(value);
+                          await updateTargets.mutateAsync({ planId, leaid, expansionTarget: parsed });
                         }}
                         placeholder="Set target"
                         className="text-sm font-semibold text-[#6EA3BE]"
                         displayFormat={formatCurrencyDisplay}
                       />
                     </div>
+                    <div>
+                      <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
+                        New Business
+                      </div>
+                      <InlineEditCell
+                        type="text"
+                        value={planDistrict.newBusinessTarget != null ? String(planDistrict.newBusinessTarget) : null}
+                        onSave={async (value) => {
+                          const parsed = parseCurrencyInput(value);
+                          await updateTargets.mutateAsync({ planId, leaid, newBusinessTarget: parsed });
+                        }}
+                        placeholder="Set target"
+                        className="text-sm font-semibold text-[#D4A84B]"
+                        displayFormat={formatCurrencyDisplay}
+                      />
+                    </div>
                   </div>
 
-                  {/* Targeted Services — click to add/remove */}
+                  {/* Return Services — click to add/remove */}
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                        Targeted Services
+                        Return Services
                       </div>
                       <button
-                        onClick={() => setShowServiceSelector(!showServiceSelector)}
+                        onClick={() => setShowReturnServiceSelector(!showReturnServiceSelector)}
                         className="text-[10px] text-[#403770] hover:text-[#F37167] transition-colors font-medium"
                       >
-                        {showServiceSelector ? "Done" : "Edit"}
+                        {showReturnServiceSelector ? "Done" : "Edit"}
                       </button>
                     </div>
-                    {/* Service badges (always visible) */}
-                    {planDistrict.targetServices && planDistrict.targetServices.length > 0 ? (
+                    {planDistrict.returnServices && planDistrict.returnServices.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {planDistrict.targetServices.map((service) => (
+                        {planDistrict.returnServices.map((service) => (
                           <span
                             key={service.id}
                             className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full text-white"
@@ -238,18 +270,60 @@ export default function PlanDistrictPanel({
                         ))}
                       </div>
                     ) : (
-                      !showServiceSelector && (
-                        <p className="text-xs text-gray-400 italic">No services targeted</p>
+                      !showReturnServiceSelector && (
+                        <p className="text-xs text-gray-400 italic">No return services</p>
                       )
                     )}
-                    {/* Service selector dropdown (shown when editing) */}
-                    {showServiceSelector && (
+                    {showReturnServiceSelector && (
                       <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
                         <ServiceSelector
                           services={allServices}
-                          selectedIds={planDistrict.targetServices?.map(s => s.id) || []}
+                          selectedIds={planDistrict.returnServices?.map(s => s.id) || []}
                           onChange={async (ids) => {
-                            await updateTargets.mutateAsync({ planId, leaid, serviceIds: ids });
+                            await updateTargets.mutateAsync({ planId, leaid, returnServiceIds: ids });
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* New Services — click to add/remove */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="text-[10px] text-gray-400 uppercase tracking-wide">
+                        New Services
+                      </div>
+                      <button
+                        onClick={() => setShowNewServiceSelector(!showNewServiceSelector)}
+                        className="text-[10px] text-[#403770] hover:text-[#F37167] transition-colors font-medium"
+                      >
+                        {showNewServiceSelector ? "Done" : "Edit"}
+                      </button>
+                    </div>
+                    {planDistrict.newServices && planDistrict.newServices.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {planDistrict.newServices.map((service) => (
+                          <span
+                            key={service.id}
+                            className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full text-white"
+                            style={{ backgroundColor: service.color }}
+                          >
+                            {service.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      !showNewServiceSelector && (
+                        <p className="text-xs text-gray-400 italic">No new services</p>
+                      )
+                    )}
+                    {showNewServiceSelector && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <ServiceSelector
+                          services={allServices}
+                          selectedIds={planDistrict.newServices?.map(s => s.id) || []}
+                          onChange={async (ids) => {
+                            await updateTargets.mutateAsync({ planId, leaid, newServiceIds: ids });
                           }}
                         />
                       </div>
