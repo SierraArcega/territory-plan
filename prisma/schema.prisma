@@ -460,8 +460,10 @@ model TerritoryPlanDistrict {
   addedAt       DateTime @default(now()) @map("added_at")
 
   // Per-district targets
-  revenueTarget  Decimal? @map("revenue_target") @db.Decimal(15, 2)
-  pipelineTarget Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  renewalTarget     Decimal? @map("renewal_target") @db.Decimal(15, 2)
+  winbackTarget     Decimal? @map("winback_target") @db.Decimal(15, 2)
+  expansionTarget   Decimal? @map("expansion_target") @db.Decimal(15, 2)
+  newBusinessTarget Decimal? @map("new_business_target") @db.Decimal(15, 2)
   notes          String?
 
   // Relations
@@ -611,6 +613,13 @@ model UserProfile {
   @@map("user_profiles")
 }
 
+enum ServiceCategory {
+  return_services @map("return")
+  new_services    @map("new")
+
+  @@map("service_category")
+}
+
 // ===== Service Catalog =====
 // Fullmind's service offerings that can be targeted for districts
 model Service {
@@ -627,14 +636,15 @@ model Service {
 
 // Junction table linking plan-districts to target services
 model TerritoryPlanDistrictService {
-  planId        String @map("plan_id")
-  districtLeaid String @map("district_leaid") @db.VarChar(7)
-  serviceId     Int    @map("service_id")
+  planId        String          @map("plan_id")
+  districtLeaid String          @map("district_leaid") @db.VarChar(7)
+  serviceId     Int             @map("service_id")
+  category      ServiceCategory @default(return_services)
 
   planDistrict TerritoryPlanDistrict @relation(fields: [planId, districtLeaid], references: [planId, districtLeaid], onDelete: Cascade)
   service      Service               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@id([planId, districtLeaid, serviceId])
+  @@id([planId, districtLeaid, serviceId, category])
   @@map("territory_plan_district_services")
 }
 
@@ -645,13 +655,15 @@ model UserGoal {
   userId     String @map("user_id") @db.Uuid
   fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
 
-  // Target values - all optional since users may only set some goals
-  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2) // Total earnings goal (user input)
-  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2) // Expected take rate % (user input)
-  // Calculated goals based on earnings and take rate
-  revenueTarget      Decimal? @map("revenue_target") @db.Decimal(15, 2)
-  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2) // Gross margin/take
-  pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  // Target values
+  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2)
+  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2)
+  // Four business-category targets
+  renewalTarget      Decimal? @map("renewal_target") @db.Decimal(15, 2)
+  winbackTarget      Decimal? @map("winback_target") @db.Decimal(15, 2)
+  expansionTarget    Decimal? @map("expansion_target") @db.Decimal(15, 2)
+  newBusinessTarget  Decimal? @map("new_business_target") @db.Decimal(15, 2)
+  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
   newDistrictsTarget Int?     @map("new_districts_target")
 
   createdAt DateTime @default(now()) @map("created_at")
