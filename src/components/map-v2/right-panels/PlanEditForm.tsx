@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
-import { useTerritoryPlan, useUpdateTerritoryPlan, useDeleteTerritoryPlan } from "@/lib/api";
+import { useTerritoryPlan, useUpdateTerritoryPlan, useDeleteTerritoryPlan, useUsers, useStates } from "@/lib/api";
 
 // Plan colors for the color picker
 const PLAN_COLORS = [
@@ -28,25 +28,32 @@ export default function PlanEditForm() {
   const { data: plan, isLoading } = useTerritoryPlan(activePlanId);
   const updatePlan = useUpdateTerritoryPlan();
   const deletePlan = useDeleteTerritoryPlan();
+  const { data: users } = useUsers();
+  const { data: allStates } = useStates();
 
   // Form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [owner, setOwner] = useState("");
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const [color, setColor] = useState("#403770");
   const [status, setStatus] = useState<"planning" | "working" | "stale" | "archived">("planning");
   const [fiscalYear, setFiscalYear] = useState(2026);
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [collaboratorIds, setCollaboratorIds] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
 
   // Pre-fill from plan data
   useEffect(() => {
     if (plan) {
       setName(plan.name);
       setDescription(plan.description || "");
-      setOwner(plan.owner?.fullName || "");
+      setOwnerId(plan.owner?.id ?? null);
       setColor(plan.color || "#403770");
       setStatus(plan.status as "planning" | "working" | "stale" | "archived");
       setFiscalYear(plan.fiscalYear);
+      setSelectedStates(plan.states?.map((s) => s.fips) ?? []);
+      setCollaboratorIds(plan.collaborators?.map((c) => c.id) ?? []);
     }
   }, [plan]);
 
@@ -57,9 +64,12 @@ export default function PlanEditForm() {
         id: activePlanId,
         name: name.trim(),
         description: description.trim() || undefined,
+        ownerId,
         color,
         status,
         fiscalYear,
+        stateFips: selectedStates,
+        collaboratorIds,
       });
       closeRightPanel();
     } catch {
@@ -157,13 +167,130 @@ export default function PlanEditForm() {
         <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">
           Owner
         </label>
-        <input
-          type="text"
-          value={owner}
-          onChange={(e) => setOwner(e.target.value)}
-          placeholder="e.g., John Smith"
-          className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:border-gray-400 focus:outline-none focus:ring-0 transition-colors placeholder:text-gray-300"
-        />
+        <select
+          value={ownerId ?? ""}
+          onChange={(e) => setOwnerId(e.target.value || null)}
+          className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:border-gray-400 focus:outline-none focus:ring-0 transition-colors text-gray-700"
+        >
+          <option value="">Unassigned</option>
+          {users?.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.fullName || u.email}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* States */}
+      <div>
+        <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">
+          States
+        </label>
+        {/* Selected state chips */}
+        {selectedStates.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {selectedStates.map((fips) => {
+              const state = allStates?.find((s) => s.fips === fips);
+              return (
+                <span
+                  key={fips}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-medium"
+                >
+                  {state?.abbrev || fips}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStates(selectedStates.filter((f) => f !== fips))}
+                    className="hover:text-red-500 leading-none"
+                  >
+                    &times;
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowStateDropdown(!showStateDropdown)}
+            className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:border-gray-400 focus:outline-none focus:ring-0 transition-colors text-gray-500 text-left"
+          >
+            {selectedStates.length === 0 ? "Select states..." : `${selectedStates.length} selected`}
+          </button>
+          {showStateDropdown && (
+            <div className="absolute z-10 mt-1 w-full max-h-36 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+              {allStates?.map((state) => (
+                <label
+                  key={state.fips}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedStates.includes(state.fips)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedStates([...selectedStates, state.fips]);
+                      } else {
+                        setSelectedStates(selectedStates.filter((f) => f !== state.fips));
+                      }
+                    }}
+                    className="rounded border-gray-300 text-plum focus:ring-plum/20"
+                  />
+                  {state.abbrev} — {state.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Collaborators */}
+      <div>
+        <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1">
+          Collaborators
+        </label>
+        {/* Chips for current collaborators */}
+        {collaboratorIds.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {collaboratorIds.map((uid) => {
+              const user = users?.find((u) => u.id === uid);
+              return (
+                <span
+                  key={uid}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-[10px] font-medium"
+                >
+                  {user?.fullName || user?.email || "Unknown"}
+                  <button
+                    type="button"
+                    onClick={() => setCollaboratorIds(collaboratorIds.filter((id) => id !== uid))}
+                    className="hover:text-red-500 leading-none"
+                  >
+                    &times;
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {/* Add dropdown */}
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value && !collaboratorIds.includes(e.target.value)) {
+              setCollaboratorIds([...collaboratorIds, e.target.value]);
+            }
+          }}
+          className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:border-gray-400 focus:outline-none focus:ring-0 transition-colors text-gray-500"
+        >
+          <option value="">Add collaborator...</option>
+          {users
+            ?.filter((u) => !collaboratorIds.includes(u.id) && u.id !== ownerId)
+            .map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.fullName || u.email}
+              </option>
+            ))}
+        </select>
       </div>
 
       {/* Description */}
