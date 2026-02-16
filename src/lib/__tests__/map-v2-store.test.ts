@@ -7,7 +7,7 @@ describe("useMapV2Store - Plan Workspace", () => {
       panelState: "BROWSE",
       panelHistory: [],
       activePlanId: null,
-      planSection: "overview",
+      planSection: "districts",
       rightPanelContent: null,
     });
   });
@@ -19,7 +19,7 @@ describe("useMapV2Store - Plan Workspace", () => {
       const state = useMapV2Store.getState();
       expect(state.panelState).toBe("PLAN_OVERVIEW");
       expect(state.activePlanId).toBe("plan-123");
-      expect(state.planSection).toBe("overview");
+      expect(state.planSection).toBe("districts");
     });
   });
 
