@@ -124,12 +124,14 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      ownerId: (data as unknown as { ownerId?: string }).ownerId,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
   };
 
@@ -295,12 +297,14 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       id: planId,
       name: data.name,
       description: data.description || undefined,
-      ownerId: (data as unknown as { ownerId?: string }).ownerId,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
   };
 
@@ -535,7 +539,6 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
           leaid={panelLeaid}
           planId={planId}
           planColor={plan.color}
-          planDistrict={plan.districts.find((d) => d.leaid === panelLeaid)}
           highlightContactId={highlightContactId}
           onClose={handleClosePanel}
         />

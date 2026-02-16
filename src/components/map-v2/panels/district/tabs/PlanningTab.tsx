@@ -17,10 +17,13 @@ import AddToPlanButton from "../AddToPlanButton";
 interface PlanningTabProps {
   data: DistrictDetail;
   leaid: string;
+  /** Pass explicitly from v1 plan view; falls back to map-v2 store */
+  planId?: string | null;
 }
 
-export default function PlanningTab({ data, leaid }: PlanningTabProps) {
-  const activePlanId = useMapV2Store((s) => s.activePlanId);
+export default function PlanningTab({ data, leaid, planId: planIdProp }: PlanningTabProps) {
+  const storePlanId = useMapV2Store((s) => s.activePlanId);
+  const activePlanId = planIdProp ?? storePlanId;
 
   if (!activePlanId) {
     return <NoPlanView data={data} leaid={leaid} />;
