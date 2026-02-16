@@ -6,6 +6,7 @@ import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
 import DistrictInfoTab from "./DistrictInfoTab";
 import DataDemographicsTab from "./DataDemographicsTab";
+import ContactsTab from "./ContactsTab";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -110,9 +111,7 @@ export default function DistrictDetailPanel() {
               <DataDemographicsTab data={data} />
             )}
             {activeTab === "contacts" && (
-              <div className="p-3 text-sm text-gray-400 py-4 text-center">
-                Contacts coming soon
-              </div>
+              <ContactsTab leaid={selectedLeaid!} contacts={contacts} />
             )}
 
             <p className="text-[10px] text-gray-300 text-center pt-1 pb-3">
