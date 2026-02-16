@@ -79,6 +79,7 @@ interface MapV2State {
   activePlanId: string | null;
   planSection: PlanSection;
   rightPanelContent: RightPanelContent | null;
+  detailPopout: { leaid: string } | null;
   planDistrictLeaids: Set<string>;
 
   // Multi-select (for Flow A: select -> plan)
@@ -145,6 +146,8 @@ interface MapV2Actions {
   setPlanSection: (section: PlanSection) => void;
   openRightPanel: (content: RightPanelContent) => void;
   closeRightPanel: () => void;
+  openDetailPopout: (leaid: string) => void;
+  closeDetailPopout: () => void;
 
   // Multi-select
   toggleDistrictSelection: (leaid: string) => void;
@@ -210,6 +213,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   activePlanId: null,
   planSection: "overview" as PlanSection,
   rightPanelContent: null as RightPanelContent | null,
+  detailPopout: null as { leaid: string } | null,
   planDistrictLeaids: new Set<string>(),
   selectedLeaids: new Set<string>(),
   multiSelectMode: false,
@@ -358,6 +362,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   openRightPanel: (content) => set({ rightPanelContent: content }),
 
   closeRightPanel: () => set({ rightPanelContent: null }),
+
+  openDetailPopout: (leaid) =>
+    set((s) => ({
+      detailPopout: s.detailPopout?.leaid === leaid ? null : { leaid },
+    })),
+
+  closeDetailPopout: () => set({ detailPopout: null }),
 
   // Multi-select
   toggleDistrictSelection: (leaid) =>
