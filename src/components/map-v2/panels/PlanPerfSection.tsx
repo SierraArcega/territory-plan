@@ -123,10 +123,10 @@ export default function PlanPerfSection() {
 
   /* -- Derived metrics -------------------------------------------- */
 
-  const pipelineTargeted = useMemo(() => {
+  const totalTargeted = useMemo(() => {
     if (!plan) return 0;
     return plan.districts.reduce(
-      (sum, d) => sum + (d.revenueTarget ?? 0),
+      (sum, d) => sum + (d.renewalTarget ?? 0) + (d.winbackTarget ?? 0) + (d.expansionTarget ?? 0) + (d.newBusinessTarget ?? 0),
       0
     );
   }, [plan]);
@@ -168,9 +168,9 @@ export default function PlanPerfSection() {
       {/* Metric cards — 2x2 grid */}
       <div className="grid grid-cols-2 gap-2">
         <MetricCard
-          label="Pipeline Targeted"
-          value={pipelineTargeted > 0 ? formatCurrency(pipelineTargeted) : "\u2014"}
-          available={pipelineTargeted > 0}
+          label="Total Targeted"
+          value={totalTargeted > 0 ? formatCurrency(totalTargeted) : "\u2014"}
+          available={totalTargeted > 0}
         />
         <MetricCard
           label="Open Pipeline"

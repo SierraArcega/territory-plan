@@ -99,7 +99,7 @@ export default function GoalsView() {
               </div>
               {dashboard.goals ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <ProgressCard
                       label="Earnings"
                       current={dashboard.actuals.earnings}
@@ -113,16 +113,10 @@ export default function GoalsView() {
                       color="#6EA3BE"
                     />
                     <ProgressCard
-                      label="Revenue"
-                      current={dashboard.actuals.revenue}
-                      target={dashboard.goals.revenueTarget}
-                      color="#8AA891"
-                    />
-                    <ProgressCard
-                      label="Pipeline"
-                      current={dashboard.actuals.pipeline}
-                      target={dashboard.goals.pipelineTarget}
-                      color="#D4A84B"
+                      label="Total Target"
+                      current={dashboard.actuals.revenue + dashboard.actuals.pipeline}
+                      target={(dashboard.goals?.renewalTarget || 0) + (dashboard.goals?.winbackTarget || 0) + (dashboard.goals?.expansionTarget || 0) + (dashboard.goals?.newBusinessTarget || 0)}
+                      color="#403770"
                     />
                     <ProgressCard
                       label="New Districts"
@@ -170,7 +164,7 @@ export default function GoalsView() {
                 Plan Targets Summary
               </h2>
               <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Total Plans</p>
                     <p className="text-2xl font-bold text-[#403770]">
@@ -184,15 +178,9 @@ export default function GoalsView() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Revenue Target</p>
+                    <p className="text-sm text-gray-500 mb-1">Total Target</p>
                     <p className="text-2xl font-bold text-[#403770]">
-                      {formatCurrency(dashboard.planTotals.revenueTarget)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Pipeline Target</p>
-                    <p className="text-2xl font-bold text-[#403770]">
-                      {formatCurrency(dashboard.planTotals.pipelineTarget)}
+                      {formatCurrency(dashboard.planTotals.totalTarget)}
                     </p>
                   </div>
                 </div>
@@ -236,10 +224,10 @@ export default function GoalsView() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-700">
-                            {formatCurrency(plan.revenueTarget)}
+                            {formatCurrency(plan.totalTarget)}
                           </p>
                           <p className="text-xs text-gray-400">
-                            Pipeline: {formatCurrency(plan.pipelineTarget)}
+                            Total target
                           </p>
                         </div>
                       </div>
