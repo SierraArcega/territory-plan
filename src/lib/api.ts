@@ -161,6 +161,55 @@ export interface DistrictEnrollmentDemographics {
   demographicsDataYear: number | null;
 }
 
+export interface DistrictTrends {
+  // Derived percentages
+  swdPct: number | null;
+  ellPct: number | null;
+  // Staffing ratios
+  studentTeacherRatio: number | null;
+  studentStaffRatio: number | null;
+  spedStudentTeacherRatio: number | null;
+  // 3-year trends
+  enrollmentTrend3yr: number | null;
+  staffingTrend3yr: number | null;
+  vacancyPressureSignal: number | null;
+  swdTrend3yr: number | null;
+  ellTrend3yr: number | null;
+  absenteeismTrend3yr: number | null;
+  graduationTrend3yr: number | null;
+  studentTeacherRatioTrend3yr: number | null;
+  mathProficiencyTrend3yr: number | null;
+  readProficiencyTrend3yr: number | null;
+  expenditurePpTrend3yr: number | null;
+  // State comparison deltas (positive = above state avg)
+  absenteeismVsState: number | null;
+  graduationVsState: number | null;
+  studentTeacherRatioVsState: number | null;
+  swdPctVsState: number | null;
+  ellPctVsState: number | null;
+  mathProficiencyVsState: number | null;
+  readProficiencyVsState: number | null;
+  expenditurePpVsState: number | null;
+  // National comparison deltas
+  absenteeismVsNational: number | null;
+  graduationVsNational: number | null;
+  studentTeacherRatioVsNational: number | null;
+  swdPctVsNational: number | null;
+  ellPctVsNational: number | null;
+  mathProficiencyVsNational: number | null;
+  readProficiencyVsNational: number | null;
+  expenditurePpVsNational: number | null;
+  // Quartile flags within state
+  absenteeismQuartileState: string | null;
+  graduationQuartileState: string | null;
+  studentTeacherRatioQuartileState: string | null;
+  swdPctQuartileState: string | null;
+  ellPctQuartileState: string | null;
+  mathProficiencyQuartileState: string | null;
+  readProficiencyQuartileState: string | null;
+  expenditurePpQuartileState: string | null;
+}
+
 export interface DistrictDetail {
   district: District;
   fullmindData: FullmindData | null;
@@ -170,6 +219,7 @@ export interface DistrictDetail {
   territoryPlanIds: string[];
   educationData: DistrictEducationData | null;
   enrollmentDemographics: DistrictEnrollmentDemographics | null;
+  trends: DistrictTrends | null;
 }
 
 export interface DistrictListItem {
