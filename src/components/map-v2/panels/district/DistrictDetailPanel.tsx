@@ -74,6 +74,12 @@ export default function DistrictDetailPanel() {
 
             {/* Signal Cards */}
             <div className="p-3 space-y-3">
+              <PurchasingHistoryCard fullmindData={data.fullmindData} />
+
+              <CompetitorSpendCard leaid={selectedLeaid!} />
+
+              <FullmindCard data={data} leaid={selectedLeaid!} />
+
               <EnrollmentCard
                 district={data.district}
                 demographics={data.enrollmentDemographics}
@@ -101,13 +107,8 @@ export default function DistrictDetailPanel() {
                 trends={data.trends}
               />
 
-              <PurchasingHistoryCard fullmindData={data.fullmindData} />
-
-              <CompetitorSpendCard leaid={selectedLeaid!} />
-
-              <FullmindCard data={data} leaid={selectedLeaid!} />
-
               <DistrictDetailsCard data={data} leaid={selectedLeaid!} />
+
 
               <SignalCard
                 icon={
