@@ -41,6 +41,9 @@ export async function GET(
           },
           orderBy: { addedAt: "desc" },
         },
+        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+        states: { select: { state: { select: { fips: true, abbrev: true, name: true } } } },
+        collaborators: { select: { user: { select: { id: true, fullName: true, avatarUrl: true } } } },
       },
     });
 
@@ -55,7 +58,11 @@ export async function GET(
       id: plan.id,
       name: plan.name,
       description: plan.description,
-      owner: plan.owner,
+      owner: plan.ownerUser
+        ? { id: plan.ownerUser.id, fullName: plan.ownerUser.fullName, avatarUrl: plan.ownerUser.avatarUrl }
+        : null,
+      states: plan.states.map((ps) => ({ fips: ps.state.fips, abbrev: ps.state.abbrev, name: ps.state.name })),
+      collaborators: plan.collaborators.map((pc) => ({ id: pc.user.id, fullName: pc.user.fullName, avatarUrl: pc.user.avatarUrl })),
       color: plan.color,
       status: plan.status,
       fiscalYear: plan.fiscalYear,
@@ -103,7 +110,7 @@ export async function PUT(
     const { id } = await params;
     const user = await getUser();
     const body = await request.json();
-    const { name, description, owner, color, status, fiscalYear, startDate, endDate } = body;
+    const { name, description, ownerId, color, status, fiscalYear, startDate, endDate, stateFips, collaboratorIds } = body;
 
     // Check if plan exists and belongs to user
     const existing = await prisma.territoryPlan.findUnique({
@@ -126,7 +133,7 @@ export async function PUT(
     }
 
     // Validate status if provided
-    const validStatuses = ["draft", "active", "archived"];
+    const validStatuses = ["planning", "working", "stale", "archived"];
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         { error: `status must be one of: ${validStatuses.join(", ")}` },
@@ -146,28 +153,61 @@ export async function PUT(
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
-    if (owner !== undefined) updateData.owner = owner?.trim() || null;
+    if (ownerId !== undefined) updateData.ownerId = ownerId || null;
     if (color !== undefined) updateData.color = color;
     if (status !== undefined) updateData.status = status;
     if (fiscalYear !== undefined) updateData.fiscalYear = fiscalYear;
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
 
-    const plan = await prisma.territoryPlan.update({
-      where: { id },
-      data: updateData,
-      include: {
-        _count: {
-          select: { districts: true },
+    const plan = await prisma.$transaction(async (tx) => {
+      // Update scalar fields
+      await tx.territoryPlan.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // Replace states if provided
+      if (stateFips !== undefined) {
+        await tx.territoryPlanState.deleteMany({ where: { planId: id } });
+        if (Array.isArray(stateFips) && stateFips.length > 0) {
+          await tx.territoryPlanState.createMany({
+            data: stateFips.map((fips: string) => ({ planId: id, stateFips: fips })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // Replace collaborators if provided
+      if (collaboratorIds !== undefined) {
+        await tx.territoryPlanCollaborator.deleteMany({ where: { planId: id } });
+        if (Array.isArray(collaboratorIds) && collaboratorIds.length > 0) {
+          await tx.territoryPlanCollaborator.createMany({
+            data: collaboratorIds.map((uid: string) => ({ planId: id, userId: uid })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // Re-fetch with relations
+      return tx.territoryPlan.findUniqueOrThrow({
+        where: { id },
+        include: {
+          _count: { select: { districts: true } },
+          ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+          states: { select: { state: { select: { fips: true, abbrev: true, name: true } } } },
+          collaborators: { select: { user: { select: { id: true, fullName: true, avatarUrl: true } } } },
         },
-      },
+      });
     });
 
     return NextResponse.json({
       id: plan.id,
       name: plan.name,
       description: plan.description,
-      owner: plan.owner,
+      owner: plan.ownerUser
+        ? { id: plan.ownerUser.id, fullName: plan.ownerUser.fullName, avatarUrl: plan.ownerUser.avatarUrl }
+        : null,
       color: plan.color,
       status: plan.status,
       fiscalYear: plan.fiscalYear,
@@ -176,6 +216,8 @@ export async function PUT(
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
       districtCount: plan._count.districts,
+      states: plan.states.map((ps) => ({ fips: ps.state.fips, abbrev: ps.state.abbrev, name: ps.state.name })),
+      collaborators: plan.collaborators.map((pc) => ({ id: pc.user.id, fullName: pc.user.fullName, avatarUrl: pc.user.avatarUrl })),
     });
   } catch (error) {
     console.error("Error updating territory plan:", error);
