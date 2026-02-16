@@ -453,7 +453,8 @@ export default function MapV2Container() {
     map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
-    map.current.getCanvas().style.cursor = "";
+    const isMultiSelect = useMapV2Store.getState().multiSelectMode;
+    map.current.getCanvas().style.cursor = isMultiSelect ? "crosshair" : "";
     useMapV2Store.getState().hideTooltip();
   }, []);
 
@@ -532,7 +533,7 @@ export default function MapV2Container() {
 
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
-          map.current.getCanvas().style.cursor = "pointer";
+          map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
 
           useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
             type: "district",
@@ -563,7 +564,7 @@ export default function MapV2Container() {
           lastHoveredLeaidRef.current = null;
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
-          map.current.getCanvas().style.cursor = "pointer";
+          map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
 
           useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
             type: "school",
@@ -585,7 +586,7 @@ export default function MapV2Container() {
             const stateCode = STATE_NAME_TO_ABBREV[stateName];
             if (stateName) {
               map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
-              map.current.getCanvas().style.cursor = "pointer";
+              map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
               useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
                 type: "state",
                 stateName,
@@ -658,7 +659,7 @@ export default function MapV2Container() {
 
         // Zoom to district
         const bounds = districtFeatures[0].geometry;
-        if (bounds && bounds.type === "Polygon" || bounds?.type === "MultiPolygon") {
+        if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
           // Compute a rough bounding box from coordinates
           const coords = bounds.type === "Polygon"
             ? bounds.coordinates[0]
