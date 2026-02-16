@@ -14,7 +14,7 @@ function formatNumber(value: number | null | undefined): string {
 
 export default function PlanOverviewSection() {
   const activePlanId = useMapV2Store((s) => s.activePlanId);
-  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
+  const selectDistrict = useMapV2Store((s) => s.selectDistrict);
   const setPanelState = useMapV2Store((s) => s.setPanelState);
 
   const { data: plan, isLoading } = useTerritoryPlan(activePlanId);
@@ -118,9 +118,7 @@ export default function PlanOverviewSection() {
               key={d.leaid}
               district={d}
               planColor={plan.color}
-              onClick={() =>
-                openRightPanel({ type: "district_card", id: d.leaid })
-              }
+              onClick={() => selectDistrict(d.leaid)}
             />
           ))}
         </div>
