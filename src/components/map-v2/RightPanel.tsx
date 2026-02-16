@@ -4,6 +4,7 @@ import { useMapV2Store } from "@/lib/map-v2-store";
 import TaskForm from "./right-panels/TaskForm";
 import ContactDetail from "./right-panels/ContactDetail";
 import ActivityForm from "./right-panels/ActivityForm";
+import PlanEditForm from "./right-panels/PlanEditForm";
 
 export default function RightPanel() {
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
@@ -22,6 +23,7 @@ export default function RightPanel() {
           {rightPanelContent.type === "contact_form" && "New Contact"}
           {rightPanelContent.type === "activity_form" && "New Activity"}
           {rightPanelContent.type === "activity_edit" && "Edit Activity"}
+          {rightPanelContent.type === "plan_edit" && "Edit Plan"}
         </span>
         <button
           onClick={closeRightPanel}
@@ -50,6 +52,9 @@ export default function RightPanel() {
         )}
         {rightPanelContent.type === "activity_edit" && rightPanelContent.id && (
           <ActivityForm activityId={rightPanelContent.id} />
+        )}
+        {rightPanelContent.type === "plan_edit" && (
+          <PlanEditForm />
         )}
       </div>
     </div>
