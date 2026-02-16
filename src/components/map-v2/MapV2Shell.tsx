@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import FloatingPanel from "./FloatingPanel";
+import FloatingDistrictDetail from "./FloatingDistrictDetail";
+import TetherLine from "./TetherLine";
 import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
 import SelectModePill from "./SelectModePill";
@@ -27,6 +29,10 @@ export default function MapV2Shell() {
 
       {/* Floating panel overlay */}
       <FloatingPanel />
+
+      {/* Floating district detail popout + tether line */}
+      <FloatingDistrictDetail />
+      <TetherLine />
 
       {/* Multi-select action chip */}
       <MultiSelectChip />
