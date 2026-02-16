@@ -25,7 +25,7 @@ export type IconBarTab = "home" | "search" | "plans" | "settings";
 export type PlanSection = "overview" | "tasks" | "contacts" | "performance";
 
 export interface RightPanelContent {
-  type: "district_card" | "task_form" | "task_edit" | "contact_detail" | "contact_form";
+  type: "task_form" | "task_edit" | "contact_detail" | "contact_form";
   id?: string;
 }
 

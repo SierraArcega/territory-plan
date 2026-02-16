@@ -1,7 +1,6 @@
 "use client";
 
 import { useMapV2Store } from "@/lib/map-v2-store";
-import DistrictCard from "./right-panels/DistrictCard";
 import TaskForm from "./right-panels/TaskForm";
 import ContactDetail from "./right-panels/ContactDetail";
 
@@ -16,7 +15,6 @@ export default function RightPanel() {
       {/* Header with close button */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
         <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-          {rightPanelContent.type === "district_card" && "District"}
           {rightPanelContent.type === "task_form" && "New Task"}
           {rightPanelContent.type === "task_edit" && "Edit Task"}
           {rightPanelContent.type === "contact_detail" && "Contact"}
@@ -34,28 +32,17 @@ export default function RightPanel() {
       </div>
 
       {/* Content */}
-      {rightPanelContent.type === "district_card" && rightPanelContent.id ? (
-        <div className="flex-1 flex flex-col min-h-0">
-          <DistrictCard leaid={rightPanelContent.id} />
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto p-3">
-          {rightPanelContent.type === "task_form" && (
-            <TaskForm preLinkedLeaid={rightPanelContent.id} />
-          )}
-          {rightPanelContent.type === "task_edit" && rightPanelContent.id && (
-            <TaskForm taskId={rightPanelContent.id} />
-          )}
-          {rightPanelContent.type === "contact_detail" && rightPanelContent.id && (
-            <ContactDetail contactId={rightPanelContent.id} />
-          )}
-          {!["district_card", "task_form", "task_edit", "contact_detail"].includes(rightPanelContent.type) && (
-            <div className="text-center py-8 text-xs text-gray-400">
-              {rightPanelContent.type} — coming soon
-            </div>
-          )}
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto p-3">
+        {rightPanelContent.type === "task_form" && (
+          <TaskForm preLinkedLeaid={rightPanelContent.id} />
+        )}
+        {rightPanelContent.type === "task_edit" && rightPanelContent.id && (
+          <TaskForm taskId={rightPanelContent.id} />
+        )}
+        {rightPanelContent.type === "contact_detail" && rightPanelContent.id && (
+          <ContactDetail contactId={rightPanelContent.id} />
+        )}
+      </div>
     </div>
   );
 }

@@ -38,7 +38,7 @@ describe("useMapV2Store - Plan Workspace", () => {
       useMapV2Store.setState({
         activePlanId: "plan-123",
         panelState: "PLAN_OVERVIEW",
-        rightPanelContent: { type: "district_card", id: "1234567" },
+        rightPanelContent: { type: "task_form", id: "1234567" },
       });
 
       useMapV2Store.getState().setPlanSection("contacts");
@@ -49,10 +49,10 @@ describe("useMapV2Store - Plan Workspace", () => {
 
   describe("openRightPanel / closeRightPanel", () => {
     it("sets rightPanelContent", () => {
-      useMapV2Store.getState().openRightPanel({ type: "district_card", id: "1234567" });
+      useMapV2Store.getState().openRightPanel({ type: "task_form", id: "1234567" });
 
       expect(useMapV2Store.getState().rightPanelContent).toEqual({
-        type: "district_card",
+        type: "task_form",
         id: "1234567",
       });
     });
