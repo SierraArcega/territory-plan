@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/lib/map-v2-store";
-import { VENDOR_CONFIGS, VENDOR_IDS, buildFilterExpression } from "@/lib/map-v2-layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression } from "@/lib/map-v2-layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import { useProfile } from "@/lib/api";
 import MapV2Tooltip from "./MapV2Tooltip";
@@ -122,9 +122,13 @@ export default function MapV2Container() {
   const filterOwner = useMapV2Store((s) => s.filterOwner);
   const filterPlanId = useMapV2Store((s) => s.filterPlanId);
   const filterStates = useMapV2Store((s) => s.filterStates);
-  const schoolsLayerVisible = useMapV2Store((s) => s.schoolsLayerVisible);
+  const visibleSchoolTypes = useMapV2Store((s) => s.visibleSchoolTypes);
+  const activeSignal = useMapV2Store((s) => s.activeSignal);
+  const visibleLocales = useMapV2Store((s) => s.visibleLocales);
   const clickRipples = useMapV2Store((s) => s.clickRipples);
   const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
+  const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
+  const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
 
   // Initialize map
   useEffect(() => {
@@ -166,7 +170,7 @@ export default function MapV2Container() {
       // Add district tiles source (cache-bust via version param)
       map.current.addSource("districts", {
         type: "vector",
-        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=2`],
+        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4`],
         minzoom: 3.5,
         maxzoom: 12,
       });
@@ -260,6 +264,39 @@ export default function MapV2Container() {
         },
       });
 
+      // Signal fill layer (renders below vendor layers)
+      map.current.addLayer({
+        id: "district-signal-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        minzoom: 5,
+        paint: {
+          "fill-color": "rgba(0,0,0,0)",
+          "fill-opacity": 0,
+        },
+        layout: {
+          visibility: "none",
+        },
+      });
+
+      // Locale fill layer (renders below vendor layers, above signal)
+      map.current.addLayer({
+        id: "district-locale-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        minzoom: 5,
+        filter: ["has", "locale_signal"],
+        paint: {
+          "fill-color": LOCALE_FILL as any,
+          "fill-opacity": 0.55,
+        },
+        layout: {
+          visibility: "none",
+        },
+      });
+
       // Per-vendor fill layers (stacked, semi-transparent)
       for (const vendorId of ["fullmind", "proximity", "elevate", "tbt"] as const) {
         const config = VENDOR_CONFIGS[vendorId];
@@ -333,77 +370,68 @@ export default function MapV2Container() {
         },
       });
 
+      // Multi-selected districts fill
+      map.current.addLayer({
+        id: "district-multiselect-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["in", ["get", "leaid"], ["literal", [""]]],
+        paint: {
+          "fill-color": "#403770",
+          "fill-opacity": 0.18,
+        },
+      });
+
+      // Multi-selected districts outline
+      map.current.addLayer({
+        id: "district-multiselect-outline",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["in", ["get", "leaid"], ["literal", [""]]],
+        paint: {
+          "line-color": "#403770",
+          "line-width": 2,
+          "line-dasharray": [2, 1],
+        },
+      });
+
       // === SCHOOL LAYERS ===
 
-      // Empty GeoJSON source with clustering enabled
+      // GeoJSON source — no clustering, every school is its own dot
       map.current.addSource("schools", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
       });
 
-      // Cluster circles
-      map.current.addLayer({
-        id: "schools-clusters",
-        type: "circle",
-        source: "schools",
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#64748B",
-          "circle-radius": [
-            "step", ["get", "point_count"],
-            14,
-            10, 18,
-            50, 22,
-          ],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-        minzoom: SCHOOL_MIN_ZOOM,
-      });
-
-      // Cluster count labels
-      map.current.addLayer({
-        id: "schools-cluster-count",
-        type: "symbol",
-        source: "schools",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-size": 12,
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-        },
-        paint: {
-          "text-color": "#ffffff",
-        },
-        minzoom: SCHOOL_MIN_ZOOM,
-      });
-
-      // Individual school dots (unclustered)
+      // School dots — brand colors, large radius
       map.current.addLayer({
         id: "schools-unclustered",
         type: "circle",
         source: "schools",
-        filter: ["!", ["has", "point_count"]],
         paint: {
           "circle-color": [
-            "match", ["get", "schoolLevel"],
-            1, "#3B82F6",
-            2, "#10B981",
-            3, "#F59E0B",
-            "#6B7280",
-          ],
+            "case",
+            // Charter check first (handles both string "1" and number 1)
+            ["any", ["==", ["get", "charter"], 1], ["==", ["get", "charter"], "1"]],
+            "#89a2a1",  // Charter → Robin's Egg 30% shade
+            ["any", ["==", ["get", "schoolLevel"], 1], ["==", ["get", "schoolLevel"], "1"]],
+            "#6EA3BE",  // Elementary → Steel Blue
+            ["any", ["==", ["get", "schoolLevel"], 2], ["==", ["get", "schoolLevel"], "2"]],
+            "#403770",  // Middle → Plum
+            ["any", ["==", ["get", "schoolLevel"], 3], ["==", ["get", "schoolLevel"], "3"]],
+            "#FFCF70",  // High → Golden
+            "#6EA3BE",  // Default → Steel Blue
+          ] as any,
           "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            SCHOOL_MIN_ZOOM, 3,
-            12, 5,
-            15, 7,
+            SCHOOL_MIN_ZOOM, 7,
+            12, 11,
+            15, 14,
           ],
           "circle-opacity": 0.9,
-          "circle-stroke-width": 1,
+          "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
         },
         minzoom: SCHOOL_MIN_ZOOM,
@@ -432,7 +460,7 @@ export default function MapV2Container() {
   // Load school GeoJSON for current viewport
   const loadSchoolsForViewport = useCallback(() => {
     if (!map.current || !mapReady) return;
-    if (!useMapV2Store.getState().schoolsLayerVisible) return;
+    if (useMapV2Store.getState().visibleSchoolTypes.size === 0) return;
     if (map.current.getZoom() < SCHOOL_MIN_ZOOM) {
       // Clear schools when zoomed out
       const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
@@ -477,12 +505,16 @@ export default function MapV2Container() {
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
 
-      // Skip hover processing during pan/zoom — avoids competing with GPU tile rendering
+      // Skip hover processing during pan/zoom — tooltip cleared by movestart listener
       if (map.current.isMoving()) return;
 
       const now = Date.now();
-      if (now - lastHoverTimeRef.current < HOVER_THROTTLE_MS) return;
-      lastHoverTimeRef.current = now;
+      const throttled = now - lastHoverTimeRef.current < HOVER_THROTTLE_MS;
+      if (!throttled) lastHoverTimeRef.current = now;
+
+      // When a tooltip is visible, always process so we can clear it promptly.
+      // When no tooltip is showing, throttle to reduce queryRenderedFeatures calls.
+      if (throttled && !useMapV2Store.getState().tooltip.visible) return;
 
       // Query only the base fill layer — same source-layer, same properties, 1 layer vs 5
       const features = map.current.getLayer("district-base-fill")
@@ -576,29 +608,6 @@ export default function MapV2Container() {
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
 
-      // Check for school cluster click — zoom in
-      const clusterFeatures = map.current.getLayer("schools-clusters")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["schools-clusters"],
-          })
-        : [];
-
-      if (clusterFeatures.length > 0) {
-        const clusterId = clusterFeatures[0].properties?.cluster_id;
-        const source = map.current.getSource("schools") as maplibregl.GeoJSONSource;
-        source.getClusterExpansionZoom(clusterId).then((zoom) => {
-          const geo = clusterFeatures[0].geometry;
-          if (geo.type === "Point") {
-            map.current?.easeTo({
-              center: geo.coordinates as [number, number],
-              zoom: zoom,
-              duration: 500,
-            });
-          }
-        });
-        return;
-      }
-
       // Check for individual school click — select parent district
       const schoolFeatures = map.current.getLayer("schools-unclustered")
         ? map.current.queryRenderedFeatures(e.point, {
@@ -638,8 +647,8 @@ export default function MapV2Container() {
           return;
         }
 
-        // Shift+click toggles multi-select
-        if (e.originalEvent.shiftKey) {
+        // Multi-select mode or Shift+click toggles selection
+        if (store.multiSelectMode || e.originalEvent.shiftKey) {
           store.toggleDistrictSelection(leaid);
           return;
         }
@@ -704,6 +713,7 @@ export default function MapV2Container() {
     map.current.on("mousemove", handleDistrictHover);
     map.current.on("click", handleClick);
     map.current.on("mouseleave", clearHover);
+    map.current.on("movestart", clearHover);
 
     // Load schools on viewport change (debounced)
     let schoolDebounceTimer: ReturnType<typeof setTimeout>;
@@ -721,6 +731,7 @@ export default function MapV2Container() {
       m?.off("mousemove", handleDistrictHover);
       m?.off("click", handleClick);
       m?.off("mouseleave", clearHover);
+      m?.off("movestart", clearHover);
       m?.off("moveend", handleMoveEnd);
       clearTimeout(schoolDebounceTimer);
     };
@@ -735,6 +746,31 @@ export default function MapV2Container() {
     map.current.setFilter("district-selected-fill", filter);
     map.current.setFilter("district-selected", filter);
   }, [selectedLeaid, mapReady]);
+
+  // Update multi-select highlight
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const leaidArray = [...selectedLeaids];
+    const filter: any = leaidArray.length > 0
+      ? ["in", ["get", "leaid"], ["literal", leaidArray]]
+      : ["in", ["get", "leaid"], ["literal", [""]]];
+    if (map.current.getLayer("district-multiselect-fill")) {
+      map.current.setFilter("district-multiselect-fill", filter);
+    }
+    if (map.current.getLayer("district-multiselect-outline")) {
+      map.current.setFilter("district-multiselect-outline", filter);
+    }
+  }, [selectedLeaids, mapReady]);
+
+  // Change cursor in multi-select mode
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    if (multiSelectMode) {
+      map.current.getCanvas().style.cursor = "crosshair";
+    } else {
+      map.current.getCanvas().style.cursor = "";
+    }
+  }, [multiSelectMode, mapReady]);
 
   // Toggle vendor layer visibility
   useEffect(() => {
@@ -751,20 +787,96 @@ export default function MapV2Container() {
     }
   }, [activeVendors, mapReady]);
 
-  // Toggle schools layer visibility
+  // Toggle signal layer — swap paint properties based on active signal
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    const visibility = schoolsLayerVisible ? "visible" : "none";
-    for (const layerId of ["schools-clusters", "schools-cluster-count", "schools-unclustered"]) {
-      if (map.current.getLayer(layerId)) {
-        map.current.setLayoutProperty(layerId, "visibility", visibility);
-      }
+    if (!map.current.getLayer("district-signal-fill")) return;
+
+    if (!activeSignal) {
+      map.current.setLayoutProperty("district-signal-fill", "visibility", "none");
+      return;
     }
-    // Trigger a data load/clear when toggling on/off
-    if (schoolsLayerVisible) {
+
+    const config = SIGNAL_CONFIGS[activeSignal];
+    map.current.setLayoutProperty("district-signal-fill", "visibility", "visible");
+    map.current.setPaintProperty("district-signal-fill", "fill-color", config.fillColor as any);
+    map.current.setPaintProperty("district-signal-fill", "fill-opacity", config.fillOpacity);
+
+    // Apply combined filter (signal property exists + user filters)
+    const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
+    const signalFilter: any = ["has", config.tileProperty];
+    const combined = userFilter
+      ? ["all", signalFilter, userFilter]
+      : signalFilter;
+    map.current.setFilter("district-signal-fill", combined);
+  }, [activeSignal, filterOwner, filterPlanId, filterStates, mapReady]);
+
+  // Toggle locale layer — filter by selected locale types
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    if (!map.current.getLayer("district-locale-fill")) return;
+
+    if (visibleLocales.size === 0) {
+      map.current.setLayoutProperty("district-locale-fill", "visibility", "none");
+      return;
+    }
+
+    map.current.setLayoutProperty("district-locale-fill", "visibility", "visible");
+
+    // Build combined filter: locale value in selected set + user filters
+    const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
+    const localeValues = [...visibleLocales];
+    const localeFilter: any = visibleLocales.size === ALL_LOCALE_IDS.length
+      ? ["has", "locale_signal"]
+      : ["in", ["get", "locale_signal"], ["literal", localeValues]];
+    const combined = userFilter
+      ? ["all", localeFilter, userFilter]
+      : localeFilter;
+    map.current.setFilter("district-locale-fill", combined);
+  }, [visibleLocales, filterOwner, filterPlanId, filterStates, mapReady]);
+
+  // Toggle schools layer visibility + filter by selected types
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const layer = map.current.getLayer("schools-unclustered");
+    if (!layer) return;
+
+    const anyVisible = visibleSchoolTypes.size > 0;
+    map.current.setLayoutProperty(
+      "schools-unclustered",
+      "visibility",
+      anyVisible ? "visible" : "none",
+    );
+
+    if (anyVisible) {
+      // Build filter — handle both string and number property types
+      const isCharter = ["any", ["==", ["get", "charter"], 1], ["==", ["get", "charter"], "1"]];
+      const notCharter = ["all", ["!=", ["get", "charter"], 1], ["!=", ["get", "charter"], "1"]];
+      const isLevel = (n: number) => ["any", ["==", ["get", "schoolLevel"], n], ["==", ["get", "schoolLevel"], String(n)]];
+
+      const conditions: any[] = [];
+      if (visibleSchoolTypes.has("elementary")) {
+        conditions.push(["all", isLevel(1), notCharter]);
+      }
+      if (visibleSchoolTypes.has("middle")) {
+        conditions.push(["all", isLevel(2), notCharter]);
+      }
+      if (visibleSchoolTypes.has("high")) {
+        conditions.push(["all", isLevel(3), notCharter]);
+      }
+      if (visibleSchoolTypes.has("charter")) {
+        conditions.push(isCharter);
+      }
+
+      if (conditions.length === 1) {
+        map.current.setFilter("schools-unclustered", conditions[0]);
+      } else {
+        map.current.setFilter("schools-unclustered", ["any", ...conditions]);
+      }
+
       loadSchoolsForViewport();
     }
-  }, [schoolsLayerVisible, mapReady, loadSchoolsForViewport]);
+  }, [visibleSchoolTypes, mapReady, loadSchoolsForViewport]);
 
   // Apply filter expression to all layers
   useEffect(() => {
@@ -810,12 +922,16 @@ export default function MapV2Container() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        const { panelState, goBack, clearSelection } = useMapV2Store.getState();
-        if (panelState !== "BROWSE") {
-          goBack();
+        const store = useMapV2Store.getState();
+        // Exit multi-select mode first
+        if (store.multiSelectMode) {
+          store.toggleMultiSelectMode();
+          return;
+        }
+        if (store.panelState !== "BROWSE") {
+          store.goBack();
         } else {
-          clearSelection();
-          // Zoom back to US
+          store.clearSelection();
           map.current?.fitBounds(US_BOUNDS, { padding: 50, duration: 600 });
         }
       }
