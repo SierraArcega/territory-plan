@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import { useDistrictDetail } from "@/lib/api";
+import DistrictHeader from "./DistrictHeader";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,18 +71,12 @@ export default function DistrictDetailPanel() {
           </div>
         ) : (
           <>
-            {/* District name header */}
-            <div className="px-3 pt-3 pb-2">
-              <h2 className="text-base font-bold text-gray-800 leading-tight">
-                {district.name}
-              </h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-gray-400">
-                  {district.stateAbbrev}
-                  {district.countyName ? ` · ${district.countyName}` : ""}
-                </span>
-              </div>
-            </div>
+            {/* District header */}
+            <DistrictHeader
+              district={data.district}
+              fullmindData={data.fullmindData}
+              tags={data.tags}
+            />
 
             {/* Tab bar */}
             <div className="flex border-b border-gray-100 px-1">
