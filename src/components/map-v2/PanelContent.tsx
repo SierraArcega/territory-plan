@@ -2,7 +2,7 @@
 
 import { useMapV2Store } from "@/lib/map-v2-store";
 import SearchPanel from "./panels/SearchPanel";
-import DistrictDetailPanel from "./panels/DistrictDetailPanel";
+import DistrictDetailPanel from "./panels/district/DistrictDetailPanel";
 import PlanFormPanel from "./panels/PlanFormPanel";
 import PlanWorkspace from "./panels/PlanWorkspace";
 import PlanAddPanel from "./panels/PlanAddPanel";
