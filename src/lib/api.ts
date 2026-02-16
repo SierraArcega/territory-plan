@@ -309,10 +309,13 @@ export interface TerritoryPlanDistrict {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
-  revenueTarget: number | null;
-  pipelineTarget: number | null;
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   notes: string | null;
-  targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  newServices: Array<{ id: number; name: string; slug: string; color: string }>;
   tags: Array<{ id: number; name: string; color: string }>;
 }
 
@@ -1275,9 +1278,11 @@ export interface UserGoal {
   takeRatePercent: number | null;
   newDistrictsTarget: number | null;
   // Calculated targets (from earnings + take rate)
-  revenueTarget: number | null;
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   takeTarget: number | null;
-  pipelineTarget: number | null;
   // Calculated actuals from territory plan districts
   revenueActual: number;
   takeActual: number;
@@ -1339,9 +1344,11 @@ export function useUpsertUserGoal() {
       fiscalYear: number;
       earningsTarget?: number | null;
       takeRatePercent?: number | null;
-      revenueTarget?: number | null;
+      renewalTarget?: number | null;
+      winbackTarget?: number | null;
+      expansionTarget?: number | null;
+      newBusinessTarget?: number | null;
       takeTarget?: number | null;
-      pipelineTarget?: number | null;
       newDistrictsTarget?: number | null;
     }) =>
       fetchJson<UserGoal>(`${API_BASE}/profile/goals`, {
@@ -1389,10 +1396,13 @@ export interface PlanDistrictDetail {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
-  revenueTarget: number | null;
-  pipelineTarget: number | null;
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   notes: string | null;
-  targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  newServices: Array<{ id: number; name: string; slug: string; color: string }>;
 }
 
 export function usePlanDistrictDetail(planId: string | null, leaid: string | null) {
@@ -1418,10 +1428,13 @@ export function useUpdateDistrictTargets() {
     }: {
       planId: string;
       leaid: string;
-      revenueTarget?: number | null;
-      pipelineTarget?: number | null;
+      renewalTarget?: number | null;
+      winbackTarget?: number | null;
+      expansionTarget?: number | null;
+      newBusinessTarget?: number | null;
       notes?: string | null;
-      serviceIds?: number[];
+      returnServiceIds?: number[];
+      newServiceIds?: number[];
     }) =>
       fetchJson<PlanDistrictDetail>(
         `${API_BASE}/territory-plans/${planId}/districts/${leaid}`,
@@ -1445,14 +1458,19 @@ export interface GoalDashboard {
   goals: {
     earningsTarget: number | null;
     takeRatePercent: number | null;
-    revenueTarget: number | null;
+    renewalTarget: number | null;
+    winbackTarget: number | null;
+    expansionTarget: number | null;
+    newBusinessTarget: number | null;
     takeTarget: number | null;
-    pipelineTarget: number | null;
     newDistrictsTarget: number | null;
   } | null;
   planTotals: {
-    revenueTarget: number;
-    pipelineTarget: number;
+    renewalTarget: number;
+    winbackTarget: number;
+    expansionTarget: number;
+    newBusinessTarget: number;
+    totalTarget: number;
     districtCount: number;
     planCount: number;
   };
@@ -1469,8 +1487,11 @@ export interface GoalDashboard {
     color: string;
     status: string;
     districtCount: number;
-    revenueTarget: number;
-    pipelineTarget: number;
+    renewalTarget: number;
+    winbackTarget: number;
+    expansionTarget: number;
+    newBusinessTarget: number;
+    totalTarget: number;
   }>;
 }
 
