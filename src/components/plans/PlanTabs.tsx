@@ -125,8 +125,10 @@ const CONTACT_FILTERS: FilterConfig[] = [
 const DISTRICT_SORT_OPTIONS = [
   { value: "name", label: "Name" },
   { value: "state", label: "State" },
-  { value: "revenueTarget", label: "Revenue Target" },
-  { value: "pipelineTarget", label: "Pipeline Target" },
+  { value: "renewalTarget", label: "Renewal Target" },
+  { value: "winbackTarget", label: "Winback Target" },
+  { value: "expansionTarget", label: "Expansion Target" },
+  { value: "newBusinessTarget", label: "New Business Target" },
   { value: "enrollment", label: "Enrollment" },
 ];
 
@@ -292,7 +294,10 @@ export default function PlanTabs({
   // Get dynamic filter options based on data
   const getDistrictFilters = useCallback((): FilterConfig[] => {
     const states = [...new Set(districts.map(d => d.stateAbbrev).filter(Boolean))].sort();
-    const services = [...new Set(districts.flatMap(d => d.targetServices?.map(s => s.name) || []))].sort();
+    const services = [...new Set(districts.flatMap(d => [
+      ...(d.returnServices?.map(s => s.name) || []),
+      ...(d.newServices?.map(s => s.name) || []),
+    ]))].sort();
 
     return DISTRICT_FILTERS.map(f => {
       if (f.id === "state") {
@@ -326,13 +331,14 @@ export default function PlanTabs({
       result = result.filter(d => d.stateAbbrev === filterState.state);
     }
     if (filterState.hasTarget === "yes") {
-      result = result.filter(d => d.revenueTarget || d.pipelineTarget);
+      result = result.filter(d => d.renewalTarget || d.winbackTarget || d.expansionTarget || d.newBusinessTarget);
     } else if (filterState.hasTarget === "no") {
-      result = result.filter(d => !d.revenueTarget && !d.pipelineTarget);
+      result = result.filter(d => !d.renewalTarget && !d.winbackTarget && !d.expansionTarget && !d.newBusinessTarget);
     }
     if (filterState.services && Array.isArray(filterState.services) && filterState.services.length > 0) {
       result = result.filter(d =>
-        d.targetServices?.some(s => (filterState.services as string[]).includes(s.name))
+        d.returnServices?.some(s => (filterState.services as string[]).includes(s.name)) ||
+        d.newServices?.some(s => (filterState.services as string[]).includes(s.name))
       );
     }
 
@@ -346,11 +352,17 @@ export default function PlanTabs({
         case "state":
           comparison = (a.stateAbbrev || "").localeCompare(b.stateAbbrev || "");
           break;
-        case "revenueTarget":
-          comparison = (a.revenueTarget || 0) - (b.revenueTarget || 0);
+        case "renewalTarget":
+          comparison = (a.renewalTarget || 0) - (b.renewalTarget || 0);
           break;
-        case "pipelineTarget":
-          comparison = (a.pipelineTarget || 0) - (b.pipelineTarget || 0);
+        case "winbackTarget":
+          comparison = (a.winbackTarget || 0) - (b.winbackTarget || 0);
+          break;
+        case "expansionTarget":
+          comparison = (a.expansionTarget || 0) - (b.expansionTarget || 0);
+          break;
+        case "newBusinessTarget":
+          comparison = (a.newBusinessTarget || 0) - (b.newBusinessTarget || 0);
           break;
         case "enrollment":
           comparison = (a.enrollment || 0) - (b.enrollment || 0);
@@ -549,7 +561,7 @@ export default function PlanTabs({
         const filtered = getFilteredDistricts();
         const grouped = groupData(filtered, groupBy, (d) => {
           if (groupBy === "state") return d.stateAbbrev || "";
-          if (groupBy === "hasTarget") return (d.revenueTarget || d.pipelineTarget) ? "Has Target" : "No Target";
+          if (groupBy === "hasTarget") return (d.renewalTarget || d.winbackTarget || d.expansionTarget || d.newBusinessTarget) ? "Has Target" : "No Target";
           return "all";
         });
 
