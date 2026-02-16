@@ -496,7 +496,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       </header>
 
       {/* Main content: Tabbed interface for Districts, Activities, Contacts */}
-      <main className="max-w-7xl mx-auto px-6 py-4">
+      <main className={`mx-auto px-6 py-4 transition-[margin] duration-300 ${panelLeaid ? "mr-[420px]" : "max-w-7xl"}`}>
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setActiveTab("map")}
