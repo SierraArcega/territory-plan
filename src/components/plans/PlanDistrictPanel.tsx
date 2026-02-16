@@ -410,6 +410,8 @@ export default function PlanDistrictPanel({
               <FullmindMetrics fullmindData={data.fullmindData} />
             )}
 
+            <CompetitorSpend leaid={leaid} />
+
             <DistrictInfo district={data.district} />
 
             {data.enrollmentDemographics && (
@@ -429,8 +431,6 @@ export default function PlanDistrictPanel({
             {data.educationData && (
               <StaffingSalaries educationData={data.educationData} />
             )}
-
-            <CompetitorSpend leaid={leaid} />
 
             <div className="px-6 py-4 border-b border-gray-100">
               <TagsEditor leaid={leaid} tags={data.tags} />
