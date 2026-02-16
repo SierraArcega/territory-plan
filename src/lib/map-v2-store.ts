@@ -14,6 +14,7 @@ export type PanelState =
   | "PLAN_VIEW"
   | "PLAN_ADD"
   | "PLAN_OVERVIEW"
+  | "PLAN_ACTIVITIES"
   | "PLAN_TASKS"
   | "PLAN_CONTACTS"
   | "PLAN_PERF";
@@ -22,10 +23,10 @@ export type PanelState =
 export type IconBarTab = "home" | "search" | "plans" | "settings";
 
 // Plan workspace sections
-export type PlanSection = "overview" | "tasks" | "contacts" | "performance";
+export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
 
 export interface RightPanelContent {
-  type: "task_form" | "task_edit" | "contact_detail" | "contact_form";
+  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "contact_detail" | "contact_form";
   id?: string;
 }
 
@@ -211,7 +212,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   selectedStateCode: null,
   hoveredLeaid: null,
   activePlanId: null,
-  planSection: "overview" as PlanSection,
+  planSection: "districts" as PlanSection,
   rightPanelContent: null as RightPanelContent | null,
   detailPopout: null as { leaid: string } | null,
   planDistrictLeaids: new Set<string>(),
@@ -324,7 +325,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       activePlanId: planId,
       panelState: "PLAN_OVERVIEW",
       panelHistory: [...s.panelHistory, s.panelState],
-      planSection: "overview" as PlanSection,
+      planSection: "districts" as PlanSection,
       rightPanelContent: null,
     })),
 
@@ -351,7 +352,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   // Plan workspace
   setPlanSection: (section) => {
     const sectionToState: Record<PlanSection, PanelState> = {
-      overview: "PLAN_OVERVIEW",
+      districts: "PLAN_OVERVIEW",
+      activities: "PLAN_ACTIVITIES",
       tasks: "PLAN_TASKS",
       contacts: "PLAN_CONTACTS",
       performance: "PLAN_PERF",
