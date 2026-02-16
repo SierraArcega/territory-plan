@@ -34,25 +34,28 @@ export default function RightPanel() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {rightPanelContent.type === "district_card" && rightPanelContent.id && (
+      {rightPanelContent.type === "district_card" && rightPanelContent.id ? (
+        <div className="flex-1 flex flex-col min-h-0">
           <DistrictCard leaid={rightPanelContent.id} />
-        )}
-        {rightPanelContent.type === "task_form" && (
-          <TaskForm preLinkedLeaid={rightPanelContent.id} />
-        )}
-        {rightPanelContent.type === "task_edit" && rightPanelContent.id && (
-          <TaskForm taskId={rightPanelContent.id} />
-        )}
-        {rightPanelContent.type === "contact_detail" && rightPanelContent.id && (
-          <ContactDetail contactId={rightPanelContent.id} />
-        )}
-        {!["district_card", "task_form", "task_edit", "contact_detail"].includes(rightPanelContent.type) && (
-          <div className="text-center py-8 text-xs text-gray-400">
-            {rightPanelContent.type} — coming soon
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-3">
+          {rightPanelContent.type === "task_form" && (
+            <TaskForm preLinkedLeaid={rightPanelContent.id} />
+          )}
+          {rightPanelContent.type === "task_edit" && rightPanelContent.id && (
+            <TaskForm taskId={rightPanelContent.id} />
+          )}
+          {rightPanelContent.type === "contact_detail" && rightPanelContent.id && (
+            <ContactDetail contactId={rightPanelContent.id} />
+          )}
+          {!["district_card", "task_form", "task_edit", "contact_detail"].includes(rightPanelContent.type) && (
+            <div className="text-center py-8 text-xs text-gray-400">
+              {rightPanelContent.type} — coming soon
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

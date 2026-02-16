@@ -1,56 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import { useDistrictDetail, useRemoveDistrictFromPlan } from "@/lib/api";
+import DistrictHeader from "../panels/district/DistrictHeader";
+import DistrictInfoTab from "../panels/district/DistrictInfoTab";
+import DataDemographicsTab from "../panels/district/DataDemographicsTab";
+import ContactsTab from "../panels/district/ContactsTab";
 
-function formatNumber(value: number | null | undefined): string {
-  if (value == null) return "\u2014";
-  return value.toLocaleString();
-}
-
-function formatPercent(value: number | null | undefined): string {
-  if (value == null) return "\u2014";
-  return `${value.toFixed(1)}%`;
-}
-
-function formatRatio(value: number | null | undefined): string {
-  if (value == null) return "\u2014";
-  return `${value.toFixed(1)}:1`;
-}
-
-const LOCALE_LABELS: Record<number, string> = {
-  1: "City - Large",
-  2: "City - Midsize",
-  3: "City - Small",
-  4: "Suburb - Large",
-  5: "Suburb - Midsize",
-  6: "Suburb - Small",
-  7: "Town - Fringe",
-  8: "Town - Distant",
-  9: "Town - Remote",
-  10: "Rural - Fringe",
-  11: "Rural - Distant",
-  12: "Rural - Remote",
-};
+type DistrictSubTab = "info" | "data" | "contacts";
 
 export default function DistrictCard({ leaid }: { leaid: string }) {
   const activePlanId = useMapV2Store((s) => s.activePlanId);
-  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
   const closeRightPanel = useMapV2Store((s) => s.closeRightPanel);
-  const selectDistrict = useMapV2Store((s) => s.selectDistrict);
-  const setPlanSection = useMapV2Store((s) => s.setPlanSection);
+  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
 
-  const { data, isLoading } = useDistrictDetail(leaid);
+  const { data, isLoading, error } = useDistrictDetail(leaid);
   const removeMutation = useRemoveDistrictFromPlan();
 
+  const [activeTab, setActiveTab] = useState<DistrictSubTab>("info");
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+
+  // Reset tab when district changes
+  useEffect(() => {
+    setActiveTab("info");
+    setShowRemoveConfirm(false);
+  }, [leaid]);
 
   if (isLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (!data) {
+  if (error || !data) {
     return (
       <div className="text-center py-8 text-xs text-gray-400">
         District not found
@@ -58,17 +39,7 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
     );
   }
 
-  const { district, educationData } = data;
-
-  const localeLabel = district.urbanCentricLocale
-    ? LOCALE_LABELS[district.urbanCentricLocale] || `Code ${district.urbanCentricLocale}`
-    : null;
-
-  const subtitleParts = [
-    district.stateAbbrev,
-    district.countyName ? `${district.countyName} County` : null,
-    localeLabel,
-  ].filter(Boolean);
+  const contacts = data.contacts || [];
 
   const handleRemove = () => {
     if (!activePlanId) return;
@@ -84,203 +55,162 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
   };
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div>
-        <h3 className="text-sm font-semibold text-gray-800 leading-tight">
-          {district.name}
-        </h3>
-        {subtitleParts.length > 0 && (
-          <p className="text-xs text-gray-400 mt-0.5">
-            {subtitleParts.join(" \u00b7 ")}
-          </p>
+    <div className="flex flex-col h-full">
+      {/* District header */}
+      <DistrictHeader
+        district={data.district}
+        fullmindData={data.fullmindData}
+        tags={data.tags}
+      />
+
+      {/* Tab bar */}
+      <div className="flex border-b border-gray-100 px-1">
+        <TabButton
+          active={activeTab === "info"}
+          onClick={() => setActiveTab("info")}
+        >
+          Info
+        </TabButton>
+        <TabButton
+          active={activeTab === "data"}
+          onClick={() => setActiveTab("data")}
+        >
+          Data
+        </TabButton>
+        <TabButton
+          active={activeTab === "contacts"}
+          onClick={() => setActiveTab("contacts")}
+        >
+          Contacts ({contacts.length})
+        </TabButton>
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === "info" && (
+          <DistrictInfoTab data={data} leaid={leaid} />
+        )}
+        {activeTab === "data" && (
+          <DataDemographicsTab data={data} />
+        )}
+        {activeTab === "contacts" && (
+          <ContactsTab leaid={leaid} contacts={contacts} />
         )}
       </div>
 
-      {/* Key stats */}
-      <div className="grid grid-cols-2 gap-1.5">
-        <StatCard
-          label="Enrollment"
-          value={formatNumber(district.enrollment)}
-        />
-        <StatCard
-          label="Schools"
-          value={formatNumber(district.numberOfSchools)}
-        />
-        <StatCard
-          label="Student:Teacher"
-          value={
-            educationData?.teachersFte && district.enrollment
-              ? formatRatio(district.enrollment / educationData.teachersFte)
-              : "\u2014"
-          }
-        />
-        <StatCard
-          label="% FRPL"
-          value={formatPercent(educationData?.childrenPovertyPercent)}
-        />
-        <StatCard
-          label="Grad Rate"
-          value={formatPercent(educationData?.graduationRateTotal)}
-        />
-      </div>
-
-      {/* Action buttons */}
-      <div className="space-y-1.5">
-        <ActionButton
-          label="Add Task"
-          icon={
-            <path
-              d="M3 4H5V6H3V4ZM7 4.5H13M3 8H5V10H3V8ZM7 8.5H13"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          }
-          onClick={() => openRightPanel({ type: "task_form", id: leaid })}
-        />
-        <ActionButton
-          label="View Contacts"
-          icon={
-            <path
-              d="M8 7C9.1 7 10 6.1 10 5S9.1 3 8 3 6 3.9 6 5 6.9 7 8 7ZM4 13C4 11.3 5.8 10 8 10S12 11.3 12 13"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          }
-          onClick={() => setPlanSection("contacts")}
-        />
-        <ActionButton
-          label="Open Full Profile"
-          icon={
-            <path
-              d="M5 3H3V13H13V11M8 8L13 3M13 3H9M13 3V7"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          }
-          onClick={() => selectDistrict(leaid)}
-        />
-
-        {/* Remove from plan */}
-        {!showRemoveConfirm ? (
+      {/* Plan actions footer */}
+      {activePlanId && (
+        <div className="border-t border-gray-100 px-3 py-2 space-y-1.5">
           <button
-            onClick={() => setShowRemoveConfirm(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-500 hover:bg-red-50 transition-colors text-xs font-medium"
+            onClick={() => openRightPanel({ type: "task_form", id: leaid })}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-gray-50 transition-colors text-xs font-medium text-gray-600"
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              className="shrink-0"
-            >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0 text-gray-400">
               <path
-                d="M3 5H13M5 5V3C5 2.4 5.4 2 6 2H10C10.6 2 11 2.4 11 3V5M6 8V12M10 8V12M4 5L5 14H11L12 5"
+                d="M3 4H5V6H3V4ZM7 4.5H13M3 8H5V10H3V8ZM7 8.5H13"
                 stroke="currentColor"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
-            Remove from Plan
+            Add Task
           </button>
-        ) : (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-3 space-y-2">
-            <p className="text-xs text-red-600 font-medium">
-              Remove this district from the plan?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={handleRemove}
-                disabled={removeMutation.isPending}
-                className="flex-1 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
-                {removeMutation.isPending ? "Removing..." : "Remove"}
-              </button>
-              <button
-                onClick={() => setShowRemoveConfirm(false)}
-                className="flex-1 py-1.5 bg-white text-gray-600 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+
+          {!showRemoveConfirm ? (
+            <button
+              onClick={() => setShowRemoveConfirm(true)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-red-500 hover:bg-red-50 transition-colors text-xs font-medium"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0">
+                <path
+                  d="M3 5H13M5 5V3C5 2.4 5.4 2 6 2H10C10.6 2 11 2.4 11 3V5M6 8V12M10 8V12M4 5L5 14H11L12 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Remove from Plan
+            </button>
+          ) : (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 space-y-2">
+              <p className="text-xs text-red-600 font-medium">
+                Remove from plan?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRemove}
+                  disabled={removeMutation.isPending}
+                  className="flex-1 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {removeMutation.isPending ? "Removing..." : "Remove"}
+                </button>
+                <button
+                  onClick={() => setShowRemoveConfirm(false)}
+                  className="flex-1 py-1.5 bg-white text-gray-600 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
+
+      <p className="text-[10px] text-gray-300 text-center pb-2">
+        LEAID: {leaid}
+      </p>
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-gray-50 p-2">
-      <div className="text-[9px] font-medium text-gray-400 uppercase tracking-wider mb-0.5">
-        {label}
-      </div>
-      <div className="text-xs font-semibold text-gray-700">{value}</div>
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// TabButton (compact for 280px right panel)
+// ---------------------------------------------------------------------------
 
-function ActionButton({
-  label,
-  icon,
+function TabButton({
+  active,
   onClick,
+  children,
 }: {
-  label: string;
-  icon: React.ReactNode;
+  active: boolean;
   onClick: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-gray-50 transition-colors text-xs font-medium text-gray-600"
+      className={`px-3 py-2 text-xs font-medium transition-colors relative ${
+        active ? "text-[#F37167]" : "text-gray-500 hover:text-[#403770]"
+      }`}
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 16 16"
-        fill="none"
-        className="shrink-0 text-gray-400"
-      >
-        {icon}
-      </svg>
-      {label}
+      {children}
+      {active && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F37167]" />
+      )}
     </button>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Loading skeleton
+// ---------------------------------------------------------------------------
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-3">
-      {/* Header skeleton */}
       <div>
         <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
         <div className="h-3 bg-gray-100 rounded w-1/2 mt-1.5 animate-pulse" />
       </div>
-      {/* Stats skeleton */}
+      <div className="h-5 bg-plum/10 rounded-full w-20 animate-pulse" />
       <div className="grid grid-cols-2 gap-1.5">
-        {[0, 1, 2, 3, 4].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div key={i} className="rounded-lg bg-gray-50 p-2 animate-pulse">
             <div className="h-2 bg-gray-200 rounded w-2/3 mb-1.5" />
             <div className="h-3 bg-gray-200 rounded w-1/2" />
           </div>
-        ))}
-      </div>
-      {/* Action buttons skeleton */}
-      <div className="space-y-1.5">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-9 bg-gray-50 rounded-xl animate-pulse"
-          />
         ))}
       </div>
     </div>
