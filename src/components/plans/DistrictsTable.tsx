@@ -82,119 +82,85 @@ function InlineServiceSelector({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  const selectedIds = district.targetServices?.map((s) => s.id) || [];
+  const returnIds = district.returnServices?.map((s) => s.id) || [];
+  const newIds = district.newServices?.map((s) => s.id) || [];
+  const allSelected = [...(district.returnServices || []), ...(district.newServices || [])];
 
-  const toggleService = async (serviceId: number) => {
-    const newIds = selectedIds.includes(serviceId)
-      ? selectedIds.filter((id) => id !== serviceId)
-      : [...selectedIds, serviceId];
-    await updateTargets.mutateAsync({
-      planId,
-      leaid: district.leaid,
-      serviceIds: newIds,
-    });
+  const toggleService = async (serviceId: number, category: "return" | "new") => {
+    if (category === "return") {
+      const newReturnIds = returnIds.includes(serviceId)
+        ? returnIds.filter((id) => id !== serviceId)
+        : [...returnIds, serviceId];
+      await updateTargets.mutateAsync({ planId, leaid: district.leaid, returnServiceIds: newReturnIds });
+    } else {
+      const newNewIds = newIds.includes(serviceId)
+        ? newIds.filter((id) => id !== serviceId)
+        : [...newIds, serviceId];
+      await updateTargets.mutateAsync({ planId, leaid: district.leaid, newServiceIds: newNewIds });
+    }
   };
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
         className="flex flex-wrap gap-1 items-center min-h-[28px] w-full text-left rounded-md px-1 -mx-1 hover:bg-gray-100 transition-colors group/svc"
       >
-        {district.targetServices && district.targetServices.length > 0 ? (
+        {allSelected.length > 0 ? (
           <>
-            {district.targetServices.slice(0, 3).map((service) => (
-              <span
-                key={service.id}
-                className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white"
-                style={{ backgroundColor: service.color }}
-                title={service.name}
-              >
-                {service.name.length > 12
-                  ? `${service.name.slice(0, 12)}...`
-                  : service.name}
+            {allSelected.slice(0, 3).map((service) => (
+              <span key={`${service.id}`} className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full text-white" style={{ backgroundColor: service.color }} title={service.name}>
+                {service.name.length > 12 ? `${service.name.slice(0, 12)}...` : service.name}
               </span>
             ))}
-            {district.targetServices.length > 3 && (
-              <span className="text-xs text-gray-400">
-                +{district.targetServices.length - 3}
-              </span>
+            {allSelected.length > 3 && (
+              <span className="text-xs text-gray-400">+{allSelected.length - 3}</span>
             )}
           </>
         ) : (
           <span className="text-xs text-gray-400 italic">Add services...</span>
         )}
-        <svg
-          className="w-3 h-3 text-gray-300 group-hover/svc:text-gray-500 ml-auto flex-shrink-0 transition-colors"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
+        <svg className="w-3 h-3 text-gray-300 group-hover/svc:text-gray-500 ml-auto flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 left-0 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-[280px] overflow-y-auto">
+        <div className="absolute z-50 mt-1 left-0 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-[360px] overflow-y-auto">
           {allServices.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-gray-400 italic">
-              No services available
-            </div>
+            <div className="px-3 py-2 text-xs text-gray-400 italic">No services available</div>
           ) : (
-            allServices.map((service) => {
-              const isSelected = selectedIds.includes(service.id);
-              return (
-                <button
-                  key={service.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleService(service.id);
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors ${
-                    isSelected
-                      ? "bg-gray-50 text-[#403770]"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <span
-                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                      isSelected
-                        ? "bg-[#403770] border-[#403770]"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {isSelected && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                  </span>
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: service.color }}
-                  />
-                  <span className="truncate">{service.name}</span>
-                </button>
-              );
-            })
+            <>
+              <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Return Services</div>
+              {allServices.map((service) => {
+                const isSelected = returnIds.includes(service.id);
+                return (
+                  <button key={`return-${service.id}`} onClick={(e) => { e.stopPropagation(); toggleService(service.id, "return"); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left transition-colors ${isSelected ? "bg-gray-50 text-[#403770]" : "text-gray-700 hover:bg-gray-50"}`}>
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-[#403770] border-[#403770]" : "border-gray-300"}`}>
+                      {isSelected && (<svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>)}
+                    </span>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: service.color }} />
+                    <span className="truncate">{service.name}</span>
+                  </button>
+                );
+              })}
+              <div className="border-t border-gray-100 mt-1 pt-1" />
+              <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">New Services</div>
+              {allServices.map((service) => {
+                const isSelected = newIds.includes(service.id);
+                return (
+                  <button key={`new-${service.id}`} onClick={(e) => { e.stopPropagation(); toggleService(service.id, "new"); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left transition-colors ${isSelected ? "bg-[#403770] bg-opacity-10 text-[#403770]" : "text-gray-700 hover:bg-gray-50"}`}>
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-[#403770] border-[#403770]" : "border-gray-300"}`}>
+                      {isSelected && (<svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>)}
+                    </span>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: service.color }} />
+                    <span className="truncate">{service.name}</span>
+                  </button>
+                );
+              })}
+            </>
           )}
         </div>
       )}
@@ -282,12 +248,15 @@ export default function DistrictsTable({
   // Calculate totals
   const totals = districts.reduce(
     (acc, d) => ({
-      revenueTarget: acc.revenueTarget + (d.revenueTarget || 0),
-      pipelineTarget: acc.pipelineTarget + (d.pipelineTarget || 0),
+      renewalTarget: acc.renewalTarget + (d.renewalTarget || 0),
+      winbackTarget: acc.winbackTarget + (d.winbackTarget || 0),
+      expansionTarget: acc.expansionTarget + (d.expansionTarget || 0),
+      newBusinessTarget: acc.newBusinessTarget + (d.newBusinessTarget || 0),
       enrollment: acc.enrollment + (d.enrollment || 0),
     }),
-    { revenueTarget: 0, pipelineTarget: 0, enrollment: 0 }
+    { renewalTarget: 0, winbackTarget: 0, expansionTarget: 0, newBusinessTarget: 0, enrollment: 0 }
   );
+  const grandTotal = totals.renewalTarget + totals.winbackTarget + totals.expansionTarget + totals.newBusinessTarget;
 
   return (
     <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
@@ -301,11 +270,17 @@ export default function DistrictsTable({
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 State
               </th>
-              <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Revenue Target
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Renewal
               </th>
-              <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Pipeline Target
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Winback
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Expansion
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                New Biz
               </th>
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Services
@@ -332,26 +307,48 @@ export default function DistrictsTable({
                   {district.stateAbbrev || "N/A"}
                 </span>
               </td>
-              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+              <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                 <InlineEditCell
                   type="text"
-                  value={district.revenueTarget != null ? String(district.revenueTarget) : null}
+                  value={district.renewalTarget != null ? String(district.renewalTarget) : null}
                   onSave={async (value) => {
-                    const parsed = parseCurrency(value);
-                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, revenueTarget: parsed });
+                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, renewalTarget: parseCurrency(value) });
                   }}
                   placeholder="-"
                   className="text-[13px] text-gray-600 text-right"
                   displayFormat={formatCurrencyDisplay}
                 />
               </td>
-              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+              <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                 <InlineEditCell
                   type="text"
-                  value={district.pipelineTarget != null ? String(district.pipelineTarget) : null}
+                  value={district.winbackTarget != null ? String(district.winbackTarget) : null}
                   onSave={async (value) => {
-                    const parsed = parseCurrency(value);
-                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, pipelineTarget: parsed });
+                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, winbackTarget: parseCurrency(value) });
+                  }}
+                  placeholder="-"
+                  className="text-[13px] text-gray-600 text-right"
+                  displayFormat={formatCurrencyDisplay}
+                />
+              </td>
+              <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                <InlineEditCell
+                  type="text"
+                  value={district.expansionTarget != null ? String(district.expansionTarget) : null}
+                  onSave={async (value) => {
+                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, expansionTarget: parseCurrency(value) });
+                  }}
+                  placeholder="-"
+                  className="text-[13px] text-gray-600 text-right"
+                  displayFormat={formatCurrencyDisplay}
+                />
+              </td>
+              <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                <InlineEditCell
+                  type="text"
+                  value={district.newBusinessTarget != null ? String(district.newBusinessTarget) : null}
+                  onSave={async (value) => {
+                    await updateTargets.mutateAsync({ planId, leaid: district.leaid, newBusinessTarget: parseCurrency(value) });
                   }}
                   placeholder="-"
                   className="text-[13px] text-gray-600 text-right"
@@ -398,14 +395,9 @@ export default function DistrictsTable({
         <span className="text-[12px] font-medium text-gray-400 tracking-wide">
           {districts.length} district{districts.length !== 1 ? "s" : ""}
         </span>
-        <div className="flex items-center gap-4">
-          <span className="text-[12px] text-gray-400">
-            Rev: <span className="font-medium text-gray-500">{formatCurrency(totals.revenueTarget)}</span>
-          </span>
-          <span className="text-[12px] text-gray-400">
-            Pipeline: <span className="font-medium text-gray-500">{formatCurrency(totals.pipelineTarget)}</span>
-          </span>
-        </div>
+        <span className="text-[12px] text-gray-400">
+          Total: <span className="font-medium text-gray-500">{formatCurrency(grandTotal)}</span>
+        </span>
       </div>
 
       {/* Confirm Remove Dialog */}
