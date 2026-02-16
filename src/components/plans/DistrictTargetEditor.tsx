@@ -13,10 +13,13 @@ interface DistrictTargetEditorProps {
     name: string;
     stateAbbrev: string | null;
     enrollment: number | null;
-    revenueTarget: number | null;
-    pipelineTarget: number | null;
+    renewalTarget: number | null;
+    winbackTarget: number | null;
+    expansionTarget: number | null;
+    newBusinessTarget: number | null;
     notes: string | null;
-    targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
+    returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
+    newServices: Array<{ id: number; name: string; slug: string; color: string }>;
   };
 }
 
@@ -41,10 +44,13 @@ export default function DistrictTargetEditor({
   planId,
   district,
 }: DistrictTargetEditorProps) {
-  const [revenueTarget, setRevenueTarget] = useState("");
-  const [pipelineTarget, setPipelineTarget] = useState("");
+  const [renewalTarget, setRenewalTarget] = useState("");
+  const [winbackTarget, setWinbackTarget] = useState("");
+  const [expansionTarget, setExpansionTarget] = useState("");
+  const [newBusinessTarget, setNewBusinessTarget] = useState("");
   const [notes, setNotes] = useState("");
-  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [returnServiceIds, setReturnServiceIds] = useState<number[]>([]);
+  const [newServiceIds, setNewServiceIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const { data: services = [] } = useServices();
@@ -53,10 +59,13 @@ export default function DistrictTargetEditor({
   // Reset form when modal opens or district changes
   useEffect(() => {
     if (isOpen) {
-      setRevenueTarget(formatCurrency(district.revenueTarget));
-      setPipelineTarget(formatCurrency(district.pipelineTarget));
+      setRenewalTarget(formatCurrency(district.renewalTarget));
+      setWinbackTarget(formatCurrency(district.winbackTarget));
+      setExpansionTarget(formatCurrency(district.expansionTarget));
+      setNewBusinessTarget(formatCurrency(district.newBusinessTarget));
       setNotes(district.notes || "");
-      setSelectedServiceIds(district.targetServices.map((s) => s.id));
+      setReturnServiceIds(district.returnServices.map((s) => s.id));
+      setNewServiceIds(district.newServices.map((s) => s.id));
       setError(null);
     }
   }, [isOpen, district]);
@@ -69,10 +78,13 @@ export default function DistrictTargetEditor({
       await updateTargets.mutateAsync({
         planId,
         leaid: district.leaid,
-        revenueTarget: parseCurrency(revenueTarget),
-        pipelineTarget: parseCurrency(pipelineTarget),
+        renewalTarget: parseCurrency(renewalTarget),
+        winbackTarget: parseCurrency(winbackTarget),
+        expansionTarget: parseCurrency(expansionTarget),
+        newBusinessTarget: parseCurrency(newBusinessTarget),
         notes: notes.trim() || null,
-        serviceIds: selectedServiceIds,
+        returnServiceIds,
+        newServiceIds,
       });
       onClose();
     } catch (err) {
@@ -117,60 +129,117 @@ export default function DistrictTargetEditor({
               </div>
             )}
 
-            {/* Revenue Target */}
+            {/* Renewal Target */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Revenue Target
+                Renewal Target
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
                 <input
                   type="text"
-                  value={revenueTarget}
-                  onChange={(e) => setRevenueTarget(e.target.value)}
+                  value={renewalTarget}
+                  onChange={(e) => setRenewalTarget(e.target.value)}
                   placeholder="0"
                   className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Expected revenue from this district for the fiscal year
+                Expected renewal revenue from existing services
               </p>
             </div>
 
-            {/* Pipeline Target */}
+            {/* Winback Target */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pipeline Target
+                Winback Target
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
                 <input
                   type="text"
-                  value={pipelineTarget}
-                  onChange={(e) => setPipelineTarget(e.target.value)}
+                  value={winbackTarget}
+                  onChange={(e) => setWinbackTarget(e.target.value)}
                   placeholder="0"
                   className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Target pipeline value to generate from this district
+                Revenue from winning back lapsed business
               </p>
             </div>
 
-            {/* Target Services */}
+            {/* Expansion Target */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expansion Target
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                <input
+                  type="text"
+                  value={expansionTarget}
+                  onChange={(e) => setExpansionTarget(e.target.value)}
+                  placeholder="0"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Revenue from expanding existing customer relationships
+              </p>
+            </div>
+
+            {/* New Business Target */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                New Business Target
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                <input
+                  type="text"
+                  value={newBusinessTarget}
+                  onChange={(e) => setNewBusinessTarget(e.target.value)}
+                  placeholder="0"
+                  className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Revenue from brand new customer acquisition
+              </p>
+            </div>
+
+            {/* Return Services */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Target Services
+                Return Services
               </label>
               <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
                 <ServiceSelector
                   services={services}
-                  selectedIds={selectedServiceIds}
-                  onChange={setSelectedServiceIds}
+                  selectedIds={returnServiceIds}
+                  onChange={setReturnServiceIds}
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Select the services you plan to sell to this district
+                Services this district is expected to renew or return to
+              </p>
+            </div>
+
+            {/* New Services */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                New Services
+              </label>
+              <div className="border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+                <ServiceSelector
+                  services={services}
+                  selectedIds={newServiceIds}
+                  onChange={setNewServiceIds}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                New services you plan to sell to this district
               </p>
             </div>
 
