@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import { useDistrictDetail, useRemoveDistrictFromPlan } from "@/lib/api";
 import DistrictHeader from "../panels/district/DistrictHeader";
-import DistrictInfoTab from "../panels/district/DistrictInfoTab";
-import DataDemographicsTab from "../panels/district/DataDemographicsTab";
+import DistrictTabStrip, { type DistrictTab } from "../panels/district/tabs/DistrictTabStrip";
+import PlanningTab from "../panels/district/tabs/PlanningTab";
+import SignalsTab from "../panels/district/tabs/SignalsTab";
+import SchoolsTab from "../panels/district/tabs/SchoolsTab";
 import ContactsTab from "../panels/district/ContactsTab";
-
-type DistrictSubTab = "info" | "data" | "contacts";
 
 export default function DistrictCard({ leaid }: { leaid: string }) {
   const activePlanId = useMapV2Store((s) => s.activePlanId);
@@ -18,12 +18,12 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
   const { data, isLoading, error } = useDistrictDetail(leaid);
   const removeMutation = useRemoveDistrictFromPlan();
 
-  const [activeTab, setActiveTab] = useState<DistrictSubTab>("info");
+  const [activeTab, setActiveTab] = useState<DistrictTab>("planning");
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   // Reset tab when district changes
   useEffect(() => {
-    setActiveTab("info");
+    setActiveTab("planning");
     setShowRemoveConfirm(false);
   }, [leaid]);
 
@@ -64,35 +64,24 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         trends={data.trends}
       />
 
-      {/* Tab bar */}
-      <div className="flex border-b border-gray-100 px-1">
-        <TabButton
-          active={activeTab === "info"}
-          onClick={() => setActiveTab("info")}
-        >
-          Info
-        </TabButton>
-        <TabButton
-          active={activeTab === "data"}
-          onClick={() => setActiveTab("data")}
-        >
-          Data
-        </TabButton>
-        <TabButton
-          active={activeTab === "contacts"}
-          onClick={() => setActiveTab("contacts")}
-        >
-          Contacts ({contacts.length})
-        </TabButton>
-      </div>
+      {/* Tab strip */}
+      <DistrictTabStrip
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+        contactCount={contacts.length}
+        showPlanning={!!activePlanId}
+      />
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === "info" && (
-          <DistrictInfoTab data={data} leaid={leaid} />
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {activeTab === "planning" && (
+          <PlanningTab data={data} leaid={leaid} />
         )}
-        {activeTab === "data" && (
-          <DataDemographicsTab data={data} />
+        {activeTab === "signals" && (
+          <SignalsTab data={data} leaid={leaid} />
+        )}
+        {activeTab === "schools" && (
+          <SchoolsTab leaid={leaid} />
         )}
         {activeTab === "contacts" && (
           <ContactsTab leaid={leaid} contacts={contacts} />
@@ -179,30 +168,6 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         LEAID: {leaid}
       </p>
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-2 text-xs font-medium transition-colors relative ${
-        active ? "text-[#F37167]" : "text-gray-500 hover:text-[#403770]"
-      }`}
-    >
-      {children}
-      {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F37167]" />
-      )}
-    </button>
   );
 }
 
