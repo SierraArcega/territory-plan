@@ -213,13 +213,32 @@ export interface Quantiles {
 }
 
 // Territory Plan types
+
+export interface PlanOwner {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
+export interface PlanState {
+  fips: string;
+  abbrev: string;
+  name: string;
+}
+
+export interface PlanCollaborator {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
 export interface TerritoryPlan {
   id: string;
   name: string;
   description: string | null;
-  owner: string | null;
+  owner: PlanOwner | null;
   color: string;
-  status: "draft" | "active" | "archived";
+  status: "planning" | "working" | "stale" | "archived";
   fiscalYear: number;
   startDate: string | null;
   endDate: string | null;
@@ -228,6 +247,8 @@ export interface TerritoryPlan {
   districtCount: number;
   totalEnrollment: number;
   stateCount: number;
+  states: PlanState[];
+  collaborators: PlanCollaborator[];
   taskCount: number;
   completedTaskCount: number;
 }
@@ -575,6 +596,22 @@ export function useTerritoryPlans(options?: { enabled?: boolean }) {
   });
 }
 
+export interface UserSummary {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  email: string;
+  jobTitle: string | null;
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: () => fetchJson<UserSummary[]>(`${API_BASE}/users`),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useTerritoryPlan(planId: string | null) {
   return useQuery({
     queryKey: ["territoryPlan", planId],
@@ -602,12 +639,14 @@ export function useCreateTerritoryPlan() {
     mutationFn: (plan: {
       name: string;
       description?: string;
-      owner?: string;
+      ownerId?: string;
       color?: string;
-      status?: "draft" | "active" | "archived";
+      status?: "planning" | "working" | "stale" | "archived";
       fiscalYear: number;
       startDate?: string;
       endDate?: string;
+      stateFips?: string[];
+      collaboratorIds?: string[];
     }) =>
       fetchJson<TerritoryPlan>(`${API_BASE}/territory-plans`, {
         method: "POST",
@@ -630,12 +669,14 @@ export function useUpdateTerritoryPlan() {
       id: string;
       name?: string;
       description?: string;
-      owner?: string;
+      ownerId?: string | null;
       color?: string;
-      status?: "draft" | "active" | "archived";
+      status?: "planning" | "working" | "stale" | "archived";
       fiscalYear?: number;
       startDate?: string;
       endDate?: string;
+      stateFips?: string[];
+      collaboratorIds?: string[];
     }) =>
       fetchJson<TerritoryPlan>(`${API_BASE}/territory-plans/${id}`, {
         method: "PUT",
