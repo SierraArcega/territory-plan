@@ -15,23 +15,35 @@ This document defines how Sierra and Claude collaborate on coding projects. It s
 
 ## Planning Protocol
 
-### Always Plan Before Implementation
+### Design Doc → Implementation Plan → Execute
 
-1. **Discuss overall strategy** before writing code or making changes
-2. **Ask clarifying questions one at a time** so Sierra can give complete answers
-3. **Get approval on the approach** before implementation begins
-4. **Focus on understanding requirements and flow first**
+Every feature follows this three-step workflow:
 
-### Multi-Level Planning
+1. **Design doc** — Sierra and Claude discuss the feature, then Claude writes a design doc (`Docs/plans/YYYY-MM-DD-feature-name-design.md`) covering:
+   - **Goal** — one sentence describing the outcome
+   - **Architecture** — key components, state changes, data flow
+   - **UI/Layout** — dimensions, positioning, visual style
+   - **Interactions** — user behaviors, edge cases
+   - **Out of scope** — explicit boundaries to prevent creep
 
-1. Plan at the **high level** first (overall project goals and flow)
-2. Then plan at the **task level** (specific file or feature details)
-3. Implement the plan **only after both levels are planned and approved**
+2. **Implementation plan** — After Sierra approves the design, Claude writes a task-by-task implementation plan (`Docs/plans/YYYY-MM-DD-feature-name-implementation.md`) with:
+   - Numbered tasks in dependency order
+   - Exact files to create or modify per task
+   - Code snippets showing the approach
+   - One commit per task
+
+3. **Execute task-by-task** — Claude implements the plan one task at a time, committing after each task, with check-ins between phases
+
+### Clarifying Questions
+
+- Ask clarifying questions **one at a time** so Sierra can give complete answers
+- Get approval on the design doc before writing the implementation plan
+- Get approval on the implementation plan before writing code
 
 ### Check Understanding
 
 - After completing each task, ask if Sierra has questions about what was just done
-- It's important that Sierra understands all the changes made together
+- Sierra wants to understand all changes — don't just produce code, teach the "why"
 - This supports Sierra's goal of learning the coding ecosystem and process
 
 ---
@@ -47,8 +59,10 @@ This document defines how Sierra and Claude collaborate on coding projects. It s
 
 ### File Organization
 
-- **Single files are preferred** over splitting into many small modules
-- Keep related functionality together when practical
+- Organize by **feature directory** — related components live together (e.g., `map-v2/`, `panels/district/`, `plans/`)
+- Shared utilities go in `lib/` as single-purpose files (e.g., `map-v2-ref.ts`, `store.ts`)
+- Don't split prematurely — keep related functionality together until complexity demands separation
+- Avoid deep nesting; flat feature directories are preferred
 
 ### Error Handling
 
@@ -90,15 +104,31 @@ This ensures work is never at risk of being lost and can be easily rolled back.
 
 ### Commit Message Format
 
-Use detailed commit messages with bullet points:
+Use **conventional commits with scopes** to keep history scannable:
 
 ```
-feat: Add user dashboard filtering
+type(scope): concise description of the change
+```
 
-- Added date range picker component
-- Connected filter state to API query params
-- Updated useEffect to refetch on filter change
-- Added loading state during filter updates
+**Types:** `feat`, `fix`, `chore`, `docs`, `refactor`, `test`
+**Scopes:** Feature area being worked on (e.g., `map-v2`, `plan-workspace`, `etl`)
+
+Examples from our actual history:
+```
+feat(map-v2): wire floating district detail + tether into shell
+fix(map-v2): click district in plan opens full detail view
+chore: update data snapshot 2026-02-16T01:28
+docs: floating district detail implementation plan
+feat(plan-workspace): implement task checklist + task form right panel
+```
+
+For larger commits, add bullet points in the body:
+```
+feat(map-v2): port detail components to v2 district panel
+
+- Moved DistrictHeader, Info, Data+Demographics tabs
+- Updated imports to use new panel path
+- Removed old simplified panel component
 ```
 
 ---
@@ -147,13 +177,37 @@ To update production env vars:
 ### Database Changes (Supabase)
 
 **Schema changes** (adding columns, tables):
+
+> **Important:** `npx prisma migrate dev` fails due to historical migration issues (Jan 2026 consolidation — the shadow database can't replay old migrations). Use this workaround instead:
+
 ```bash
-# 1. Update prisma/schema.prisma
-# 2. Push to Supabase
-npx prisma db push
+# 1. Update prisma/schema.prisma with the desired changes
+
+# 2. Generate a migration SQL file
+npx prisma migrate diff \
+  --from-schema-datasource prisma/schema.prisma \
+  --to-schema-datamodel prisma/schema.prisma \
+  --script > prisma/migrations/YYYYMMDD_description/migration.sql
+
+# 3. Apply the SQL directly
+npx prisma db execute --file prisma/migrations/YYYYMMDD_description/migration.sql
+
+# 4. Mark the migration as applied so Prisma's history stays in sync
+npx prisma migrate resolve --applied "YYYYMMDD_description"
 ```
 
-**Data loading** (ETL):
+**Direct SQL** (for things Prisma doesn't support like PostGIS):
+- Use Supabase Dashboard → SQL Editor
+- Or run via: `npx prisma db execute --stdin < file.sql`
+
+---
+
+## ETL Workflow
+
+### Running Data Loads
+
+ETL scripts live in `scripts/etl/` and use Python 3 (**always `python3`**, not `python`):
+
 ```bash
 cd scripts/etl
 python3 run_etl.py --boundaries --shapefile ./data/nces_edge/EDGE_SCHOOLDISTRICT_TL24_SY2324.shp
@@ -161,9 +215,25 @@ python3 run_etl.py --enrollment
 python3 run_etl.py --education-data --year 2022
 ```
 
-**Direct SQL** (for things Prisma doesn't support like PostGIS):
-- Use Supabase Dashboard → SQL Editor
-- Or run via: `npx prisma db execute --stdin < file.sql`
+### ETL Conventions
+
+All loaders follow the same pattern:
+1. `fetch_*()` — paginated API fetch (Urban Institute Education Data Portal)
+2. `upsert_*()` — temp table bulk insert + `ON CONFLICT UPDATE`
+3. `log_refresh()` — write to `data_refresh_logs` for audit trail
+
+### Connection Notes
+
+- Python scripts use `DIRECT_URL` (bypasses pgbouncer) — not `DATABASE_URL`
+- Strip Supabase-specific params before passing to `psycopg2`
+- Urban Institute API: base URL `https://educationdata.urban.org/api/v1`, uses `-1`/`-2` for missing data, max 10K records per page
+
+### Data Snapshots
+
+After significant data loads, commit a snapshot:
+```
+chore: update data snapshot 2026-02-16T01:28
+```
 
 ### Authentication (Supabase Auth)
 
@@ -202,16 +272,24 @@ Before pushing changes that will deploy:
 
 ## Testing Approach
 
-### Test as We Go
+### Current Reality
 
-- Write tests alongside the code, not as an afterthought
-- Testing is part of the development process, not a separate phase
+During rapid feature development, manual testing takes priority — verify in the browser with `npm run dev` after each task. Testing framework (Vitest + Testing Library) is set up and ready when the codebase stabilizes.
 
-### Testing Hierarchy
+### Goal State
 
-1. **Unit tests** — Test individual functions and components
-2. **Integration tests** — Test how pieces work together
-3. **Happy path tests** — Verify the main user flows work end-to-end
+As the app matures, introduce tests for:
+1. **Unit tests** — Pure logic (data transforms, store actions, utility functions)
+2. **Integration tests** — API routes returning correct data
+3. **Happy path tests** — Key user flows work end-to-end
+
+### Manual Testing Checklist
+
+After each implementation task:
+- [ ] Run `npm run dev` and verify the feature works visually
+- [ ] Check for console errors in browser dev tools
+- [ ] Test edge cases (empty states, missing data, rapid clicks)
+- [ ] Verify no regressions in adjacent features
 
 ---
 
@@ -240,22 +318,23 @@ Before pushing changes that will deploy:
 
 ## Handling Big Tasks
 
-When a task is larger than expected:
+When a task is larger than expected, use the **Design Doc → Implementation Plan → Execute** workflow described above. The implementation plan is the phase breakdown.
 
-1. **Break down the task** into manageable phases
-2. **Propose the phases** to Sierra before starting
-3. Get approval on the phased approach
-4. Complete one phase at a time with check-ins between phases
+For very large features, Claude can use **parallel agents** to implement independent tasks simultaneously (e.g., building two unrelated components at the same time). Claude will flag when parallel work is possible and get Sierra's approval.
 
-Example breakdown:
-```
-Phase 1: Set up data model and database schema
-Phase 2: Build API endpoints
-Phase 3: Create frontend components
-Phase 4: Connect frontend to API
-Phase 5: Add error handling and edge cases
-Phase 6: Write tests
-```
+### Claude Code Skills
+
+Claude uses structured skills as part of the workflow:
+
+| Skill | When Used |
+|-------|-----------|
+| **Brainstorming** | Before any creative or design work — explores intent and requirements |
+| **Plan writing** | After design approval — creates the task-by-task implementation plan |
+| **Plan execution** | During implementation — works through plan tasks with commits |
+| **Code review** | At checkpoints — verifies work against the plan and standards |
+| **Parallel agents** | When multiple independent tasks can run simultaneously |
+
+These skills ensure consistency across sessions — Claude follows the same process every time.
 
 ---
 
@@ -276,6 +355,24 @@ Phase 6: Write tests
 
 ---
 
+## Tech Stack Quick Reference
+
+Full details in `Docs/TECHSTACK.md`. Key technologies:
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16 + React 19 + TypeScript |
+| Styling | Tailwind CSS 4 + Fullmind brand colors |
+| State | Zustand (client) + TanStack Query (server) |
+| Database | PostgreSQL + PostGIS + Prisma ORM |
+| Maps | MapLibre GL JS (vector tiles via PostGIS) |
+| Charts | Recharts |
+| Hosting | Vercel (app) + Supabase (database + auth) |
+| ETL | Python 3 scripts + Urban Institute API |
+| Tests | Vitest + Testing Library |
+
+---
+
 ## Learning Goals
 
 Sierra wants to understand the coding ecosystem and process better. Claude should:
@@ -290,13 +387,14 @@ Sierra wants to understand the coding ecosystem and process better. Claude shoul
 
 ## Quick Reference Checklist
 
-Before starting any task, Claude should:
+Before starting any feature, Claude should:
 
 - [ ] Understand the goal and requirements
-- [ ] Plan the approach at high level and task level
-- [ ] Get Sierra's approval on the plan
+- [ ] **Brainstorm** the approach with Sierra
+- [ ] **Write a design doc** and get Sierra's approval
+- [ ] **Write an implementation plan** and get Sierra's approval
 - [ ] **Create a feature branch immediately** (before any code changes)
-- [ ] Write code with clear comments
-- [ ] **Commit early and often** (small, frequent commits throughout)
-- [ ] Write tests alongside the code
+- [ ] Execute task-by-task with clear comments
+- [ ] **Commit after each task** (small, frequent commits with conventional format)
+- [ ] Verify each task works in the browser
 - [ ] Explain what was done and check for questions
