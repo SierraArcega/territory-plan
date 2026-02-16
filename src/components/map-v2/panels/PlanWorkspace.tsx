@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import type { PlanSection } from "@/lib/map-v2-store";
-import { useTerritoryPlan } from "@/lib/api";
+import { useTerritoryPlan, useUpdateTerritoryPlan, useDeleteTerritoryPlan } from "@/lib/api";
+import PlanFormModal from "@/components/plans/PlanFormModal";
+import type { PlanFormData } from "@/components/plans/PlanFormModal";
 import PlanOverviewSection from "./PlanOverviewSection";
 import PlanTasksSection from "./PlanTasksSection";
 import PlanContactsSection from "./PlanContactsSection";
@@ -55,8 +58,26 @@ export default function PlanWorkspace() {
   const goBack = useMapV2Store((s) => s.goBack);
 
   const { data: plan, isLoading } = useTerritoryPlan(activePlanId);
+  const updatePlan = useUpdateTerritoryPlan();
+  const deletePlan = useDeleteTerritoryPlan();
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const badge = plan ? STATUS_BADGE[plan.status] || STATUS_BADGE.draft : null;
+
+  // Handle plan edit — pass form data to update mutation
+  const handleEditSubmit = async (data: PlanFormData) => {
+    if (!activePlanId) return;
+    await updatePlan.mutateAsync({ id: activePlanId, ...data });
+  };
+
+  // Handle plan delete — delete then navigate back
+  const handleDelete = async () => {
+    if (!activePlanId) return;
+    await deletePlan.mutateAsync(activePlanId);
+    goBack();
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -84,9 +105,43 @@ export default function PlanWorkspace() {
               <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
             </div>
           ) : plan ? (
-            <h2 className="text-sm font-semibold text-gray-800 truncate flex-1">
-              {plan.name}
-            </h2>
+            <>
+              <h2 className="text-sm font-semibold text-gray-800 truncate flex-1">
+                {plan.name}
+              </h2>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors shrink-0"
+                aria-label="Edit plan"
+                title="Edit plan"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M11.5 2.5L13.5 4.5M10 4L2 12V14H4L12 6L10 4Z"
+                    stroke="#9CA3AF"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-colors shrink-0"
+                aria-label="Delete plan"
+                title="Delete plan"
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3 5H13M5 5V3C5 2.4 5.4 2 6 2H10C10.6 2 11 2.4 11 3V5M6 8V12M10 8V12M4 5L5 14H11L12 5"
+                    stroke="#9CA3AF"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </>
           ) : (
             <span className="text-sm text-gray-400">Plan not found</span>
           )}
@@ -129,6 +184,39 @@ export default function PlanWorkspace() {
         {planSection === "contacts" && <PlanContactsSection />}
         {planSection === "performance" && <PlanPerfSection />}
       </div>
+
+      {/* Delete confirmation — shown as a footer bar */}
+      {showDeleteConfirm && (
+        <div className="border-t border-red-200 bg-red-50 px-3 py-2.5 space-y-2">
+          <p className="text-xs text-red-600 font-medium">
+            Delete this plan and all its associations?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleDelete}
+              disabled={deletePlan.isPending}
+              className="flex-1 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              {deletePlan.isPending ? "Deleting..." : "Delete Plan"}
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="flex-1 py-1.5 bg-white text-gray-600 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit plan modal */}
+      <PlanFormModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleEditSubmit}
+        initialData={plan ?? undefined}
+        title="Edit Plan"
+      />
     </div>
   );
 }
