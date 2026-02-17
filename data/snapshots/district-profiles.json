@@ -41192,6 +41192,100 @@
     }
   },
   {
+    "district_id": "17592297177466",
+    "district_name": "Minisink Valley Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 1,
+      "revenue": 36415,
+      "account_names_used": [
+        "Minisink Valley Central School District"
+      ]
+    },
+    "schools": {
+      "count": 7,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 21,
+      "revenue": 1589.140007019043,
+      "schools_in_sessions": [
+        "Minisink Valley Central School District"
+      ]
+    },
+    "courses": {
+      "count": 8
+    },
+    "totals": {
+      "entity_count": 37,
+      "total_revenue": 38004.14000701904
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592193637780",
+    "district_name": "Minisink Valley Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 20000,
+      "account_names_used": [
+        "Minisink Valley Central School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 20000
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592246331492",
     "district_name": "Arkport School District",
     "state": "NY",
@@ -41368,98 +41462,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177466",
-    "district_name": "Minisink Valley Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 1,
-      "revenue": 36415,
-      "account_names_used": [
-        "Minisink Valley Central School District"
-      ]
-    },
-    "schools": {
-      "count": 7,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 7
-    },
-    "totals": {
-      "entity_count": 15,
-      "total_revenue": 36415
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592193637780",
-    "district_name": "Minisink Valley Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 20000,
-      "account_names_used": [
-        "Minisink Valley Central School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 20000
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
