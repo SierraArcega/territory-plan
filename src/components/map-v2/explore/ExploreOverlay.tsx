@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { useMapV2Store, type ExploreEntity } from "@/lib/map-v2-store";
 import { useExploreData } from "@/lib/api";
 import ExploreKPICards from "./ExploreKPICards";
 import ExploreTable from "./ExploreTable";
+import ExploreColumnPicker from "./ExploreColumnPicker";
+import ExploreFilters from "./ExploreFilters";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
@@ -21,8 +24,32 @@ export default function ExploreOverlay() {
   const exploreSort = useMapV2Store((s) => s.exploreSort);
   const explorePage = useMapV2Store((s) => s.explorePage);
   const exploreColumns = useMapV2Store((s) => s.exploreColumns);
+  const setExploreColumns = useMapV2Store((s) => s.setExploreColumns);
+  const addExploreFilter = useMapV2Store((s) => s.addExploreFilter);
+  const removeExploreFilter = useMapV2Store((s) => s.removeExploreFilter);
+  const clearExploreFilters = useMapV2Store((s) => s.clearExploreFilters);
   const setExploreSort = useMapV2Store((s) => s.setExploreSort);
   const setExplorePage = useMapV2Store((s) => s.setExplorePage);
+
+  // Load column selections from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("explore-columns");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        Object.entries(parsed).forEach(([entity, cols]) => {
+          setExploreColumns(entity as ExploreEntity, cols as string[]);
+        });
+      } catch {
+        // ignore corrupt data
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save column selections to localStorage on change
+  useEffect(() => {
+    localStorage.setItem("explore-columns", JSON.stringify(exploreColumns));
+  }, [exploreColumns]);
 
   // Sort toggle handler
   const handleSort = (column: string) => {
@@ -108,9 +135,20 @@ export default function ExploreOverlay() {
           </span>
         </div>
 
-        {/* Filter bar placeholder */}
-        <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0">
-          <span className="text-xs text-gray-400">Filters &amp; column picker will appear here</span>
+        {/* Filter bar */}
+        <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0 flex items-center justify-between gap-4">
+          <ExploreFilters
+            entity={exploreEntity}
+            filters={exploreFilters[exploreEntity]}
+            onAddFilter={(f) => addExploreFilter(exploreEntity, f)}
+            onRemoveFilter={(id) => removeExploreFilter(exploreEntity, id)}
+            onClearAll={() => clearExploreFilters(exploreEntity)}
+          />
+          <ExploreColumnPicker
+            entity={exploreEntity}
+            selectedColumns={exploreColumns[exploreEntity]}
+            onColumnsChange={(cols) => setExploreColumns(exploreEntity, cols)}
+          />
         </div>
 
         {/* KPI summary cards */}
