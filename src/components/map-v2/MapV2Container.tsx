@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/lib/map-v2-store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer } from "@/lib/map-v2-layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories } from "@/lib/map-v2-layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref } from "@/lib/map-v2-ref";
@@ -126,10 +126,13 @@ export default function MapV2Container() {
   const visibleSchoolTypes = useMapV2Store((s) => s.visibleSchoolTypes);
   const activeSignal = useMapV2Store((s) => s.activeSignal);
   const visibleLocales = useMapV2Store((s) => s.visibleLocales);
+  const filterAccountTypes = useMapV2Store((s) => s.filterAccountTypes);
+  const fullmindEngagement = useMapV2Store((s) => s.fullmindEngagement);
   const clickRipples = useMapV2Store((s) => s.clickRipples);
   const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
+  const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
 
   // Initialize map
   useEffect(() => {
@@ -173,7 +176,7 @@ export default function MapV2Container() {
       // Add district tiles source (cache-bust via version param)
       map.current.addSource("districts", {
         type: "vector",
-        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4`],
+        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4&fy=fy26`],
         minzoom: 3.5,
         maxzoom: 12,
       });
@@ -783,6 +786,19 @@ export default function MapV2Container() {
     }
   }, [multiSelectMode, mapReady]);
 
+  // Update tile source when fiscal year changes
+  useEffect(() => {
+    if (!map.current) return;
+    const source = map.current.getSource("districts") as any;
+    if (!source) return;
+
+    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4&fy=${selectedFiscalYear}`;
+    source.setTiles([newUrl]);
+
+    // Force re-render to fetch new tiles
+    map.current.triggerRepaint();
+  }, [selectedFiscalYear]);
+
   // Toggle vendor layer visibility + update circle layer color
   useEffect(() => {
     if (!map.current || !mapReady) return;
@@ -823,14 +839,23 @@ export default function MapV2Container() {
     map.current.setPaintProperty("district-signal-fill", "fill-color", config.fillColor as any);
     map.current.setPaintProperty("district-signal-fill", "fill-opacity", config.fillOpacity);
 
-    // Apply combined filter (signal property exists + user filters)
+    // Apply combined filter (signal property exists + user filters + account type)
     const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
-    const signalFilter: any = ["has", config.tileProperty];
-    const combined = userFilter
-      ? ["all", signalFilter, userFilter]
-      : signalFilter;
+    const signalConditions: any[] = [["has", config.tileProperty]];
+    if (userFilter) signalConditions.push(userFilter);
+    if (filterAccountTypes.length > 0) {
+      const includesDistrict = filterAccountTypes.includes("district");
+      if (includesDistrict) {
+        signalConditions.push(["any", ["!", ["has", "account_type"]], ["in", ["get", "account_type"], ["literal", filterAccountTypes]]]);
+      } else {
+        signalConditions.push(["all", ["has", "account_type"], ["in", ["get", "account_type"], ["literal", filterAccountTypes]]]);
+      }
+    }
+    const combined = signalConditions.length === 1
+      ? signalConditions[0]
+      : ["all", ...signalConditions];
     map.current.setFilter("district-signal-fill", combined);
-  }, [activeSignal, filterOwner, filterPlanId, filterStates, mapReady]);
+  }, [activeSignal, filterOwner, filterPlanId, filterStates, filterAccountTypes, mapReady]);
 
   // Toggle locale layer — filter by selected locale types
   useEffect(() => {
@@ -844,17 +869,29 @@ export default function MapV2Container() {
 
     map.current.setLayoutProperty("district-locale-fill", "visibility", "visible");
 
-    // Build combined filter: locale value in selected set + user filters
+    // Build combined filter: locale value in selected set + user filters + account type
     const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
     const localeValues = [...visibleLocales];
-    const localeFilter: any = visibleLocales.size === ALL_LOCALE_IDS.length
-      ? ["has", "locale_signal"]
-      : ["in", ["get", "locale_signal"], ["literal", localeValues]];
-    const combined = userFilter
-      ? ["all", localeFilter, userFilter]
-      : localeFilter;
+    const localeConditions: any[] = [];
+    localeConditions.push(
+      visibleLocales.size === ALL_LOCALE_IDS.length
+        ? ["has", "locale_signal"]
+        : ["in", ["get", "locale_signal"], ["literal", localeValues]]
+    );
+    if (userFilter) localeConditions.push(userFilter);
+    if (filterAccountTypes.length > 0) {
+      const includesDistrict = filterAccountTypes.includes("district");
+      if (includesDistrict) {
+        localeConditions.push(["any", ["!", ["has", "account_type"]], ["in", ["get", "account_type"], ["literal", filterAccountTypes]]]);
+      } else {
+        localeConditions.push(["all", ["has", "account_type"], ["in", ["get", "account_type"], ["literal", filterAccountTypes]]]);
+      }
+    }
+    const combined = localeConditions.length === 1
+      ? localeConditions[0]
+      : ["all", ...localeConditions];
     map.current.setFilter("district-locale-fill", combined);
-  }, [visibleLocales, filterOwner, filterPlanId, filterStates, mapReady]);
+  }, [visibleLocales, filterOwner, filterPlanId, filterStates, filterAccountTypes, mapReady]);
 
   // Toggle schools layer visibility + filter by selected types
   useEffect(() => {
@@ -902,33 +939,91 @@ export default function MapV2Container() {
   // Apply filter expression to all layers
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    const filter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
+    const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
+
+    // Build account type filter expression
+    // Empty array = show all (no filter), non-empty = restrict to selected types
+    let accountTypeFilter: any = null;
+    if (filterAccountTypes.length > 0) {
+      const includesDistrict = filterAccountTypes.includes("district");
+      if (includesDistrict) {
+        // Show selected types, plus tiles without account_type (legacy = district)
+        accountTypeFilter = ["any",
+          ["!", ["has", "account_type"]],
+          ["in", ["get", "account_type"], ["literal", filterAccountTypes]],
+        ];
+      } else {
+        // Only show tiles that have account_type matching selected types
+        accountTypeFilter = ["all",
+          ["has", "account_type"],
+          ["in", ["get", "account_type"], ["literal", filterAccountTypes]],
+        ];
+      }
+    }
+
+    // Combine user filter + account type filter
+    const conditions: any[] = [];
+    if (userFilter) conditions.push(userFilter);
+    if (accountTypeFilter) conditions.push(accountTypeFilter);
+    const combinedFilter = conditions.length === 0
+      ? null
+      : conditions.length === 1
+        ? conditions[0]
+        : ["all", ...conditions];
 
     // Apply to base layers
-    map.current.setFilter("district-base-fill", filter);
-    map.current.setFilter("district-base-boundary", filter);
+    map.current.setFilter("district-base-fill", combinedFilter);
+    map.current.setFilter("district-base-boundary", combinedFilter);
 
     // Apply to each vendor layer (combine with the vendor's own "has" filter)
     for (const vendorId of VENDOR_IDS) {
       const layerId = `district-${vendorId}-fill`;
       if (!map.current.getLayer(layerId)) continue;
       const config = VENDOR_CONFIGS[vendorId];
-      const vendorFilter: any = ["has", config.tileProperty];
-      const combined = filter
-        ? ["all", vendorFilter, filter]
-        : vendorFilter;
-      map.current.setFilter(layerId, combined);
+
+      // For fullmind, add engagement filter when active
+      if (vendorId === "fullmind" && fullmindEngagement.length > 0) {
+        const categories = engagementToCategories(fullmindEngagement);
+        const engagementFilter: any = ["in", ["get", "fullmind_category"], ["literal", categories]];
+        const combined = combinedFilter
+          ? ["all", engagementFilter, combinedFilter]
+          : engagementFilter;
+        map.current.setFilter(layerId, combined);
+      } else {
+        const vendorFilter: any = ["has", config.tileProperty];
+        const combined = combinedFilter
+          ? ["all", vendorFilter, combinedFilter]
+          : vendorFilter;
+        map.current.setFilter(layerId, combined);
+      }
     }
 
     // Apply to account points circle layer (combine with non-district filter)
     if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
       const pointBaseFilter: any = ["all", ["has", "account_type"], ["!=", ["get", "account_type"], "district"]];
-      const pointCombined = filter
-        ? ["all", pointBaseFilter, filter]
-        : pointBaseFilter;
+
+      // For account type filter on points: if filtering, further restrict which point types show
+      let pointFilter: any = pointBaseFilter;
+      if (filterAccountTypes.length > 0) {
+        // Only show point accounts whose type is in the selected set
+        const nonDistrictTypes = filterAccountTypes.filter((t) => t !== "district");
+        if (nonDistrictTypes.length === 0) {
+          // Only "district" is selected — hide all point accounts
+          pointFilter = ["==", ["get", "account_type"], "__none__"];
+        } else {
+          pointFilter = ["all",
+            ["has", "account_type"],
+            ["in", ["get", "account_type"], ["literal", nonDistrictTypes]],
+          ];
+        }
+      }
+
+      const pointCombined = userFilter
+        ? ["all", pointFilter, userFilter]
+        : pointFilter;
       map.current.setFilter(ACCOUNT_POINT_LAYER_ID, pointCombined);
     }
-  }, [filterOwner, filterPlanId, filterStates, mapReady]);
+  }, [filterOwner, filterPlanId, filterStates, filterAccountTypes, fullmindEngagement, mapReady]);
 
   // Highlight filtered states with outline + subtle fill
   useEffect(() => {
