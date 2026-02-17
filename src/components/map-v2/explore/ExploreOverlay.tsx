@@ -62,6 +62,17 @@ export default function ExploreOverlay() {
     closeRightPanel();
   }, [exploreEntity]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Escape key exits Explore mode
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isExploreActive) {
+        setActiveIconTab("home");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isExploreActive, setActiveIconTab]);
+
   // Row click → open district card in right panel
   const handleRowClick = (row: Record<string, unknown>) => {
     if (exploreEntity === "districts" && row.leaid) {
