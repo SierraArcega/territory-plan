@@ -41392,7 +41392,7 @@
       ]
     },
     "schools": {
-      "count": 5,
+      "count": 7,
       "sample_names": []
     },
     "sessions": {
@@ -41401,10 +41401,10 @@
       "schools_in_sessions": []
     },
     "courses": {
-      "count": 0
+      "count": 7
     },
     "totals": {
-      "entity_count": 6,
+      "entity_count": 15,
       "total_revenue": 36415
     },
     "data_quality": {
