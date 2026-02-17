@@ -103,24 +103,24 @@ export default function ExploreOverlay() {
   if (!isExploreActive) return null;
 
   return (
-    <div className="absolute inset-0 z-20 flex bg-white">
+    <div className="absolute inset-0 z-20 flex bg-[#FFFCFA]">
       {/* Left sidebar: back + entity tabs */}
       <div className="w-14 bg-white border-r border-gray-200/60 flex flex-col items-center pt-3 gap-1 shrink-0">
         {/* Back to map button */}
         <button
           onClick={() => setActiveIconTab("home")}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all group relative"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-[#403770] hover:bg-[#C4E7E6]/20 transition-all group relative"
           title="Back to Map"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 12L6 8L10 4" />
           </svg>
-          <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+          <span className="absolute left-full ml-2 px-2 py-1 bg-[#403770] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
             Back to Map
           </span>
         </button>
 
-        <div className="w-6 border-t border-gray-200 my-1" />
+        <div className="w-6 border-t border-[#403770]/10 my-1" />
 
         {ENTITY_TABS.map((tab) => (
           <button
@@ -128,8 +128,8 @@ export default function ExploreOverlay() {
             onClick={() => setExploreEntity(tab.key)}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all group relative ${
               exploreEntity === tab.key
-                ? "bg-plum/10 shadow-sm"
-                : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                ? "bg-[#C4E7E6]/40 shadow-sm"
+                : "text-gray-400 hover:text-[#403770] hover:bg-[#C4E7E6]/15"
             }`}
             title={tab.label}
           >
@@ -145,7 +145,7 @@ export default function ExploreOverlay() {
             >
               <path d={tab.path} />
             </svg>
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            <span className="absolute left-full ml-2 px-2 py-1 bg-[#403770] text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
               {tab.label}
             </span>
           </button>
@@ -153,13 +153,13 @@ export default function ExploreOverlay() {
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
-          <h1 className="text-lg font-semibold text-gray-900">
+          <h1 className="text-lg font-bold text-[#403770]">
             Explore {exploreEntity.charAt(0).toUpperCase() + exploreEntity.slice(1)}
           </h1>
-          <span className="text-sm text-gray-400">
+          <span className="text-[13px] text-gray-400 font-medium tabular-nums">
             {result?.pagination?.total?.toLocaleString() || "\u2014"} total
           </span>
         </div>
@@ -191,7 +191,7 @@ export default function ExploreOverlay() {
 
         {/* Data table */}
         <div className="flex-1 px-6 pb-6 overflow-hidden">
-          <div className="bg-white rounded-xl border border-gray-200 h-full flex flex-col overflow-hidden">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col overflow-hidden">
             <ExploreTable
               data={result?.data || []}
               visibleColumns={exploreColumns[exploreEntity]}
