@@ -14,6 +14,7 @@ export default function SearchBar() {
   const searchQuery = useMapV2Store((s) => s.searchQuery);
   const setSearchQuery = useMapV2Store((s) => s.setSearchQuery);
   const selectDistrict = useMapV2Store((s) => s.selectDistrict);
+  const openAccountForm = useMapV2Store((s) => s.openAccountForm);
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -132,12 +133,34 @@ export default function SearchBar() {
               </div>
             </button>
           ))}
+          <div className="border-t border-gray-100 px-3 py-2 text-center">
+            <button
+              onClick={() => {
+                openAccountForm({ name: searchQuery });
+                setSearchQuery("");
+                setShowResults(false);
+              }}
+              className="text-xs font-medium text-plum/70 hover:text-plum transition-colors"
+            >
+              Don't see it? Add a new account
+            </button>
+          </div>
         </div>
       )}
 
       {showResults && results.length === 0 && searchQuery.length >= 2 && !loading && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 py-4 z-30 text-center">
-          <p className="text-xs text-gray-400">No districts found</p>
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 py-3 z-30 text-center">
+          <p className="text-xs text-gray-400 mb-2">No districts found</p>
+          <button
+            onClick={() => {
+              openAccountForm({ name: searchQuery });
+              setSearchQuery("");
+              setShowResults(false);
+            }}
+            className="text-xs font-medium text-plum hover:text-plum/80 transition-colors"
+          >
+            Can't find it? Add a new account
+          </button>
         </div>
       )}
     </div>

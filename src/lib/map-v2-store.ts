@@ -112,6 +112,10 @@ interface MapV2State {
 
   // Locale layer
   visibleLocales: Set<LocaleId>;
+
+  // Account creation form state
+  showAccountForm: boolean;
+  accountFormDefaults: { name?: string } | null;
 }
 
 interface MapV2Actions {
@@ -187,6 +191,10 @@ interface MapV2Actions {
   // Locale layer
   toggleLocale: (locale: LocaleId) => void;
   setVisibleLocales: (locales: Set<LocaleId>) => void;
+
+  // Account creation form
+  openAccountForm: (defaults?: { name?: string }) => void;
+  closeAccountForm: () => void;
 }
 
 let rippleId = 0;
@@ -226,6 +234,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   visibleSchoolTypes: new Set<SchoolType>(ALL_SCHOOL_TYPES),
   activeSignal: null,
   visibleLocales: new Set<LocaleId>(),
+  showAccountForm: false,
+  accountFormDefaults: null,
 
   // Panel navigation
   setPanelState: (state) =>
@@ -465,4 +475,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       return { visibleLocales: next };
     }),
   setVisibleLocales: (locales) => set({ visibleLocales: locales }),
+
+  // Account creation form
+  openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),
+  closeAccountForm: () => set({ showAccountForm: false, accountFormDefaults: null }),
 }));
