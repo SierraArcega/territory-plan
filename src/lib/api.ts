@@ -460,6 +460,7 @@ export function useAddDistrictTag() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan"] });
     },
   });
 }
@@ -474,6 +475,7 @@ export function useRemoveDistrictTag() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan"] });
     },
   });
 }
@@ -2084,6 +2086,54 @@ export function useUnlinkTaskContact() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task", variables.taskId] });
     },
+  });
+}
+
+// ===== Accounts (non-district) =====
+
+// Create a new non-district account
+export function useCreateAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      accountType: string;
+      stateAbbrev?: string;
+      street?: string;
+      city?: string;
+      state?: string;
+      zip?: string;
+      salesExecutive?: string;
+      phone?: string;
+      websiteUrl?: string;
+    }) => {
+      const res = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create account");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["districts"] });
+    },
+  });
+}
+
+// Check for duplicate accounts by name (non-blocking warning)
+export function useDuplicateCheck(name: string, state?: string) {
+  return useQuery({
+    queryKey: ["account-duplicates", name, state],
+    queryFn: async () => {
+      const params = new URLSearchParams({ name });
+      if (state) params.set("state", state);
+      const res = await fetch(`/api/accounts?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: name.length >= 3,
+    staleTime: 5000,
   });
 }
 

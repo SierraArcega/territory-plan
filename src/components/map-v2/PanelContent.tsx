@@ -8,10 +8,15 @@ import PlanWorkspace from "./panels/PlanWorkspace";
 import PlanAddPanel from "./panels/PlanAddPanel";
 import PlansListPanel from "./panels/PlansListPanel";
 import HomePanel from "./panels/HomePanel";
+import AccountForm from "./panels/AccountForm";
 
 export default function PanelContent() {
   const panelState = useMapV2Store((s) => s.panelState);
   const activeIconTab = useMapV2Store((s) => s.activeIconTab);
+  const showAccountForm = useMapV2Store((s) => s.showAccountForm);
+
+  // Account creation form takes priority when open
+  if (showAccountForm) return <PanelContentWrapper><AccountForm /></PanelContentWrapper>;
 
   // Plan-related states always show their specific panel
   if (panelState === "PLAN_NEW") return <PanelContentWrapper><PlanFormPanel /></PanelContentWrapper>;
