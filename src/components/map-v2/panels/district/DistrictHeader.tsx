@@ -2,6 +2,7 @@
 
 import type { District, FullmindData, Tag, DistrictTrends } from "@/lib/api";
 import SignalBadge from "./signals/SignalBadge";
+import { getAccountTypeLabel } from "@/lib/account-types";
 
 interface DistrictHeaderProps {
   district: District;
@@ -27,6 +28,11 @@ export default function DistrictHeader({
       <h2 className="text-lg font-bold text-[#403770] pr-8 leading-tight">
         {district.name}
       </h2>
+      {district.accountType && district.accountType !== "district" && (
+        <span className="inline-block px-2 py-0.5 text-[10px] font-medium bg-plum/10 text-plum rounded-full">
+          {getAccountTypeLabel(district.accountType)}
+        </span>
+      )}
 
       {/* State, County & LEAID */}
       <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">

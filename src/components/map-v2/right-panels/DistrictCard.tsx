@@ -21,11 +21,13 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
   const [activeTab, setActiveTab] = useState<DistrictTab>("planning");
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
-  // Reset tab when district changes
+  // Reset tab when district changes; non-district accounts skip the signals tab
   useEffect(() => {
-    setActiveTab("planning");
+    const accountType = data?.district?.accountType;
+    const isNonDistrict = accountType && accountType !== "district";
+    setActiveTab(isNonDistrict ? "contacts" : "planning");
     setShowRemoveConfirm(false);
-  }, [leaid]);
+  }, [leaid, data?.district?.accountType]);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -70,6 +72,7 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         onSelect={setActiveTab}
         contactCount={contacts.length}
         showPlanning={!!activePlanId}
+        showSignals={data.district.accountType === "district" || !data.district.accountType}
       />
 
       {/* Tab content */}
@@ -165,7 +168,7 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
       )}
 
       <p className="text-[10px] text-gray-300 text-center pb-2">
-        LEAID: {leaid}
+        {data.district.accountType && data.district.accountType !== "district" ? "Account ID" : "LEAID"}: {leaid}
       </p>
     </div>
   );

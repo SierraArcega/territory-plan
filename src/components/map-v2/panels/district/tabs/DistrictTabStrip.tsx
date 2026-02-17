@@ -43,6 +43,7 @@ interface DistrictTabStripProps {
   onSelect: (tab: DistrictTab) => void;
   contactCount?: number;
   showPlanning?: boolean;
+  showSignals?: boolean;
 }
 
 export default function DistrictTabStrip({
@@ -50,8 +51,11 @@ export default function DistrictTabStrip({
   onSelect,
   contactCount,
   showPlanning = false,
+  showSignals = true,
 }: DistrictTabStripProps) {
-  const visibleTabs = showPlanning ? TABS : TABS.filter((t) => t.key !== "planning");
+  const visibleTabs = TABS
+    .filter((t) => t.key !== "planning" || showPlanning)
+    .filter((t) => t.key !== "signals" || showSignals);
 
   return (
     <div className="flex border-b border-gray-100">
