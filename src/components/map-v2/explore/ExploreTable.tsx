@@ -179,16 +179,16 @@ export default function ExploreTable({
 
                 return (
                   <span
-                    className="group/cell cursor-text"
+                    className="group/cell cursor-text inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditingCell({ rowId, column: key });
                       setEditValue(String(value || ""));
                     }}
                   >
-                    {formatCellValue(value, key)}
+                    {formatCellValue(value, key) || <span className="text-gray-300 italic text-xs">click to edit</span>}
                     <svg
-                      className="inline-block ml-1 opacity-0 group-hover/cell:opacity-40 w-3 h-3"
+                      className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-plum"
                       viewBox="0 0 16 16"
                       fill="none"
                       stroke="currentColor"
