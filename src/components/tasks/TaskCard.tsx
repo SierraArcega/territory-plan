@@ -13,7 +13,7 @@ interface TaskCardProps {
 
 export default function TaskCard({ task, onClick, onDragStart }: TaskCardProps) {
   const priorityConfig = TASK_PRIORITY_CONFIG[task.priority as TaskPriority];
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "done";
+  const isOverdue = task.dueDate && new Date(task.dueDate.split("T")[0] + "T00:00:00") < new Date() && task.status !== "done";
 
   // Collect all linked entities to show as chips
   const chips: { label: string; color: string }[] = [];
@@ -61,7 +61,7 @@ export default function TaskCard({ task, onClick, onDragStart }: TaskCardProps) 
         {task.dueDate && (
           <span className={`${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
             {isOverdue ? "Overdue: " : ""}
-            {new Date(task.dueDate).toLocaleDateString("en-US", {
+            {new Date(task.dueDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
             })}

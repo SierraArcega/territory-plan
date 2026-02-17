@@ -70,8 +70,8 @@ export default function CalendarView({
     const map = new Map<string, ActivityListItem[]>();
     for (const activity of activities) {
       if (!activity.startDate) continue;
-      const start = new Date(activity.startDate);
-      const end = activity.endDate ? new Date(activity.endDate) : start;
+      const start = new Date(activity.startDate.split("T")[0] + "T00:00:00");
+      const end = activity.endDate ? new Date(activity.endDate.split("T")[0] + "T00:00:00") : start;
       let days: Date[];
       try {
         days = eachDayOfInterval({ start, end });

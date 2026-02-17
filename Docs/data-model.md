@@ -97,8 +97,6 @@ Source: Urban Institute API
 | Column | Type | Description |
 |--------|------|-------------|
 | `graduation_rate_total` | DECIMAL | Overall graduation rate |
-| `graduation_rate_male` | DECIMAL | Male graduation rate |
-| `graduation_rate_female` | DECIMAL | Female graduation rate |
 | `graduation_data_year` | INT | Year of graduation data |
 
 #### Staffing & Salaries
@@ -128,6 +126,69 @@ Source: Urban Institute API (enrollment endpoint)
 | `enrollment_two_or_more` | INT | Two or more races enrollment |
 | `total_enrollment` | INT | Total demographic enrollment |
 | `demographics_data_year` | INT | Year of demographics data |
+
+#### Staffing Ratios (computed post-ETL)
+Source: Computed from enrollment and FTE data
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `student_teacher_ratio` | DECIMAL | enrollment / teachers_fte (high = understaffed) |
+| `student_staff_ratio` | DECIMAL | enrollment / staff_total_fte |
+| `sped_student_teacher_ratio` | DECIMAL | spec_ed_students / teachers_fte |
+
+#### Special Education Finance
+Source: Urban Institute API (finance endpoint)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `sped_expenditure_total` | DECIMAL | Total special ed current expenditure |
+| `sped_expenditure_instruction` | DECIMAL | Special ed instruction spending |
+| `sped_expenditure_support` | DECIMAL | Special ed pupil support services |
+| `sped_expenditure_per_student` | DECIMAL | Computed: sped_expenditure_total / spec_ed_students |
+
+#### ESSER / COVID Relief Funding
+Source: Urban Institute API (finance endpoint)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `esser_funding_total` | DECIMAL | Sum of ARP ESSER + CARES Act + CRRSA ESSER II revenue |
+| `esser_spending_total` | DECIMAL | Total CARES Act outlay |
+| `esser_spending_instruction` | DECIMAL | CARES Act instruction spending |
+
+#### Assessment Data
+Source: Urban Institute API (EdFacts assessments endpoint)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `math_proficiency_pct` | DECIMAL | % proficient in math |
+| `read_proficiency_pct` | DECIMAL | % proficient in reading |
+| `assessment_data_year` | INT | Year of assessment data |
+
+#### Technology & Capital Spending
+Source: Urban Institute API (finance endpoint)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tech_spending` | DECIMAL | Tech supplies/services + tech equipment |
+| `capital_outlay_total` | DECIMAL | Total capital outlay |
+| `debt_outstanding` | DECIMAL | Long-term debt outstanding end of FY |
+
+#### Outsourcing Signals
+Source: Urban Institute API (finance endpoint)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `payments_to_charter_schools` | DECIMAL | Payments to charter schools (proven outsourcing buyer) |
+| `payments_to_private_schools` | DECIMAL | Payments to private schools |
+
+#### Trend Signals (computed from historical data)
+Source: Computed after historical backfill
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `enrollment_trend_3yr` | DECIMAL | % change in enrollment over 3 years |
+| `staffing_trend_3yr` | DECIMAL | % change in teachers FTE over 3 years |
+| `vacancy_pressure_signal` | DECIMAL | enrollment_trend - staffing_trend (positive = growing staffing gap) |
 
 #### User Edits
 Source: App users (shared across team)
@@ -252,6 +313,57 @@ Records of ETL runs for tracking data freshness.
 
 ---
 
+### `district_data_history` - Historical Time-Series Data
+
+Tracks year-over-year changes for trend analysis (staffing pressure, budget changes, etc.). One row per (leaid, year, source).
+
+**Key:** `(leaid, year, source)` unique
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | SERIAL | Primary key |
+| `leaid` | VARCHAR(7) | FK to districts |
+| `year` | INT | Data year |
+| `source` | VARCHAR(30) | ccd_directory, ccd_finance, saipe, edfacts_grad, edfacts_assess |
+| `enrollment` | INT | Enrollment for that year |
+| `teachers_fte` | DECIMAL | Teacher FTE for that year |
+| `staff_total_fte` | DECIMAL | Total staff FTE |
+| `spec_ed_students` | INT | Special ed student count |
+| `total_revenue` | DECIMAL | Total revenue |
+| `total_expenditure` | DECIMAL | Total expenditure |
+| `expenditure_pp` | DECIMAL | Per-pupil expenditure |
+| `federal_revenue` | DECIMAL | Federal revenue |
+| `state_revenue` | DECIMAL | State revenue |
+| `local_revenue` | DECIMAL | Local revenue |
+| `sped_expenditure` | DECIMAL | Special ed expenditure |
+| `poverty_pct` | DECIMAL | Poverty rate |
+| `graduation_rate` | DECIMAL | Graduation rate |
+| `math_proficiency` | DECIMAL | Math proficiency % |
+| `read_proficiency` | DECIMAL | Reading proficiency % |
+
+**Key queries enabled:**
+- "Districts where enrollment grew >5% but teacher FTE stayed flat" (vacancy pressure)
+- "Districts where sped population grew faster than sped spending" (understaffed)
+- "Districts losing revenue year-over-year" (budget pressure)
+
+---
+
+### `district_grade_enrollment` - Grade-Level Enrollment
+
+Enrollment broken down by grade level per district per year.
+
+**Key:** `(leaid, year, grade)` unique
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | SERIAL | Primary key |
+| `leaid` | VARCHAR(7) | FK to districts |
+| `year` | INT | Academic year |
+| `grade` | VARCHAR(10) | Grade level (PK, K, 01-12, UG) |
+| `enrollment` | INT | Enrollment for that grade |
+
+---
+
 ## Data Sources & Refresh Schedule
 
 | Data Type | Source | Typical Refresh | Year Tracking Column |
@@ -263,6 +375,12 @@ Records of ETL runs for tracking data freshness.
 | Graduation | Urban Institute API | Annually | `graduation_data_year` |
 | Staffing | Urban Institute API | Annually | `staff_data_year` |
 | Demographics | Urban Institute API | Annually | `demographics_data_year` |
+| Assessments | Urban Institute API (EdFacts) | Annually | `assessment_data_year` |
+| Absenteeism | Urban Institute API (CRDC) | Biennial | `absenteeism_data_year` |
+| SpEd Finance | Urban Institute API (finance) | Annually (lag) | `finance_data_year` |
+| ESSER Funding | Urban Institute API (finance) | Annually (lag) | `finance_data_year` |
+| Historical Trends | Computed from history table | After backfill | N/A |
+| Staffing Ratios | Computed post-ETL | After ETL | N/A |
 | Fullmind CRM | CSV import | As needed | N/A |
 
 ---
@@ -412,3 +530,20 @@ Events pulled from Google Calendar that haven't been confirmed as Activities yet
 - Added `calendar_connections` and `calendar_events` tables for Google Calendar sync
 - Added outcome tracking fields (`outcome`, `outcome_type`) and calendar sync fields (`google_event_id`, `source`) to activities
 - Added `user_profiles` and `user_goals` tables for user settings and fiscal year targets
+
+**February 2026:** Sales Signals & Data Architecture expansion
+- Added ~21 new columns to `districts` table for sales targeting:
+  - Staffing ratios: `student_teacher_ratio`, `student_staff_ratio`, `sped_student_teacher_ratio`
+  - SpEd finance: `sped_expenditure_total`, `sped_expenditure_instruction`, `sped_expenditure_support`, `sped_expenditure_per_student`
+  - ESSER/COVID: `esser_funding_total`, `esser_spending_total`, `esser_spending_instruction`
+  - Assessments: `math_proficiency_pct`, `read_proficiency_pct`, `assessment_data_year`
+  - Tech/Capital: `tech_spending`, `capital_outlay_total`, `debt_outstanding`
+  - Outsourcing: `payments_to_charter_schools`, `payments_to_private_schools`
+  - Trends: `enrollment_trend_3yr`, `staffing_trend_3yr`, `vacancy_pressure_signal`
+- Added `district_data_history` table for multi-year time-series analysis
+- Added `district_grade_enrollment` table for grade-level enrollment breakdown
+- New ETL loaders: `urban_institute_assessments.py`, `urban_institute_absenteeism.py`, `historical_backfill.py`
+- Enhanced finance loader with sped, ESSER, outsourcing, tech/capital fields
+- Added `--all-schools` mode to schools loader (expands from ~3K charter to ~100K all schools)
+- Added `--historical` mode for multi-year data backfill and trend computation
+- Added `--compute-ratios` and `--compute-trends` for post-ETL computation steps

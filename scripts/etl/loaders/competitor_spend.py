@@ -354,6 +354,10 @@ def main():
             status="success"
         )
 
+        # Refresh materialized view so map tiles reflect new data
+        from utils.refresh_views import refresh_map_features
+        refresh_map_features(connection_string)
+
         print(f"\n=== ETL Complete ===")
         print(f"Upserted: {result['upserted']} records")
         print(f"Unmatched: {result['unmatched']} records")

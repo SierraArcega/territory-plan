@@ -147,7 +147,7 @@ async function matchAttendeesToContacts(
     where: {
       districtLeaid: primaryDistrictId,
       plan: {
-        status: "active",
+        status: "working",
         userId: userId,
       },
     },

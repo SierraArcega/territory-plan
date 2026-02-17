@@ -57,7 +57,7 @@ export default function TaskList({
       {tasks.map((task) => {
         const priorityConfig = TASK_PRIORITY_CONFIG[task.priority as TaskPriority];
         const isDone = task.status === "done";
-        const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !isDone;
+        const isOverdue = task.dueDate && new Date(task.dueDate.split("T")[0] + "T00:00:00") < new Date() && !isDone;
 
         return (
           <div
@@ -107,7 +107,7 @@ export default function TaskList({
                   isOverdue ? "text-red-500" : "text-gray-400"
                 }`}
               >
-                {new Date(task.dueDate).toLocaleDateString("en-US", {
+                {new Date(task.dueDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })}

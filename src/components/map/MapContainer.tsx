@@ -11,6 +11,7 @@ import TileLoadingIndicator from "./TileLoadingIndicator";
 import CustomerOverviewLegend from "./CustomerOverviewLegend";
 import VendorLayerToggle from "./VendorLayerToggle";
 import VendorComparisonLegend from "./VendorComparisonLegend";
+import CharterLayerToggle from "./CharterLayerToggle";
 
 // Throttle interval for hover handlers (ms) - 20fps is smooth enough for hover effects
 const HOVER_THROTTLE_MS = 50;
@@ -197,6 +198,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
     openDistrictPanel,
     closePanel,
     vendorLayerVisible,
+    charterLayerVisible,
   } = useMapStore();
 
   // Screen reader announcement helper
@@ -214,6 +216,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       container: mapContainer.current,
       style: {
         version: 8,
+        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
         sources: {},
         layers: [
           {
@@ -571,6 +574,30 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         filter: ["in", ["get", "leaid"], ["literal", []]],
       });
 
+      // ===== Charter District Overlay =====
+      // Dashed coral outline for districts with charter schools
+      map.current.addLayer({
+        id: "charter-district-outline",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        filter: [">", ["get", "charter_school_count"], 0],
+        layout: { visibility: "none" },
+        paint: {
+          "line-color": "#F37167",
+          "line-dasharray": [4, 3],
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            3, 1.5,
+            6, 2,
+            10, 2.5,
+          ],
+          "line-opacity": 0.9,
+        },
+      });
+
       setMapReady(true);
       setMapInstance(map.current);
     });
@@ -678,6 +705,18 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       );
     }
   }, [vendorLayerVisible]);
+
+  // Toggle charter district overlay visibility
+  useEffect(() => {
+    if (!map.current?.isStyleLoaded()) return;
+    if (map.current.getLayer("charter-district-outline")) {
+      map.current.setLayoutProperty(
+        "charter-district-outline",
+        "visibility",
+        charterLayerVisible ? "visible" : "none"
+      );
+    }
+  }, [charterLayerVisible, mapReady]);
 
   // Update tile source when selected state changes - filter to state or show all
   useEffect(() => {
@@ -984,6 +1023,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
       const enrollment = feature.properties?.enrollment;
       const salesExec = feature.properties?.sales_executive;
       const customerCategory = feature.properties?.customer_category;
+      const charterSchoolCount = feature.properties?.charter_school_count;
 
       // Build display name with customer category if present
       const categoryLabel = customerCategory ? CUSTOMER_CATEGORY_LABELS[customerCategory] : null;
@@ -1012,6 +1052,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         stateAbbrev,
         enrollment: enrollment ? Number(enrollment) : undefined,
         salesExecutive: salesExec || null,
+        charterSchoolCount: charterSchoolCount ? Number(charterSchoolCount) : undefined,
       });
     },
     [setHoveredLeaid, showTooltip, updateTooltipPosition, isTouchDevice]
@@ -1227,6 +1268,7 @@ export default function MapContainer({ className = "" }: MapContainerProps) {
         {/* View toggle and legend - stacked vertically to avoid overlap */}
         {mapReady && (
           <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-2">
+            <CharterLayerToggle />
             <VendorLayerToggle />
             {!vendorLayerVisible && <CustomerOverviewLegend />}
             {vendorLayerVisible && <VendorComparisonLegend />}

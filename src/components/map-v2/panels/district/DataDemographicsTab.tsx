@@ -1,11 +1,11 @@
 "use client";
 
 import type { DistrictDetail } from "@/lib/api";
-import DemographicsChart from "./DemographicsChart";
-import StudentPopulations from "./StudentPopulations";
-import AcademicMetrics from "./AcademicMetrics";
-import FinanceData from "./FinanceData";
-import StaffingSalaries from "./StaffingSalaries";
+import DemographicsChart from "@/components/panel/DemographicsChart";
+import StudentPopulations from "@/components/panel/StudentPopulations";
+import AcademicMetrics from "@/components/panel/AcademicMetrics";
+import FinanceData from "@/components/panel/FinanceData";
+import StaffingSalaries from "@/components/panel/StaffingSalaries";
 
 interface DataDemographicsTabProps {
   data: DistrictDetail;

@@ -14,15 +14,21 @@ export default function FloatingPanel() {
 
   const isInPlanWorkspace =
     panelState === "PLAN_OVERVIEW" ||
+    panelState === "PLAN_ACTIVITIES" ||
     panelState === "PLAN_TASKS" ||
     panelState === "PLAN_CONTACTS" ||
     panelState === "PLAN_PERF";
 
+  const hasDistrictDetail =
+    rightPanelContent?.type === "district_card" && isInPlanWorkspace;
+
   const panelWidth = panelCollapsed
     ? "w-[56px]"
-    : rightPanelContent && isInPlanWorkspace
-      ? "w-[656px]"
-      : "w-[376px]";
+    : hasDistrictDetail
+      ? "w-[65vw] max-w-[900px]"
+      : rightPanelContent && isInPlanWorkspace
+        ? "w-[50vw] max-w-[720px]"
+        : "w-[33vw] min-w-[340px] max-w-[520px]";
 
   // Auto-collapse on tablet viewport
   useEffect(() => {
@@ -46,7 +52,7 @@ export default function FloatingPanel() {
             flex flex-row overflow-hidden
             transition-all duration-300 ease-out
             panel-v2-enter
-            ${panelWidth} ${panelCollapsed ? "bottom-10" : "bottom-[380px]"}
+            ${panelWidth} ${panelCollapsed ? "bottom-10" : hasDistrictDetail ? "bottom-10" : "bottom-[50%]"}
           `}
         >
           {/* Icon strip */}

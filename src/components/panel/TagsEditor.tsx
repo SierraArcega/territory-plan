@@ -30,6 +30,8 @@ export default function TagsEditor({ leaid, tags }: TagsEditorProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const { data: allTags } = useTags();
   const createTagMutation = useCreateTag();
@@ -41,24 +43,33 @@ export default function TagsEditor({ leaid, tags }: TagsEditorProps) {
     (t) => !tags.some((dt) => dt.id === t.id)
   );
 
+  const filteredTags = search.trim()
+    ? availableTags?.filter((t) =>
+        t.name.toLowerCase().includes(search.toLowerCase())
+      )
+    : availableTags;
+
   const handleAddExistingTag = async (tagId: number) => {
+    setError(null);
     try {
       await addTagMutation.mutateAsync({ leaid, tagId });
-    } catch (error) {
-      console.error("Failed to add tag:", error);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add tag");
     }
   };
 
   const handleRemoveTag = async (tagId: number) => {
+    setError(null);
     try {
       await removeTagMutation.mutateAsync({ leaid, tagId });
-    } catch (error) {
-      console.error("Failed to remove tag:", error);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove tag");
     }
   };
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
+    setError(null);
 
     try {
       const tag = await createTagMutation.mutateAsync({
@@ -69,8 +80,8 @@ export default function TagsEditor({ leaid, tags }: TagsEditorProps) {
       await addTagMutation.mutateAsync({ leaid, tagId: tag.id });
       setNewTagName("");
       setIsAdding(false);
-    } catch (error) {
-      console.error("Failed to create tag:", error);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create tag");
     }
   };
 
@@ -122,36 +133,63 @@ export default function TagsEditor({ leaid, tags }: TagsEditorProps) {
         )}
       </div>
 
+      {error && (
+        <div className="px-2.5 py-1.5 text-xs text-red-600 bg-red-50 rounded-md mb-2">
+          {error}
+        </div>
+      )}
+
       {/* Add Tag UI */}
       {isAdding && (
         <div className="p-3 bg-gray-50 rounded-lg space-y-3">
-          {/* Existing Tags */}
+          {/* Search / add existing tags */}
           {availableTags && availableTags.length > 0 && (
             <div>
               <span className="text-xs text-gray-500">Add existing tag:</span>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {availableTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => handleAddExistingTag(tag.id)}
-                    className="px-2 py-1 text-xs rounded-full text-white hover:opacity-80 transition-opacity"
-                    style={{ backgroundColor: tag.color }}
-                  >
-                    + {tag.name}
-                  </button>
-                ))}
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search tags..."
+                className="w-full mt-1 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#6EA3BE] focus:border-transparent"
+              />
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {filteredTags && filteredTags.length > 0 ? (
+                  filteredTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleAddExistingTag(tag.id)}
+                      disabled={addTagMutation.isPending}
+                      className="px-2 py-1 text-xs rounded-full text-white hover:opacity-80 transition-opacity disabled:opacity-50"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      + {tag.name}
+                    </button>
+                  ))
+                ) : search.trim() ? (
+                  <span className="text-xs text-gray-400 italic py-1">
+                    No tags matching &ldquo;{search}&rdquo;
+                  </span>
+                ) : null}
               </div>
             </div>
           )}
 
           {/* Create New Tag */}
           <div>
-            <span className="text-xs text-gray-500">Or create new tag:</span>
+            <span className="text-xs text-gray-500">
+              {availableTags && availableTags.length > 0
+                ? "Or create new tag:"
+                : "Create new tag:"}
+            </span>
             <div className="flex gap-2 mt-1">
               <input
                 type="text"
                 value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
+                onChange={(e) => {
+                  setNewTagName(e.target.value);
+                  setError(null);
+                }}
                 placeholder="Tag name"
                 maxLength={50}
                 className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
@@ -161,7 +199,7 @@ export default function TagsEditor({ leaid, tags }: TagsEditorProps) {
                 disabled={!newTagName.trim() || createTagMutation.isPending}
                 className="px-3 py-1.5 text-sm bg-[#F37167] text-white rounded-md hover:bg-[#e05f55] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create
+                {createTagMutation.isPending ? "..." : "Create"}
               </button>
             </div>
 

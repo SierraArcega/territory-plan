@@ -42,6 +42,9 @@ next-env.d.ts
 
 /src/generated/prisma
 
+# Data files (CSVs, workbooks, etc.)
+Data Files/
+
 # ETL data files
 /scripts/etl/data/
 /scripts/etl/reports/

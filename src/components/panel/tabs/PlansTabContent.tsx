@@ -21,12 +21,14 @@ export default function PlansTabContent({ stateCode: _stateCode }: PlansTabConte
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      ownerId: (data as unknown as { ownerId?: string }).ownerId,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
     // Modal closes automatically on submit success via PlanFormModal
   };

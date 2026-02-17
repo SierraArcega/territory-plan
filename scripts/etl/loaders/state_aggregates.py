@@ -136,6 +136,56 @@ def refresh_state_aggregates(connection_string: str) -> int:
     return updated_count
 
 
+def compute_staffing_ratios(connection_string: str) -> int:
+    """
+    Compute staffing ratios from enrollment and FTE data on the districts table.
+
+    Computes:
+    - student_teacher_ratio = enrollment / teachers_fte
+    - student_staff_ratio = enrollment / staff_total_fte
+    - sped_student_teacher_ratio = spec_ed_students / teachers_fte
+
+    Args:
+        connection_string: PostgreSQL connection string
+
+    Returns:
+        Number of districts updated
+    """
+    import psycopg2
+
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE districts SET
+            student_teacher_ratio = CASE
+                WHEN enrollment IS NOT NULL AND teachers_fte IS NOT NULL AND teachers_fte > 0
+                THEN ROUND(enrollment::numeric / teachers_fte, 2)
+                ELSE NULL
+            END,
+            student_staff_ratio = CASE
+                WHEN enrollment IS NOT NULL AND staff_total_fte IS NOT NULL AND staff_total_fte > 0
+                THEN ROUND(enrollment::numeric / staff_total_fte, 2)
+                ELSE NULL
+            END,
+            sped_student_teacher_ratio = CASE
+                WHEN spec_ed_students IS NOT NULL AND teachers_fte IS NOT NULL AND teachers_fte > 0
+                THEN ROUND(spec_ed_students::numeric / teachers_fte, 2)
+                ELSE NULL
+            END
+        WHERE enrollment IS NOT NULL
+          AND (teachers_fte IS NOT NULL OR staff_total_fte IS NOT NULL)
+    """)
+    updated_count = cur.rowcount
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    print(f"Computed staffing ratios for {updated_count} districts")
+    return updated_count
+
+
 def get_state_summary(connection_string: str) -> Dict:
     """
     Get summary statistics for states table.
@@ -199,6 +249,7 @@ def main():
     parser = argparse.ArgumentParser(description="Manage state aggregates")
     parser.add_argument("--seed", action="store_true", help="Seed states table")
     parser.add_argument("--refresh", action="store_true", help="Refresh aggregates")
+    parser.add_argument("--ratios", action="store_true", help="Compute staffing ratios")
     parser.add_argument("--summary", action="store_true", help="Print summary")
 
     args = parser.parse_args()
@@ -219,6 +270,9 @@ def main():
 
     if args.refresh:
         refresh_state_aggregates(connection_string)
+
+    if args.ratios:
+        compute_staffing_ratios(connection_string)
 
     if args.summary:
         summary = get_state_summary(connection_string)

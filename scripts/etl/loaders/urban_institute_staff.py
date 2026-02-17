@@ -25,6 +25,7 @@ API_BASE_URL = "https://educationdata.urban.org/api/v1"
 
 def fetch_staff_data(
     year: int = 2021,
+    fips: Optional[str] = None,
     page_size: int = 10000,
     delay: float = 0.5,
 ) -> List[Dict]:
@@ -33,6 +34,7 @@ def fetch_staff_data(
 
     Args:
         year: Academic year
+        fips: State FIPS code to filter by (e.g., "06" for California)
         page_size: Results per page (max 10000)
         delay: Delay between requests in seconds
 
@@ -42,7 +44,8 @@ def fetch_staff_data(
     all_records = []
     page = 1
 
-    print(f"Fetching staff FTE data for year {year}...")
+    state_label = f" (fips={fips})" if fips else ""
+    print(f"Fetching staff FTE data for year {year}{state_label}...")
 
     while True:
         url = f"{API_BASE_URL}/school-districts/ccd/directory/{year}/"
@@ -50,6 +53,9 @@ def fetch_staff_data(
             "page": page,
             "per_page": page_size,
         }
+
+        if fips:
+            params["fips"] = int(fips)
 
         try:
             response = requests.get(url, params=params, timeout=120)

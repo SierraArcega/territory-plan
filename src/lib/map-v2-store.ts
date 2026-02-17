@@ -138,6 +138,9 @@ interface MapV2State {
   // Fullmind engagement filter
   fullmindEngagement: string[];
 
+  // Competitor engagement filter (per-vendor)
+  competitorEngagement: Record<string, string[]>;
+
   // Fiscal year selector (affects Fullmind + Competitors tile data)
   selectedFiscalYear: "fy25" | "fy26";
 
@@ -237,6 +240,10 @@ interface MapV2Actions {
   toggleFullmindEngagement: (level: string) => void;
   setFullmindEngagement: (levels: string[]) => void;
 
+  // Competitor engagement filter
+  toggleCompetitorEngagement: (vendorId: string, level: string) => void;
+  setCompetitorEngagement: (vendorId: string, levels: string[]) => void;
+
   // Fiscal year
   setSelectedFiscalYear: (fy: "fy25" | "fy26") => void;
 
@@ -295,6 +302,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   visibleLocales: new Set<LocaleId>(),
   filterAccountTypes: [],
   fullmindEngagement: [],
+  competitorEngagement: {},
   selectedFiscalYear: "fy26",
   showAccountForm: false,
   accountFormDefaults: null,
@@ -582,6 +590,20 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       return { fullmindEngagement: next };
     }),
   setFullmindEngagement: (levels) => set({ fullmindEngagement: levels }),
+
+  // Competitor engagement filter
+  toggleCompetitorEngagement: (vendorId, level) =>
+    set((s) => {
+      const current = s.competitorEngagement[vendorId] || [];
+      const next = current.includes(level)
+        ? current.filter((l) => l !== level)
+        : [...current, level];
+      return { competitorEngagement: { ...s.competitorEngagement, [vendorId]: next } };
+    }),
+  setCompetitorEngagement: (vendorId, levels) =>
+    set((s) => ({
+      competitorEngagement: { ...s.competitorEngagement, [vendorId]: levels },
+    })),
 
   // Fiscal year
   setSelectedFiscalYear: (fy) => set({ selectedFiscalYear: fy }),

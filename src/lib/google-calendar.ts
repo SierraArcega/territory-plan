@@ -15,9 +15,11 @@ const oauth2Client = new google.auth.OAuth2(
 // Scopes needed for calendar sync:
 // - calendar.readonly: read events to pull into the app
 // - calendar.events: create/update events for push sync
+// - userinfo.email: needed to fetch the connected account's email address
 const CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/userinfo.email",
 ];
 
 // ===== OAuth Helpers =====
@@ -51,16 +53,24 @@ export async function exchangeCodeForTokens(
     throw new Error("Failed to get tokens from Google — missing access or refresh token");
   }
 
-  // Get the user's email from the token info to display which account is connected
-  oauth2Client.setCredentials(tokens);
-  const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-  const { data: userInfo } = await oauth2.userinfo.get();
+  // Try to get the user's email — this is for display purposes only,
+  // so we fall back gracefully if it fails (e.g., scope issues)
+  let email = "";
+  try {
+    oauth2Client.setCredentials(tokens);
+    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const { data: userInfo } = await oauth2.userinfo.get();
+    email = userInfo.email || "";
+  } catch (userInfoErr) {
+    // Non-fatal — the email is nice-to-have for display, not required for sync
+    console.warn("Could not fetch user info (email will be empty):", userInfoErr);
+  }
 
   return {
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     expiresAt: new Date(tokens.expiry_date || Date.now() + 3600 * 1000),
-    email: userInfo.email || "",
+    email,
   };
 }
 

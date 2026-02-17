@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { TerritoryPlan } from "@/lib/api";
+import { useUsers, useStates } from "@/lib/api";
 
 interface PlanFormModalProps {
   isOpen: boolean;
@@ -14,12 +15,14 @@ interface PlanFormModalProps {
 export interface PlanFormData {
   name: string;
   description: string;
-  owner: string;
+  ownerId: string | null;
   color: string;
-  status: "draft" | "active" | "archived";
+  status: "planning" | "working" | "stale" | "archived";
   fiscalYear: number;
   startDate: string;
   endDate: string;
+  stateFips: string[];
+  collaboratorIds: string[];
 }
 
 const PLAN_COLORS = [
@@ -31,8 +34,9 @@ const PLAN_COLORS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "active", label: "Active" },
+  { value: "planning", label: "Planning" },
+  { value: "working", label: "Working" },
+  { value: "stale", label: "Stale" },
   { value: "archived", label: "Archived" },
 ];
 
@@ -66,16 +70,21 @@ export default function PlanFormModal({
   const [formData, setFormData] = useState<PlanFormData>({
     name: "",
     description: "",
-    owner: "",
+    ownerId: null,
     color: PLAN_COLORS[0].value,
-    status: "active",
+    status: "planning",
     fiscalYear: getDefaultFiscalYear(),
     startDate: "",
     endDate: "",
+    stateFips: [],
+    collaboratorIds: [],
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showStateDropdown, setShowStateDropdown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { data: users } = useUsers();
+  const { data: allStates } = useStates();
 
   // Reset form when modal opens/closes or initialData changes
   useEffect(() => {
@@ -83,12 +92,14 @@ export default function PlanFormModal({
       setFormData({
         name: initialData?.name || "",
         description: initialData?.description || "",
-        owner: initialData?.owner || "",
+        ownerId: initialData?.owner?.id ?? null,
         color: initialData?.color || PLAN_COLORS[0].value,
-        status: initialData?.status || "active",
+        status: initialData?.status || "planning",
         fiscalYear: initialData?.fiscalYear || getDefaultFiscalYear(),
         startDate: initialData?.startDate?.split("T")[0] || "",
         endDate: initialData?.endDate?.split("T")[0] || "",
+        stateFips: initialData?.states?.map((s) => s.fips) ?? [],
+        collaboratorIds: initialData?.collaborators?.map((c) => c.id) ?? [],
       });
       setError(null);
       // Focus input after a short delay for animation
@@ -235,7 +246,7 @@ export default function PlanFormModal({
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    status: e.target.value as "draft" | "active" | "archived",
+                    status: e.target.value as "planning" | "working" | "stale" | "archived",
                   })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
@@ -253,13 +264,126 @@ export default function PlanFormModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Owner
               </label>
-              <input
-                type="text"
-                value={formData.owner}
-                onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                placeholder="e.g., John Smith"
+              <select
+                value={formData.ownerId ?? ""}
+                onChange={(e) => setFormData({ ...formData, ownerId: e.target.value || null })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-              />
+              >
+                <option value="">Unassigned</option>
+                {users?.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.fullName || u.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* States */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                States
+              </label>
+              {formData.stateFips.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {formData.stateFips.map((fips) => {
+                    const state = allStates?.find((s) => s.fips === fips);
+                    return (
+                      <span
+                        key={fips}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium"
+                      >
+                        {state?.abbrev || fips}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, stateFips: formData.stateFips.filter((f) => f !== fips) })}
+                          className="hover:text-red-500 leading-none"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowStateDropdown(!showStateDropdown)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent text-gray-500 text-left"
+                >
+                  {formData.stateFips.length === 0 ? "Select states..." : `${formData.stateFips.length} selected`}
+                </button>
+                {showStateDropdown && (
+                  <div className="absolute z-10 mt-1 w-full max-h-36 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                    {allStates?.map((state) => (
+                      <label
+                        key={state.fips}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.stateFips.includes(state.fips)}
+                          onChange={(e) => {
+                            const newFips = e.target.checked
+                              ? [...formData.stateFips, state.fips]
+                              : formData.stateFips.filter((f) => f !== state.fips);
+                            setFormData({ ...formData, stateFips: newFips });
+                          }}
+                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]/20"
+                        />
+                        {state.abbrev} — {state.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Collaborators */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Collaborators
+              </label>
+              {formData.collaboratorIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {formData.collaboratorIds.map((uid) => {
+                    const user = users?.find((u) => u.id === uid);
+                    return (
+                      <span
+                        key={uid}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium"
+                      >
+                        {user?.fullName || user?.email || "Unknown"}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, collaboratorIds: formData.collaboratorIds.filter((id) => id !== uid) })}
+                          className="hover:text-red-500 leading-none"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value && !formData.collaboratorIds.includes(e.target.value)) {
+                    setFormData({ ...formData, collaboratorIds: [...formData.collaboratorIds, e.target.value] });
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent text-gray-500"
+              >
+                <option value="">Add collaborator...</option>
+                {users
+                  ?.filter((u) => !formData.collaboratorIds.includes(u.id) && u.id !== formData.ownerId)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.fullName || u.email}
+                    </option>
+                  ))}
+              </select>
             </div>
 
             {/* Date Range */}

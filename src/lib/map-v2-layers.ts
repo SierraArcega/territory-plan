@@ -305,6 +305,24 @@ export function buildAccountPointLayer(
 }
 
 // ============================================
+// Fullmind engagement → tile category mapping
+// ============================================
+
+/** Maps UI engagement level IDs to raw fullmind_category tile values */
+export const FULLMIND_ENGAGEMENT_CATEGORIES: Record<string, string[]> = {
+  target:     ["target"],
+  pipeline:   ["new_pipeline", "renewal_pipeline", "expansion_pipeline"],
+  first_year: ["new"],
+  multi_year: ["multi_year"],
+  lapsed:     ["lapsed"],
+};
+
+/** Convert selected engagement IDs to the raw fullmind_category values for tile filtering */
+export function engagementToCategories(engagements: string[]): string[] {
+  return engagements.flatMap((e) => FULLMIND_ENGAGEMENT_CATEGORIES[e] ?? []);
+}
+
+// ============================================
 // Filter helpers
 // ============================================
 

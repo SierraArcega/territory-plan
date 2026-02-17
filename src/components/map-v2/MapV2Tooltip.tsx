@@ -43,7 +43,7 @@ const MapV2Tooltip = forwardRef<HTMLDivElement>(function MapV2Tooltip(_, ref) {
         useMapV2Store.setState({
           tooltip: { visible: false, exiting: false, x: 0, y: 0, data: null },
         });
-      }, 250);
+      }, 80);
       return () => clearTimeout(timer);
     }
   }, [tooltip.exiting]);

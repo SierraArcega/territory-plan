@@ -8,38 +8,37 @@ DROP MATERIALIZED VIEW IF EXISTS district_customer_categories;
 CREATE MATERIALIZED VIEW district_customer_categories AS
 WITH customer_categories AS (
   SELECT
-    f.leaid,
+    d1.leaid,
     CASE
-      WHEN (f.fy25_net_invoicing > 0 OR f.fy25_sessions_revenue > 0)
-        AND (f.fy26_net_invoicing > 0 OR f.fy26_sessions_revenue > 0)
+      WHEN (d1.fy25_net_invoicing > 0 OR d1.fy25_sessions_revenue > 0)
+        AND (d1.fy26_net_invoicing > 0 OR d1.fy26_sessions_revenue > 0)
       THEN 'multi_year'
-      WHEN (f.fy26_net_invoicing > 0 OR f.fy26_sessions_revenue > 0)
-        AND NOT (f.fy25_net_invoicing > 0 OR f.fy25_sessions_revenue > 0)
+      WHEN (d1.fy26_net_invoicing > 0 OR d1.fy26_sessions_revenue > 0)
+        AND NOT (d1.fy25_net_invoicing > 0 OR d1.fy25_sessions_revenue > 0)
       THEN 'new'
-      WHEN (f.fy25_net_invoicing > 0 OR f.fy25_sessions_revenue > 0)
-        AND NOT (f.fy26_net_invoicing > 0 OR f.fy26_sessions_revenue > 0)
+      WHEN (d1.fy25_net_invoicing > 0 OR d1.fy25_sessions_revenue > 0)
+        AND NOT (d1.fy26_net_invoicing > 0 OR d1.fy26_sessions_revenue > 0)
       THEN 'lapsed'
-      WHEN f.has_open_pipeline = true
+      WHEN d1.has_open_pipeline = true
       THEN 'pipeline'
       ELSE NULL
     END as category
-  FROM fullmind_data f
-  WHERE f.is_customer = true OR f.has_open_pipeline = true
+  FROM districts d1
+  WHERE d1.is_customer = true OR d1.has_open_pipeline = true
 ),
 target_districts AS (
   SELECT DISTINCT tpd.district_leaid as leaid
   FROM territory_plan_districts tpd
-  LEFT JOIN fullmind_data f ON tpd.district_leaid = f.leaid
-  WHERE f.leaid IS NULL OR (
-    f.is_customer = false
-    AND f.has_open_pipeline = false
-  )
+  LEFT JOIN districts d1 ON tpd.district_leaid = d1.leaid
+  WHERE d1.is_customer = false
+    OR (d1.is_customer IS NULL AND (d1.has_open_pipeline = false OR d1.has_open_pipeline IS NULL))
 )
 SELECT
   d.leaid,
   d.name,
   d.state_abbrev,
   d.geometry,
+  COALESCE(d.charter_school_count, 0) AS charter_school_count,
   COALESCE(cc.category, CASE WHEN td.leaid IS NOT NULL THEN 'target' ELSE NULL END) AS customer_category
 FROM districts d
 LEFT JOIN customer_categories cc ON d.leaid = cc.leaid

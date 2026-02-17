@@ -51,9 +51,7 @@ export default function AcademicMetrics({ educationData }: AcademicMetricsProps)
   const [isExpanded, setIsExpanded] = useState(true);
 
   const hasGraduationData =
-    educationData.graduationRateTotal !== null ||
-    educationData.graduationRateMale !== null ||
-    educationData.graduationRateFemale !== null;
+    educationData.graduationRateTotal !== null;
 
   if (!hasGraduationData) {
     return null;
@@ -103,14 +101,6 @@ export default function AcademicMetrics({ educationData }: AcademicMetricsProps)
               </div>
             )}
 
-            {/* Male/Female breakdown */}
-            {(educationData.graduationRateMale !== null ||
-              educationData.graduationRateFemale !== null) && (
-              <div className="space-y-2">
-                <GradRateBar rate={educationData.graduationRateFemale} label="Female" />
-                <GradRateBar rate={educationData.graduationRateMale} label="Male" />
-              </div>
-            )}
           </div>
 
           {/* Data year */}

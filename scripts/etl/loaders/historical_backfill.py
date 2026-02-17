@@ -58,6 +58,7 @@ def backfill_enrollment_history(
     """
     Backfill enrollment + staffing data from CCD directory for multiple years.
 
+    Fetches state-by-state to avoid API timeouts.
     Source: ccd_directory — contains enrollment, teachers_fte, staff_total_fte, spec_ed_students.
 
     Args:
@@ -69,61 +70,85 @@ def backfill_enrollment_history(
         Total records written
     """
     import psycopg2
+    from psycopg2.extras import execute_values
+
+    # All state FIPS codes
+    STATES = [
+        "01", "02", "04", "05", "06", "08", "09", "10", "11", "12",
+        "13", "15", "16", "17", "18", "19", "20", "21", "22", "23",
+        "24", "25", "26", "27", "28", "29", "30", "31", "32", "33",
+        "34", "35", "36", "37", "38", "39", "40", "41", "42", "44",
+        "45", "46", "47", "48", "49", "50", "51", "53", "54", "55",
+        "56",
+    ]
 
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
     total_written = 0
 
+    # Pre-fetch known leaids to avoid FK violations
+    cur.execute("SELECT leaid FROM districts")
+    known_leaids = {row[0] for row in cur.fetchall()}
+    print(f"  Known districts: {len(known_leaids)}")
+
     for year in years:
-        print(f"\nBackfilling CCD directory data for {year}...")
-        url = f"{API_BASE_URL}/school-districts/ccd/directory/{year}/"
-        results = _fetch_paginated(url, delay=delay)
-        print(f"  Fetched {len(results)} records")
+        print(f"\nBackfilling CCD directory data for {year} (state by state)...")
+        year_written = 0
 
-        batch = []
-        for record in results:
-            leaid = record.get("leaid")
-            if not leaid:
-                continue
+        for fips in STATES:
+            url = f"{API_BASE_URL}/school-districts/ccd/directory/{year}/"
+            results = _fetch_paginated(f"{url}?fips={int(fips)}", delay=delay)
 
-            leaid_str = str(leaid).zfill(7)
-            enrollment = record.get("enrollment")
-            teachers_fte = record.get("teachers_total_fte")
-            staff_total_fte = record.get("staff_total_fte")
-            spec_ed = record.get("spec_ed_students")
+            batch = []
+            for record in results:
+                leaid = record.get("leaid")
+                if not leaid:
+                    continue
 
-            # Clean invalid values
-            if enrollment is not None and enrollment < 0:
-                enrollment = None
-            if teachers_fte is not None and teachers_fte < 0:
-                teachers_fte = None
-            if staff_total_fte is not None and staff_total_fte < 0:
-                staff_total_fte = None
-            if spec_ed is not None and spec_ed < 0:
-                spec_ed = None
+                leaid_str = str(leaid).zfill(7)
+                if leaid_str not in known_leaids:
+                    continue
 
-            if enrollment is not None or teachers_fte is not None:
-                batch.append((leaid_str, year, 'ccd_directory', enrollment, teachers_fte, staff_total_fte, spec_ed))
+                enrollment = record.get("enrollment")
+                teachers_fte = record.get("teachers_total_fte")
+                staff_total_fte = record.get("staff_total_fte")
+                spec_ed = record.get("spec_ed_students")
 
-        if batch:
-            from psycopg2.extras import execute_values
-            execute_values(
-                cur,
-                """
-                INSERT INTO district_data_history (leaid, year, source, enrollment, teachers_fte, staff_total_fte, spec_ed_students)
-                VALUES %s
-                ON CONFLICT (leaid, year, source) DO UPDATE SET
-                    enrollment = EXCLUDED.enrollment,
-                    teachers_fte = EXCLUDED.teachers_fte,
-                    staff_total_fte = EXCLUDED.staff_total_fte,
-                    spec_ed_students = EXCLUDED.spec_ed_students
-                """,
-                batch,
-                template="(%s, %s, %s, %s, %s, %s, %s)"
-            )
-            conn.commit()
-            total_written += len(batch)
-            print(f"  Wrote {len(batch)} history records for {year}")
+                # Clean invalid values (Urban Institute uses -1/-2 for missing)
+                if enrollment is not None and enrollment < 0:
+                    enrollment = None
+                if teachers_fte is not None and teachers_fte < 0:
+                    teachers_fte = None
+                if staff_total_fte is not None and staff_total_fte < 0:
+                    staff_total_fte = None
+                if spec_ed is not None and spec_ed < 0:
+                    spec_ed = None
+
+                if enrollment is not None or teachers_fte is not None:
+                    batch.append((leaid_str, year, 'ccd_directory', enrollment, teachers_fte, staff_total_fte, spec_ed))
+
+            if batch:
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO district_data_history (leaid, year, source, enrollment, teachers_fte, staff_total_fte, spec_ed_students)
+                    VALUES %s
+                    ON CONFLICT (leaid, year, source) DO UPDATE SET
+                        enrollment = EXCLUDED.enrollment,
+                        teachers_fte = EXCLUDED.teachers_fte,
+                        staff_total_fte = EXCLUDED.staff_total_fte,
+                        spec_ed_students = EXCLUDED.spec_ed_students
+                    """,
+                    batch,
+                    template="(%s, %s, %s, %s, %s, %s, %s)"
+                )
+                conn.commit()
+                year_written += len(batch)
+
+            time.sleep(delay)
+
+        total_written += year_written
+        print(f"  Wrote {year_written} history records for {year}")
 
     cur.close()
     conn.close()

@@ -14,8 +14,10 @@ function formatNumber(value: number | null | undefined): string {
 
 export default function PlanOverviewSection() {
   const activePlanId = useMapV2Store((s) => s.activePlanId);
-  const openDetailPopout = useMapV2Store((s) => s.openDetailPopout);
+  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
   const setPanelState = useMapV2Store((s) => s.setPanelState);
+  const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
+  const activeDistrictId = rightPanelContent?.type === "district_card" ? rightPanelContent.id : null;
 
   const { data: plan, isLoading } = useTerritoryPlan(activePlanId);
   const [sortBy, setSortBy] = useState<SortBy>("alpha");
@@ -118,7 +120,10 @@ export default function PlanOverviewSection() {
               key={d.leaid}
               district={d}
               planColor={plan.color}
-              onClick={() => openDetailPopout(d.leaid)}
+              isActive={activeDistrictId === d.leaid}
+              onClick={() =>
+                openRightPanel({ type: "district_card", id: d.leaid })
+              }
             />
           ))}
         </div>
@@ -155,16 +160,21 @@ function SortButton({
 function DistrictRow({
   district,
   planColor,
+  isActive,
   onClick,
 }: {
   district: TerritoryPlanDistrict;
   planColor: string;
+  isActive: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left group ${
+        !isActive ? "hover:bg-gray-50" : ""
+      }`}
+      style={isActive ? { backgroundColor: `${planColor}14`, boxShadow: `inset 0 0 0 1px ${planColor}35` } : undefined}
     >
       <div
         className="w-2.5 h-2.5 rounded-md shrink-0"

@@ -3,7 +3,9 @@ Urban Institute Finance Data API Loader
 
 Fetches school district finance data from the Urban Institute's Education Data Portal API
 and updates the districts table directly.
-Includes revenue sources (federal/state/local) and per-pupil expenditure.
+Includes revenue sources (federal/state/local), per-pupil expenditure,
+special education finance, ESSER/COVID relief funding, outsourcing signals,
+technology spending, and capital/debt data.
 
 API Docs: https://educationdata.urban.org/documentation/
 Endpoint: /school-districts/ccd/finance/{year}/
@@ -25,6 +27,7 @@ API_BASE_URL = "https://educationdata.urban.org/api/v1"
 
 def fetch_finance_data(
     year: int = 2022,
+    fips: Optional[str] = None,
     page_size: int = 10000,
     delay: float = 0.5,
 ) -> List[Dict]:
@@ -33,6 +36,7 @@ def fetch_finance_data(
 
     Args:
         year: Fiscal year (e.g., 2022 for FY2022 data)
+        fips: State FIPS code to filter by (e.g., "06" for California)
         page_size: Results per page (max 10000)
         delay: Delay between requests in seconds
 
@@ -42,7 +46,8 @@ def fetch_finance_data(
     all_records = []
     page = 1
 
-    print(f"Fetching finance data for year {year}...")
+    state_label = f" (fips={fips})" if fips else ""
+    print(f"Fetching finance data for year {year}{state_label}...")
 
     while True:
         url = f"{API_BASE_URL}/school-districts/ccd/finance/{year}/"
@@ -50,6 +55,9 @@ def fetch_finance_data(
             "page": page,
             "per_page": page_size,
         }
+
+        if fips:
+            params["fips"] = int(fips)
 
         try:
             response = requests.get(url, params=params, timeout=120)
@@ -73,6 +81,22 @@ def fetch_finance_data(
                 if exp_total and enrollment and exp_total > 0 and enrollment > 0:
                     exp_per_pupil = exp_total / enrollment
 
+                # ESSER revenue components
+                rev_arp_esser = record.get("rev_arp_esser")
+                rev_cares = record.get("rev_cares_act_relief_esser")
+                rev_crrsa = record.get("rev_crrsa_esser_ii")
+                esser_parts = [v for v in [rev_arp_esser, rev_cares, rev_crrsa] if v is not None and v >= 0]
+                esser_funding_total = sum(esser_parts) if esser_parts else None
+
+                # Special ed expenditure
+                sped_exp_total = record.get("exp_sped_current")
+
+                # Tech spending (supplies/services + equipment)
+                tech_supplies = record.get("exp_tech_supplies_services")
+                tech_equip = record.get("exp_tech_equipment")
+                tech_parts = [v for v in [tech_supplies, tech_equip] if v is not None and v >= 0]
+                tech_spending = sum(tech_parts) if tech_parts else None
+
                 all_records.append({
                     "leaid": str(leaid).zfill(7),
                     # Revenue sources
@@ -93,6 +117,21 @@ def fetch_finance_data(
                     "salaries_support_admin": record.get("salaries_supp_sch_admin"),
                     "salaries_support_instructional": record.get("salaries_supp_instruc_staff"),
                     "benefits_total": record.get("benefits_employee_total"),
+                    # Special education finance
+                    "sped_expenditure_total": sped_exp_total,
+                    "sped_expenditure_instruction": record.get("exp_sped_instruction"),
+                    "sped_expenditure_support": record.get("exp_sped_pupil_support_services"),
+                    # ESSER / COVID relief funding
+                    "esser_funding_total": esser_funding_total,
+                    "esser_spending_total": record.get("exp_cares_act_outlay"),
+                    "esser_spending_instruction": record.get("exp_cares_act_instruction"),
+                    # Outsourcing signals
+                    "payments_to_charter_schools": record.get("payments_charter_schools"),
+                    "payments_to_private_schools": record.get("payments_private_schools"),
+                    # Technology & capital spending
+                    "tech_spending": tech_spending,
+                    "capital_outlay_total": record.get("exp_capital_outlay_total"),
+                    "debt_outstanding": record.get("debt_longterm_outstand_end_fy"),
                     "year": year,
                 })
 
@@ -161,6 +200,21 @@ def upsert_finance_data(
             "salaries_support_admin": clean_val(r.get("salaries_support_admin")),
             "salaries_support_instructional": clean_val(r.get("salaries_support_instructional")),
             "benefits_total": clean_val(r.get("benefits_total")),
+            # Special education finance
+            "sped_expenditure_total": clean_val(r.get("sped_expenditure_total")),
+            "sped_expenditure_instruction": clean_val(r.get("sped_expenditure_instruction")),
+            "sped_expenditure_support": clean_val(r.get("sped_expenditure_support")),
+            # ESSER / COVID relief
+            "esser_funding_total": clean_val(r.get("esser_funding_total")),
+            "esser_spending_total": clean_val(r.get("esser_spending_total")),
+            "esser_spending_instruction": clean_val(r.get("esser_spending_instruction")),
+            # Outsourcing signals
+            "payments_to_charter_schools": clean_val(r.get("payments_to_charter_schools")),
+            "payments_to_private_schools": clean_val(r.get("payments_to_private_schools")),
+            # Tech & capital
+            "tech_spending": clean_val(r.get("tech_spending")),
+            "capital_outlay_total": clean_val(r.get("capital_outlay_total")),
+            "debt_outstanding": clean_val(r.get("debt_outstanding")),
         }
         for r in records
         if is_valid(r.get("total_revenue")) or is_valid(r.get("salaries_total"))
@@ -185,7 +239,18 @@ def upsert_finance_data(
             salaries_teachers_other NUMERIC,
             salaries_support_admin NUMERIC,
             salaries_support_instructional NUMERIC,
-            benefits_total NUMERIC
+            benefits_total NUMERIC,
+            sped_expenditure_total NUMERIC,
+            sped_expenditure_instruction NUMERIC,
+            sped_expenditure_support NUMERIC,
+            esser_funding_total NUMERIC,
+            esser_spending_total NUMERIC,
+            esser_spending_instruction NUMERIC,
+            payments_to_charter_schools NUMERIC,
+            payments_to_private_schools NUMERIC,
+            tech_spending NUMERIC,
+            capital_outlay_total NUMERIC,
+            debt_outstanding NUMERIC
         )
     """)
 
@@ -195,7 +260,11 @@ def upsert_finance_data(
             total_expenditure, expenditure_per_pupil, finance_data_year,
             salaries_total, salaries_instruction, salaries_teachers_regular,
             salaries_teachers_special_ed, salaries_teachers_vocational, salaries_teachers_other,
-            salaries_support_admin, salaries_support_instructional, benefits_total
+            salaries_support_admin, salaries_support_instructional, benefits_total,
+            sped_expenditure_total, sped_expenditure_instruction, sped_expenditure_support,
+            esser_funding_total, esser_spending_total, esser_spending_instruction,
+            payments_to_charter_schools, payments_to_private_schools,
+            tech_spending, capital_outlay_total, debt_outstanding
         ) VALUES %s
     """
 
@@ -219,6 +288,17 @@ def upsert_finance_data(
             r.get("salaries_support_admin"),
             r.get("salaries_support_instructional"),
             r.get("benefits_total"),
+            r.get("sped_expenditure_total"),
+            r.get("sped_expenditure_instruction"),
+            r.get("sped_expenditure_support"),
+            r.get("esser_funding_total"),
+            r.get("esser_spending_total"),
+            r.get("esser_spending_instruction"),
+            r.get("payments_to_charter_schools"),
+            r.get("payments_to_private_schools"),
+            r.get("tech_spending"),
+            r.get("capital_outlay_total"),
+            r.get("debt_outstanding"),
         )
         for r in valid_records
     ]
@@ -233,7 +313,7 @@ def upsert_finance_data(
         try:
             execute_values(
                 cur, insert_temp_sql, batch,
-                template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             )
         except Exception as e:
             print(f"Error in batch {i//batch_size}: {e}")
@@ -260,12 +340,34 @@ def upsert_finance_data(
             salaries_teachers_other = u.salaries_teachers_other,
             salaries_support_admin = u.salaries_support_admin,
             salaries_support_instructional = u.salaries_support_instructional,
-            benefits_total = u.benefits_total
+            benefits_total = u.benefits_total,
+            sped_expenditure_total = u.sped_expenditure_total,
+            sped_expenditure_instruction = u.sped_expenditure_instruction,
+            sped_expenditure_support = u.sped_expenditure_support,
+            esser_funding_total = u.esser_funding_total,
+            esser_spending_total = u.esser_spending_total,
+            esser_spending_instruction = u.esser_spending_instruction,
+            payments_to_charter_schools = u.payments_to_charter_schools,
+            payments_to_private_schools = u.payments_to_private_schools,
+            tech_spending = u.tech_spending,
+            capital_outlay_total = u.capital_outlay_total,
+            debt_outstanding = u.debt_outstanding
         FROM finance_updates u
         WHERE d.leaid = u.leaid
     """)
     updated_count = cur.rowcount
     print(f"Updated {updated_count} district records")
+
+    # Compute sped_expenditure_per_student where both values are available
+    cur.execute("""
+        UPDATE districts SET
+            sped_expenditure_per_student = sped_expenditure_total / spec_ed_students
+        WHERE sped_expenditure_total IS NOT NULL
+          AND spec_ed_students IS NOT NULL
+          AND spec_ed_students > 0
+    """)
+    sped_per_student_count = cur.rowcount
+    print(f"Computed sped_expenditure_per_student for {sped_per_student_count} districts")
 
     # Drop temp table
     cur.execute("DROP TABLE finance_updates")

@@ -4,7 +4,7 @@ import type { District, DistrictEnrollmentDemographics, DistrictTrends } from "@
 import SignalBadge from "./signals/SignalBadge";
 import TrendArrow from "./signals/TrendArrow";
 import SignalCard from "./signals/SignalCard";
-import DemographicsChart from "./DemographicsChart";
+import DemographicsChart from "@/components/panel/DemographicsChart";
 import CharterSchools from "./CharterSchools";
 
 interface EnrollmentCardProps {

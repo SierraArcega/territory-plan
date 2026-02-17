@@ -31,29 +31,41 @@ const mockPlans: TerritoryPlan[] = [
     id: "plan-1",
     name: "West Region Q1",
     description: "Primary focus on expanding in the Western region",
-    owner: "John Smith",
+    owner: { id: "user-1", fullName: "John Smith", avatarUrl: null },
     color: "#FF5733",
-    status: "active",
+    status: "working",
     fiscalYear: 2026,
     startDate: "2026-01-01",
     endDate: "2026-03-31",
     createdAt: "2025-12-01T00:00:00Z",
     updatedAt: "2025-12-15T00:00:00Z",
     districtCount: 15,
+    totalEnrollment: 50000,
+    stateCount: 1,
+    states: [{ fips: "06", abbrev: "CA", name: "California" }],
+    collaborators: [],
+    taskCount: 0,
+    completedTaskCount: 0,
   },
   {
     id: "plan-2",
     name: "East Coast Expansion",
     description: "New territory development on the East Coast",
-    owner: "Jane Doe",
+    owner: { id: "user-2", fullName: "Jane Doe", avatarUrl: null },
     color: "#3498DB",
-    status: "draft",
+    status: "planning",
     fiscalYear: 2026,
     startDate: "2026-04-01",
     endDate: "2026-06-30",
     createdAt: "2025-12-10T00:00:00Z",
     updatedAt: "2025-12-20T00:00:00Z",
     districtCount: 8,
+    totalEnrollment: 30000,
+    stateCount: 2,
+    states: [{ fips: "36", abbrev: "NY", name: "New York" }, { fips: "34", abbrev: "NJ", name: "New Jersey" }],
+    collaborators: [],
+    taskCount: 0,
+    completedTaskCount: 0,
   },
   {
     id: "plan-3",
@@ -68,6 +80,12 @@ const mockPlans: TerritoryPlan[] = [
     createdAt: "2024-12-01T00:00:00Z",
     updatedAt: "2024-12-15T00:00:00Z",
     districtCount: 3,
+    totalEnrollment: 10000,
+    stateCount: 1,
+    states: [],
+    collaborators: [],
+    taskCount: 0,
+    completedTaskCount: 0,
   },
 ];
 
@@ -127,8 +145,8 @@ describe("PlansTable", () => {
       expect(screen.getByText("FY25")).toBeInTheDocument();
 
       // Check status badges
-      expect(screen.getByText("Active")).toBeInTheDocument();
-      expect(screen.getByText("Draft")).toBeInTheDocument();
+      expect(screen.getByText("Working")).toBeInTheDocument();
+      expect(screen.getByText("Planning")).toBeInTheDocument();
       expect(screen.getByText("Archived")).toBeInTheDocument();
 
       // Check district counts
@@ -225,22 +243,22 @@ describe("PlansTable", () => {
         <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
       );
 
-      // Click on status to edit (first plan is "Active")
-      const statusCell = screen.getByText("Active");
+      // Click on status to edit (first plan is "Working")
+      const statusCell = screen.getByText("Working");
       fireEvent.click(statusCell);
 
       // Should show select dropdown
       const select = screen.getByRole("combobox");
       expect(select).toBeInTheDocument();
 
-      // Change to draft
-      fireEvent.change(select, { target: { value: "draft" } });
+      // Change to planning
+      fireEvent.change(select, { target: { value: "planning" } });
 
       await waitFor(() => {
         expect(mockUpdateMutate).toHaveBeenCalledWith(
           expect.objectContaining({
             id: "plan-1",
-            status: "draft",
+            status: "planning",
           })
         );
       });

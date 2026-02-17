@@ -128,6 +128,7 @@ export default function MapV2Container() {
   const visibleLocales = useMapV2Store((s) => s.visibleLocales);
   const filterAccountTypes = useMapV2Store((s) => s.filterAccountTypes);
   const fullmindEngagement = useMapV2Store((s) => s.fullmindEngagement);
+  const competitorEngagement = useMapV2Store((s) => s.competitorEngagement);
   const clickRipples = useMapV2Store((s) => s.clickRipples);
   const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
@@ -993,6 +994,13 @@ export default function MapV2Container() {
           ? ["all", engagementFilter, combinedFilter]
           : engagementFilter;
         map.current.setFilter(layerId, combined);
+      } else if (vendorId !== "fullmind" && (competitorEngagement[vendorId]?.length ?? 0) > 0) {
+        // Per-competitor engagement filter — category values match directly (multi_year, new, churned)
+        const engagementFilter: any = ["in", ["get", config.tileProperty], ["literal", competitorEngagement[vendorId]]];
+        const combined = combinedFilter
+          ? ["all", engagementFilter, combinedFilter]
+          : engagementFilter;
+        map.current.setFilter(layerId, combined);
       } else {
         const vendorFilter: any = ["has", config.tileProperty];
         const combined = combinedFilter
@@ -1027,7 +1035,7 @@ export default function MapV2Container() {
         : pointFilter;
       map.current.setFilter(ACCOUNT_POINT_LAYER_ID, pointCombined);
     }
-  }, [filterOwner, filterPlanId, filterStates, filterAccountTypes, fullmindEngagement, mapReady]);
+  }, [filterOwner, filterPlanId, filterStates, filterAccountTypes, fullmindEngagement, competitorEngagement, mapReady]);
 
   // Highlight filtered states with outline + subtle fill
   useEffect(() => {

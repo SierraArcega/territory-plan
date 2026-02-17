@@ -27,6 +27,7 @@ def fetch_graduation_data(
     year: int = 2019,
     page_size: int = 10000,
     delay: float = 0.5,
+    fips: Optional[str] = None,
 ) -> Dict[str, Dict]:
     """
     Fetch district graduation rate data from Urban Institute EdFacts API.
@@ -38,6 +39,7 @@ def fetch_graduation_data(
         year: Academic year (max available is 2019)
         page_size: Results per page (max 10000)
         delay: Delay between requests in seconds
+        fips: Optional state FIPS code to filter by (e.g., "06" for California)
 
     Returns:
         Dict mapping leaid to graduation rates
@@ -45,7 +47,8 @@ def fetch_graduation_data(
     all_records: Dict[str, Dict] = {}
     page = 1
 
-    print(f"Fetching graduation data for year {year}...")
+    fips_label = f" for state FIPS {fips}" if fips else ""
+    print(f"Fetching graduation data for year {year}{fips_label}...")
 
     while True:
         url = f"{API_BASE_URL}/school-districts/edfacts/grad-rates/{year}/"
@@ -53,6 +56,8 @@ def fetch_graduation_data(
             "page": page,
             "per_page": page_size,
         }
+        if fips:
+            params["fips"] = int(fips)
 
         try:
             response = requests.get(url, params=params, timeout=120)
@@ -239,6 +244,92 @@ def log_refresh(
     conn.close()
 
 
+def fetch_graduation_data_by_state(
+    connection_string: str,
+    year: int = 2019,
+    start_fips: Optional[str] = None,
+    delay: float = 0.5,
+) -> dict:
+    """
+    Fetch and upsert graduation data state-by-state for reliability.
+
+    Iterates through all 51 FIPS codes, fetching graduation data per state
+    and upserting immediately. Supports resuming from a specific FIPS code.
+
+    Args:
+        connection_string: PostgreSQL connection string
+        year: Academic year (max available is 2019)
+        start_fips: Resume from this FIPS code (e.g., "06" for California)
+        delay: Delay between API requests
+
+    Returns:
+        Summary dict with per-state counts.
+    """
+    STATES = [
+        ("01", "Alabama"), ("02", "Alaska"), ("04", "Arizona"), ("05", "Arkansas"),
+        ("06", "California"), ("08", "Colorado"), ("09", "Connecticut"), ("10", "Delaware"),
+        ("11", "DC"), ("12", "Florida"), ("13", "Georgia"), ("15", "Hawaii"),
+        ("16", "Idaho"), ("17", "Illinois"), ("18", "Indiana"), ("19", "Iowa"),
+        ("20", "Kansas"), ("21", "Kentucky"), ("22", "Louisiana"), ("23", "Maine"),
+        ("24", "Maryland"), ("25", "Massachusetts"), ("26", "Michigan"), ("27", "Minnesota"),
+        ("28", "Mississippi"), ("29", "Missouri"), ("30", "Montana"), ("31", "Nebraska"),
+        ("32", "Nevada"), ("33", "New Hampshire"), ("34", "New Jersey"), ("35", "New Mexico"),
+        ("36", "New York"), ("37", "North Carolina"), ("38", "North Dakota"), ("39", "Ohio"),
+        ("40", "Oklahoma"), ("41", "Oregon"), ("42", "Pennsylvania"), ("44", "Rhode Island"),
+        ("45", "South Carolina"), ("46", "South Dakota"), ("47", "Tennessee"), ("48", "Texas"),
+        ("49", "Utah"), ("50", "Vermont"), ("51", "Virginia"), ("53", "Washington"),
+        ("54", "West Virginia"), ("55", "Wisconsin"), ("56", "Wyoming"),
+    ]
+
+    print("\n" + "=" * 60)
+    print("Fetching Graduation Rates - State by State")
+    print("=" * 60)
+
+    if start_fips:
+        start_fips = start_fips.zfill(2)
+        states_to_process = [(f, n) for f, n in STATES if f >= start_fips]
+        print(f"Resuming from FIPS {start_fips}, {len(states_to_process)} states remaining")
+    else:
+        states_to_process = STATES
+
+    total_updated = 0
+    total_failed = 0
+    state_results = {}
+
+    for i, (fips, state_name) in enumerate(states_to_process, 1):
+        print(f"\n[{i}/{len(states_to_process)}] {state_name} (FIPS {fips})")
+
+        records = fetch_graduation_data(year=year, delay=delay, fips=fips)
+        count = len(records)
+
+        if records:
+            result = upsert_graduation_data(connection_string, records, year=year)
+            total_updated += result["updated"]
+            total_failed += result["failed"]
+            state_results[state_name] = result["updated"]
+            print(f"  Updated {result['updated']} districts")
+        else:
+            state_results[state_name] = 0
+            print(f"  No graduation records found")
+
+        print(f"  Running total: {total_updated:,} updated")
+
+    # Print summary
+    print(f"\n{'=' * 60}")
+    print(f"STATE-BY-STATE GRADUATION SUMMARY")
+    print(f"{'=' * 60}")
+    for state_name, count in state_results.items():
+        if count > 0:
+            print(f"  {state_name:20s}: {count:>6,} districts")
+    print(f"\n  TOTAL: {total_updated:,} updated, {total_failed:,} failed")
+
+    return {
+        "updated": total_updated,
+        "failed": total_failed,
+        "state_results": state_results,
+    }
+
+
 def main():
     """CLI entry point."""
     import argparse
@@ -248,27 +339,36 @@ def main():
     load_dotenv()
 
     parser = argparse.ArgumentParser(description="Fetch Urban Institute graduation rate data")
-    parser.add_argument("--year", type=int, default=2022, help="Academic year")
+    parser.add_argument("--year", type=int, default=2019, help="Academic year (max available: 2019)")
     parser.add_argument("--delay", type=float, default=0.5, help="Delay between API calls")
+    parser.add_argument("--by-state", action="store_true", help="Fetch data state-by-state (more reliable)")
+    parser.add_argument("--start-fips", type=str, default=None, help="Resume state-by-state from this FIPS code")
 
     args = parser.parse_args()
 
-    connection_string = os.environ.get("DATABASE_URL")
+    # Prefer DIRECT_URL for Python scripts (no pgbouncer)
+    connection_string = os.environ.get("DIRECT_URL") or os.environ.get("DATABASE_URL")
     if not connection_string:
-        raise ValueError("DATABASE_URL environment variable not set")
+        raise ValueError("DIRECT_URL or DATABASE_URL environment variable not set")
+
+    # Strip Supabase-specific query params that psycopg2 doesn't understand
+    if "?" in connection_string:
+        base_url = connection_string.split("?")[0]
+        params_str = connection_string.split("?")[1]
+        valid_params = [p for p in params_str.split("&") if p and not p.startswith("pgbouncer")]
+        connection_string = base_url + ("?" + "&".join(valid_params) if valid_params else "")
 
     started_at = datetime.now().isoformat()
 
     try:
-        records = fetch_graduation_data(year=args.year, delay=args.delay)
-
-        if records:
-            result = upsert_graduation_data(
+        if args.by_state:
+            result = fetch_graduation_data_by_state(
                 connection_string,
-                records,
-                year=args.year
+                year=args.year,
+                start_fips=args.start_fips,
+                delay=args.delay,
             )
-            print(f"Graduation data import complete: {result}")
+            print(f"Graduation data (state-by-state) complete: {result['updated']} updated, {result['failed']} failed")
 
             log_refresh(
                 connection_string,
@@ -280,17 +380,37 @@ def main():
                 started_at=started_at,
             )
         else:
-            print("No records fetched")
-            log_refresh(
-                connection_string,
-                data_source="urban_institute_graduation",
-                data_year=args.year,
-                records_updated=0,
-                records_failed=0,
-                status="failed",
-                error_message="No records fetched from API",
-                started_at=started_at,
-            )
+            records = fetch_graduation_data(year=args.year, delay=args.delay)
+
+            if records:
+                result = upsert_graduation_data(
+                    connection_string,
+                    records,
+                    year=args.year
+                )
+                print(f"Graduation data import complete: {result}")
+
+                log_refresh(
+                    connection_string,
+                    data_source="urban_institute_graduation",
+                    data_year=args.year,
+                    records_updated=result["updated"],
+                    records_failed=result["failed"],
+                    status="success" if result["failed"] == 0 else "partial",
+                    started_at=started_at,
+                )
+            else:
+                print("No records fetched")
+                log_refresh(
+                    connection_string,
+                    data_source="urban_institute_graduation",
+                    data_year=args.year,
+                    records_updated=0,
+                    records_failed=0,
+                    status="failed",
+                    error_message="No records fetched from API",
+                    started_at=started_at,
+                )
 
     except Exception as e:
         print(f"Error: {e}")

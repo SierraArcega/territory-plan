@@ -106,7 +106,7 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
           {sorted.map((task) => {
             const statusConfig = TASK_STATUS_CONFIG[task.status as TaskStatus];
             const priorityConfig = TASK_PRIORITY_CONFIG[task.priority as TaskPriority];
-            const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "done";
+            const isOverdue = task.dueDate && new Date(task.dueDate.split("T")[0] + "T00:00:00") < new Date() && task.status !== "done";
             const linkedCount = task.plans.length + task.districts.length + task.activities.length + task.contacts.length;
 
             return (
@@ -152,7 +152,7 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
                 <td className="px-4 py-3">
                   {task.dueDate ? (
                     <span className={`text-xs ${isOverdue ? "text-red-500 font-medium" : "text-gray-500"}`}>
-                      {new Date(task.dueDate).toLocaleDateString("en-US", {
+                      {new Date(task.dueDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",

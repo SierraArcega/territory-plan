@@ -25,11 +25,13 @@ export default function PlanDashboard({ planId, onBack }: PlanDashboardProps) {
       id: planId,
       name: data.name,
       description: data.description || undefined,
-      ownerId: (data as unknown as { ownerId?: string }).ownerId,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
   };
 

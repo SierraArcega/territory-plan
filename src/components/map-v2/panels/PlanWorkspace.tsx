@@ -10,9 +10,10 @@ import PlanPerfSection from "./PlanPerfSection";
 import PlanActivitiesSection from "./PlanActivitiesSection";
 
 const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
-  draft: { bg: "bg-gray-100", text: "text-gray-600" },
-  active: { bg: "bg-green-100", text: "text-green-700" },
-  archived: { bg: "bg-amber-100", text: "text-amber-700" },
+  planning: { bg: "bg-gray-100", text: "text-gray-600" },
+  working: { bg: "bg-green-100", text: "text-green-700" },
+  stale: { bg: "bg-amber-100", text: "text-amber-700" },
+  archived: { bg: "bg-gray-200", text: "text-gray-500" },
 };
 
 const ICON_TABS: { key: PlanSection; label: string; path: string; stroke?: boolean }[] = [
@@ -57,7 +58,7 @@ export default function PlanWorkspace() {
 
   const { data: plan, isLoading } = useTerritoryPlan(activePlanId);
 
-  const badge = plan ? STATUS_BADGE[plan.status] || STATUS_BADGE.draft : null;
+  const badge = plan ? STATUS_BADGE[plan.status] || STATUS_BADGE.planning : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -134,6 +135,24 @@ export default function PlanWorkspace() {
             <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
               {plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}
             </span>
+            {plan.states?.map((s) => (
+              <span
+                key={s.fips}
+                className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-50 text-blue-700"
+              >
+                {s.abbrev}
+              </span>
+            ))}
+            {plan.owner && (
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
+                {plan.owner.fullName}
+              </span>
+            )}
+            {plan.collaborators && plan.collaborators.length > 0 && (
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-purple-50 text-purple-700">
+                +{plan.collaborators.length} collaborator{plan.collaborators.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         ) : null}
       </div>

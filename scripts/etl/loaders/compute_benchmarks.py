@@ -229,11 +229,13 @@ def compute_district_trends(connection_string: str) -> int:
         UPDATE districts SET
             swd_pct = CASE
                 WHEN spec_ed_students IS NOT NULL AND enrollment IS NOT NULL AND enrollment > 0
+                     AND spec_ed_students <= enrollment
                 THEN ROUND((spec_ed_students::numeric / enrollment * 100), 2)
                 ELSE NULL
             END,
             ell_pct = CASE
                 WHEN ell_students IS NOT NULL AND enrollment IS NOT NULL AND enrollment > 0
+                     AND ell_students <= enrollment
                 THEN ROUND((ell_students::numeric / enrollment * 100), 2)
                 ELSE NULL
             END

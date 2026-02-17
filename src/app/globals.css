@@ -112,8 +112,7 @@ body {
 }
 
 .tooltip-exit {
-  animation: tooltipExit 100ms ease-out forwards;
-  animation-delay: 150ms;
+  animation: tooltipExit 80ms ease-out forwards;
 }
 
 /* ============================================

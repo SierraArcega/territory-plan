@@ -25,7 +25,7 @@ export default function PlanFormPanel() {
         name: name.trim(),
         fiscalYear,
         description: description.trim() || undefined,
-        status: "draft",
+        status: "planning",
       });
 
       // If we have pre-selected districts, add them

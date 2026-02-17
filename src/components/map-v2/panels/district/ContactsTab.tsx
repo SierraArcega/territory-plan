@@ -1,7 +1,7 @@
 "use client";
 
 import type { Contact } from "@/lib/api";
-import ContactsList from "./ContactsList";
+import ContactsList from "@/components/panel/ContactsList";
 
 interface ContactsTabProps {
   leaid: string;

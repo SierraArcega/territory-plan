@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { exchangeCodeForTokens } from "@/lib/google-calendar";
+import { syncCalendarEvents } from "@/lib/calendar-sync";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -15,21 +16,26 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
+  console.log("[calendar-callback] hit — params:", { code: code ? "present" : "missing", state: state ? "present" : "missing", error, origin });
+
   // If the user denied access, redirect back with a message
   if (error) {
+    console.log("[calendar-callback] → error from Google:", error);
     return NextResponse.redirect(
-      `${origin}/?tab=profile&calendarError=access_denied`
+      `${origin}/?calendarError=access_denied`
     );
   }
 
   if (!code) {
+    console.log("[calendar-callback] → no code param");
     return NextResponse.redirect(
-      `${origin}/?tab=profile&calendarError=no_code`
+      `${origin}/?calendarError=no_code`
     );
   }
 
   try {
     const user = await getUser();
+    console.log("[calendar-callback] getUser:", user ? user.id : "null");
     if (!user) {
       return NextResponse.redirect(`${origin}/login`);
     }
@@ -41,8 +47,9 @@ export async function GET(request: NextRequest) {
           Buffer.from(state, "base64url").toString()
         );
         if (stateData.userId !== user.id) {
+          console.log("[calendar-callback] → state mismatch:", { stateUserId: stateData.userId, sessionUserId: user.id });
           return NextResponse.redirect(
-            `${origin}/?tab=profile&calendarError=state_mismatch`
+            `${origin}/?calendarError=state_mismatch`
           );
         }
       } catch {
@@ -53,7 +60,9 @@ export async function GET(request: NextRequest) {
 
     // Exchange the auth code for access + refresh tokens
     const redirectUri = `${origin}/api/calendar/callback`;
+    console.log("[calendar-callback] exchanging code, redirectUri:", redirectUri);
     const tokens = await exchangeCodeForTokens(code, redirectUri);
+    console.log("[calendar-callback] token exchange succeeded, email:", tokens.email);
 
     // Extract the company domain from the user's email
     // This is used to filter out internal attendees when syncing calendar events
@@ -85,14 +94,23 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Auto-sync calendar events so the inbox is populated immediately
+    try {
+      await syncCalendarEvents(user.id);
+    } catch (syncErr) {
+      // Non-fatal — the user can manually sync later
+      console.error("Auto-sync after connection failed:", syncErr);
+    }
+
     // Redirect back to the app with a success indicator
+    console.log("[calendar-callback] → SUCCESS, redirecting to activities");
     return NextResponse.redirect(
       `${origin}/?tab=activities&calendarConnected=true`
     );
   } catch (err) {
-    console.error("Calendar callback error:", err);
+    console.error("[calendar-callback] → FAILED. Error:", err);
     return NextResponse.redirect(
-      `${origin}/?tab=profile&calendarError=token_exchange_failed`
+      `${origin}/?calendarError=token_exchange_failed`
     );
   }
 }
