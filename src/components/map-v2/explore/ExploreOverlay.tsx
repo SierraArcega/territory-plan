@@ -201,6 +201,7 @@ export default function ExploreOverlay() {
               isLoading={isLoading}
               pagination={result?.pagination}
               onPageChange={(page) => setExplorePage(page)}
+              entityType={exploreEntity}
             />
           </div>
         </div>

@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
   flexRender,
   type ColumnDef,
 } from "@tanstack/react-table";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUpdateDistrictEdits } from "@/lib/api";
 import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
@@ -23,6 +25,7 @@ interface Props {
   isLoading: boolean;
   pagination: { page: number; pageSize: number; total: number } | undefined;
   onPageChange: (page: number) => void;
+  entityType: string;
 }
 
 // ---- Column label lookup ----
@@ -112,17 +115,99 @@ export default function ExploreTable({
   isLoading,
   pagination,
   onPageChange,
+  entityType,
 }: Props) {
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ rowId: string; column: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const queryClient = useQueryClient();
+  const updateEdits = useUpdateDistrictEdits();
+
+  const handleSave = (rowId: string, column: string) => {
+    if (!editingCell) return;
+
+    updateEdits.mutate(
+      {
+        leaid: rowId,
+        [column]: editValue || undefined,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["explore"] });
+        },
+      }
+    );
+
+    setEditingCell(null);
+  };
+
   // Build TanStack column definitions from visible column keys
   const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(
     () =>
-      visibleColumns.map((key) => ({
-        id: key,
-        accessorFn: (row: Record<string, unknown>) => row[key],
-        header: () => columnLabel(key),
-        cell: (info) => formatCellValue(info.getValue(), key),
-      })),
-    [visibleColumns]
+      visibleColumns.map((key) => {
+        const isEditable =
+          entityType === "districts" &&
+          districtColumns.find((d) => d.key === key)?.editable;
+
+        return {
+          id: key,
+          accessorFn: (row: Record<string, unknown>) => row[key],
+          header: () => columnLabel(key),
+          cell: isEditable
+            ? (info) => {
+                const value = info.getValue();
+                const rowId = (info.row.original.leaid || info.row.original.id) as string;
+                const isEditing =
+                  editingCell?.rowId === rowId && editingCell?.column === key;
+
+                if (isEditing) {
+                  return (
+                    <input
+                      autoFocus
+                      className="w-full px-1 py-0.5 text-sm border border-plum rounded outline-none"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleSave(rowId, key)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSave(rowId, key);
+                        if (e.key === "Escape") setEditingCell(null);
+                      }}
+                    />
+                  );
+                }
+
+                return (
+                  <span
+                    className="group/cell cursor-text"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingCell({ rowId, column: key });
+                      setEditValue(String(value || ""));
+                    }}
+                  >
+                    {formatCellValue(value, key)}
+                    <svg
+                      className="inline-block ml-1 opacity-0 group-hover/cell:opacity-40 w-3 h-3"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path
+                        d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                );
+              }
+            : (info) => formatCellValue(info.getValue(), key),
+        };
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleColumns, entityType, editingCell, editValue]
   );
 
   const table = useReactTable({

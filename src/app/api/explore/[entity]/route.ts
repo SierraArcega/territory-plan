@@ -54,6 +54,8 @@ const DISTRICT_FIELD_MAP: Record<string, string> = {
   ell_percent: "ellPct",
   free_lunch_percent: "childrenPovertyPercent",
   accountType: "accountType",
+  notes: "notes",
+  owner: "owner",
 };
 
 // ---------------------------------------------------------------------------
@@ -184,6 +186,8 @@ async function handleDistricts(req: NextRequest) {
         ellPct: true,
         childrenPovertyPercent: true,
         accountType: true,
+        notes: true,
+        owner: true,
         // point location for mini-map
         // Prisma cannot select Unsupported fields via select, so we omit geometry
         // Relations
@@ -236,6 +240,8 @@ async function handleDistricts(req: NextRequest) {
     ell_percent: d.ellPct,
     free_lunch_percent: d.childrenPovertyPercent,
     accountType: d.accountType,
+    notes: d.notes,
+    owner: d.owner,
     tags: d.districtTags.map((dt) => dt.tag),
     planCount: d.territoryPlans.length,
     lastActivity: d.activityLinks[0]?.activity?.startDate ?? null,

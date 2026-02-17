@@ -8,6 +8,7 @@ export interface ColumnDef {
   isDefault: boolean;
   filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags";
   enumValues?: string[];
+  editable?: boolean;
 }
 
 export interface DistrictRow {
@@ -28,6 +29,8 @@ export interface DistrictRow {
   ell_percent: number | null;
   free_lunch_percent: number | null;
   accountType: string | null;
+  notes: string | null;
+  owner: string | null;
   tags: { id: string; name: string; color: string }[];
   planCount: number;
   lastActivity: string | null;
@@ -77,6 +80,22 @@ export const districtColumns: ColumnDef[] = [
     isDefault: false,
     filterType: "enum",
     enumValues: ["district", "charter", "esc", "other"],
+  },
+  {
+    key: "owner",
+    label: "Owner",
+    group: "Core",
+    isDefault: false,
+    filterType: "text",
+    editable: true,
+  },
+  {
+    key: "notes",
+    label: "Notes",
+    group: "Core",
+    isDefault: false,
+    filterType: "text",
+    editable: true,
   },
 
   // ---- CRM / Revenue ----
