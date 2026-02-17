@@ -37,6 +37,15 @@ model District {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
+  // ===== Account Type =====
+  // Distinguishes traditional districts from other entity types (CMO, ESA, etc.)
+  // Defaults to 'district' for all existing rows
+  accountType        String   @default("district") @map("account_type") @db.VarChar(20)
+
+  // ===== Point Location (managed outside Prisma) =====
+  // Geocoded lat/lng for map pin — used when polygon geometry is null
+  pointLocation Unsupported("geometry(Point, 4326)")?  @map("point_location")
+
   // ===== Fullmind CRM Data =====
   // Source: Fullmind CSV import via ETL
   accountName              String?  @map("account_name") @db.VarChar(255)
