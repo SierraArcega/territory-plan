@@ -18,7 +18,8 @@ in_plan AS (
   SELECT DISTINCT district_leaid AS leaid
   FROM territory_plan_districts
 ),
-fullmind_cats AS (
+-- FY26 Fullmind categories: FY25→FY26 comparison
+fullmind_fy26 AS (
   SELECT
     d.leaid,
     CASE
@@ -52,12 +53,43 @@ fullmind_cats AS (
       THEN 'target'
 
       ELSE NULL
-    END AS fullmind_category
+    END AS fy26_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
 ),
--- Per-vendor competitor categories
-vendor_cats AS (
+-- FY25 Fullmind categories: FY24→FY25 comparison
+-- Note: fy24_net_invoicing does NOT exist, so we use 0 everywhere
+fullmind_fy25 AS (
+  SELECT
+    d.leaid,
+    CASE
+      -- multi_year: WHEN 0 > 0 AND ... → never matches (correct)
+      WHEN 0 > 0
+        AND COALESCE(d.fy25_net_invoicing, 0) > 0
+      THEN 'multi_year'
+
+      -- new: all FY25 revenue districts
+      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
+      THEN 'new'
+
+      -- lapsed: WHEN 0 > 0 AND ... → never matches (correct)
+      WHEN 0 > 0
+        AND NOT COALESCE(d.fy25_net_invoicing, 0) > 0
+      THEN 'lapsed'
+
+      -- No pipeline categories (no fy25_open_pipeline column exists)
+
+      -- target: district in plan with no FY25 revenue
+      WHEN ip.leaid IS NOT NULL
+      THEN 'target'
+
+      ELSE NULL
+    END AS fy25_fullmind_category
+  FROM districts d
+  LEFT JOIN in_plan ip ON d.leaid = ip.leaid
+),
+-- Per-vendor competitor categories: FY26 (FY25→FY26 spend)
+vendor_fy26 AS (
   SELECT
     cs.leaid,
     cs.competitor,
@@ -74,6 +106,25 @@ vendor_cats AS (
   FROM competitor_spend cs
   WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')
   GROUP BY cs.leaid, cs.competitor
+),
+-- Per-vendor competitor categories: FY25 (FY24→FY25 spend)
+vendor_fy25 AS (
+  SELECT
+    cs.leaid,
+    cs.competitor,
+    CASE
+      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
+        AND SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
+      THEN 'multi_year'
+      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
+      THEN 'new'
+      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
+      THEN 'churned'
+      ELSE NULL
+    END AS category
+  FROM competitor_spend cs
+  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')
+  GROUP BY cs.leaid, cs.competitor
 )
 SELECT
   d.leaid,
@@ -81,10 +132,14 @@ SELECT
   d.state_abbrev,
   d.sales_executive,
   pm.plan_ids,
-  fc.fullmind_category,
-  MAX(CASE WHEN vc.competitor = 'Proximity Learning' THEN vc.category END) AS proximity_category,
-  MAX(CASE WHEN vc.competitor = 'Elevate K12' THEN vc.category END) AS elevate_category,
-  MAX(CASE WHEN vc.competitor = 'Tutored By Teachers' THEN vc.category END) AS tbt_category,
+  f26.fy26_fullmind_category,
+  f25.fy25_fullmind_category,
+  MAX(CASE WHEN v26.competitor = 'Proximity Learning' THEN v26.category END) AS fy26_proximity_category,
+  MAX(CASE WHEN v26.competitor = 'Elevate K12' THEN v26.category END) AS fy26_elevate_category,
+  MAX(CASE WHEN v26.competitor = 'Tutored By Teachers' THEN v26.category END) AS fy26_tbt_category,
+  MAX(CASE WHEN v25.competitor = 'Proximity Learning' THEN v25.category END) AS fy25_proximity_category,
+  MAX(CASE WHEN v25.competitor = 'Elevate K12' THEN v25.category END) AS fy25_elevate_category,
+  MAX(CASE WHEN v25.competitor = 'Tutored By Teachers' THEN v25.category END) AS fy25_tbt_category,
   -- Signal columns: bucket trends into categories
   CASE
     WHEN d.enrollment_trend_3yr >= 5  THEN 'strong_growth'
@@ -125,12 +180,14 @@ SELECT
   COALESCE(d.geometry, d.point_location) AS render_geometry
 FROM districts d
 LEFT JOIN plan_memberships pm ON d.leaid = pm.leaid
-LEFT JOIN fullmind_cats fc ON d.leaid = fc.leaid
-LEFT JOIN vendor_cats vc ON d.leaid = vc.leaid
+LEFT JOIN fullmind_fy26 f26 ON d.leaid = f26.leaid
+LEFT JOIN fullmind_fy25 f25 ON d.leaid = f25.leaid
+LEFT JOIN vendor_fy26 v26 ON d.leaid = v26.leaid
+LEFT JOIN vendor_fy25 v25 ON d.leaid = v25.leaid
 WHERE d.geometry IS NOT NULL OR d.point_location IS NOT NULL
 GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive,
-         pm.plan_ids, fc.fullmind_category, d.geometry,
-         d.account_type, d.point_location;
+         pm.plan_ids, f26.fy26_fullmind_category, f25.fy25_fullmind_category,
+         d.geometry, d.account_type, d.point_location;
 
 -- Indexes
 CREATE INDEX idx_dmf_leaid ON district_map_features(leaid);
@@ -138,19 +195,27 @@ CREATE INDEX idx_dmf_state ON district_map_features(state_abbrev);
 CREATE INDEX idx_dmf_owner ON district_map_features(sales_executive);
 CREATE INDEX idx_dmf_geometry ON district_map_features USING GIST(geometry);
 CREATE INDEX IF NOT EXISTS idx_dmf_render_geometry ON district_map_features USING GIST (render_geometry);
-CREATE INDEX idx_dmf_has_data ON district_map_features(fullmind_category)
-  WHERE fullmind_category IS NOT NULL
-     OR proximity_category IS NOT NULL
-     OR elevate_category IS NOT NULL
-     OR tbt_category IS NOT NULL;
+CREATE INDEX idx_dmf_has_data_fy26 ON district_map_features(fy26_fullmind_category)
+  WHERE fy26_fullmind_category IS NOT NULL
+     OR fy26_proximity_category IS NOT NULL
+     OR fy26_elevate_category IS NOT NULL
+     OR fy26_tbt_category IS NOT NULL;
+
+CREATE INDEX idx_dmf_has_data_fy25 ON district_map_features(fy25_fullmind_category)
+  WHERE fy25_fullmind_category IS NOT NULL
+     OR fy25_proximity_category IS NOT NULL
+     OR fy25_elevate_category IS NOT NULL
+     OR fy25_tbt_category IS NOT NULL;
 
 ANALYZE district_map_features;
 
 -- Summary
 SELECT
   'district_map_features created: ' || COUNT(*) || ' districts' AS status,
-  COUNT(*) FILTER (WHERE fullmind_category IS NOT NULL) AS fullmind_districts,
-  COUNT(*) FILTER (WHERE proximity_category IS NOT NULL) AS proximity_districts,
-  COUNT(*) FILTER (WHERE elevate_category IS NOT NULL) AS elevate_districts,
-  COUNT(*) FILTER (WHERE tbt_category IS NOT NULL) AS tbt_districts
+  COUNT(*) FILTER (WHERE fy26_fullmind_category IS NOT NULL) AS fy26_fullmind,
+  COUNT(*) FILTER (WHERE fy25_fullmind_category IS NOT NULL) AS fy25_fullmind,
+  COUNT(*) FILTER (WHERE fy26_proximity_category IS NOT NULL) AS fy26_proximity,
+  COUNT(*) FILTER (WHERE fy25_proximity_category IS NOT NULL) AS fy25_proximity,
+  COUNT(*) FILTER (WHERE fy26_elevate_category IS NOT NULL) AS fy26_elevate,
+  COUNT(*) FILTER (WHERE fy26_tbt_category IS NOT NULL) AS fy26_tbt
 FROM district_map_features;
