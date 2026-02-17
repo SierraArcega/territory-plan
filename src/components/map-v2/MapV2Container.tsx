@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/lib/map-v2-store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression } from "@/lib/map-v2-layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer } from "@/lib/map-v2-layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref } from "@/lib/map-v2-ref";
@@ -318,6 +318,12 @@ export default function MapV2Container() {
             visibility: vendorId === "fullmind" ? "visible" : "none",
           },
         });
+      }
+
+      // Circle layer for non-district point accounts (CMOs, ESAs, etc.)
+      {
+        const pointLayer = buildAccountPointLayer(useMapV2Store.getState().activeVendors);
+        map.current.addLayer(pointLayer as any);
       }
 
       // Hover highlight fill
@@ -777,7 +783,7 @@ export default function MapV2Container() {
     }
   }, [multiSelectMode, mapReady]);
 
-  // Toggle vendor layer visibility
+  // Toggle vendor layer visibility + update circle layer color
   useEffect(() => {
     if (!map.current || !mapReady) return;
     for (const vendorId of VENDOR_IDS) {
@@ -789,6 +795,16 @@ export default function MapV2Container() {
           activeVendors.has(vendorId) ? "visible" : "none"
         );
       }
+    }
+
+    // Update circle layer color to match active vendor
+    if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
+      const pointLayer = buildAccountPointLayer(activeVendors);
+      map.current.setPaintProperty(
+        ACCOUNT_POINT_LAYER_ID,
+        "circle-color",
+        pointLayer.paint!["circle-color"] as any,
+      );
     }
   }, [activeVendors, mapReady]);
 
@@ -902,6 +918,15 @@ export default function MapV2Container() {
         ? ["all", vendorFilter, filter]
         : vendorFilter;
       map.current.setFilter(layerId, combined);
+    }
+
+    // Apply to account points circle layer (combine with non-district filter)
+    if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
+      const pointBaseFilter: any = ["!=", ["get", "account_type"], "district"];
+      const pointCombined = filter
+        ? ["all", pointBaseFilter, filter]
+        : pointBaseFilter;
+      map.current.setFilter(ACCOUNT_POINT_LAYER_ID, pointCombined);
     }
   }, [filterOwner, filterPlanId, filterStates, mapReady]);
 
