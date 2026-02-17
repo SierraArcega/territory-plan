@@ -51,7 +51,7 @@
     "account_id": "17592297177493",
     "account_name": "Saratoga Springs City School District",
     "state": "NEW YORK",
-    "sales_exec": "Sharon C.",
+    "sales_exec": "Brooke Fera",
     "total_revenue": 418600,
     "opportunity_count": 6
   },
@@ -554,8 +554,8 @@
   {
     "account_id": "17592238767745",
     "account_name": "iTutor Animals New LMS",
-    "state": "NEW JERSEY",
-    "sales_exec": " ",
+    "state": null,
+    "sales_exec": "MarilynTest AccountSetu",
     "total_revenue": 3,
     "opportunity_count": 5
   },
