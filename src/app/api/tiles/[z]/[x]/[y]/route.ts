@@ -47,9 +47,15 @@ export async function GET(
           d.proximity_category,
           d.elevate_category,
           d.tbt_category,
+          d.enrollment_signal,
+          d.ell_signal,
+          d.swd_signal,
+          d.locale_signal,
+          d.expenditure_signal,
+          d.account_type,
           ST_AsMVTGeom(
             ST_Transform(
-              ST_Simplify(d.geometry, ${simplifyTolerance}),
+              ST_Simplify(d.render_geometry, ${simplifyTolerance}),
               3857
             ),
             (SELECT envelope FROM tile_bounds),
@@ -58,8 +64,8 @@ export async function GET(
             true
           ) AS geom
         FROM district_map_features d
-        WHERE d.geometry IS NOT NULL
-          AND d.geometry && (SELECT envelope_4326 FROM tile_bounds)
+        WHERE d.render_geometry IS NOT NULL
+          AND d.render_geometry && (SELECT envelope_4326 FROM tile_bounds)
           ${stateFilter ? "AND d.state_abbrev = $4" : ""}
           ${isNationalView ? `AND (
             d.fullmind_category IS NOT NULL
