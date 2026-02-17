@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import type { StatusFilter, FiscalYear, MetricType } from "./store";
 import type { ActivityType, ActivityCategory, ActivityStatus } from "./activityTypes";
 import type { TaskStatus, TaskPriority } from "./taskTypes";
@@ -2446,6 +2446,45 @@ export function useSchoolDetail(ncessch: string | null) {
       fetchJson<SchoolDetail>(`${API_BASE}/schools/${ncessch}`),
     enabled: !!ncessch,
     staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// ------ Explore Data ------
+
+export interface ExploreResponse<T = Record<string, unknown>> {
+  data: T[];
+  aggregates: Record<string, number>;
+  pagination: { page: number; pageSize: number; total: number };
+}
+
+export function useExploreData<T = Record<string, unknown>>(
+  entity: string,
+  params: {
+    filters?: { id: string; column: string; op: string; value: unknown }[];
+    sort?: { column: string; direction: "asc" | "desc" } | null;
+    page?: number;
+    pageSize?: number;
+  }
+) {
+  const searchParams = new URLSearchParams();
+  if (params.filters && params.filters.length > 0) {
+    searchParams.set("filters", JSON.stringify(params.filters));
+  }
+  if (params.sort) {
+    searchParams.set("sort", params.sort.column);
+    searchParams.set("order", params.sort.direction);
+  }
+  searchParams.set("page", String(params.page || 1));
+  searchParams.set("pageSize", String(params.pageSize || 50));
+
+  return useQuery({
+    queryKey: ["explore", entity, params],
+    queryFn: () =>
+      fetchJson<ExploreResponse<T>>(
+        `${API_BASE}/explore/${entity}?${searchParams}`
+      ),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
