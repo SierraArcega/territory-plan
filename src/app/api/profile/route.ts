@@ -146,9 +146,10 @@ export async function GET() {
         fiscalYear: goal.fiscalYear,
         earningsTarget: toNumber(goal.earningsTarget),
         takeRatePercent: toNumber(goal.takeRatePercent),
-        revenueTarget: toNumber(goal.revenueTarget),
-        takeTarget: toNumber(goal.takeTarget),
-        pipelineTarget: toNumber(goal.pipelineTarget),
+        renewalTarget: toNumber(goal.renewalTarget),
+        winbackTarget: toNumber(goal.winbackTarget),
+        expansionTarget: toNumber(goal.expansionTarget),
+        newBusinessTarget: toNumber(goal.newBusinessTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
         ...yearActuals,
       };
@@ -159,6 +160,13 @@ export async function GET() {
       email: profile.email,
       fullName: profile.fullName,
       avatarUrl: profile.avatarUrl,
+      jobTitle: profile.jobTitle,
+      location: profile.location,
+      locationLat: toNumber(profile.locationLat) || null,
+      locationLng: toNumber(profile.locationLng) || null,
+      phone: profile.phone,
+      slackUrl: profile.slackUrl,
+      bio: profile.bio,
       hasCompletedSetup: profile.hasCompletedSetup,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
@@ -187,20 +195,47 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fullName, hasCompletedSetup } = body;
+    const { fullName, hasCompletedSetup, jobTitle, location, locationLat, locationLng, phone, slackUrl, bio } = body;
 
     // Build update data - only include fields that were provided
     const updateData: {
       fullName?: string | null;
       hasCompletedSetup?: boolean;
+      jobTitle?: string | null;
+      location?: string | null;
+      locationLat?: number | null;
+      locationLng?: number | null;
+      phone?: string | null;
+      slackUrl?: string | null;
+      bio?: string | null;
     } = {};
 
     if (fullName !== undefined) {
       updateData.fullName = fullName?.trim() || null;
     }
-
     if (hasCompletedSetup !== undefined) {
       updateData.hasCompletedSetup = Boolean(hasCompletedSetup);
+    }
+    if (jobTitle !== undefined) {
+      updateData.jobTitle = jobTitle?.trim() || null;
+    }
+    if (location !== undefined) {
+      updateData.location = location?.trim() || null;
+    }
+    if (locationLat !== undefined) {
+      updateData.locationLat = locationLat;
+    }
+    if (locationLng !== undefined) {
+      updateData.locationLng = locationLng;
+    }
+    if (phone !== undefined) {
+      updateData.phone = phone?.trim() || null;
+    }
+    if (slackUrl !== undefined) {
+      updateData.slackUrl = slackUrl?.trim() || null;
+    }
+    if (bio !== undefined) {
+      updateData.bio = bio?.trim() || null;
     }
 
     // Update the profile
@@ -231,9 +266,10 @@ export async function PUT(request: NextRequest) {
         fiscalYear: goal.fiscalYear,
         earningsTarget: toNumber(goal.earningsTarget),
         takeRatePercent: toNumber(goal.takeRatePercent),
-        revenueTarget: toNumber(goal.revenueTarget),
-        takeTarget: toNumber(goal.takeTarget),
-        pipelineTarget: toNumber(goal.pipelineTarget),
+        renewalTarget: toNumber(goal.renewalTarget),
+        winbackTarget: toNumber(goal.winbackTarget),
+        expansionTarget: toNumber(goal.expansionTarget),
+        newBusinessTarget: toNumber(goal.newBusinessTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
         ...yearActuals,
       };
@@ -244,6 +280,13 @@ export async function PUT(request: NextRequest) {
       email: profile.email,
       fullName: profile.fullName,
       avatarUrl: profile.avatarUrl,
+      jobTitle: profile.jobTitle,
+      location: profile.location,
+      locationLat: toNumber(profile.locationLat) || null,
+      locationLng: toNumber(profile.locationLng) || null,
+      phone: profile.phone,
+      slackUrl: profile.slackUrl,
+      bio: profile.bio,
       hasCompletedSetup: profile.hasCompletedSetup,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),

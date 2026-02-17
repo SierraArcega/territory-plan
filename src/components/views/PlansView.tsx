@@ -40,10 +40,12 @@ function formatDate(dateString: string | null): string {
 // Status badge styling
 function getStatusBadge(status: string) {
   switch (status) {
-    case "draft":
-      return { label: "Draft", className: "bg-gray-200 text-gray-700" };
-    case "active":
-      return { label: "Active", className: "bg-[#8AA891] text-white" };
+    case "planning":
+      return { label: "Planning", className: "bg-gray-200 text-gray-700" };
+    case "working":
+      return { label: "Working", className: "bg-[#8AA891] text-white" };
+    case "stale":
+      return { label: "Stale", className: "bg-amber-200 text-amber-800" };
     case "archived":
       return { label: "Archived", className: "bg-gray-400 text-white" };
     default:
@@ -122,12 +124,14 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
   };
 
@@ -293,12 +297,14 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       id: planId,
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
   };
 
@@ -446,10 +452,10 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
             {/* Meta info inline */}
             <span className="hidden md:flex items-center gap-2 text-[12px] text-gray-400 ml-2 flex-shrink-0">
               <span>{plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}</span>
-              {plan.owner && (
+              {plan.owner?.fullName && (
                 <>
                   <span>·</span>
-                  <span>{plan.owner}</span>
+                  <span>{plan.owner.fullName}</span>
                 </>
               )}
               {dateRange && (
@@ -490,7 +496,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       </header>
 
       {/* Main content: Tabbed interface for Districts, Activities, Contacts */}
-      <main className="max-w-7xl mx-auto px-6 py-4">
+      <main className={`mx-auto px-6 py-4 transition-[margin] duration-300 ${panelLeaid ? "mr-[420px]" : "max-w-7xl"}`}>
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setActiveTab("map")}
@@ -533,7 +539,6 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
           leaid={panelLeaid}
           planId={planId}
           planColor={plan.color}
-          planDistrict={plan.districts.find((d) => d.leaid === panelLeaid)}
           highlightContactId={highlightContactId}
           onClose={handleClosePanel}
         />

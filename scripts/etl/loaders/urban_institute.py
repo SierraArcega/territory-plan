@@ -90,6 +90,7 @@ def fetch_enrollment_data(
 
 def fetch_district_directory(
     year: int = 2023,
+    fips: Optional[str] = None,
     page_size: int = 10000,
     delay: float = 0.5,
 ) -> List[Dict]:
@@ -100,6 +101,7 @@ def fetch_district_directory(
 
     Args:
         year: Academic year
+        fips: State FIPS code to filter by (e.g., "06" for California)
         page_size: Results per page
         delay: Delay between requests
 
@@ -109,7 +111,8 @@ def fetch_district_directory(
     all_records = []
     page = 1
 
-    print(f"Fetching district directory for year {year}...")
+    state_label = f" (fips={fips})" if fips else ""
+    print(f"Fetching district directory for year {year}{state_label}...")
 
     while True:
         # Use district-level endpoint
@@ -118,6 +121,9 @@ def fetch_district_directory(
             "page": page,
             "per_page": page_size,
         }
+
+        if fips:
+            params["fips"] = int(fips)
 
         try:
             response = requests.get(url, params=params, timeout=120)

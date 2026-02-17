@@ -11,7 +11,8 @@ interface PlanCardProps {
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("en-US", {
+  const datePart = dateString.split("T")[0];
+  return new Date(datePart + "T00:00:00").toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -20,15 +21,20 @@ function formatDate(dateString: string | null): string {
 
 function getStatusBadge(status: string) {
   switch (status) {
-    case "draft":
+    case "planning":
       return {
-        label: "Draft",
+        label: "Planning",
         className: "bg-gray-200 text-gray-700",
       };
-    case "active":
+    case "working":
       return {
-        label: "Active",
+        label: "Working",
         className: "bg-[#8AA891] text-white",
+      };
+    case "stale":
+      return {
+        label: "Stale",
+        className: "bg-amber-200 text-amber-800",
       };
     case "archived":
       return {
@@ -176,10 +182,10 @@ export default function PlanCard({ plan, engagement }: PlanCardProps) {
       )}
 
       {/* Owner */}
-      {plan.owner && (
+      {plan.owner?.fullName && (
         <div className={`${engagement && engagement.totalDistricts > 0 ? "mt-2" : "mt-3 pt-3 border-t border-gray-100"} flex items-center gap-2 text-sm`}>
           <span className="text-gray-400">Owner:</span>
-          <span className="text-[#403770] font-medium">{plan.owner}</span>
+          <span className="text-[#403770] font-medium">{plan.owner.fullName}</span>
         </div>
       )}
     </Link>

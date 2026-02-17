@@ -37,6 +37,7 @@ RACE_CODES = {
 def fetch_demographics_data(
     year: int = 2022,
     grade: int = 99,  # 99 = total enrollment
+    fips: Optional[str] = None,
     page_size: int = 10000,
     delay: float = 0.5,
 ) -> Dict[str, Dict]:
@@ -46,6 +47,7 @@ def fetch_demographics_data(
     Args:
         year: Academic year
         grade: Grade level (99 = total)
+        fips: State FIPS code to filter by (e.g., "06" for California)
         page_size: Results per page (max 10000)
         delay: Delay between requests in seconds
 
@@ -55,7 +57,8 @@ def fetch_demographics_data(
     all_records: Dict[str, Dict] = {}
     page = 1
 
-    print(f"Fetching demographics data for year {year}, grade {grade}...")
+    state_label = f" (fips={fips})" if fips else ""
+    print(f"Fetching demographics data for year {year}, grade {grade}{state_label}...")
 
     while True:
         url = f"{API_BASE_URL}/school-districts/ccd/enrollment/{year}/grade-{grade}/race/"
@@ -63,6 +66,9 @@ def fetch_demographics_data(
             "page": page,
             "per_page": page_size,
         }
+
+        if fips:
+            params["fips"] = int(fips)
 
         try:
             response = requests.get(url, params=params, timeout=120)
@@ -226,6 +232,159 @@ def upsert_demographics_data(
         "updated": updated_count,
         "failed": failed_count,
         "total_with_data": total_with_demographics,
+    }
+
+
+# Grade codes from the API for grade-level enrollment
+GRADE_CODES = {
+    -1: "PK",  # Pre-K
+    0: "K",    # Kindergarten
+    1: "01", 2: "02", 3: "03", 4: "04", 5: "05", 6: "06",
+    7: "07", 8: "08", 9: "09", 10: "10", 11: "11", 12: "12",
+    13: "UG",  # Ungraded
+}
+
+
+def fetch_grade_enrollment_data(
+    year: int = 2022,
+    page_size: int = 10000,
+    delay: float = 0.5,
+) -> List[Dict]:
+    """
+    Fetch district enrollment by grade level from Urban Institute API.
+
+    Fetches grade-specific enrollment (K-12 plus PK and UG) for each district.
+
+    Args:
+        year: Academic year
+        page_size: Results per page (max 10000)
+        delay: Delay between requests in seconds
+
+    Returns:
+        List of (leaid, year, grade, enrollment) records
+    """
+    all_records = []
+
+    for grade_code, grade_label in GRADE_CODES.items():
+        print(f"Fetching enrollment for grade {grade_label} ({grade_code}), year {year}...")
+        page = 1
+
+        while True:
+            url = f"{API_BASE_URL}/school-districts/ccd/enrollment/{year}/grade-{grade_code}/"
+            params = {
+                "page": page,
+                "per_page": page_size,
+            }
+
+            try:
+                response = requests.get(url, params=params, timeout=120)
+                response.raise_for_status()
+                data = response.json()
+            except requests.RequestException as e:
+                print(f"  Error fetching page {page}: {e}")
+                break
+
+            results = data.get("results", [])
+            if not results:
+                break
+
+            for record in results:
+                leaid = record.get("leaid")
+                enrollment = record.get("enrollment")
+                race = record.get("race")
+
+                # Only use total (race=99) or if race is not disaggregated
+                if race is not None and race != 99:
+                    continue
+
+                if leaid and enrollment is not None and enrollment >= 0:
+                    all_records.append({
+                        "leaid": str(leaid).zfill(7),
+                        "year": year,
+                        "grade": grade_label,
+                        "enrollment": int(enrollment),
+                    })
+
+            next_url = data.get("next")
+            if not next_url:
+                break
+
+            page += 1
+            time.sleep(delay)
+
+    print(f"Total grade enrollment records: {len(all_records)}")
+    return all_records
+
+
+def upsert_grade_enrollment(
+    connection_string: str,
+    records: List[Dict],
+    batch_size: int = 1000,
+) -> dict:
+    """
+    Upsert grade-level enrollment into district_grade_enrollment table.
+
+    Args:
+        connection_string: PostgreSQL connection string
+        records: List of grade enrollment records
+        batch_size: Records per batch
+
+    Returns:
+        Dict with counts
+    """
+    import psycopg2
+    from psycopg2.extras import execute_values
+
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    # Filter to valid leaids
+    cur.execute("SELECT leaid FROM districts")
+    valid_leaids = {row[0] for row in cur.fetchall()}
+
+    values = [
+        (r["leaid"], r["year"], r["grade"], r["enrollment"])
+        for r in records
+        if r["leaid"] in valid_leaids
+    ]
+
+    upsert_sql = """
+        INSERT INTO district_grade_enrollment (leaid, year, grade, enrollment)
+        VALUES %s
+        ON CONFLICT (leaid, year, grade) DO UPDATE SET
+            enrollment = EXCLUDED.enrollment
+    """
+
+    upserted_count = 0
+    failed_count = 0
+
+    print(f"Upserting {len(values)} grade enrollment records...")
+
+    for i in tqdm(range(0, len(values), batch_size), desc="Upserting grade enrollment"):
+        batch = values[i:i+batch_size]
+        try:
+            execute_values(cur, upsert_sql, batch, template="(%s, %s, %s, %s)")
+            upserted_count += len(batch)
+        except Exception as e:
+            print(f"Error in batch {i//batch_size}: {e}")
+            failed_count += len(batch)
+            conn.rollback()
+            continue
+
+    conn.commit()
+
+    cur.execute("SELECT COUNT(*) FROM district_grade_enrollment")
+    total_records = cur.fetchone()[0]
+
+    cur.close()
+    conn.close()
+
+    print(f"Upserted {upserted_count} grade enrollment records (total in table: {total_records})")
+
+    return {
+        "upserted": upserted_count,
+        "failed": failed_count,
+        "total_records": total_records,
     }
 
 

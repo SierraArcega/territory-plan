@@ -37,6 +37,7 @@ export interface TooltipData {
   enrollment?: number;
   salesExecutive?: string | null;
   tags?: Array<{ name: string; color: string }>;
+  charterSchoolCount?: number;
 }
 
 export interface TooltipState {
@@ -56,7 +57,7 @@ export interface ClickRipple {
 }
 
 // Panel types for unified panel management
-export type PanelType = 'district' | 'state' | null;
+export type PanelType = 'district' | 'state' | 'school' | null;
 
 interface MapState {
   // Navigation state - which tab is active and sidebar collapse state
@@ -86,6 +87,9 @@ interface MapState {
   similarDistrictLeaids: string[];
   // Vendor comparison layer toggle
   vendorLayerVisible: boolean;
+  // Charter district layer toggle
+  charterLayerVisible: boolean;
+  selectedNcessch: string | null;
 }
 
 interface MapActions {
@@ -128,6 +132,11 @@ interface MapActions {
   goBackToDistrictsList: () => void;
   // Vendor layer actions
   toggleVendorLayer: () => void;
+  // Charter layer actions
+  toggleCharterLayer: () => void;
+  setSelectedNcessch: (ncessch: string | null) => void;
+  clearSelectedNcessch: () => void;
+  openSchoolPanel: (ncessch: string) => void;
 }
 
 const initialFilters: Filters = {
@@ -171,6 +180,8 @@ export const useMapStore = create<MapState & MapActions>()(
       currentPlanId: null,
       similarDistrictLeaids: [],
       vendorLayerVisible: false,
+      charterLayerVisible: false,
+      selectedNcessch: null,
 
       // Navigation actions
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -288,6 +299,20 @@ export const useMapStore = create<MapState & MapActions>()(
   // Vendor layer toggle
   toggleVendorLayer: () =>
     set((s) => ({ vendorLayerVisible: !s.vendorLayerVisible })),
+
+  // Charter layer actions
+  toggleCharterLayer: () =>
+    set((s) => ({ charterLayerVisible: !s.charterLayerVisible })),
+  setSelectedNcessch: (ncessch) => set({ selectedNcessch: ncessch }),
+  clearSelectedNcessch: () => set({ selectedNcessch: null }),
+  openSchoolPanel: (ncessch) =>
+    set({
+      activePanelType: 'school',
+      selectedNcessch: ncessch,
+      sidePanelOpen: true,
+      selectedLeaid: null,
+      selectedStateCode: null,
+    }),
     }),
     {
       name: "territory-plan-storage",

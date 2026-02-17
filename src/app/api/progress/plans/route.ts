@@ -20,7 +20,7 @@ export async function GET() {
     const plans = await prisma.territoryPlan.findMany({
       where: {
         userId: user.id,
-        status: "active",
+        status: "working",
       },
       select: {
         id: true,

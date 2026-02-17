@@ -11,7 +11,8 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   useCalendarConnection,
   useCalendarInbox,
@@ -28,7 +29,23 @@ interface CalendarInboxProps {
 }
 
 export default function CalendarInbox({ onEditAndConfirm }: CalendarInboxProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showConnectedBanner, setShowConnectedBanner] = useState(false);
+
+  // Show success banner when redirected after calendar connection
+  useEffect(() => {
+    if (searchParams.get("calendarConnected") === "true") {
+      setShowConnectedBanner(true);
+
+      // Strip the calendarConnected param from the URL
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("calendarConnected");
+      const newUrl = params.toString() ? `?${params.toString()}` : "/";
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const { data: connectionData, isLoading: connectionLoading } = useCalendarConnection();
   const { data: inboxData, isLoading: inboxLoading } = useCalendarInbox("pending");
@@ -51,9 +68,34 @@ export default function CalendarInbox({ onEditAndConfirm }: CalendarInboxProps) 
     return <CalendarConnectBanner />;
   }
 
+  // Success banner shown after OAuth redirect
+  const connectedBanner = showConnectedBanner ? (
+    <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-[#EDFFE3]/50 rounded-xl border border-[#EDFFE3]">
+      <div className="w-7 h-7 rounded-full bg-[#8AA891]/15 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-[#8AA891]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <span className="text-sm text-[#403770]/70">
+        Calendar connected! Review your synced meetings below.
+      </span>
+      <div className="flex-1" />
+      <button
+        onClick={() => setShowConnectedBanner(false)}
+        className="text-[#8AA891] hover:text-[#403770] transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  ) : null;
+
   // If connected but no pending events, show compact "all caught up" state
   if (!inboxLoading && pendingCount === 0) {
     return (
+      <>
+      {connectedBanner}
       <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-[#EDFFE3]/50 rounded-xl border border-[#EDFFE3]">
         <div className="w-7 h-7 rounded-full bg-[#8AA891]/15 flex items-center justify-center flex-shrink-0">
           <svg className="w-4 h-4 text-[#8AA891]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,11 +108,13 @@ export default function CalendarInbox({ onEditAndConfirm }: CalendarInboxProps) 
         <div className="flex-1" />
         <CalendarSyncBadge />
       </div>
+      </>
     );
   }
 
   return (
     <div className="mb-4">
+      {connectedBanner}
       {/* Inbox header */}
       <div className="flex items-center gap-3 mb-3">
         <button

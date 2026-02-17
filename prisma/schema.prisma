@@ -37,6 +37,15 @@ model District {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
+  // ===== Account Type =====
+  // Distinguishes traditional districts from other entity types (CMO, ESA, etc.)
+  // Defaults to 'district' for all existing rows
+  accountType        String   @default("district") @map("account_type") @db.VarChar(20)
+
+  // ===== Point Location (managed outside Prisma) =====
+  // Geocoded lat/lng for map pin — used when polygon geometry is null
+  pointLocation Unsupported("geometry(Point, 4326)")?  @map("point_location")
+
   // ===== Fullmind CRM Data =====
   // Source: Fullmind CSV import via ETL
   accountName              String?  @map("account_name") @db.VarChar(255)
@@ -397,7 +406,7 @@ model State {
 
   // ===== Relations =====
   districts      District[]
-  territoryPlans TerritoryPlan[]
+  planStateLinks TerritoryPlanState[] @relation("PlanStates")
   activityLinks  ActivityState[]
   assessments    StateAssessment[]
 
@@ -430,26 +439,27 @@ model TerritoryPlan {
   id          String    @id @default(uuid())
   name        String    @db.VarChar(255)
   description String?
-  owner       String?   @db.VarChar(100)
+  ownerId     String?   @map("owner_id") @db.Uuid
   color       String    @default("#403770") @db.VarChar(7)
-  status      String    @default("active") @db.VarChar(20)
+  status      String    @default("planning") @db.VarChar(20)
   fiscalYear  Int       @map("fiscal_year") // Required: 2025, 2026, 2027, etc.
   startDate   DateTime? @map("start_date")
   endDate     DateTime? @map("end_date")
   userId      String?   @map("user_id") @db.Uuid
-  stateFips   String?   @map("state_fips") @db.VarChar(2) // Optional state association
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
+  ownerUser     UserProfile?                @relation("PlanOwner", fields: [ownerId], references: [id])
   districts     TerritoryPlanDistrict[]
-  state         State?                  @relation(fields: [stateFips], references: [fips])
+  states        TerritoryPlanState[]
+  collaborators TerritoryPlanCollaborator[]
   activityLinks ActivityPlan[]
   taskLinks     TaskPlan[]
 
   @@index([userId])
   @@index([userId, fiscalYear])
-  @@index([stateFips])
+  @@index([ownerId])
   @@map("territory_plans")
 }
 
@@ -459,8 +469,10 @@ model TerritoryPlanDistrict {
   addedAt       DateTime @default(now()) @map("added_at")
 
   // Per-district targets
-  revenueTarget  Decimal? @map("revenue_target") @db.Decimal(15, 2)
-  pipelineTarget Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  renewalTarget     Decimal? @map("renewal_target") @db.Decimal(15, 2)
+  winbackTarget     Decimal? @map("winback_target") @db.Decimal(15, 2)
+  expansionTarget   Decimal? @map("expansion_target") @db.Decimal(15, 2)
+  newBusinessTarget Decimal? @map("new_business_target") @db.Decimal(15, 2)
   notes          String?
 
   // Relations
@@ -470,6 +482,29 @@ model TerritoryPlanDistrict {
 
   @@id([planId, districtLeaid])
   @@map("territory_plan_districts")
+}
+
+model TerritoryPlanState {
+  planId    String @map("plan_id")
+  stateFips String @map("state_fips") @db.VarChar(2)
+
+  plan  TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  state State         @relation("PlanStates", fields: [stateFips], references: [fips])
+
+  @@id([planId, stateFips])
+  @@map("territory_plan_states")
+}
+
+model TerritoryPlanCollaborator {
+  planId  String   @map("plan_id")
+  userId  String   @map("user_id") @db.Uuid
+  addedAt DateTime @default(now()) @map("added_at")
+
+  plan TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user UserProfile   @relation("PlanCollaborator", fields: [userId], references: [id])
+
+  @@id([planId, userId])
+  @@map("territory_plan_collaborators")
 }
 
 // ===== Activities System =====
@@ -564,6 +599,13 @@ model UserProfile {
   email             String    @unique @db.VarChar(255)
   fullName          String?   @map("full_name") @db.VarChar(255)
   avatarUrl         String?   @map("avatar_url") @db.VarChar(500)
+  jobTitle          String?   @map("job_title") @db.VarChar(255)
+  location          String?   @db.VarChar(255)
+  locationLat       Decimal?  @map("location_lat") @db.Decimal(10, 7)
+  locationLng       Decimal?  @map("location_lng") @db.Decimal(10, 7)
+  phone             String?   @db.VarChar(50)
+  slackUrl          String?   @map("slack_url") @db.VarChar(500)
+  bio               String?   @db.Text
   hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -573,8 +615,18 @@ model UserProfile {
   goals              UserGoal[]
   // Relation to Google Calendar connection (one per user)
   calendarConnection CalendarConnection?
+  // Territory plan ownership and collaboration
+  ownedPlans         TerritoryPlan[]              @relation("PlanOwner")
+  collaboratingOn    TerritoryPlanCollaborator[]   @relation("PlanCollaborator")
 
   @@map("user_profiles")
+}
+
+enum ServiceCategory {
+  return_services @map("return")
+  new_services    @map("new")
+
+  @@map("service_category")
 }
 
 // ===== Service Catalog =====
@@ -593,14 +645,15 @@ model Service {
 
 // Junction table linking plan-districts to target services
 model TerritoryPlanDistrictService {
-  planId        String @map("plan_id")
-  districtLeaid String @map("district_leaid") @db.VarChar(7)
-  serviceId     Int    @map("service_id")
+  planId        String          @map("plan_id")
+  districtLeaid String          @map("district_leaid") @db.VarChar(7)
+  serviceId     Int             @map("service_id")
+  category      ServiceCategory @default(return_services)
 
   planDistrict TerritoryPlanDistrict @relation(fields: [planId, districtLeaid], references: [planId, districtLeaid], onDelete: Cascade)
   service      Service               @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@id([planId, districtLeaid, serviceId])
+  @@id([planId, districtLeaid, serviceId, category])
   @@map("territory_plan_district_services")
 }
 
@@ -611,13 +664,15 @@ model UserGoal {
   userId     String @map("user_id") @db.Uuid
   fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
 
-  // Target values - all optional since users may only set some goals
-  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2) // Total earnings goal (user input)
-  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2) // Expected take rate % (user input)
-  // Calculated goals based on earnings and take rate
-  revenueTarget      Decimal? @map("revenue_target") @db.Decimal(15, 2)
-  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2) // Gross margin/take
-  pipelineTarget     Decimal? @map("pipeline_target") @db.Decimal(15, 2)
+  // Target values
+  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2)
+  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2)
+  // Four business-category targets
+  renewalTarget      Decimal? @map("renewal_target") @db.Decimal(15, 2)
+  winbackTarget      Decimal? @map("winback_target") @db.Decimal(15, 2)
+  expansionTarget    Decimal? @map("expansion_target") @db.Decimal(15, 2)
+  newBusinessTarget  Decimal? @map("new_business_target") @db.Decimal(15, 2)
+  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
   newDistrictsTarget Int?     @map("new_districts_target")
 
   createdAt DateTime @default(now()) @map("created_at")

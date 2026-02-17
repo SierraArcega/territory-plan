@@ -47,9 +47,11 @@ interface GoalEditorModalProps {
   currentGoals: {
     earningsTarget: number | null;
     takeRatePercent: number | null;
-    revenueTarget: number | null;
+    renewalTarget: number | null;
+    winbackTarget: number | null;
+    expansionTarget: number | null;
+    newBusinessTarget: number | null;
     takeTarget: number | null;
-    pipelineTarget: number | null;
     newDistrictsTarget: number | null;
   } | null;
 }
@@ -107,8 +109,10 @@ export default function GoalEditorModal({ isOpen, onClose, fiscalYear, currentGo
         earningsTarget: earnings,
         takeRatePercent: takeRate || null,
         takeTarget: calculatedTake,
-        revenueTarget: calculatedRevenue,
-        pipelineTarget: calculatedPipeline,
+        renewalTarget: calculatedRevenue,
+        winbackTarget: null,
+        expansionTarget: null,
+        newBusinessTarget: calculatedPipeline,
         newDistrictsTarget: newDistrictsTarget ? parseInt(newDistrictsTarget, 10) : null,
       });
       onClose();

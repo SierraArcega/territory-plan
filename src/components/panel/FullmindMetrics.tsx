@@ -172,9 +172,9 @@ export default function FullmindMetrics({ fullmindData }: FullmindMetricsProps) 
       {/* Collapsible Content */}
       {isExpanded && (
         <div className="mt-3 space-y-4">
-          <FiscalYearSection year="FY25" metrics={fyData.fy25} maxValue={maxValue} />
-          <FiscalYearSection year="FY26" metrics={fyData.fy26} maxValue={maxValue} />
           <FiscalYearSection year="FY27" metrics={fyData.fy27} maxValue={maxValue} />
+          <FiscalYearSection year="FY26" metrics={fyData.fy26} maxValue={maxValue} />
+          <FiscalYearSection year="FY25" metrics={fyData.fy25} maxValue={maxValue} />
         </div>
       )}
     </div>

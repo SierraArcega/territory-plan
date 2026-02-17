@@ -86,17 +86,33 @@ export async function GET(
 
     // If state exists in the states table, fetch related data and return
     if (state) {
-      const plans = await prisma.territoryPlan.findMany({
-        where: {
-          stateFips: state.fips,
-          status: { not: "archived" },
-          userId: user?.id,
-        },
-        orderBy: { updatedAt: "desc" },
-        include: {
-          _count: { select: { districts: true } },
-        },
-      });
+      const [plans, assessments] = await Promise.all([
+        prisma.territoryPlan.findMany({
+          where: {
+            states: { some: { stateFips: state.fips } },
+            status: { not: "archived" },
+            userId: user?.id,
+          },
+          orderBy: { updatedAt: "desc" },
+          include: {
+            ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+            _count: { select: { districts: true } },
+          },
+        }),
+        prisma.stateAssessment.findMany({
+          where: { stateFips: state.fips },
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            subjects: true,
+            grades: true,
+            testingWindow: true,
+            vendor: true,
+            notes: true,
+          },
+        }),
+      ]);
 
       return NextResponse.json({
         code: state.abbrev,
@@ -115,10 +131,13 @@ export async function GET(
         },
         territoryOwner: state.territoryOwner,
         notes: state.notes,
+        assessments,
         territoryPlans: plans.map((p) => ({
           id: p.id,
           name: p.name,
-          owner: p.owner,
+          owner: p.ownerUser
+            ? { id: p.ownerUser.id, fullName: p.ownerUser.fullName, avatarUrl: p.ownerUser.avatarUrl }
+            : null,
           color: p.color,
           status: p.status,
           districtCount: p._count.districts,
@@ -151,10 +170,10 @@ export async function GET(
       }),
     ]);
 
-    // Get territory plans that include districts from this state
+    // Get territory plans and assessments for this state
     const districtLeaids = await prisma.district.findMany({
       where: { stateAbbrev: stateCode },
-      select: { leaid: true },
+      select: { leaid: true, stateFips: true },
     });
 
     const leaidList = districtLeaids.map((d) => d.leaid);
@@ -169,6 +188,7 @@ export async function GET(
             },
           },
           include: {
+            ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
             _count: { select: { districts: true } },
           },
           orderBy: { updatedAt: "desc" },
@@ -179,9 +199,27 @@ export async function GET(
     const pipelineValue = (toNumber(aggregates._sum.fy26OpenPipeline) ?? 0) +
       (toNumber(aggregates._sum.fy27OpenPipeline) ?? 0);
 
+    // Look up assessments using FIPS from first district
+    const fallbackFips = districtLeaids[0]?.stateFips;
+    const assessments = fallbackFips
+      ? await prisma.stateAssessment.findMany({
+          where: { stateFips: fallbackFips },
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            subjects: true,
+            grades: true,
+            testingWindow: true,
+            vendor: true,
+            notes: true,
+          },
+        })
+      : [];
+
     return NextResponse.json({
       code: stateCode,
-      fips: null,
+      fips: fallbackFips || null,
       name: STATE_NAMES[stateCode] || stateCode,
       aggregates: {
         totalDistricts: aggregates._count.leaid,
@@ -196,10 +234,13 @@ export async function GET(
       },
       territoryOwner: null,
       notes: null,
+      assessments,
       territoryPlans: plans.map((p) => ({
         id: p.id,
         name: p.name,
-        owner: p.owner,
+        owner: p.ownerUser
+          ? { id: p.ownerUser.id, fullName: p.ownerUser.fullName, avatarUrl: p.ownerUser.avatarUrl }
+          : null,
         color: p.color,
         status: p.status,
         districtCount: p._count.districts,

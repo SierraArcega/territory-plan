@@ -51,15 +51,17 @@ export async function GET(
       name: planDistrict.district.name,
       stateAbbrev: planDistrict.district.stateAbbrev,
       enrollment: planDistrict.district.enrollment,
-      revenueTarget: planDistrict.revenueTarget ? Number(planDistrict.revenueTarget) : null,
-      pipelineTarget: planDistrict.pipelineTarget ? Number(planDistrict.pipelineTarget) : null,
+      renewalTarget: planDistrict.renewalTarget ? Number(planDistrict.renewalTarget) : null,
+      winbackTarget: planDistrict.winbackTarget ? Number(planDistrict.winbackTarget) : null,
+      expansionTarget: planDistrict.expansionTarget ? Number(planDistrict.expansionTarget) : null,
+      newBusinessTarget: planDistrict.newBusinessTarget ? Number(planDistrict.newBusinessTarget) : null,
       notes: planDistrict.notes,
-      targetServices: planDistrict.targetServices.map((ts) => ({
-        id: ts.service.id,
-        name: ts.service.name,
-        slug: ts.service.slug,
-        color: ts.service.color,
-      })),
+      returnServices: planDistrict.targetServices
+        .filter((ts) => ts.category === "return_services")
+        .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
+      newServices: planDistrict.targetServices
+        .filter((ts) => ts.category === "new_services")
+        .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
     });
   } catch (error) {
     console.error("Error fetching district from plan:", error);
@@ -78,7 +80,7 @@ export async function PUT(
   try {
     const { id: planId, leaid } = await params;
     const body = await request.json();
-    const { revenueTarget, pipelineTarget, notes, serviceIds } = body;
+    const { renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds } = body;
 
     // Check if the relationship exists
     const existing = await prisma.territoryPlanDistrict.findUnique({
@@ -99,8 +101,10 @@ export async function PUT(
 
     // Update targets and notes
     const updateData: Record<string, unknown> = {};
-    if (revenueTarget !== undefined) updateData.revenueTarget = revenueTarget;
-    if (pipelineTarget !== undefined) updateData.pipelineTarget = pipelineTarget;
+    if (renewalTarget !== undefined) updateData.renewalTarget = renewalTarget;
+    if (winbackTarget !== undefined) updateData.winbackTarget = winbackTarget;
+    if (expansionTarget !== undefined) updateData.expansionTarget = expansionTarget;
+    if (newBusinessTarget !== undefined) updateData.newBusinessTarget = newBusinessTarget;
     if (notes !== undefined) updateData.notes = notes;
 
     const updatedPlanDistrict = await prisma.territoryPlanDistrict.update({
@@ -130,21 +134,26 @@ export async function PUT(
     });
 
     // Handle service assignments if provided
-    if (serviceIds !== undefined && Array.isArray(serviceIds)) {
-      // Delete existing service assignments
+    if (returnServiceIds !== undefined || newServiceIds !== undefined) {
       await prisma.territoryPlanDistrictService.deleteMany({
         where: { planId, districtLeaid: leaid },
       });
 
-      // Create new service assignments
-      if (serviceIds.length > 0) {
-        await prisma.territoryPlanDistrictService.createMany({
-          data: serviceIds.map((serviceId: number) => ({
-            planId,
-            districtLeaid: leaid,
-            serviceId,
-          })),
-        });
+      const serviceRecords: Array<{ planId: string; districtLeaid: string; serviceId: number; category: "return_services" | "new_services" }> = [];
+
+      if (returnServiceIds && returnServiceIds.length > 0) {
+        for (const serviceId of returnServiceIds) {
+          serviceRecords.push({ planId, districtLeaid: leaid, serviceId, category: "return_services" });
+        }
+      }
+      if (newServiceIds && newServiceIds.length > 0) {
+        for (const serviceId of newServiceIds) {
+          serviceRecords.push({ planId, districtLeaid: leaid, serviceId, category: "new_services" });
+        }
+      }
+
+      if (serviceRecords.length > 0) {
+        await prisma.territoryPlanDistrictService.createMany({ data: serviceRecords });
       }
 
       // Re-fetch to get updated services
@@ -173,15 +182,17 @@ export async function PUT(
         name: updatedPlanDistrict.district.name,
         stateAbbrev: updatedPlanDistrict.district.stateAbbrev,
         enrollment: updatedPlanDistrict.district.enrollment,
-        revenueTarget: updatedPlanDistrict.revenueTarget ? Number(updatedPlanDistrict.revenueTarget) : null,
-        pipelineTarget: updatedPlanDistrict.pipelineTarget ? Number(updatedPlanDistrict.pipelineTarget) : null,
+        renewalTarget: updatedPlanDistrict.renewalTarget ? Number(updatedPlanDistrict.renewalTarget) : null,
+        winbackTarget: updatedPlanDistrict.winbackTarget ? Number(updatedPlanDistrict.winbackTarget) : null,
+        expansionTarget: updatedPlanDistrict.expansionTarget ? Number(updatedPlanDistrict.expansionTarget) : null,
+        newBusinessTarget: updatedPlanDistrict.newBusinessTarget ? Number(updatedPlanDistrict.newBusinessTarget) : null,
         notes: updatedPlanDistrict.notes,
-        targetServices: refreshed?.targetServices.map((ts) => ({
-          id: ts.service.id,
-          name: ts.service.name,
-          slug: ts.service.slug,
-          color: ts.service.color,
-        })) ?? [],
+        returnServices: refreshed?.targetServices
+          .filter((ts) => ts.category === "return_services")
+          .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })) ?? [],
+        newServices: refreshed?.targetServices
+          .filter((ts) => ts.category === "new_services")
+          .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })) ?? [],
       });
     }
 
@@ -192,15 +203,17 @@ export async function PUT(
       name: updatedPlanDistrict.district.name,
       stateAbbrev: updatedPlanDistrict.district.stateAbbrev,
       enrollment: updatedPlanDistrict.district.enrollment,
-      revenueTarget: updatedPlanDistrict.revenueTarget ? Number(updatedPlanDistrict.revenueTarget) : null,
-      pipelineTarget: updatedPlanDistrict.pipelineTarget ? Number(updatedPlanDistrict.pipelineTarget) : null,
+      renewalTarget: updatedPlanDistrict.renewalTarget ? Number(updatedPlanDistrict.renewalTarget) : null,
+      winbackTarget: updatedPlanDistrict.winbackTarget ? Number(updatedPlanDistrict.winbackTarget) : null,
+      expansionTarget: updatedPlanDistrict.expansionTarget ? Number(updatedPlanDistrict.expansionTarget) : null,
+      newBusinessTarget: updatedPlanDistrict.newBusinessTarget ? Number(updatedPlanDistrict.newBusinessTarget) : null,
       notes: updatedPlanDistrict.notes,
-      targetServices: updatedPlanDistrict.targetServices.map((ts) => ({
-        id: ts.service.id,
-        name: ts.service.name,
-        slug: ts.service.slug,
-        color: ts.service.color,
-      })),
+      returnServices: updatedPlanDistrict.targetServices
+        .filter((ts) => ts.category === "return_services")
+        .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
+      newServices: updatedPlanDistrict.targetServices
+        .filter((ts) => ts.category === "new_services")
+        .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
     });
   } catch (error) {
     console.error("Error updating district in plan:", error);

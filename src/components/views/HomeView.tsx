@@ -46,12 +46,14 @@ function formatDateHeader(): string {
 }
 
 function getToday(): string {
-  return new Date().toISOString().split("T")[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatTaskDate(dueDate: string | null): string {
   if (!dueDate) return "";
-  const date = new Date(dueDate);
+  const datePart = dueDate.split("T")[0];
+  const date = new Date(datePart + "T00:00:00");
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -173,8 +175,8 @@ function MiniCalendar({
     const map = new Map<string, number>();
     for (const a of activities) {
       if (!a.startDate) continue;
-      const start = new Date(a.startDate);
-      const end = a.endDate ? new Date(a.endDate) : start;
+      const start = new Date(a.startDate.split("T")[0] + "T00:00:00");
+      const end = a.endDate ? new Date(a.endDate.split("T")[0] + "T00:00:00") : start;
       const cursor = new Date(start);
       while (cursor <= end) {
         const key = toDateKey(cursor);
@@ -348,8 +350,8 @@ export default function HomeView() {
     const selKey = toDateKey(calSelectedDate);
     return calActivities.filter((a) => {
       if (!a.startDate) return false;
-      const start = new Date(a.startDate);
-      const end = a.endDate ? new Date(a.endDate) : start;
+      const start = new Date(a.startDate.split("T")[0] + "T00:00:00");
+      const end = a.endDate ? new Date(a.endDate.split("T")[0] + "T00:00:00") : start;
       const cursor = new Date(start);
       while (cursor <= end) {
         if (toDateKey(cursor) === selKey) return true;
@@ -365,8 +367,7 @@ export default function HomeView() {
     return [
       { label: "Earnings", current: dashboard.actuals.earnings, target: dashboard.goals.earningsTarget, color: "#F37167", format: "currency" as const },
       { label: "Take", current: dashboard.actuals.take, target: dashboard.goals.takeTarget, color: "#6EA3BE", format: "currency" as const },
-      { label: "Revenue", current: dashboard.actuals.revenue, target: dashboard.goals.revenueTarget, color: "#8AA891", format: "currency" as const },
-      { label: "Pipeline", current: dashboard.actuals.pipeline, target: dashboard.goals.pipelineTarget, color: "#D4A84B", format: "currency" as const },
+      { label: "Total Target", current: dashboard.actuals.revenue + dashboard.actuals.pipeline, target: (dashboard.goals?.renewalTarget || 0) + (dashboard.goals?.winbackTarget || 0) + (dashboard.goals?.expansionTarget || 0) + (dashboard.goals?.newBusinessTarget || 0), color: "#403770", format: "currency" as const },
       { label: "New Districts", current: dashboard.actuals.newDistricts, target: dashboard.goals.newDistrictsTarget, color: "#403770", format: "number" as const },
     ];
   }, [dashboard]);
@@ -376,12 +377,14 @@ export default function HomeView() {
     await createPlan.mutateAsync({
       name: data.name,
       description: data.description || undefined,
-      owner: data.owner || undefined,
+      ownerId: data.ownerId ?? undefined,
       color: data.color,
       status: data.status,
       fiscalYear: data.fiscalYear,
       startDate: data.startDate || undefined,
       endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
     });
     setShowPlanForm(false);
   };
@@ -462,7 +465,7 @@ export default function HomeView() {
 
             {goalMetrics ? (
               <div className="px-6 py-8">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 lg:gap-8">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
                   {goalMetrics.map((metric) => {
                     const percent = metric.target && metric.target > 0 ? Math.min((metric.current / metric.target) * 100, 100) : 0;
                     const currentFmt = metric.format === "currency" ? formatCurrency(metric.current, true) : metric.current.toLocaleString();

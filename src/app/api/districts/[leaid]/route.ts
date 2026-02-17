@@ -39,6 +39,15 @@ export async function GET(
       );
     }
 
+    // Get centroid coordinates for tether line (PostGIS geometry → lat/lng)
+    const centroidResult = await prisma.$queryRaw<
+      { lat: number; lng: number }[]
+    >`SELECT
+  COALESCE(ST_Y(centroid::geometry), ST_Y(point_location::geometry)) as lat,
+  COALESCE(ST_X(centroid::geometry), ST_X(point_location::geometry)) as lng
+FROM districts WHERE leaid = ${leaid} LIMIT 1`;
+    const centroid = centroidResult.length > 0 ? centroidResult[0] : null;
+
     // Build response - data is now all on the district model
     // Keeping the same response shape for backward compatibility with frontend
     const response = {
@@ -63,6 +72,9 @@ export async function GET(
         ellStudents: district.ellStudents,
         websiteUrl: district.websiteUrl,
         jobBoardUrl: district.jobBoardUrl,
+        centroidLat: centroid ? Number(centroid.lat) : null,
+        centroidLng: centroid ? Number(centroid.lng) : null,
+        accountType: district.accountType || "district",
       },
 
       // Fullmind CRM data (now on district)
@@ -138,8 +150,6 @@ export async function GET(
         medianHouseholdIncome: toNumber(district.medianHouseholdIncome),
         saipeDataYear: district.saipeDataYear,
         graduationRateTotal: toNumber(district.graduationRateTotal),
-        graduationRateMale: toNumber(district.graduationRateMale),
-        graduationRateFemale: toNumber(district.graduationRateFemale),
         graduationDataYear: district.graduationDataYear,
         salariesTotal: toNumber(district.salariesTotal),
         salariesInstruction: toNumber(district.salariesInstruction),
@@ -176,6 +186,50 @@ export async function GET(
         enrollmentTwoOrMore: district.enrollmentTwoOrMore,
         totalEnrollment: district.totalEnrollment,
         demographicsDataYear: district.demographicsDataYear,
+      } : null,
+
+      // Trend & comparison data (computed by ETL)
+      trends: district.enrollmentTrend3yr != null || district.staffingTrend3yr != null || district.graduationTrend3yr != null ? {
+        swdPct: toNumber(district.swdPct),
+        ellPct: toNumber(district.ellPct),
+        studentTeacherRatio: toNumber(district.studentTeacherRatio),
+        studentStaffRatio: toNumber(district.studentStaffRatio),
+        spedStudentTeacherRatio: toNumber(district.spedStudentTeacherRatio),
+        enrollmentTrend3yr: toNumber(district.enrollmentTrend3yr),
+        staffingTrend3yr: toNumber(district.staffingTrend3yr),
+        vacancyPressureSignal: toNumber(district.vacancyPressureSignal),
+        swdTrend3yr: toNumber(district.swdTrend3yr),
+        ellTrend3yr: toNumber(district.ellTrend3yr),
+        absenteeismTrend3yr: toNumber(district.absenteeismTrend3yr),
+        graduationTrend3yr: toNumber(district.graduationTrend3yr),
+        studentTeacherRatioTrend3yr: toNumber(district.studentTeacherRatioTrend3yr),
+        mathProficiencyTrend3yr: toNumber(district.mathProficiencyTrend3yr),
+        readProficiencyTrend3yr: toNumber(district.readProficiencyTrend3yr),
+        expenditurePpTrend3yr: toNumber(district.expenditurePpTrend3yr),
+        absenteeismVsState: toNumber(district.absenteeismVsState),
+        graduationVsState: toNumber(district.graduationVsState),
+        studentTeacherRatioVsState: toNumber(district.studentTeacherRatioVsState),
+        swdPctVsState: toNumber(district.swdPctVsState),
+        ellPctVsState: toNumber(district.ellPctVsState),
+        mathProficiencyVsState: toNumber(district.mathProficiencyVsState),
+        readProficiencyVsState: toNumber(district.readProficiencyVsState),
+        expenditurePpVsState: toNumber(district.expenditurePpVsState),
+        absenteeismVsNational: toNumber(district.absenteeismVsNational),
+        graduationVsNational: toNumber(district.graduationVsNational),
+        studentTeacherRatioVsNational: toNumber(district.studentTeacherRatioVsNational),
+        swdPctVsNational: toNumber(district.swdPctVsNational),
+        ellPctVsNational: toNumber(district.ellPctVsNational),
+        mathProficiencyVsNational: toNumber(district.mathProficiencyVsNational),
+        readProficiencyVsNational: toNumber(district.readProficiencyVsNational),
+        expenditurePpVsNational: toNumber(district.expenditurePpVsNational),
+        absenteeismQuartileState: district.absenteeismQuartileState,
+        graduationQuartileState: district.graduationQuartileState,
+        studentTeacherRatioQuartileState: district.studentTeacherRatioQuartileState,
+        swdPctQuartileState: district.swdPctQuartileState,
+        ellPctQuartileState: district.ellPctQuartileState,
+        mathProficiencyQuartileState: district.mathProficiencyQuartileState,
+        readProficiencyQuartileState: district.readProficiencyQuartileState,
+        expenditurePpQuartileState: district.expenditurePpQuartileState,
       } : null,
     };
 

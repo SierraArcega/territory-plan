@@ -20,23 +20,77 @@ export async function GET() {
         _count: {
           select: { districts: true },
         },
+        districts: {
+          select: {
+            district: {
+              select: { enrollment: true, stateAbbrev: true },
+            },
+          },
+        },
+        taskLinks: {
+          select: {
+            task: {
+              select: { status: true },
+            },
+          },
+        },
+        ownerUser: {
+          select: { id: true, fullName: true, avatarUrl: true },
+        },
+        states: {
+          select: {
+            state: { select: { fips: true, abbrev: true, name: true } },
+          },
+        },
+        collaborators: {
+          select: {
+            user: { select: { id: true, fullName: true, avatarUrl: true } },
+          },
+        },
       },
     });
 
-    const result = plans.map((plan) => ({
-      id: plan.id,
-      name: plan.name,
-      description: plan.description,
-      owner: plan.owner,
-      color: plan.color,
-      status: plan.status,
-      fiscalYear: plan.fiscalYear,
-      startDate: plan.startDate?.toISOString() ?? null,
-      endDate: plan.endDate?.toISOString() ?? null,
-      createdAt: plan.createdAt.toISOString(),
-      updatedAt: plan.updatedAt.toISOString(),
-      districtCount: plan._count.districts,
-    }));
+    const result = plans.map((plan) => {
+      const totalEnrollment = plan.districts.reduce(
+        (sum, d) => sum + (d.district.enrollment ?? 0),
+        0
+      );
+      const taskCount = plan.taskLinks.length;
+      const completedTaskCount = plan.taskLinks.filter(
+        (tl) => tl.task.status === "done"
+      ).length;
+
+      return {
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        owner: plan.ownerUser
+          ? { id: plan.ownerUser.id, fullName: plan.ownerUser.fullName, avatarUrl: plan.ownerUser.avatarUrl }
+          : null,
+        color: plan.color,
+        status: plan.status,
+        fiscalYear: plan.fiscalYear,
+        startDate: plan.startDate?.toISOString() ?? null,
+        endDate: plan.endDate?.toISOString() ?? null,
+        createdAt: plan.createdAt.toISOString(),
+        updatedAt: plan.updatedAt.toISOString(),
+        districtCount: plan._count.districts,
+        totalEnrollment,
+        stateCount: plan.states.length,
+        states: plan.states.map((ps) => ({
+          fips: ps.state.fips,
+          abbrev: ps.state.abbrev,
+          name: ps.state.name,
+        })),
+        collaborators: plan.collaborators.map((pc) => ({
+          id: pc.user.id,
+          fullName: pc.user.fullName,
+          avatarUrl: pc.user.avatarUrl,
+        })),
+        taskCount,
+        completedTaskCount,
+      };
+    });
 
     return NextResponse.json(result);
   } catch (error) {
@@ -61,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, owner, color, status, fiscalYear, startDate, endDate } = body;
+    const { name, description, ownerId, color, status, fiscalYear, startDate, endDate, stateFips, collaboratorIds } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
@@ -87,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate status if provided
-    const validStatuses = ["draft", "active", "archived"];
+    const validStatuses = ["planning", "working", "stale", "archived"];
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         { error: `status must be one of: ${validStatuses.join(", ")}` },
@@ -99,13 +153,34 @@ export async function POST(request: NextRequest) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
-        owner: owner?.trim() || null,
+        ownerId: ownerId || null,
         color: color || "#403770",
-        status: status || "active",
+        status: status || "planning",
         fiscalYear,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         userId: user.id,
+        ...(Array.isArray(stateFips) && stateFips.length > 0 && {
+          states: {
+            createMany: {
+              data: stateFips.map((fips: string) => ({ stateFips: fips })),
+              skipDuplicates: true,
+            },
+          },
+        }),
+        ...(Array.isArray(collaboratorIds) && collaboratorIds.length > 0 && {
+          collaborators: {
+            createMany: {
+              data: collaboratorIds.map((uid: string) => ({ userId: uid })),
+              skipDuplicates: true,
+            },
+          },
+        }),
+      },
+      include: {
+        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+        states: { select: { state: { select: { fips: true, abbrev: true, name: true } } } },
+        collaborators: { select: { user: { select: { id: true, fullName: true, avatarUrl: true } } } },
       },
     });
 
@@ -114,7 +189,9 @@ export async function POST(request: NextRequest) {
         id: plan.id,
         name: plan.name,
         description: plan.description,
-        owner: plan.owner,
+        owner: plan.ownerUser
+          ? { id: plan.ownerUser.id, fullName: plan.ownerUser.fullName, avatarUrl: plan.ownerUser.avatarUrl }
+          : null,
         color: plan.color,
         status: plan.status,
         fiscalYear: plan.fiscalYear,
@@ -123,6 +200,12 @@ export async function POST(request: NextRequest) {
         createdAt: plan.createdAt.toISOString(),
         updatedAt: plan.updatedAt.toISOString(),
         districtCount: 0,
+        totalEnrollment: 0,
+        stateCount: plan.states.length,
+        states: plan.states.map((ps) => ({ fips: ps.state.fips, abbrev: ps.state.abbrev, name: ps.state.name })),
+        collaborators: plan.collaborators.map((pc) => ({ id: pc.user.id, fullName: pc.user.fullName, avatarUrl: pc.user.avatarUrl })),
+        taskCount: 0,
+        completedTaskCount: 0,
       },
       { status: 201 }
     );

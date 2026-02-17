@@ -433,10 +433,158 @@ def insert_unmatched_accounts(
     return len(values)
 
 
+def upsert_unmatched_to_districts(
+    connection_string: str,
+    records: List[Dict],
+) -> Dict[str, int]:
+    """
+    Create or update M-series district rows for unmatched CRM accounts.
+
+    For each unmatched record:
+      - If a district already exists matching account_name + state_abbrev
+        with an M-series leaid, UPDATE its financial fields.
+      - Otherwise, generate a new M-series leaid and INSERT.
+
+    Returns dict with counts: {"created": N, "updated": N}
+    """
+    if not records:
+        return {"created": 0, "updated": 0}
+
+    conn = psycopg2.connect(connection_string)
+    cur = conn.cursor()
+
+    # Deduplicate unmatched records by (account_name, state_abbrev),
+    # aggregating numeric fields just like the matched path does
+    deduped = {}
+    for r in records:
+        key = (r["account_name"], r["state_abbrev"] or "XX")
+        if key not in deduped:
+            deduped[key] = r.copy()
+        else:
+            existing = deduped[key]
+            for field in ["fy25_net_invoicing", "fy26_net_invoicing",
+                          "fy26_open_pipeline", "fy27_open_pipeline"]:
+                existing[field] = existing[field] + r[field]
+            existing["is_customer"] = (
+                existing["fy25_net_invoicing"] > 0 or
+                existing["fy26_net_invoicing"] > 0
+            )
+            existing["has_open_pipeline"] = (
+                existing["fy26_open_pipeline"] > 0 or
+                existing["fy27_open_pipeline"] > 0
+            )
+    records = list(deduped.values())
+
+    # Build a lookup of existing M-series districts keyed by (name, state_abbrev)
+    cur.execute("""
+        SELECT leaid, name, state_abbrev
+        FROM districts
+        WHERE leaid LIKE 'M%'
+    """)
+    existing_m_districts = {}
+    for row in cur.fetchall():
+        existing_m_districts[(row[1], row[2])] = row[0]  # (name, state) -> leaid
+
+    # Build state_abbrev -> fips lookup from states table
+    cur.execute("SELECT abbrev, fips FROM states")
+    state_fips_lookup = {row[0]: row[1] for row in cur.fetchall()}
+
+    # Find the next M-series number
+    cur.execute("""
+        SELECT COALESCE(MAX(CAST(SUBSTRING(leaid FROM 2) AS INTEGER)), 0)
+        FROM districts
+        WHERE leaid LIKE 'M%'
+    """)
+    next_num = cur.fetchone()[0] + 1
+
+    created = 0
+    updated = 0
+
+    for r in records:
+        account_name = r["account_name"]
+        state_abbrev = r["state_abbrev"] or "XX"
+        state_fips = state_fips_lookup.get(state_abbrev) or STATE_ABBREV_TO_FIPS.get(state_abbrev) or "00"
+        sales_executive = r["sales_executive"]
+
+        lookup_key = (account_name, state_abbrev)
+        existing_leaid = existing_m_districts.get(lookup_key)
+
+        if existing_leaid:
+            # UPDATE existing M-series district
+            cur.execute("""
+                UPDATE districts SET
+                    fy25_net_invoicing = %s,
+                    fy26_net_invoicing = %s,
+                    fy26_open_pipeline = %s,
+                    fy27_open_pipeline = %s,
+                    is_customer = %s,
+                    has_open_pipeline = %s,
+                    sales_executive = %s,
+                    updated_at = NOW()
+                WHERE leaid = %s
+            """, (
+                r["fy25_net_invoicing"],
+                r["fy26_net_invoicing"],
+                r["fy26_open_pipeline"],
+                r["fy27_open_pipeline"],
+                r["is_customer"],
+                r["has_open_pipeline"],
+                sales_executive,
+                existing_leaid,
+            ))
+            updated += 1
+        else:
+            # INSERT new M-series district
+            new_leaid = "M" + str(next_num).zfill(6)
+            cur.execute("""
+                INSERT INTO districts (
+                    leaid, name, account_type, state_fips, state_abbrev,
+                    sales_executive, lmsid,
+                    fy25_net_invoicing, fy26_net_invoicing,
+                    fy26_open_pipeline, fy27_open_pipeline,
+                    is_customer, has_open_pipeline,
+                    created_at, updated_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    NOW(), NOW()
+                )
+            """, (
+                new_leaid,
+                account_name,
+                "other",
+                state_fips,
+                state_abbrev,
+                sales_executive,
+                r["lmsid"],
+                r["fy25_net_invoicing"],
+                r["fy26_net_invoicing"],
+                r["fy26_open_pipeline"],
+                r["fy27_open_pipeline"],
+                r["is_customer"],
+                r["has_open_pipeline"],
+            ))
+            # Track so subsequent dupes in this batch find the new row
+            existing_m_districts[lookup_key] = new_leaid
+            next_num += 1
+            created += 1
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    print(f"Non-LEAID accounts in districts: {created} created, {updated} updated")
+    return {"created": created, "updated": updated}
+
+
 def generate_match_report(
     matched: List[Dict],
     unmatched: List[Dict],
-    output_dir: Path
+    output_dir: Path,
+    district_upsert_counts: Optional[Dict[str, int]] = None,
 ) -> Dict:
     """
     Generate match report files.
@@ -501,6 +649,11 @@ def generate_match_report(
         "unmatched_pipeline": sum(1 for r in unmatched if r["has_open_pipeline"]),
     }
 
+    # Include district upsert counts if provided
+    if district_upsert_counts:
+        summary["non_leaid_districts_created"] = district_upsert_counts.get("created", 0)
+        summary["non_leaid_districts_updated"] = district_upsert_counts.get("updated", 0)
+
     # Write summary JSON
     summary_json = output_dir / "match_summary.json"
     with open(summary_json, "w") as f:
@@ -518,6 +671,9 @@ def generate_match_report(
         print(f"  {reason}: {count}")
     print(f"\nMatched customers: {summary['matched_customers']}")
     print(f"Matched with pipeline: {summary['matched_pipeline']}")
+    if district_upsert_counts:
+        print(f"\nNon-LEAID district rows: {district_upsert_counts.get('created', 0)} created, "
+              f"{district_upsert_counts.get('updated', 0)} updated")
 
     return summary
 
@@ -559,13 +715,20 @@ def main():
     matched_count = update_districts_with_fullmind_data(connection_string, matched)
     print(f"Updated {matched_count} district records with Fullmind data")
 
-    # Insert unmatched
+    # Insert unmatched into audit table
     unmatched_count = insert_unmatched_accounts(connection_string, unmatched)
     print(f"Inserted {unmatched_count} unmatched accounts")
 
+    # Create/update M-series district rows for unmatched accounts
+    district_upsert_counts = upsert_unmatched_to_districts(connection_string, unmatched)
+
+    # Refresh materialized view so map tiles reflect new data
+    from utils.refresh_views import refresh_map_features
+    refresh_map_features(connection_string)
+
     # Generate report
     output_dir = Path(args.output_dir)
-    generate_match_report(matched, unmatched, output_dir)
+    generate_match_report(matched, unmatched, output_dir, district_upsert_counts)
 
 
 if __name__ == "__main__":

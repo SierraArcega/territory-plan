@@ -29,9 +29,9 @@ export default function ActivityCard({
   const typeLabel = ACTIVITY_TYPE_LABELS[activity.type as ActivityType] || activity.type;
   const typeIcon = ACTIVITY_TYPE_ICONS[activity.type as ActivityType] || "📋";
 
-  // Format start date nicely
+  // Format start date nicely (parse as local time to avoid timezone off-by-one)
   const formattedDate = activity.startDate
-    ? new Date(activity.startDate).toLocaleDateString("en-US", {
+    ? new Date(activity.startDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -41,7 +41,7 @@ export default function ActivityCard({
   // Format date range if end date is different from start date
   const hasDateRange = activity.endDate && activity.endDate !== activity.startDate;
   const formattedEndDate = activity.endDate
-    ? new Date(activity.endDate).toLocaleDateString("en-US", {
+    ? new Date(activity.endDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -49,7 +49,7 @@ export default function ActivityCard({
     : null;
 
   // Determine if activity is in the past or future
-  const startDate = activity.startDate ? new Date(activity.startDate) : null;
+  const startDate = activity.startDate ? new Date(activity.startDate.split("T")[0] + "T00:00:00") : null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const isPast = startDate ? startDate < today : false;

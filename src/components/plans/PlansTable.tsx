@@ -19,18 +19,21 @@ interface PlansTableProps {
 
 // Status options for the dropdown
 const STATUS_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "active", label: "Active" },
+  { value: "planning", label: "Planning" },
+  { value: "working", label: "Working" },
+  { value: "stale", label: "Stale" },
   { value: "archived", label: "Archived" },
 ];
 
 // Status badge styling
 function getStatusBadgeClass(status: string): string {
   switch (status) {
-    case "active":
+    case "working":
       return "bg-[#8AA891] text-white";
-    case "draft":
+    case "planning":
       return "bg-gray-200 text-gray-700";
+    case "stale":
+      return "bg-amber-200 text-amber-800";
     case "archived":
       return "bg-gray-400 text-white";
     default:
@@ -234,15 +237,11 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                   />
                 </td>
 
-                {/* Owner (editable) */}
+                {/* Owner (display only — owner is now a user object) */}
                 <td className="px-2 py-1">
-                  <InlineEditCell
-                    type="text"
-                    value={plan.owner}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "owner", value)}
-                    placeholder="Assign owner..."
-                    className="text-xs text-gray-600"
-                  />
+                  <span className="text-xs text-gray-600">
+                    {plan.owner?.fullName ?? "\u2014"}
+                  </span>
                 </td>
 
                 {/* FY Badge (display only) */}

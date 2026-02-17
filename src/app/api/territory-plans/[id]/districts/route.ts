@@ -12,7 +12,7 @@ export async function POST(
   try {
     const { id: planId } = await params;
     const body = await request.json();
-    const { leaids, revenueTarget, pipelineTarget, notes, serviceIds } = body;
+    const { leaids, renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds } = body;
 
     // Validate input - accept either a single leaid or array of leaids
     let districtLeaids: string[];
@@ -66,7 +66,7 @@ export async function POST(
     // If adding a single district with targets, use create; otherwise use createMany
     let addedCount = 0;
 
-    if (districtLeaids.length === 1 && (revenueTarget || pipelineTarget || notes || serviceIds)) {
+    if (districtLeaids.length === 1 && (renewalTarget || winbackTarget || expansionTarget || newBusinessTarget || notes || returnServiceIds || newServiceIds)) {
       // Single district with targets - use upsert to handle duplicates gracefully
       const leaid = districtLeaids[0];
       await prisma.territoryPlanDistrict.upsert({
@@ -76,32 +76,44 @@ export async function POST(
         create: {
           planId,
           districtLeaid: leaid,
-          revenueTarget: revenueTarget ?? null,
-          pipelineTarget: pipelineTarget ?? null,
+          renewalTarget: renewalTarget ?? null,
+          winbackTarget: winbackTarget ?? null,
+          expansionTarget: expansionTarget ?? null,
+          newBusinessTarget: newBusinessTarget ?? null,
           notes: notes ?? null,
         },
         update: {
-          revenueTarget: revenueTarget ?? undefined,
-          pipelineTarget: pipelineTarget ?? undefined,
+          renewalTarget: renewalTarget ?? undefined,
+          winbackTarget: winbackTarget ?? undefined,
+          expansionTarget: expansionTarget ?? undefined,
+          newBusinessTarget: newBusinessTarget ?? undefined,
           notes: notes ?? undefined,
         },
       });
       addedCount = 1;
 
       // Handle service assignments if provided
-      if (serviceIds && Array.isArray(serviceIds) && serviceIds.length > 0) {
-        // Delete existing service assignments
+      if (returnServiceIds || newServiceIds) {
         await prisma.territoryPlanDistrictService.deleteMany({
           where: { planId, districtLeaid: leaid },
         });
-        // Create new service assignments
-        await prisma.territoryPlanDistrictService.createMany({
-          data: serviceIds.map((serviceId: number) => ({
-            planId,
-            districtLeaid: leaid,
-            serviceId,
-          })),
-        });
+
+        const serviceRecords: Array<{ planId: string; districtLeaid: string; serviceId: number; category: "return_services" | "new_services" }> = [];
+
+        if (returnServiceIds && returnServiceIds.length > 0) {
+          for (const serviceId of returnServiceIds) {
+            serviceRecords.push({ planId, districtLeaid: leaid, serviceId, category: "return_services" });
+          }
+        }
+        if (newServiceIds && newServiceIds.length > 0) {
+          for (const serviceId of newServiceIds) {
+            serviceRecords.push({ planId, districtLeaid: leaid, serviceId, category: "new_services" });
+          }
+        }
+
+        if (serviceRecords.length > 0) {
+          await prisma.territoryPlanDistrictService.createMany({ data: serviceRecords });
+        }
       }
     } else {
       // Multiple districts or no targets - use createMany

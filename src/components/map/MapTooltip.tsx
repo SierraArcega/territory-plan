@@ -186,6 +186,13 @@ function DistrictTooltipContent({
         </div>
       )}
 
+      {/* Charter school count */}
+      {data.charterSchoolCount !== undefined && data.charterSchoolCount > 0 && (
+        <div className="text-[#F37167] text-sm mt-1">
+          {data.charterSchoolCount.toLocaleString()} charter school{data.charterSchoolCount !== 1 ? "s" : ""}
+        </div>
+      )}
+
       {/* Tags */}
       {data.tags && data.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">

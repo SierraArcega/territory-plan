@@ -33,9 +33,10 @@ export async function GET() {
       fiscalYear: goal.fiscalYear,
       earningsTarget: toNumber(goal.earningsTarget),
       takeRatePercent: toNumber(goal.takeRatePercent),
-      revenueTarget: toNumber(goal.revenueTarget),
-      takeTarget: toNumber(goal.takeTarget),
-      pipelineTarget: toNumber(goal.pipelineTarget),
+      renewalTarget: toNumber(goal.renewalTarget),
+      winbackTarget: toNumber(goal.winbackTarget),
+      expansionTarget: toNumber(goal.expansionTarget),
+      newBusinessTarget: toNumber(goal.newBusinessTarget),
       newDistrictsTarget: goal.newDistrictsTarget,
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fiscalYear, earningsTarget, takeRatePercent, revenueTarget, takeTarget, pipelineTarget, newDistrictsTarget } = body;
+    const { fiscalYear, earningsTarget, takeRatePercent, renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, takeTarget, newDistrictsTarget } = body;
 
     // Validate fiscalYear
     if (!fiscalYear || typeof fiscalYear !== "number" || fiscalYear < 2020 || fiscalYear > 2050) {
@@ -98,9 +99,11 @@ export async function POST(request: NextRequest) {
       update: {
         earningsTarget: earningsTarget ?? null,
         takeRatePercent: takeRatePercent ?? null,
-        revenueTarget: revenueTarget ?? null,
+        renewalTarget: renewalTarget ?? null,
+        winbackTarget: winbackTarget ?? null,
+        expansionTarget: expansionTarget ?? null,
+        newBusinessTarget: newBusinessTarget ?? null,
         takeTarget: takeTarget ?? null,
-        pipelineTarget: pipelineTarget ?? null,
         newDistrictsTarget: newDistrictsTarget ?? null,
       },
       create: {
@@ -108,9 +111,11 @@ export async function POST(request: NextRequest) {
         fiscalYear,
         earningsTarget: earningsTarget ?? null,
         takeRatePercent: takeRatePercent ?? null,
-        revenueTarget: revenueTarget ?? null,
+        renewalTarget: renewalTarget ?? null,
+        winbackTarget: winbackTarget ?? null,
+        expansionTarget: expansionTarget ?? null,
+        newBusinessTarget: newBusinessTarget ?? null,
         takeTarget: takeTarget ?? null,
-        pipelineTarget: pipelineTarget ?? null,
         newDistrictsTarget: newDistrictsTarget ?? null,
       },
     });
@@ -121,9 +126,10 @@ export async function POST(request: NextRequest) {
         fiscalYear: goal.fiscalYear,
         earningsTarget: toNumber(goal.earningsTarget),
         takeRatePercent: toNumber(goal.takeRatePercent),
-        revenueTarget: toNumber(goal.revenueTarget),
-        takeTarget: toNumber(goal.takeTarget),
-        pipelineTarget: toNumber(goal.pipelineTarget),
+        renewalTarget: toNumber(goal.renewalTarget),
+        winbackTarget: toNumber(goal.winbackTarget),
+        expansionTarget: toNumber(goal.expansionTarget),
+        newBusinessTarget: toNumber(goal.newBusinessTarget),
         newDistrictsTarget: goal.newDistrictsTarget,
         createdAt: goal.createdAt.toISOString(),
         updatedAt: goal.updatedAt.toISOString(),

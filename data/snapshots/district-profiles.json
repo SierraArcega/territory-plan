@@ -1842,103 +1842,6 @@
     }
   },
   {
-    "district_id": "17592246338329",
-    "district_name": "Metropolitan Nashville Public Schools",
-    "state": "TN",
-    "state_sources": [
-      [
-        "district",
-        "TN"
-      ]
-    ],
-    "nces_id": "4703180",
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 10,
-      "revenue": 482820.06640625,
-      "account_names_used": [
-        "Metropolitan Nashville Public Schools",
-        "Academy of God"
-      ]
-    },
-    "schools": {
-      "count": 166,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 3178,
-      "revenue": 80226,
-      "schools_in_sessions": [
-        "Academy of God",
-        "Academy for GOD",
-        "F.H Jenkins Elementary"
-      ]
-    },
-    "courses": {
-      "count": 69
-    },
-    "totals": {
-      "entity_count": 3423,
-      "total_revenue": 563046.06640625
-    },
-    "data_quality": {
-      "has_nces": true,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": true
-    }
-  },
-  {
-    "district_id": "17592191599741",
-    "district_name": "Metropolitan Nashville Public Schools",
-    "state": "TN",
-    "state_sources": [
-      [
-        "district",
-        "TN"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 5,
-      "revenue": 240754.6796875,
-      "account_names_used": [
-        "Metropolitan Nashville Public Schools"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 5,
-      "total_revenue": 240754.6796875
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
-      "has_sessions": false
-    }
-  },
-  {
     "district_id": "17592284312964",
     "district_name": "Dayton Public Schools",
     "state": "OH",
@@ -2026,6 +1929,103 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592246338329",
+    "district_name": "Metropolitan Nashville Public Schools",
+    "state": "TN",
+    "state_sources": [
+      [
+        "district",
+        "TN"
+      ]
+    ],
+    "nces_id": "4703180",
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 10,
+      "revenue": 482820.06640625,
+      "account_names_used": [
+        "Metropolitan Nashville Public Schools",
+        "Academy of God"
+      ]
+    },
+    "schools": {
+      "count": 166,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 3247,
+      "revenue": 73191,
+      "schools_in_sessions": [
+        "Academy of God",
+        "Academy for GOD",
+        "F.H Jenkins Elementary"
+      ]
+    },
+    "courses": {
+      "count": 69
+    },
+    "totals": {
+      "entity_count": 3492,
+      "total_revenue": 556011.06640625
+    },
+    "data_quality": {
+      "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592191599741",
+    "district_name": "Metropolitan Nashville Public Schools",
+    "state": "TN",
+    "state_sources": [
+      [
+        "district",
+        "TN"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 5,
+      "revenue": 240754.6796875,
+      "account_names_used": [
+        "Metropolitan Nashville Public Schools"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 5,
+      "total_revenue": 240754.6796875
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -9643,9 +9643,11 @@
     "exists_in_index": true,
     "referenced_by": [],
     "opportunities": {
-      "count": 0,
+      "count": 1,
       "revenue": 0,
-      "account_names_used": []
+      "account_names_used": [
+        "Camden County School District"
+      ]
     },
     "schools": {
       "count": 12,
@@ -9660,14 +9662,14 @@
       "count": 0
     },
     "totals": {
-      "entity_count": 12,
+      "entity_count": 13,
       "total_revenue": 0
     },
     "data_quality": {
       "has_nces": false,
       "has_state": true,
       "is_orphaned": false,
-      "has_opps": false,
+      "has_opps": true,
       "has_schools": true,
       "has_sessions": false
     }
@@ -21237,7 +21239,7 @@
     },
     "sessions": {
       "count": 128,
-      "revenue": 19611.070194244385,
+      "revenue": 19361.38019180298,
       "schools_in_sessions": [
         "Thomas A Edison High School"
       ]
@@ -21247,7 +21249,7 @@
     },
     "totals": {
       "entity_count": 134,
-      "total_revenue": 95344.20105361938
+      "total_revenue": 95094.51105117798
     },
     "data_quality": {
       "has_nces": true,
@@ -41190,6 +41192,100 @@
     }
   },
   {
+    "district_id": "17592297177466",
+    "district_name": "Minisink Valley Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 1,
+      "revenue": 36415,
+      "account_names_used": [
+        "Minisink Valley Central School District"
+      ]
+    },
+    "schools": {
+      "count": 7,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 21,
+      "revenue": 1589.140007019043,
+      "schools_in_sessions": [
+        "Minisink Valley Central School District"
+      ]
+    },
+    "courses": {
+      "count": 8
+    },
+    "totals": {
+      "entity_count": 37,
+      "total_revenue": 38004.14000701904
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": true
+    }
+  },
+  {
+    "district_id": "17592193637780",
+    "district_name": "Minisink Valley Central School District",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 20000,
+      "account_names_used": [
+        "Minisink Valley Central School District"
+      ]
+    },
+    "schools": {
+      "count": 0,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 20000
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": false,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592246331492",
     "district_name": "Arkport School District",
     "state": "NY",
@@ -41366,98 +41462,6 @@
       "is_orphaned": false,
       "has_opps": false,
       "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592297177466",
-    "district_name": "Minisink Valley Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": true,
-    "referenced_by": [],
-    "opportunities": {
-      "count": 1,
-      "revenue": 36415,
-      "account_names_used": [
-        "Minisink Valley Central School District"
-      ]
-    },
-    "schools": {
-      "count": 5,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 6,
-      "total_revenue": 36415
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": false,
-      "has_opps": true,
-      "has_schools": true,
-      "has_sessions": false
-    }
-  },
-  {
-    "district_id": "17592193637780",
-    "district_name": "Minisink Valley Central School District",
-    "state": "NY",
-    "state_sources": [
-      [
-        "district",
-        "NY"
-      ]
-    ],
-    "nces_id": null,
-    "exists_in_index": false,
-    "referenced_by": [
-      "opportunities"
-    ],
-    "opportunities": {
-      "count": 1,
-      "revenue": 20000,
-      "account_names_used": [
-        "Minisink Valley Central School District"
-      ]
-    },
-    "schools": {
-      "count": 0,
-      "sample_names": []
-    },
-    "sessions": {
-      "count": 0,
-      "revenue": 0,
-      "schools_in_sessions": []
-    },
-    "courses": {
-      "count": 0
-    },
-    "totals": {
-      "entity_count": 1,
-      "total_revenue": 20000
-    },
-    "data_quality": {
-      "has_nces": false,
-      "has_state": true,
-      "is_orphaned": true,
-      "has_opps": true,
-      "has_schools": false,
       "has_sessions": false
     }
   },
@@ -43363,6 +43367,97 @@
     },
     "data_quality": {
       "has_nces": true,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592193637963",
+    "district_name": "NYC Dept of Education",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 30000,
+      "account_names_used": [
+        "NYC Dept of Education"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 30000
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297007449",
+    "district_name": "NYC Dept of Education",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
       "has_state": true,
       "is_orphaned": false,
       "has_opps": false,
@@ -47426,9 +47521,11 @@
     "exists_in_index": true,
     "referenced_by": [],
     "opportunities": {
-      "count": 0,
+      "count": 1,
       "revenue": 0,
-      "account_names_used": []
+      "account_names_used": [
+        "Hancock County School District"
+      ]
     },
     "schools": {
       "count": 4,
@@ -47443,14 +47540,14 @@
       "count": 0
     },
     "totals": {
-      "entity_count": 4,
+      "entity_count": 5,
       "total_revenue": 0
     },
     "data_quality": {
       "has_nces": false,
       "has_state": true,
       "is_orphaned": false,
-      "has_opps": false,
+      "has_opps": true,
       "has_schools": true,
       "has_sessions": false
     }

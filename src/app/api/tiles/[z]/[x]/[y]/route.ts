@@ -11,7 +11,6 @@ export async function GET(
     const { z, x, y } = await params;
     const zoom = parseInt(z);
     const tileX = parseInt(x);
-    // Remove .mvt extension if present
     const tileY = parseInt(y.replace(".mvt", ""));
 
     if (isNaN(zoom) || isNaN(tileX) || isNaN(tileY)) {
@@ -21,30 +20,18 @@ export async function GET(
       );
     }
 
-    // Get optional query params
+    // Get optional state filter
     const { searchParams } = new URL(request.url);
     const stateFilter = searchParams.get("state");
-    const layerType = searchParams.get("layer"); // "customer" (default) or "vendor"
+    const fyParam = searchParams.get("fy") || "fy26";
+    const fy = fyParam === "fy25" ? "fy25" : "fy26"; // whitelist valid values
 
-    // Determine which materialized view to query
-    const isVendorLayer = layerType === "vendor";
-    const viewName = isVendorLayer
-      ? "district_vendor_comparison"
-      : "district_customer_categories";
-    const categoryColumn = isVendorLayer ? "dominant_vendor" : "customer_category";
-
-    // At low zoom (national view), only load districts with data
-    // This dramatically reduces data transfer and rendering time
+    // At low zoom (national view), only load districts with vendor data
     const isNationalView = zoom < 6 && !stateFilter;
 
     // Geometry simplification tolerance based on zoom level
-    // Lower zoom = more simplification for faster rendering
     const simplifyTolerance = zoom < 5 ? 0.01 : zoom < 7 ? 0.005 : 0.001;
 
-    // Build MVT query with optimizations:
-    // - Uses materialized view (much faster)
-    // - At national view: only districts with data
-    // - Simplified geometry at low zoom levels
     const query = `
       WITH tile_bounds AS (
         SELECT
@@ -56,10 +43,21 @@ export async function GET(
           d.leaid,
           d.name,
           d.state_abbrev,
-          d.${categoryColumn} as ${categoryColumn},
+          d.sales_executive,
+          d.plan_ids,
+          d.${fy}_fullmind_category AS fullmind_category,
+          d.${fy}_proximity_category AS proximity_category,
+          d.${fy}_elevate_category AS elevate_category,
+          d.${fy}_tbt_category AS tbt_category,
+          d.enrollment_signal,
+          d.ell_signal,
+          d.swd_signal,
+          d.locale_signal,
+          d.expenditure_signal,
+          d.account_type,
           ST_AsMVTGeom(
             ST_Transform(
-              ST_Simplify(d.geometry, ${simplifyTolerance}),
+              ST_Simplify(d.render_geometry, ${simplifyTolerance}),
               3857
             ),
             (SELECT envelope FROM tile_bounds),
@@ -67,18 +65,22 @@ export async function GET(
             64,
             true
           ) AS geom
-        FROM ${viewName} d
-        WHERE d.geometry IS NOT NULL
-          AND d.geometry && (SELECT envelope_4326 FROM tile_bounds)
+        FROM district_map_features d
+        WHERE d.render_geometry IS NOT NULL
+          AND d.render_geometry && (SELECT envelope_4326 FROM tile_bounds)
           ${stateFilter ? "AND d.state_abbrev = $4" : ""}
-          ${isNationalView ? `AND d.${categoryColumn} IS NOT NULL` : ""}
+          ${isNationalView ? `AND (
+            d.${fy}_fullmind_category IS NOT NULL
+            OR d.${fy}_proximity_category IS NOT NULL
+            OR d.${fy}_elevate_category IS NOT NULL
+            OR d.${fy}_tbt_category IS NOT NULL
+          )` : ""}
       )
       SELECT ST_AsMVT(tile_data, 'districts', 4096, 'geom') AS mvt
       FROM tile_data
       WHERE geom IS NOT NULL
     `;
 
-    // Build query parameters
     const queryParams = stateFilter
       ? [zoom, tileX, tileY, stateFilter]
       : [zoom, tileX, tileY];
@@ -89,7 +91,6 @@ export async function GET(
       const mvt = result.rows[0]?.mvt;
 
       if (!mvt || mvt.length === 0) {
-        // Return empty tile
         return new NextResponse(null, {
           status: 204,
           headers: {
@@ -99,8 +100,7 @@ export async function GET(
         });
       }
 
-      // Longer cache for national view tiles since they change less frequently
-      const cacheTime = isNationalView ? 86400 : 3600; // 24h vs 1h
+      const cacheTime = isNationalView ? 86400 : 3600;
 
       return new NextResponse(mvt, {
         status: 200,

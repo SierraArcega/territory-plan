@@ -190,3 +190,80 @@
 2026-02-14T23:25:00.132Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
 2026-02-15T00:25:20.152Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
 2026-02-15T01:25:36.781Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-15T02:25:40.290Z | FAIL | fetch failed
+2026-02-15T03:25:41.275Z | FAIL | district-profiles: HTTP 503
+2026-02-15T04:25:43.730Z | FAIL | district-profiles: HTTP 503
+2026-02-15T05:25:45.773Z | FAIL | district-profiles: HTTP 503
+2026-02-15T06:25:46.857Z | FAIL | district-profiles: HTTP 503
+2026-02-15T07:25:49.817Z | FAIL | district-profiles: HTTP 503
+2026-02-15T08:25:50.680Z | FAIL | district-profiles: HTTP 503
+2026-02-15T09:25:53.102Z | FAIL | fragmented: HTTP 500
+2026-02-15T10:25:55.300Z | FAIL | fragmented: HTTP 500
+2026-02-15T11:25:57.395Z | FAIL | district-profiles: HTTP 500
+2026-02-15T12:25:59.979Z | FAIL | fragmented: HTTP 500
+2026-02-15T13:26:02.259Z | FAIL | fragmented: HTTP 500
+2026-02-15T14:26:04.337Z | FAIL | fragmented: HTTP 500
+2026-02-15T15:26:06.408Z | FAIL | fragmented: HTTP 500
+2026-02-15T16:26:08.568Z | FAIL | fragmented: HTTP 500
+2026-02-15T17:26:10.965Z | FAIL | fragmented: HTTP 500
+2026-02-15T18:26:13.215Z | FAIL | fragmented: HTTP 500
+2026-02-15T19:26:31.049Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-15T19:26:31.559Z | FAIL | Command failed: git push
+2026-02-15T20:26:45.595Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-15T20:26:45.791Z | FAIL | Command failed: git push
+2026-02-15T21:27:00.907Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-15T21:27:01.149Z | FAIL | Command failed: git push
+2026-02-15T22:27:16.158Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-15T22:27:16.369Z | FAIL | Command failed: git push
+2026-02-15T23:27:30.926Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-15T23:27:31.078Z | FAIL | Command failed: git push
+2026-02-16T00:27:47.659Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-16T00:27:47.999Z | FAIL | Command failed: git push
+2026-02-16T01:28:08.572Z | OK | district-profiles: 1559 | unmatched: 74 | fragmented: 18
+2026-02-16T01:28:08.798Z | FAIL | Command failed: git push
+2026-02-16T02:33:11.464Z | FAIL | fetch failed
+2026-02-16T03:33:13.143Z | FAIL | district-profiles: HTTP 503
+2026-02-16T04:33:14.622Z | FAIL | district-profiles: HTTP 503
+2026-02-16T05:33:15.993Z | FAIL | district-profiles: HTTP 503
+2026-02-16T06:33:18.186Z | FAIL | district-profiles: HTTP 503
+2026-02-16T07:33:20.205Z | FAIL | district-profiles: HTTP 503
+2026-02-16T08:33:22.248Z | FAIL | district-profiles: HTTP 503
+2026-02-16T09:33:24.689Z | FAIL | district-profiles: HTTP 503
+2026-02-16T10:33:26.698Z | FAIL | district-profiles: HTTP 503
+2026-02-16T11:33:28.554Z | FAIL | district-profiles: HTTP 503
+2026-02-16T12:33:30.630Z | FAIL | district-profiles: HTTP 503
+2026-02-16T13:33:32.744Z | FAIL | district-profiles: HTTP 503
+2026-02-16T14:33:34.442Z | FAIL | district-profiles: HTTP 503
+2026-02-16T15:33:36.761Z | FAIL | district-profiles: HTTP 503
+2026-02-16T16:33:38.880Z | FAIL | district-profiles: HTTP 503
+2026-02-16T17:33:41.990Z | FAIL | district-profiles: HTTP 503
+2026-02-16T18:33:44.444Z | FAIL | district-profiles: HTTP 503
+2026-02-16T19:33:45.486Z | FAIL | district-profiles: HTTP 503
+2026-02-16T20:33:47.315Z | FAIL | district-profiles: HTTP 503
+2026-02-16T21:33:49.803Z | FAIL | district-profiles: HTTP 503
+2026-02-16T22:34:41.601Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-16T22:34:41.997Z | FAIL | Command failed: git push
+2026-02-16T23:34:57.520Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-16T23:34:57.785Z | FAIL | Command failed: git push
+2026-02-17T00:35:12.954Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-17T00:35:13.290Z | FAIL | Command failed: git push
+2026-02-17T01:35:26.025Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-17T01:35:26.219Z | FAIL | Command failed: git push
+2026-02-17T02:35:40.859Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-17T02:35:40.985Z | FAIL | Command failed: git push
+2026-02-17T03:35:55.189Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-17T03:35:55.598Z | FAIL | Command failed: git push
+2026-02-17T04:36:11.472Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-17T04:36:11.642Z | FAIL | Command failed: git push
+2026-02-17T05:36:24.930Z | OK | district-profiles: 1559 | unmatched: 77 | fragmented: 18
+2026-02-17T05:36:25.131Z | FAIL | Command failed: git push
+2026-02-17T15:56:26.238Z | OK | district-profiles: 1561 | unmatched: 77 | fragmented: 18
+2026-02-17T15:56:26.688Z | FAIL | Command failed: git push
+2026-02-17T16:56:50.406Z | OK | district-profiles: 1561 | unmatched: 77 | fragmented: 18
+2026-02-17T16:56:50.908Z | FAIL | Command failed: git push
+2026-02-17T18:01:59.402Z | FAIL | fetch failed
+2026-02-17T19:07:13.052Z | FAIL | fetch failed
+2026-02-17T20:07:27.075Z | OK | district-profiles: 1561 | unmatched: 77 | fragmented: 18
+2026-02-17T20:07:27.195Z | FAIL | Command failed: git push
+2026-02-17T21:07:57.186Z | OK | district-profiles: 1561 | unmatched: 77 | fragmented: 18
+2026-02-17T21:07:57.806Z | FAIL | Command failed: git push

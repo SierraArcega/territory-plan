@@ -50,7 +50,7 @@ describe("Territory Plans API", () => {
           description: "A test plan",
           owner: "John",
           color: "#403770",
-          status: "active",
+          status: "working",
           startDate: new Date("2024-01-01"),
           endDate: new Date("2024-12-31"),
           createdAt: new Date("2024-01-01"),
@@ -90,7 +90,7 @@ describe("Territory Plans API", () => {
         description: null,
         owner: null,
         color: "#403770",
-        status: "active",
+        status: "working",
         startDate: null,
         endDate: null,
         createdAt: new Date("2024-01-01"),
@@ -119,7 +119,7 @@ describe("Territory Plans API", () => {
         description: "With description",
         owner: "John",
         color: "#F37167",
-        status: "draft",
+        status: "planning",
         startDate: new Date("2024-01-01"),
         endDate: new Date("2024-12-31"),
         createdAt: new Date("2024-01-01"),
@@ -135,7 +135,7 @@ describe("Territory Plans API", () => {
           description: "With description",
           owner: "John",
           color: "#F37167",
-          status: "draft",
+          status: "planning",
           startDate: "2024-01-01",
           endDate: "2024-12-31",
         }),
@@ -147,7 +147,7 @@ describe("Territory Plans API", () => {
       expect(response.status).toBe(201);
       expect(data.description).toBe("With description");
       expect(data.color).toBe("#F37167");
-      expect(data.status).toBe("draft");
+      expect(data.status).toBe("planning");
     });
 
     it("returns 400 when name is missing", async () => {
@@ -198,7 +198,7 @@ describe("Territory Plans API", () => {
         description: null,
         owner: null,
         color: "#403770",
-        status: "active",
+        status: "working",
         startDate: null,
         endDate: null,
         createdAt: new Date("2024-01-01"),
@@ -262,7 +262,7 @@ describe("Territory Plans API", () => {
         description: "Updated desc",
         owner: null,
         color: "#403770",
-        status: "active",
+        status: "working",
         startDate: null,
         endDate: null,
         createdAt: new Date("2024-01-01"),

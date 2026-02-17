@@ -83,7 +83,7 @@
     "account_id": "17592191599741",
     "account_name": "Metropolitan Nashville Public Schools",
     "state": "TENNESSEE",
-    "sales_exec": "Joy Panko",
+    "sales_exec": "Monica Sherwood",
     "total_revenue": 240754.6796875,
     "opportunity_count": 5
   },
@@ -123,7 +123,7 @@
     "account_id": "17592238767028",
     "account_name": "Greater Johnstown",
     "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
+    "sales_exec": "Kris Tedesco",
     "total_revenue": 174810,
     "opportunity_count": 10
   },
@@ -290,7 +290,7 @@
   {
     "account_id": "17592297177466",
     "account_name": "Minisink Valley Central School District",
-    "state": null,
+    "state": "NY",
     "sales_exec": "Kris Tedesco",
     "total_revenue": 36415,
     "opportunity_count": 1
@@ -298,7 +298,7 @@
   {
     "account_id": "17592295333446",
     "account_name": "Lake Park Audubon School District",
-    "state": null,
+    "state": "MN",
     "sales_exec": "Tony Skauge",
     "total_revenue": 35000,
     "opportunity_count": 1
@@ -435,7 +435,7 @@
     "account_id": "17592297177211",
     "account_name": "Ichabod Crane Central School District",
     "state": "NEW YORK",
-    "sales_exec": "Brooke Fera",
+    "sales_exec": "Kris Tedesco",
     "total_revenue": 14000,
     "opportunity_count": 5
   },
@@ -588,6 +588,30 @@
     "account_name": "Nazareth Preparatory",
     "state": null,
     "sales_exec": "Paul Sheffield",
+    "total_revenue": 0,
+    "opportunity_count": 1
+  },
+  {
+    "account_id": "17592296969904",
+    "account_name": "Camden County School District",
+    "state": "GA",
+    "sales_exec": "Melodie Blackwood",
+    "total_revenue": 0,
+    "opportunity_count": 1
+  },
+  {
+    "account_id": "17592296970363",
+    "account_name": "Hancock County School District",
+    "state": "GA",
+    "sales_exec": "Melodie Blackwood",
+    "total_revenue": 0,
+    "opportunity_count": 1
+  },
+  {
+    "account_id": "17592297010295",
+    "account_name": "Seminole County Public Schools",
+    "state": "FL",
+    "sales_exec": "Melodie Blackwood",
     "total_revenue": 0,
     "opportunity_count": 1
   }

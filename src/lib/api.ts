@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import type { StatusFilter, FiscalYear, MetricType } from "./store";
 import type { ActivityType, ActivityCategory, ActivityStatus } from "./activityTypes";
 import type { TaskStatus, TaskPriority } from "./taskTypes";
@@ -28,6 +28,11 @@ export interface District {
   // External links
   websiteUrl: string | null;
   jobBoardUrl: string | null;
+  // Centroid for tether line
+  centroidLat: number | null;
+  centroidLng: number | null;
+  // Account type (district, cmo, esa_boces, etc.)
+  accountType: string;
 }
 
 export interface FullmindData {
@@ -118,8 +123,6 @@ export interface DistrictEducationData {
   saipeDataYear: number | null;
   // Graduation data
   graduationRateTotal: number | null;
-  graduationRateMale: number | null;
-  graduationRateFemale: number | null;
   graduationDataYear: number | null;
   // Staffing & Salaries
   salariesTotal: number | null;
@@ -160,6 +163,55 @@ export interface DistrictEnrollmentDemographics {
   demographicsDataYear: number | null;
 }
 
+export interface DistrictTrends {
+  // Derived percentages
+  swdPct: number | null;
+  ellPct: number | null;
+  // Staffing ratios
+  studentTeacherRatio: number | null;
+  studentStaffRatio: number | null;
+  spedStudentTeacherRatio: number | null;
+  // 3-year trends
+  enrollmentTrend3yr: number | null;
+  staffingTrend3yr: number | null;
+  vacancyPressureSignal: number | null;
+  swdTrend3yr: number | null;
+  ellTrend3yr: number | null;
+  absenteeismTrend3yr: number | null;
+  graduationTrend3yr: number | null;
+  studentTeacherRatioTrend3yr: number | null;
+  mathProficiencyTrend3yr: number | null;
+  readProficiencyTrend3yr: number | null;
+  expenditurePpTrend3yr: number | null;
+  // State comparison deltas (positive = above state avg)
+  absenteeismVsState: number | null;
+  graduationVsState: number | null;
+  studentTeacherRatioVsState: number | null;
+  swdPctVsState: number | null;
+  ellPctVsState: number | null;
+  mathProficiencyVsState: number | null;
+  readProficiencyVsState: number | null;
+  expenditurePpVsState: number | null;
+  // National comparison deltas
+  absenteeismVsNational: number | null;
+  graduationVsNational: number | null;
+  studentTeacherRatioVsNational: number | null;
+  swdPctVsNational: number | null;
+  ellPctVsNational: number | null;
+  mathProficiencyVsNational: number | null;
+  readProficiencyVsNational: number | null;
+  expenditurePpVsNational: number | null;
+  // Quartile flags within state
+  absenteeismQuartileState: string | null;
+  graduationQuartileState: string | null;
+  studentTeacherRatioQuartileState: string | null;
+  swdPctQuartileState: string | null;
+  ellPctQuartileState: string | null;
+  mathProficiencyQuartileState: string | null;
+  readProficiencyQuartileState: string | null;
+  expenditurePpQuartileState: string | null;
+}
+
 export interface DistrictDetail {
   district: District;
   fullmindData: FullmindData | null;
@@ -169,6 +221,7 @@ export interface DistrictDetail {
   territoryPlanIds: string[];
   educationData: DistrictEducationData | null;
   enrollmentDemographics: DistrictEnrollmentDemographics | null;
+  trends: DistrictTrends | null;
 }
 
 export interface DistrictListItem {
@@ -212,19 +265,44 @@ export interface Quantiles {
 }
 
 // Territory Plan types
+
+export interface PlanOwner {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
+export interface PlanState {
+  fips: string;
+  abbrev: string;
+  name: string;
+}
+
+export interface PlanCollaborator {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
 export interface TerritoryPlan {
   id: string;
   name: string;
   description: string | null;
-  owner: string | null;
+  owner: PlanOwner | null;
   color: string;
-  status: "draft" | "active" | "archived";
+  status: "planning" | "working" | "stale" | "archived";
   fiscalYear: number;
   startDate: string | null;
   endDate: string | null;
   createdAt: string;
   updatedAt: string;
   districtCount: number;
+  totalEnrollment: number;
+  stateCount: number;
+  states: PlanState[];
+  collaborators: PlanCollaborator[];
+  taskCount: number;
+  completedTaskCount: number;
 }
 
 export interface TerritoryPlanDistrict {
@@ -233,10 +311,13 @@ export interface TerritoryPlanDistrict {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
-  revenueTarget: number | null;
-  pipelineTarget: number | null;
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   notes: string | null;
-  targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  newServices: Array<{ id: number; name: string; slug: string; color: string }>;
   tags: Array<{ id: number; name: string; color: string }>;
 }
 
@@ -381,6 +462,7 @@ export function useAddDistrictTag() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan"] });
     },
   });
 }
@@ -395,6 +477,7 @@ export function useRemoveDistrictTag() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan"] });
     },
   });
 }
@@ -472,6 +555,8 @@ export function useDeleteContact() {
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
+      queryClient.invalidateQueries({ queryKey: ["planContacts"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
     },
   });
 }
@@ -568,6 +653,22 @@ export function useTerritoryPlans(options?: { enabled?: boolean }) {
   });
 }
 
+export interface UserSummary {
+  id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  email: string;
+  jobTitle: string | null;
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: () => fetchJson<UserSummary[]>(`${API_BASE}/users`),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useTerritoryPlan(planId: string | null) {
   return useQuery({
     queryKey: ["territoryPlan", planId],
@@ -595,12 +696,14 @@ export function useCreateTerritoryPlan() {
     mutationFn: (plan: {
       name: string;
       description?: string;
-      owner?: string;
+      ownerId?: string;
       color?: string;
-      status?: "draft" | "active" | "archived";
+      status?: "planning" | "working" | "stale" | "archived";
       fiscalYear: number;
       startDate?: string;
       endDate?: string;
+      stateFips?: string[];
+      collaboratorIds?: string[];
     }) =>
       fetchJson<TerritoryPlan>(`${API_BASE}/territory-plans`, {
         method: "POST",
@@ -623,12 +726,14 @@ export function useUpdateTerritoryPlan() {
       id: string;
       name?: string;
       description?: string;
-      owner?: string;
+      ownerId?: string | null;
       color?: string;
-      status?: "draft" | "active" | "archived";
+      status?: "planning" | "working" | "stale" | "archived";
       fiscalYear?: number;
       startDate?: string;
       endDate?: string;
+      stateFips?: string[];
+      collaboratorIds?: string[];
     }) =>
       fetchJson<TerritoryPlan>(`${API_BASE}/territory-plans/${id}`, {
         method: "PUT",
@@ -1177,9 +1282,11 @@ export interface UserGoal {
   takeRatePercent: number | null;
   newDistrictsTarget: number | null;
   // Calculated targets (from earnings + take rate)
-  revenueTarget: number | null;
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   takeTarget: number | null;
-  pipelineTarget: number | null;
   // Calculated actuals from territory plan districts
   revenueActual: number;
   takeActual: number;
@@ -1193,6 +1300,13 @@ export interface UserProfile {
   email: string;
   fullName: string | null;
   avatarUrl: string | null;
+  jobTitle: string | null;
+  location: string | null;
+  locationLat: number | null;
+  locationLng: number | null;
+  phone: string | null;
+  slackUrl: string | null;
+  bio: string | null;
   hasCompletedSetup: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1214,7 +1328,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { fullName?: string; hasCompletedSetup?: boolean }) =>
+    mutationFn: (data: { fullName?: string; hasCompletedSetup?: boolean; jobTitle?: string; location?: string; locationLat?: number | null; locationLng?: number | null; phone?: string; slackUrl?: string; bio?: string }) =>
       fetchJson<UserProfile>(`${API_BASE}/profile`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -1234,9 +1348,11 @@ export function useUpsertUserGoal() {
       fiscalYear: number;
       earningsTarget?: number | null;
       takeRatePercent?: number | null;
-      revenueTarget?: number | null;
+      renewalTarget?: number | null;
+      winbackTarget?: number | null;
+      expansionTarget?: number | null;
+      newBusinessTarget?: number | null;
       takeTarget?: number | null;
-      pipelineTarget?: number | null;
       newDistrictsTarget?: number | null;
     }) =>
       fetchJson<UserGoal>(`${API_BASE}/profile/goals`, {
@@ -1284,10 +1400,13 @@ export interface PlanDistrictDetail {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
-  revenueTarget: number | null;
-  pipelineTarget: number | null;
+  renewalTarget: number | null;
+  winbackTarget: number | null;
+  expansionTarget: number | null;
+  newBusinessTarget: number | null;
   notes: string | null;
-  targetServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  newServices: Array<{ id: number; name: string; slug: string; color: string }>;
 }
 
 export function usePlanDistrictDetail(planId: string | null, leaid: string | null) {
@@ -1305,19 +1424,20 @@ export function usePlanDistrictDetail(planId: string | null, leaid: string | nul
 export function useUpdateDistrictTargets() {
   const queryClient = useQueryClient();
 
+  type UpdateVars = {
+    planId: string;
+    leaid: string;
+    renewalTarget?: number | null;
+    winbackTarget?: number | null;
+    expansionTarget?: number | null;
+    newBusinessTarget?: number | null;
+    notes?: string | null;
+    returnServiceIds?: number[];
+    newServiceIds?: number[];
+  };
+
   return useMutation({
-    mutationFn: ({
-      planId,
-      leaid,
-      ...data
-    }: {
-      planId: string;
-      leaid: string;
-      revenueTarget?: number | null;
-      pipelineTarget?: number | null;
-      notes?: string | null;
-      serviceIds?: number[];
-    }) =>
+    mutationFn: ({ planId, leaid, ...data }: UpdateVars) =>
       fetchJson<PlanDistrictDetail>(
         `${API_BASE}/territory-plans/${planId}/districts/${leaid}`,
         {
@@ -1325,9 +1445,61 @@ export function useUpdateDistrictTargets() {
           body: JSON.stringify(data),
         }
       ),
-    onSuccess: (_, variables) => {
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["territoryPlan", variables.planId] });
+
+      const planKey = ["territoryPlan", variables.planId] as const;
+      const previousPlan = queryClient.getQueryData<TerritoryPlanDetail>(planKey);
+
+      if (previousPlan) {
+        // Optimistically update the specific district in the cached plan
+        const allServices = queryClient.getQueryData<Service[]>(["services"]) || [];
+
+        queryClient.setQueryData<TerritoryPlanDetail>(planKey, {
+          ...previousPlan,
+          districts: previousPlan.districts.map((d) => {
+            if (d.leaid !== variables.leaid) return d;
+            const updated = { ...d };
+
+            // Patch target fields that were sent
+            if (variables.renewalTarget !== undefined) updated.renewalTarget = variables.renewalTarget;
+            if (variables.winbackTarget !== undefined) updated.winbackTarget = variables.winbackTarget;
+            if (variables.expansionTarget !== undefined) updated.expansionTarget = variables.expansionTarget;
+            if (variables.newBusinessTarget !== undefined) updated.newBusinessTarget = variables.newBusinessTarget;
+            if (variables.notes !== undefined) updated.notes = variables.notes;
+
+            // Patch services if sent
+            if (variables.returnServiceIds !== undefined) {
+              updated.returnServices = variables.returnServiceIds
+                .map((id) => allServices.find((s) => s.id === id))
+                .filter((s): s is Service => !!s)
+                .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+            }
+            if (variables.newServiceIds !== undefined) {
+              updated.newServices = variables.newServiceIds
+                .map((id) => allServices.find((s) => s.id === id))
+                .filter((s): s is Service => !!s)
+                .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+            }
+
+            return updated;
+          }),
+        });
+      }
+
+      return { previousPlan };
+    },
+    onError: (_err, variables, context) => {
+      // Roll back to previous state on error
+      if (context?.previousPlan) {
+        queryClient.setQueryData(["territoryPlan", variables.planId], context.previousPlan);
+      }
+    },
+    onSettled: (_, _err, variables) => {
+      // Background-refresh the single district detail (lightweight)
       queryClient.invalidateQueries({ queryKey: ["planDistrict", variables.planId, variables.leaid] });
-      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+      // Debounce the dashboard refresh — it's not urgent
       queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
     },
   });
@@ -1340,14 +1512,19 @@ export interface GoalDashboard {
   goals: {
     earningsTarget: number | null;
     takeRatePercent: number | null;
-    revenueTarget: number | null;
+    renewalTarget: number | null;
+    winbackTarget: number | null;
+    expansionTarget: number | null;
+    newBusinessTarget: number | null;
     takeTarget: number | null;
-    pipelineTarget: number | null;
     newDistrictsTarget: number | null;
   } | null;
   planTotals: {
-    revenueTarget: number;
-    pipelineTarget: number;
+    renewalTarget: number;
+    winbackTarget: number;
+    expansionTarget: number;
+    newBusinessTarget: number;
+    totalTarget: number;
     districtCount: number;
     planCount: number;
   };
@@ -1364,8 +1541,11 @@ export interface GoalDashboard {
     color: string;
     status: string;
     districtCount: number;
-    revenueTarget: number;
-    pipelineTarget: number;
+    renewalTarget: number;
+    winbackTarget: number;
+    expansionTarget: number;
+    newBusinessTarget: number;
+    totalTarget: number;
   }>;
 }
 
@@ -1911,6 +2091,54 @@ export function useUnlinkTaskContact() {
   });
 }
 
+// ===== Accounts (non-district) =====
+
+// Create a new non-district account
+export function useCreateAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      accountType: string;
+      stateAbbrev?: string;
+      street?: string;
+      city?: string;
+      state?: string;
+      zip?: string;
+      salesExecutive?: string;
+      phone?: string;
+      websiteUrl?: string;
+    }) => {
+      const res = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create account");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["districts"] });
+    },
+  });
+}
+
+// Check for duplicate accounts by name (non-blocking warning)
+export function useDuplicateCheck(name: string, state?: string) {
+  return useQuery({
+    queryKey: ["account-duplicates", name, state],
+    queryFn: async () => {
+      const params = new URLSearchParams({ name });
+      if (state) params.set("state", state);
+      const res = await fetch(`/api/accounts?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: name.length >= 3,
+    staleTime: 5000,
+  });
+}
+
 // Logout user
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -2145,6 +2373,176 @@ export function useBatchConfirmCalendarEvents() {
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
       queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// ===== Schools =====
+
+export interface School {
+  ncessch: string;
+  leaid: string;
+  schoolName: string;
+  charter: number;
+  schoolLevel: number | null;
+  lograde: string | null;
+  higrade: string | null;
+  enrollment: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  city: string | null;
+  stateAbbrev: string | null;
+  phone: string | null;
+  owner: string | null;
+  notes: string | null;
+  schoolStatus: number | null;
+}
+
+export interface SchoolDetail extends School {
+  enrollmentHistory: { year: number; enrollment: number | null }[];
+  tags: Tag[];
+  contacts: Contact[];
+  district: { leaid: string; name: string };
+  streetAddress: string | null;
+  zip: string | null;
+  countyName: string | null;
+  urbanCentricLocale: number | null;
+  schoolType: number | null;
+  directoryDataYear: number | null;
+  notesUpdatedAt: string | null;
+}
+
+export interface SchoolListItem {
+  ncessch: string;
+  leaid: string;
+  schoolName: string;
+  charter: number;
+  schoolLevel: number | null;
+  enrollment: number | null;
+  lograde: string | null;
+  higrade: string | null;
+  schoolStatus: number | null;
+  enrollmentHistory?: { year: number; enrollment: number | null }[];
+}
+
+// Schools by district (for district detail panel)
+export function useSchoolsByDistrict(leaid: string | null) {
+  return useQuery({
+    queryKey: ["schoolsByDistrict", leaid],
+    queryFn: () =>
+      fetchJson<{ schools: SchoolListItem[]; total: number }>(
+        `${API_BASE}/schools/by-district/${leaid}`
+      ),
+    enabled: !!leaid,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// School detail
+export function useSchoolDetail(ncessch: string | null) {
+  return useQuery({
+    queryKey: ["school", ncessch],
+    queryFn: () =>
+      fetchJson<SchoolDetail>(`${API_BASE}/schools/${ncessch}`),
+    enabled: !!ncessch,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// ------ Explore Data ------
+
+export interface ExploreResponse<T = Record<string, unknown>> {
+  data: T[];
+  aggregates: Record<string, number>;
+  pagination: { page: number; pageSize: number; total: number };
+}
+
+export function useExploreData<T = Record<string, unknown>>(
+  entity: string,
+  params: {
+    filters?: { id: string; column: string; op: string; value: unknown }[];
+    sort?: { column: string; direction: "asc" | "desc" } | null;
+    page?: number;
+    pageSize?: number;
+  }
+) {
+  const searchParams = new URLSearchParams();
+  if (params.filters && params.filters.length > 0) {
+    searchParams.set("filters", JSON.stringify(params.filters));
+  }
+  if (params.sort) {
+    searchParams.set("sort", params.sort.column);
+    searchParams.set("order", params.sort.direction);
+  }
+  searchParams.set("page", String(params.page || 1));
+  searchParams.set("pageSize", String(params.pageSize || 50));
+
+  return useQuery({
+    queryKey: ["explore", entity, params],
+    queryFn: () =>
+      fetchJson<ExploreResponse<T>>(
+        `${API_BASE}/explore/${entity}?${searchParams}`
+      ),
+    staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+// Update school CRM fields
+export function useUpdateSchoolEdits() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ncessch,
+      notes,
+      owner,
+    }: {
+      ncessch: string;
+      notes?: string;
+      owner?: string;
+    }) =>
+      fetchJson<{ ncessch: string; notes: string | null; owner: string | null; updatedAt: string }>(
+        `${API_BASE}/schools/${ncessch}/edits`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ notes, owner }),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
+      queryClient.invalidateQueries({ queryKey: ["schoolsByDistrict"] });
+    },
+  });
+}
+
+// Add tag to school
+export function useAddSchoolTag() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ncessch, tagId }: { ncessch: string; tagId: number }) =>
+      fetchJson<void>(`${API_BASE}/schools/${ncessch}/tags`, {
+        method: "POST",
+        body: JSON.stringify({ tagId }),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
+    },
+  });
+}
+
+// Remove tag from school
+export function useRemoveSchoolTag() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ncessch, tagId }: { ncessch: string; tagId: number }) =>
+      fetchJson<void>(`${API_BASE}/schools/${ncessch}/tags/${tagId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
     },
   });
 }

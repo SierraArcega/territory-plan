@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       where: {
         plan: {
           userId: user.id,
-          status: "active",
+          status: "working",
         },
       },
     });
