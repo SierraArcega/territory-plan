@@ -23,6 +23,8 @@ export async function GET(
     // Get optional state filter
     const { searchParams } = new URL(request.url);
     const stateFilter = searchParams.get("state");
+    const fyParam = searchParams.get("fy") || "fy26";
+    const fy = fyParam === "fy25" ? "fy25" : "fy26"; // whitelist valid values
 
     // At low zoom (national view), only load districts with vendor data
     const isNationalView = zoom < 6 && !stateFilter;
@@ -43,10 +45,10 @@ export async function GET(
           d.state_abbrev,
           d.sales_executive,
           d.plan_ids,
-          d.fullmind_category,
-          d.proximity_category,
-          d.elevate_category,
-          d.tbt_category,
+          d.${fy}_fullmind_category AS fullmind_category,
+          d.${fy}_proximity_category AS proximity_category,
+          d.${fy}_elevate_category AS elevate_category,
+          d.${fy}_tbt_category AS tbt_category,
           d.enrollment_signal,
           d.ell_signal,
           d.swd_signal,
@@ -68,10 +70,10 @@ export async function GET(
           AND d.render_geometry && (SELECT envelope_4326 FROM tile_bounds)
           ${stateFilter ? "AND d.state_abbrev = $4" : ""}
           ${isNationalView ? `AND (
-            d.fullmind_category IS NOT NULL
-            OR d.proximity_category IS NOT NULL
-            OR d.elevate_category IS NOT NULL
-            OR d.tbt_category IS NOT NULL
+            d.${fy}_fullmind_category IS NOT NULL
+            OR d.${fy}_proximity_category IS NOT NULL
+            OR d.${fy}_elevate_category IS NOT NULL
+            OR d.${fy}_tbt_category IS NOT NULL
           )` : ""}
       )
       SELECT ST_AsMVT(tile_data, 'districts', 4096, 'geom') AS mvt
