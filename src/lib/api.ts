@@ -31,6 +31,8 @@ export interface District {
   // Centroid for tether line
   centroidLat: number | null;
   centroidLng: number | null;
+  // Account type (district, cmo, esa_boces, etc.)
+  accountType: string;
 }
 
 export interface FullmindData {
