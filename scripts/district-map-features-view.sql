@@ -58,29 +58,17 @@ fullmind_fy26 AS (
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
 ),
 -- FY25 Fullmind categories: FY24→FY25 comparison
--- Note: fy24_net_invoicing does NOT exist, so we use 0 everywhere
+-- multi_year and lapsed require fy24_net_invoicing, which does not exist yet.
+-- All revenue districts show as 'new'. Pipeline categories omitted (no fy25_open_pipeline).
 fullmind_fy25 AS (
   SELECT
     d.leaid,
     CASE
-      -- multi_year: WHEN 0 > 0 AND ... → never matches (correct)
-      WHEN 0 > 0
-        AND COALESCE(d.fy25_net_invoicing, 0) > 0
-      THEN 'multi_year'
-
-      -- new: all FY25 revenue districts
       WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
       THEN 'new'
 
-      -- lapsed: WHEN 0 > 0 AND ... → never matches (correct)
-      WHEN 0 > 0
-        AND NOT COALESCE(d.fy25_net_invoicing, 0) > 0
-      THEN 'lapsed'
-
-      -- No pipeline categories (no fy25_open_pipeline column exists)
-
-      -- target: district in plan with no FY25 revenue
       WHEN ip.leaid IS NOT NULL
+        AND COALESCE(d.fy25_net_invoicing, 0) = 0
       THEN 'target'
 
       ELSE NULL
@@ -217,5 +205,7 @@ SELECT
   COUNT(*) FILTER (WHERE fy26_proximity_category IS NOT NULL) AS fy26_proximity,
   COUNT(*) FILTER (WHERE fy25_proximity_category IS NOT NULL) AS fy25_proximity,
   COUNT(*) FILTER (WHERE fy26_elevate_category IS NOT NULL) AS fy26_elevate,
-  COUNT(*) FILTER (WHERE fy26_tbt_category IS NOT NULL) AS fy26_tbt
+  COUNT(*) FILTER (WHERE fy25_elevate_category IS NOT NULL) AS fy25_elevate,
+  COUNT(*) FILTER (WHERE fy26_tbt_category IS NOT NULL) AS fy26_tbt,
+  COUNT(*) FILTER (WHERE fy25_tbt_category IS NOT NULL) AS fy25_tbt
 FROM district_map_features;
