@@ -2,6 +2,7 @@
 
 import { useMapV2Store, type ExploreEntity } from "@/lib/map-v2-store";
 import { useExploreData } from "@/lib/api";
+import ExploreKPICards from "./ExploreKPICards";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
@@ -95,16 +96,13 @@ export default function ExploreOverlay() {
           <span className="text-xs text-gray-400">Filters &amp; column picker will appear here</span>
         </div>
 
-        {/* KPI cards placeholder */}
+        {/* KPI summary cards */}
         <div className="px-6 py-3 shrink-0">
-          <div className="grid grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-3 h-[68px]">
-                <div className="h-3 w-16 bg-gray-100 rounded animate-pulse mb-2" />
-                <div className="h-5 w-20 bg-gray-100 rounded animate-pulse" />
-              </div>
-            ))}
-          </div>
+          <ExploreKPICards
+            entity={exploreEntity}
+            aggregates={result?.aggregates}
+            isLoading={isLoading}
+          />
         </div>
 
         {/* Table placeholder */}
