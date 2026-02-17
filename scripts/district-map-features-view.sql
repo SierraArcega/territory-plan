@@ -62,12 +62,12 @@ vendor_cats AS (
     cs.leaid,
     cs.competitor,
     CASE
-      WHEN SUM(CASE WHEN cs.fiscal_year = '2025' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = '2026' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
+        AND SUM(CASE WHEN cs.fiscal_year = 'FY26' THEN cs.total_spend ELSE 0 END) > 0
       THEN 'multi_year'
-      WHEN SUM(CASE WHEN cs.fiscal_year = '2026' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY26' THEN cs.total_spend ELSE 0 END) > 0
       THEN 'new'
-      WHEN SUM(CASE WHEN cs.fiscal_year = '2025' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
       THEN 'churned'
       ELSE NULL
     END AS category
@@ -85,19 +85,59 @@ SELECT
   MAX(CASE WHEN vc.competitor = 'Proximity Learning' THEN vc.category END) AS proximity_category,
   MAX(CASE WHEN vc.competitor = 'Elevate K12' THEN vc.category END) AS elevate_category,
   MAX(CASE WHEN vc.competitor = 'Tutored By Teachers' THEN vc.category END) AS tbt_category,
-  d.geometry
+  -- Signal columns: bucket trends into categories
+  CASE
+    WHEN d.enrollment_trend_3yr >= 5  THEN 'strong_growth'
+    WHEN d.enrollment_trend_3yr >= 1  THEN 'growth'
+    WHEN d.enrollment_trend_3yr >= -1 THEN 'stable'
+    WHEN d.enrollment_trend_3yr >= -5 THEN 'decline'
+    WHEN d.enrollment_trend_3yr < -5  THEN 'strong_decline'
+    ELSE NULL
+  END AS enrollment_signal,
+  CASE
+    WHEN d.ell_trend_3yr >= 5  THEN 'strong_growth'
+    WHEN d.ell_trend_3yr >= 1  THEN 'growth'
+    WHEN d.ell_trend_3yr >= -1 THEN 'stable'
+    WHEN d.ell_trend_3yr >= -5 THEN 'decline'
+    WHEN d.ell_trend_3yr < -5  THEN 'strong_decline'
+    ELSE NULL
+  END AS ell_signal,
+  CASE
+    WHEN d.swd_trend_3yr >= 5  THEN 'strong_growth'
+    WHEN d.swd_trend_3yr >= 1  THEN 'growth'
+    WHEN d.swd_trend_3yr >= -1 THEN 'stable'
+    WHEN d.swd_trend_3yr >= -5 THEN 'decline'
+    WHEN d.swd_trend_3yr < -5  THEN 'strong_decline'
+    ELSE NULL
+  END AS swd_signal,
+  CASE
+    WHEN d.urban_centric_locale IN (11, 12, 13) THEN 'city'
+    WHEN d.urban_centric_locale IN (21, 22, 23) THEN 'suburb'
+    WHEN d.urban_centric_locale IN (31, 32, 33) THEN 'town'
+    WHEN d.urban_centric_locale IN (41, 42, 43) THEN 'rural'
+    ELSE NULL
+  END AS locale_signal,
+  -- Per pupil expenditure signal: uses pre-computed state quartile
+  d.expenditure_pp_quartile_state AS expenditure_signal,
+  d.geometry,
+  d.account_type,
+  d.point_location,
+  COALESCE(d.geometry, d.point_location) AS render_geometry
 FROM districts d
 LEFT JOIN plan_memberships pm ON d.leaid = pm.leaid
 LEFT JOIN fullmind_cats fc ON d.leaid = fc.leaid
 LEFT JOIN vendor_cats vc ON d.leaid = vc.leaid
+WHERE d.geometry IS NOT NULL OR d.point_location IS NOT NULL
 GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive,
-         pm.plan_ids, fc.fullmind_category, d.geometry;
+         pm.plan_ids, fc.fullmind_category, d.geometry,
+         d.account_type, d.point_location;
 
 -- Indexes
 CREATE INDEX idx_dmf_leaid ON district_map_features(leaid);
 CREATE INDEX idx_dmf_state ON district_map_features(state_abbrev);
 CREATE INDEX idx_dmf_owner ON district_map_features(sales_executive);
 CREATE INDEX idx_dmf_geometry ON district_map_features USING GIST(geometry);
+CREATE INDEX IF NOT EXISTS idx_dmf_render_geometry ON district_map_features USING GIST (render_geometry);
 CREATE INDEX idx_dmf_has_data ON district_map_features(fullmind_category)
   WHERE fullmind_category IS NOT NULL
      OR proximity_category IS NOT NULL
