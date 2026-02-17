@@ -87,8 +87,8 @@ export default function ExploreColumnPicker({
         onClick={() => setIsOpen((prev) => !prev)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-all ${
           isOpen
-            ? "bg-plum/10 border-plum/30 text-plum"
-            : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-800"
+            ? "bg-[#C4E7E6]/20 border-[#403770]/20 text-[#403770]"
+            : "bg-white border-gray-200 text-gray-600 hover:border-[#403770]/20 hover:text-[#403770]"
         }`}
       >
         {/* Columns icon (three horizontal lines) */}
@@ -113,23 +113,23 @@ export default function ExploreColumnPicker({
 
       {/* Dropdown popover */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex flex-col max-h-80">
+        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex flex-col max-h-80 overflow-hidden">
           {/* Header with actions */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/60">
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
               Visible Columns
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={selectAll}
-                className="text-[11px] text-plum hover:text-plum/80 font-medium"
+                className="text-[11px] text-[#403770] hover:text-[#403770]/70 font-medium transition-colors"
               >
                 All
               </button>
               <span className="text-gray-300">|</span>
               <button
                 onClick={resetToDefaults}
-                className="text-[11px] text-plum hover:text-plum/80 font-medium"
+                className="text-[11px] text-[#403770] hover:text-[#403770]/70 font-medium transition-colors"
               >
                 Reset
               </button>
@@ -141,8 +141,8 @@ export default function ExploreColumnPicker({
             {Array.from(grouped.entries()).map(([group, columns]) => (
               <div key={group}>
                 {/* Sticky group header */}
-                <div className="sticky top-0 bg-gray-50 px-3 py-1.5 border-b border-gray-100">
-                  <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                <div className="sticky top-0 bg-gray-50/80 px-3 py-1.5 border-b border-gray-100">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                     {group}
                   </span>
                 </div>
@@ -153,17 +153,17 @@ export default function ExploreColumnPicker({
                   return (
                     <label
                       key={col.key}
-                      className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-[#C4E7E6]/10 cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => toggleColumn(col.key)}
-                        className="h-3.5 w-3.5 rounded border-gray-300 text-plum focus:ring-plum/30 cursor-pointer"
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
                       />
                       <span
                         className={`text-xs ${
-                          isChecked ? "text-gray-800 font-medium" : "text-gray-500"
+                          isChecked ? "text-[#403770] font-medium" : "text-gray-500"
                         }`}
                       >
                         {col.label}

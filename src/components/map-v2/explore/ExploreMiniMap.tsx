@@ -139,7 +139,7 @@ export default function ExploreMiniMap({ districts, onExpand }: Props) {
     return (
       <button
         onClick={() => setCollapsed(false)}
-        className="absolute bottom-4 right-4 z-30 w-10 h-10 bg-white rounded-xl shadow-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-plum transition-colors"
+        className="absolute bottom-4 right-4 z-30 w-10 h-10 bg-white rounded-lg shadow-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#403770] transition-colors"
         title="Show mini-map"
       >
         <svg
@@ -161,7 +161,7 @@ export default function ExploreMiniMap({ districts, onExpand }: Props) {
   }
 
   return (
-    <div className="absolute bottom-4 right-4 z-30 w-[280px] h-[200px] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+    <div className="absolute bottom-4 right-4 z-30 w-[280px] h-[200px] bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
       {/* Map container */}
       <div ref={containerRef} className="w-full h-full" />
 
@@ -170,7 +170,7 @@ export default function ExploreMiniMap({ districts, onExpand }: Props) {
         {/* Expand to full map */}
         <button
           onClick={onExpand}
-          className="w-7 h-7 bg-white/90 backdrop-blur-sm rounded-lg shadow flex items-center justify-center text-gray-500 hover:text-plum transition-colors"
+          className="w-7 h-7 bg-white/90 backdrop-blur-sm rounded-lg shadow flex items-center justify-center text-gray-500 hover:text-[#403770] transition-colors"
           title="Show on full map"
         >
           <svg
@@ -193,7 +193,7 @@ export default function ExploreMiniMap({ districts, onExpand }: Props) {
         {/* Minimize */}
         <button
           onClick={() => setCollapsed(true)}
-          className="w-7 h-7 bg-white/90 backdrop-blur-sm rounded-lg shadow flex items-center justify-center text-gray-500 hover:text-plum transition-colors"
+          className="w-7 h-7 bg-white/90 backdrop-blur-sm rounded-lg shadow flex items-center justify-center text-gray-500 hover:text-[#403770] transition-colors"
           title="Minimize map"
         >
           <svg
