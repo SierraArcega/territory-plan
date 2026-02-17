@@ -922,7 +922,7 @@ export default function MapV2Container() {
 
     // Apply to account points circle layer (combine with non-district filter)
     if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
-      const pointBaseFilter: any = ["!=", ["get", "account_type"], "district"];
+      const pointBaseFilter: any = ["all", ["has", "account_type"], ["!=", ["get", "account_type"], "district"]];
       const pointCombined = filter
         ? ["all", pointBaseFilter, filter]
         : pointBaseFilter;

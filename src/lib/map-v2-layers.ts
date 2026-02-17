@@ -285,7 +285,10 @@ export function buildAccountPointLayer(
     type: "circle",
     source: "districts",
     "source-layer": "districts",
-    filter: ["!=", ["get", "account_type"], "district"],
+    filter: ["all",
+      ["has", "account_type"],
+      ["!=", ["get", "account_type"], "district"],
+    ],
     paint: {
       "circle-radius": [
         "interpolate", ["linear"], ["zoom"],
