@@ -788,16 +788,20 @@ export default function MapV2Container() {
 
   // Update tile source when fiscal year changes
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !mapReady) return;
     const source = map.current.getSource("districts") as any;
     if (!source) return;
 
     const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4&fy=${selectedFiscalYear}`;
     source.setTiles([newUrl]);
 
-    // Force re-render to fetch new tiles
+    // Clear tile cache and force re-fetch
+    const sourceCache = (map.current.style as any)?._sourceCaches?.["districts"];
+    if (sourceCache?.clearTiles) {
+      sourceCache.clearTiles();
+    }
     map.current.triggerRepaint();
-  }, [selectedFiscalYear]);
+  }, [selectedFiscalYear, mapReady]);
 
   // Toggle vendor layer visibility + update circle layer color
   useEffect(() => {
