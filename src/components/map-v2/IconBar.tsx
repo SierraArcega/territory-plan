@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useMapV2Store, type IconBarTab } from "@/lib/map-v2-store";
 import { useProfile } from "@/lib/api";
 
@@ -11,11 +12,14 @@ const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
 ];
 
 function ProfileAvatar({ active, avatarUrl, initials }: { active: boolean; avatarUrl: string | null; initials: string }) {
-  if (avatarUrl) {
+  const [imgError, setImgError] = useState(false);
+
+  if (avatarUrl && !imgError) {
     return (
       <img
         src={avatarUrl}
         alt="Profile"
+        onError={() => setImgError(true)}
         className={`w-7 h-7 rounded-full object-cover ring-2 transition-all ${
           active ? "ring-plum" : "ring-transparent"
         }`}
@@ -96,18 +100,29 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
   }
 }
 
+function getInitials(name: string | null, email: string): string {
+  if (name) {
+    const parts = name.split(" ").filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+  return email.substring(0, 1).toUpperCase();
+}
+
 export default function IconBar() {
   const activeIconTab = useMapV2Store((s) => s.activeIconTab);
   const setActiveIconTab = useMapV2Store((s) => s.setActiveIconTab);
   const startNewPlan = useMapV2Store((s) => s.startNewPlan);
   const { data: profile } = useProfile();
 
-  const initials = profile?.fullName
-    ? profile.fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+  const initials = profile
+    ? getInitials(profile.fullName, profile.email)
     : "?";
 
   return (
-    <div className="flex flex-col items-center py-3 gap-1 w-[44px] border-r border-gray-200/60">
+    <div className="flex flex-col items-center py-3 gap-1 w-[56px] border-r border-gray-200/60">
       {tabs.map((tab) => {
         const isHome = tab.id === "home";
         const isActive = activeIconTab === tab.id;
