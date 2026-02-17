@@ -100,7 +100,7 @@ function EnumFilterInput({
         <button
           key={val}
           onClick={() => onSubmit(val)}
-          className="w-full text-left px-3 py-1.5 text-sm text-gray-700 rounded-md hover:bg-gray-50 capitalize"
+          className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 rounded-md hover:bg-[#C4E7E6]/15 hover:text-[#403770] capitalize transition-colors"
         >
           {val.replace(/_/g, " ")}
         </button>
@@ -170,13 +170,13 @@ function BooleanFilterInput({
     <div className="p-2">
       <button
         onClick={() => onSubmit("is_true")}
-        className="w-full text-left px-3 py-1.5 text-sm text-gray-700 rounded-md hover:bg-gray-50"
+        className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 rounded-md hover:bg-[#C4E7E6]/15 hover:text-[#403770] transition-colors"
       >
         Yes
       </button>
       <button
         onClick={() => onSubmit("is_false")}
-        className="w-full text-left px-3 py-1.5 text-sm text-gray-700 rounded-md hover:bg-gray-50"
+        className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 rounded-md hover:bg-[#C4E7E6]/15 hover:text-[#403770] transition-colors"
       >
         No
       </button>
@@ -307,12 +307,12 @@ export default function ExploreFilters({
       {filters.map((filter) => (
         <span
           key={filter.id}
-          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-plum/10 text-plum rounded-full"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[#C4E7E6]/30 text-[#403770] rounded-full border border-[#C4E7E6]/50"
         >
           {formatFilterPill(entity, filter)}
           <button
             onClick={() => onRemoveFilter(filter.id)}
-            className="hover:text-plum/70 ml-0.5"
+            className="text-[#403770]/40 hover:text-[#403770] transition-colors"
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M3 3L9 9M9 3L3 9" />
@@ -328,26 +328,26 @@ export default function ExploreFilters({
             setPickerOpen(!pickerOpen);
             setSelectedColumn(null);
           }}
-          className="px-2.5 py-1 text-xs border border-dashed border-gray-300 rounded-full hover:bg-gray-50 text-gray-500"
+          className="px-2.5 py-1 text-xs font-medium border border-dashed border-gray-300 rounded-full text-gray-500 hover:border-[#403770]/30 hover:text-[#403770] hover:bg-[#C4E7E6]/10 transition-all"
         >
           + Add Filter
         </button>
 
         {pickerOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg border border-gray-200 shadow-lg z-30">
+          <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg border border-gray-200 shadow-lg z-30 overflow-hidden">
             {!selectedColumn ? (
               // Step 1: Pick a column
               <div className="max-h-64 overflow-y-auto py-1">
                 {Object.entries(groupedColumns).map(([group, cols]) => (
                   <div key={group}>
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                    <div className="px-3 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                       {group}
                     </div>
                     {cols.map((col) => (
                       <button
                         key={col.key}
                         onClick={() => setSelectedColumn(col)}
-                        className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                        className="w-full text-left px-3 py-1.5 text-[13px] text-gray-700 hover:bg-[#C4E7E6]/15 hover:text-[#403770] transition-colors"
                       >
                         {col.label}
                       </button>
@@ -358,16 +358,16 @@ export default function ExploreFilters({
             ) : (
               // Step 2: Enter value
               <div>
-                <div className="px-3 pt-2.5 pb-1 flex items-center gap-1">
+                <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5">
                   <button
                     onClick={() => setSelectedColumn(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-[#403770] transition-colors"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M8.5 3.5L5 7L8.5 10.5" />
                     </svg>
                   </button>
-                  <span className="text-xs font-medium text-gray-700">
+                  <span className="text-xs font-semibold text-[#403770]">
                     {selectedColumn.label}
                   </span>
                 </div>
@@ -384,7 +384,7 @@ export default function ExploreFilters({
       {filters.length > 0 && (
         <button
           onClick={onClearAll}
-          className="text-xs text-gray-400 hover:text-gray-600"
+          className="text-xs font-medium text-gray-400 hover:text-[#F37167] transition-colors"
         >
           Clear all
         </button>
