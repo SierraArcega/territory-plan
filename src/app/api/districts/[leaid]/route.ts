@@ -42,7 +42,10 @@ export async function GET(
     // Get centroid coordinates for tether line (PostGIS geometry → lat/lng)
     const centroidResult = await prisma.$queryRaw<
       { lat: number; lng: number }[]
-    >`SELECT ST_Y(centroid::geometry) as lat, ST_X(centroid::geometry) as lng FROM districts WHERE leaid = ${leaid} AND centroid IS NOT NULL LIMIT 1`;
+    >`SELECT
+  COALESCE(ST_Y(centroid::geometry), ST_Y(point_location::geometry)) as lat,
+  COALESCE(ST_X(centroid::geometry), ST_X(point_location::geometry)) as lng
+FROM districts WHERE leaid = ${leaid} LIMIT 1`;
     const centroid = centroidResult.length > 0 ? centroidResult[0] : null;
 
     // Build response - data is now all on the district model
@@ -71,6 +74,7 @@ export async function GET(
         jobBoardUrl: district.jobBoardUrl,
         centroidLat: centroid ? Number(centroid.lat) : null,
         centroidLng: centroid ? Number(centroid.lng) : null,
+        accountType: district.accountType || "district",
       },
 
       // Fullmind CRM data (now on district)
