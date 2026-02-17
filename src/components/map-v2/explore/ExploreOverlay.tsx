@@ -7,6 +7,8 @@ import ExploreKPICards from "./ExploreKPICards";
 import ExploreTable from "./ExploreTable";
 import ExploreColumnPicker from "./ExploreColumnPicker";
 import ExploreFilters from "./ExploreFilters";
+import ExploreMiniMap from "./ExploreMiniMap";
+import RightPanel from "../RightPanel";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
@@ -30,6 +32,10 @@ export default function ExploreOverlay() {
   const clearExploreFilters = useMapV2Store((s) => s.clearExploreFilters);
   const setExploreSort = useMapV2Store((s) => s.setExploreSort);
   const setExplorePage = useMapV2Store((s) => s.setExplorePage);
+  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
+  const closeRightPanel = useMapV2Store((s) => s.closeRightPanel);
+  const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
+  const setFilteredDistrictLeaids = useMapV2Store((s) => s.setFilteredDistrictLeaids);
 
   // Load column selections from localStorage on mount
   useEffect(() => {
@@ -50,6 +56,18 @@ export default function ExploreOverlay() {
   useEffect(() => {
     localStorage.setItem("explore-columns", JSON.stringify(exploreColumns));
   }, [exploreColumns]);
+
+  // Close right panel when switching entity tabs
+  useEffect(() => {
+    closeRightPanel();
+  }, [exploreEntity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Row click → open district card in right panel
+  const handleRowClick = (row: Record<string, unknown>) => {
+    if (exploreEntity === "districts" && row.leaid) {
+      openRightPanel({ type: "district_card", id: row.leaid as string });
+    }
+  };
 
   // Sort toggle handler
   const handleSort = (column: string) => {
@@ -168,10 +186,7 @@ export default function ExploreOverlay() {
               visibleColumns={exploreColumns[exploreEntity]}
               sort={exploreSort[exploreEntity]}
               onSort={handleSort}
-              onRowClick={(row) => {
-                // District click handler will be added in Task 11
-                console.log("Row clicked:", row);
-              }}
+              onRowClick={handleRowClick}
               isLoading={isLoading}
               pagination={result?.pagination}
               onPageChange={(page) => setExplorePage(page)}
@@ -179,6 +194,26 @@ export default function ExploreOverlay() {
           </div>
         </div>
       </div>
+
+      {/* Mini-map for districts */}
+      {exploreEntity === "districts" && result?.data && (
+        <ExploreMiniMap
+          districts={(result.data as any[]).map((d) => ({
+            leaid: d.leaid,
+            lat: d.lat,
+            lng: d.lng,
+          }))}
+          onExpand={() => {
+            setFilteredDistrictLeaids(
+              (result.data as any[]).map((d: any) => d.leaid)
+            );
+            setActiveIconTab("home");
+          }}
+        />
+      )}
+
+      {/* Right panel (district card) - shown when a row is clicked */}
+      {rightPanelContent && <RightPanel />}
     </div>
   );
 }
