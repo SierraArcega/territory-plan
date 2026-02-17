@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { VendorId, SignalId, LocaleId } from "@/lib/map-v2-layers";
+import type { AccountTypeValue } from "@/lib/account-types";
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
@@ -20,10 +21,28 @@ export type PanelState =
   | "PLAN_PERF";
 
 // Icon bar navigation
-export type IconBarTab = "home" | "search" | "plans" | "settings";
+export type IconBarTab = "home" | "search" | "plans" | "explore" | "settings";
 
 // Plan workspace sections
 export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
+
+// Explore Data entity tabs
+export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts";
+
+// Filter operator types
+export type FilterOp = "eq" | "neq" | "in" | "contains" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false";
+
+export interface ExploreFilter {
+  id: string;
+  column: string;
+  op: FilterOp;
+  value: string | number | boolean | string[] | [number, number];
+}
+
+export interface ExploreSortConfig {
+  column: string;
+  direction: "asc" | "desc";
+}
 
 export interface RightPanelContent {
   type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form";
@@ -113,9 +132,27 @@ interface MapV2State {
   // Locale layer
   visibleLocales: Set<LocaleId>;
 
+  // Account type filter
+  filterAccountTypes: AccountTypeValue[];
+
+  // Fullmind engagement filter
+  fullmindEngagement: string[];
+
+  // Fiscal year selector (affects Fullmind + Competitors tile data)
+  selectedFiscalYear: "fy25" | "fy26";
+
   // Account creation form state
   showAccountForm: boolean;
   accountFormDefaults: { name?: string } | null;
+
+  // Explore Data
+  isExploreActive: boolean;
+  exploreEntity: ExploreEntity;
+  exploreColumns: Record<ExploreEntity, string[]>;
+  exploreFilters: Record<ExploreEntity, ExploreFilter[]>;
+  exploreSort: Record<ExploreEntity, ExploreSortConfig | null>;
+  explorePage: number;
+  filteredDistrictLeaids: string[];
 }
 
 interface MapV2Actions {
@@ -192,9 +229,31 @@ interface MapV2Actions {
   toggleLocale: (locale: LocaleId) => void;
   setVisibleLocales: (locales: Set<LocaleId>) => void;
 
+  // Account type filter
+  toggleAccountType: (type: AccountTypeValue) => void;
+  setFilterAccountTypes: (types: AccountTypeValue[]) => void;
+
+  // Fullmind engagement filter
+  toggleFullmindEngagement: (level: string) => void;
+  setFullmindEngagement: (levels: string[]) => void;
+
+  // Fiscal year
+  setSelectedFiscalYear: (fy: "fy25" | "fy26") => void;
+
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
   closeAccountForm: () => void;
+
+  // Explore Data
+  setExploreEntity: (entity: ExploreEntity) => void;
+  setExploreColumns: (entity: ExploreEntity, columns: string[]) => void;
+  addExploreFilter: (entity: ExploreEntity, filter: ExploreFilter) => void;
+  removeExploreFilter: (entity: ExploreEntity, filterId: string) => void;
+  updateExploreFilter: (entity: ExploreEntity, filterId: string, updates: Partial<ExploreFilter>) => void;
+  clearExploreFilters: (entity: ExploreEntity) => void;
+  setExploreSort: (entity: ExploreEntity, sort: ExploreSortConfig | null) => void;
+  setExplorePage: (page: number) => void;
+  setFilteredDistrictLeaids: (leaids: string[]) => void;
 }
 
 let rippleId = 0;
@@ -231,11 +290,36 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   clickRipples: [],
   panelCollapsed: false,
   layerBubbleOpen: false,
-  visibleSchoolTypes: new Set<SchoolType>(ALL_SCHOOL_TYPES),
+  visibleSchoolTypes: new Set<SchoolType>(),
   activeSignal: null,
   visibleLocales: new Set<LocaleId>(),
+  filterAccountTypes: [],
+  fullmindEngagement: [],
+  selectedFiscalYear: "fy26",
   showAccountForm: false,
   accountFormDefaults: null,
+  isExploreActive: false,
+  exploreEntity: "districts" as ExploreEntity,
+  exploreColumns: {
+    districts: ["name", "state", "enrollment", "isCustomer", "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "planCount", "lastActivity", "tags"],
+    activities: ["title", "type", "status", "startDate", "outcomeType", "districtNames", "planNames"],
+    tasks: ["title", "status", "priority", "dueDate", "districtNames", "planNames"],
+    contacts: ["name", "title", "email", "phone", "districtName", "isPrimary", "lastActivity"],
+  } as Record<ExploreEntity, string[]>,
+  exploreFilters: {
+    districts: [],
+    activities: [],
+    tasks: [],
+    contacts: [],
+  } as Record<ExploreEntity, ExploreFilter[]>,
+  exploreSort: {
+    districts: null,
+    activities: null,
+    tasks: null,
+    contacts: null,
+  } as Record<ExploreEntity, ExploreSortConfig | null>,
+  explorePage: 1,
+  filteredDistrictLeaids: [],
 
   // Panel navigation
   setPanelState: (state) =>
@@ -288,6 +372,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       // Reset to browse when switching tabs
       panelState: tab === "home" || tab === "search" ? "BROWSE" : s.panelState,
       panelHistory: [],
+      isExploreActive: tab === "explore",
+      // Clear filtered districts when leaving explore
+      ...(tab !== "explore" ? { filteredDistrictLeaids: [] } : {}),
     })),
 
   // Selection
@@ -476,7 +563,84 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     }),
   setVisibleLocales: (locales) => set({ visibleLocales: locales }),
 
+  // Account type filter
+  toggleAccountType: (type) =>
+    set((s) => {
+      const next = s.filterAccountTypes.includes(type)
+        ? s.filterAccountTypes.filter((t) => t !== type)
+        : [...s.filterAccountTypes, type];
+      return { filterAccountTypes: next };
+    }),
+  setFilterAccountTypes: (types) => set({ filterAccountTypes: types }),
+
+  // Fullmind engagement filter
+  toggleFullmindEngagement: (level) =>
+    set((s) => {
+      const next = s.fullmindEngagement.includes(level)
+        ? s.fullmindEngagement.filter((l) => l !== level)
+        : [...s.fullmindEngagement, level];
+      return { fullmindEngagement: next };
+    }),
+  setFullmindEngagement: (levels) => set({ fullmindEngagement: levels }),
+
+  // Fiscal year
+  setSelectedFiscalYear: (fy) => set({ selectedFiscalYear: fy }),
+
   // Account creation form
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),
   closeAccountForm: () => set({ showAccountForm: false, accountFormDefaults: null }),
+
+  // Explore Data
+  setExploreEntity: (entity) =>
+    set({ exploreEntity: entity, explorePage: 1 }),
+
+  setExploreColumns: (entity, columns) =>
+    set((s) => ({
+      exploreColumns: { ...s.exploreColumns, [entity]: columns },
+    })),
+
+  addExploreFilter: (entity, filter) =>
+    set((s) => ({
+      exploreFilters: {
+        ...s.exploreFilters,
+        [entity]: [...s.exploreFilters[entity], filter],
+      },
+      explorePage: 1,
+    })),
+
+  removeExploreFilter: (entity, filterId) =>
+    set((s) => ({
+      exploreFilters: {
+        ...s.exploreFilters,
+        [entity]: s.exploreFilters[entity].filter((f) => f.id !== filterId),
+      },
+      explorePage: 1,
+    })),
+
+  updateExploreFilter: (entity, filterId, updates) =>
+    set((s) => ({
+      exploreFilters: {
+        ...s.exploreFilters,
+        [entity]: s.exploreFilters[entity].map((f) =>
+          f.id === filterId ? { ...f, ...updates } : f
+        ),
+      },
+      explorePage: 1,
+    })),
+
+  clearExploreFilters: (entity) =>
+    set((s) => ({
+      exploreFilters: { ...s.exploreFilters, [entity]: [] },
+      explorePage: 1,
+    })),
+
+  setExploreSort: (entity, sort) =>
+    set((s) => ({
+      exploreSort: { ...s.exploreSort, [entity]: sort },
+      explorePage: 1,
+    })),
+
+  setExplorePage: (page) => set({ explorePage: page }),
+
+  setFilteredDistrictLeaids: (leaids) => set({ filteredDistrictLeaids: leaids }),
 }));
