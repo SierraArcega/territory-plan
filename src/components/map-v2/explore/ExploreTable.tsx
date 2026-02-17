@@ -151,7 +151,7 @@ export default function ExploreTable({
       return (
         <select
           autoFocus
-          className="w-full px-1 py-0.5 text-sm border border-plum rounded outline-none bg-white"
+          className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none bg-white focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
           value={editValue}
           onChange={(e) => {
             setEditValue(e.target.value);
@@ -182,11 +182,11 @@ export default function ExploreTable({
         }}
       >
         {value ? (
-          <span className="text-sm">{String(value)}</span>
+          <span className="text-[13px] text-gray-600">{String(value)}</span>
         ) : (
-          <span className="text-gray-300 italic text-xs">assign owner</span>
+          <span className="text-[13px] text-gray-300">assign owner</span>
         )}
-        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-plum" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M4 6L8 10L12 6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
@@ -201,7 +201,7 @@ export default function ExploreTable({
       return (
         <input
           autoFocus
-          className="w-full px-1 py-0.5 text-sm border border-plum rounded outline-none"
+          className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={() => handleSave(rowId, column)}
@@ -222,8 +222,8 @@ export default function ExploreTable({
           setEditValue(String(value || ""));
         }}
       >
-        {formatCellValue(value, column) || <span className="text-gray-300 italic text-xs">click to edit</span>}
-        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-plum" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        {formatCellValue(value, column) || <span className="text-[13px] text-gray-300">click to edit</span>}
+        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
@@ -275,27 +275,30 @@ export default function ExploreTable({
   const endRow = Math.min(page * pageSize, total);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // Determine if a column should show the "name" styling (primary column)
+  const primaryColumn = visibleColumns[0];
+
   return (
     <div className="flex flex-col h-full">
       {/* Scrollable table area */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full">
+        <table className="min-w-full">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
+              <tr key={headerGroup.id} className="border-b border-gray-200">
                 {headerGroup.headers.map((header) => {
                   const colKey = header.column.id;
                   const isSorted = sort?.column === colKey;
                   return (
                     <th
                       key={header.id}
-                      className="px-3 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 border-b border-gray-200 sticky top-0 z-10 cursor-pointer select-none hover:text-gray-700 transition-colors"
+                      className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80 sticky top-0 z-10 cursor-pointer select-none hover:text-[#403770] transition-colors duration-100"
                       onClick={() => onSort(colKey)}
                     >
                       <span className="inline-flex items-center gap-1">
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {isSorted && (
-                          <span className="text-plum font-bold text-xs">
+                          <span className="text-[#403770] font-bold text-xs">
                             {sort.direction === "asc" ? "\u2191" : "\u2193"}
                           </span>
                         )}
@@ -310,10 +313,10 @@ export default function ExploreTable({
             {/* Loading skeleton */}
             {isLoading &&
               Array.from({ length: 10 }).map((_, rowIdx) => (
-                <tr key={`skel-${rowIdx}`}>
+                <tr key={`skel-${rowIdx}`} className={rowIdx < 9 ? "border-b border-gray-100" : ""}>
                   {visibleColumns.map((col) => (
-                    <td key={col} className="px-3 py-2">
-                      <div className="h-4 bg-gray-100 rounded animate-pulse w-[80%]" />
+                    <td key={col} className="px-4 py-3">
+                      <div className="h-4 bg-[#C4E7E6]/20 rounded animate-pulse" style={{ width: `${55 + Math.random() * 30}%` }} />
                     </td>
                   ))}
                 </tr>
@@ -322,14 +325,14 @@ export default function ExploreTable({
             {/* Empty state */}
             {!isLoading && data.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length} className="py-20">
-                  <div className="flex flex-col items-center justify-center text-gray-400">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3 text-gray-300">
+                <td colSpan={visibleColumns.length} className="py-16">
+                  <div className="flex flex-col items-center justify-center">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4 text-gray-300">
                       <circle cx="11" cy="11" r="8" />
                       <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
-                    <span className="text-sm font-medium">No results found</span>
-                    <span className="text-xs mt-1">Try adjusting your filters or search criteria</span>
+                    <span className="text-lg font-medium text-gray-600 mb-2">No results found</span>
+                    <span className="text-sm text-gray-500 max-w-sm text-center">Try adjusting your filters or search criteria</span>
                   </div>
                 </td>
               </tr>
@@ -337,29 +340,39 @@ export default function ExploreTable({
 
             {/* Data rows */}
             {!isLoading &&
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-plum/5 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
-                  onClick={() => onRowClick?.(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="px-3 py-2 text-sm text-gray-700 whitespace-nowrap max-w-[240px] truncate"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              table.getRowModel().rows.map((row, rowIdx) => {
+                const isLast = rowIdx === table.getRowModel().rows.length - 1;
+                return (
+                  <tr
+                    key={row.id}
+                    className={`group hover:bg-gray-50/70 cursor-pointer transition-colors duration-100 ${!isLast ? "border-b border-gray-100" : ""}`}
+                    onClick={() => onRowClick?.(row.original)}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const isPrimary = cell.column.id === primaryColumn;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={`px-4 py-3 whitespace-nowrap max-w-[240px] truncate ${
+                            isPrimary
+                              ? "text-sm font-medium text-[#403770]"
+                              : "text-[13px] text-gray-600"
+                          }`}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination bar */}
-      <div className="bg-white border-t border-gray-200 px-4 py-2 flex items-center justify-between text-sm shrink-0">
-        <span className="text-gray-500">
+      {/* Pagination footer */}
+      <div className="bg-gray-50/60 border-t border-gray-100 px-4 py-2.5 flex items-center justify-between shrink-0">
+        <span className="text-[12px] font-medium text-gray-400 tracking-wide">
           {total === 0
             ? "No results"
             : `Showing ${startRow.toLocaleString()}\u2013${endRow.toLocaleString()} of ${total.toLocaleString()}`}
@@ -369,17 +382,17 @@ export default function ExploreTable({
           <button
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
-            className="px-3 py-1 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-3 py-1.5 text-[13px] font-medium rounded-lg border border-gray-200 text-gray-600 hover:text-[#403770] hover:border-gray-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
-          <span className="text-gray-500 text-xs tabular-nums">
+          <span className="text-[12px] text-gray-400 font-medium tabular-nums">
             Page {page} of {totalPages}
           </span>
           <button
             disabled={page >= totalPages}
             onClick={() => onPageChange(page + 1)}
-            className="px-3 py-1 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-3 py-1.5 text-[13px] font-medium rounded-lg border border-gray-200 text-gray-600 hover:text-[#403770] hover:border-gray-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>
