@@ -43373,6 +43373,97 @@
     }
   },
   {
+    "district_id": "17592193637963",
+    "district_name": "NYC Dept of Education",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": false,
+    "referenced_by": [
+      "opportunities",
+      "schools"
+    ],
+    "opportunities": {
+      "count": 1,
+      "revenue": 30000,
+      "account_names_used": [
+        "NYC Dept of Education"
+      ]
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 2,
+      "total_revenue": 30000
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": true,
+      "has_opps": true,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
+    "district_id": "17592297007449",
+    "district_name": "NYC Dept of Education",
+    "state": "NY",
+    "state_sources": [
+      [
+        "district",
+        "NY"
+      ]
+    ],
+    "nces_id": null,
+    "exists_in_index": true,
+    "referenced_by": [],
+    "opportunities": {
+      "count": 0,
+      "revenue": 0,
+      "account_names_used": []
+    },
+    "schools": {
+      "count": 1,
+      "sample_names": []
+    },
+    "sessions": {
+      "count": 0,
+      "revenue": 0,
+      "schools_in_sessions": []
+    },
+    "courses": {
+      "count": 0
+    },
+    "totals": {
+      "entity_count": 1,
+      "total_revenue": 0
+    },
+    "data_quality": {
+      "has_nces": false,
+      "has_state": true,
+      "is_orphaned": false,
+      "has_opps": false,
+      "has_schools": true,
+      "has_sessions": false
+    }
+  },
+  {
     "district_id": "17592284311209",
     "district_name": "Lopatcong Township School District",
     "state": "NJ",
