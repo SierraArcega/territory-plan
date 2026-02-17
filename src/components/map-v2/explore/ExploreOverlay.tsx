@@ -3,6 +3,7 @@
 import { useMapV2Store, type ExploreEntity } from "@/lib/map-v2-store";
 import { useExploreData } from "@/lib/api";
 import ExploreKPICards from "./ExploreKPICards";
+import ExploreTable from "./ExploreTable";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
@@ -19,6 +20,22 @@ export default function ExploreOverlay() {
   const exploreFilters = useMapV2Store((s) => s.exploreFilters);
   const exploreSort = useMapV2Store((s) => s.exploreSort);
   const explorePage = useMapV2Store((s) => s.explorePage);
+  const exploreColumns = useMapV2Store((s) => s.exploreColumns);
+  const setExploreSort = useMapV2Store((s) => s.setExploreSort);
+  const setExplorePage = useMapV2Store((s) => s.setExplorePage);
+
+  // Sort toggle handler
+  const handleSort = (column: string) => {
+    const current = exploreSort[exploreEntity];
+    if (current?.column === column) {
+      setExploreSort(exploreEntity, {
+        column,
+        direction: current.direction === "asc" ? "desc" : "asc",
+      });
+    } else {
+      setExploreSort(exploreEntity, { column, direction: "asc" });
+    }
+  };
 
   // Fetch data
   const { data: result, isLoading } = useExploreData(exploreEntity, {
@@ -105,19 +122,22 @@ export default function ExploreOverlay() {
           />
         </div>
 
-        {/* Table placeholder */}
+        {/* Data table */}
         <div className="flex-1 px-6 pb-6 overflow-hidden">
-          <div className="bg-white rounded-xl border border-gray-200 h-full flex items-center justify-center">
-            {isLoading ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-6 h-6 border-2 border-plum/20 border-t-plum rounded-full animate-spin" />
-                <span className="text-sm text-gray-400">Loading {exploreEntity}...</span>
-              </div>
-            ) : (
-              <div className="text-sm text-gray-400">
-                {result?.data?.length || 0} {exploreEntity} loaded — table coming next
-              </div>
-            )}
+          <div className="bg-white rounded-xl border border-gray-200 h-full flex flex-col overflow-hidden">
+            <ExploreTable
+              data={result?.data || []}
+              visibleColumns={exploreColumns[exploreEntity]}
+              sort={exploreSort[exploreEntity]}
+              onSort={handleSort}
+              onRowClick={(row) => {
+                // District click handler will be added in Task 11
+                console.log("Row clicked:", row);
+              }}
+              isLoading={isLoading}
+              pagination={result?.pagination}
+              onPageChange={(page) => setExplorePage(page)}
+            />
           </div>
         </div>
       </div>
