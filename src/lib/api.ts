@@ -428,22 +428,21 @@ export function useUpdateDistrictEdits() {
 }
 
 // Batch operations
+interface BatchEditParams {
+  leaids?: string[];
+  filters?: { column: string; op: string; value?: unknown }[];
+  owner?: string;
+  notes?: string;
+}
+
 export function useBatchEditDistricts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      leaids,
-      owner,
-      notes,
-    }: {
-      leaids: string[];
-      owner?: string;
-      notes?: string;
-    }) =>
+    mutationFn: ({ leaids, filters, owner, notes }: BatchEditParams) =>
       fetchJson<{ updated: number }>(`${API_BASE}/districts/batch-edits`, {
         method: "POST",
-        body: JSON.stringify({ leaids, owner, notes }),
+        body: JSON.stringify({ leaids, filters, owner, notes }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["explore"] });
@@ -451,22 +450,21 @@ export function useBatchEditDistricts() {
   });
 }
 
+interface BatchTagParams {
+  leaids?: string[];
+  filters?: { column: string; op: string; value?: unknown }[];
+  action: "add" | "remove";
+  tagId: number;
+}
+
 export function useBatchTagDistricts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      leaids,
-      action,
-      tagId,
-    }: {
-      leaids: string[];
-      action: "add" | "remove";
-      tagId: number;
-    }) =>
+    mutationFn: ({ leaids, filters, action, tagId }: BatchTagParams) =>
       fetchJson<{ updated: number }>(`${API_BASE}/districts/batch-tags`, {
         method: "POST",
-        body: JSON.stringify({ leaids, action, tagId }),
+        body: JSON.stringify({ leaids, filters, action, tagId }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["explore"] });
@@ -811,12 +809,20 @@ export function useAddDistrictsToPlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ planId, leaids }: { planId: string; leaids: string | string[] }) =>
+    mutationFn: ({
+      planId,
+      leaids,
+      filters,
+    }: {
+      planId: string;
+      leaids?: string | string[];
+      filters?: { column: string; op: string; value?: unknown }[];
+    }) =>
       fetchJson<{ added: number; planId: string }>(
         `${API_BASE}/territory-plans/${planId}/districts`,
         {
           method: "POST",
-          body: JSON.stringify({ leaids }),
+          body: JSON.stringify({ leaids, filters }),
         }
       ),
     onSuccess: (_, variables) => {

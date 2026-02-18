@@ -222,6 +222,7 @@ export default function ExploreOverlay() {
                 selectedIds={Array.from(selectedDistrictLeaids)}
                 selectAllMatchingFilters={selectAllMatchingFilters}
                 totalMatching={result?.pagination?.total ?? 0}
+                filters={exploreFilters.districts}
                 onSelectAllMatching={() => setSelectAllMatchingFilters(true)}
                 onClearSelection={clearDistrictSelection}
               />

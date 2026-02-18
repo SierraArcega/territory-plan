@@ -198,8 +198,8 @@ interface MapV2Actions {
   openDetailPopout: (leaid: string) => void;
   closeDetailPopout: () => void;
 
-  // Multi-select
-  toggleDistrictSelection: (leaid: string) => void;
+  // Multi-select (map shift-click — uses selectedLeaids)
+  toggleLeaidSelection: (leaid: string) => void;
   clearSelectedDistricts: () => void;
   createPlanFromSelection: () => void;
 
@@ -397,6 +397,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       isExploreActive: tab === "explore",
       // Clear filtered districts when leaving explore
       ...(tab !== "explore" ? { filteredDistrictLeaids: [] } : {}),
+      // Clear any lingering map tooltip when switching tabs
+      tooltip: { visible: false, exiting: false, x: 0, y: 0, data: null },
     })),
 
   // Selection
@@ -491,8 +493,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
 
   closeDetailPopout: () => set({ detailPopout: null }),
 
-  // Multi-select
-  toggleDistrictSelection: (leaid) =>
+  // Multi-select (map shift-click — uses selectedLeaids)
+  toggleLeaidSelection: (leaid) =>
     set((s) => {
       const next = new Set(s.selectedLeaids);
       if (next.has(leaid)) {

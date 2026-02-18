@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import {
+  type FilterDef,
+  buildWhereClause,
+  DISTRICT_FIELD_MAP,
+} from "@/lib/explore-filters";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { leaids, owner, notes } = body as {
-      leaids: string[];
+    const { leaids, filters, owner, notes } = body as {
+      leaids?: string[];
+      filters?: FilterDef[];
       owner?: string;
       notes?: string;
     };
 
-    if (!Array.isArray(leaids) || leaids.length === 0) {
+    // Require exactly one of leaids or filters
+    const hasLeaids = Array.isArray(leaids) && leaids.length > 0;
+    const hasFilters = Array.isArray(filters) && filters.length > 0;
+
+    if (!hasLeaids && !hasFilters) {
       return NextResponse.json(
-        { error: "leaids must be a non-empty array" },
+        { error: "Either leaids or filters must be provided" },
         { status: 400 }
       );
     }
@@ -26,14 +36,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const where = hasFilters
+      ? buildWhereClause(filters!, DISTRICT_FIELD_MAP)
+      : { leaid: { in: leaids } };
+
     const data: Record<string, unknown> = { notesUpdatedAt: new Date() };
     if (owner !== undefined) data.owner = owner || null;
     if (notes !== undefined) data.notes = notes || null;
 
-    const result = await prisma.district.updateMany({
-      where: { leaid: { in: leaids } },
-      data,
-    });
+    const result = await prisma.district.updateMany({ where, data });
 
     return NextResponse.json({ updated: result.count });
   } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -109,6 +109,124 @@ function formatCellValue(value: unknown, key: string): string {
   return String(value);
 }
 
+// ---- Editable cell components ----
+// Each manages its own editing state so the column useMemo doesn't
+// need to rebuild on every keystroke.
+
+function EditableOwnerCell({
+  value,
+  rowId,
+  onSave,
+  users,
+}: {
+  value: unknown;
+  rowId: string;
+  onSave: (rowId: string, column: string, value: string) => void;
+  users: { id: string; fullName: string | null; email: string }[] | undefined;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  if (isEditing) {
+    return (
+      <select
+        autoFocus
+        className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none bg-white focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
+        defaultValue={String(value || "")}
+        onChange={(e) => {
+          onSave(rowId, "owner", e.target.value);
+          setIsEditing(false);
+        }}
+        onBlur={() => setIsEditing(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+      >
+        <option value="">— Unassigned —</option>
+        {(users || []).map((u) => (
+          <option key={u.id} value={u.fullName || u.email}>
+            {u.fullName || u.email}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  return (
+    <span
+      className="group/cell cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => {
+        e.stopPropagation();
+        setIsEditing(true);
+      }}
+    >
+      {value ? (
+        <span className="text-[13px] text-gray-600">{String(value)}</span>
+      ) : (
+        <span className="text-[13px] text-gray-300">assign owner</span>
+      )}
+      <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M4 6L8 10L12 6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+function EditableTextCell({
+  value,
+  rowId,
+  column,
+  onSave,
+}: {
+  value: unknown;
+  rowId: string;
+  column: string;
+  onSave: (rowId: string, column: string, value: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  const startEditing = () => {
+    setEditValue(String(value || ""));
+    setIsEditing(true);
+  };
+
+  const save = () => {
+    onSave(rowId, column, editValue);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        autoFocus
+        className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="group/cell cursor-text inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => {
+        e.stopPropagation();
+        startEditing();
+      }}
+    >
+      {formatCellValue(value, column) || <span className="text-[13px] text-gray-300">click to edit</span>}
+      <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
 // ---- Component ----
 
 export default function ExploreTable({
@@ -127,21 +245,18 @@ export default function ExploreTable({
   onClearSelection,
 }: Props) {
   const showCheckboxes = entityType === "districts" && !!selectedIds;
-  // Inline editing state
-  const [editingCell, setEditingCell] = useState<{ rowId: string; column: string } | null>(null);
-  const [editValue, setEditValue] = useState("");
 
   const queryClient = useQueryClient();
   const updateEdits = useUpdateDistrictEdits();
   const { data: users } = useUsers();
 
-  const handleSave = (rowId: string, column: string, value?: string) => {
-    const saveValue = value !== undefined ? value : editValue;
-
+  // Stable save handler — each editable cell component manages its own editing
+  // state, then calls this when done
+  const handleSave = useCallback((rowId: string, column: string, value: string) => {
     updateEdits.mutate(
       {
         leaid: rowId,
-        [column]: saveValue || undefined,
+        [column]: value || undefined,
       },
       {
         onSuccess: () => {
@@ -149,96 +264,7 @@ export default function ExploreTable({
         },
       }
     );
-
-    setEditingCell(null);
-  };
-
-  // Render an owner dropdown cell
-  function renderOwnerCell(value: unknown, rowId: string) {
-    const isEditing = editingCell?.rowId === rowId && editingCell?.column === "owner";
-
-    if (isEditing) {
-      return (
-        <select
-          autoFocus
-          className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none bg-white focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
-          value={editValue}
-          onChange={(e) => {
-            setEditValue(e.target.value);
-            handleSave(rowId, "owner", e.target.value);
-          }}
-          onBlur={() => setEditingCell(null)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setEditingCell(null);
-          }}
-        >
-          <option value="">— Unassigned —</option>
-          {(users || []).map((u: { id: string; fullName: string | null; email: string }) => (
-            <option key={u.id} value={u.fullName || u.email}>
-              {u.fullName || u.email}
-            </option>
-          ))}
-        </select>
-      );
-    }
-
-    return (
-      <span
-        className="group/cell cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditingCell({ rowId, column: "owner" });
-          setEditValue(String(value || ""));
-        }}
-      >
-        {value ? (
-          <span className="text-[13px] text-gray-600">{String(value)}</span>
-        ) : (
-          <span className="text-[13px] text-gray-300">assign owner</span>
-        )}
-        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M4 6L8 10L12 6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </span>
-    );
-  }
-
-  // Render a text input cell (for notes)
-  function renderTextEditCell(value: unknown, rowId: string, column: string) {
-    const isEditing = editingCell?.rowId === rowId && editingCell?.column === column;
-
-    if (isEditing) {
-      return (
-        <input
-          autoFocus
-          className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => handleSave(rowId, column)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave(rowId, column);
-            if (e.key === "Escape") setEditingCell(null);
-          }}
-        />
-      );
-    }
-
-    return (
-      <span
-        className="group/cell cursor-text inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditingCell({ rowId, column });
-          setEditValue(String(value || ""));
-        }}
-      >
-        {formatCellValue(value, column) || <span className="text-[13px] text-gray-300">click to edit</span>}
-        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </span>
-    );
-  }
+  }, [updateEdits, queryClient]);
 
   // Checkbox helpers
   const pageIds = useMemo(
@@ -248,7 +274,9 @@ export default function ExploreTable({
   const allPageSelected = showCheckboxes && pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
   const somePageSelected = showCheckboxes && pageIds.some((id) => selectedIds.has(id));
 
-  // Build TanStack column definitions from visible column keys
+  // Build TanStack column definitions from visible column keys.
+  // Editable cells render small wrapper components that manage their OWN
+  // editing state, so the column memo does NOT depend on editingCell/editValue.
   const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
     const dataCols: ColumnDef<Record<string, unknown>>[] = visibleColumns.map((key) => {
       const colDef = districtColumns.find((d) => d.key === key);
@@ -265,9 +293,9 @@ export default function ExploreTable({
               const rowId = (info.row.original.leaid || info.row.original.id) as string;
 
               if (isOwner) {
-                return renderOwnerCell(value, rowId);
+                return <EditableOwnerCell value={value} rowId={rowId} onSave={handleSave} users={users} />;
               }
-              return renderTextEditCell(value, rowId, key);
+              return <EditableTextCell value={value} rowId={rowId} column={key} onSave={handleSave} />;
             }
           : (info) => formatCellValue(info.getValue(), key),
       };
@@ -283,10 +311,7 @@ export default function ExploreTable({
     }
 
     return dataCols;
-  },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visibleColumns, entityType, editingCell, editValue, users, showCheckboxes]
-  );
+  }, [visibleColumns, entityType, showCheckboxes, handleSave, users]);
 
   const table = useReactTable({
     data,

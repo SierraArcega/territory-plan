@@ -5,117 +5,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import {
+  type FilterDef,
+  buildWhereClause,
+  DISTRICT_FIELD_MAP,
+} from "@/lib/explore-filters";
 
 export const dynamic = "force-dynamic";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type FilterOp =
-  | "eq"
-  | "neq"
-  | "in"
-  | "contains"
-  | "gt"
-  | "gte"
-  | "lt"
-  | "lte"
-  | "between"
-  | "is_true"
-  | "is_false";
-
-interface FilterDef {
-  column: string;
-  op: FilterOp;
-  value?: unknown;
-}
-
-// ---------------------------------------------------------------------------
-// District field mapping  (external column key → Prisma field name)
-// Also serves as an allow-list for filterable/sortable columns
-// ---------------------------------------------------------------------------
-
-const DISTRICT_FIELD_MAP: Record<string, string> = {
-  leaid: "leaid",
-  name: "name",
-  state: "stateAbbrev",
-  enrollment: "enrollment",
-  isCustomer: "isCustomer",
-  hasOpenPipeline: "hasOpenPipeline",
-  fy26_open_pipeline_value: "fy26OpenPipeline",
-  fy26_closed_won_net_booking: "fy26ClosedWonNetBooking",
-  salesExecutive: "salesExecutive",
-  urbanicity: "urbanCentricLocale",
-  graduationRate: "graduationRateTotal",
-  mathProficiency: "mathProficiencyPct",
-  readProficiency: "readProficiencyPct",
-  sped_percent: "swdPct",
-  ell_percent: "ellPct",
-  free_lunch_percent: "childrenPovertyPercent",
-  accountType: "accountType",
-  notes: "notes",
-  owner: "owner",
-};
-
-// ---------------------------------------------------------------------------
-// Shared filter builder
-// ---------------------------------------------------------------------------
-
-function buildWhereClause(
-  filters: FilterDef[],
-  fieldMap?: Record<string, string>
-): Record<string, unknown> {
-  const where: Record<string, unknown> = {};
-
-  for (const f of filters) {
-    const prismaField = fieldMap ? fieldMap[f.column] : f.column;
-    if (!prismaField) continue; // skip unknown columns
-
-    switch (f.op) {
-      case "eq":
-        where[prismaField] = f.value;
-        break;
-      case "neq":
-        where[prismaField] = { not: f.value };
-        break;
-      case "in":
-        where[prismaField] = { in: f.value };
-        break;
-      case "contains":
-        where[prismaField] = {
-          contains: f.value as string,
-          mode: "insensitive",
-        };
-        break;
-      case "gt":
-        where[prismaField] = { gt: f.value };
-        break;
-      case "gte":
-        where[prismaField] = { gte: f.value };
-        break;
-      case "lt":
-        where[prismaField] = { lt: f.value };
-        break;
-      case "lte":
-        where[prismaField] = { lte: f.value };
-        break;
-      case "between": {
-        const [min, max] = f.value as [unknown, unknown];
-        where[prismaField] = { gte: min, lte: max };
-        break;
-      }
-      case "is_true":
-        where[prismaField] = true;
-        break;
-      case "is_false":
-        where[prismaField] = false;
-        break;
-    }
-  }
-
-  return where;
-}
 
 // ---------------------------------------------------------------------------
 // Parse query params shared across all entities
@@ -276,7 +172,9 @@ async function handleActivities(req: NextRequest, userId: string) {
     orderBy = { [sort]: order };
   }
 
-  const [rows, total, allForAgg] = await Promise.all([
+  // Fetch paginated rows + aggregates in parallel using COUNT queries
+  // (avoids loading the entire result set into memory)
+  const [rows, total, completedCount, positiveOutcomes, uniqueDistrictsResult] = await Promise.all([
     prisma.activity.findMany({
       where,
       select: {
@@ -309,29 +207,17 @@ async function handleActivities(req: NextRequest, userId: string) {
       take: pageSize,
     }),
     prisma.activity.count({ where }),
-    // For aggregates we need completed count, positive outcomes, unique districts
-    prisma.activity.findMany({
-      where,
-      select: {
-        status: true,
-        outcomeType: true,
-        districts: { select: { districtLeaid: true } },
-      },
+    // Count completed activities (database-side)
+    prisma.activity.count({ where: { ...where, status: "completed" } }),
+    // Count positive outcomes (database-side)
+    prisma.activity.count({ where: { ...where, outcomeType: "positive_progress" } }),
+    // Count distinct districts touched — Prisma doesn't support COUNT(DISTINCT)
+    // natively, so we use the join table with a groupBy to get unique district IDs
+    prisma.activityDistrict.groupBy({
+      by: ["districtLeaid"],
+      where: { activity: where },
     }),
   ]);
-
-  // Compute aggregates
-  let completedCount = 0;
-  let positiveOutcomes = 0;
-  const uniqueDistricts = new Set<string>();
-
-  for (const a of allForAgg) {
-    if (a.status === "completed") completedCount++;
-    if (a.outcomeType === "positive_progress") positiveOutcomes++;
-    for (const d of a.districts) {
-      uniqueDistricts.add(d.districtLeaid);
-    }
-  }
 
   const data = rows.map((a) => ({
     id: a.id,
@@ -353,7 +239,7 @@ async function handleActivities(req: NextRequest, userId: string) {
       count: total,
       completed_count: completedCount,
       positive_outcomes: positiveOutcomes,
-      unique_districts_touched: uniqueDistricts.size,
+      unique_districts_touched: uniqueDistrictsResult.length,
     },
     pagination: { page, pageSize, total },
   };
@@ -471,7 +357,9 @@ async function handleContacts(req: NextRequest) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [rows, total, primaryCount, allForAgg] = await Promise.all([
+  // Fetch paginated rows + aggregates in parallel using COUNT queries
+  // (avoids loading the entire contact set into memory)
+  const [rows, total, primaryCount, uniqueDistrictsResult, contactsWithRecentActivity] = await Promise.all([
     prisma.contact.findMany({
       where,
       select: {
@@ -496,32 +384,21 @@ async function handleContacts(req: NextRequest) {
     }),
     prisma.contact.count({ where }),
     prisma.contact.count({ where: { ...where, isPrimary: true } }),
-    // For unique districts and recent activity counts
-    prisma.contact.findMany({
+    // Count distinct districts — groupBy gives us one row per unique leaid
+    prisma.contact.groupBy({
+      by: ["leaid"],
       where,
-      select: {
-        leaid: true,
+    }),
+    // Count contacts with activity in the last 30 days (database-side)
+    prisma.contact.count({
+      where: {
+        ...where,
         activityLinks: {
-          where: {
-            activity: { startDate: { gte: thirtyDaysAgo } },
-          },
-          select: { activityId: true },
-          take: 1,
+          some: { activity: { startDate: { gte: thirtyDaysAgo } } },
         },
       },
     }),
   ]);
-
-  // Compute aggregates
-  const uniqueDistricts = new Set<string>();
-  let contactsWithRecentActivity = 0;
-
-  for (const c of allForAgg) {
-    uniqueDistricts.add(c.leaid);
-    if (c.activityLinks.length > 0) {
-      contactsWithRecentActivity++;
-    }
-  }
 
   const data = rows.map((c) => ({
     id: c.id,
@@ -540,7 +417,7 @@ async function handleContacts(req: NextRequest) {
     aggregates: {
       count: total,
       primary_count: primaryCount,
-      unique_districts: uniqueDistricts.size,
+      unique_districts: uniqueDistrictsResult.length,
       contacts_with_recent_activity: contactsWithRecentActivity,
     },
     pagination: { page, pageSize, total },

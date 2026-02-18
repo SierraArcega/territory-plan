@@ -57,7 +57,7 @@ const MapV2Tooltip = forwardRef<HTMLDivElement>(function MapV2Tooltip(_, ref) {
     <div
       ref={ref}
       className={`
-        absolute pointer-events-none z-30
+        absolute pointer-events-none z-[15]
         bg-white/95 backdrop-blur-sm rounded-xl shadow-lg
         px-3 py-2 max-w-[220px]
         ${tooltip.exiting ? "tooltip-exit" : "tooltip-enter"}

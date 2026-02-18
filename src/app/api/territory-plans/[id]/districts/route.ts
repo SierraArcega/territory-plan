@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { syncAutoTagsForDistrict } from "@/lib/autoTags";
+import {
+  type FilterDef,
+  buildWhereClause,
+  DISTRICT_FIELD_MAP,
+} from "@/lib/explore-filters";
 
 export const dynamic = "force-dynamic";
 
@@ -12,24 +17,33 @@ export async function POST(
   try {
     const { id: planId } = await params;
     const body = await request.json();
-    const { leaids, renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds } = body;
+    const { leaids, filters, renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds } = body;
 
-    // Validate input - accept either a single leaid or array of leaids
+    // Resolve district leaids from either explicit list or server-side filters
     let districtLeaids: string[];
-    if (typeof leaids === "string") {
+    const hasFilters = Array.isArray(filters) && filters.length > 0;
+
+    if (hasFilters) {
+      const where = buildWhereClause(filters as FilterDef[], DISTRICT_FIELD_MAP);
+      const districts = await prisma.district.findMany({
+        where,
+        select: { leaid: true },
+      });
+      districtLeaids = districts.map((d) => d.leaid);
+    } else if (typeof leaids === "string") {
       districtLeaids = [leaids];
     } else if (Array.isArray(leaids)) {
       districtLeaids = leaids;
     } else {
       return NextResponse.json(
-        { error: "leaids must be a string or array of strings" },
+        { error: "Either leaids or filters must be provided" },
         { status: 400 }
       );
     }
 
     if (districtLeaids.length === 0) {
       return NextResponse.json(
-        { error: "At least one leaid is required" },
+        { error: "No matching districts found" },
         { status: 400 }
       );
     }
@@ -46,20 +60,22 @@ export async function POST(
       );
     }
 
-    // Verify all districts exist
-    const existingDistricts = await prisma.district.findMany({
-      where: { leaid: { in: districtLeaids } },
-      select: { leaid: true },
-    });
+    // Verify all districts exist (skip when resolved from filters — already from DB)
+    if (!hasFilters) {
+      const existingDistricts = await prisma.district.findMany({
+        where: { leaid: { in: districtLeaids } },
+        select: { leaid: true },
+      });
 
-    const existingLeaids = new Set(existingDistricts.map((d) => d.leaid));
-    const invalidLeaids = districtLeaids.filter((l) => !existingLeaids.has(l));
+      const existingLeaids = new Set(existingDistricts.map((d) => d.leaid));
+      const invalidLeaids = districtLeaids.filter((l) => !existingLeaids.has(l));
 
-    if (invalidLeaids.length > 0) {
-      return NextResponse.json(
-        { error: `Districts not found: ${invalidLeaids.join(", ")}` },
-        { status: 400 }
-      );
+      if (invalidLeaids.length > 0) {
+        return NextResponse.json(
+          { error: `Districts not found: ${invalidLeaids.join(", ")}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Add districts to plan (skipDuplicates handles if already added)
