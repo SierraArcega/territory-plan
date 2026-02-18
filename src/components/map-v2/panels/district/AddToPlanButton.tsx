@@ -11,6 +11,7 @@ import {
 interface AddToPlanButtonProps {
   leaid: string;
   existingPlanIds?: string[];
+  onAdded?: (planId: string) => void;
 }
 
 const PLAN_COLORS = [
@@ -31,6 +32,7 @@ function getDefaultFiscalYear(): number {
 export default function AddToPlanButton({
   leaid,
   existingPlanIds = [],
+  onAdded,
 }: AddToPlanButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
@@ -73,6 +75,7 @@ export default function AddToPlanButton({
     try {
       await addDistricts.mutateAsync({ planId, leaids: leaid });
       setIsOpen(false);
+      onAdded?.(planId);
     } catch (error) {
       console.error("Failed to add district to plan:", error);
     }
@@ -91,6 +94,7 @@ export default function AddToPlanButton({
       setIsOpen(false);
       setShowNewPlanForm(false);
       setNewPlanName("");
+      onAdded?.(plan.id);
     } catch (error) {
       console.error("Failed to create plan:", error);
     }

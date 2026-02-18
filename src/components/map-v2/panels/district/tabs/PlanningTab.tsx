@@ -6,9 +6,10 @@ import {
   usePlanDistrictDetail,
   useUpdateDistrictTargets,
   useServices,
-  useTerritoryPlan,
+  useTerritoryPlans,
   type DistrictDetail,
   type Service,
+  type TerritoryPlan,
 } from "@/lib/api";
 import PurchasingHistoryCard from "../PurchasingHistoryCard";
 import CompetitorSpendCard from "../CompetitorSpendCard";
@@ -24,24 +25,59 @@ interface PlanningTabProps {
 export default function PlanningTab({ data, leaid, planId: planIdProp }: PlanningTabProps) {
   const storePlanId = useMapV2Store((s) => s.activePlanId);
   const activePlanId = planIdProp ?? storePlanId;
+  const { data: allPlans } = useTerritoryPlans();
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
-  if (!activePlanId) {
-    return <NoPlanView data={data} leaid={leaid} />;
+  // Resolve plan metadata for each planId the district belongs to
+  const planIds = data.territoryPlanIds;
+  const plansForDistrict = (allPlans || []).filter((p) => planIds.includes(p.id));
+
+  // Group by fiscal year, newest first
+  const byFiscalYear = new Map<number, TerritoryPlan[]>();
+  for (const plan of plansForDistrict) {
+    const fy = plan.fiscalYear;
+    if (!byFiscalYear.has(fy)) byFiscalYear.set(fy, []);
+    byFiscalYear.get(fy)!.push(plan);
   }
+  const sortedFYs = [...byFiscalYear.keys()].sort((a, b) => b - a);
 
-  return <ActivePlanView data={data} leaid={leaid} planId={activePlanId} />;
-}
+  const handlePlanAdded = useCallback((planId: string) => {
+    setExpandedPlanId(planId);
+  }, []);
 
-// ---------- No active plan ----------
-
-function NoPlanView({ data, leaid }: { data: DistrictDetail; leaid: string }) {
   return (
     <div className="p-3 space-y-3">
-      <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center">
-        <p className="text-sm text-gray-500">
-          Open a territory plan to set targets and services
-        </p>
-      </div>
+      {plansForDistrict.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center space-y-3">
+          <p className="text-sm text-gray-500">
+            Not in any territory plans yet
+          </p>
+          <AddToPlanButton leaid={leaid} existingPlanIds={planIds} onAdded={handlePlanAdded} />
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {sortedFYs.map((fy) => (
+              <div key={fy}>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                  FY{String(fy).slice(-2)}
+                </p>
+                <div className="space-y-2">
+                  {byFiscalYear.get(fy)!.map((plan) => (
+                    <PlanAccordionItem
+                      key={plan.id}
+                      plan={plan}
+                      leaid={leaid}
+                      defaultExpanded={plan.id === activePlanId || plan.id === expandedPlanId}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <AddToPlanButton leaid={leaid} existingPlanIds={planIds} onAdded={handlePlanAdded} />
+        </>
+      )}
 
       <PurchasingHistoryCard fullmindData={data.fullmindData} />
       <CompetitorSpendCard leaid={leaid} />
@@ -49,55 +85,66 @@ function NoPlanView({ data, leaid }: { data: DistrictDetail; leaid: string }) {
   );
 }
 
-// ---------- Active plan ----------
+// ---------- Plan Accordion Item ----------
 
-function ActivePlanView({
-  data,
+function PlanAccordionItem({
+  plan,
   leaid,
-  planId,
+  defaultExpanded,
 }: {
-  data: DistrictDetail;
+  plan: TerritoryPlan;
   leaid: string;
-  planId: string;
+  defaultExpanded: boolean;
 }) {
-  const {
-    data: planDistrict,
-    isLoading,
-    error,
-  } = usePlanDistrictDetail(planId, leaid);
-  const { data: plan } = useTerritoryPlan(planId);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <div className="rounded-xl border border-gray-100 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+      >
+        <span
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: plan.color }}
+        />
+        <span className="text-sm font-medium text-gray-800 truncate text-left flex-1">
+          {plan.name}
+        </span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          className={`shrink-0 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+        >
+          <path d="M3.5 5.25L7 8.75L10.5 5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <PlanAccordionContent planId={plan.id} leaid={leaid} />
+      )}
+    </div>
+  );
+}
+
+function PlanAccordionContent({ planId, leaid }: { planId: string; leaid: string }) {
+  const { data: planDistrict, isLoading } = usePlanDistrictDetail(planId, leaid);
 
   if (isLoading) {
     return (
-      <div className="p-3 space-y-3">
-        <div className="h-32 bg-gray-100 rounded-xl animate-pulse" />
-        <div className="h-24 bg-gray-100 rounded-xl animate-pulse" />
+      <div className="px-3 pb-3 space-y-2">
+        <div className="h-24 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="h-16 bg-gray-100 rounded-lg animate-pulse" />
       </div>
     );
   }
 
-  if (error || !planDistrict) {
-    // District not in this plan
-    return (
-      <div className="p-3 space-y-3">
-        <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center space-y-3">
-          <p className="text-sm text-gray-500">
-            Not in{" "}
-            <span className="font-medium text-gray-700">
-              {plan?.name || "this plan"}
-            </span>
-          </p>
-          <AddToPlanButton leaid={leaid} existingPlanIds={data.territoryPlanIds} />
-        </div>
-
-        <PurchasingHistoryCard fullmindData={data.fullmindData} />
-        <CompetitorSpendCard leaid={leaid} />
-      </div>
-    );
-  }
+  if (!planDistrict) return null;
 
   return (
-    <div className="p-3 space-y-3">
+    <div className="px-3 pb-3 space-y-3">
       <TargetsForm
         planId={planId}
         leaid={leaid}
@@ -106,22 +153,17 @@ function ActivePlanView({
         expansionTarget={planDistrict.expansionTarget}
         newBusinessTarget={planDistrict.newBusinessTarget}
       />
-
       <ServicesSection
         planId={planId}
         leaid={leaid}
         returnServices={planDistrict.returnServices}
         newServices={planDistrict.newServices}
       />
-
       <NotesField
         planId={planId}
         leaid={leaid}
         notes={planDistrict.notes}
       />
-
-      <PurchasingHistoryCard fullmindData={data.fullmindData} />
-      <CompetitorSpendCard leaid={leaid} />
     </div>
   );
 }

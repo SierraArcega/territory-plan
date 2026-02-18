@@ -78,7 +78,13 @@ function columnLabel(key: string): string {
 
 // ---- Cell formatting ----
 
-const CURRENCY_KEYS = /revenue|pipeline|booking|value|take|closed_won/i;
+// Derive currency keys from column definitions — any column with ($) in its label
+const CURRENCY_KEYS = new Set(
+  [districtColumns, planColumns, activityColumns, taskColumns, contactColumns]
+    .flat()
+    .filter((c) => c.label.includes("($)"))
+    .map((c) => c.key)
+);
 const PERCENT_KEYS = /percent|rate|proficiency/i;
 const TAG_COLUMNS = new Set(["tags", "planNames"]);
 
@@ -139,7 +145,7 @@ function formatCellValue(value: unknown, key: string): string {
     if (PERCENT_KEYS.test(key)) {
       return `${(value * 100).toFixed(1)}%`;
     }
-    if (CURRENCY_KEYS.test(key)) {
+    if (CURRENCY_KEYS.has(key)) {
       if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
       if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
       return `$${value.toLocaleString()}`;

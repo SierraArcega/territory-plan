@@ -420,7 +420,7 @@ export const districtColumns: ColumnDef[] = [
   },
   {
     key: "medianHouseholdIncome",
-    label: "Median Household Income",
+    label: "Median Household Income ($)",
     group: "Demographics",
     isDefault: false,
     filterType: "number",
