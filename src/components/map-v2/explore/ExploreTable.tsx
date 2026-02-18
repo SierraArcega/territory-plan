@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,7 +8,18 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUpdateDistrictEdits, useUsers } from "@/lib/api";
+import {
+  useUpdateDistrictEdits,
+  useUsers,
+  useTags,
+  useAddDistrictTag,
+  useRemoveDistrictTag,
+  useCreateTag,
+  useTerritoryPlans,
+  useAddDistrictsToPlan,
+  useRemoveDistrictFromPlan,
+  type TerritoryPlan,
+} from "@/lib/api";
 import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
@@ -141,6 +152,19 @@ function formatCellValue(value: unknown, key: string): string {
 // Each manages its own editing state so the column useMemo doesn't
 // need to rebuild on every keystroke.
 
+const TAG_COLORS = ["#403770", "#F37167", "#6EA3BE", "#8AA891", "#D4A84B", "#9B59B6", "#E67E22"];
+
+function useOutsideClick(ref: React.RefObject<HTMLElement | null>, onClose: () => void, active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [active, ref, onClose]);
+}
+
 function EditableOwnerCell({
   value,
   rowId,
@@ -152,50 +176,81 @@ function EditableOwnerCell({
   onSave: (rowId: string, column: string, value: string) => void;
   users: { id: string; fullName: string | null; email: string }[] | undefined;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setIsOpen(false); setSearch(""); }, []);
+  useOutsideClick(ref, close, isOpen);
 
-  if (isEditing) {
-    return (
-      <select
-        autoFocus
-        className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none bg-white focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
-        defaultValue={String(value || "")}
-        onChange={(e) => {
-          onSave(rowId, "owner", e.target.value);
-          setIsEditing(false);
-        }}
-        onBlur={() => setIsEditing(false)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setIsEditing(false);
-        }}
-      >
-        <option value="">— Unassigned —</option>
-        {(users || []).map((u) => (
-          <option key={u.id} value={u.fullName || u.email}>
-            {u.fullName || u.email}
-          </option>
-        ))}
-      </select>
-    );
-  }
+  const filtered = useMemo(() => {
+    if (!users) return [];
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter((u) => (u.fullName || u.email).toLowerCase().includes(q));
+  }, [users, search]);
 
   return (
-    <span
-      className="group/cell cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
-      onClick={(e) => {
-        e.stopPropagation();
-        setIsEditing(true);
-      }}
-    >
-      {value ? (
-        <span className="text-[13px] text-gray-600">{String(value)}</span>
-      ) : (
-        <span className="text-[13px] text-gray-300">assign owner</span>
+    <div className="relative" ref={ref}>
+      <span
+        className="group/cell cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+        onClick={(e) => { e.stopPropagation(); setIsOpen((o) => !o); }}
+      >
+        {value ? (
+          <span className="text-[13px] text-gray-600">{String(value)}</span>
+        ) : (
+          <span className="text-[13px] text-gray-300">assign owner</span>
+        )}
+        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M4 6L8 10L12 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+
+      {isOpen && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-2 pt-2 pb-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search users\u2026"
+              autoFocus
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770]/30 focus:border-[#403770]/40"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onSave(rowId, "owner", ""); close(); }}
+              className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                !value ? "text-[#403770] font-medium bg-[#403770]/5" : "text-gray-400 italic hover:bg-gray-50"
+              }`}
+            >
+              {"\u2014"} Unassigned {"\u2014"}
+            </button>
+            {filtered.map((u) => {
+              const display = u.fullName || u.email;
+              const selected = String(value) === display;
+              return (
+                <button
+                  key={u.id}
+                  onClick={(e) => { e.stopPropagation(); onSave(rowId, "owner", display); close(); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                    selected ? "text-[#403770] font-medium bg-[#403770]/5" : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {display}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && search.trim() && (
+              <div className="px-3 py-2 text-[10px] text-gray-400 italic">
+                {"No users matching \u201c"}{search}{"\u201d"}
+              </div>
+            )}
+          </div>
+        </div>
       )}
-      <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M4 6L8 10L12 6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
+    </div>
   );
 }
 
@@ -252,6 +307,264 @@ function EditableTextCell({
         <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
+  );
+}
+
+// ---- Inline tag editing ----
+
+function EditableTagsCell({ tags: serverTags, rowId }: { tags: { id: number; name: string; color: string }[]; rowId: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setIsOpen(false); setSearch(""); }, []);
+  useOutsideClick(ref, close, isOpen);
+
+  const { data: allTags } = useTags();
+  const addTag = useAddDistrictTag();
+  const removeTag = useRemoveDistrictTag();
+  const createTag = useCreateTag();
+
+  // Optimistic state — show changes immediately, reconcile when server data arrives
+  const [optimisticAdds, setOptimisticAdds] = useState<number[]>([]);
+  const [optimisticRemoves, setOptimisticRemoves] = useState<number[]>([]);
+  const serverTagRef = useRef(serverTags);
+  if (serverTagRef.current !== serverTags) {
+    serverTagRef.current = serverTags;
+    // Server data arrived — clear optimistic state
+    if (optimisticAdds.length > 0) setOptimisticAdds([]);
+    if (optimisticRemoves.length > 0) setOptimisticRemoves([]);
+  }
+
+  const displayTags = useMemo(() => {
+    let tags = serverTags.filter((t) => !optimisticRemoves.includes(t.id));
+    const added = (allTags || []).filter((t) => optimisticAdds.includes(t.id) && !serverTags.some((st) => st.id === t.id));
+    return [...tags, ...added];
+  }, [serverTags, optimisticAdds, optimisticRemoves, allTags]);
+
+  const displayIds = useMemo(() => new Set(displayTags.map((t) => t.id)), [displayTags]);
+
+  const available = useMemo(() => {
+    const pool = (allTags || []).filter((t) => !displayIds.has(t.id));
+    if (!search.trim()) return pool;
+    const q = search.toLowerCase();
+    return pool.filter((t) => t.name.toLowerCase().includes(q));
+  }, [allTags, displayIds, search]);
+
+  const handleAdd = (tagId: number) => {
+    setOptimisticAdds((prev) => [...prev, tagId]);
+    addTag.mutate({ leaid: rowId, tagId });
+  };
+  const handleRemove = (tagId: number) => {
+    setOptimisticRemoves((prev) => [...prev, tagId]);
+    removeTag.mutate({ leaid: rowId, tagId });
+  };
+
+  const handleCreate = async () => {
+    if (!search.trim()) return;
+    const color = TAG_COLORS[displayTags.length % TAG_COLORS.length];
+    try {
+      const newTag = await createTag.mutateAsync({ name: search.trim(), color });
+      setOptimisticAdds((prev) => [...prev, newTag.id]);
+      addTag.mutate({ leaid: rowId, tagId: newTag.id });
+      setSearch("");
+    } catch { /* tag name may already exist */ }
+  };
+
+  const exactMatch = search.trim() && (allTags || []).some((t) => t.name.toLowerCase() === search.trim().toLowerCase());
+
+  return (
+    <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {displayTags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium leading-tight"
+            style={{ backgroundColor: tag.color + "18", color: tag.color, border: `1px solid ${tag.color}30` }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+            {tag.name}
+            <button
+              onClick={() => handleRemove(tag.id)}
+              className="ml-0.5 rounded-full hover:bg-black/10 p-px transition-colors"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M2 2L6 6M6 2L2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        <button
+          onClick={() => setIsOpen((o) => !o)}
+          className="inline-flex items-center px-1 py-0.5 rounded text-[10px] text-gray-400 hover:text-[#403770] hover:bg-[#403770]/5 border border-dashed border-gray-200 hover:border-[#403770]/30 transition-colors"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+            <path d="M4 1v6M1 4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </span>
+
+      {isOpen && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-2 pt-2 pb-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={"Search or create tag\u2026"}
+              autoFocus
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770]/30 focus:border-[#403770]/40"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && search.trim() && available.length === 0 && !exactMatch) handleCreate();
+              }}
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto py-1">
+            {available.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={(e) => { e.stopPropagation(); handleAdd(tag.id); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                {tag.name}
+              </button>
+            ))}
+            {search.trim() && !exactMatch && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleCreate(); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#403770] hover:bg-[#403770]/5 transition-colors"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M5 2v6M2 5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                {"Create \u201c"}{search.trim()}{"\u201d"}
+              </button>
+            )}
+            {available.length === 0 && !search.trim() && (
+              <div className="px-3 py-2 text-[10px] text-gray-400 italic">No more tags to add</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Inline plan editing ----
+
+function EditablePlansCell({ plans: serverPlans, rowId }: { plans: { id: string; name: string; color: string }[]; rowId: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setIsOpen(false); setSearch(""); }, []);
+  useOutsideClick(ref, close, isOpen);
+
+  const { data: allPlans } = useTerritoryPlans();
+  const addToPlan = useAddDistrictsToPlan();
+  const removeFromPlan = useRemoveDistrictFromPlan();
+
+  // Optimistic state — show changes immediately, reconcile when server data arrives
+  const [optimisticAdds, setOptimisticAdds] = useState<string[]>([]);
+  const [optimisticRemoves, setOptimisticRemoves] = useState<string[]>([]);
+  const serverPlanRef = useRef(serverPlans);
+  if (serverPlanRef.current !== serverPlans) {
+    serverPlanRef.current = serverPlans;
+    if (optimisticAdds.length > 0) setOptimisticAdds([]);
+    if (optimisticRemoves.length > 0) setOptimisticRemoves([]);
+  }
+
+  const displayPlans = useMemo(() => {
+    let plans = serverPlans.filter((p) => !optimisticRemoves.includes(p.id));
+    const added = (allPlans || [])
+      .filter((p: TerritoryPlan) => optimisticAdds.includes(p.id) && !serverPlans.some((sp) => sp.id === p.id))
+      .map((p: TerritoryPlan) => ({ id: p.id, name: p.name, color: p.color }));
+    return [...plans, ...added];
+  }, [serverPlans, optimisticAdds, optimisticRemoves, allPlans]);
+
+  const displayIds = useMemo(() => new Set(displayPlans.map((p) => p.id)), [displayPlans]);
+
+  const available = useMemo(() => {
+    const pool = (allPlans || []).filter((p: TerritoryPlan) => !displayIds.has(p.id));
+    if (!search.trim()) return pool;
+    const q = search.toLowerCase();
+    return pool.filter((p: TerritoryPlan) => p.name.toLowerCase().includes(q));
+  }, [allPlans, displayIds, search]);
+
+  const handleAdd = (planId: string) => {
+    setOptimisticAdds((prev) => [...prev, planId]);
+    addToPlan.mutate({ planId, leaids: rowId });
+  };
+  const handleRemove = (planId: string) => {
+    setOptimisticRemoves((prev) => [...prev, planId]);
+    removeFromPlan.mutate({ planId, leaid: rowId });
+  };
+
+  return (
+    <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {displayPlans.map((plan) => (
+          <span
+            key={plan.id}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium leading-tight"
+            style={{ backgroundColor: plan.color + "18", color: plan.color, border: `1px solid ${plan.color}30` }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+            {plan.name}
+            <button
+              onClick={() => handleRemove(plan.id)}
+              className="ml-0.5 rounded-full hover:bg-black/10 p-px transition-colors"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M2 2L6 6M6 2L2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        <button
+          onClick={() => setIsOpen((o) => !o)}
+          className="inline-flex items-center px-1 py-0.5 rounded text-[10px] text-gray-400 hover:text-[#403770] hover:bg-[#403770]/5 border border-dashed border-gray-200 hover:border-[#403770]/30 transition-colors"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+            <path d="M4 1v6M1 4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </span>
+
+      {isOpen && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-2 pt-2 pb-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={"Search plans\u2026"}
+              autoFocus
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770]/30 focus:border-[#403770]/40"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            {(available as TerritoryPlan[]).map((plan) => (
+              <button
+                key={plan.id}
+                onClick={(e) => { e.stopPropagation(); handleAdd(plan.id); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+                <span className="flex-1 truncate">{plan.name}</span>
+                <span className="text-[9px] text-gray-400">{plan.districtCount}d</span>
+              </button>
+            ))}
+            {(available as TerritoryPlan[]).length === 0 && (
+              <div className="px-3 py-2 text-[10px] text-gray-400 italic">
+                {search.trim() ? "No matching plans" : "Already in all plans"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -324,6 +637,7 @@ export default function ExploreTable({
 
       // Determine cell renderer
       const isTagColumn = TAG_COLUMNS.has(key);
+      const isDistricts = entityType === "districts";
 
       let cellRenderer;
       if (isEditable) {
@@ -335,6 +649,21 @@ export default function ExploreTable({
           }
           return <EditableTextCell value={value} rowId={rowId} column={key} onSave={handleSave} />;
         };
+      } else if (isTagColumn && isDistricts) {
+        if (key === "tags") {
+          cellRenderer = (info: { row: { original: Record<string, unknown> } }) => {
+            const rowId = (info.row.original.leaid || info.row.original.id) as string;
+            const tags = (info.row.original.tags || []) as { id: number; name: string; color: string }[];
+            return <EditableTagsCell tags={tags} rowId={rowId} />;
+          };
+        } else {
+          // planNames
+          cellRenderer = (info: { row: { original: Record<string, unknown> } }) => {
+            const rowId = (info.row.original.leaid || info.row.original.id) as string;
+            const plans = (info.row.original.planNames || []) as { id: string; name: string; color: string }[];
+            return <EditablePlansCell plans={plans} rowId={rowId} />;
+          };
+        }
       } else if (isTagColumn) {
         cellRenderer = (info: { getValue: () => unknown }) => {
           const value = info.getValue();
@@ -553,10 +882,11 @@ export default function ExploreTable({
                         }
 
                         const isPrimary = cell.column.id === primaryColumn;
+                        const isInteractive = TAG_COLUMNS.has(cell.column.id) || cell.column.id === "owner";
                         return (
                           <td
                             key={cell.id}
-                            className={`px-4 py-3 whitespace-nowrap max-w-[240px] truncate ${
+                            className={`px-4 py-3 ${isInteractive ? "whitespace-normal overflow-visible" : "whitespace-nowrap max-w-[240px] truncate"} ${
                               isPrimary
                                 ? "text-sm font-medium text-[#403770]"
                                 : "text-[13px] text-gray-600"

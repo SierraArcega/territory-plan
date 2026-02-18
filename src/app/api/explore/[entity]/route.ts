@@ -114,7 +114,7 @@ const RELATION_SELECTS: Record<string, Record<string, unknown>> = {
     },
   },
   planNames: {
-    territoryPlans: { select: { plan: { select: { name: true, color: true } } } },
+    territoryPlans: { select: { plan: { select: { id: true, name: true, color: true } } } },
   },
   lastActivity: {
     activityLinks: {
@@ -235,7 +235,7 @@ async function handleDistricts(req: NextRequest) {
       row.tags = d.districtTags.map((dt: { tag: unknown }) => dt.tag);
     }
     if (d.territoryPlans) {
-      row.planNames = d.territoryPlans.map((tp: { plan: { name: string; color: string } }) => tp.plan);
+      row.planNames = d.territoryPlans.map((tp: { plan: { id: string; name: string; color: string } }) => tp.plan);
     }
     if (d.activityLinks) {
       row.lastActivity = d.activityLinks[0]?.activity?.startDate ?? null;

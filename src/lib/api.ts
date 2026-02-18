@@ -509,6 +509,7 @@ export function useAddDistrictTag() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan"] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
     },
   });
 }
@@ -524,6 +525,7 @@ export function useRemoveDistrictTag() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan"] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
     },
   });
 }
@@ -848,6 +850,7 @@ export function useRemoveDistrictFromPlan() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
     },
   });
 }

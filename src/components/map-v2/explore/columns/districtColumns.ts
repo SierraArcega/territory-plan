@@ -119,7 +119,7 @@ export interface DistrictRow {
   notes: string | null;
   owner: string | null;
   tags: { id: string; name: string; color: string }[];
-  planNames: { name: string; color: string }[];
+  planNames: { id: string; name: string; color: string }[];
   lastActivity: string | null;
 }
 
