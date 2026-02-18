@@ -26,6 +26,11 @@ interface Props {
   pagination: { page: number; pageSize: number; total: number } | undefined;
   onPageChange: (page: number) => void;
   entityType: string;
+  // Selection
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onSelectPage?: (ids: string[]) => void;
+  onClearSelection?: () => void;
 }
 
 // ---- Column label lookup ----
@@ -116,7 +121,12 @@ export default function ExploreTable({
   pagination,
   onPageChange,
   entityType,
+  selectedIds,
+  onToggleSelect,
+  onSelectPage,
+  onClearSelection,
 }: Props) {
+  const showCheckboxes = entityType === "districts" && !!selectedIds;
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{ rowId: string; column: string } | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -230,33 +240,52 @@ export default function ExploreTable({
     );
   }
 
+  // Checkbox helpers
+  const pageIds = useMemo(
+    () => data.map((row) => (row.leaid || row.id) as string),
+    [data]
+  );
+  const allPageSelected = showCheckboxes && pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const somePageSelected = showCheckboxes && pageIds.some((id) => selectedIds.has(id));
+
   // Build TanStack column definitions from visible column keys
-  const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(
-    () =>
-      visibleColumns.map((key) => {
-        const colDef = districtColumns.find((d) => d.key === key);
-        const isEditable = entityType === "districts" && colDef?.editable;
-        const isOwner = key === "owner";
+  const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
+    const dataCols: ColumnDef<Record<string, unknown>>[] = visibleColumns.map((key) => {
+      const colDef = districtColumns.find((d) => d.key === key);
+      const isEditable = entityType === "districts" && colDef?.editable;
+      const isOwner = key === "owner";
 
-        return {
-          id: key,
-          accessorFn: (row: Record<string, unknown>) => row[key],
-          header: () => columnLabel(key),
-          cell: isEditable
-            ? (info) => {
-                const value = info.getValue();
-                const rowId = (info.row.original.leaid || info.row.original.id) as string;
+      return {
+        id: key,
+        accessorFn: (row: Record<string, unknown>) => row[key],
+        header: () => columnLabel(key),
+        cell: isEditable
+          ? (info) => {
+              const value = info.getValue();
+              const rowId = (info.row.original.leaid || info.row.original.id) as string;
 
-                if (isOwner) {
-                  return renderOwnerCell(value, rowId);
-                }
-                return renderTextEditCell(value, rowId, key);
+              if (isOwner) {
+                return renderOwnerCell(value, rowId);
               }
-            : (info) => formatCellValue(info.getValue(), key),
-        };
-      }),
+              return renderTextEditCell(value, rowId, key);
+            }
+          : (info) => formatCellValue(info.getValue(), key),
+      };
+    });
+
+    if (showCheckboxes) {
+      dataCols.unshift({
+        id: "__select",
+        header: () => null, // header checkbox rendered manually
+        cell: () => null, // cell checkbox rendered manually
+        size: 40,
+      });
+    }
+
+    return dataCols;
+  },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visibleColumns, entityType, editingCell, editValue, users]
+    [visibleColumns, entityType, editingCell, editValue, users, showCheckboxes]
   );
 
   const table = useReactTable({
@@ -288,6 +317,33 @@ export default function ExploreTable({
               <tr key={headerGroup.id} className="border-b border-gray-200">
                 {headerGroup.headers.map((header) => {
                   const colKey = header.column.id;
+
+                  // Checkbox header
+                  if (colKey === "__select") {
+                    return (
+                      <th
+                        key={header.id}
+                        className="w-10 px-3 py-3 bg-gray-50/80 sticky top-0 z-10"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={allPageSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = somePageSelected && !allPageSelected;
+                          }}
+                          onChange={() => {
+                            if (allPageSelected) {
+                              onClearSelection?.();
+                            } else {
+                              onSelectPage?.(pageIds);
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded border-gray-300 text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
+                        />
+                      </th>
+                    );
+                  }
+
                   const isSorted = sort?.column === colKey;
                   return (
                     <th
@@ -314,6 +370,11 @@ export default function ExploreTable({
             {isLoading &&
               Array.from({ length: 10 }).map((_, rowIdx) => (
                 <tr key={`skel-${rowIdx}`} className={rowIdx < 9 ? "border-b border-gray-100" : ""}>
+                  {showCheckboxes && (
+                    <td className="w-10 px-3 py-3">
+                      <div className="h-3.5 w-3.5 bg-gray-100 rounded animate-pulse" />
+                    </td>
+                  )}
                   {visibleColumns.map((col) => (
                     <td key={col} className="px-4 py-3">
                       <div className="h-4 bg-[#C4E7E6]/20 rounded animate-pulse" style={{ width: `${55 + Math.random() * 30}%` }} />
@@ -325,7 +386,7 @@ export default function ExploreTable({
             {/* Empty state */}
             {!isLoading && data.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length} className="py-16">
+                <td colSpan={visibleColumns.length + (showCheckboxes ? 1 : 0)} className="py-16">
                   <div className="flex flex-col items-center justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4 text-gray-300">
                       <circle cx="11" cy="11" r="8" />
@@ -342,13 +403,35 @@ export default function ExploreTable({
             {!isLoading &&
               table.getRowModel().rows.map((row, rowIdx) => {
                 const isLast = rowIdx === table.getRowModel().rows.length - 1;
+                const rowId = (row.original.leaid || row.original.id) as string;
+                const isSelected = showCheckboxes && selectedIds.has(rowId);
                 return (
                   <tr
                     key={row.id}
-                    className={`group hover:bg-gray-50/70 cursor-pointer transition-colors duration-100 ${!isLast ? "border-b border-gray-100" : ""}`}
+                    className={`group cursor-pointer transition-colors duration-100 ${!isLast ? "border-b border-gray-100" : ""} ${
+                      isSelected ? "bg-[#403770]/[0.04]" : "hover:bg-gray-50/70"
+                    }`}
                     onClick={() => onRowClick?.(row.original)}
                   >
                     {row.getVisibleCells().map((cell) => {
+                      // Checkbox cell
+                      if (cell.column.id === "__select") {
+                        return (
+                          <td key={cell.id} className="w-10 px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                onToggleSelect?.(rowId);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
+                            />
+                          </td>
+                        );
+                      }
+
                       const isPrimary = cell.column.id === primaryColumn;
                       return (
                         <td
