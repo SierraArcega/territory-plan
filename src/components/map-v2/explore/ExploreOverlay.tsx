@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useMapV2Store, type ExploreEntity, type ExploreSavedView } from "@/lib/map-v2-store";
 import { useExploreData } from "@/lib/api";
 import ExploreKPICards from "./ExploreKPICards";
@@ -72,7 +72,8 @@ export default function ExploreOverlay() {
   const clearDistrictSelection = useMapV2Store((s) => s.clearDistrictSelection);
   const setSelectAllMatchingFilters = useMapV2Store((s) => s.setSelectAllMatchingFilters);
 
-  // Load saved views from localStorage on mount
+  // Load saved views from localStorage on mount (bulk, avoids O(n^2) write-back)
+  const viewsHydratedRef = useRef(false);
   useEffect(() => {
     for (const entity of ALL_ENTITIES) {
       const key = `explore-views-${entity}`;
@@ -86,10 +87,12 @@ export default function ExploreOverlay() {
         }
       }
     }
+    viewsHydratedRef.current = true;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save views to localStorage when they change
+  // Save views to localStorage when they change (skip during initial hydration)
   useEffect(() => {
+    if (!viewsHydratedRef.current) return;
     for (const entity of ALL_ENTITIES) {
       const key = `explore-views-${entity}`;
       const views = exploreSavedViews[entity];
@@ -272,7 +275,6 @@ export default function ExploreOverlay() {
             onSave={(view) => saveView(exploreEntity, view)}
             onLoad={(viewId) => loadView(exploreEntity, viewId)}
             onDelete={(viewId) => deleteView(exploreEntity, viewId)}
-            onDiscard={handleDiscardChanges}
             onSetActiveViewId={(viewId) => setActiveViewId(exploreEntity, viewId)}
             onResetToDefaults={handleResetToDefaults}
           />

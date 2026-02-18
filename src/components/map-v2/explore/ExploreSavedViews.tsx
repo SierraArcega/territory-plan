@@ -21,7 +21,6 @@ interface ExploreSavedViewsProps {
   onSave: (view: ExploreSavedView) => void;
   onLoad: (viewId: string) => void;
   onDelete: (viewId: string) => void;
-  onDiscard: () => void;
   onSetActiveViewId: (viewId: string | null) => void;
   // Reset to defaults
   onResetToDefaults: () => void;
@@ -103,7 +102,7 @@ export default function ExploreSavedViews({
     if (!trimmed) return;
 
     const view: ExploreSavedView = {
-      id: `view-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: crypto.randomUUID(),
       name: trimmed,
       entity,
       filters: [...currentFilters],
