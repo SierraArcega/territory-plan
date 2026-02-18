@@ -27,7 +27,7 @@ export type IconBarTab = "home" | "search" | "plans" | "explore" | "settings";
 export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
 
 // Explore Data entity tabs
-export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts";
+export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts" | "plans";
 
 // Filter operator types — single source of truth in explore-filters.ts
 import type { FilterOp } from "@/lib/explore-filters";
@@ -346,18 +346,21 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     activities: ["title", "type", "status", "startDate", "outcomeType", "districtNames", "planNames"],
     tasks: ["title", "status", "priority", "dueDate", "districtNames", "planNames"],
     contacts: ["name", "title", "email", "phone", "districtName", "isPrimary", "lastActivity"],
+    plans: ["name", "status", "fiscalYear", "ownerName", "districtCount", "renewalRollup", "expansionRollup", "winbackRollup", "newBusinessRollup", "createdAt", "updatedAt"],
   } as Record<ExploreEntity, string[]>,
   exploreFilters: {
     districts: [],
     activities: [],
     tasks: [],
     contacts: [],
+    plans: [],
   } as Record<ExploreEntity, ExploreFilter[]>,
   exploreSort: {
     districts: [],
     activities: [],
     tasks: [],
     contacts: [],
+    plans: [],
   } as Record<ExploreEntity, ExploreSortConfig[]>,
   explorePage: 1,
   filteredDistrictLeaids: [],
@@ -368,12 +371,14 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     activities: [],
     tasks: [],
     contacts: [],
+    plans: [],
   } as Record<ExploreEntity, ExploreSavedView[]>,
   activeViewId: {
     districts: null,
     activities: null,
     tasks: null,
     contacts: null,
+    plans: null,
   } as Record<ExploreEntity, string | null>,
 
   // Bulk selection
