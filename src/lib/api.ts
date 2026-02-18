@@ -311,6 +311,7 @@ export interface TerritoryPlanDistrict {
   name: string;
   stateAbbrev: string | null;
   enrollment: number | null;
+  owner: string | null;
   renewalTarget: number | null;
   winbackTarget: number | null;
   expansionTarget: number | null;
@@ -1612,183 +1613,6 @@ export function useGoalDashboard(fiscalYear: number | null) {
   });
 }
 
-// ===== Data Reconciliation (FastAPI) =====
-
-export interface ReconciliationUnmatchedAccount {
-  account_id: string;
-  account_name: string;
-  state: string | null;
-  sales_exec: string | null;
-  total_revenue: number;
-  opportunity_count: number;
-}
-
-export interface ReconciliationAccountVariant {
-  name: string;
-  source: "districts" | "opportunities";
-  count: number;
-}
-
-export interface ReconciliationFragmentedDistrict {
-  nces_id: string;
-  district_name: string | null;
-  state: string | null;
-  account_variants: ReconciliationAccountVariant[];
-  similarity_score: number;
-}
-
-export interface ReconciliationFilters {
-  state?: string;
-  salesExec?: string;
-  limit?: number;
-}
-
-// Reconciliation hooks (fetch from FastAPI via proxy)
-export function useReconciliationUnmatched(filters: ReconciliationFilters = {}) {
-  const params = new URLSearchParams();
-  params.set("type", "unmatched");
-  if (filters.state) params.set("state", filters.state);
-  if (filters.salesExec) params.set("salesExec", filters.salesExec);
-  if (filters.limit) params.set("limit", filters.limit.toString());
-
-  return useQuery({
-    queryKey: ["reconciliation", "unmatched", filters],
-    queryFn: () =>
-      fetchJson<ReconciliationUnmatchedAccount[]>(
-        `${API_BASE}/data/reconciliation?${params}`
-      ),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
-export function useReconciliationFragmented(filters: ReconciliationFilters = {}) {
-  const params = new URLSearchParams();
-  params.set("type", "fragmented");
-  if (filters.state) params.set("state", filters.state);
-  if (filters.limit) params.set("limit", filters.limit.toString());
-
-  return useQuery({
-    queryKey: ["reconciliation", "fragmented", filters],
-    queryFn: () =>
-      fetchJson<ReconciliationFragmentedDistrict[]>(
-        `${API_BASE}/data/reconciliation?${params}`
-      ),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
-// ===== District Profiles (FastAPI) =====
-
-export interface DistrictProfileOpportunities {
-  count: number;
-  revenue: number;
-  account_names_used: string[];
-}
-
-export interface DistrictProfileSchools {
-  count: number;
-  sample_names: string[];
-}
-
-export interface DistrictProfileSessions {
-  count: number;
-  revenue: number;
-  schools_in_sessions: string[];
-}
-
-export interface DistrictProfileCourses {
-  count: number;
-}
-
-export interface DistrictProfileTotals {
-  entity_count: number;
-  total_revenue: number;
-}
-
-export interface DistrictProfileDataQuality {
-  has_nces: boolean;
-  has_state: boolean;
-  is_orphaned: boolean;
-  has_opps: boolean;
-  has_schools: boolean;
-  has_sessions: boolean;
-}
-
-export interface DistrictProfile {
-  district_id: string;
-  district_name: string;
-  state: string | null;
-  state_sources: [string, string][];
-  nces_id: string | null;
-  exists_in_index: boolean;
-  referenced_by: string[];
-  opportunities: DistrictProfileOpportunities;
-  schools: DistrictProfileSchools;
-  sessions: DistrictProfileSessions;
-  courses: DistrictProfileCourses;
-  totals: DistrictProfileTotals;
-  data_quality: DistrictProfileDataQuality;
-}
-
-export interface DistrictProfileFilters {
-  include_orphaned?: boolean;
-  min_total_entities?: number;
-  state?: string;
-  limit?: number;
-}
-
-export interface NcesLookupResult {
-  match: { leaid: string; name: string; state: string | null } | null;
-  confidence: "exact" | "partial" | "none";
-}
-
-export function useNcesLookup(name: string | null, state: string | null, enabled: boolean) {
-  const params = new URLSearchParams();
-  if (name) params.set("name", name);
-  if (state) params.set("state", state);
-
-  return useQuery({
-    queryKey: ["nces-lookup", name, state],
-    queryFn: () =>
-      fetchJson<NcesLookupResult>(`${API_BASE}/districts/nces-lookup?${params}`),
-    enabled: enabled && !!name,
-    staleTime: 30 * 60 * 1000, // 30 minutes — NCES data doesn't change often
-  });
-}
-
-export interface SnapshotMetadata {
-  mode: "live" | "static";
-  lastRefreshed?: string | null;
-  counts?: Record<string, number>;
-}
-
-export function useSnapshotMetadata() {
-  return useQuery({
-    queryKey: ["snapshot-metadata"],
-    queryFn: () => fetchJson<SnapshotMetadata>(`${API_BASE}/data/snapshot-metadata`),
-    staleTime: 60 * 1000, // 1 minute
-  });
-}
-
-export function useDistrictProfiles(filters: DistrictProfileFilters = {}) {
-  const params = new URLSearchParams();
-  if (filters.include_orphaned !== undefined)
-    params.set("include_orphaned", String(filters.include_orphaned));
-  if (filters.min_total_entities)
-    params.set("min_total_entities", filters.min_total_entities.toString());
-  if (filters.state) params.set("state", filters.state);
-  if (filters.limit) params.set("limit", filters.limit.toString());
-
-  return useQuery({
-    queryKey: ["reconciliation", "district-profiles", filters],
-    queryFn: () =>
-      fetchJson<DistrictProfile[]>(
-        `${API_BASE}/data/district-profiles?${params}`
-      ),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
 // ===== Tasks =====
 
 // Linked entity types for tasks (used in list and detail views)
@@ -2517,6 +2341,7 @@ export function useExploreData<T = Record<string, unknown>>(
     sorts?: { column: string; direction: "asc" | "desc" }[];
     page?: number;
     pageSize?: number;
+    columns?: string[];
   }
 ) {
   const searchParams = new URLSearchParams();
@@ -2525,6 +2350,9 @@ export function useExploreData<T = Record<string, unknown>>(
   }
   if (params.sorts && params.sorts.length > 0) {
     searchParams.set("sorts", JSON.stringify(params.sorts));
+  }
+  if (params.columns && params.columns.length > 0) {
+    searchParams.set("columns", params.columns.join(","));
   }
   searchParams.set("page", String(params.page || 1));
   searchParams.set("pageSize", String(params.pageSize || 50));
