@@ -208,3 +208,14 @@ export function buildWhereClause(
 
   return where;
 }
+
+// External column key → Prisma field name for plans
+export const PLANS_FIELD_MAP: Record<string, string> = {
+  name: "name",
+  status: "status",
+  fiscalYear: "fiscalYear",
+  description: "description",
+  color: "color",
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+};
