@@ -89,21 +89,22 @@ export default function ExploreOverlay() {
 
   // Sort toggle handler
   const handleSort = (column: string) => {
-    const current = exploreSort[exploreEntity];
-    if (current?.column === column) {
-      setExploreSort(exploreEntity, {
+    const currentSorts = exploreSort[exploreEntity];
+    const existing = currentSorts.find((s) => s.column === column);
+    if (existing) {
+      setExploreSort(exploreEntity, [{
         column,
-        direction: current.direction === "asc" ? "desc" : "asc",
-      });
+        direction: existing.direction === "asc" ? "desc" : "asc",
+      }]);
     } else {
-      setExploreSort(exploreEntity, { column, direction: "asc" });
+      setExploreSort(exploreEntity, [{ column, direction: "asc" }]);
     }
   };
 
   // Fetch data
   const { data: result, isLoading } = useExploreData(exploreEntity, {
     filters: exploreFilters[exploreEntity],
-    sort: exploreSort[exploreEntity],
+    sorts: exploreSort[exploreEntity],
     page: explorePage,
   });
 
@@ -202,7 +203,7 @@ export default function ExploreOverlay() {
             <ExploreTable
               data={result?.data || []}
               visibleColumns={exploreColumns[exploreEntity]}
-              sort={exploreSort[exploreEntity]}
+              sorts={exploreSort[exploreEntity]}
               onSort={handleSort}
               onRowClick={handleRowClick}
               isLoading={isLoading}

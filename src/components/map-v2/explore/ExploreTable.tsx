@@ -19,7 +19,7 @@ import { contactColumns } from "./columns/contactColumns";
 interface Props {
   data: Record<string, unknown>[];
   visibleColumns: string[];
-  sort: { column: string; direction: "asc" | "desc" } | null;
+  sorts: { column: string; direction: "asc" | "desc" }[];
   onSort: (column: string) => void;
   onRowClick?: (row: Record<string, unknown>) => void;
   isLoading: boolean;
@@ -232,7 +232,7 @@ function EditableTextCell({
 export default function ExploreTable({
   data,
   visibleColumns,
-  sort,
+  sorts,
   onSort,
   onRowClick,
   isLoading,
@@ -369,7 +369,8 @@ export default function ExploreTable({
                     );
                   }
 
-                  const isSorted = sort?.column === colKey;
+                  const sortRule = sorts.find((s) => s.column === colKey);
+                  const isSorted = !!sortRule;
                   return (
                     <th
                       key={header.id}
@@ -380,7 +381,7 @@ export default function ExploreTable({
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {isSorted && (
                           <span className="text-[#403770] font-bold text-xs">
-                            {sort.direction === "asc" ? "\u2191" : "\u2193"}
+                            {sortRule.direction === "asc" ? "\u2191" : "\u2193"}
                           </span>
                         )}
                       </span>
