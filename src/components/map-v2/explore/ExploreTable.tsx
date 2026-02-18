@@ -43,6 +43,8 @@ interface Props {
   onToggleSelect?: (id: string) => void;
   onSelectPage?: (ids: string[]) => void;
   onClearSelection?: () => void;
+  // Column reordering
+  onReorderColumns?: (columns: string[]) => void;
 }
 
 // ---- Column label lookup ----
@@ -584,8 +586,13 @@ export default function ExploreTable({
   onToggleSelect,
   onSelectPage,
   onClearSelection,
+  onReorderColumns,
 }: Props) {
   const showCheckboxes = entityType === "districts" && !!selectedIds;
+
+  // Column drag-to-reorder state
+  const [dragColIdx, setDragColIdx] = useState<number | null>(null);
+  const [dropColIdx, setDropColIdx] = useState<number | null>(null);
 
   const queryClient = useQueryClient();
   const updateEdits = useUpdateDistrictEdits();
@@ -606,6 +613,31 @@ export default function ExploreTable({
       }
     );
   }, [updateEdits, queryClient]);
+
+  // Column drag handlers
+  const handleColDragStart = useCallback((idx: number) => { setDragColIdx(idx); }, []);
+  const handleColDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDropColIdx(idx);
+  }, []);
+  const handleColDragEnd = useCallback(() => {
+    setDragColIdx(null);
+    setDropColIdx(null);
+  }, []);
+  const handleColDrop = useCallback((e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (dragColIdx === null || dragColIdx === targetIdx || !onReorderColumns) {
+      setDragColIdx(null);
+      setDropColIdx(null);
+      return;
+    }
+    const newOrder = [...visibleColumns];
+    const [moved] = newOrder.splice(dragColIdx, 1);
+    newOrder.splice(targetIdx, 0, moved);
+    onReorderColumns(newOrder);
+    setDragColIdx(null);
+    setDropColIdx(null);
+  }, [dragColIdx, visibleColumns, onReorderColumns]);
 
   const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
   const togglePlanExpand = useCallback((id: string) => {
@@ -773,10 +805,20 @@ export default function ExploreTable({
 
                   const sortRule = sorts.find((s) => s.column === colKey);
                   const isSorted = !!sortRule;
+                  const dataColIdx = visibleColumns.indexOf(colKey);
+                  const isDragging = dragColIdx === dataColIdx;
+                  const isDropTarget = dropColIdx === dataColIdx && dragColIdx !== null && dragColIdx !== dataColIdx;
                   return (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80 sticky top-0 z-10 cursor-pointer select-none hover:text-[#403770] transition-colors duration-100"
+                      draggable={!!onReorderColumns}
+                      onDragStart={() => handleColDragStart(dataColIdx)}
+                      onDragOver={(e) => handleColDragOver(e, dataColIdx)}
+                      onDragEnd={handleColDragEnd}
+                      onDrop={(e) => handleColDrop(e, dataColIdx)}
+                      className={`px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80 sticky top-0 z-10 cursor-pointer select-none hover:text-[#403770] transition-colors duration-100 ${
+                        onReorderColumns ? "cursor-grab active:cursor-grabbing" : ""
+                      } ${isDragging ? "opacity-40" : ""} ${isDropTarget ? "border-l-2 border-l-[#403770]" : ""}`}
                       onClick={() => onSort(colKey)}
                     >
                       <span className="inline-flex items-center gap-1">

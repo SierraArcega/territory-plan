@@ -355,6 +355,7 @@ export default function ExploreOverlay() {
               onToggleSelect={exploreEntity === "districts" ? toggleDistrictSelection : undefined}
               onSelectPage={exploreEntity === "districts" ? (ids) => setDistrictSelection(ids) : undefined}
               onClearSelection={exploreEntity === "districts" ? clearDistrictSelection : undefined}
+              onReorderColumns={(cols) => setExploreColumns(exploreEntity, cols)}
             />
 
             {/* Bulk action bar */}
