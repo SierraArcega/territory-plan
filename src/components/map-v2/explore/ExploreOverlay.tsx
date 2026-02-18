@@ -7,6 +7,7 @@ import ExploreKPICards from "./ExploreKPICards";
 import ExploreTable from "./ExploreTable";
 import ExploreColumnPicker from "./ExploreColumnPicker";
 import ExploreFilters from "./ExploreFilters";
+import ExploreSortDropdown from "./ExploreSortDropdown";
 import BulkActionBar from "./BulkActionBar";
 import RightPanel from "../RightPanel";
 
@@ -32,6 +33,9 @@ export default function ExploreOverlay() {
   const removeExploreFilter = useMapV2Store((s) => s.removeExploreFilter);
   const clearExploreFilters = useMapV2Store((s) => s.clearExploreFilters);
   const setExploreSort = useMapV2Store((s) => s.setExploreSort);
+  const addSortRule = useMapV2Store((s) => s.addSortRule);
+  const removeSortRule = useMapV2Store((s) => s.removeSortRule);
+  const reorderSortRules = useMapV2Store((s) => s.reorderSortRules);
   const setExplorePage = useMapV2Store((s) => s.setExplorePage);
   const openRightPanel = useMapV2Store((s) => s.openRightPanel);
   const closeRightPanel = useMapV2Store((s) => s.closeRightPanel);
@@ -175,14 +179,27 @@ export default function ExploreOverlay() {
 
         {/* Filter bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0 flex items-center justify-between gap-4">
-          <ExploreFilters
-            entity={exploreEntity}
-            filters={exploreFilters[exploreEntity]}
-            onAddFilter={(f) => addExploreFilter(exploreEntity, f)}
-            onUpdateFilter={(id, updates) => updateExploreFilter(exploreEntity, id, updates)}
-            onRemoveFilter={(id) => removeExploreFilter(exploreEntity, id)}
-            onClearAll={() => clearExploreFilters(exploreEntity)}
-          />
+          <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+            <ExploreSortDropdown
+              entity={exploreEntity}
+              sorts={exploreSort[exploreEntity]}
+              onAddSort={(rule) => addSortRule(exploreEntity, rule)}
+              onRemoveSort={(column) => removeSortRule(exploreEntity, column)}
+              onReorderSorts={(rules) => reorderSortRules(exploreEntity, rules)}
+              onToggleDirection={(column) => {
+                const rule = exploreSort[exploreEntity].find((s) => s.column === column);
+                if (rule) addSortRule(exploreEntity, { column, direction: rule.direction === "asc" ? "desc" : "asc" });
+              }}
+            />
+            <ExploreFilters
+              entity={exploreEntity}
+              filters={exploreFilters[exploreEntity]}
+              onAddFilter={(f) => addExploreFilter(exploreEntity, f)}
+              onUpdateFilter={(id, updates) => updateExploreFilter(exploreEntity, id, updates)}
+              onRemoveFilter={(id) => removeExploreFilter(exploreEntity, id)}
+              onClearAll={() => clearExploreFilters(exploreEntity)}
+            />
+          </div>
           <ExploreColumnPicker
             entity={exploreEntity}
             selectedColumns={exploreColumns[exploreEntity]}
