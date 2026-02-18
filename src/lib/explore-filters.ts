@@ -11,7 +11,9 @@ export type FilterOp =
   | "lte"
   | "between"
   | "is_true"
-  | "is_false";
+  | "is_false"
+  | "is_empty"
+  | "is_not_empty";
 
 export interface FilterDef {
   column: string;
@@ -90,6 +92,12 @@ export function buildWhereClause(
         break;
       case "is_false":
         where[prismaField] = false;
+        break;
+      case "is_empty":
+        where[prismaField] = null;
+        break;
+      case "is_not_empty":
+        where[prismaField] = { not: null };
         break;
     }
   }

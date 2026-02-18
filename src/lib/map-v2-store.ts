@@ -30,7 +30,7 @@ export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "p
 export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts";
 
 // Filter operator types
-export type FilterOp = "eq" | "neq" | "in" | "contains" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false";
+export type FilterOp = "eq" | "neq" | "in" | "contains" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "is_empty" | "is_not_empty";
 
 export interface ExploreFilter {
   id: string;
@@ -42,6 +42,15 @@ export interface ExploreFilter {
 export interface ExploreSortConfig {
   column: string;
   direction: "asc" | "desc";
+}
+
+export interface ExploreSavedView {
+  id: string;
+  name: string;
+  entity: ExploreEntity;
+  filters: ExploreFilter[];
+  sorts: ExploreSortConfig[];
+  columns: string[];
 }
 
 export interface RightPanelContent {
@@ -153,9 +162,13 @@ interface MapV2State {
   exploreEntity: ExploreEntity;
   exploreColumns: Record<ExploreEntity, string[]>;
   exploreFilters: Record<ExploreEntity, ExploreFilter[]>;
-  exploreSort: Record<ExploreEntity, ExploreSortConfig | null>;
+  exploreSort: Record<ExploreEntity, ExploreSortConfig[]>;
   explorePage: number;
   filteredDistrictLeaids: string[];
+
+  // Saved views
+  exploreSavedViews: Record<ExploreEntity, ExploreSavedView[]>;
+  activeViewId: Record<ExploreEntity, string | null>;
 
   // Bulk selection
   selectedDistrictLeaids: Set<string>;
@@ -262,9 +275,18 @@ interface MapV2Actions {
   removeExploreFilter: (entity: ExploreEntity, filterId: string) => void;
   updateExploreFilter: (entity: ExploreEntity, filterId: string, updates: Partial<ExploreFilter>) => void;
   clearExploreFilters: (entity: ExploreEntity) => void;
-  setExploreSort: (entity: ExploreEntity, sort: ExploreSortConfig | null) => void;
+  setExploreSort: (entity: ExploreEntity, sort: ExploreSortConfig[]) => void;
+  addSortRule: (entity: ExploreEntity, rule: ExploreSortConfig) => void;
+  removeSortRule: (entity: ExploreEntity, column: string) => void;
+  reorderSortRules: (entity: ExploreEntity, rules: ExploreSortConfig[]) => void;
   setExplorePage: (page: number) => void;
   setFilteredDistrictLeaids: (leaids: string[]) => void;
+
+  // Saved views
+  saveView: (entity: ExploreEntity, view: ExploreSavedView) => void;
+  loadView: (entity: ExploreEntity, viewId: string) => void;
+  deleteView: (entity: ExploreEntity, viewId: string) => void;
+  setActiveViewId: (entity: ExploreEntity, viewId: string | null) => void;
 
   // Bulk selection
   toggleDistrictSelection: (leaid: string) => void;
@@ -331,13 +353,27 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     contacts: [],
   } as Record<ExploreEntity, ExploreFilter[]>,
   exploreSort: {
+    districts: [],
+    activities: [],
+    tasks: [],
+    contacts: [],
+  } as Record<ExploreEntity, ExploreSortConfig[]>,
+  explorePage: 1,
+  filteredDistrictLeaids: [],
+
+  // Saved views
+  exploreSavedViews: {
+    districts: [],
+    activities: [],
+    tasks: [],
+    contacts: [],
+  } as Record<ExploreEntity, ExploreSavedView[]>,
+  activeViewId: {
     districts: null,
     activities: null,
     tasks: null,
     contacts: null,
-  } as Record<ExploreEntity, ExploreSortConfig | null>,
-  explorePage: 1,
-  filteredDistrictLeaids: [],
+  } as Record<ExploreEntity, string | null>,
 
   // Bulk selection
   selectedDistrictLeaids: new Set<string>(),
@@ -684,9 +720,78 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       explorePage: 1,
     })),
 
+  addSortRule: (entity, rule) =>
+    set((s) => {
+      const existing = s.exploreSort[entity];
+      const filtered = existing.filter((r) => r.column !== rule.column);
+      return {
+        exploreSort: { ...s.exploreSort, [entity]: [...filtered, rule] },
+        explorePage: 1,
+      };
+    }),
+
+  removeSortRule: (entity, column) =>
+    set((s) => ({
+      exploreSort: {
+        ...s.exploreSort,
+        [entity]: s.exploreSort[entity].filter((r) => r.column !== column),
+      },
+      explorePage: 1,
+    })),
+
+  reorderSortRules: (entity, rules) =>
+    set((s) => ({
+      exploreSort: { ...s.exploreSort, [entity]: rules },
+      explorePage: 1,
+    })),
+
   setExplorePage: (page) => set({ explorePage: page }),
 
   setFilteredDistrictLeaids: (leaids) => set({ filteredDistrictLeaids: leaids }),
+
+  // Saved views
+  saveView: (entity, view) =>
+    set((s) => {
+      const existing = s.exploreSavedViews[entity];
+      const idx = existing.findIndex((v) => v.id === view.id);
+      const updated = idx >= 0
+        ? existing.map((v) => (v.id === view.id ? view : v))
+        : [...existing, view];
+      return {
+        exploreSavedViews: { ...s.exploreSavedViews, [entity]: updated },
+        activeViewId: { ...s.activeViewId, [entity]: view.id },
+      };
+    }),
+
+  loadView: (entity, viewId) =>
+    set((s) => {
+      const view = s.exploreSavedViews[entity].find((v) => v.id === viewId);
+      if (!view) return s;
+      return {
+        exploreFilters: { ...s.exploreFilters, [entity]: view.filters },
+        exploreSort: { ...s.exploreSort, [entity]: view.sorts },
+        exploreColumns: { ...s.exploreColumns, [entity]: view.columns },
+        activeViewId: { ...s.activeViewId, [entity]: viewId },
+        explorePage: 1,
+      };
+    }),
+
+  deleteView: (entity, viewId) =>
+    set((s) => ({
+      exploreSavedViews: {
+        ...s.exploreSavedViews,
+        [entity]: s.exploreSavedViews[entity].filter((v) => v.id !== viewId),
+      },
+      activeViewId: {
+        ...s.activeViewId,
+        [entity]: s.activeViewId[entity] === viewId ? null : s.activeViewId[entity],
+      },
+    })),
+
+  setActiveViewId: (entity, viewId) =>
+    set((s) => ({
+      activeViewId: { ...s.activeViewId, [entity]: viewId },
+    })),
 
   // Bulk selection
   toggleDistrictSelection: (leaid) =>
