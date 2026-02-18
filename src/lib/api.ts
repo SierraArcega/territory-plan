@@ -1514,52 +1514,69 @@ export function useUpdateDistrictTargets() {
     onMutate: async (variables) => {
       // Cancel outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ["territoryPlan", variables.planId] });
+      await queryClient.cancelQueries({ queryKey: ["planDistrict", variables.planId, variables.leaid] });
 
+      const allServices = queryClient.getQueryData<Service[]>(["services"]) || [];
+
+      // Helper: patch a district record with the mutation variables
+      const patchDistrict = <T extends {
+        renewalTarget: number | null;
+        winbackTarget: number | null;
+        expansionTarget: number | null;
+        newBusinessTarget: number | null;
+        notes: string | null;
+        returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
+        newServices: Array<{ id: number; name: string; slug: string; color: string }>;
+      }>(d: T): T => {
+        const updated = { ...d };
+        if (variables.renewalTarget !== undefined) updated.renewalTarget = variables.renewalTarget;
+        if (variables.winbackTarget !== undefined) updated.winbackTarget = variables.winbackTarget;
+        if (variables.expansionTarget !== undefined) updated.expansionTarget = variables.expansionTarget;
+        if (variables.newBusinessTarget !== undefined) updated.newBusinessTarget = variables.newBusinessTarget;
+        if (variables.notes !== undefined) updated.notes = variables.notes;
+        if (variables.returnServiceIds !== undefined) {
+          updated.returnServices = variables.returnServiceIds
+            .map((id) => allServices.find((s) => s.id === id))
+            .filter((s): s is Service => !!s)
+            .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+        }
+        if (variables.newServiceIds !== undefined) {
+          updated.newServices = variables.newServiceIds
+            .map((id) => allServices.find((s) => s.id === id))
+            .filter((s): s is Service => !!s)
+            .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+        }
+        return updated;
+      };
+
+      // Optimistically update the full plan cache
       const planKey = ["territoryPlan", variables.planId] as const;
       const previousPlan = queryClient.getQueryData<TerritoryPlanDetail>(planKey);
-
       if (previousPlan) {
-        // Optimistically update the specific district in the cached plan
-        const allServices = queryClient.getQueryData<Service[]>(["services"]) || [];
-
         queryClient.setQueryData<TerritoryPlanDetail>(planKey, {
           ...previousPlan,
-          districts: previousPlan.districts.map((d) => {
-            if (d.leaid !== variables.leaid) return d;
-            const updated = { ...d };
-
-            // Patch target fields that were sent
-            if (variables.renewalTarget !== undefined) updated.renewalTarget = variables.renewalTarget;
-            if (variables.winbackTarget !== undefined) updated.winbackTarget = variables.winbackTarget;
-            if (variables.expansionTarget !== undefined) updated.expansionTarget = variables.expansionTarget;
-            if (variables.newBusinessTarget !== undefined) updated.newBusinessTarget = variables.newBusinessTarget;
-            if (variables.notes !== undefined) updated.notes = variables.notes;
-
-            // Patch services if sent
-            if (variables.returnServiceIds !== undefined) {
-              updated.returnServices = variables.returnServiceIds
-                .map((id) => allServices.find((s) => s.id === id))
-                .filter((s): s is Service => !!s)
-                .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
-            }
-            if (variables.newServiceIds !== undefined) {
-              updated.newServices = variables.newServiceIds
-                .map((id) => allServices.find((s) => s.id === id))
-                .filter((s): s is Service => !!s)
-                .map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
-            }
-
-            return updated;
-          }),
+          districts: previousPlan.districts.map((d) =>
+            d.leaid === variables.leaid ? patchDistrict(d) : d
+          ),
         });
       }
 
-      return { previousPlan };
+      // Optimistically update the single-district cache (used by PlanAccordionContent)
+      const districtKey = ["planDistrict", variables.planId, variables.leaid] as const;
+      const previousDistrict = queryClient.getQueryData<PlanDistrictDetail>(districtKey);
+      if (previousDistrict) {
+        queryClient.setQueryData<PlanDistrictDetail>(districtKey, patchDistrict(previousDistrict));
+      }
+
+      return { previousPlan, previousDistrict };
     },
     onError: (_err, variables, context) => {
       // Roll back to previous state on error
       if (context?.previousPlan) {
         queryClient.setQueryData(["territoryPlan", variables.planId], context.previousPlan);
+      }
+      if (context?.previousDistrict) {
+        queryClient.setQueryData(["planDistrict", variables.planId, variables.leaid], context.previousDistrict);
       }
     },
     onSettled: (_, _err, variables) => {

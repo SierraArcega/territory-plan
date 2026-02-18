@@ -50,7 +50,7 @@ export default function DistrictTabStrip({
   activeTab,
   onSelect,
   contactCount,
-  showPlanning = false,
+  showPlanning = true,
   showSignals = true,
 }: DistrictTabStripProps) {
   const visibleTabs = TABS

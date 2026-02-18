@@ -71,7 +71,7 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         activeTab={activeTab}
         onSelect={setActiveTab}
         contactCount={contacts.length}
-        showPlanning={!!activePlanId}
+        showPlanning
         showSignals={data.district.accountType === "district" || !data.district.accountType}
       />
 
