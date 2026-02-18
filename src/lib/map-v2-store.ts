@@ -342,7 +342,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   isExploreActive: false,
   exploreEntity: "districts" as ExploreEntity,
   exploreColumns: {
-    districts: ["name", "state", "enrollment", "isCustomer", "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "owner", "notes", "planCount", "lastActivity", "tags"],
+    districts: ["name", "state", "enrollment", "isCustomer", "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "owner", "notes", "planNames", "lastActivity", "tags"],
     activities: ["title", "type", "status", "startDate", "outcomeType", "districtNames", "planNames"],
     tasks: ["title", "status", "priority", "dueDate", "districtNames", "planNames"],
     contacts: ["name", "title", "email", "phone", "districtName", "isPrimary", "lastActivity"],

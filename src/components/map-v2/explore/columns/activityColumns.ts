@@ -20,6 +20,9 @@ export interface ActivityRow {
   endDate: string | null;
   outcomeType: string | null;
   outcome: string | null;
+  notes: string | null;
+  source: string;
+  createdAt: string;
   districtNames: string[];
   planNames: string[];
   contactNames: string[];
@@ -62,6 +65,14 @@ export const activityColumns: ColumnDef[] = [
     filterType: "enum",
     enumValues: ["planned", "completed", "cancelled"],
   },
+  {
+    key: "source",
+    label: "Source",
+    group: "Core",
+    isDefault: false,
+    filterType: "enum",
+    enumValues: ["manual", "calendar_sync"],
+  },
 
   // ---- Scheduling ----
   {
@@ -74,6 +85,13 @@ export const activityColumns: ColumnDef[] = [
   {
     key: "endDate",
     label: "End Date",
+    group: "Scheduling",
+    isDefault: false,
+    filterType: "date",
+  },
+  {
+    key: "createdAt",
+    label: "Created",
     group: "Scheduling",
     isDefault: false,
     filterType: "date",
@@ -99,6 +117,15 @@ export const activityColumns: ColumnDef[] = [
     key: "outcome",
     label: "Outcome Notes",
     group: "Outcomes",
+    isDefault: false,
+    filterType: "text",
+  },
+
+  // ---- Details ----
+  {
+    key: "notes",
+    label: "Notes",
+    group: "Details",
     isDefault: false,
     filterType: "text",
   },

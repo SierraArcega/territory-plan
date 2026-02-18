@@ -14,6 +14,35 @@ import {
 export const dynamic = "force-dynamic";
 
 // ---------------------------------------------------------------------------
+// Simple TTL cache — avoids redundant DB hits for identical explore queries
+// (e.g. React Query refetches on focus, rapid filter toggling, etc.)
+// ---------------------------------------------------------------------------
+
+const CACHE_TTL_MS = 30_000; // 30 seconds
+const CACHE_MAX_ENTRIES = 50;
+
+const queryCache = new Map<string, { data: unknown; expiresAt: number }>();
+
+function getCached<T>(key: string): T | undefined {
+  const entry = queryCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    queryCache.delete(key);
+    return undefined;
+  }
+  return entry.data as T;
+}
+
+function setCache(key: string, data: unknown): void {
+  // Evict oldest entries if at capacity
+  if (queryCache.size >= CACHE_MAX_ENTRIES) {
+    const firstKey = queryCache.keys().next().value;
+    if (firstKey !== undefined) queryCache.delete(firstKey);
+  }
+  queryCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+// ---------------------------------------------------------------------------
 // Parse query params shared across all entities
 // ---------------------------------------------------------------------------
 
@@ -55,7 +84,99 @@ function parseQueryParams(req: NextRequest) {
     Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "50", 10))
   );
 
-  return { filters, sorts, page, pageSize };
+  // Visible columns (comma-separated client keys) — used to trim the select
+  const columnsParam = url.searchParams.get("columns");
+  const columns: string[] | null = columnsParam
+    ? columnsParam.split(",").filter(Boolean)
+    : null;
+
+  return { filters, sorts, page, pageSize, columns };
+}
+
+// ---------------------------------------------------------------------------
+// Map from client column key → Prisma field name for districts
+// (Reverse of DISTRICT_FIELD_MAP for scalar fields; relations handled separately)
+// ---------------------------------------------------------------------------
+
+const CLIENT_TO_PRISMA: Record<string, string> = Object.fromEntries(
+  Object.entries(DISTRICT_FIELD_MAP).map(([clientKey, prismaField]) => [
+    clientKey,
+    prismaField,
+  ])
+);
+
+// Relation columns that need special select objects
+const RELATION_SELECTS: Record<string, Record<string, unknown>> = {
+  tags: {
+    districtTags: {
+      select: { tag: { select: { id: true, name: true, color: true } } },
+    },
+  },
+  planNames: {
+    territoryPlans: { select: { plan: { select: { name: true } } } },
+  },
+  lastActivity: {
+    activityLinks: {
+      select: { activity: { select: { startDate: true } } },
+      orderBy: { activity: { startDate: "desc" } },
+      take: 1,
+    },
+  },
+};
+
+// Columns always fetched (needed for row identity and aggregates)
+const ALWAYS_SELECT = ["leaid", "name", "stateAbbrev"] as const;
+
+function buildDistrictSelect(columns: string[] | null): Record<string, unknown> {
+  // No column restriction → fetch everything (backwards-compatible)
+  if (!columns) {
+    return buildFullDistrictSelect();
+  }
+
+  const select: Record<string, unknown> = {};
+
+  // Always include identity columns
+  for (const f of ALWAYS_SELECT) {
+    select[f] = true;
+  }
+
+  // Add requested scalar columns
+  for (const col of columns) {
+    const prismaField = CLIENT_TO_PRISMA[col];
+    if (prismaField && !(prismaField in select)) {
+      select[prismaField] = true;
+    }
+    // Add relation columns
+    const relSelect = RELATION_SELECTS[col];
+    if (relSelect) {
+      Object.assign(select, relSelect);
+    }
+  }
+
+  // Also select any fields used in aggregate (enrollment, fy26OpenPipeline, fy26ClosedWonNetBooking)
+  select.enrollment = true;
+  select.fy26OpenPipeline = true;
+  select.fy26ClosedWonNetBooking = true;
+
+  return select;
+}
+
+function buildFullDistrictSelect(): Record<string, unknown> {
+  // Original full select — all scalar + relation fields
+  const select: Record<string, unknown> = {};
+  // Include all mapped scalar fields
+  const seen = new Set<string>();
+  for (const prismaField of Object.values(DISTRICT_FIELD_MAP)) {
+    if (!seen.has(prismaField)) {
+      select[prismaField] = true;
+      seen.add(prismaField);
+    }
+  }
+  // Include all relations
+  for (const relSelect of Object.values(RELATION_SELECTS)) {
+    Object.assign(select, relSelect);
+  }
+  return select;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +184,7 @@ function parseQueryParams(req: NextRequest) {
 // ---------------------------------------------------------------------------
 
 async function handleDistricts(req: NextRequest) {
-  const { filters, sorts, page, pageSize } = parseQueryParams(req);
+  const { filters, sorts, page, pageSize, columns } = parseQueryParams(req);
   const where = buildWhereClause(filters, DISTRICT_FIELD_MAP);
 
   // Build orderBy (multi-sort: Prisma accepts an array of single-key objects)
@@ -74,46 +195,12 @@ async function handleDistricts(req: NextRequest) {
   }
   if (orderBy.length === 0) orderBy.push({ name: "asc" });
 
+  const districtSelect = buildDistrictSelect(columns);
+
   const [rows, total, aggResult] = await Promise.all([
     prisma.district.findMany({
       where,
-      select: {
-        leaid: true,
-        name: true,
-        stateAbbrev: true,
-        enrollment: true,
-        isCustomer: true,
-        hasOpenPipeline: true,
-        fy26OpenPipeline: true,
-        fy26ClosedWonNetBooking: true,
-        salesExecutive: true,
-        urbanCentricLocale: true,
-        graduationRateTotal: true,
-        mathProficiencyPct: true,
-        readProficiencyPct: true,
-        swdPct: true,
-        ellPct: true,
-        childrenPovertyPercent: true,
-        accountType: true,
-        notes: true,
-        owner: true,
-        // point location for mini-map
-        // Prisma cannot select Unsupported fields via select, so we omit geometry
-        // Relations
-        districtTags: {
-          select: {
-            tag: { select: { id: true, name: true, color: true } },
-          },
-        },
-        territoryPlans: { select: { planId: true } },
-        activityLinks: {
-          select: {
-            activity: { select: { startDate: true } },
-          },
-          orderBy: { activity: { startDate: "desc" } },
-          take: 1,
-        },
-      },
+      select: districtSelect,
       orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -130,31 +217,31 @@ async function handleDistricts(req: NextRequest) {
     }),
   ]);
 
-  // Reshape rows for the client
-  const data = rows.map((d) => ({
-    leaid: d.leaid,
-    name: d.name,
-    state: d.stateAbbrev,
-    enrollment: d.enrollment,
-    isCustomer: d.isCustomer,
-    hasOpenPipeline: d.hasOpenPipeline,
-    fy26_open_pipeline_value: d.fy26OpenPipeline,
-    fy26_closed_won_net_booking: d.fy26ClosedWonNetBooking,
-    salesExecutive: d.salesExecutive,
-    urbanicity: d.urbanCentricLocale,
-    graduationRate: d.graduationRateTotal,
-    mathProficiency: d.mathProficiencyPct,
-    readProficiency: d.readProficiencyPct,
-    sped_percent: d.swdPct,
-    ell_percent: d.ellPct,
-    free_lunch_percent: d.childrenPovertyPercent,
-    accountType: d.accountType,
-    notes: d.notes,
-    owner: d.owner,
-    tags: d.districtTags.map((dt) => dt.tag),
-    planCount: d.territoryPlans.length,
-    lastActivity: d.activityLinks[0]?.activity?.startDate ?? null,
-  }));
+  // Reshape rows: map Prisma field names → client keys
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = (rows as any[]).map((d) => {
+    const row: Record<string, unknown> = {};
+
+    // Map scalar fields using DISTRICT_FIELD_MAP (clientKey → prismaField)
+    for (const [clientKey, prismaField] of Object.entries(DISTRICT_FIELD_MAP)) {
+      if (prismaField in d) {
+        row[clientKey] = d[prismaField];
+      }
+    }
+
+    // Relations (only if fetched)
+    if (d.districtTags) {
+      row.tags = d.districtTags.map((dt: { tag: unknown }) => dt.tag);
+    }
+    if (d.territoryPlans) {
+      row.planNames = d.territoryPlans.map((tp: { plan: { name: string } }) => tp.plan.name);
+    }
+    if (d.activityLinks) {
+      row.lastActivity = d.activityLinks[0]?.activity?.startDate ?? null;
+    }
+
+    return row;
+  });
 
   return {
     data,
@@ -187,7 +274,7 @@ async function handleActivities(req: NextRequest, userId: string) {
 
   // Fetch paginated rows + aggregates in parallel using COUNT queries
   // (avoids loading the entire result set into memory)
-  const [rows, total, completedCount, positiveOutcomes, uniqueDistrictsResult] = await Promise.all([
+  const [rows, total, completedCount, positiveOutcomes, uniqueDistrictCount] = await Promise.all([
     prisma.activity.findMany({
       where,
       select: {
@@ -199,6 +286,9 @@ async function handleActivities(req: NextRequest, userId: string) {
         endDate: true,
         outcomeType: true,
         outcome: true,
+        notes: true,
+        source: true,
+        createdAt: true,
         districts: {
           select: {
             district: { select: { name: true, leaid: true } },
@@ -224,12 +314,19 @@ async function handleActivities(req: NextRequest, userId: string) {
     prisma.activity.count({ where: { ...where, status: "completed" } }),
     // Count positive outcomes (database-side)
     prisma.activity.count({ where: { ...where, outcomeType: "positive_progress" } }),
-    // Count distinct districts touched — Prisma doesn't support COUNT(DISTINCT)
-    // natively, so we use the join table with a groupBy to get unique district IDs
-    prisma.activityDistrict.groupBy({
-      by: ["districtLeaid"],
-      where: { activity: where },
-    }),
+    // Count distinct districts touched — use raw SQL COUNT(DISTINCT) when
+    // no explore filters are active (common case), avoiding the expensive
+    // groupBy that loads all unique district rows into Node memory.
+    filters.length === 0
+      ? prisma.$queryRaw<[{ count: number }]>`
+          SELECT COUNT(DISTINCT ad.district_leaid)::int AS count
+          FROM activity_districts ad
+          JOIN activities a ON a.id = ad.activity_id
+          WHERE a.created_by_user_id = ${userId}
+        `.then((r) => r[0].count)
+      : prisma.activityDistrict
+          .groupBy({ by: ["districtLeaid"], where: { activity: where } })
+          .then((r) => r.length),
   ]);
 
   const data = rows.map((a) => ({
@@ -241,6 +338,9 @@ async function handleActivities(req: NextRequest, userId: string) {
     endDate: a.endDate,
     outcomeType: a.outcomeType,
     outcome: a.outcome,
+    notes: a.notes,
+    source: a.source,
+    createdAt: a.createdAt,
     districtNames: a.districts.map((d) => d.district.name),
     planNames: a.plans.map((p) => p.plan.name),
     contactNames: a.contacts.map((c) => c.contact.name),
@@ -252,7 +352,7 @@ async function handleActivities(req: NextRequest, userId: string) {
       count: total,
       completed_count: completedCount,
       positive_outcomes: positiveOutcomes,
-      unique_districts_touched: uniqueDistrictsResult.length,
+      unique_districts_touched: uniqueDistrictCount,
     },
     pagination: { page, pageSize, total },
   };
@@ -283,9 +383,11 @@ async function handleTasks(req: NextRequest, userId: string) {
       select: {
         id: true,
         title: true,
+        description: true,
         status: true,
         priority: true,
         dueDate: true,
+        createdAt: true,
         districts: {
           select: {
             district: { select: { name: true, leaid: true } },
@@ -299,6 +401,11 @@ async function handleTasks(req: NextRequest, userId: string) {
         contacts: {
           select: {
             contact: { select: { name: true, id: true } },
+          },
+        },
+        activities: {
+          select: {
+            activity: { select: { title: true, id: true } },
           },
         },
       },
@@ -330,12 +437,15 @@ async function handleTasks(req: NextRequest, userId: string) {
   const data = rows.map((t) => ({
     id: t.id,
     title: t.title,
+    description: t.description,
     status: t.status,
     priority: t.priority,
     dueDate: t.dueDate,
+    createdAt: t.createdAt,
     districtNames: t.districts.map((d) => d.district.name),
     planNames: t.plans.map((p) => p.plan.name),
     contactNames: t.contacts.map((c) => c.contact.name),
+    activityNames: t.activities.map((a) => a.activity.title),
   }));
 
   return {
@@ -372,7 +482,7 @@ async function handleContacts(req: NextRequest) {
 
   // Fetch paginated rows + aggregates in parallel using COUNT queries
   // (avoids loading the entire contact set into memory)
-  const [rows, total, primaryCount, uniqueDistrictsResult, contactsWithRecentActivity] = await Promise.all([
+  const [rows, total, primaryCount, uniqueDistrictCount, contactsWithRecentActivity] = await Promise.all([
     prisma.contact.findMany({
       where,
       select: {
@@ -382,6 +492,10 @@ async function handleContacts(req: NextRequest) {
         email: true,
         phone: true,
         isPrimary: true,
+        linkedinUrl: true,
+        persona: true,
+        seniorityLevel: true,
+        createdAt: true,
         district: { select: { name: true, leaid: true } },
         activityLinks: {
           select: {
@@ -397,11 +511,15 @@ async function handleContacts(req: NextRequest) {
     }),
     prisma.contact.count({ where }),
     prisma.contact.count({ where: { ...where, isPrimary: true } }),
-    // Count distinct districts — groupBy gives us one row per unique leaid
-    prisma.contact.groupBy({
-      by: ["leaid"],
-      where,
-    }),
+    // Count distinct districts — use raw SQL COUNT(DISTINCT) when no filters,
+    // avoiding groupBy that loads all unique rows into Node memory.
+    filters.length === 0
+      ? prisma.$queryRaw<[{ count: number }]>`
+          SELECT COUNT(DISTINCT leaid)::int AS count FROM contacts
+        `.then((r) => r[0].count)
+      : prisma.contact
+          .groupBy({ by: ["leaid"], where })
+          .then((r) => r.length),
     // Count contacts with activity in the last 30 days (database-side)
     prisma.contact.count({
       where: {
@@ -420,6 +538,10 @@ async function handleContacts(req: NextRequest) {
     email: c.email,
     phone: c.phone,
     isPrimary: c.isPrimary,
+    linkedinUrl: c.linkedinUrl,
+    persona: c.persona,
+    seniorityLevel: c.seniorityLevel,
+    createdAt: c.createdAt,
     districtName: c.district.name,
     districtLeaid: c.district.leaid,
     lastActivity: c.activityLinks[0]?.activity?.startDate ?? null,
@@ -430,7 +552,7 @@ async function handleContacts(req: NextRequest) {
     aggregates: {
       count: total,
       primary_count: primaryCount,
-      unique_districts: uniqueDistrictsResult.length,
+      unique_districts: uniqueDistrictCount,
       contacts_with_recent_activity: contactsWithRecentActivity,
     },
     pagination: { page, pageSize, total },
@@ -463,6 +585,13 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Build cache key from entity + user + query string
+    const cacheKey = `${entity}:${user.id}:${req.nextUrl.search}`;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     let result;
 
     switch (entity) {
@@ -479,6 +608,8 @@ export async function GET(
         result = await handleContacts(req);
         break;
     }
+
+    setCache(cacheKey, result);
 
     return NextResponse.json(result);
   } catch (error) {

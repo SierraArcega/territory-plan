@@ -14,12 +14,15 @@ export interface ColumnDef {
 export interface TaskRow {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   priority: string;
   dueDate: string | null;
+  createdAt: string;
   districtNames: string[];
   planNames: string[];
   contactNames: string[];
+  activityNames: string[];
 }
 
 export const taskColumns: ColumnDef[] = [
@@ -47,6 +50,13 @@ export const taskColumns: ColumnDef[] = [
     filterType: "enum",
     enumValues: ["low", "medium", "high", "urgent"],
   },
+  {
+    key: "description",
+    label: "Description",
+    group: "Core",
+    isDefault: false,
+    filterType: "text",
+  },
 
   // ---- Scheduling ----
   {
@@ -54,6 +64,13 @@ export const taskColumns: ColumnDef[] = [
     label: "Due Date",
     group: "Scheduling",
     isDefault: true,
+    filterType: "date",
+  },
+  {
+    key: "createdAt",
+    label: "Created",
+    group: "Scheduling",
+    isDefault: false,
     filterType: "date",
   },
 
@@ -75,6 +92,13 @@ export const taskColumns: ColumnDef[] = [
   {
     key: "contactNames",
     label: "Contacts",
+    group: "Associations",
+    isDefault: false,
+    filterType: "text",
+  },
+  {
+    key: "activityNames",
+    label: "Activities",
     group: "Associations",
     isDefault: false,
     filterType: "text",

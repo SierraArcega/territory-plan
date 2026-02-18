@@ -18,6 +18,10 @@ export interface ContactRow {
   email: string | null;
   phone: string | null;
   isPrimary: boolean;
+  linkedinUrl: string | null;
+  persona: string | null;
+  seniorityLevel: string | null;
+  createdAt: string;
   districtName: string;
   districtLeaid: string;
   lastActivity: string | null;
@@ -54,6 +58,29 @@ export const contactColumns: ColumnDef[] = [
     filterType: "text",
   },
 
+  // ---- Profile ----
+  {
+    key: "persona",
+    label: "Persona",
+    group: "Profile",
+    isDefault: false,
+    filterType: "text",
+  },
+  {
+    key: "seniorityLevel",
+    label: "Seniority",
+    group: "Profile",
+    isDefault: false,
+    filterType: "text",
+  },
+  {
+    key: "linkedinUrl",
+    label: "LinkedIn",
+    group: "Profile",
+    isDefault: false,
+    filterType: "text",
+  },
+
   // ---- Association ----
   {
     key: "districtName",
@@ -85,6 +112,13 @@ export const contactColumns: ColumnDef[] = [
     label: "Last Activity",
     group: "Engagement",
     isDefault: true,
+    filterType: "date",
+  },
+  {
+    key: "createdAt",
+    label: "Created",
+    group: "Engagement",
+    isDefault: false,
     filterType: "date",
   },
 ];
