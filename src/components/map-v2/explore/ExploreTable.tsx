@@ -67,6 +67,32 @@ function columnLabel(key: string): string {
 
 const CURRENCY_KEYS = /revenue|pipeline|booking|value|take|closed_won/i;
 const PERCENT_KEYS = /percent|rate|proficiency/i;
+const TAG_COLUMNS = new Set(["tags", "planNames"]);
+
+function renderColoredPills(items: { name: string; color: string }[]) {
+  if (items.length === 0) return <span className="text-gray-300">{"\u2014"}</span>;
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {items.map((item, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium leading-tight"
+          style={{
+            backgroundColor: item.color + "18",
+            color: item.color,
+            border: `1px solid ${item.color}30`,
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: item.color }}
+          />
+          {item.name}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function formatCellValue(value: unknown, key: string): string {
   if (value == null) return "\u2014";
@@ -296,21 +322,36 @@ export default function ExploreTable({
       const isEditable = entityType === "districts" && colDef?.editable;
       const isOwner = key === "owner";
 
+      // Determine cell renderer
+      const isTagColumn = TAG_COLUMNS.has(key);
+
+      let cellRenderer;
+      if (isEditable) {
+        cellRenderer = (info: { getValue: () => unknown; row: { original: Record<string, unknown> } }) => {
+          const value = info.getValue();
+          const rowId = (info.row.original.leaid || info.row.original.id) as string;
+          if (isOwner) {
+            return <EditableOwnerCell value={value} rowId={rowId} onSave={handleSave} users={users} />;
+          }
+          return <EditableTextCell value={value} rowId={rowId} column={key} onSave={handleSave} />;
+        };
+      } else if (isTagColumn) {
+        cellRenderer = (info: { getValue: () => unknown }) => {
+          const value = info.getValue();
+          if (Array.isArray(value) && value.length > 0 && typeof value[0] === "object" && value[0] !== null && "color" in value[0]) {
+            return renderColoredPills(value as { name: string; color: string }[]);
+          }
+          return formatCellValue(value, key);
+        };
+      } else {
+        cellRenderer = (info: { getValue: () => unknown }) => formatCellValue(info.getValue(), key);
+      }
+
       return {
         id: key,
         accessorFn: (row: Record<string, unknown>) => row[key],
         header: () => columnLabel(key),
-        cell: isEditable
-          ? (info) => {
-              const value = info.getValue();
-              const rowId = (info.row.original.leaid || info.row.original.id) as string;
-
-              if (isOwner) {
-                return <EditableOwnerCell value={value} rowId={rowId} onSave={handleSave} users={users} />;
-              }
-              return <EditableTextCell value={value} rowId={rowId} column={key} onSave={handleSave} />;
-            }
-          : (info) => formatCellValue(info.getValue(), key),
+        cell: cellRenderer,
       };
     });
 
