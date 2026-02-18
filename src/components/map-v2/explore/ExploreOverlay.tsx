@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
-import { useMapV2Store, type ExploreEntity } from "@/lib/map-v2-store";
+import { useEffect, useCallback } from "react";
+import { useMapV2Store, type ExploreEntity, type ExploreSavedView } from "@/lib/map-v2-store";
 import { useExploreData } from "@/lib/api";
 import ExploreKPICards from "./ExploreKPICards";
 import ExploreTable from "./ExploreTable";
 import ExploreColumnPicker from "./ExploreColumnPicker";
 import ExploreFilters from "./ExploreFilters";
 import ExploreSortDropdown from "./ExploreSortDropdown";
+import ExploreSavedViews from "./ExploreSavedViews";
 import BulkActionBar from "./BulkActionBar";
 import RightPanel from "../RightPanel";
+import { districtColumns } from "./columns/districtColumns";
+import { activityColumns } from "./columns/activityColumns";
+import { taskColumns } from "./columns/taskColumns";
+import { contactColumns } from "./columns/contactColumns";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
@@ -17,6 +22,16 @@ const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: bo
   { key: "tasks", label: "Tasks", path: "M3 4H5V6H3V4ZM7 4.5H13M3 8H5V10H3V8ZM7 8.5H13M3 12H5V14H3V12ZM7 12.5H13", stroke: true },
   { key: "contacts", label: "Contacts", path: "M8 7C9.1 7 10 6.1 10 5S9.1 3 8 3 6 3.9 6 5 6.9 7 8 7ZM4 13C4 11.3 5.8 10 8 10S12 11.3 12 13", stroke: true },
 ];
+
+// Default columns per entity — derived from column definitions (isDefault: true)
+const DEFAULT_COLUMNS: Record<ExploreEntity, string[]> = {
+  districts: districtColumns.filter((c) => c.isDefault).map((c) => c.key),
+  activities: activityColumns.filter((c) => c.isDefault).map((c) => c.key),
+  tasks: taskColumns.filter((c) => c.isDefault).map((c) => c.key),
+  contacts: contactColumns.filter((c) => c.isDefault).map((c) => c.key),
+};
+
+const ALL_ENTITIES: ExploreEntity[] = ["districts", "activities", "tasks", "contacts"];
 
 export default function ExploreOverlay() {
   const isExploreActive = useMapV2Store((s) => s.isExploreActive);
@@ -41,6 +56,14 @@ export default function ExploreOverlay() {
   const closeRightPanel = useMapV2Store((s) => s.closeRightPanel);
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
 
+  // Saved views
+  const saveView = useMapV2Store((s) => s.saveView);
+  const loadView = useMapV2Store((s) => s.loadView);
+  const deleteView = useMapV2Store((s) => s.deleteView);
+  const activeViewId = useMapV2Store((s) => s.activeViewId);
+  const exploreSavedViews = useMapV2Store((s) => s.exploreSavedViews);
+  const setActiveViewId = useMapV2Store((s) => s.setActiveViewId);
+
   // Bulk selection
   const selectedDistrictLeaids = useMapV2Store((s) => s.selectedDistrictLeaids);
   const selectAllMatchingFilters = useMapV2Store((s) => s.selectAllMatchingFilters);
@@ -48,6 +71,31 @@ export default function ExploreOverlay() {
   const setDistrictSelection = useMapV2Store((s) => s.setDistrictSelection);
   const clearDistrictSelection = useMapV2Store((s) => s.clearDistrictSelection);
   const setSelectAllMatchingFilters = useMapV2Store((s) => s.setSelectAllMatchingFilters);
+
+  // Load saved views from localStorage on mount
+  useEffect(() => {
+    for (const entity of ALL_ENTITIES) {
+      const key = `explore-views-${entity}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const views = JSON.parse(stored) as ExploreSavedView[];
+          views.forEach((v) => saveView(entity, v));
+        } catch {
+          /* ignore corrupt data */
+        }
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save views to localStorage when they change
+  useEffect(() => {
+    for (const entity of ALL_ENTITIES) {
+      const key = `explore-views-${entity}`;
+      const views = exploreSavedViews[entity];
+      localStorage.setItem(key, JSON.stringify(views));
+    }
+  }, [exploreSavedViews]);
 
   // Load column selections from localStorage on mount
   useEffect(() => {
@@ -105,6 +153,41 @@ export default function ExploreOverlay() {
       setExploreSort(exploreEntity, [{ column, direction: "asc" }]);
     }
   };
+
+  // Dirty detection for saved views
+  const currentActiveViewId = activeViewId[exploreEntity];
+  const activeView = exploreSavedViews[exploreEntity].find((v) => v.id === currentActiveViewId);
+  const isDirty = activeView
+    ? JSON.stringify(activeView.filters) !== JSON.stringify(exploreFilters[exploreEntity]) ||
+      JSON.stringify(activeView.sorts) !== JSON.stringify(exploreSort[exploreEntity]) ||
+      JSON.stringify(activeView.columns) !== JSON.stringify(exploreColumns[exploreEntity])
+    : false;
+
+  // Reset to defaults handler (for "Default" view)
+  const handleResetToDefaults = useCallback(() => {
+    clearExploreFilters(exploreEntity);
+    setExploreSort(exploreEntity, []);
+    setExploreColumns(exploreEntity, DEFAULT_COLUMNS[exploreEntity]);
+  }, [exploreEntity, clearExploreFilters, setExploreSort, setExploreColumns]);
+
+  // Save over active view (overwrite)
+  const handleSaveOverActiveView = useCallback(() => {
+    if (!activeView) return;
+    const updated: ExploreSavedView = {
+      ...activeView,
+      filters: [...exploreFilters[exploreEntity]],
+      sorts: [...exploreSort[exploreEntity]],
+      columns: [...exploreColumns[exploreEntity]],
+    };
+    saveView(exploreEntity, updated);
+  }, [activeView, exploreEntity, exploreFilters, exploreSort, exploreColumns, saveView]);
+
+  // Discard changes — revert to last saved state
+  const handleDiscardChanges = useCallback(() => {
+    if (currentActiveViewId) {
+      loadView(exploreEntity, currentActiveViewId);
+    }
+  }, [currentActiveViewId, exploreEntity, loadView]);
 
   // Fetch data
   const { data: result, isLoading } = useExploreData(exploreEntity, {
@@ -180,6 +263,21 @@ export default function ExploreOverlay() {
         {/* Filter bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+            <ExploreSavedViews
+              entity={exploreEntity}
+              currentFilters={exploreFilters[exploreEntity]}
+              currentSorts={exploreSort[exploreEntity]}
+              currentColumns={exploreColumns[exploreEntity]}
+              savedViews={exploreSavedViews[exploreEntity]}
+              activeViewId={activeViewId[exploreEntity]}
+              onSave={(view) => saveView(exploreEntity, view)}
+              onLoad={(viewId) => loadView(exploreEntity, viewId)}
+              onDelete={(viewId) => deleteView(exploreEntity, viewId)}
+              onDiscard={handleDiscardChanges}
+              onSetActiveViewId={(viewId) => setActiveViewId(exploreEntity, viewId)}
+              onResetToDefaults={handleResetToDefaults}
+            />
+            <div className="w-px h-5 bg-gray-200" />
             <ExploreSortDropdown
               entity={exploreEntity}
               sorts={exploreSort[exploreEntity]}
@@ -200,11 +298,30 @@ export default function ExploreOverlay() {
               onClearAll={() => clearExploreFilters(exploreEntity)}
             />
           </div>
-          <ExploreColumnPicker
-            entity={exploreEntity}
-            selectedColumns={exploreColumns[exploreEntity]}
-            onColumnsChange={(cols) => setExploreColumns(exploreEntity, cols)}
-          />
+          <div className="flex items-center gap-2">
+            {/* Dirty state: Discard / Save buttons */}
+            {isDirty && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleDiscardChanges}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 bg-white transition-all"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleSaveOverActiveView}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-[#403770] text-white hover:bg-[#403770]/90 transition-all"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+            <ExploreColumnPicker
+              entity={exploreEntity}
+              selectedColumns={exploreColumns[exploreEntity]}
+              onColumnsChange={(cols) => setExploreColumns(exploreEntity, cols)}
+            />
+          </div>
         </div>
 
         {/* KPI summary cards */}
