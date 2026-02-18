@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/lib/map-v2-store";
@@ -103,10 +103,29 @@ const ABBREV_TO_STATE_NAME: Record<string, string> = Object.fromEntries(
   Object.entries(STATE_NAME_TO_ABBREV).map(([name, abbrev]) => [abbrev, name])
 );
 
+// Click ripples extracted into their own component so ripple animations
+// don't trigger a re-render of the entire 1000+ line map container.
+const ClickRipples = React.memo(function ClickRipples() {
+  const clickRipples = useMapV2Store((s) => s.clickRipples);
+  const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
+
+  return (
+    <>
+      {clickRipples.map((ripple) => (
+        <div
+          key={ripple.id}
+          className={`click-ripple click-ripple-${ripple.color}`}
+          style={{ left: ripple.x, top: ripple.y }}
+          onAnimationEnd={() => removeClickRipple(ripple.id)}
+        />
+      ))}
+    </>
+  );
+});
+
 export default function MapV2Container() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   const schoolFetchController = useRef<AbortController | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const isTouchDevice = useIsTouchDevice();
@@ -129,8 +148,6 @@ export default function MapV2Container() {
   const filterAccountTypes = useMapV2Store((s) => s.filterAccountTypes);
   const fullmindEngagement = useMapV2Store((s) => s.fullmindEngagement);
   const competitorEngagement = useMapV2Store((s) => s.competitorEngagement);
-  const clickRipples = useMapV2Store((s) => s.clickRipples);
-  const removeClickRipple = useMapV2Store((s) => s.removeClickRipple);
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
@@ -664,7 +681,7 @@ export default function MapV2Container() {
 
         // Multi-select mode or Shift+click toggles selection
         if (store.multiSelectMode || e.originalEvent.shiftKey) {
-          store.toggleDistrictSelection(leaid);
+          store.toggleLeaidSelection(leaid);
           return;
         }
 
@@ -1077,60 +1094,13 @@ export default function MapV2Container() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Home marker
-  useEffect(() => {
-    if (!map.current || !mapReady) return;
-
-    // Remove old marker
-    if (homeMarkerRef.current) {
-      homeMarkerRef.current.remove();
-      homeMarkerRef.current = null;
-    }
-
-    if (!profile?.locationLat || !profile?.locationLng) return;
-
-    // Create custom marker element
-    const el = document.createElement("div");
-    el.className = "home-marker";
-    el.style.cssText = `
-      width: 32px; height: 32px; border-radius: 50%;
-      background: #403770; border: 2px solid white;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 2px 8px rgba(64,55,112,0.4);
-      cursor: pointer; transition: transform 0.15s ease;
-    `;
-    el.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
-    el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.15)"; });
-    el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
-
-    const marker = new maplibregl.Marker({ element: el })
-      .setLngLat([profile.locationLng, profile.locationLat])
-      .setPopup(
-        new maplibregl.Popup({ offset: 20, closeButton: false, className: "home-popup" })
-          .setHTML(`<div style="font-size:12px;font-weight:600;color:#403770;">Home &mdash; ${profile.location || "My Location"}</div>`)
-      )
-      .addTo(map.current);
-
-    homeMarkerRef.current = marker;
-
-    return () => {
-      marker.remove();
-    };
-  }, [mapReady, profile?.locationLat, profile?.locationLng, profile?.location]);
 
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Click ripples */}
-      {clickRipples.map((ripple) => (
-        <div
-          key={ripple.id}
-          className={`click-ripple click-ripple-${ripple.color}`}
-          style={{ left: ripple.x, top: ripple.y }}
-          onAnimationEnd={() => removeClickRipple(ripple.id)}
-        />
-      ))}
+      {/* Click ripples (isolated component — doesn't re-render the map) */}
+      <ClickRipples />
 
       {/* Tooltip */}
       <MapV2Tooltip ref={tooltipElRef} />

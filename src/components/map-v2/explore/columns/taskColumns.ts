@@ -8,6 +8,7 @@ export interface ColumnDef {
   isDefault: boolean;
   filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags";
   enumValues?: string[];
+  editable?: boolean;
 }
 
 export interface TaskRow {

@@ -308,6 +308,53 @@ body {
   animation: chipSlideUp 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes queueRowReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 80px;
+  }
+}
+
+.queue-row-enter {
+  animation: queueRowReveal 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes chipPop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.chip-pop {
+  animation: chipPop 180ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bulkBarSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-slide-up {
+  animation: bulkBarSlideUp 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Map V2 scrollbar - thinner, more subtle */
 .v2-scrollbar::-webkit-scrollbar {
   width: 4px;

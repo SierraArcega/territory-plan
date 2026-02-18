@@ -1959,7 +1959,7 @@
     },
     "sessions": {
       "count": 3247,
-      "revenue": 73191,
+      "revenue": 73149,
       "schools_in_sessions": [
         "Academy of God",
         "Academy for GOD",
@@ -1971,7 +1971,7 @@
     },
     "totals": {
       "entity_count": 3492,
-      "total_revenue": 556011.06640625
+      "total_revenue": 555969.06640625
     },
     "data_quality": {
       "has_nces": true,
