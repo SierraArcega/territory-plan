@@ -7,7 +7,7 @@ import ExploreKPICards from "./ExploreKPICards";
 import ExploreTable from "./ExploreTable";
 import ExploreColumnPicker from "./ExploreColumnPicker";
 import ExploreFilters from "./ExploreFilters";
-import ExploreMiniMap from "./ExploreMiniMap";
+import BulkActionBar from "./BulkActionBar";
 import RightPanel from "../RightPanel";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
@@ -35,7 +35,14 @@ export default function ExploreOverlay() {
   const openRightPanel = useMapV2Store((s) => s.openRightPanel);
   const closeRightPanel = useMapV2Store((s) => s.closeRightPanel);
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
-  const setFilteredDistrictLeaids = useMapV2Store((s) => s.setFilteredDistrictLeaids);
+
+  // Bulk selection
+  const selectedDistrictLeaids = useMapV2Store((s) => s.selectedDistrictLeaids);
+  const selectAllMatchingFilters = useMapV2Store((s) => s.selectAllMatchingFilters);
+  const toggleDistrictSelection = useMapV2Store((s) => s.toggleDistrictSelection);
+  const setDistrictSelection = useMapV2Store((s) => s.setDistrictSelection);
+  const clearDistrictSelection = useMapV2Store((s) => s.clearDistrictSelection);
+  const setSelectAllMatchingFilters = useMapV2Store((s) => s.setSelectAllMatchingFilters);
 
   // Load column selections from localStorage on mount
   useEffect(() => {
@@ -191,7 +198,7 @@ export default function ExploreOverlay() {
 
         {/* Data table */}
         <div className="flex-1 px-6 pb-6 overflow-hidden">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col overflow-hidden">
+          <div className="relative bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col overflow-hidden">
             <ExploreTable
               data={result?.data || []}
               visibleColumns={exploreColumns[exploreEntity]}
@@ -202,27 +209,26 @@ export default function ExploreOverlay() {
               pagination={result?.pagination}
               onPageChange={(page) => setExplorePage(page)}
               entityType={exploreEntity}
+              selectedIds={exploreEntity === "districts" ? selectedDistrictLeaids : undefined}
+              onToggleSelect={exploreEntity === "districts" ? toggleDistrictSelection : undefined}
+              onSelectPage={exploreEntity === "districts" ? (ids) => setDistrictSelection(ids) : undefined}
+              onClearSelection={exploreEntity === "districts" ? clearDistrictSelection : undefined}
             />
+
+            {/* Bulk action bar */}
+            {exploreEntity === "districts" && (
+              <BulkActionBar
+                selectedCount={selectedDistrictLeaids.size}
+                selectedIds={Array.from(selectedDistrictLeaids)}
+                selectAllMatchingFilters={selectAllMatchingFilters}
+                totalMatching={result?.pagination?.total ?? 0}
+                onSelectAllMatching={() => setSelectAllMatchingFilters(true)}
+                onClearSelection={clearDistrictSelection}
+              />
+            )}
           </div>
         </div>
       </div>
-
-      {/* Mini-map for districts */}
-      {exploreEntity === "districts" && result?.data && (
-        <ExploreMiniMap
-          districts={(result.data as any[]).map((d) => ({
-            leaid: d.leaid,
-            lat: d.lat,
-            lng: d.lng,
-          }))}
-          onExpand={() => {
-            setFilteredDistrictLeaids(
-              (result.data as any[]).map((d: any) => d.leaid)
-            );
-            setActiveIconTab("home");
-          }}
-        />
-      )}
 
       {/* Right panel (district card) - shown when a row is clicked */}
       {rightPanelContent && <RightPanel />}
