@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,6 +13,7 @@ import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
+import { planColumns } from "./columns/planColumns";
 
 // ---- Types ----
 
@@ -41,6 +42,7 @@ const ALL_COLUMN_DEFS = [
   ...activityColumns,
   ...taskColumns,
   ...contactColumns,
+  ...planColumns,
 ];
 
 const LABEL_MAP: Record<string, string> = {};
@@ -266,6 +268,17 @@ export default function ExploreTable({
     );
   }, [updateEdits, queryClient]);
 
+  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
+  const togglePlanExpand = useCallback((id: string) => {
+    setExpandedPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const isPlanEntity = entityType === "plans";
+
   // Checkbox helpers
   const pageIds = useMemo(
     () => data.map((row) => (row.leaid || row.id) as string),
@@ -310,8 +323,17 @@ export default function ExploreTable({
       });
     }
 
+    if (isPlanEntity) {
+      dataCols.unshift({
+        id: "__expand",
+        header: () => null,
+        cell: () => null,
+        size: 36,
+      });
+    }
+
     return dataCols;
-  }, [visibleColumns, entityType, showCheckboxes, handleSave, users]);
+  }, [visibleColumns, entityType, showCheckboxes, isPlanEntity, handleSave, users]);
 
   const table = useReactTable({
     data,
@@ -342,6 +364,16 @@ export default function ExploreTable({
               <tr key={headerGroup.id} className="border-b border-gray-200">
                 {headerGroup.headers.map((header) => {
                   const colKey = header.column.id;
+
+                  // Expand header (plans only — empty spacer)
+                  if (colKey === "__expand") {
+                    return (
+                      <th
+                        key={header.id}
+                        className="w-9 bg-gray-50/80 sticky top-0 z-10"
+                      />
+                    );
+                  }
 
                   // Checkbox header
                   if (colKey === "__select") {
@@ -412,7 +444,7 @@ export default function ExploreTable({
             {/* Empty state */}
             {!isLoading && data.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length + (showCheckboxes ? 1 : 0)} className="py-16">
+                <td colSpan={visibleColumns.length + (showCheckboxes ? 1 : 0) + (isPlanEntity ? 1 : 0)} className="py-16">
                   <div className="flex flex-col items-center justify-center">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4 text-gray-300">
                       <circle cx="11" cy="11" r="8" />
@@ -432,47 +464,113 @@ export default function ExploreTable({
                 const rowId = (row.original.leaid || row.original.id) as string;
                 const isSelected = showCheckboxes && selectedIds.has(rowId);
                 return (
-                  <tr
-                    key={row.id}
-                    className={`group cursor-pointer transition-colors duration-100 ${!isLast ? "border-b border-gray-100" : ""} ${
-                      isSelected ? "bg-[#403770]/[0.04]" : "hover:bg-gray-50/70"
-                    }`}
-                    onClick={() => onRowClick?.(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      // Checkbox cell
-                      if (cell.column.id === "__select") {
+                  <React.Fragment key={row.id}>
+                    <tr
+                      className={`group cursor-pointer transition-colors duration-100 ${!isLast ? "border-b border-gray-100" : ""} ${
+                        isSelected ? "bg-[#403770]/[0.04]" : "hover:bg-gray-50/70"
+                      }`}
+                      onClick={() => onRowClick?.(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell) => {
+                        // Checkbox cell
+                        if (cell.column.id === "__select") {
+                          return (
+                            <td key={cell.id} className="w-10 px-3 py-3">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  onToggleSelect?.(rowId);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
+                              />
+                            </td>
+                          );
+                        }
+
+                        // Expand chevron cell (plans only)
+                        if (cell.column.id === "__expand") {
+                          const isExpanded = expandedPlanIds.has(rowId);
+                          return (
+                            <td key={cell.id} className="w-9 px-2 py-3">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); togglePlanExpand(rowId); }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
+                              >
+                                <svg
+                                  width="12" height="12" viewBox="0 0 16 16" fill="none"
+                                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                  className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                                >
+                                  <path d="M6 4L10 8L6 12" />
+                                </svg>
+                              </button>
+                            </td>
+                          );
+                        }
+
+                        const isPrimary = cell.column.id === primaryColumn;
                         return (
-                          <td key={cell.id} className="w-10 px-3 py-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                onToggleSelect?.(rowId);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-3.5 h-3.5 rounded border-gray-300 text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
-                            />
+                          <td
+                            key={cell.id}
+                            className={`px-4 py-3 whitespace-nowrap max-w-[240px] truncate ${
+                              isPrimary
+                                ? "text-sm font-medium text-[#403770]"
+                                : "text-[13px] text-gray-600"
+                            }`}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         );
-                      }
-
-                      const isPrimary = cell.column.id === primaryColumn;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={`px-4 py-3 whitespace-nowrap max-w-[240px] truncate ${
-                            isPrimary
-                              ? "text-sm font-medium text-[#403770]"
-                              : "text-[13px] text-gray-600"
-                          }`}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      })}
+                    </tr>
+                    {isPlanEntity && expandedPlanIds.has(rowId) && (
+                      <tr className="bg-gray-50/50">
+                        <td colSpan={visibleColumns.length + 1} className="px-0 py-0">
+                          <div className="px-10 py-3">
+                            <table className="w-full text-[12px]">
+                              <thead>
+                                <tr className="text-left text-gray-400 uppercase tracking-wider">
+                                  <th className="pb-2 font-semibold">District</th>
+                                  <th className="pb-2 font-semibold text-right">Renewal</th>
+                                  <th className="pb-2 font-semibold text-right">Expansion</th>
+                                  <th className="pb-2 font-semibold text-right">Win Back</th>
+                                  <th className="pb-2 font-semibold text-right">New Business</th>
+                                  <th className="pb-2 font-semibold">Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {((row.original._districts as Array<{
+                                  leaid: string; name: string;
+                                  renewalTarget: number; expansionTarget: number;
+                                  winbackTarget: number; newBusinessTarget: number;
+                                  notes: string | null;
+                                }>) || []).map((d) => (
+                                  <tr key={d.leaid} className="border-t border-gray-100">
+                                    <td className="py-1.5 text-[#403770] font-medium">{d.name}</td>
+                                    <td className="py-1.5 text-right text-gray-600">{d.renewalTarget ? `$${d.renewalTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="py-1.5 text-right text-gray-600">{d.expansionTarget ? `$${d.expansionTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="py-1.5 text-right text-gray-600">{d.winbackTarget ? `$${d.winbackTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="py-1.5 text-right text-gray-600">{d.newBusinessTarget ? `$${d.newBusinessTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="py-1.5 text-gray-500 max-w-[200px] truncate">{d.notes || "\u2014"}</td>
+                                  </tr>
+                                ))}
+                                {(!row.original._districts || (row.original._districts as unknown[]).length === 0) && (
+                                  <tr>
+                                    <td colSpan={6} className="py-3 text-center text-gray-400 italic">
+                                      No districts in this plan
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
           </tbody>
