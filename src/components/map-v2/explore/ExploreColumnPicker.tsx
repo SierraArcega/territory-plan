@@ -113,7 +113,7 @@ export default function ExploreColumnPicker({
 
       {/* Dropdown popover */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex flex-col max-h-80 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 flex flex-col max-h-80 overflow-hidden">
           {/* Header with actions */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/60">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">

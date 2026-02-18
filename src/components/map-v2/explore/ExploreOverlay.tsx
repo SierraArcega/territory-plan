@@ -261,56 +261,55 @@ export default function ExploreOverlay() {
         </div>
 
         {/* Filter bar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
-            <ExploreSavedViews
-              entity={exploreEntity}
-              currentFilters={exploreFilters[exploreEntity]}
-              currentSorts={exploreSort[exploreEntity]}
-              currentColumns={exploreColumns[exploreEntity]}
-              savedViews={exploreSavedViews[exploreEntity]}
-              activeViewId={activeViewId[exploreEntity]}
-              onSave={(view) => saveView(exploreEntity, view)}
-              onLoad={(viewId) => loadView(exploreEntity, viewId)}
-              onDelete={(viewId) => deleteView(exploreEntity, viewId)}
-              onDiscard={handleDiscardChanges}
-              onSetActiveViewId={(viewId) => setActiveViewId(exploreEntity, viewId)}
-              onResetToDefaults={handleResetToDefaults}
-            />
-            <div className="w-px h-5 bg-gray-200" />
-            <ExploreSortDropdown
-              entity={exploreEntity}
-              sorts={exploreSort[exploreEntity]}
-              onAddSort={(rule) => addSortRule(exploreEntity, rule)}
-              onRemoveSort={(column) => removeSortRule(exploreEntity, column)}
-              onReorderSorts={(rules) => reorderSortRules(exploreEntity, rules)}
-              onToggleDirection={(column) => {
-                const rule = exploreSort[exploreEntity].find((s) => s.column === column);
-                if (rule) addSortRule(exploreEntity, { column, direction: rule.direction === "asc" ? "desc" : "asc" });
-              }}
-            />
-            <ExploreFilters
-              entity={exploreEntity}
-              filters={exploreFilters[exploreEntity]}
-              onAddFilter={(f) => addExploreFilter(exploreEntity, f)}
-              onUpdateFilter={(id, updates) => updateExploreFilter(exploreEntity, id, updates)}
-              onRemoveFilter={(id) => removeExploreFilter(exploreEntity, id)}
-              onClearAll={() => clearExploreFilters(exploreEntity)}
-            />
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="bg-white border-b border-gray-200 px-6 py-2 shrink-0 flex items-center gap-2 flex-wrap">
+          <ExploreSavedViews
+            entity={exploreEntity}
+            currentFilters={exploreFilters[exploreEntity]}
+            currentSorts={exploreSort[exploreEntity]}
+            currentColumns={exploreColumns[exploreEntity]}
+            savedViews={exploreSavedViews[exploreEntity]}
+            activeViewId={activeViewId[exploreEntity]}
+            onSave={(view) => saveView(exploreEntity, view)}
+            onLoad={(viewId) => loadView(exploreEntity, viewId)}
+            onDelete={(viewId) => deleteView(exploreEntity, viewId)}
+            onDiscard={handleDiscardChanges}
+            onSetActiveViewId={(viewId) => setActiveViewId(exploreEntity, viewId)}
+            onResetToDefaults={handleResetToDefaults}
+          />
+          <div className="w-px h-5 bg-gray-200 shrink-0" />
+          <ExploreSortDropdown
+            entity={exploreEntity}
+            sorts={exploreSort[exploreEntity]}
+            onAddSort={(rule) => addSortRule(exploreEntity, rule)}
+            onRemoveSort={(column) => removeSortRule(exploreEntity, column)}
+            onReorderSorts={(rules) => reorderSortRules(exploreEntity, rules)}
+            onToggleDirection={(column) => {
+              const rule = exploreSort[exploreEntity].find((s) => s.column === column);
+              if (rule) addSortRule(exploreEntity, { column, direction: rule.direction === "asc" ? "desc" : "asc" });
+            }}
+          />
+          <ExploreFilters
+            entity={exploreEntity}
+            filters={exploreFilters[exploreEntity]}
+            onAddFilter={(f) => addExploreFilter(exploreEntity, f)}
+            onUpdateFilter={(id, updates) => updateExploreFilter(exploreEntity, id, updates)}
+            onRemoveFilter={(id) => removeExploreFilter(exploreEntity, id)}
+            onClearAll={() => clearExploreFilters(exploreEntity)}
+          />
+          {/* Right side — pushed right with ml-auto */}
+          <div className="flex items-center gap-2 ml-auto shrink-0">
             {/* Dirty state: Discard / Save buttons */}
             {isDirty && (
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={handleDiscardChanges}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 bg-white transition-all"
+                  className="px-2.5 py-1.5 text-xs font-medium text-gray-500 hover:text-[#403770] transition-all"
                 >
                   Discard
                 </button>
                 <button
                   onClick={handleSaveOverActiveView}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-[#403770] text-white hover:bg-[#403770]/90 transition-all"
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#403770] text-white hover:bg-[#403770]/90 transition-all"
                 >
                   Save
                 </button>

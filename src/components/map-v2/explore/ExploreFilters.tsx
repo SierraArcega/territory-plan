@@ -617,7 +617,7 @@ export default function ExploreFilters({
               setEditingFilterId(null);
             }
           }}
-          className="px-2.5 py-1 text-xs font-medium border border-dashed border-gray-300 rounded-full text-gray-500 hover:border-[#403770]/30 hover:text-[#403770] hover:bg-[#C4E7E6]/10 transition-all"
+          className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:border-[#403770]/20 hover:text-[#403770] hover:bg-[#C4E7E6]/10 transition-all"
         >
           + Add Filter
         </button>
