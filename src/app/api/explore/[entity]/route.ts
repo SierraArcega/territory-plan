@@ -184,9 +184,53 @@ function buildFullDistrictSelect(): Record<string, unknown> {
 // DISTRICTS handler
 // ---------------------------------------------------------------------------
 
+// Build Prisma where clauses for relation-based filters (tags, plans)
+function buildRelationWhere(filters: FilterDef[]): Record<string, unknown> {
+  const where: Record<string, unknown> = {};
+
+  for (const f of filters) {
+    // Value can be a single string or array of strings
+    const names = Array.isArray(f.value) ? f.value as string[] : typeof f.value === "string" ? [f.value] : [];
+
+    if (f.column === "tags") {
+      if (f.op === "eq" && names.length > 0) {
+        // "includes any of" — match districts with at least one of the named tags
+        where.districtTags = { some: { tag: { name: { in: names, mode: "insensitive" } } } };
+      } else if (f.op === "neq" && names.length > 0) {
+        where.districtTags = { none: { tag: { name: { in: names, mode: "insensitive" } } } };
+      } else if (f.op === "is_empty") {
+        where.districtTags = { none: {} };
+      } else if (f.op === "is_not_empty") {
+        where.districtTags = { some: {} };
+      }
+    } else if (f.column === "planNames") {
+      if (f.op === "eq" && names.length > 0) {
+        where.territoryPlans = { some: { plan: { name: { in: names, mode: "insensitive" } } } };
+      } else if (f.op === "neq" && names.length > 0) {
+        where.territoryPlans = { none: { plan: { name: { in: names, mode: "insensitive" } } } };
+      } else if (f.op === "is_empty") {
+        where.territoryPlans = { none: {} };
+      } else if (f.op === "is_not_empty") {
+        where.territoryPlans = { some: {} };
+      }
+    }
+  }
+
+  return where;
+}
+
 async function handleDistricts(req: NextRequest) {
   const { filters, sorts, page, pageSize, columns } = parseQueryParams(req);
-  const where = buildWhereClause(filters, DISTRICT_FIELD_MAP);
+
+  // Separate relation filters (tags, planNames) from scalar filters
+  const RELATION_COLUMNS = new Set(["tags", "planNames"]);
+  const scalarFilters = filters.filter((f) => !RELATION_COLUMNS.has(f.column));
+  const relationFilters = filters.filter((f) => RELATION_COLUMNS.has(f.column));
+
+  const where = {
+    ...buildWhereClause(scalarFilters, DISTRICT_FIELD_MAP),
+    ...buildRelationWhere(relationFilters),
+  };
 
   // Build orderBy (multi-sort: Prisma accepts an array of single-key objects)
   const orderBy: Record<string, string>[] = [];

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { ExploreEntity, ExploreFilter, FilterOp } from "@/lib/map-v2-store";
+import { useTags, useTerritoryPlans } from "@/lib/api";
 import type { ColumnDef } from "./columns/districtColumns";
 import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
@@ -65,6 +66,12 @@ const OPERATORS_BY_TYPE: Record<string, OperatorOption[]> = {
     { op: "is_empty", label: "is empty", needsValue: false },
     { op: "is_not_empty", label: "is not empty", needsValue: false },
   ],
+  relation: [
+    { op: "eq", label: "includes any of", needsValue: true },
+    { op: "neq", label: "excludes all of", needsValue: true },
+    { op: "is_empty", label: "has none", needsValue: false },
+    { op: "is_not_empty", label: "has any", needsValue: false },
+  ],
 };
 
 function getOperatorLabel(op: FilterOp): string {
@@ -109,6 +116,13 @@ function formatFilterPill(entity: ExploreEntity, filter: ExploreFilter): string 
   if (filter.op === "between") {
     const [min, max] = filter.value as [number, number];
     return `${label} \u00b7 between \u00b7 ${min.toLocaleString()}\u2013${max.toLocaleString()}`;
+  }
+
+  // Multi-select relation values (string[])
+  if (Array.isArray(filter.value) && filter.value.every((v) => typeof v === "string")) {
+    const names = filter.value as string[];
+    const display = names.length <= 2 ? names.join(", ") : `${names[0]} +${names.length - 1} more`;
+    return `${label} \u00b7 ${opLabel} \u00b7 ${display}`;
   }
 
   const displayValue =
@@ -357,6 +371,94 @@ function DateFilterInput({
   );
 }
 
+// ---- Relation filter (tags / plans dropdown) ----
+
+function RelationFilterInput({
+  relationSource,
+  initialValue,
+  onSubmit,
+}: {
+  relationSource: "tags" | "plans";
+  initialValue?: string[];
+  onSubmit: (value: string[]) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialValue || []));
+  const { data: tags } = useTags();
+  const { data: plans } = useTerritoryPlans();
+
+  const items = relationSource === "tags"
+    ? (tags || []).map((t) => ({ id: String(t.id), name: t.name, color: t.color }))
+    : (plans || []).map((p) => ({ id: p.id, name: p.name, color: p.color }));
+
+  const filtered = search.trim()
+    ? items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()))
+    : items;
+
+  const toggle = (name: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  return (
+    <div>
+      <div className="px-2 pt-2">
+        <input
+          autoFocus
+          type="text"
+          placeholder={`Search ${relationSource}\u2026`}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-plum/40"
+        />
+      </div>
+      <div className="p-1.5 max-h-48 overflow-y-auto">
+        {filtered.map((item) => {
+          const isChecked = selected.has(item.name);
+          return (
+            <button
+              key={item.id}
+              onClick={() => toggle(item.name)}
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-[13px] rounded-md transition-colors ${
+                isChecked ? "bg-[#C4E7E6]/25 text-[#403770] font-medium" : "text-gray-700 hover:bg-[#C4E7E6]/15 hover:text-[#403770]"
+              }`}
+            >
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="flex-1 text-left">{item.name}</span>
+              {isChecked && (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 6L5 9L10 3" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="px-3 py-2 text-xs text-gray-400">
+            {search.trim() ? "No matches" : `No ${relationSource} found`}
+          </p>
+        )}
+      </div>
+      <div className="px-2 pb-2 pt-1 border-t border-gray-100">
+        <button
+          disabled={selected.size === 0}
+          onClick={() => onSubmit(Array.from(selected))}
+          className="w-full px-3 py-1.5 text-xs font-medium text-white bg-plum rounded-lg hover:bg-plum/90 disabled:opacity-40"
+        >
+          Apply{selected.size > 0 ? ` (${selected.size})` : ""}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---- Back Button ----
 
 function BackButton({ onClick }: { onClick: () => void }) {
@@ -530,6 +632,14 @@ export default function ExploreFilters({
             operator={selectedOperator}
             initialValue={editingFilterId && typeof existingValue === "string" ? existingValue : undefined}
             onSubmit={(val) => handleSubmitFilter(selectedOperator.op, val)}
+          />
+        );
+      case "relation":
+        return (
+          <RelationFilterInput
+            relationSource={selectedColumn.relationSource || "tags"}
+            initialValue={editingFilterId && Array.isArray(existingValue) ? existingValue as string[] : undefined}
+            onSubmit={(vals) => handleSubmitFilter(selectedOperator.op, vals)}
           />
         );
       case "enum":

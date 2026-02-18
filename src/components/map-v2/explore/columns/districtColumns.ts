@@ -6,8 +6,9 @@ export interface ColumnDef {
   label: string;
   group: string;
   isDefault: boolean;
-  filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags";
+  filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags" | "relation";
   enumValues?: string[];
+  relationSource?: "tags" | "plans";
   editable?: boolean;
 }
 
@@ -919,7 +920,8 @@ export const districtColumns: ColumnDef[] = [
     label: "Plans",
     group: "Signals",
     isDefault: true,
-    filterType: "text",
+    filterType: "relation",
+    relationSource: "plans",
   },
 
   // ---- Engagement ----
@@ -935,6 +937,7 @@ export const districtColumns: ColumnDef[] = [
     label: "Tags",
     group: "Engagement",
     isDefault: true,
-    filterType: "tags",
+    filterType: "relation",
+    relationSource: "tags",
   },
 ];
