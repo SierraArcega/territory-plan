@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     // Require exactly one of leaids or filters
     const hasLeaids = Array.isArray(leaids) && leaids.length > 0;
-    const hasFilters = Array.isArray(filters) && filters.length > 0;
+    const hasFilters = Array.isArray(filters);
 
     if (!hasLeaids && !hasFilters) {
       return NextResponse.json(
