@@ -15,12 +15,14 @@ import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
+import { planColumns } from "./columns/planColumns";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
   { key: "activities", label: "Activities", path: "M8 2V5M3 8H5M11 8H13M4.9 4.9L6.3 6.3M11.1 4.9L9.7 6.3", stroke: true },
   { key: "tasks", label: "Tasks", path: "M3 4H5V6H3V4ZM7 4.5H13M3 8H5V10H3V8ZM7 8.5H13M3 12H5V14H3V12ZM7 12.5H13", stroke: true },
   { key: "contacts", label: "Contacts", path: "M8 7C9.1 7 10 6.1 10 5S9.1 3 8 3 6 3.9 6 5 6.9 7 8 7ZM4 13C4 11.3 5.8 10 8 10S12 11.3 12 13", stroke: true },
+  { key: "plans", label: "Plans", path: "M4 2H12L14 4V14H4V2ZM6 6H12M6 8H12M6 10H10", stroke: true },
 ];
 
 // Default columns per entity — derived from column definitions (isDefault: true)
@@ -29,9 +31,10 @@ const DEFAULT_COLUMNS: Record<ExploreEntity, string[]> = {
   activities: activityColumns.filter((c) => c.isDefault).map((c) => c.key),
   tasks: taskColumns.filter((c) => c.isDefault).map((c) => c.key),
   contacts: contactColumns.filter((c) => c.isDefault).map((c) => c.key),
+  plans: planColumns.filter((c) => c.isDefault).map((c) => c.key),
 };
 
-const ALL_ENTITIES: ExploreEntity[] = ["districts", "activities", "tasks", "contacts"];
+const ALL_ENTITIES: ExploreEntity[] = ["districts", "activities", "tasks", "contacts", "plans"];
 
 export default function ExploreOverlay() {
   const isExploreActive = useMapV2Store((s) => s.isExploreActive);
@@ -197,6 +200,7 @@ export default function ExploreOverlay() {
     filters: exploreFilters[exploreEntity],
     sorts: exploreSort[exploreEntity],
     page: explorePage,
+    columns: exploreColumns[exploreEntity],
   });
 
   if (!isExploreActive) return null;
