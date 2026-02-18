@@ -9,11 +9,10 @@ import PlansView from "@/components/views/PlansView";
 import ActivitiesView from "@/components/views/ActivitiesView";
 import TasksView from "@/components/views/TasksView";
 import HomeView from "@/components/views/HomeView";
-import DataView from "@/components/views/DataView";
 import ProfileView from "@/components/views/ProfileView";
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "data", "profile"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "profile"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -27,7 +26,6 @@ function isValidTab(tab: string | null): tab is TabId {
  * - /?tab=map
  * - /?tab=plans
  * - /?tab=plans&plan=<planId>
- * - /?tab=data
  * - /?tab=profile
  *
  * The URL is synced with the active tab state, allowing for shareable links.
@@ -172,8 +170,6 @@ function HomeContent() {
         return <TasksView />;
       case "home":
         return <HomeView />;
-      case "data":
-        return <DataView />;
       case "profile":
         return <ProfileView />;
       default:
