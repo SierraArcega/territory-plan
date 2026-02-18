@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useUsers, useTags, useBatchEditDistricts, useBatchTagDistricts } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -99,8 +100,8 @@ export default function BulkActionBar({
 
   return (
     <>
-      {/* Confirmation overlay */}
-      {confirmAction && (
+      {/* Confirmation overlay — portaled to body to escape transform containing block */}
+      {confirmAction && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 max-w-md mx-4">
             <p className="text-sm text-gray-700 mb-4">{confirmAction.label}</p>
@@ -121,7 +122,8 @@ export default function BulkActionBar({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Action bar */}
