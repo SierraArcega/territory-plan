@@ -31,9 +31,22 @@ function parseQueryParams(req: NextRequest) {
     }
   }
 
-  // Sort
-  const sort = url.searchParams.get("sort") ?? undefined;
-  const order = (url.searchParams.get("order") ?? "asc") as "asc" | "desc";
+  // Multi-sort: ?sorts=[{"column":"name","direction":"asc"},{"column":"enrollment","direction":"desc"}]
+  // Backwards-compatible: also accept ?sort=name&order=asc for single-sort
+  let sorts: { column: string; direction: "asc" | "desc" }[] = [];
+  const sortsParam = url.searchParams.get("sorts");
+  if (sortsParam) {
+    try {
+      sorts = JSON.parse(sortsParam);
+    } catch {
+      // ignore malformed
+    }
+  } else {
+    // Legacy single-sort fallback
+    const sort = url.searchParams.get("sort") ?? undefined;
+    const order = (url.searchParams.get("order") ?? "asc") as "asc" | "desc";
+    if (sort) sorts = [{ column: sort, direction: order }];
+  }
 
   // Pagination
   const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
@@ -42,7 +55,7 @@ function parseQueryParams(req: NextRequest) {
     Math.max(1, parseInt(url.searchParams.get("pageSize") ?? "50", 10))
   );
 
-  return { filters, sort, order, page, pageSize };
+  return { filters, sorts, page, pageSize };
 }
 
 // ---------------------------------------------------------------------------
@@ -50,16 +63,16 @@ function parseQueryParams(req: NextRequest) {
 // ---------------------------------------------------------------------------
 
 async function handleDistricts(req: NextRequest) {
-  const { filters, sort, order, page, pageSize } = parseQueryParams(req);
+  const { filters, sorts, page, pageSize } = parseQueryParams(req);
   const where = buildWhereClause(filters, DISTRICT_FIELD_MAP);
 
-  // Build orderBy
-  const orderBy: Record<string, string> = {};
-  if (sort && DISTRICT_FIELD_MAP[sort]) {
-    orderBy[DISTRICT_FIELD_MAP[sort]] = order;
-  } else {
-    orderBy.name = "asc";
+  // Build orderBy (multi-sort: Prisma accepts an array of single-key objects)
+  const orderBy: Record<string, string>[] = [];
+  for (const s of sorts) {
+    const field = DISTRICT_FIELD_MAP[s.column];
+    if (field) orderBy.push({ [field]: s.direction });
   }
+  if (orderBy.length === 0) orderBy.push({ name: "asc" });
 
   const [rows, total, aggResult] = await Promise.all([
     prisma.district.findMany({
@@ -160,17 +173,17 @@ async function handleDistricts(req: NextRequest) {
 // ---------------------------------------------------------------------------
 
 async function handleActivities(req: NextRequest, userId: string) {
-  const { filters, sort, order, page, pageSize } = parseQueryParams(req);
+  const { filters, sorts, page, pageSize } = parseQueryParams(req);
   const filterWhere = buildWhereClause(filters);
 
   const where = { createdByUserId: userId, ...filterWhere };
 
-  // Build orderBy
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let orderBy: any = { startDate: "desc" };
-  if (sort) {
-    orderBy = { [sort]: order };
+  // Build orderBy (multi-sort)
+  const orderBy: Record<string, string>[] = [];
+  for (const s of sorts) {
+    orderBy.push({ [s.column]: s.direction });
   }
+  if (orderBy.length === 0) orderBy.push({ startDate: "desc" });
 
   // Fetch paginated rows + aggregates in parallel using COUNT queries
   // (avoids loading the entire result set into memory)
@@ -250,17 +263,17 @@ async function handleActivities(req: NextRequest, userId: string) {
 // ---------------------------------------------------------------------------
 
 async function handleTasks(req: NextRequest, userId: string) {
-  const { filters, sort, order, page, pageSize } = parseQueryParams(req);
+  const { filters, sorts, page, pageSize } = parseQueryParams(req);
   const filterWhere = buildWhereClause(filters);
 
   const where = { createdByUserId: userId, ...filterWhere };
 
-  // Build orderBy
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let orderBy: any = { dueDate: "asc" };
-  if (sort) {
-    orderBy = { [sort]: order };
+  // Build orderBy (multi-sort)
+  const orderBy: Record<string, string>[] = [];
+  for (const s of sorts) {
+    orderBy.push({ [s.column]: s.direction });
   }
+  if (orderBy.length === 0) orderBy.push({ dueDate: "asc" });
 
   const now = new Date();
 
@@ -342,17 +355,17 @@ async function handleTasks(req: NextRequest, userId: string) {
 // ---------------------------------------------------------------------------
 
 async function handleContacts(req: NextRequest) {
-  const { filters, sort, order, page, pageSize } = parseQueryParams(req);
+  const { filters, sorts, page, pageSize } = parseQueryParams(req);
   const filterWhere = buildWhereClause(filters);
 
   const where = { ...filterWhere };
 
-  // Build orderBy
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let orderBy: any = { name: "asc" };
-  if (sort) {
-    orderBy = { [sort]: order };
+  // Build orderBy (multi-sort)
+  const orderBy: Record<string, string>[] = [];
+  for (const s of sorts) {
+    orderBy.push({ [s.column]: s.direction });
   }
+  if (orderBy.length === 0) orderBy.push({ name: "asc" });
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

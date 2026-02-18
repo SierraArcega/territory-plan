@@ -2514,7 +2514,7 @@ export function useExploreData<T = Record<string, unknown>>(
   entity: string,
   params: {
     filters?: { id: string; column: string; op: string; value: unknown }[];
-    sort?: { column: string; direction: "asc" | "desc" } | null;
+    sorts?: { column: string; direction: "asc" | "desc" }[];
     page?: number;
     pageSize?: number;
   }
@@ -2523,9 +2523,8 @@ export function useExploreData<T = Record<string, unknown>>(
   if (params.filters && params.filters.length > 0) {
     searchParams.set("filters", JSON.stringify(params.filters));
   }
-  if (params.sort) {
-    searchParams.set("sort", params.sort.column);
-    searchParams.set("order", params.sort.direction);
+  if (params.sorts && params.sorts.length > 0) {
+    searchParams.set("sorts", JSON.stringify(params.sorts));
   }
   searchParams.set("page", String(params.page || 1));
   searchParams.set("pageSize", String(params.pageSize || 50));
