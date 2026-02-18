@@ -7,12 +7,14 @@ import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
+import { planColumns } from "./columns/planColumns";
 
 const COLUMNS_BY_ENTITY: Record<ExploreEntity, ColumnDef[]> = {
   districts: districtColumns,
   activities: activityColumns,
   tasks: taskColumns,
   contacts: contactColumns,
+  plans: planColumns,
 };
 
 // ---- Operator mapping ----

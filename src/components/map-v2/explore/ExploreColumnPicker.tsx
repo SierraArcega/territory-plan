@@ -6,6 +6,7 @@ import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
+import { planColumns } from "./columns/planColumns";
 import type { ColumnDef } from "./columns/districtColumns";
 
 const COLUMN_DEFS_BY_ENTITY: Record<ExploreEntity, ColumnDef[]> = {
@@ -13,6 +14,7 @@ const COLUMN_DEFS_BY_ENTITY: Record<ExploreEntity, ColumnDef[]> = {
   activities: activityColumns,
   tasks: taskColumns,
   contacts: contactColumns,
+  plans: planColumns,
 };
 
 interface ExploreColumnPickerProps {
