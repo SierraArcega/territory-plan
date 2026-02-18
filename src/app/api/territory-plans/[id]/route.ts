@@ -23,11 +23,11 @@ export async function GET(
                 name: true,
                 stateAbbrev: true,
                 enrollment: true,
+                owner: true,
                 districtTags: {
                   select: {
                     tag: { select: { id: true, name: true, color: true } },
                   },
-                  take: 5, // Limit tags per district
                 },
               },
             },
@@ -76,6 +76,7 @@ export async function GET(
         name: pd.district.name,
         stateAbbrev: pd.district.stateAbbrev,
         enrollment: pd.district.enrollment,
+        owner: pd.district.owner ?? null,
         renewalTarget: pd.renewalTarget ? Number(pd.renewalTarget) : null,
         winbackTarget: pd.winbackTarget ? Number(pd.winbackTarget) : null,
         expansionTarget: pd.expansionTarget ? Number(pd.expansionTarget) : null,

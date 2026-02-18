@@ -2,7 +2,6 @@
 import prisma from "../src/lib/prisma";
 import {
   ensureAutoTagsExist,
-  syncAutoTagsForDistrict,
   syncLocaleTagForDistrict,
 } from "../src/lib/autoTags";
 
@@ -31,17 +30,9 @@ async function main() {
   }
   console.log(`Locale tags synced for ${localeCount} districts.`);
 
-  // Step 4: Sync auto-tags (Customer, Pipeline, VIP, Win Back, Prospect)
-  console.log("Syncing auto-tags...");
-  let autoCount = 0;
-  for (const { leaid } of districts) {
-    await syncAutoTagsForDistrict(leaid);
-    autoCount++;
-    if (autoCount % 1000 === 0) {
-      console.log(`  Processed ${autoCount}/${districts.length} auto-tags...`);
-    }
-  }
-  console.log(`Auto-tags synced for ${autoCount} districts.`);
+  // Step 4: Classification tags (Churn Risk, Key Account, EK12/Fullmind tags)
+  // are manually applied — no auto-sync needed.
+  console.log("Classification tags are manually applied — skipping auto-sync.");
 
   console.log("Done!");
 }

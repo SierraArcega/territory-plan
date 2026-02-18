@@ -12,7 +12,7 @@ export const pool =
     connectionString: process.env.DATABASE_URL,
     // In serverless (Vercel), keep pool small since each function instance
     // creates its own pool, and Supabase Shared Pooler has limited connections
-    max: process.env.NODE_ENV === "production" ? 2 : 5,
+    max: process.env.NODE_ENV === "production" ? 2 : 12,
     idleTimeoutMillis: 10000, // Close idle connections quickly in serverless
     connectionTimeoutMillis: 10000, // Timeout after 10 seconds when connecting
   });
