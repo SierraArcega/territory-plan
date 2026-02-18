@@ -29,8 +29,9 @@ export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "p
 // Explore Data entity tabs
 export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts";
 
-// Filter operator types
-export type FilterOp = "eq" | "neq" | "in" | "contains" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "is_empty" | "is_not_empty";
+// Filter operator types — single source of truth in explore-filters.ts
+import type { FilterOp } from "@/lib/explore-filters";
+export type { FilterOp } from "@/lib/explore-filters";
 
 export interface ExploreFilter {
   id: string;
@@ -723,9 +724,15 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   addSortRule: (entity, rule) =>
     set((s) => {
       const existing = s.exploreSort[entity];
-      const filtered = existing.filter((r) => r.column !== rule.column);
+      const idx = existing.findIndex((r) => r.column === rule.column);
+      let next: ExploreSortConfig[];
+      if (idx >= 0) {
+        next = existing.map((r, i) => (i === idx ? rule : r));
+      } else {
+        next = [...existing, rule];
+      }
       return {
-        exploreSort: { ...s.exploreSort, [entity]: [...filtered, rule] },
+        exploreSort: { ...s.exploreSort, [entity]: next },
         explorePage: 1,
       };
     }),
