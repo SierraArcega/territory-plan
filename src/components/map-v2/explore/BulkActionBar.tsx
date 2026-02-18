@@ -16,6 +16,12 @@ interface Props {
 
 type ActivePopover = "owner" | "tag" | null;
 
+// Store action parameters, NOT closures, in state
+type PendingAction =
+  | { type: "owner"; ownerName: string; label: string }
+  | { type: "addTag"; tagId: number; label: string }
+  | { type: "removeTag"; tagId: number; label: string };
+
 export default function BulkActionBar({
   selectedCount,
   selectedIds,
@@ -25,11 +31,7 @@ export default function BulkActionBar({
   onClearSelection,
 }: Props) {
   const [activePopover, setActivePopover] = useState<ActivePopover>(null);
-  const [confirmAction, setConfirmAction] = useState<{
-    type: "owner" | "addTag" | "removeTag";
-    label: string;
-    onConfirm: () => void;
-  } | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -57,43 +59,45 @@ export default function BulkActionBar({
 
   const handleAssignOwner = (ownerName: string) => {
     setActivePopover(null);
-    setConfirmAction({
+    setPendingAction({
       type: "owner",
+      ownerName,
       label: `Assign "${ownerName || "Unassigned"}" as owner to ${count.toLocaleString()} district${count !== 1 ? "s" : ""}?`,
-      onConfirm: () => {
-        batchEdit.mutate(
-          { leaids: selectedIds, owner: ownerName },
-          {
-            onSuccess: () => {
-              queryClient.invalidateQueries({ queryKey: ["explore"] });
-              onClearSelection();
-              setConfirmAction(null);
-            },
-          }
-        );
-      },
     });
   };
 
   const handleTag = (tagId: number, tagName: string, action: "add" | "remove") => {
     setActivePopover(null);
     const verb = action === "add" ? "Add" : "Remove";
-    setConfirmAction({
+    setPendingAction({
       type: action === "add" ? "addTag" : "removeTag",
+      tagId,
       label: `${verb} tag "${tagName}" ${action === "add" ? "to" : "from"} ${count.toLocaleString()} district${count !== 1 ? "s" : ""}?`,
-      onConfirm: () => {
-        batchTag.mutate(
-          { leaids: selectedIds, action, tagId },
-          {
-            onSuccess: () => {
-              queryClient.invalidateQueries({ queryKey: ["explore"] });
-              onClearSelection();
-              setConfirmAction(null);
-            },
-          }
-        );
-      },
     });
+  };
+
+  // Execute the pending action using CURRENT render's references
+  const handleConfirm = () => {
+    if (!pendingAction) return;
+
+    const onDone = () => {
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
+      onClearSelection();
+      setPendingAction(null);
+    };
+
+    if (pendingAction.type === "owner") {
+      batchEdit.mutate(
+        { leaids: selectedIds, owner: pendingAction.ownerName },
+        { onSuccess: onDone }
+      );
+    } else {
+      const action = pendingAction.type === "addTag" ? "add" : "remove";
+      batchTag.mutate(
+        { leaids: selectedIds, action, tagId: pendingAction.tagId },
+        { onSuccess: onDone }
+      );
+    }
   };
 
   if (selectedCount === 0 && !selectAllMatchingFilters) return null;
@@ -101,20 +105,20 @@ export default function BulkActionBar({
   return (
     <>
       {/* Confirmation overlay — portaled to body to escape transform containing block */}
-      {confirmAction && createPortal(
+      {pendingAction && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 max-w-md mx-4">
-            <p className="text-sm text-gray-700 mb-4">{confirmAction.label}</p>
+            <p className="text-sm text-gray-700 mb-4">{pendingAction.label}</p>
             <div className="flex items-center justify-end gap-2">
               <button
-                onClick={() => setConfirmAction(null)}
+                onClick={() => setPendingAction(null)}
                 disabled={isProcessing}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={confirmAction.onConfirm}
+                onClick={handleConfirm}
                 disabled={isProcessing}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#352d60] disabled:opacity-60 transition-colors"
               >
