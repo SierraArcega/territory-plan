@@ -45,10 +45,11 @@ interface Props {
 
 export default function ExploreKPICards({ entity, aggregates, isLoading }: Props) {
   if (isLoading || !aggregates) {
+    const count = entity === "plans" ? 5 : 4;
     return (
-      <div className="grid grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative overflow-hidden">
+      <div className={`grid gap-4 ${count === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+        {Array.from({ length: count }).map((_, idx) => (
+          <div key={idx} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#C4E7E6]/50" />
             <div className="h-3 w-16 bg-[#C4E7E6]/25 rounded animate-pulse mb-2" />
             <div className="h-5 w-20 bg-[#C4E7E6]/20 rounded animate-pulse" />
@@ -61,7 +62,7 @@ export default function ExploreKPICards({ entity, aggregates, isLoading }: Props
   const cards = getCardsForEntity(entity, aggregates);
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className={`grid gap-4 ${cards.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
       {cards.map((card) => (
         <KPICard key={card.label} {...card} />
       ))}
@@ -98,6 +99,14 @@ function getCardsForEntity(entity: ExploreEntity, agg: Record<string, number>): 
         { label: "Districts Covered", value: formatNumber(agg.districtsCovered), accent: "#6EA3BE" },
         { label: "Primary Contacts", value: formatNumber(agg.primaryCount), accent: "#C4E7E6" },
         { label: "Recently Active", value: formatNumber(agg.withRecentActivity), accent: "#8AA891" },
+      ];
+    case "plans":
+      return [
+        { label: "Total Districts", value: formatNumber(agg.totalDistricts), accent: "#403770" },
+        { label: "Renewal Rollup", value: formatCurrency(agg.renewalSum), accent: "#6EA3BE" },
+        { label: "Expansion Rollup", value: formatCurrency(agg.expansionSum), accent: "#8AA891" },
+        { label: "Win Back Rollup", value: formatCurrency(agg.winbackSum), accent: "#FFCF70" },
+        { label: "New Business Rollup", value: formatCurrency(agg.newBusinessSum), accent: "#C4E7E6" },
       ];
   }
 }
