@@ -62,7 +62,3 @@ Data Files/
 
 # Database backups
 backups/
-
-# Snapshot cron logs
-data/snapshots/cron-stdout.log
-data/snapshots/cron-stderr.log
