@@ -207,12 +207,14 @@ export default function BulkActionBar({
       }
 
       await Promise.all(promises);
+      // Wait for the explore data to refetch so rows show updated values
+      // before clearing the selection and hiding the bar
+      await queryClient.invalidateQueries({ queryKey: ["explore"] });
       handleClearQueue();
       onClearSelection();
     } catch (error) {
       console.error("Batch apply failed:", error);
     } finally {
-      queryClient.invalidateQueries({ queryKey: ["explore"] });
       setIsApplying(false);
     }
   };
@@ -323,7 +325,7 @@ export default function BulkActionBar({
                   <svg className="animate-spin w-3 h-3" viewBox="0 0 16 16" fill="none">
                     <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeDashoffset="8" strokeLinecap="round" />
                   </svg>
-                  Applying\u2026
+                  {"Applying\u2026"}
                 </>
               ) : (
                 <>

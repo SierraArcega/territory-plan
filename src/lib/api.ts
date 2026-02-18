@@ -829,6 +829,7 @@ export function useAddDistrictsToPlan() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
     },
   });
 }
