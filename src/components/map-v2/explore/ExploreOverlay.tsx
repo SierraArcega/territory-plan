@@ -28,6 +28,7 @@ export default function ExploreOverlay() {
   const exploreColumns = useMapV2Store((s) => s.exploreColumns);
   const setExploreColumns = useMapV2Store((s) => s.setExploreColumns);
   const addExploreFilter = useMapV2Store((s) => s.addExploreFilter);
+  const updateExploreFilter = useMapV2Store((s) => s.updateExploreFilter);
   const removeExploreFilter = useMapV2Store((s) => s.removeExploreFilter);
   const clearExploreFilters = useMapV2Store((s) => s.clearExploreFilters);
   const setExploreSort = useMapV2Store((s) => s.setExploreSort);
@@ -178,6 +179,7 @@ export default function ExploreOverlay() {
             entity={exploreEntity}
             filters={exploreFilters[exploreEntity]}
             onAddFilter={(f) => addExploreFilter(exploreEntity, f)}
+            onUpdateFilter={(id, updates) => updateExploreFilter(exploreEntity, id, updates)}
             onRemoveFilter={(id) => removeExploreFilter(exploreEntity, id)}
             onClearAll={() => clearExploreFilters(exploreEntity)}
           />
