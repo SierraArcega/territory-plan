@@ -9,6 +9,7 @@ import {
   type FilterDef,
   buildWhereClause,
   DISTRICT_FIELD_MAP,
+  PLANS_FIELD_MAP,
 } from "@/lib/explore-filters";
 
 export const dynamic = "force-dynamic";
@@ -560,10 +561,146 @@ async function handleContacts(req: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
+// PLANS handler
+// ---------------------------------------------------------------------------
+
+async function handlePlans(req: NextRequest, userId: string) {
+  const { filters, sorts, page, pageSize } = parseQueryParams(req);
+
+  // Build where — filter out virtual/computed fields that Prisma can't handle
+  const prismaFilters = filters.filter((f) => PLANS_FIELD_MAP[f.column]);
+  const where: Record<string, unknown> = {
+    ...buildWhereClause(prismaFilters, PLANS_FIELD_MAP),
+    userId,
+  };
+
+  // Build orderBy
+  const orderBy: Record<string, unknown>[] = [];
+  for (const s of sorts) {
+    if (s.column === "ownerName") {
+      orderBy.push({ ownerUser: { fullName: s.direction } });
+    } else {
+      const field = PLANS_FIELD_MAP[s.column];
+      if (field) orderBy.push({ [field]: s.direction });
+    }
+  }
+  if (orderBy.length === 0) orderBy.push({ updatedAt: "desc" });
+
+  const [rows, total] = await Promise.all([
+    prisma.territoryPlan.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        fiscalYear: true,
+        color: true,
+        createdAt: true,
+        updatedAt: true,
+        ownerUser: { select: { fullName: true } },
+        districts: {
+          select: {
+            districtLeaid: true,
+            renewalTarget: true,
+            expansionTarget: true,
+            winbackTarget: true,
+            newBusinessTarget: true,
+            notes: true,
+            district: { select: { name: true, leaid: true } },
+          },
+        },
+        states: { select: { stateFips: true } },
+      },
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.territoryPlan.count({ where }),
+  ]);
+
+  // Reshape rows and compute rollups
+  const data = rows.map((p) => {
+    let renewalRollup = 0;
+    let expansionRollup = 0;
+    let winbackRollup = 0;
+    let newBusinessRollup = 0;
+
+    const planDistricts = p.districts.map((d) => {
+      const renewal = d.renewalTarget ? Number(d.renewalTarget) : 0;
+      const expansion = d.expansionTarget ? Number(d.expansionTarget) : 0;
+      const winback = d.winbackTarget ? Number(d.winbackTarget) : 0;
+      const newBiz = d.newBusinessTarget ? Number(d.newBusinessTarget) : 0;
+      renewalRollup += renewal;
+      expansionRollup += expansion;
+      winbackRollup += winback;
+      newBusinessRollup += newBiz;
+      return {
+        leaid: d.districtLeaid,
+        name: d.district.name,
+        renewalTarget: renewal,
+        expansionTarget: expansion,
+        winbackTarget: winback,
+        newBusinessTarget: newBiz,
+        notes: d.notes,
+      };
+    });
+
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      status: p.status,
+      fiscalYear: p.fiscalYear,
+      color: p.color,
+      ownerName: p.ownerUser?.fullName ?? null,
+      districtCount: p.districts.length,
+      stateCount: p.states.length,
+      renewalRollup,
+      expansionRollup,
+      winbackRollup,
+      newBusinessRollup,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      _districts: planDistricts,
+    };
+  });
+
+  // Compute aggregates across ALL matching plans (not just current page)
+  const aggResult = await prisma.$queryRaw<
+    [{ total_districts: number; renewal_sum: number; expansion_sum: number; winback_sum: number; new_business_sum: number }]
+  >`
+    SELECT
+      COUNT(DISTINCT tpd.district_leaid)::int AS total_districts,
+      COALESCE(SUM(tpd.renewal_target), 0)::float AS renewal_sum,
+      COALESCE(SUM(tpd.expansion_target), 0)::float AS expansion_sum,
+      COALESCE(SUM(tpd.winback_target), 0)::float AS winback_sum,
+      COALESCE(SUM(tpd.new_business_target), 0)::float AS new_business_sum
+    FROM territory_plan_districts tpd
+    JOIN territory_plans tp ON tp.id = tpd.plan_id
+    WHERE tp.user_id = ${userId}::uuid
+  `;
+
+  const agg = aggResult[0];
+
+  return {
+    data,
+    aggregates: {
+      totalDistricts: agg.total_districts,
+      renewalSum: agg.renewal_sum,
+      expansionSum: agg.expansion_sum,
+      winbackSum: agg.winback_sum,
+      newBusinessSum: agg.new_business_sum,
+    },
+    pagination: { page, pageSize, total },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
 
-const VALID_ENTITIES = new Set(["districts", "activities", "tasks", "contacts"]);
+const VALID_ENTITIES = new Set(["districts", "activities", "tasks", "contacts", "plans"]);
 
 export async function GET(
   req: NextRequest,
@@ -606,6 +743,9 @@ export async function GET(
         break;
       case "contacts":
         result = await handleContacts(req);
+        break;
+      case "plans":
+        result = await handlePlans(req, user.id);
         break;
     }
 
