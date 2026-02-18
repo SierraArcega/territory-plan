@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   useProfile,
   useUpdateProfile,
   useTerritoryPlans,
+  useGoalDashboard,
 } from "@/lib/api";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import { searchLocations, type GeocodeSuggestion } from "@/lib/geocode";
+import { getDefaultFiscalYear, formatCurrency } from "@/components/goals/ProgressCard";
+import GoalEditorModal from "@/components/goals/GoalEditorModal";
+
+const FISCAL_YEARS = [2026, 2027, 2028, 2029];
 
 // ============================================================================
 // HomePanel
@@ -30,12 +35,40 @@ export default function HomePanel() {
   const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationInputRef = useRef<HTMLDivElement>(null);
 
+  const [selectedFY, setSelectedFY] = useState(2027);
+
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
   const { data: plans } = useTerritoryPlans();
+  const { data: dashboard } = useGoalDashboard(selectedFY);
 
   const viewPlan = useMapV2Store((s) => s.viewPlan);
   const startNewPlan = useMapV2Store((s) => s.startNewPlan);
+
+  // Filter plans by selected FY
+  const fyPlans = useMemo(
+    () => plans?.filter((p) => p.fiscalYear === selectedFY) || [],
+    [plans, selectedFY],
+  );
+
+  // Goal metrics for selected FY
+  const goalMetrics = useMemo(() => {
+    if (!dashboard?.goals) return null;
+    const g = dashboard.goals;
+    const a = dashboard.actuals;
+    const totalTarget =
+      (g.renewalTarget || 0) +
+      (g.winbackTarget || 0) +
+      (g.expansionTarget || 0) +
+      (g.newBusinessTarget || 0);
+    const totalCurrent = a.revenue + a.pipeline;
+    return [
+      { label: "Earnings", current: a.earnings, target: g.earningsTarget, color: "#F37167", format: "currency" as const },
+      { label: "Take", current: a.take, target: g.takeTarget, color: "#6EA3BE", format: "currency" as const },
+      { label: "Total Target", current: totalCurrent, target: totalTarget || null, color: "#403770", format: "currency" as const },
+      { label: "New Districts", current: a.newDistricts, target: g.newDistrictsTarget, color: "#403770", format: "number" as const },
+    ];
+  }, [dashboard]);
 
   // --- Edit handlers ---
 
@@ -115,8 +148,7 @@ export default function HomePanel() {
   }, []);
 
   const [avatarError, setAvatarError] = useState(false);
-
-  const displayPlans = plans?.slice(0, 4) || [];
+  const [showGoalEditor, setShowGoalEditor] = useState(false);
 
   const initials = profile
     ? (() => {
@@ -359,60 +391,166 @@ export default function HomePanel() {
         </div>
       )}
 
+      {/* ── FY Tabs ── */}
+      <div className="px-4 mt-3">
+        <div className="flex gap-0.5">
+          {FISCAL_YEARS.map((fy) => (
+            <button
+              key={fy}
+              onClick={() => setSelectedFY(fy)}
+              className={`
+                flex-1 py-1.5 text-[11px] font-semibold rounded-lg transition-colors
+                ${selectedFY === fy
+                  ? "bg-plum text-white"
+                  : "text-gray-400 hover:text-plum hover:bg-gray-50"
+                }
+              `}
+            >
+              FY{String(fy).slice(-2)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Goals ── */}
+      <div className="px-4 mt-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+            Goals
+          </h3>
+          <button
+            onClick={() => setShowGoalEditor(true)}
+            className="text-[10px] text-gray-400 hover:text-plum transition-colors"
+          >
+            {dashboard?.goals ? "Edit" : "Set goals"}
+          </button>
+        </div>
+        {goalMetrics ? (
+          <div className="space-y-2.5">
+            {goalMetrics.map((m) => {
+              const pct =
+                m.target && m.target > 0
+                  ? Math.min((m.current / m.target) * 100, 100)
+                  : 0;
+              const currentFmt =
+                m.format === "currency"
+                  ? formatCurrency(m.current, true)
+                  : m.current.toLocaleString();
+              const targetFmt =
+                m.format === "currency"
+                  ? formatCurrency(m.target, true)
+                  : m.target?.toLocaleString() || "-";
+              return (
+                <div key={m.label}>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span className="text-[11px] font-medium text-gray-500">
+                      {m.label}
+                    </span>
+                    <span className="text-[10px] text-gray-400 tabular-nums">
+                      {currentFmt}
+                      <span className="text-gray-300"> / {targetFmt}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500 ease-out"
+                        style={{
+                          width: `${pct}%`,
+                          backgroundColor: m.color,
+                        }}
+                      />
+                    </div>
+                    <span
+                      className="text-[10px] font-semibold tabular-nums w-7 text-right"
+                      style={{ color: m.color }}
+                    >
+                      {Math.round(pct)}%
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-lg bg-gray-50 py-4 text-center">
+            <p className="text-[11px] text-gray-400">
+              No goals set for FY{String(selectedFY).slice(-2)}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* ── Divider ── */}
       <div className="h-px bg-gray-100 mx-4 mt-3" />
 
-      {/* ── Plans ── */}
+      {/* ── Plans for selected FY ── */}
       <div className="px-4 mt-3 pb-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
             Plans
           </h3>
-          <span className="text-[10px] text-gray-300">{plans?.length || 0}</span>
+          <span className="text-[10px] text-gray-300">{fyPlans.length}</span>
         </div>
-        <div className="space-y-0.5">
-          {displayPlans.map((plan) => (
-            <button
-              key={plan.id}
-              onClick={() => viewPlan(plan.id)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left group"
-            >
-              <div
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: plan.color }}
-              />
-              <span className="text-xs text-plum truncate flex-1 group-hover:text-plum/80">
-                {plan.name}
-              </span>
-              <span className="text-[10px] text-gray-300 tabular-nums">
-                {plan.districtCount}
-              </span>
-            </button>
-          ))}
-          <button
-            onClick={startNewPlan}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-200 hover:border-coral hover:bg-coral/5 transition-all text-left group"
+        {fyPlans.length === 0 ? (
+          <div className="rounded-lg bg-gray-50 py-4 text-center">
+            <p className="text-[11px] text-gray-400">
+              No plans for FY{String(selectedFY).slice(-2)}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {fyPlans.map((plan) => (
+              <button
+                key={plan.id}
+                onClick={() => viewPlan(plan.id)}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left group"
+              >
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: plan.color }}
+                />
+                <span className="text-xs text-plum truncate flex-1 group-hover:text-plum/80">
+                  {plan.name}
+                </span>
+                <span className="text-[10px] text-gray-300 tabular-nums">
+                  {plan.districtCount}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={startNewPlan}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 mt-1 rounded-lg border border-dashed border-gray-200 hover:border-coral hover:bg-coral/5 transition-all text-left group"
+        >
+          <svg
+            width="8"
+            height="8"
+            viewBox="0 0 12 12"
+            fill="none"
+            className="text-gray-300 group-hover:text-coral transition-colors flex-shrink-0"
           >
-            <svg
-              width="8"
-              height="8"
-              viewBox="0 0 12 12"
-              fill="none"
-              className="text-gray-300 group-hover:text-coral transition-colors flex-shrink-0"
-            >
-              <path
-                d="M6 2V10M2 6H10"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="text-[11px] text-gray-400 group-hover:text-coral transition-colors">
-              New plan
-            </span>
-          </button>
-        </div>
+            <path
+              d="M6 2V10M2 6H10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="text-[11px] text-gray-400 group-hover:text-coral transition-colors">
+            New plan
+          </span>
+        </button>
       </div>
+
+      {/* ── Goal Editor Modal ── */}
+      <GoalEditorModal
+        isOpen={showGoalEditor}
+        onClose={() => setShowGoalEditor(false)}
+        fiscalYear={selectedFY}
+        currentGoals={dashboard?.goals || null}
+      />
     </div>
   );
 }
