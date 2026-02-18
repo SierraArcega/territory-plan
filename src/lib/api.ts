@@ -427,6 +427,53 @@ export function useUpdateDistrictEdits() {
   });
 }
 
+// Batch operations
+export function useBatchEditDistricts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      leaids,
+      owner,
+      notes,
+    }: {
+      leaids: string[];
+      owner?: string;
+      notes?: string;
+    }) =>
+      fetchJson<{ updated: number }>(`${API_BASE}/districts/batch-edits`, {
+        method: "POST",
+        body: JSON.stringify({ leaids, owner, notes }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
+    },
+  });
+}
+
+export function useBatchTagDistricts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      leaids,
+      action,
+      tagId,
+    }: {
+      leaids: string[];
+      action: "add" | "remove";
+      tagId: number;
+    }) =>
+      fetchJson<{ updated: number }>(`${API_BASE}/districts/batch-tags`, {
+        method: "POST",
+        body: JSON.stringify({ leaids, action, tagId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["explore"] });
+    },
+  });
+}
+
 // Tags
 export function useTags() {
   return useQuery({

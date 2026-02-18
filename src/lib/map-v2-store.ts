@@ -156,6 +156,10 @@ interface MapV2State {
   exploreSort: Record<ExploreEntity, ExploreSortConfig | null>;
   explorePage: number;
   filteredDistrictLeaids: string[];
+
+  // Bulk selection
+  selectedDistrictLeaids: Set<string>;
+  selectAllMatchingFilters: boolean;
 }
 
 interface MapV2Actions {
@@ -261,6 +265,12 @@ interface MapV2Actions {
   setExploreSort: (entity: ExploreEntity, sort: ExploreSortConfig | null) => void;
   setExplorePage: (page: number) => void;
   setFilteredDistrictLeaids: (leaids: string[]) => void;
+
+  // Bulk selection
+  toggleDistrictSelection: (leaid: string) => void;
+  setDistrictSelection: (leaids: string[]) => void;
+  clearDistrictSelection: () => void;
+  setSelectAllMatchingFilters: (value: boolean) => void;
 }
 
 let rippleId = 0;
@@ -328,6 +338,10 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   } as Record<ExploreEntity, ExploreSortConfig | null>,
   explorePage: 1,
   filteredDistrictLeaids: [],
+
+  // Bulk selection
+  selectedDistrictLeaids: new Set<string>(),
+  selectAllMatchingFilters: false,
 
   // Panel navigation
   setPanelState: (state) =>
@@ -614,7 +628,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
 
   // Explore Data
   setExploreEntity: (entity) =>
-    set({ exploreEntity: entity, explorePage: 1 }),
+    set({ exploreEntity: entity, explorePage: 1, selectedDistrictLeaids: new Set<string>(), selectAllMatchingFilters: false }),
 
   setExploreColumns: (entity, columns) =>
     set((s) => ({
@@ -628,6 +642,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
         [entity]: [...s.exploreFilters[entity], filter],
       },
       explorePage: 1,
+      selectedDistrictLeaids: new Set<string>(),
+      selectAllMatchingFilters: false,
     })),
 
   removeExploreFilter: (entity, filterId) =>
@@ -637,6 +653,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
         [entity]: s.exploreFilters[entity].filter((f) => f.id !== filterId),
       },
       explorePage: 1,
+      selectedDistrictLeaids: new Set<string>(),
+      selectAllMatchingFilters: false,
     })),
 
   updateExploreFilter: (entity, filterId, updates) =>
@@ -654,6 +672,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     set((s) => ({
       exploreFilters: { ...s.exploreFilters, [entity]: [] },
       explorePage: 1,
+      selectedDistrictLeaids: new Set<string>(),
+      selectAllMatchingFilters: false,
     })),
 
   setExploreSort: (entity, sort) =>
@@ -665,4 +685,19 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   setExplorePage: (page) => set({ explorePage: page }),
 
   setFilteredDistrictLeaids: (leaids) => set({ filteredDistrictLeaids: leaids }),
+
+  // Bulk selection
+  toggleDistrictSelection: (leaid) =>
+    set((s) => {
+      const next = new Set(s.selectedDistrictLeaids);
+      if (next.has(leaid)) next.delete(leaid);
+      else next.add(leaid);
+      return { selectedDistrictLeaids: next, selectAllMatchingFilters: false };
+    }),
+  setDistrictSelection: (leaids) =>
+    set({ selectedDistrictLeaids: new Set(leaids), selectAllMatchingFilters: false }),
+  clearDistrictSelection: () =>
+    set({ selectedDistrictLeaids: new Set<string>(), selectAllMatchingFilters: false }),
+  setSelectAllMatchingFilters: (value) =>
+    set({ selectAllMatchingFilters: value }),
 }));
