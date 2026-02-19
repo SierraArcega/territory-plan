@@ -22,7 +22,7 @@ const US_BOUNDS: maplibregl.LngLatBoundsLike = [
 ];
 
 // State bounding boxes
-const STATE_BBOX: Record<string, [[number, number], [number, number]]> = {
+export const STATE_BBOX: Record<string, [[number, number], [number, number]]> = {
   AL: [[-88.5, 30.2], [-84.9, 35.0]],
   AK: [[-179.2, 51.2], [-129.9, 71.4]],
   AZ: [[-114.8, 31.3], [-109.0, 37.0]],

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
+import { STATE_BBOX } from "@/components/map-v2/MapV2Container";
 import {
   useTerritoryPlan,
   useTags,
@@ -37,6 +38,9 @@ export default function PlanOverviewSection() {
   const openRightPanel = useMapV2Store((s) => s.openRightPanel);
   const setPanelState = useMapV2Store((s) => s.setPanelState);
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
+  const focusPlanId = useMapV2Store((s) => s.focusPlanId);
+  const focusPlan = useMapV2Store((s) => s.focusPlan);
+  const unfocusPlan = useMapV2Store((s) => s.unfocusPlan);
   const activeDistrictId =
     rightPanelContent?.type === "district_card" ? rightPanelContent.id : null;
 
@@ -126,6 +130,34 @@ export default function PlanOverviewSection() {
     );
   }
 
+  // Compute combined bounding box for all states in the plan
+  const handleFocusMap = () => {
+    if (!plan) return;
+    const isFocused = focusPlanId === plan.id;
+
+    if (isFocused) {
+      unfocusPlan();
+      return;
+    }
+
+    // Compute combined bbox from all plan states
+    const abbrevs = plan.states.map((s) => s.abbrev);
+    let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+    for (const abbrev of abbrevs) {
+      const bbox = STATE_BBOX[abbrev];
+      if (!bbox) continue;
+      if (bbox[0][0] < minLng) minLng = bbox[0][0];
+      if (bbox[0][1] < minLat) minLat = bbox[0][1];
+      if (bbox[1][0] > maxLng) maxLng = bbox[1][0];
+      if (bbox[1][1] > maxLat) maxLat = bbox[1][1];
+    }
+
+    if (minLng > maxLng) return; // no valid bboxes found
+    focusPlan(plan.id, abbrevs, [[minLng, minLat], [maxLng, maxLat]]);
+  };
+
+  const isFocused = focusPlanId === plan?.id;
+
   return (
     <div className="p-3 space-y-3">
       {/* Stats row */}
@@ -151,6 +183,27 @@ export default function PlanOverviewSection() {
       {/* Plan-level target summary */}
       {targetTotals && targetTotals.total > 0 && (
         <TargetSummary totals={targetTotals} />
+      )}
+
+      {/* Focus Map toggle */}
+      {plan.districts.length > 0 && (
+        <button
+          onClick={handleFocusMap}
+          className={`
+            w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-xl transition-all
+            ${isFocused
+              ? "bg-plum text-white hover:bg-plum/90"
+              : "bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-plum"
+            }
+          `}
+        >
+          {/* Crosshairs icon */}
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 1V4M8 12V15M1 8H4M12 8H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          {isFocused ? "Exit Focus" : "Focus Map"}
+        </button>
       )}
 
       {/* Sort + Add row */}
