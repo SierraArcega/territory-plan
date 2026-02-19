@@ -1,6 +1,14 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 import FocusCard from "./FocusCard";
 import type { FocusModeStateData } from "@/lib/api";
 
@@ -10,11 +18,32 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(0)}`;
 }
 
+function DeltaBadge({ fy25, fy26 }: { fy25: number; fy26: number }) {
+  if (fy25 === 0) return null;
+  const diff = fy26 - fy25;
+  const isPositive = diff >= 0;
+  return (
+    <span
+      className={`
+        px-1.5 py-0.5 text-[9px] font-semibold rounded-full
+        ${isPositive
+          ? "bg-[#EDFFE3] text-[#5f665b]"
+          : "bg-[#F37167]/15 text-[#c25a52]"
+        }
+      `}
+    >
+      {isPositive ? "+" : ""}{formatCurrency(diff)}
+    </span>
+  );
+}
+
 interface YoYCardProps {
   states: FocusModeStateData[];
   selectedState: string;
   onSelectState: (abbrev: string) => void;
   onDismiss: () => void;
+  /** Delay before chart animation starts (ms) */
+  animationDelay?: number;
 }
 
 export default function YoYCard({
@@ -22,11 +51,11 @@ export default function YoYCard({
   selectedState,
   onSelectState,
   onDismiss,
+  animationDelay = 0,
 }: YoYCardProps) {
   const data = states.find((s) => s.abbrev === selectedState) || states[0];
   if (!data) return null;
 
-  // Chart data: FY25 vs FY26, bookings vs invoicing (plan districts)
   const chartData = [
     {
       name: "FY25",
@@ -41,9 +70,9 @@ export default function YoYCard({
   ];
 
   return (
-    <FocusCard title="YoY Performance" onDismiss={onDismiss} className="w-[280px]">
+    <FocusCard title="YoY Performance" onDismiss={onDismiss} className="w-[300px]">
       <div className="space-y-2.5">
-        {/* State selector tabs (synced with footprint) */}
+        {/* State selector tabs */}
         {states.length > 1 && (
           <div className="flex gap-0.5">
             {states.map((s) => (
@@ -53,8 +82,8 @@ export default function YoYCard({
                 className={`
                   px-2 py-1 text-[10px] font-semibold rounded-md transition-colors
                   ${selectedState === s.abbrev
-                    ? "bg-plum text-white"
-                    : "text-gray-400 hover:text-plum hover:bg-gray-50"
+                    ? "bg-[#403770] text-white"
+                    : "text-gray-400 hover:text-[#403770] hover:bg-gray-50"
                   }
                 `}
               >
@@ -63,6 +92,14 @@ export default function YoYCard({
             ))}
           </div>
         )}
+
+        {/* Delta badges */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-400">Bookings</span>
+          <DeltaBadge fy25={data.plan.fy25ClosedWon} fy26={data.plan.fy26ClosedWon} />
+          <span className="text-[10px] text-gray-400 ml-1">Invoicing</span>
+          <DeltaBadge fy25={data.plan.fy25Invoicing} fy26={data.plan.fy26Invoicing} />
+        </div>
 
         {/* Recharts grouped bar chart */}
         <div className="h-[140px]">
@@ -82,7 +119,7 @@ export default function YoYCard({
                 width={45}
               />
               <Tooltip
-                formatter={(value, name) => [
+                formatter={(value: any, name: any) => [
                   formatCurrency(Number(value) || 0),
                   name === "bookings" ? "Closed Won" : "Net Invoicing",
                 ]}
@@ -91,15 +128,30 @@ export default function YoYCard({
                   borderRadius: 8,
                   border: "1px solid #E5E7EB",
                   boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                  background: "white",
                 }}
               />
               <Legend
                 iconSize={8}
                 wrapperStyle={{ fontSize: 10 }}
-                formatter={(value) => (value === "bookings" ? "Closed Won" : "Net Invoicing")}
+                formatter={(value: any) =>
+                  value === "bookings" ? "Closed Won" : "Net Invoicing"
+                }
               />
-              <Bar dataKey="bookings" fill="#403770" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="invoicing" fill="#F37167" radius={[3, 3, 0, 0]} />
+              <Bar
+                dataKey="bookings"
+                fill="#403770"
+                radius={[3, 3, 0, 0]}
+                animationDuration={800}
+                animationBegin={Math.max(animationDelay, 500)}
+              />
+              <Bar
+                dataKey="invoicing"
+                fill="#6EA3BE"
+                radius={[3, 3, 0, 0]}
+                animationDuration={800}
+                animationBegin={Math.max(animationDelay, 600)}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
