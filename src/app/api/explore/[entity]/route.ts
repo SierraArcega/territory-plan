@@ -876,27 +876,32 @@ async function handlePlans(req: NextRequest, userId: string) {
   }
 
   // Compute aggregates across ALL matching plans (respects filters)
-  // Also sum FY27 open pipeline across districts belonging to these plans
-  const [aggResult, fy27PipelineResult] = await Promise.all([
-    prisma.territoryPlan.aggregate({
-      where,
-      _sum: {
-        districtCount: true,
-        renewalRollup: true,
-        expansionRollup: true,
-        winbackRollup: true,
-        newBusinessRollup: true,
-      },
-    }),
-    prisma.$queryRaw<[{ total: number | null }]>`
+  const aggResult = await prisma.territoryPlan.aggregate({
+    where,
+    _sum: {
+      districtCount: true,
+      renewalRollup: true,
+      expansionRollup: true,
+      winbackRollup: true,
+      newBusinessRollup: true,
+    },
+  });
+
+  // Sum FY27 pipeline across plan districts (non-blocking — fallback to 0 on error)
+  let fy27PipelineSum = 0;
+  try {
+    const fy27Result = await prisma.$queryRaw<[{ total: number | null }]>`
       SELECT COALESCE(SUM(d.fy27_open_pipeline), 0)::float AS total
       FROM territory_plan_districts tpd
       JOIN districts d ON d.leaid = tpd.district_leaid
       WHERE tpd.plan_id IN (
-        SELECT id FROM territory_plans WHERE user_id = ${userId}
+        SELECT id FROM territory_plans WHERE user_id = ${userId}::uuid
       )
-    `,
-  ]);
+    `;
+    fy27PipelineSum = fy27Result[0]?.total ?? 0;
+  } catch (e) {
+    console.error("FY27 pipeline aggregate failed:", e);
+  }
 
   return {
     data,
@@ -906,7 +911,7 @@ async function handlePlans(req: NextRequest, userId: string) {
       expansionSum: Number(aggResult._sum.expansionRollup ?? 0),
       winbackSum: Number(aggResult._sum.winbackRollup ?? 0),
       newBusinessSum: Number(aggResult._sum.newBusinessRollup ?? 0),
-      fy27PipelineSum: fy27PipelineResult[0]?.total ?? 0,
+      fy27PipelineSum,
     },
     pagination: { page, pageSize, total },
   };

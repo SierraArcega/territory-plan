@@ -357,7 +357,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     activities: ["title", "type", "status", "startDate", "outcomeType", "districtNames", "planNames"],
     tasks: ["title", "status", "priority", "dueDate", "districtNames", "planNames"],
     contacts: ["name", "title", "email", "phone", "districtName", "isPrimary", "lastActivity"],
-    plans: ["name", "status", "fiscalYear", "ownerName", "districtCount", "renewalRollup", "expansionRollup", "winbackRollup", "newBusinessRollup", "createdAt", "updatedAt"],
+    plans: ["name", "status", "fiscalYear", "ownerName", "districtCount", "totalTargets", "renewalRollup", "expansionRollup", "winbackRollup", "newBusinessRollup", "createdAt", "updatedAt"],
   } as Record<ExploreEntity, string[]>,
   exploreFilters: {
     districts: [],
