@@ -2456,6 +2456,55 @@ export function useRemoveSchoolTag() {
   });
 }
 
+// ─── Focus Mode Types & Hook ─────────────────────────────────────────
+
+export interface FocusModeStateData {
+  abbrev: string;
+  name: string;
+  state: {
+    totalDistricts: number;
+    totalCustomers: number;
+    totalWithPipeline: number;
+    fy25ClosedWon: number;
+    fy25Invoicing: number;
+    fy26ClosedWon: number;
+    fy26Invoicing: number;
+    fy26Pipeline: number;
+    fy27Pipeline: number;
+  };
+  plan: {
+    districtCount: number;
+    customerCount: number;
+    fy25ClosedWon: number;
+    fy25Invoicing: number;
+    fy26ClosedWon: number;
+    fy26Invoicing: number;
+    fy26Pipeline: number;
+    fy27Pipeline: number;
+  };
+  topDistricts: Array<{
+    leaid: string;
+    name: string;
+    fy26Invoicing: number;
+  }>;
+}
+
+export interface FocusModeData {
+  planId: string;
+  planName: string | null;
+  fiscalYear: number;
+  states: FocusModeStateData[];
+}
+
+export function useFocusModeData(planId: string | null) {
+  return useQuery({
+    queryKey: ["focusMode", planId],
+    queryFn: () => fetchJson<FocusModeData>(`${API_BASE}/focus-mode/${planId}`),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 // ─── Progress Dashboard Types & Hooks ────────────────────────────────
 
 export type ProgressPeriod = "month" | "quarter" | "fiscal_year";
