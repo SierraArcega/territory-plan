@@ -11,6 +11,7 @@ import {
   DISTRICT_FIELD_MAP,
   PLANS_FIELD_MAP,
 } from "@/lib/explore-filters";
+import { parseCompetitorColumnKey, COMPETITORS } from "@/components/map-v2/explore/columns/districtColumns";
 
 export const dynamic = "force-dynamic";
 
@@ -129,32 +130,38 @@ const RELATION_SELECTS: Record<string, Record<string, unknown>> = {
 const ALWAYS_SELECT = ["leaid", "name", "stateAbbrev"] as const;
 
 function buildDistrictSelect(columns: string[] | null): Record<string, unknown> {
-  // No column restriction → fetch everything (backwards-compatible)
   if (!columns) {
     return buildFullDistrictSelect();
   }
 
   const select: Record<string, unknown> = {};
 
-  // Always include identity columns
   for (const f of ALWAYS_SELECT) {
     select[f] = true;
   }
 
-  // Add requested scalar columns
+  let needsCompetitorSpend = false;
+
   for (const col of columns) {
     const prismaField = CLIENT_TO_PRISMA[col];
     if (prismaField && !(prismaField in select)) {
       select[prismaField] = true;
     }
-    // Add relation columns
     const relSelect = RELATION_SELECTS[col];
     if (relSelect) {
       Object.assign(select, relSelect);
     }
+    if (parseCompetitorColumnKey(col)) {
+      needsCompetitorSpend = true;
+    }
   }
 
-  // Also select any fields used in aggregate (enrollment, fy26OpenPipeline, fy26ClosedWonNetBooking)
+  if (needsCompetitorSpend) {
+    select.competitorSpend = {
+      select: { competitor: true, fiscalYear: true, totalSpend: true },
+    };
+  }
+
   select.enrollment = true;
   select.fy26OpenPipeline = true;
   select.fy26ClosedWonNetBooking = true;
@@ -163,9 +170,7 @@ function buildDistrictSelect(columns: string[] | null): Record<string, unknown> 
 }
 
 function buildFullDistrictSelect(): Record<string, unknown> {
-  // Original full select — all scalar + relation fields
   const select: Record<string, unknown> = {};
-  // Include all mapped scalar fields
   const seen = new Set<string>();
   for (const prismaField of Object.values(DISTRICT_FIELD_MAP)) {
     if (!seen.has(prismaField)) {
@@ -173,10 +178,12 @@ function buildFullDistrictSelect(): Record<string, unknown> {
       seen.add(prismaField);
     }
   }
-  // Include all relations
   for (const relSelect of Object.values(RELATION_SELECTS)) {
     Object.assign(select, relSelect);
   }
+  select.competitorSpend = {
+    select: { competitor: true, fiscalYear: true, totalSpend: true },
+  };
   return select;
 }
 
@@ -214,6 +221,52 @@ function buildRelationWhere(filters: FilterDef[]): Record<string, unknown> {
         where.territoryPlans = { some: {} };
       }
     }
+
+    // Competitor spend filters (comp_{slug}_{fy})
+    const compParsed = parseCompetitorColumnKey(f.column);
+    if (compParsed) {
+      const compFilter: Record<string, unknown> = {
+        competitor: compParsed.competitor,
+        fiscalYear: compParsed.fiscalYear,
+      };
+
+      switch (f.op) {
+        case "eq":
+          compFilter.totalSpend = f.value;
+          break;
+        case "neq":
+          compFilter.totalSpend = { not: f.value };
+          break;
+        case "gt":
+          compFilter.totalSpend = { gt: f.value };
+          break;
+        case "lt":
+          compFilter.totalSpend = { lt: f.value };
+          break;
+        case "between": {
+          const [min, max] = f.value as [number, number];
+          compFilter.totalSpend = { gte: min, lte: max };
+          break;
+        }
+      }
+
+      if (f.op === "is_empty") {
+        if (!where.AND) where.AND = [];
+        (where.AND as unknown[]).push({
+          competitorSpend: { none: { competitor: compParsed.competitor, fiscalYear: compParsed.fiscalYear } },
+        });
+      } else if (f.op === "is_not_empty") {
+        if (!where.AND) where.AND = [];
+        (where.AND as unknown[]).push({
+          competitorSpend: { some: { competitor: compParsed.competitor, fiscalYear: compParsed.fiscalYear } },
+        });
+      } else {
+        if (!where.AND) where.AND = [];
+        (where.AND as unknown[]).push({
+          competitorSpend: { some: compFilter },
+        });
+      }
+    }
   }
 
   return where;
@@ -224,8 +277,8 @@ async function handleDistricts(req: NextRequest) {
 
   // Separate relation filters (tags, planNames) from scalar filters
   const RELATION_COLUMNS = new Set(["tags", "planNames"]);
-  const scalarFilters = filters.filter((f) => !RELATION_COLUMNS.has(f.column));
-  const relationFilters = filters.filter((f) => RELATION_COLUMNS.has(f.column));
+  const scalarFilters = filters.filter((f) => !RELATION_COLUMNS.has(f.column) && !f.column.startsWith("comp_"));
+  const relationFilters = filters.filter((f) => RELATION_COLUMNS.has(f.column) || f.column.startsWith("comp_"));
 
   const where = {
     ...buildWhereClause(scalarFilters, DISTRICT_FIELD_MAP),
@@ -283,6 +336,17 @@ async function handleDistricts(req: NextRequest) {
     }
     if (d.activityLinks) {
       row.lastActivity = d.activityLinks[0]?.activity?.startDate ?? null;
+    }
+
+    // Competitor spend → flat keys
+    if (d.competitorSpend) {
+      for (const cs of d.competitorSpend as { competitor: string; fiscalYear: string; totalSpend: unknown }[]) {
+        const comp = COMPETITORS.find((c) => c.name === cs.competitor);
+        if (comp) {
+          const key = `comp_${comp.slug}_${cs.fiscalYear.toLowerCase()}`;
+          row[key] = cs.totalSpend != null ? Number(cs.totalSpend) : null;
+        }
+      }
     }
 
     return row;
@@ -640,6 +704,12 @@ async function handlePlans(req: NextRequest, userId: string) {
         status: true,
         fiscalYear: true,
         color: true,
+        districtCount: true,
+        stateCount: true,
+        renewalRollup: true,
+        expansionRollup: true,
+        winbackRollup: true,
+        newBusinessRollup: true,
         createdAt: true,
         updatedAt: true,
         ownerUser: { select: { fullName: true } },
@@ -654,7 +724,6 @@ async function handlePlans(req: NextRequest, userId: string) {
             district: { select: { name: true, leaid: true } },
           },
         },
-        states: { select: { stateFips: true } },
       },
       orderBy,
       skip: (page - 1) * pageSize,
@@ -663,32 +732,17 @@ async function handlePlans(req: NextRequest, userId: string) {
     prisma.territoryPlan.count({ where }),
   ]);
 
-  // Reshape rows and compute rollups
+  // Reshape rows — read rollups from denormalized plan columns
   const data = rows.map((p) => {
-    let renewalRollup = 0;
-    let expansionRollup = 0;
-    let winbackRollup = 0;
-    let newBusinessRollup = 0;
-
-    const planDistricts = p.districts.map((d) => {
-      const renewal = d.renewalTarget ? Number(d.renewalTarget) : 0;
-      const expansion = d.expansionTarget ? Number(d.expansionTarget) : 0;
-      const winback = d.winbackTarget ? Number(d.winbackTarget) : 0;
-      const newBiz = d.newBusinessTarget ? Number(d.newBusinessTarget) : 0;
-      renewalRollup += renewal;
-      expansionRollup += expansion;
-      winbackRollup += winback;
-      newBusinessRollup += newBiz;
-      return {
-        leaid: d.districtLeaid,
-        name: d.district.name,
-        renewalTarget: renewal,
-        expansionTarget: expansion,
-        winbackTarget: winback,
-        newBusinessTarget: newBiz,
-        notes: d.notes,
-      };
-    });
+    const planDistricts = p.districts.map((d) => ({
+      leaid: d.districtLeaid,
+      name: d.district.name,
+      renewalTarget: d.renewalTarget ? Number(d.renewalTarget) : 0,
+      expansionTarget: d.expansionTarget ? Number(d.expansionTarget) : 0,
+      winbackTarget: d.winbackTarget ? Number(d.winbackTarget) : 0,
+      newBusinessTarget: d.newBusinessTarget ? Number(d.newBusinessTarget) : 0,
+      notes: d.notes,
+    }));
 
     return {
       id: p.id,
@@ -698,12 +752,12 @@ async function handlePlans(req: NextRequest, userId: string) {
       fiscalYear: p.fiscalYear,
       color: p.color,
       ownerName: p.ownerUser?.fullName ?? null,
-      districtCount: p.districts.length,
-      stateCount: p.states.length,
-      renewalRollup,
-      expansionRollup,
-      winbackRollup,
-      newBusinessRollup,
+      districtCount: p.districtCount,
+      stateCount: p.stateCount,
+      renewalRollup: Number(p.renewalRollup),
+      expansionRollup: Number(p.expansionRollup),
+      winbackRollup: Number(p.winbackRollup),
+      newBusinessRollup: Number(p.newBusinessRollup),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       _districts: planDistricts,

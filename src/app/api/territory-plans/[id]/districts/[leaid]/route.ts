@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { syncAutoTagsForDistrict } from "@/lib/autoTags";
+import { syncClassificationTagsForDistrict } from "@/lib/autoTags";
+import { syncPlanRollups } from "@/lib/plan-rollup-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -175,6 +176,8 @@ export async function PUT(
         },
       });
 
+      await syncPlanRollups(planId);
+
       return NextResponse.json({
         planId,
         leaid: updatedPlanDistrict.districtLeaid,
@@ -195,6 +198,8 @@ export async function PUT(
           .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })) ?? [],
       });
     }
+
+    await syncPlanRollups(planId);
 
     return NextResponse.json({
       planId,
@@ -259,7 +264,9 @@ export async function DELETE(
     });
 
     // Sync auto-tags after removal (may affect Prospect tag)
-    await syncAutoTagsForDistrict(leaid);
+    await syncClassificationTagsForDistrict(leaid);
+
+    await syncPlanRollups(planId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

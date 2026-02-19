@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { syncAutoTagsForDistrict } from "@/lib/autoTags";
+import { syncClassificationTagsForDistrict } from "@/lib/autoTags";
+import { syncPlanRollups } from "@/lib/plan-rollup-sync";
 import {
   type FilterDef,
   buildWhereClause,
@@ -145,8 +146,10 @@ export async function POST(
 
     // Sync auto-tags for all added districts
     await Promise.all(
-      districtLeaids.map((leaid) => syncAutoTagsForDistrict(leaid))
+      districtLeaids.map((leaid) => syncClassificationTagsForDistrict(leaid))
     );
+
+    await syncPlanRollups(planId);
 
     return NextResponse.json(
       {
