@@ -1035,19 +1035,28 @@ export default function ExploreTable({
                       })}
                     </tr>
                     {isPlanEntity && expandedPlanIds.has(rowId) && (
-                      <tr className="bg-gray-50/50">
+                      <tr className="bg-[#f8f7fb]">
                         <td colSpan={visibleColumns.length + 1} className="px-0 py-0">
-                          <div className="px-10 py-3">
-                            <table className="w-full text-[12px]">
+                          <div className="mx-6 my-3 rounded-lg border border-gray-200/80 bg-white overflow-hidden shadow-sm">
+                            <table className="w-full text-[12px]" style={{ tableLayout: "fixed" }}>
+                              <colgroup>
+                                <col style={{ width: "22%" }} />
+                                <col style={{ width: "18%" }} />
+                                <col style={{ width: "12%" }} />
+                                <col style={{ width: "12%" }} />
+                                <col style={{ width: "12%" }} />
+                                <col style={{ width: "12%" }} />
+                                <col style={{ width: "12%" }} />
+                              </colgroup>
                               <thead>
-                                <tr className="text-left text-gray-400 uppercase tracking-wider">
-                                  <th className="pb-2 font-semibold">District</th>
-                                  <th className="pb-2 font-semibold">Tags</th>
-                                  <th className="pb-2 font-semibold text-right">Renewal</th>
-                                  <th className="pb-2 font-semibold text-right">Expansion</th>
-                                  <th className="pb-2 font-semibold text-right">Win Back</th>
-                                  <th className="pb-2 font-semibold text-right">New Business</th>
-                                  <th className="pb-2 font-semibold">Notes</th>
+                                <tr className="text-left text-[10px] text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/60">
+                                  <th className="px-3 py-2 font-semibold">District</th>
+                                  <th className="px-3 py-2 font-semibold">Tags</th>
+                                  <th className="px-3 py-2 font-semibold text-right">Renewal</th>
+                                  <th className="px-3 py-2 font-semibold text-right">Expansion</th>
+                                  <th className="px-3 py-2 font-semibold text-right">Win Back</th>
+                                  <th className="px-3 py-2 font-semibold text-right">New Business</th>
+                                  <th className="px-3 py-2 font-semibold text-right">Total</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1055,19 +1064,28 @@ export default function ExploreTable({
                                   leaid: string; name: string;
                                   renewalTarget: number; expansionTarget: number;
                                   winbackTarget: number; newBusinessTarget: number;
-                                  notes: string | null;
                                   tags: { id: number; name: string; color: string }[];
-                                }>) || []).map((d) => (
-                                  <tr key={d.leaid} className="border-t border-gray-100">
-                                    <td className="py-1.5 text-[#403770] font-medium">{d.name}</td>
-                                    <td className="py-1.5">{renderColoredPills(d.tags || [])}</td>
-                                    <td className="py-1.5 text-right text-gray-600">{d.renewalTarget ? `$${d.renewalTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="py-1.5 text-right text-gray-600">{d.expansionTarget ? `$${d.expansionTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="py-1.5 text-right text-gray-600">{d.winbackTarget ? `$${d.winbackTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="py-1.5 text-right text-gray-600">{d.newBusinessTarget ? `$${d.newBusinessTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="py-1.5 text-gray-500 max-w-[200px] truncate">{d.notes || "\u2014"}</td>
+                                }>) || [])
+                                  .slice()
+                                  .sort((a, b) => {
+                                    const aTotal = (a.renewalTarget || 0) + (a.expansionTarget || 0) + (a.winbackTarget || 0) + (a.newBusinessTarget || 0);
+                                    const bTotal = (b.renewalTarget || 0) + (b.expansionTarget || 0) + (b.winbackTarget || 0) + (b.newBusinessTarget || 0);
+                                    return bTotal - aTotal;
+                                  })
+                                  .map((d) => {
+                                    const distTotal = (d.renewalTarget || 0) + (d.expansionTarget || 0) + (d.winbackTarget || 0) + (d.newBusinessTarget || 0);
+                                    return (
+                                  <tr key={d.leaid} className="border-t border-gray-100 hover:bg-gray-50/40 transition-colors">
+                                    <td className="px-3 py-2 text-[#403770] font-medium truncate">{d.name}</td>
+                                    <td className="px-3 py-2 overflow-hidden">{renderColoredPills(d.tags || [])}</td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.renewalTarget ? `$${d.renewalTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.expansionTarget ? `$${d.expansionTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.winbackTarget ? `$${d.winbackTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.newBusinessTarget ? `$${d.newBusinessTarget.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 text-right font-semibold text-[#403770] tabular-nums">{distTotal ? `$${distTotal.toLocaleString()}` : "\u2014"}</td>
                                   </tr>
-                                ))}
+                                    );
+                                  })}
                                 {(row.original._districts as unknown[])?.length > 0 && (() => {
                                   const districts = row.original._districts as Array<{
                                     renewalTarget: number; expansionTarget: number;
@@ -1082,21 +1100,22 @@ export default function ExploreTable({
                                     }),
                                     { renewal: 0, expansion: 0, winback: 0, newBusiness: 0 }
                                   );
+                                  const grandTotal = totals.renewal + totals.expansion + totals.winback + totals.newBusiness;
                                   return (
-                                    <tr className="border-t-2 border-gray-200 font-semibold text-[#403770]">
-                                      <td className="py-2">Total</td>
-                                      <td className="py-2"></td>
-                                      <td className="py-2 text-right">{totals.renewal ? `$${totals.renewal.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="py-2 text-right">{totals.expansion ? `$${totals.expansion.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="py-2 text-right">{totals.winback ? `$${totals.winback.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="py-2 text-right">{totals.newBusiness ? `$${totals.newBusiness.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="py-2"></td>
+                                    <tr className="border-t-2 border-gray-200 font-semibold text-[#403770] bg-gray-50/40">
+                                      <td className="px-3 py-2.5">Total</td>
+                                      <td className="px-3 py-2.5"></td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.renewal ? `$${totals.renewal.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.expansion ? `$${totals.expansion.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.winback ? `$${totals.winback.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.newBusiness ? `$${totals.newBusiness.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{grandTotal ? `$${grandTotal.toLocaleString()}` : "\u2014"}</td>
                                     </tr>
                                   );
                                 })()}
                                 {(!row.original._districts || (row.original._districts as unknown[]).length === 0) && (
                                   <tr>
-                                    <td colSpan={7} className="py-3 text-center text-gray-400 italic">
+                                    <td colSpan={7} className="px-3 py-4 text-center text-gray-400 italic">
                                       No districts in this plan
                                     </td>
                                   </tr>

@@ -836,6 +836,11 @@ async function handlePlans(req: NextRequest, userId: string) {
       tags: d.district.districtTags.map((dt: { tag: { id: number; name: string; color: string } }) => dt.tag),
     }));
 
+    const renewal = Number(p.renewalRollup);
+    const expansion = Number(p.expansionRollup);
+    const winback = Number(p.winbackRollup);
+    const newBiz = Number(p.newBusinessRollup);
+
     return {
       id: p.id,
       name: p.name,
@@ -846,27 +851,52 @@ async function handlePlans(req: NextRequest, userId: string) {
       ownerName: p.ownerUser?.fullName ?? null,
       districtCount: p.districtCount,
       stateCount: p.stateCount,
-      renewalRollup: Number(p.renewalRollup),
-      expansionRollup: Number(p.expansionRollup),
-      winbackRollup: Number(p.winbackRollup),
-      newBusinessRollup: Number(p.newBusinessRollup),
+      renewalRollup: renewal,
+      expansionRollup: expansion,
+      winbackRollup: winback,
+      newBusinessRollup: newBiz,
+      totalTargets: renewal + expansion + winback + newBiz,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       _districts: planDistricts,
     };
   });
 
+  // If no explicit sort was requested, default to totalTargets descending
+  const hasTotalTargetsSort = sorts.some((s) => s.column === "totalTargets");
+  if (sorts.length === 0 || hasTotalTargetsSort) {
+    const dir = hasTotalTargetsSort
+      ? sorts.find((s) => s.column === "totalTargets")!.direction
+      : "desc";
+    data.sort((a, b) =>
+      dir === "desc"
+        ? (b.totalTargets || 0) - (a.totalTargets || 0)
+        : (a.totalTargets || 0) - (b.totalTargets || 0)
+    );
+  }
+
   // Compute aggregates across ALL matching plans (respects filters)
-  const aggResult = await prisma.territoryPlan.aggregate({
-    where,
-    _sum: {
-      districtCount: true,
-      renewalRollup: true,
-      expansionRollup: true,
-      winbackRollup: true,
-      newBusinessRollup: true,
-    },
-  });
+  // Also sum FY27 open pipeline across districts belonging to these plans
+  const [aggResult, fy27PipelineResult] = await Promise.all([
+    prisma.territoryPlan.aggregate({
+      where,
+      _sum: {
+        districtCount: true,
+        renewalRollup: true,
+        expansionRollup: true,
+        winbackRollup: true,
+        newBusinessRollup: true,
+      },
+    }),
+    prisma.$queryRaw<[{ total: number | null }]>`
+      SELECT COALESCE(SUM(d.fy27_open_pipeline), 0)::float AS total
+      FROM territory_plan_districts tpd
+      JOIN districts d ON d.leaid = tpd.district_leaid
+      WHERE tpd.plan_id IN (
+        SELECT id FROM territory_plans WHERE user_id = ${userId}
+      )
+    `,
+  ]);
 
   return {
     data,
@@ -876,6 +906,7 @@ async function handlePlans(req: NextRequest, userId: string) {
       expansionSum: Number(aggResult._sum.expansionRollup ?? 0),
       winbackSum: Number(aggResult._sum.winbackRollup ?? 0),
       newBusinessSum: Number(aggResult._sum.newBusinessRollup ?? 0),
+      fy27PipelineSum: fy27PipelineResult[0]?.total ?? 0,
     },
     pagination: { page, pageSize, total },
   };

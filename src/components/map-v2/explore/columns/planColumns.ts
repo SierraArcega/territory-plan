@@ -65,6 +65,13 @@ export const planColumns: ColumnDef[] = [
 
   // ---- Targets ----
   {
+    key: "totalTargets",
+    label: "Total Targets ($)",
+    group: "Targets",
+    isDefault: true,
+    filterType: "number",
+  },
+  {
     key: "renewalRollup",
     label: "Renewal Rollup ($)",
     group: "Targets",

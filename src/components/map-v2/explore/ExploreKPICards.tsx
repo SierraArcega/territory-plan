@@ -37,6 +37,14 @@ function formatCurrency(n: number | null | undefined): string {
   return `$${n.toLocaleString()}`;
 }
 
+function gridColsClass(count: number): string {
+  if (count <= 4) return "grid-cols-4";
+  if (count === 5) return "grid-cols-5";
+  if (count === 6) return "grid-cols-6";
+  // 7+ cards: use a 4-column auto-flow grid so they wrap naturally
+  return "grid-cols-4";
+}
+
 interface Props {
   entity: ExploreEntity;
   aggregates: Record<string, number> | undefined;
@@ -45,9 +53,9 @@ interface Props {
 
 export default function ExploreKPICards({ entity, aggregates, isLoading }: Props) {
   if (isLoading || !aggregates) {
-    const count = entity === "plans" ? 5 : 4;
+    const count = entity === "plans" ? 7 : 4;
     return (
-      <div className={`grid gap-4 ${count === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+      <div className={`grid gap-4 ${gridColsClass(count)}`}>
         {Array.from({ length: count }).map((_, idx) => (
           <div key={idx} className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#C4E7E6]/50" />
@@ -62,7 +70,7 @@ export default function ExploreKPICards({ entity, aggregates, isLoading }: Props
   const cards = getCardsForEntity(entity, aggregates);
 
   return (
-    <div className={`grid gap-4 ${cards.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+    <div className={`grid gap-4 ${gridColsClass(cards.length)}`}>
       {cards.map((card) => (
         <KPICard key={card.label} {...card} />
       ))}
@@ -100,13 +108,17 @@ function getCardsForEntity(entity: ExploreEntity, agg: Record<string, number>): 
         { label: "Primary Contacts", value: formatNumber(agg.primaryCount), accent: "#C4E7E6" },
         { label: "Recently Active", value: formatNumber(agg.withRecentActivity), accent: "#8AA891" },
       ];
-    case "plans":
+    case "plans": {
+      const totalTargets = (agg.renewalSum || 0) + (agg.expansionSum || 0) + (agg.winbackSum || 0) + (agg.newBusinessSum || 0);
       return [
         { label: "Total Districts", value: formatNumber(agg.totalDistricts), accent: "#403770" },
+        { label: "Total Targets", value: formatCurrency(totalTargets || null), accent: "#403770" },
+        { label: "FY27 Pipeline", value: formatCurrency(agg.fy27PipelineSum), accent: "#F37167" },
         { label: "Renewal Rollup", value: formatCurrency(agg.renewalSum), accent: "#6EA3BE" },
         { label: "Expansion Rollup", value: formatCurrency(agg.expansionSum), accent: "#8AA891" },
         { label: "Win Back Rollup", value: formatCurrency(agg.winbackSum), accent: "#FFCF70" },
         { label: "New Business Rollup", value: formatCurrency(agg.newBusinessSum), accent: "#C4E7E6" },
       ];
+    }
   }
 }
