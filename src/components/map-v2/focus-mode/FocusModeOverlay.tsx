@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useMapV2Store } from "@/lib/map-v2-store";
 import { useFocusModeData } from "@/lib/api";
-import TrajectoryCard from "./TrajectoryCard";
+import AnimatedCard from "./AnimatedCard";
+import RevenueTrendCard from "./RevenueTrendCard";
 import FootprintCard from "./FootprintCard";
 import YoYCard from "./YoYCard";
 
@@ -37,35 +38,54 @@ export default function FocusModeOverlay() {
 
   return (
     <>
-      {/* Top right — FY Trajectory */}
-      {!dismissed.has("trajectory") && (
-        <div className="absolute top-4 right-4 z-[8]">
-          <TrajectoryCard
+      {/* Top right — Revenue Trend (Uniswap-style area chart) */}
+      {!dismissed.has("trend") && (
+        <AnimatedCard
+          from="right"
+          delay={0}
+          className="absolute top-4 right-4 z-[8]"
+        >
+          <RevenueTrendCard
             states={data.states}
-            onDismiss={() => dismiss("trajectory")}
+            onDismiss={() => dismiss("trend")}
+            animationDelay={600}
           />
-        </div>
+        </AnimatedCard>
       )}
 
-      {/* Bottom left — stacked: Footprint + YoY */}
-      <div className="absolute bottom-4 left-[396px] z-[8] flex flex-col gap-2">
-        {!dismissed.has("footprint") && (
+      {/* Bottom left — Territory Footprint */}
+      {!dismissed.has("footprint") && (
+        <AnimatedCard
+          from="left"
+          delay={150}
+          className="absolute bottom-4 left-[396px] z-[8]"
+        >
           <FootprintCard
             states={data.states}
             selectedState={activeState}
             onSelectState={setSelectedState}
             onDismiss={() => dismiss("footprint")}
+            animationDelay={750}
           />
-        )}
-        {!dismissed.has("yoy") && (
+        </AnimatedCard>
+      )}
+
+      {/* Bottom right — YoY Performance */}
+      {!dismissed.has("yoy") && (
+        <AnimatedCard
+          from="right"
+          delay={300}
+          className="absolute bottom-4 right-4 z-[8]"
+        >
           <YoYCard
             states={data.states}
             selectedState={activeState}
             onSelectState={setSelectedState}
             onDismiss={() => dismiss("yoy")}
+            animationDelay={800}
           />
-        )}
-      </div>
+        </AnimatedCard>
+      )}
     </>
   );
 }
