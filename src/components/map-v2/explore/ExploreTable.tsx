@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -20,7 +20,7 @@ import {
   useRemoveDistrictFromPlan,
   type TerritoryPlan,
 } from "@/lib/api";
-import { districtColumns } from "./columns/districtColumns";
+import { districtColumns, parseCompetitorColumnKey } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
@@ -576,6 +576,38 @@ function EditablePlansCell({ plans: serverPlans, rowId }: { plans: { id: string;
   );
 }
 
+// ---- Click-to-copy cell ----
+
+function ClickToCopyCell({ value }: { value: unknown }) {
+  const [copied, setCopied] = useState(false);
+  const text = value == null ? "" : String(value);
+  if (!text) return <span className="text-gray-300">{"\u2014"}</span>;
+  return (
+    <span
+      className="group/copy cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      title="Click to copy"
+    >
+      <span className="text-[13px] text-gray-600 font-mono">{text}</span>
+      {copied ? (
+        <svg className="shrink-0 w-3 h-3 text-green-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 8.5L6.5 12L13 4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg className="shrink-0 opacity-0 group-hover/copy:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <rect x="5" y="5" width="8" height="8" rx="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M3 11V3C3 2.44772 3.44772 2 4 2H12" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 // ---- Component ----
 
 export default function ExploreTable({
@@ -710,6 +742,22 @@ export default function ExploreTable({
           }
           return formatCellValue(value, key);
         };
+      } else if (key === "color" && entityType === "plans") {
+        cellRenderer = (info: { getValue: () => unknown }) => {
+          const hex = info.getValue();
+          if (!hex || typeof hex !== "string") return <span className="text-gray-300">{"\u2014"}</span>;
+          return (
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="w-4 h-4 rounded-full shrink-0 border border-black/10"
+                style={{ backgroundColor: hex }}
+              />
+              <span className="text-[13px] text-gray-500 font-mono">{hex}</span>
+            </span>
+          );
+        };
+      } else if (key === "leaid") {
+        cellRenderer = (info: { getValue: () => unknown }) => <ClickToCopyCell value={info.getValue()} />;
       } else {
         cellRenderer = (info: { getValue: () => unknown }) => formatCellValue(info.getValue(), key);
       }
