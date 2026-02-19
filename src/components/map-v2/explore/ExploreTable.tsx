@@ -780,6 +780,12 @@ export default function ExploreTable({
             </span>
           );
         };
+      } else if (key === "fiscalYear") {
+        cellRenderer = (info: { getValue: () => unknown }) => {
+          const year = info.getValue();
+          if (year == null || typeof year !== "number") return <span className="text-gray-300">{"\u2014"}</span>;
+          return `FY${String(year).slice(-2)}`;
+        };
       } else if (key === "leaid") {
         cellRenderer = (info: { getValue: () => unknown }) => <ClickToCopyCell value={info.getValue()} />;
       } else {
