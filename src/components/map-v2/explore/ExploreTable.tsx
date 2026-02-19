@@ -48,26 +48,37 @@ interface Props {
 }
 
 // ---- Column label lookup ----
-// Build a map from key -> label across all entity column defs.
+// Build per-entity maps so keys like "name" resolve to the right label.
 
-const ALL_COLUMN_DEFS = [
-  ...districtColumns,
-  ...activityColumns,
-  ...taskColumns,
-  ...contactColumns,
-  ...planColumns,
-];
+const ENTITY_COLUMN_DEFS: Record<string, typeof districtColumns> = {
+  districts: districtColumns,
+  activities: activityColumns,
+  tasks: taskColumns,
+  contacts: contactColumns,
+  plans: planColumns,
+};
 
+const ENTITY_LABEL_MAPS: Record<string, Record<string, string>> = {};
+for (const [entity, cols] of Object.entries(ENTITY_COLUMN_DEFS)) {
+  const m: Record<string, string> = {};
+  for (const col of cols) m[col.key] = col.label;
+  ENTITY_LABEL_MAPS[entity] = m;
+}
+
+// Fallback flat map for shared/dynamic columns
 const LABEL_MAP: Record<string, string> = {};
-for (const col of ALL_COLUMN_DEFS) {
-  LABEL_MAP[col.key] = col.label;
+for (const cols of Object.values(ENTITY_COLUMN_DEFS)) {
+  for (const col of cols) {
+    if (!LABEL_MAP[col.key]) LABEL_MAP[col.key] = col.label;
+  }
 }
 
 /**
  * Generate a readable label from a camelCase or snake_case key.
- * Prefers the pre-defined label from column defs if available.
+ * Prefers the entity-specific label, then falls back to the shared map.
  */
-function columnLabel(key: string): string {
+function columnLabel(key: string, entity?: string): string {
+  if (entity && ENTITY_LABEL_MAPS[entity]?.[key]) return ENTITY_LABEL_MAPS[entity][key];
   if (LABEL_MAP[key]) return LABEL_MAP[key];
   // Dynamic competitor columns
   const comp = parseCompetitorColumnKey(key);
@@ -795,7 +806,7 @@ export default function ExploreTable({
       return {
         id: key,
         accessorFn: (row: Record<string, unknown>) => row[key],
-        header: () => columnLabel(key),
+        header: () => columnLabel(key, entityType),
         cell: cellRenderer,
       };
     });
@@ -1008,7 +1019,7 @@ export default function ExploreTable({
                         }
 
                         const isPrimary = cell.column.id === primaryColumn;
-                        const isInteractive = TAG_COLUMNS.has(cell.column.id) || cell.column.id === "owner";
+                        const isInteractive = TAG_COLUMNS.has(cell.column.id) || cell.column.id === "owner" || cell.column.id === "notes";
                         return (
                           <td
                             key={cell.id}
@@ -1031,6 +1042,7 @@ export default function ExploreTable({
                               <thead>
                                 <tr className="text-left text-gray-400 uppercase tracking-wider">
                                   <th className="pb-2 font-semibold">District</th>
+                                  <th className="pb-2 font-semibold">Tags</th>
                                   <th className="pb-2 font-semibold text-right">Renewal</th>
                                   <th className="pb-2 font-semibold text-right">Expansion</th>
                                   <th className="pb-2 font-semibold text-right">Win Back</th>
@@ -1044,9 +1056,11 @@ export default function ExploreTable({
                                   renewalTarget: number; expansionTarget: number;
                                   winbackTarget: number; newBusinessTarget: number;
                                   notes: string | null;
+                                  tags: { id: number; name: string; color: string }[];
                                 }>) || []).map((d) => (
                                   <tr key={d.leaid} className="border-t border-gray-100">
                                     <td className="py-1.5 text-[#403770] font-medium">{d.name}</td>
+                                    <td className="py-1.5">{renderColoredPills(d.tags || [])}</td>
                                     <td className="py-1.5 text-right text-gray-600">{d.renewalTarget ? `$${d.renewalTarget.toLocaleString()}` : "\u2014"}</td>
                                     <td className="py-1.5 text-right text-gray-600">{d.expansionTarget ? `$${d.expansionTarget.toLocaleString()}` : "\u2014"}</td>
                                     <td className="py-1.5 text-right text-gray-600">{d.winbackTarget ? `$${d.winbackTarget.toLocaleString()}` : "\u2014"}</td>
@@ -1071,6 +1085,7 @@ export default function ExploreTable({
                                   return (
                                     <tr className="border-t-2 border-gray-200 font-semibold text-[#403770]">
                                       <td className="py-2">Total</td>
+                                      <td className="py-2"></td>
                                       <td className="py-2 text-right">{totals.renewal ? `$${totals.renewal.toLocaleString()}` : "\u2014"}</td>
                                       <td className="py-2 text-right">{totals.expansion ? `$${totals.expansion.toLocaleString()}` : "\u2014"}</td>
                                       <td className="py-2 text-right">{totals.winback ? `$${totals.winback.toLocaleString()}` : "\u2014"}</td>
@@ -1081,7 +1096,7 @@ export default function ExploreTable({
                                 })()}
                                 {(!row.original._districts || (row.original._districts as unknown[]).length === 0) && (
                                   <tr>
-                                    <td colSpan={6} className="py-3 text-center text-gray-400 italic">
+                                    <td colSpan={7} className="py-3 text-center text-gray-400 italic">
                                       No districts in this plan
                                     </td>
                                   </tr>

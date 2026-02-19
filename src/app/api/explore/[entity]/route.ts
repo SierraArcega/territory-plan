@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getUser } from "@/lib/supabase/server";
 import {
   type FilterDef,
@@ -154,6 +155,15 @@ function buildDistrictSelect(columns: string[] | null): Record<string, unknown> 
     if (parseCompetitorColumnKey(col)) {
       needsCompetitorSpend = true;
     }
+    if (col === "ltv") {
+      // LTV is virtual — ensure source columns are fetched
+      select.fy25ClosedWonNetBooking = true;
+      select.fy26ClosedWonNetBooking = true;
+      select.fy25NetInvoicing = true;
+      select.fy26NetInvoicing = true;
+      select.fy25SessionsRevenue = true;
+      select.fy26SessionsRevenue = true;
+    }
   }
 
   if (needsCompetitorSpend) {
@@ -225,9 +235,10 @@ function buildRelationWhere(filters: FilterDef[]): Record<string, unknown> {
     // Competitor spend filters (comp_{slug}_{fy})
     const compParsed = parseCompetitorColumnKey(f.column);
     if (compParsed) {
+      const fyValue = compParsed.fiscalYear.toUpperCase(); // DB stores "FY25" not "fy25"
       const compFilter: Record<string, unknown> = {
         competitor: compParsed.competitor,
-        fiscalYear: compParsed.fiscalYear,
+        fiscalYear: fyValue,
       };
 
       switch (f.op) {
@@ -253,12 +264,12 @@ function buildRelationWhere(filters: FilterDef[]): Record<string, unknown> {
       if (f.op === "is_empty") {
         if (!where.AND) where.AND = [];
         (where.AND as unknown[]).push({
-          competitorSpend: { none: { competitor: compParsed.competitor, fiscalYear: compParsed.fiscalYear } },
+          competitorSpend: { none: { competitor: compParsed.competitor, fiscalYear: fyValue } },
         });
       } else if (f.op === "is_not_empty") {
         if (!where.AND) where.AND = [];
         (where.AND as unknown[]).push({
-          competitorSpend: { some: { competitor: compParsed.competitor, fiscalYear: compParsed.fiscalYear } },
+          competitorSpend: { some: { competitor: compParsed.competitor, fiscalYear: fyValue } },
         });
       } else {
         if (!where.AND) where.AND = [];
@@ -286,34 +297,87 @@ async function handleDistricts(req: NextRequest) {
   };
 
   // Build orderBy (multi-sort: Prisma accepts an array of single-key objects)
+  const compSortEntry = sorts.find((s) => parseCompetitorColumnKey(s.column));
+  const scalarSorts = sorts.filter((s) => !parseCompetitorColumnKey(s.column));
   const orderBy: Record<string, string>[] = [];
-  for (const s of sorts) {
+  for (const s of scalarSorts) {
     const field = DISTRICT_FIELD_MAP[s.column];
     if (field) orderBy.push({ [field]: s.direction });
   }
-  if (orderBy.length === 0) orderBy.push({ name: "asc" });
-
   const districtSelect = buildDistrictSelect(columns);
 
-  const [rows, total, aggResult] = await Promise.all([
-    prisma.district.findMany({
-      where,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rows: any[];
+  let total: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let aggResult: any;
+
+  if (compSortEntry) {
+    // Competitor sort requires raw SQL since Prisma can't sort by a filtered relation field.
+    // 1) Get all matching leaids + aggregates using Prisma (respects all filters)
+    // 2) Sort those leaids by competitor spend via raw SQL + paginate
+    // 3) Fetch full data for the resulting page
+    const compParsed = parseCompetitorColumnKey(compSortEntry.column)!;
+    const fyValue = compParsed.fiscalYear.toUpperCase();
+    const dir = compSortEntry.direction === "desc" ? Prisma.raw("DESC") : Prisma.raw("ASC");
+
+    const [matchingIds, aggRes] = await Promise.all([
+      prisma.district.findMany({ where, select: { leaid: true } }),
+      prisma.district.aggregate({
+        where,
+        _count: { leaid: true },
+        _sum: { enrollment: true, fy26OpenPipeline: true, fy26ClosedWonNetBooking: true },
+      }),
+    ]);
+    total = matchingIds.length;
+    aggResult = aggRes;
+
+    const leaidArray = matchingIds.map((r) => r.leaid);
+
+    const sortedPage = await prisma.$queryRaw<{ leaid: string }[]>`
+      SELECT sub.leaid
+      FROM unnest(${leaidArray}::varchar[]) AS sub(leaid)
+      LEFT JOIN competitor_spend cs
+        ON cs.leaid = sub.leaid
+        AND cs.competitor = ${compParsed.competitor}
+        AND cs.fiscal_year = ${fyValue}
+      ORDER BY cs.total_spend ${dir} NULLS LAST
+      LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+    `;
+
+    const pageLeaids = sortedPage.map((r) => r.leaid);
+    rows = await prisma.district.findMany({
+      where: { leaid: { in: pageLeaids } },
       select: districtSelect,
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.district.count({ where }),
-    prisma.district.aggregate({
-      where,
-      _count: { leaid: true },
-      _sum: {
-        enrollment: true,
-        fy26OpenPipeline: true,
-        fy26ClosedWonNetBooking: true,
-      },
-    }),
-  ]);
+    });
+
+    // Maintain sort order from raw SQL
+    const orderMap = new Map(pageLeaids.map((id, i) => [id, i]));
+    rows.sort((a, b) => (orderMap.get(a.leaid) ?? 0) - (orderMap.get(b.leaid) ?? 0));
+  } else {
+    // Standard Prisma sort path
+    if (orderBy.length === 0) orderBy.push({ name: "asc" });
+
+    [rows, total, aggResult] = await Promise.all([
+      prisma.district.findMany({
+        where,
+        select: districtSelect,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.district.count({ where }),
+      prisma.district.aggregate({
+        where,
+        _count: { leaid: true },
+        _sum: {
+          enrollment: true,
+          fy26OpenPipeline: true,
+          fy26ClosedWonNetBooking: true,
+        },
+      }),
+    ]);
+  }
 
   // Reshape rows: map Prisma field names → client keys
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -321,9 +385,11 @@ async function handleDistricts(req: NextRequest) {
     const row: Record<string, unknown> = {};
 
     // Map scalar fields using DISTRICT_FIELD_MAP (clientKey → prismaField)
+    // Prisma Decimal objects must be converted to numbers for proper JSON serialization
     for (const [clientKey, prismaField] of Object.entries(DISTRICT_FIELD_MAP)) {
       if (prismaField in d) {
-        row[clientKey] = d[prismaField];
+        const val = d[prismaField];
+        row[clientKey] = val != null && typeof val === "object" && "toNumber" in val ? Number(val) : val;
       }
     }
 
@@ -336,6 +402,23 @@ async function handleDistricts(req: NextRequest) {
     }
     if (d.activityLinks) {
       row.lastActivity = d.activityLinks[0]?.activity?.startDate ?? null;
+    }
+
+    // LTV — virtual computed field: EK12 bookings + MAX(Fullmind invoicing, sessions revenue) per FY
+    {
+      const toNum = (v: unknown) =>
+        v != null && typeof v === "object" && "toNumber" in (v as Record<string, unknown>) ? Number(v) : (typeof v === "number" ? v : 0);
+      const fy25Booking = toNum(d.fy25ClosedWonNetBooking);
+      const fy26Booking = toNum(d.fy26ClosedWonNetBooking);
+      const fy25Invoicing = toNum(d.fy25NetInvoicing);
+      const fy26Invoicing = toNum(d.fy26NetInvoicing);
+      const fy25Sessions = toNum(d.fy25SessionsRevenue);
+      const fy26Sessions = toNum(d.fy26SessionsRevenue);
+      const ltv =
+        fy25Booking + fy26Booking +
+        Math.max(fy25Invoicing, fy25Sessions) +
+        Math.max(fy26Invoicing, fy26Sessions);
+      row.ltv = ltv || null;
     }
 
     // Competitor spend → flat keys
@@ -721,7 +804,15 @@ async function handlePlans(req: NextRequest, userId: string) {
             winbackTarget: true,
             newBusinessTarget: true,
             notes: true,
-            district: { select: { name: true, leaid: true } },
+            district: {
+              select: {
+                name: true,
+                leaid: true,
+                districtTags: {
+                  select: { tag: { select: { id: true, name: true, color: true } } },
+                },
+              },
+            },
           },
         },
       },
@@ -742,6 +833,7 @@ async function handlePlans(req: NextRequest, userId: string) {
       winbackTarget: d.winbackTarget ? Number(d.winbackTarget) : 0,
       newBusinessTarget: d.newBusinessTarget ? Number(d.newBusinessTarget) : 0,
       notes: d.notes,
+      tags: d.district.districtTags.map((dt: { tag: { id: number; name: string; color: string } }) => dt.tag),
     }));
 
     return {
