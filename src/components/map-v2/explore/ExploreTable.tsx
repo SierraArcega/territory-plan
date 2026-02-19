@@ -1054,6 +1054,31 @@ export default function ExploreTable({
                                     <td className="py-1.5 text-gray-500 max-w-[200px] truncate">{d.notes || "\u2014"}</td>
                                   </tr>
                                 ))}
+                                {(row.original._districts as unknown[])?.length > 0 && (() => {
+                                  const districts = row.original._districts as Array<{
+                                    renewalTarget: number; expansionTarget: number;
+                                    winbackTarget: number; newBusinessTarget: number;
+                                  }>;
+                                  const totals = districts.reduce(
+                                    (acc, d) => ({
+                                      renewal: acc.renewal + (d.renewalTarget || 0),
+                                      expansion: acc.expansion + (d.expansionTarget || 0),
+                                      winback: acc.winback + (d.winbackTarget || 0),
+                                      newBusiness: acc.newBusiness + (d.newBusinessTarget || 0),
+                                    }),
+                                    { renewal: 0, expansion: 0, winback: 0, newBusiness: 0 }
+                                  );
+                                  return (
+                                    <tr className="border-t-2 border-gray-200 font-semibold text-[#403770]">
+                                      <td className="py-2">Total</td>
+                                      <td className="py-2 text-right">{totals.renewal ? `$${totals.renewal.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="py-2 text-right">{totals.expansion ? `$${totals.expansion.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="py-2 text-right">{totals.winback ? `$${totals.winback.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="py-2 text-right">{totals.newBusiness ? `$${totals.newBusiness.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="py-2"></td>
+                                    </tr>
+                                  );
+                                })()}
                                 {(!row.original._districts || (row.original._districts as unknown[]).length === 0) && (
                                   <tr>
                                     <td colSpan={6} className="py-3 text-center text-gray-400 italic">
