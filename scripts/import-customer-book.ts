@@ -12,7 +12,22 @@
 //   npx tsx scripts/import-customer-book.ts --file path/to/file.csv  # custom path
 
 import { readFileSync } from "fs";
+import { createHash } from "crypto";
 import prisma from "../src/lib/prisma";
+
+// ── Synthetic LEA ID generator ─────────────────────────────────────
+// For accounts without a real NCES ID (marked "ADD" in the CSV).
+// Generates a deterministic 7-char ID from name + state so re-runs
+// produce the same ID. Prefix "A" guarantees no collision with real
+// numeric NCES IDs.
+function generateSyntheticLeaid(name: string, state: string): string {
+  const hash = createHash("md5")
+    .update(`${name}|${state}`)
+    .digest("hex")
+    .slice(0, 6)
+    .toUpperCase();
+  return `A${hash}`;
+}
 
 // ── CSV line parser ────────────────────────────────────────────────
 // Handles quoted fields that contain commas (e.g., "$1,234.56")
@@ -79,15 +94,23 @@ function parseCSV(filePath: string): CSVRow[] {
 
     // Validate fiscal year
     const fiscalYear = parseInt(fields[4]?.trim() || "0", 10);
-    if (!fiscalYear || fiscalYear < 2020 || fiscalYear > 2035) {
+    if (!fiscalYear || fiscalYear < 2020) {
       console.warn(`  Skipping row ${i + 1}: invalid fiscal year "${fields[4]?.trim()}" for "${fields[0]?.trim()}"`);
       continue;
     }
 
+    // Generate synthetic ID for accounts without a real NCES ID
+    const accountName = fields[0]?.trim() || "";
+    const stateAbbrev = fields[2]?.trim() || "";
+    const resolvedLeaid =
+      leaid === "ADD"
+        ? generateSyntheticLeaid(accountName, stateAbbrev)
+        : leaid;
+
     rows.push({
-      accountName: fields[0]?.trim() || "",
-      leaid,
-      stateAbbrev: fields[2]?.trim() || "",
+      accountName,
+      leaid: resolvedLeaid,
+      stateAbbrev,
       planName: fields[3]?.trim() || "",
       fiscalYear,
       owner: fields[5]?.trim() || "",
@@ -127,6 +150,8 @@ async function main() {
     select: { fips: true, abbrev: true },
   });
   const stateLookup = new Map(states.map((s) => [s.abbrev, s.fips]));
+  // Map non-standard abbreviations from the CSV to real state abbreviations
+  const stateAliases: Record<string, string> = { INT: "IT" };
   console.log(`Loaded ${stateLookup.size} state mappings\n`);
 
   // Step 3: Identify unique plans and existing districts
@@ -157,7 +182,7 @@ async function main() {
   const planIdMap = new Map<string, string>();
 
   for (const [key, plan] of uniquePlans) {
-    const stateFips = stateLookup.get(plan.stateAbbrev);
+    const stateFips = stateLookup.get(stateAliases[plan.stateAbbrev] || plan.stateAbbrev);
     if (!stateFips) {
       errors.push(`Unknown state "${plan.stateAbbrev}" for plan "${plan.name}" — skipping plan`);
       continue;
@@ -214,7 +239,8 @@ async function main() {
       continue;
     }
 
-    const stateFips = stateLookup.get(row.stateAbbrev);
+    const resolvedStateAbbrev = stateAliases[row.stateAbbrev] || row.stateAbbrev;
+    const stateFips = stateLookup.get(resolvedStateAbbrev);
     if (!stateFips) {
       errors.push(`Row ${i + 3}: Unknown state "${row.stateAbbrev}" for district "${row.accountName}" — skipping`);
       continue;
@@ -253,7 +279,7 @@ async function main() {
             leaid: row.leaid,
             name: row.accountName,
             stateFips,
-            stateAbbrev: row.stateAbbrev,
+            stateAbbrev: resolvedStateAbbrev,
             accountType: "district",
             owner: row.owner || undefined,
           },
