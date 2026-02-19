@@ -153,6 +153,7 @@ export default function MapV2Container() {
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const pendingFitBounds = useMapV2Store((s) => s.pendingFitBounds);
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
+  const focusLeaids = useMapV2Store((s) => s.focusLeaids);
 
   // Initialize map
   useEffect(() => {
@@ -426,6 +427,31 @@ export default function MapV2Container() {
           "line-color": "#403770",
           "line-width": 2,
           "line-dasharray": [2, 1],
+        },
+      });
+
+      // Focus Map — highlighted plan districts (fill + outline)
+      map.current.addLayer({
+        id: "district-focus-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["in", ["get", "leaid"], ["literal", [""]]],
+        paint: {
+          "fill-color": "#403770",
+          "fill-opacity": 0.25,
+        },
+      });
+
+      map.current.addLayer({
+        id: "district-focus-outline",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["in", ["get", "leaid"], ["literal", [""]]],
+        paint: {
+          "line-color": "#403770",
+          "line-width": 2.5,
         },
       });
 
@@ -795,6 +821,20 @@ export default function MapV2Container() {
       map.current.setFilter("district-multiselect-outline", filter);
     }
   }, [selectedLeaids, mapReady]);
+
+  // Update focus highlight layers — show plan districts with colored fill + outline
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const filter: any = focusLeaids.length > 0
+      ? ["in", ["get", "leaid"], ["literal", focusLeaids]]
+      : ["in", ["get", "leaid"], ["literal", [""]]];
+    if (map.current.getLayer("district-focus-fill")) {
+      map.current.setFilter("district-focus-fill", filter);
+    }
+    if (map.current.getLayer("district-focus-outline")) {
+      map.current.setFilter("district-focus-outline", filter);
+    }
+  }, [focusLeaids, mapReady]);
 
   // Change cursor in multi-select mode
   useEffect(() => {

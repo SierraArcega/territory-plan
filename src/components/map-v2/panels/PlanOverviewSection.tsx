@@ -153,7 +153,8 @@ export default function PlanOverviewSection() {
     }
 
     if (minLng > maxLng) return; // no valid bboxes found
-    focusPlan(plan.id, abbrevs, [[minLng, minLat], [maxLng, maxLat]]);
+    const leaids = plan.districts.map((d) => d.leaid);
+    focusPlan(plan.id, abbrevs, leaids, [[minLng, minLat], [maxLng, maxLat]]);
   };
 
   const isFocused = focusPlanId === plan?.id;

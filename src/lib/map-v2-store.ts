@@ -177,6 +177,7 @@ interface MapV2State {
 
   // Focus Map — zooms + filters to a specific plan's footprint
   focusPlanId: string | null;
+  focusLeaids: string[];
   preFocusFilters: { filterStates: string[]; filterPlanId: string | null } | null;
   pendingFitBounds: [[number, number], [number, number]] | null;
 }
@@ -301,7 +302,7 @@ interface MapV2Actions {
   setSelectAllMatchingFilters: (value: boolean) => void;
 
   // Focus Map
-  focusPlan: (planId: string, stateAbbrevs: string[], bounds: [[number, number], [number, number]]) => void;
+  focusPlan: (planId: string, stateAbbrevs: string[], leaids: string[], bounds: [[number, number], [number, number]]) => void;
   unfocusPlan: () => void;
   clearPendingFitBounds: () => void;
 }
@@ -397,6 +398,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
 
   // Focus Map
   focusPlanId: null,
+  focusLeaids: [],
   preFocusFilters: null,
   pendingFitBounds: null,
 
@@ -835,22 +837,25 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   setSelectAllMatchingFilters: (value) =>
     set({ selectAllMatchingFilters: value }),
 
-  // Focus Map — saves current filters, applies plan filters, queues fitBounds
-  focusPlan: (planId, stateAbbrevs, bounds) =>
+  // Focus Map — saves current filters, applies state filter + highlight layers, queues fitBounds
+  focusPlan: (planId, stateAbbrevs, leaids, bounds) =>
     set((s) => ({
       focusPlanId: planId,
+      focusLeaids: leaids,
       preFocusFilters: {
         filterStates: s.filterStates,
         filterPlanId: s.filterPlanId,
       },
       filterStates: stateAbbrevs,
-      filterPlanId: planId,
+      // Don't set filterPlanId — we want non-plan districts visible (dimmed),
+      // not hidden. The highlight layers make plan districts stand out.
       pendingFitBounds: bounds,
     })),
 
   unfocusPlan: () =>
     set((s) => ({
       focusPlanId: null,
+      focusLeaids: [],
       filterStates: s.preFocusFilters?.filterStates ?? [],
       filterPlanId: s.preFocusFilters?.filterPlanId ?? null,
       preFocusFilters: null,
