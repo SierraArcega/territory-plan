@@ -174,6 +174,11 @@ interface MapV2State {
   // Bulk selection
   selectedDistrictLeaids: Set<string>;
   selectAllMatchingFilters: boolean;
+
+  // Focus Map — zooms + filters to a specific plan's footprint
+  focusPlanId: string | null;
+  preFocusFilters: { filterStates: string[]; filterPlanId: string | null } | null;
+  pendingFitBounds: [[number, number], [number, number]] | null;
 }
 
 interface MapV2Actions {
@@ -294,6 +299,11 @@ interface MapV2Actions {
   setDistrictSelection: (leaids: string[]) => void;
   clearDistrictSelection: () => void;
   setSelectAllMatchingFilters: (value: boolean) => void;
+
+  // Focus Map
+  focusPlan: (planId: string, stateAbbrevs: string[], bounds: [[number, number], [number, number]]) => void;
+  unfocusPlan: () => void;
+  clearPendingFitBounds: () => void;
 }
 
 let rippleId = 0;
@@ -384,6 +394,11 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   // Bulk selection
   selectedDistrictLeaids: new Set<string>(),
   selectAllMatchingFilters: false,
+
+  // Focus Map
+  focusPlanId: null,
+  preFocusFilters: null,
+  pendingFitBounds: null,
 
   // Panel navigation
   setPanelState: (state) =>
@@ -819,4 +834,27 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     set({ selectedDistrictLeaids: new Set<string>(), selectAllMatchingFilters: false }),
   setSelectAllMatchingFilters: (value) =>
     set({ selectAllMatchingFilters: value }),
+
+  // Focus Map — saves current filters, applies plan filters, queues fitBounds
+  focusPlan: (planId, stateAbbrevs, bounds) =>
+    set((s) => ({
+      focusPlanId: planId,
+      preFocusFilters: {
+        filterStates: s.filterStates,
+        filterPlanId: s.filterPlanId,
+      },
+      filterStates: stateAbbrevs,
+      filterPlanId: planId,
+      pendingFitBounds: bounds,
+    })),
+
+  unfocusPlan: () =>
+    set((s) => ({
+      focusPlanId: null,
+      filterStates: s.preFocusFilters?.filterStates ?? [],
+      filterPlanId: s.preFocusFilters?.filterPlanId ?? null,
+      preFocusFilters: null,
+    })),
+
+  clearPendingFitBounds: () => set({ pendingFitBounds: null }),
 }));
