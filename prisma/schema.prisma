@@ -449,6 +449,14 @@ model TerritoryPlan {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  // Denormalized rollup columns (synced when districts/targets change)
+  districtCount     Int      @default(0) @map("district_count")
+  stateCount        Int      @default(0) @map("state_count")
+  renewalRollup     Decimal  @default(0) @map("renewal_rollup") @db.Decimal(15, 2)
+  expansionRollup   Decimal  @default(0) @map("expansion_rollup") @db.Decimal(15, 2)
+  winbackRollup     Decimal  @default(0) @map("winback_rollup") @db.Decimal(15, 2)
+  newBusinessRollup Decimal  @default(0) @map("new_business_rollup") @db.Decimal(15, 2)
+
   // Relations
   ownerUser     UserProfile?                @relation("PlanOwner", fields: [ownerId], references: [id])
   districts     TerritoryPlanDistrict[]

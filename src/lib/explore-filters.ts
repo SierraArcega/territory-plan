@@ -218,4 +218,11 @@ export const PLANS_FIELD_MAP: Record<string, string> = {
   color: "color",
   createdAt: "createdAt",
   updatedAt: "updatedAt",
+  // Denormalized rollup columns — filterable and sortable
+  districtCount: "districtCount",
+  stateCount: "stateCount",
+  renewalRollup: "renewalRollup",
+  expansionRollup: "expansionRollup",
+  winbackRollup: "winbackRollup",
+  newBusinessRollup: "newBusinessRollup",
 };
