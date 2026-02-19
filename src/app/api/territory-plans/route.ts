@@ -4,14 +4,16 @@ import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/territory-plans - List all plans with district counts (scoped to user)
+// GET /api/territory-plans - List all plans with district counts
 export async function GET() {
   try {
     const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
 
-    // Build where clause - if user is authenticated, filter by their userId
-    // If not authenticated (shouldn't happen with middleware), return empty
-    const whereClause = user ? { userId: user.id } : { userId: "none" };
+    // Show all plans — the team shares visibility across plans
+    const whereClause = {};
 
     const plans = await prisma.territoryPlan.findMany({
       where: whereClause,
