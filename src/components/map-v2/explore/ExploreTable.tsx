@@ -69,6 +69,9 @@ for (const col of ALL_COLUMN_DEFS) {
  */
 function columnLabel(key: string): string {
   if (LABEL_MAP[key]) return LABEL_MAP[key];
+  // Dynamic competitor columns
+  const comp = parseCompetitorColumnKey(key);
+  if (comp) return `${comp.competitor} ${comp.fiscalYear.toUpperCase()} ($)`;
   // camelCase -> "Camel Case"
   const spaced = key
     .replace(/_/g, " ")
@@ -87,6 +90,13 @@ const CURRENCY_KEYS = new Set(
 );
 const PERCENT_KEYS = /percent|rate|proficiency/i;
 const TAG_COLUMNS = new Set(["tags", "planNames"]);
+
+const PLAN_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  planning: { bg: "#6EA3BE18", text: "#4d7285" },
+  working:  { bg: "#40377018", text: "#403770" },
+  stale:    { bg: "#FFCF7020", text: "#997c43" },
+  archived: { bg: "#9CA3AF18", text: "#6B7280" },
+};
 
 function renderColoredPills(items: { name: string; color: string }[]) {
   if (items.length === 0) return <span className="text-gray-300">{"\u2014"}</span>;
@@ -145,7 +155,7 @@ function formatCellValue(value: unknown, key: string): string {
     if (PERCENT_KEYS.test(key)) {
       return `${(value * 100).toFixed(1)}%`;
     }
-    if (CURRENCY_KEYS.has(key)) {
+    if (CURRENCY_KEYS.has(key) || key.startsWith("comp_")) {
       if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
       if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
       return `$${value.toLocaleString()}`;
@@ -741,6 +751,20 @@ export default function ExploreTable({
             return renderColoredPills(value as { name: string; color: string }[]);
           }
           return formatCellValue(value, key);
+        };
+      } else if (key === "status" && entityType === "plans") {
+        cellRenderer = (info: { getValue: () => unknown }) => {
+          const status = info.getValue();
+          if (!status || typeof status !== "string") return <span className="text-gray-300">{"\u2014"}</span>;
+          const style = PLAN_STATUS_STYLES[status] || PLAN_STATUS_STYLES.archived;
+          return (
+            <span
+              className="px-2 py-0.5 text-[11px] font-medium rounded-full capitalize"
+              style={{ backgroundColor: style.bg, color: style.text }}
+            >
+              {status}
+            </span>
+          );
         };
       } else if (key === "color" && entityType === "plans") {
         cellRenderer = (info: { getValue: () => unknown }) => {
