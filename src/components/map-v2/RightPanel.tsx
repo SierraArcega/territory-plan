@@ -6,6 +6,7 @@ import ContactDetail from "./right-panels/ContactDetail";
 import ActivityForm from "./right-panels/ActivityForm";
 import PlanEditForm from "./right-panels/PlanEditForm";
 import DistrictCard from "./right-panels/DistrictCard";
+import PlanCard from "./right-panels/PlanCard";
 
 export default function RightPanel() {
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
@@ -13,16 +14,16 @@ export default function RightPanel() {
 
   if (!rightPanelContent) return null;
 
-  const isDistrictCard = rightPanelContent.type === "district_card";
+  const isWidePanel = rightPanelContent.type === "district_card" || rightPanelContent.type === "plan_card";
 
   return (
     <div
       className={`${
-        isDistrictCard ? "w-[380px]" : "w-[280px]"
+        isWidePanel ? "w-[380px]" : "w-[280px]"
       } border-l border-gray-200/60 flex flex-col bg-white/95`}
     >
-      {/* District card gets its own layout (header + tabs built in) */}
-      {isDistrictCard && rightPanelContent.id ? (
+      {/* Wide panels get their own layout (header + tabs built in) */}
+      {isWidePanel && rightPanelContent.id ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-end px-2 pt-2">
             <button
@@ -36,7 +37,12 @@ export default function RightPanel() {
             </button>
           </div>
           <div className="flex-1 overflow-hidden">
-            <DistrictCard leaid={rightPanelContent.id} />
+            {rightPanelContent.type === "district_card" && (
+              <DistrictCard leaid={rightPanelContent.id} />
+            )}
+            {rightPanelContent.type === "plan_card" && (
+              <PlanCard planId={rightPanelContent.id} />
+            )}
           </div>
         </div>
       ) : (

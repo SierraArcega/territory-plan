@@ -55,7 +55,7 @@ export interface ExploreSavedView {
 }
 
 export interface RightPanelContent {
-  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form";
+  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form" | "plan_card";
   id?: string;
 }
 
