@@ -77,12 +77,19 @@ function parseCSV(filePath: string): CSVRow[] {
     // Skip rows with missing LEA ID
     if (!leaid) continue;
 
+    // Validate fiscal year
+    const fiscalYear = parseInt(fields[4]?.trim() || "0", 10);
+    if (!fiscalYear || fiscalYear < 2020 || fiscalYear > 2035) {
+      console.warn(`  Skipping row ${i + 1}: invalid fiscal year "${fields[4]?.trim()}" for "${fields[0]?.trim()}"`);
+      continue;
+    }
+
     rows.push({
       accountName: fields[0]?.trim() || "",
       leaid,
       stateAbbrev: fields[2]?.trim() || "",
       planName: fields[3]?.trim() || "",
-      fiscalYear: parseInt(fields[4]?.trim() || "0", 10),
+      fiscalYear,
       owner: fields[5]?.trim() || "",
       renewalTarget: parseDollar(fields[7] || ""),
       expansionTarget: parseDollar(fields[8] || ""),
@@ -165,6 +172,14 @@ async function main() {
     if (existing) {
       planIdMap.set(key, existing.id);
       plansMatched++;
+      // Ensure the state association exists for matched plans
+      if (!dryRun) {
+        await prisma.territoryPlanState.upsert({
+          where: { planId_stateFips: { planId: existing.id, stateFips } },
+          create: { planId: existing.id, stateFips },
+          update: {},
+        });
+      }
       console.log(`  ✓ Matched existing plan: "${plan.name}" (${existing.id})`);
     } else if (!dryRun) {
       const created = await prisma.territoryPlan.create({
@@ -232,7 +247,7 @@ async function main() {
       });
 
       if (!existingDistrict) {
-        // Create minimal district record
+        // Create minimal district record (include owner if available)
         await prisma.district.create({
           data: {
             leaid: row.leaid,
@@ -240,13 +255,13 @@ async function main() {
             stateFips,
             stateAbbrev: row.stateAbbrev,
             accountType: "district",
+            owner: row.owner || undefined,
           },
         });
         districtsCreated++;
-      }
-
-      // 5b. Set district owner if CSV has one and district doesn't already have one
-      if (row.owner && (!existingDistrict || !existingDistrict.owner)) {
+        if (row.owner) ownersSet++;
+      } else if (row.owner && !existingDistrict.owner) {
+        // 5b. Set district owner if CSV has one and existing district doesn't
         await prisma.district.update({
           where: { leaid: row.leaid },
           data: { owner: row.owner },
