@@ -764,31 +764,26 @@ async function handlePlans(req: NextRequest, userId: string) {
     };
   });
 
-  // Compute aggregates across ALL matching plans (not just current page)
-  const aggResult = await prisma.$queryRaw<
-    [{ total_districts: number; renewal_sum: number; expansion_sum: number; winback_sum: number; new_business_sum: number }]
-  >`
-    SELECT
-      COUNT(DISTINCT tpd.district_leaid)::int AS total_districts,
-      COALESCE(SUM(tpd.renewal_target), 0)::float AS renewal_sum,
-      COALESCE(SUM(tpd.expansion_target), 0)::float AS expansion_sum,
-      COALESCE(SUM(tpd.winback_target), 0)::float AS winback_sum,
-      COALESCE(SUM(tpd.new_business_target), 0)::float AS new_business_sum
-    FROM territory_plan_districts tpd
-    JOIN territory_plans tp ON tp.id = tpd.plan_id
-    WHERE tp.user_id = ${userId}::uuid
-  `;
-
-  const agg = aggResult[0];
+  // Compute aggregates across ALL matching plans (respects filters)
+  const aggResult = await prisma.territoryPlan.aggregate({
+    where,
+    _sum: {
+      districtCount: true,
+      renewalRollup: true,
+      expansionRollup: true,
+      winbackRollup: true,
+      newBusinessRollup: true,
+    },
+  });
 
   return {
     data,
     aggregates: {
-      totalDistricts: agg.total_districts,
-      renewalSum: agg.renewal_sum,
-      expansionSum: agg.expansion_sum,
-      winbackSum: agg.winback_sum,
-      newBusinessSum: agg.new_business_sum,
+      totalDistricts: aggResult._sum.districtCount ?? 0,
+      renewalSum: Number(aggResult._sum.renewalRollup ?? 0),
+      expansionSum: Number(aggResult._sum.expansionRollup ?? 0),
+      winbackSum: Number(aggResult._sum.winbackRollup ?? 0),
+      newBusinessSum: Number(aggResult._sum.newBusinessRollup ?? 0),
     },
     pagination: { page, pageSize, total },
   };
