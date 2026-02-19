@@ -293,8 +293,8 @@ async function handleDistricts(req: NextRequest) {
     aggregates: {
       count: aggResult._count.leaid,
       enrollment_sum: aggResult._sum.enrollment,
-      fy26_open_pipeline_sum: aggResult._sum.fy26OpenPipeline,
-      fy26_closed_won_sum: aggResult._sum.fy26ClosedWonNetBooking,
+      pipeline_sum: aggResult._sum.fy26OpenPipeline,
+      closed_won_sum: aggResult._sum.fy26ClosedWonNetBooking,
     },
     pagination: { page, pageSize, total },
   };
@@ -395,9 +395,9 @@ async function handleActivities(req: NextRequest, userId: string) {
     data,
     aggregates: {
       count: total,
-      completed_count: completedCount,
-      positive_outcomes: positiveOutcomes,
-      unique_districts_touched: uniqueDistrictCount,
+      completed: completedCount,
+      positiveOutcomes: positiveOutcomes,
+      districtsTouched: uniqueDistrictCount,
     },
     pagination: { page, pageSize, total },
   };
@@ -497,9 +497,9 @@ async function handleTasks(req: NextRequest, userId: string) {
     data,
     aggregates: {
       count: total,
-      overdue_count: overdueCount,
-      completed_count: completedCount,
-      blocked_count: blockedCount,
+      overdue: overdueCount,
+      completed: completedCount,
+      blocked: blockedCount,
     },
     pagination: { page, pageSize, total },
   };
@@ -596,9 +596,9 @@ async function handleContacts(req: NextRequest) {
     data,
     aggregates: {
       count: total,
-      primary_count: primaryCount,
-      unique_districts: uniqueDistrictCount,
-      contacts_with_recent_activity: contactsWithRecentActivity,
+      primaryCount: primaryCount,
+      districtsCovered: uniqueDistrictCount,
+      withRecentActivity: contactsWithRecentActivity,
     },
     pagination: { page, pageSize, total },
   };
