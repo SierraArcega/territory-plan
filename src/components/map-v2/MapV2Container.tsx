@@ -151,6 +151,8 @@ export default function MapV2Container() {
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
+  const pendingFitBounds = useMapV2Store((s) => s.pendingFitBounds);
+  const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
 
   // Initialize map
   useEffect(() => {
@@ -1071,6 +1073,16 @@ export default function MapV2Container() {
       map.current.setFilter("state-filter-outline", nameFilter);
     }
   }, [filterStates, mapReady]);
+
+  // Focus Map — fly to bounds when a focus action queues one
+  useEffect(() => {
+    if (!pendingFitBounds || !map.current) return;
+    map.current.fitBounds(pendingFitBounds, {
+      padding: { top: 50, bottom: 50, left: 380, right: 50 },
+      duration: 800,
+    });
+    clearPendingFitBounds();
+  }, [pendingFitBounds, clearPendingFitBounds]);
 
   // Handle Escape key
   useEffect(() => {
