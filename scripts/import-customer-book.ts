@@ -224,64 +224,68 @@ async function main() {
       continue;
     }
 
-    // 5a. Ensure district exists
-    const existingDistrict = await prisma.district.findUnique({
-      where: { leaid: row.leaid },
-      select: { leaid: true, owner: true },
-    });
+    try {
+      // 5a. Ensure district exists
+      const existingDistrict = await prisma.district.findUnique({
+        where: { leaid: row.leaid },
+        select: { leaid: true, owner: true },
+      });
 
-    if (!existingDistrict) {
-      // Create minimal district record
-      await prisma.district.create({
-        data: {
-          leaid: row.leaid,
-          name: row.accountName,
-          stateFips,
-          stateAbbrev: row.stateAbbrev,
-          accountType: "district",
+      if (!existingDistrict) {
+        // Create minimal district record
+        await prisma.district.create({
+          data: {
+            leaid: row.leaid,
+            name: row.accountName,
+            stateFips,
+            stateAbbrev: row.stateAbbrev,
+            accountType: "district",
+          },
+        });
+        districtsCreated++;
+      }
+
+      // 5b. Set district owner if CSV has one and district doesn't already have one
+      if (row.owner && (!existingDistrict || !existingDistrict.owner)) {
+        await prisma.district.update({
+          where: { leaid: row.leaid },
+          data: { owner: row.owner },
+        });
+        ownersSet++;
+      }
+
+      // 5c. Upsert plan-district link with targets
+      await prisma.territoryPlanDistrict.upsert({
+        where: {
+          planId_districtLeaid: { planId, districtLeaid: row.leaid },
+        },
+        create: {
+          planId,
+          districtLeaid: row.leaid,
+          renewalTarget: row.renewalTarget,
+          expansionTarget: row.expansionTarget,
+          winbackTarget: row.winbackTarget,
+          newBusinessTarget: row.newBusinessTarget,
+        },
+        update: {
+          renewalTarget: row.renewalTarget,
+          expansionTarget: row.expansionTarget,
+          winbackTarget: row.winbackTarget,
+          newBusinessTarget: row.newBusinessTarget,
         },
       });
-      districtsCreated++;
-    }
+      targetsUpserted++;
 
-    // 5b. Set district owner if CSV has one and district doesn't already have one
-    if (row.owner && (!existingDistrict || !existingDistrict.owner)) {
-      await prisma.district.update({
-        where: { leaid: row.leaid },
-        data: { owner: row.owner },
-      });
-      ownersSet++;
-    }
-
-    // 5c. Upsert plan-district link with targets
-    await prisma.territoryPlanDistrict.upsert({
-      where: {
-        planId_districtLeaid: { planId, districtLeaid: row.leaid },
-      },
-      create: {
-        planId,
-        districtLeaid: row.leaid,
-        renewalTarget: row.renewalTarget,
-        expansionTarget: row.expansionTarget,
-        winbackTarget: row.winbackTarget,
-        newBusinessTarget: row.newBusinessTarget,
-      },
-      update: {
-        renewalTarget: row.renewalTarget,
-        expansionTarget: row.expansionTarget,
-        winbackTarget: row.winbackTarget,
-        newBusinessTarget: row.newBusinessTarget,
-      },
-    });
-    targetsUpserted++;
-
-    // 5d. Update FY27 pipeline on the district if CSV value > 0
-    if (row.fy27Pipeline > 0) {
-      await prisma.district.update({
-        where: { leaid: row.leaid },
-        data: { fy27OpenPipeline: row.fy27Pipeline },
-      });
-      pipelineUpdated++;
+      // 5d. Update FY27 pipeline on the district if CSV value > 0
+      if (row.fy27Pipeline > 0) {
+        await prisma.district.update({
+          where: { leaid: row.leaid },
+          data: { fy27OpenPipeline: row.fy27Pipeline },
+        });
+        pipelineUpdated++;
+      }
+    } catch (err) {
+      errors.push(`Row ${i + 3}: DB error for "${row.accountName}" (${row.leaid}) — ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Progress log every 100 rows
