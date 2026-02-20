@@ -127,6 +127,7 @@ export default function IconBar() {
   const activeIconTab = useMapV2Store((s) => s.activeIconTab);
   const setActiveIconTab = useMapV2Store((s) => s.setActiveIconTab);
   const startNewPlan = useMapV2Store((s) => s.startNewPlan);
+  const collapsePanel = useMapV2Store((s) => s.collapsePanel);
   const { data: profile } = useProfile();
 
   const initials = profile
@@ -135,6 +136,27 @@ export default function IconBar() {
 
   return (
     <div className="flex flex-col items-center py-3 gap-1 w-[56px] border-r border-gray-200/60">
+      {/* Collapse / hide chevron */}
+      <button
+        onClick={collapsePanel}
+        className="w-9 h-5 rounded-md flex items-center justify-center text-gray-300 hover:text-plum hover:bg-gray-100 transition-all mb-1 group relative"
+        title="Minimize panel"
+        aria-label="Minimize panel"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path
+            d="M8.5 3.5L5 7L8.5 10.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+          Hide panel
+        </span>
+      </button>
+
       {tabs.map((tab) => {
         const isHome = tab.id === "home";
         const isActive = activeIconTab === tab.id;
