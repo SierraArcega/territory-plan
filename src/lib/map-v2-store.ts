@@ -127,8 +127,8 @@ interface MapV2State {
   // Click ripples
   clickRipples: Array<{ id: number; x: number; y: number; color: "coral" | "plum" }>;
 
-  // Responsive
-  panelCollapsed: boolean;
+  // Panel visibility
+  panelMode: "full" | "collapsed" | "hidden";
 
   // Layer bubble
   layerBubbleOpen: boolean;
@@ -237,9 +237,9 @@ interface MapV2Actions {
   addClickRipple: (x: number, y: number, color: "coral" | "plum") => void;
   removeClickRipple: (id: number) => void;
 
-  // Responsive
-  setPanelCollapsed: (collapsed: boolean) => void;
-  togglePanel: () => void;
+  // Panel visibility
+  setPanelMode: (mode: "full" | "collapsed" | "hidden") => void;
+  collapsePanel: () => void; // full→collapsed→hidden
 
   // Layer bubble
   setLayerBubbleOpen: (open: boolean) => void;
@@ -339,7 +339,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   searchQuery: "",
   tooltip: initialTooltip,
   clickRipples: [],
-  panelCollapsed: false,
+  panelMode: "full",
   layerBubbleOpen: false,
   visibleSchoolTypes: new Set<SchoolType>(),
   activeSignal: null,
@@ -606,9 +606,12 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       clickRipples: s.clickRipples.filter((r) => r.id !== id),
     })),
 
-  // Responsive
-  setPanelCollapsed: (collapsed) => set({ panelCollapsed: collapsed }),
-  togglePanel: () => set((s) => ({ panelCollapsed: !s.panelCollapsed })),
+  // Panel visibility
+  setPanelMode: (mode) => set({ panelMode: mode }),
+  collapsePanel: () =>
+    set((s) => ({
+      panelMode: s.panelMode === "full" ? "collapsed" : "hidden",
+    })),
 
   // Layer bubble
   setLayerBubbleOpen: (open) => set({ layerBubbleOpen: open }),
