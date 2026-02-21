@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { useStateDetail } from "@/lib/api";
 import StateHeader from "./state/StateHeader";
 import StateStats from "./state/StateStats";

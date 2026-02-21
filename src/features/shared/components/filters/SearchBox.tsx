@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { useDistricts } from "@/lib/api";
 
 interface SearchBoxProps {

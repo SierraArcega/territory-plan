@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useStateDistricts, StateDistrictListItem } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 interface StateDistrictsListProps {
   stateCode: string;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useGoalDashboard } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import ProgressCard, { formatCurrency, getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
 import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 

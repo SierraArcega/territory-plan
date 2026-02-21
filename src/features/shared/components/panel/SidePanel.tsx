@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "@/features/districts/components/DistrictHeader";
 import AddToPlanButton from "./AddToPlanButton";

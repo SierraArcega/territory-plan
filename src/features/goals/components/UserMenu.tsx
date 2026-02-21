@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useProfile, useLogout } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 // Generate initials from a name (e.g., "John Smith" -> "JS")
 function getInitials(name: string | null, email: string): string {

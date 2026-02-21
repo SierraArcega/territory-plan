@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useMapStore, TooltipData } from "@/lib/store";
+import { useMapStore, TooltipData } from "@/features/shared/lib/app-store";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 
 interface MapTooltipProps {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapStore, StatusFilter, TabId } from "@/lib/store";
+import { useMapStore, StatusFilter, TabId } from "@/features/shared/lib/app-store";
 import { useStates, useSalesExecutives } from "@/lib/api";
 import SearchBox from "./SearchBox";
 import MultiSelectToggle from "./MultiSelectToggle";

@@ -12,7 +12,7 @@ import {
   TaskItem,
   ActivityListItem,
 } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { getDefaultFiscalYear, formatCurrency } from "@/features/goals/components/ProgressCard";
 import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";

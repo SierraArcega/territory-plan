@@ -6,7 +6,7 @@ import {
   useUpdateSchoolEdits,
   useSalesExecutives,
 } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 // School level labels
 const SCHOOL_LEVEL_LABELS: Record<number, string> = {

@@ -12,7 +12,7 @@ import {
   type DistrictEducationData,
   type DistrictEnrollmentDemographics,
 } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 // Available metrics for comparison
 const METRICS: { key: SimilarMetricKey; label: string; shortLabel: string }[] = [

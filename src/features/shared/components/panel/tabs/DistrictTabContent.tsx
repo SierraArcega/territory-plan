@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useDistrictDetail, useStateDetail, useSchoolsByDistrict } from "@/lib/api";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import StateDistrictsList from "../state/StateDistrictsList";
 import DistrictHeader from "@/features/districts/components/DistrictHeader";
 import AddToPlanButton from "../AddToPlanButton";

@@ -17,7 +17,7 @@ import {
   usePlanEngagement,
 } from "@/lib/api";
 import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import PlanCard from "@/features/plans/components/PlanCard";
 import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 import ActivityFormModal from "@/features/plans/components/ActivityFormModal";

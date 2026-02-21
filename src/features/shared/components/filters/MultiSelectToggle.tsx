@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 export default function MultiSelectToggle() {
   const { multiSelectMode, toggleMultiSelectMode, selectedLeaids } =

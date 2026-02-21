@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
-import type { MetricType, FiscalYear } from "@/lib/store";
+import type { MetricType, FiscalYear } from "@/features/shared/lib/app-store";
 import type {
   Quantiles,
   CustomerDotsGeoJSON,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import StateTabContent from "./tabs/StateTabContent";
 import DistrictTabContent from "./tabs/DistrictTabContent";
 import SchoolTabContent from "./tabs/SchoolTabContent";

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import MapTooltip from "./MapTooltip";
 import ClickRipple from "./ClickRipple";

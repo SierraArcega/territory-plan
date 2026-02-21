@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useMapStore, TabId } from "@/lib/store";
+import { useMapStore, TabId } from "@/features/shared/lib/app-store";
 import AppShell from "@/features/shared/components/layout/AppShell";
 import MapView from "@/features/shared/components/views/MapView";
 import PlansView from "@/features/shared/components/views/PlansView";

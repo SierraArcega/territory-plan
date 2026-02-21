@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapStore, MetricType, FiscalYear } from "@/lib/store";
+import { useMapStore, MetricType, FiscalYear } from "@/features/shared/lib/app-store";
 
 const METRICS: { value: MetricType; label: string }[] = [
   { value: "net_invoicing", label: "Net Invoicing" },

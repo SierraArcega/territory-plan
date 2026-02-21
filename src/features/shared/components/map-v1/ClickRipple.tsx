@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useMapStore } from "@/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 interface ClickRippleProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
