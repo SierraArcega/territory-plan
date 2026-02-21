@@ -22,7 +22,7 @@ import {
 } from "@/lib/activityTypes";
 import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
 import InlineEditCell from "@/components/common/InlineEditCell";
-import OutcomeModal from "@/components/activities/OutcomeModal";
+import OutcomeModal from "@/features/activities/components/OutcomeModal";
 
 interface ActivitiesTableProps {
   activities: ActivityListItem[];

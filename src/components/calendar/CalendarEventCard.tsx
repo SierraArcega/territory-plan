@@ -16,7 +16,7 @@ import {
   ACTIVITY_TYPE_ICONS,
   type ActivityType,
 } from "@/lib/activityTypes";
-import OutcomeModal from "@/components/activities/OutcomeModal";
+import OutcomeModal from "@/features/activities/components/OutcomeModal";
 
 // Confidence level → left border color
 const CONFIDENCE_COLORS: Record<string, string> = {

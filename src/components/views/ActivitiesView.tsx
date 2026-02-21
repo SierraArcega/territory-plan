@@ -24,10 +24,10 @@ import {
   ACTIVITY_STATUS_CONFIG,
   CATEGORY_LABELS,
 } from "@/lib/activityTypes";
-import ActivityFormModal from "@/components/activities/ActivityFormModal";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import EditActivityFormModal, { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import ActivitiesTable from "@/features/plans/components/ActivitiesTable";
-import CalendarView from "@/components/activities/CalendarView";
+import CalendarView from "@/features/activities/components/CalendarView";
 import CalendarInbox from "@/components/calendar/CalendarInbox";
 
 type CategoryTab = "all" | ActivityCategory;
