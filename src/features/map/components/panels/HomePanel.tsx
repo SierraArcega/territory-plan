@@ -9,8 +9,8 @@ import {
 } from "@/lib/api";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
-import { getDefaultFiscalYear, formatCurrency } from "@/components/goals/ProgressCard";
-import GoalEditorModal from "@/components/goals/GoalEditorModal";
+import { getDefaultFiscalYear, formatCurrency } from "@/features/goals/components/ProgressCard";
+import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 
 const FISCAL_YEARS = [2026, 2027, 2028, 2029];
 

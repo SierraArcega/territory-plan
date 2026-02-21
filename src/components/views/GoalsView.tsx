@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useGoalDashboard } from "@/lib/api";
 import { useMapStore } from "@/lib/store";
-import ProgressCard, { formatCurrency, getDefaultFiscalYear } from "@/components/goals/ProgressCard";
-import GoalEditorModal from "@/components/goals/GoalEditorModal";
+import ProgressCard, { formatCurrency, getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
+import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 
 const FISCAL_YEARS = [2025, 2026, 2027, 2028, 2029];
 
