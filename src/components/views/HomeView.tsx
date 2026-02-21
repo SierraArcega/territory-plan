@@ -15,7 +15,7 @@ import {
 import { useMapStore } from "@/lib/store";
 import { getDefaultFiscalYear, formatCurrency } from "@/components/goals/ProgressCard";
 import GoalEditorModal from "@/components/goals/GoalEditorModal";
-import TaskDetailModal from "@/components/tasks/TaskDetailModal";
+import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import PlanFormModal, { PlanFormData } from "@/features/plans/components/PlanFormModal";
 import {
   ACTIVITY_TYPE_LABELS,

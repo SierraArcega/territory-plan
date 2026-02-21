@@ -16,7 +16,7 @@ import ActivitiesTable from "./ActivitiesTable";
 import ActivityCard from "./ActivityCard";
 import ContactsTable from "./ContactsTable";
 import ContactCard from "./ContactCard";
-import TaskList from "@/components/tasks/TaskList";
+import TaskList from "@/features/tasks/components/TaskList";
 
 type TabId = "districts" | "activities" | "contacts" | "tasks";
 

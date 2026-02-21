@@ -10,10 +10,10 @@ import {
   type TaskStatus,
   type TaskPriority,
 } from "@/lib/taskTypes";
-import KanbanBoard from "@/components/tasks/KanbanBoard";
-import TasksTable from "@/components/tasks/TasksTable";
-import TaskDetailModal from "@/components/tasks/TaskDetailModal";
-import TaskFormModal from "@/components/tasks/TaskFormModal";
+import KanbanBoard from "@/features/tasks/components/KanbanBoard";
+import TasksTable from "@/features/tasks/components/TasksTable";
+import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
+import TaskFormModal from "@/features/tasks/components/TaskFormModal";
 
 type ViewMode = "board" | "list";
 type StatusFilter = "all" | TaskStatus;

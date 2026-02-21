@@ -9,7 +9,7 @@ import CharterSchools from "./CharterSchools";
 import DistrictInfo from "@/components/panel/DistrictInfo";
 import TagsEditor from "@/components/panel/TagsEditor";
 import NotesEditor from "@/components/panel/NotesEditor";
-import TaskList from "@/components/tasks/TaskList";
+import TaskList from "@/features/tasks/components/TaskList";
 
 interface DistrictInfoTabProps {
   data: DistrictDetail;

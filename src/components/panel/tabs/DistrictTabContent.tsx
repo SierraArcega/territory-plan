@@ -18,7 +18,7 @@ import CompetitorSpend from "../CompetitorSpend";
 import NotesEditor from "../NotesEditor";
 import TagsEditor from "../TagsEditor";
 import ContactsList from "../ContactsList";
-import TaskList from "@/components/tasks/TaskList";
+import TaskList from "@/features/tasks/components/TaskList";
 import type { DistrictDetail } from "@/lib/api";
 
 type DistrictSubTab = "info" | "data" | "contacts";
