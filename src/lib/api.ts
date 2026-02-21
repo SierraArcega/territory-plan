@@ -1,26 +1,14 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import type { StatusFilter, FiscalYear, MetricType } from "./store";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type {
   Tag,
   Contact,
   ContactsResponse,
   ClayLookupResponse,
-  Quantiles,
   UserSummary,
   UserProfile,
-  UserGoal,
   Service,
-  GoalDashboard,
-  CustomerDotsGeoJSON,
-  StateDetail,
-  StateDistrictsResponse,
   ExploreResponse,
-  FocusModeData,
-  ProgressPeriod,
-  ActivityMetrics,
-  OutcomeMetrics,
-  PlanEngagement,
 } from "@/features/shared/types/api-types";
 
 // Re-export shared types and api-client for consumers
@@ -33,6 +21,9 @@ export * from "@/features/plans/lib/queries";
 export * from "@/features/tasks/lib/queries";
 export * from "@/features/activities/lib/queries";
 export * from "@/features/calendar/lib/queries";
+export * from "@/features/goals/lib/queries";
+export * from "@/features/progress/lib/queries";
+export * from "@/features/map/lib/queries";
 
 // Tags
 export function useTags() {
@@ -172,35 +163,12 @@ export function useTriggerClayLookup() {
   });
 }
 
-// Quantiles for legend
-export function useQuantiles(metric: MetricType, year: FiscalYear) {
-  return useQuery({
-    queryKey: ["quantiles", metric, year],
-    queryFn: () =>
-      fetchJson<Quantiles>(
-        `${API_BASE}/metrics/quantiles?metric=${metric}&year=${year}`
-      ),
-    staleTime: 10 * 60 * 1000, // 10 minutes - quantiles rarely change
-  });
-}
-
 // Sales executives list
 export function useSalesExecutives() {
   return useQuery({
     queryKey: ["salesExecutives"],
     queryFn: () => fetchJson<string[]>(`${API_BASE}/sales-executives`),
     staleTime: 60 * 60 * 1000, // 1 hour - sales execs rarely change
-  });
-}
-
-// States list
-export function useStates(options?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: ["states"],
-    queryFn: () =>
-      fetchJson<{ fips: string; abbrev: string; name: string }[]>(`${API_BASE}/states`),
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours - states are static
-    enabled: options?.enabled,
   });
 }
 
@@ -212,78 +180,7 @@ export function useUsers() {
   });
 }
 
-// Customer dots for national view
-export function useCustomerDots() {
-  return useQuery({
-    queryKey: ["customerDots"],
-    queryFn: () => fetchJson<CustomerDotsGeoJSON>(`${API_BASE}/customer-dots`),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
-// State detail hook
-export function useStateDetail(stateCode: string | null) {
-  return useQuery({
-    queryKey: ["stateDetail", stateCode],
-    queryFn: () => fetchJson<StateDetail>(`${API_BASE}/states/${stateCode}`),
-    enabled: !!stateCode,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-}
-
-// State districts hook with search and filter support
-export function useStateDistricts(params: {
-  stateCode: string | null;
-  search?: string;
-  status?: "all" | "customer" | "pipeline" | "customer_pipeline";
-  limit?: number;
-  offset?: number;
-}) {
-  const searchParams = new URLSearchParams();
-  if (params.search) searchParams.set("search", params.search);
-  if (params.status && params.status !== "all") searchParams.set("status", params.status);
-  if (params.limit) searchParams.set("limit", params.limit.toString());
-  if (params.offset) searchParams.set("offset", params.offset.toString());
-
-  const queryString = searchParams.toString();
-  const url = `${API_BASE}/states/${params.stateCode}/districts${queryString ? `?${queryString}` : ""}`;
-
-  return useQuery({
-    queryKey: ["stateDistricts", params],
-    queryFn: () => fetchJson<StateDistrictsResponse>(url),
-    enabled: !!params.stateCode,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
-// Update state notes/owner mutation
-export function useUpdateState() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      stateCode,
-      notes,
-      territoryOwner,
-    }: {
-      stateCode: string;
-      notes?: string;
-      territoryOwner?: string;
-    }) =>
-      fetchJson<{ code: string; notes: string | null; territoryOwner: string | null }>(
-        `${API_BASE}/states/${stateCode}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ notes, territoryOwner }),
-        }
-      ),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["stateDetail", variables.stateCode] });
-    },
-  });
-}
-
-// ===== User Profile & Goals =====
+// ===== User Profile =====
 
 // Get user profile - also upserts profile on first call
 export function useProfile() {
@@ -310,48 +207,6 @@ export function useUpdateProfile() {
   });
 }
 
-// Create or update a user goal (upserts by fiscalYear)
-export function useUpsertUserGoal() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: {
-      fiscalYear: number;
-      earningsTarget?: number | null;
-      takeRatePercent?: number | null;
-      renewalTarget?: number | null;
-      winbackTarget?: number | null;
-      expansionTarget?: number | null;
-      newBusinessTarget?: number | null;
-      takeTarget?: number | null;
-      newDistrictsTarget?: number | null;
-    }) =>
-      fetchJson<UserGoal>(`${API_BASE}/profile/goals`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
-    },
-  });
-}
-
-// Delete a user goal
-export function useDeleteUserGoal() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (fiscalYear: number) =>
-      fetchJson<{ success: boolean }>(`${API_BASE}/profile/goals/${fiscalYear}`, {
-        method: "DELETE",
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-    },
-  });
-}
-
 // ===== Services =====
 
 export function useServices() {
@@ -359,18 +214,6 @@ export function useServices() {
     queryKey: ["services"],
     queryFn: () => fetchJson<Service[]>(`${API_BASE}/services`),
     staleTime: 60 * 60 * 1000, // 1 hour - services rarely change
-  });
-}
-
-// ===== Goal Dashboard =====
-
-export function useGoalDashboard(fiscalYear: number | null) {
-  return useQuery({
-    queryKey: ["goalDashboard", fiscalYear],
-    queryFn: () =>
-      fetchJson<GoalDashboard>(`${API_BASE}/profile/goals/${fiscalYear}/dashboard`),
-    enabled: !!fiscalYear,
-    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -454,47 +297,5 @@ export function useRemoveSchoolTag() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
     },
-  });
-}
-
-// ─── Focus Mode Types & Hook ─────────────────────────────────────────
-
-export function useFocusModeData(planId: string | null) {
-  return useQuery({
-    queryKey: ["focusMode", planId],
-    queryFn: () => fetchJson<FocusModeData>(`${API_BASE}/focus-mode/${planId}`),
-    enabled: !!planId,
-    staleTime: 2 * 60 * 1000,
-  });
-}
-
-// ─── Progress Dashboard Types & Hooks ────────────────────────────────
-
-// Activity metrics — counts by category, source, status, plan, with trends
-export function useActivityMetrics(period: ProgressPeriod = "month") {
-  return useQuery({
-    queryKey: ["progress", "activities", period],
-    queryFn: () =>
-      fetchJson<ActivityMetrics>(`${API_BASE}/progress/activities?period=${period}`),
-    staleTime: 5 * 60 * 1000, // 5 minutes — dashboard data doesn't need to be real-time
-  });
-}
-
-// Outcome metrics — distribution, funnel, district engagement
-export function useOutcomeMetrics(period: ProgressPeriod = "month") {
-  return useQuery({
-    queryKey: ["progress", "outcomes", period],
-    queryFn: () =>
-      fetchJson<OutcomeMetrics>(`${API_BASE}/progress/outcomes?period=${period}`),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-// Plan engagement — per-plan district coverage and activity recency
-export function usePlanEngagement() {
-  return useQuery({
-    queryKey: ["progress", "plans"],
-    queryFn: () => fetchJson<PlanEngagement[]>(`${API_BASE}/progress/plans`),
-    staleTime: 5 * 60 * 1000,
   });
 }
