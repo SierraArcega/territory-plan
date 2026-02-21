@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import PanelContainer from "@/components/panel/PanelContainer";
-import MultiSelectActionBar from "@/components/MultiSelectActionBar";
+import MultiSelectActionBar from "@/features/shared/components/MultiSelectActionBar";
 import GoalSetupModal from "@/features/goals/components/GoalSetupModal";
 
 // Dynamic import for MapContainer to avoid SSR issues with MapLibre

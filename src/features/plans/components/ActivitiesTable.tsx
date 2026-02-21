@@ -21,7 +21,7 @@ import {
   type ActivityStatus,
 } from "@/lib/activityTypes";
 import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
-import InlineEditCell from "@/components/common/InlineEditCell";
+import InlineEditCell from "@/features/shared/components/InlineEditCell";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
 
 interface ActivitiesTableProps {

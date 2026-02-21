@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/lib/store";
-import AppShell from "@/components/layout/AppShell";
+import AppShell from "@/features/shared/components/layout/AppShell";
 import MapView from "@/components/views/MapView";
 import PlansView from "@/components/views/PlansView";
 import ActivitiesView from "@/components/views/ActivitiesView";

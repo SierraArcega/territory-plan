@@ -1,7 +1,7 @@
 "use client";
 
-import Sidebar, { TabId } from "@/components/navigation/Sidebar";
-import FilterBar from "@/components/filters/FilterBar";
+import Sidebar, { TabId } from "@/features/shared/components/navigation/Sidebar";
+import FilterBar from "@/features/shared/components/filters/FilterBar";
 
 interface AppShellProps {
   // Current active tab - determines which content view to show

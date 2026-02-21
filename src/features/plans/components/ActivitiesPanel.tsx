@@ -12,7 +12,7 @@ import {
 } from "@/lib/api";
 import ActivityCard from "./ActivityCard";
 import ActivityFormModal, { type ActivityFormData } from "./ActivityFormModal";
-import ViewToggle from "@/components/common/ViewToggle";
+import ViewToggle from "@/features/shared/components/ViewToggle";
 import ActivitiesTable from "./ActivitiesTable";
 
 interface ActivitiesPanelProps {

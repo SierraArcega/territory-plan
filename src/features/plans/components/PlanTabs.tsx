@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import type { TerritoryPlanDistrict, ActivityListItem, Contact } from "@/lib/api";
 import { useTasks } from "@/lib/api";
 import { PERSONAS, SENIORITY_LEVELS } from "@/lib/contactTypes";
-import ViewToggle from "@/components/common/ViewToggle";
+import ViewToggle from "@/features/shared/components/ViewToggle";
 import FilterBar, { type FilterConfig, type SavedView } from "./FilterBar";
 import DistrictsTable from "./DistrictsTable";
 import DistrictCard from "./DistrictCard";

@@ -10,7 +10,7 @@ import {
   useDeleteTerritoryPlan,
   type TerritoryPlan,
 } from "@/lib/api";
-import InlineEditCell from "@/components/common/InlineEditCell";
+import InlineEditCell from "@/features/shared/components/InlineEditCell";
 
 interface PlansTableProps {
   plans: TerritoryPlan[];

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useUpdateDistrictTargets, useServices, type TerritoryPlanDistrict } from "@/lib/api";
-import InlineEditCell from "@/components/common/InlineEditCell";
+import InlineEditCell from "@/features/shared/components/InlineEditCell";
 
 interface DistrictsTableProps {
   planId: string;
