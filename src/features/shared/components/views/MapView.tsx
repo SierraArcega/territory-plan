@@ -7,7 +7,7 @@ import GoalSetupModal from "@/features/goals/components/GoalSetupModal";
 
 // Dynamic import for MapContainer to avoid SSR issues with MapLibre
 // MapLibre uses browser-only APIs (WebGL, window), so we disable SSR
-const MapContainer = dynamic(() => import("@/components/map/MapContainer"), {
+const MapContainer = dynamic(() => import("@/features/shared/components/map-v1/MapContainer"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full flex items-center justify-center bg-[#FFFCFA]">
