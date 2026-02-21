@@ -25,8 +25,8 @@ import {
   CATEGORY_LABELS,
 } from "@/lib/activityTypes";
 import ActivityFormModal from "@/components/activities/ActivityFormModal";
-import EditActivityFormModal, { type ActivityFormData } from "@/components/plans/ActivityFormModal";
-import ActivitiesTable from "@/components/plans/ActivitiesTable";
+import EditActivityFormModal, { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
+import ActivitiesTable from "@/features/plans/components/ActivitiesTable";
 import CalendarView from "@/components/activities/CalendarView";
 import CalendarInbox from "@/components/calendar/CalendarInbox";
 

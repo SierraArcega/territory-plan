@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTerritoryPlans, useCreateTerritoryPlan } from "@/lib/api";
 import PlanDashboard from "../plans/PlanDashboard";
-import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
+import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 
 type PlanView = { type: "list" } | { type: "dashboard"; planId: string };
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTerritoryPlan, useUpdateTerritoryPlan } from "@/lib/api";
-import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
+import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 
 interface PlanDashboardProps {
   planId: string;

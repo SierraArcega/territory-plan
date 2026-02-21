@@ -16,15 +16,15 @@ import {
   type ActivityListItem,
   usePlanEngagement,
 } from "@/lib/api";
-import { type ActivityFormData } from "@/components/plans/ActivityFormModal";
+import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import { useMapStore } from "@/lib/store";
-import PlanCard from "@/components/plans/PlanCard";
-import PlanFormModal, { type PlanFormData } from "@/components/plans/PlanFormModal";
-import ActivityFormModal from "@/components/plans/ActivityFormModal";
-import PlanTabs from "@/components/plans/PlanTabs";
-import PlanDistrictPanel from "@/components/plans/PlanDistrictPanel";
+import PlanCard from "@/features/plans/components/PlanCard";
+import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
+import ActivityFormModal from "@/features/plans/components/ActivityFormModal";
+import PlanTabs from "@/features/plans/components/PlanTabs";
+import PlanDistrictPanel from "@/features/plans/components/PlanDistrictPanel";
 import ViewToggle from "@/components/common/ViewToggle";
-import PlansTable from "@/components/plans/PlansTable";
+import PlansTable from "@/features/plans/components/PlansTable";
 
 // Helper to format dates nicely
 function formatDate(dateString: string | null): string {
