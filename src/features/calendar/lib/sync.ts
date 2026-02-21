@@ -12,7 +12,7 @@ import {
   filterExternalAttendees,
   getValidAccessToken,
   type CalendarEventAttendee,
-} from "@/lib/google-calendar";
+} from "@/features/calendar/lib/google";
 
 // ===== Types =====
 

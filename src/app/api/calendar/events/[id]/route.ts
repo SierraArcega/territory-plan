@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
-import { confirmCalendarEvent, dismissCalendarEvent } from "@/lib/calendar-sync";
+import { confirmCalendarEvent, dismissCalendarEvent } from "@/features/calendar/lib/sync";
 
 export const dynamic = "force-dynamic";
 

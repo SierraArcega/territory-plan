@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
-import { getAuthUrl } from "@/lib/google-calendar";
+import { getAuthUrl } from "@/features/calendar/lib/google";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";

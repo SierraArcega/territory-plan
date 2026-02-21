@@ -11,7 +11,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
   getValidAccessToken,
-} from "@/lib/google-calendar";
+} from "@/features/calendar/lib/google";
 
 // Helper to get a valid access token for a user's calendar connection
 // Returns null if no connection, sync disabled, or token refresh fails
