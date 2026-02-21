@@ -28,7 +28,7 @@ import ActivityFormModal from "@/features/activities/components/ActivityFormModa
 import EditActivityFormModal, { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import ActivitiesTable from "@/features/plans/components/ActivitiesTable";
 import CalendarView from "@/features/activities/components/CalendarView";
-import CalendarInbox from "@/components/calendar/CalendarInbox";
+import CalendarInbox from "@/features/calendar/components/CalendarInbox";
 
 type CategoryTab = "all" | ActivityCategory;
 type ViewMode = "table" | "calendar";

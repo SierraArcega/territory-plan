@@ -22,7 +22,7 @@ import {
   ACTIVITY_STATUS_CONFIG,
   type ActivityType,
 } from "@/lib/activityTypes";
-import CalendarInboxWidget from "@/components/calendar/CalendarInboxWidget";
+import CalendarInboxWidget from "@/features/calendar/components/CalendarInboxWidget";
 import LeadingIndicatorsPanel from "@/components/progress/LeadingIndicatorsPanel";
 import LaggingIndicatorsPanel from "@/components/progress/LaggingIndicatorsPanel";
 
