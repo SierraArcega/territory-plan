@@ -23,8 +23,8 @@ import {
   type ActivityType,
 } from "@/lib/activityTypes";
 import CalendarInboxWidget from "@/features/calendar/components/CalendarInboxWidget";
-import LeadingIndicatorsPanel from "@/components/progress/LeadingIndicatorsPanel";
-import LaggingIndicatorsPanel from "@/components/progress/LaggingIndicatorsPanel";
+import LeadingIndicatorsPanel from "@/features/progress/components/LeadingIndicatorsPanel";
+import LaggingIndicatorsPanel from "@/features/progress/components/LaggingIndicatorsPanel";
 
 // ============================================================================
 // Helpers
