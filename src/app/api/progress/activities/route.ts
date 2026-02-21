@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { ACTIVITY_CATEGORIES, getCategoryForType, type ActivityType } from "@/lib/activityTypes";
+import { ACTIVITY_CATEGORIES, getCategoryForType, type ActivityType } from "@/features/activities/types";
 
 export const dynamic = "force-dynamic";
 

@@ -11,8 +11,8 @@ import {
   buildWhereClause,
   DISTRICT_FIELD_MAP,
   PLANS_FIELD_MAP,
-} from "@/lib/explore-filters";
-import { parseCompetitorColumnKey, COMPETITORS } from "@/components/map-v2/explore/columns/districtColumns";
+} from "@/features/explore/lib/filters";
+import { parseCompetitorColumnKey, COMPETITORS } from "@/features/map/components/explore/columns/districtColumns";
 
 export const dynamic = "force-dynamic";
 

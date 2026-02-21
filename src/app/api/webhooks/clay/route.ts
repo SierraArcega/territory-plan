@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { normalizePersona, normalizeSeniorityLevel } from "@/lib/contactTypes";
+import { normalizePersona, normalizeSeniorityLevel } from "@/features/shared/types/contact-types";
 
 export const dynamic = "force-dynamic";
 

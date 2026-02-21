@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { syncClassificationTagsForDistrict } from "@/lib/autoTags";
-import { syncPlanRollups } from "@/lib/plan-rollup-sync";
+import { syncClassificationTagsForDistrict } from "@/features/shared/lib/auto-tags";
+import { syncPlanRollups } from "@/features/plans/lib/rollup-sync";
 import {
   type FilterDef,
   buildWhereClause,
   DISTRICT_FIELD_MAP,
-} from "@/lib/explore-filters";
+} from "@/features/explore/lib/filters";
 
 export const dynamic = "force-dynamic";
 

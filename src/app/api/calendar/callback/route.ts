@@ -4,8 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
-import { exchangeCodeForTokens } from "@/lib/google-calendar";
-import { syncCalendarEvents } from "@/lib/calendar-sync";
+import { exchangeCodeForTokens } from "@/features/calendar/lib/google";
+import { syncCalendarEvents } from "@/features/calendar/lib/sync";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";

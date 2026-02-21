@@ -1,4 +1,4 @@
-import MapV2Shell from "@/components/map-v2/MapV2Shell";
+import MapV2Shell from "@/features/map/components/MapV2Shell";
 
 export const metadata = {
   title: "Map V2 | Territory Plan Builder",

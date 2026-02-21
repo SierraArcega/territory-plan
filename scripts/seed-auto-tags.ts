@@ -4,7 +4,7 @@ import {
   ensureAutoTagsExist,
   syncLocaleTagForDistrict,
   syncAllClassificationTags,
-} from "../src/lib/autoTags";
+} from "../src/features/shared/lib/auto-tags";
 
 async function main() {
   console.log("Seeding auto-tags...");

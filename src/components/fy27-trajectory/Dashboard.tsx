@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { useAnimatedNumber } from "@/features/map/hooks/use-animated-number";
 import type { TrajectoryData } from "@/app/fy27-trajectory/queries";
 import {
   AreaChart,

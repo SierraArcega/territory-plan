@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { TASK_STATUSES, TASK_PRIORITIES } from "@/lib/taskTypes";
+import { TASK_STATUSES, TASK_PRIORITIES } from "@/features/tasks/types";
 
 export const dynamic = "force-dynamic";
 
