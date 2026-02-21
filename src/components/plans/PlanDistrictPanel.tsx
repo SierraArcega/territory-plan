@@ -9,11 +9,11 @@ import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "@/components/panel/DistrictHeader";
 import DistrictTabStrip, {
   type DistrictTab,
-} from "@/components/map-v2/panels/district/tabs/DistrictTabStrip";
-import PlanningTab from "@/components/map-v2/panels/district/tabs/PlanningTab";
-import SignalsTab from "@/components/map-v2/panels/district/tabs/SignalsTab";
-import SchoolsTab from "@/components/map-v2/panels/district/tabs/SchoolsTab";
-import ContactsTab from "@/components/map-v2/panels/district/ContactsTab";
+} from "@/features/map/components/panels/district/tabs/DistrictTabStrip";
+import PlanningTab from "@/features/map/components/panels/district/tabs/PlanningTab";
+import SignalsTab from "@/features/map/components/panels/district/tabs/SignalsTab";
+import SchoolsTab from "@/features/map/components/panels/district/tabs/SchoolsTab";
+import ContactsTab from "@/features/map/components/panels/district/ContactsTab";
 
 interface PlanDistrictPanelProps {
   leaid: string;

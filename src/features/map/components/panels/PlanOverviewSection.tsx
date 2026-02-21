@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { STATE_BBOX } from "@/components/map-v2/MapV2Container";
+import { STATE_BBOX } from "@/features/map/components/MapV2Container";
 import {
   useTerritoryPlan,
   useTags,
