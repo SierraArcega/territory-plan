@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
-import type { AccountTypeValue } from "@/lib/account-types";
+import type { AccountTypeValue } from "@/features/shared/types/account-types";
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
