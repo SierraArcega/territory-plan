@@ -5,7 +5,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories } from "@/features/map/lib/layers";
-import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
+import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref } from "@/features/map/lib/ref";
 import MapV2Tooltip from "./MapV2Tooltip";

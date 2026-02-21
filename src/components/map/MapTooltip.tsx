@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useMapStore, TooltipData } from "@/lib/store";
-import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
+import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 
 interface MapTooltipProps {
   containerRef: React.RefObject<HTMLDivElement | null>;

@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import FocusCard from "./FocusCard";
-import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { useAnimatedNumber } from "@/features/map/hooks/use-animated-number";
 import type { FocusModeStateData } from "@/lib/api";
 
 function formatCurrency(value: number): string {
