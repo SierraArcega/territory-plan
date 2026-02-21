@@ -6,7 +6,7 @@ import {
   type FilterDef,
   buildWhereClause,
   DISTRICT_FIELD_MAP,
-} from "@/lib/explore-filters";
+} from "@/features/explore/lib/filters";
 
 export const dynamic = "force-dynamic";
 

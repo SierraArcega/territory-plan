@@ -30,8 +30,8 @@ export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "p
 export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts" | "plans";
 
 // Filter operator types — single source of truth in explore-filters.ts
-import type { FilterOp } from "@/lib/explore-filters";
-export type { FilterOp } from "@/lib/explore-filters";
+import type { FilterOp } from "@/features/explore/lib/filters";
+export type { FilterOp } from "@/features/explore/lib/filters";
 
 export interface ExploreFilter {
   id: string;
