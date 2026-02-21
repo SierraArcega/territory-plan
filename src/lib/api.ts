@@ -473,6 +473,17 @@ export function useBatchTagDistricts() {
   });
 }
 
+// ---- Competitor metadata ----
+
+export function useCompetitorFYs() {
+  return useQuery({
+    queryKey: ["competitorFYs"],
+    queryFn: () => fetchJson<{ fiscalYears: string[] }>(`${API_BASE}/explore/competitor-meta`),
+    staleTime: 60 * 60 * 1000, // 1 hour - FYs rarely change
+    select: (data) => data.fiscalYears,
+  });
+}
+
 // Tags
 export function useTags() {
   return useQuery({
@@ -2453,55 +2464,6 @@ export function useRemoveSchoolTag() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
     },
-  });
-}
-
-// ─── Focus Mode Types & Hook ─────────────────────────────────────────
-
-export interface FocusModeStateData {
-  abbrev: string;
-  name: string;
-  state: {
-    totalDistricts: number;
-    totalCustomers: number;
-    totalWithPipeline: number;
-    fy25ClosedWon: number;
-    fy25Invoicing: number;
-    fy26ClosedWon: number;
-    fy26Invoicing: number;
-    fy26Pipeline: number;
-    fy27Pipeline: number;
-  };
-  plan: {
-    districtCount: number;
-    customerCount: number;
-    fy25ClosedWon: number;
-    fy25Invoicing: number;
-    fy26ClosedWon: number;
-    fy26Invoicing: number;
-    fy26Pipeline: number;
-    fy27Pipeline: number;
-  };
-  topDistricts: Array<{
-    leaid: string;
-    name: string;
-    fy26Invoicing: number;
-  }>;
-}
-
-export interface FocusModeData {
-  planId: string;
-  planName: string | null;
-  fiscalYear: number;
-  states: FocusModeStateData[];
-}
-
-export function useFocusModeData(planId: string | null) {
-  return useQuery({
-    queryKey: ["focusMode", planId],
-    queryFn: () => fetchJson<FocusModeData>(`${API_BASE}/focus-mode/${planId}`),
-    enabled: !!planId,
-    staleTime: 2 * 60 * 1000,
   });
 }
 

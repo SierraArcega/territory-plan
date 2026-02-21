@@ -122,6 +122,7 @@ export interface DistrictRow {
   tags: { id: string; name: string; color: string }[];
   planNames: { id: string; name: string; color: string }[];
   lastActivity: string | null;
+  ltv: number | null;
 }
 
 const QUARTILE_VALUES = ["well_above", "above", "below", "well_below"];
@@ -246,6 +247,13 @@ export const districtColumns: ColumnDef[] = [
     group: "CRM / Revenue",
     isDefault: false,
     filterType: "text",
+  },
+  {
+    key: "ltv",
+    label: "LTV ($)",
+    group: "CRM / Revenue",
+    isDefault: false,
+    filterType: "number",
   },
 
   // ---- FY25 Revenue ----
@@ -941,3 +949,51 @@ export const districtColumns: ColumnDef[] = [
     relationSource: "tags",
   },
 ];
+
+// ---- Competitor spend (dynamic columns) ----
+
+export const COMPETITORS = [
+  { name: "Proximity Learning", slug: "proximity_learning", color: "#6EA3BE" },
+  { name: "Elevate K12", slug: "elevate_k12", color: "#E07A5F" },
+  { name: "Tutored By Teachers", slug: "tutored_by_teachers", color: "#7C3AED" },
+] as const;
+
+/**
+ * Generate competitor spend columns for a set of fiscal years.
+ * Returns columns in FY-descending order (newest first), grouped under "Competitor Spend".
+ */
+export function getCompetitorColumns(fiscalYears: string[]): ColumnDef[] {
+  const sortedFYs = [...fiscalYears].sort().reverse();
+  const cols: ColumnDef[] = [];
+
+  for (const fy of sortedFYs) {
+    const fyLabel = fy.toUpperCase();
+    for (const comp of COMPETITORS) {
+      cols.push({
+        key: `comp_${comp.slug}_${fy}`,
+        label: `${comp.name} ${fyLabel} ($)`,
+        group: "Competitor Spend",
+        isDefault: false,
+        filterType: "number",
+      });
+    }
+  }
+
+  return cols;
+}
+
+/**
+ * Parse a competitor column key like "comp_proximity_learning_fy26"
+ * into { competitor: "Proximity Learning", fiscalYear: "fy26" } or null.
+ */
+export function parseCompetitorColumnKey(key: string): { competitor: string; fiscalYear: string } | null {
+  if (!key.startsWith("comp_")) return null;
+  for (const comp of COMPETITORS) {
+    const prefix = `comp_${comp.slug}_`;
+    if (key.startsWith(prefix)) {
+      const fy = key.slice(prefix.length);
+      return { competitor: comp.name, fiscalYear: fy };
+    }
+  }
+  return null;
+}

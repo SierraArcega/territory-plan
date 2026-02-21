@@ -6,7 +6,6 @@ import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
 import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
-import FocusModeOverlay from "./focus-mode/FocusModeOverlay";
 
 // Dynamic import for MapLibre (no SSR)
 const MapV2Container = dynamic(() => import("./MapV2Container"), {
@@ -32,9 +31,6 @@ export default function MapV2Shell() {
 
       {/* Explore data overlay (covers map when active) */}
       <ExploreOverlay />
-
-      {/* Focus Mode data overlay cards */}
-      <FocusModeOverlay />
 
       {/* Multi-select action chip */}
       <MultiSelectChip />

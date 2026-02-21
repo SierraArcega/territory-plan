@@ -22,7 +22,7 @@ export async function POST(
 
     // Resolve district leaids from either explicit list or server-side filters
     let districtLeaids: string[];
-    const hasFilters = Array.isArray(filters);
+    const hasFilters = Array.isArray(filters) && filters.length > 0;
 
     if (hasFilters) {
       const where = buildWhereClause(filters as FilterDef[], DISTRICT_FIELD_MAP);

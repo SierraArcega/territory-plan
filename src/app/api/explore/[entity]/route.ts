@@ -808,6 +808,9 @@ async function handlePlans(req: NextRequest, userId: string) {
               select: {
                 name: true,
                 leaid: true,
+                owner: true,
+                fy26NetInvoicing: true,
+                fy26ClosedWonNetBooking: true,
                 districtTags: {
                   select: { tag: { select: { id: true, name: true, color: true } } },
                 },
@@ -833,6 +836,9 @@ async function handlePlans(req: NextRequest, userId: string) {
       winbackTarget: d.winbackTarget ? Number(d.winbackTarget) : 0,
       newBusinessTarget: d.newBusinessTarget ? Number(d.newBusinessTarget) : 0,
       notes: d.notes,
+      owner: d.district.owner ?? null,
+      fmRevenue: d.district.fy26NetInvoicing ? Number(d.district.fy26NetInvoicing) : 0,
+      ek12Revenue: d.district.fy26ClosedWonNetBooking ? Number(d.district.fy26ClosedWonNetBooking) : 0,
       tags: d.district.districtTags.map((dt: { tag: { id: number; name: string; color: string } }) => dt.tag),
     }));
 

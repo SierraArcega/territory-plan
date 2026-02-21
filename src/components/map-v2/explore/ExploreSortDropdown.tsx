@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { ExploreEntity, ExploreSortConfig } from "@/lib/map-v2-store";
 import type { ColumnDef } from "./columns/districtColumns";
-import { districtColumns } from "./columns/districtColumns";
+import { districtColumns, getCompetitorColumns } from "./columns/districtColumns";
+import { useCompetitorFYs } from "@/lib/api";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
@@ -26,8 +27,8 @@ interface ExploreSortDropdownProps {
   onToggleDirection: (column: string) => void;
 }
 
-function getColumnLabel(entity: ExploreEntity, columnKey: string): string {
-  const col = COLUMNS_BY_ENTITY[entity].find((c) => c.key === columnKey);
+function getColumnLabel(columns: ColumnDef[], columnKey: string): string {
+  const col = columns.find((c) => c.key === columnKey);
   return col?.label ?? columnKey;
 }
 
@@ -45,6 +46,8 @@ export default function ExploreSortDropdown({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data: competitorFYs } = useCompetitorFYs();
 
   // Close on outside click
   const handleOutsideClick = useCallback((e: MouseEvent) => {
@@ -70,7 +73,11 @@ export default function ExploreSortDropdown({
   }, [entity]);
 
   // Column picker: filter out already-sorted columns, group by group, and search
-  const columns = COLUMNS_BY_ENTITY[entity];
+  const columns = useMemo(() => {
+    const base = COLUMNS_BY_ENTITY[entity];
+    if (entity !== "districts" || !competitorFYs?.length) return base;
+    return [...base, ...getCompetitorColumns(competitorFYs)];
+  }, [entity, competitorFYs]);
   const activeSortColumns = new Set(sorts.map((s) => s.column));
 
   const availableColumns = columns.filter(
@@ -209,7 +216,7 @@ export default function ExploreSortDropdown({
 
                       {/* Column label */}
                       <span className="text-[13px] text-gray-700 truncate flex-1 min-w-0">
-                        {getColumnLabel(entity, sort.column)}
+                        {getColumnLabel(columns, sort.column)}
                       </span>
 
                       {/* Asc/Desc toggle */}

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import type { ExploreEntity } from "@/lib/map-v2-store";
-import { districtColumns } from "./columns/districtColumns";
+import { districtColumns, getCompetitorColumns } from "./columns/districtColumns";
+import { useCompetitorFYs } from "@/lib/api";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
@@ -29,6 +30,7 @@ export default function ExploreColumnPicker({
   onColumnsChange,
 }: ExploreColumnPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { data: competitorFYs } = useCompetitorFYs();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -48,7 +50,11 @@ export default function ExploreColumnPicker({
     setIsOpen(false);
   }, [entity]);
 
-  const columnDefs = COLUMN_DEFS_BY_ENTITY[entity];
+  const columnDefs = useMemo(() => {
+    const base = COLUMN_DEFS_BY_ENTITY[entity];
+    if (entity !== "districts" || !competitorFYs?.length) return base;
+    return [...base, ...getCompetitorColumns(competitorFYs)];
+  }, [entity, competitorFYs]);
 
   // Group columns by their group field, preserving insertion order
   const grouped = useMemo(() => {

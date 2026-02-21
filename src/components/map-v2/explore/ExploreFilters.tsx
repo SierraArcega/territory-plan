@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { ExploreEntity, ExploreFilter, FilterOp } from "@/lib/map-v2-store";
-import { useTags, useTerritoryPlans } from "@/lib/api";
+import { useTags, useTerritoryPlans, useCompetitorFYs } from "@/lib/api";
 import type { ColumnDef } from "./columns/districtColumns";
-import { districtColumns } from "./columns/districtColumns";
+import { districtColumns, getCompetitorColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
@@ -95,13 +95,13 @@ interface ExploreFiltersProps {
 
 // ---- Pill display helpers ----
 
-function getColumnLabel(entity: ExploreEntity, columnKey: string): string {
-  const col = COLUMNS_BY_ENTITY[entity].find((c) => c.key === columnKey);
+function getColumnLabel(columns: ColumnDef[], columnKey: string): string {
+  const col = columns.find((c) => c.key === columnKey);
   return col?.label ?? columnKey;
 }
 
-function formatFilterPill(entity: ExploreEntity, filter: ExploreFilter): string {
-  const label = getColumnLabel(entity, filter.column);
+function formatFilterPill(columns: ColumnDef[], filter: ExploreFilter): string {
+  const label = getColumnLabel(columns, filter.column);
   const opLabel = getOperatorLabel(filter.op);
 
   if (
@@ -503,6 +503,14 @@ export default function ExploreFilters({
   const [editingFilterId, setEditingFilterId] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
+  const { data: competitorFYs } = useCompetitorFYs();
+
+  const columns = useMemo(() => {
+    const base = COLUMNS_BY_ENTITY[entity];
+    if (entity !== "districts" || !competitorFYs?.length) return base;
+    return [...base, ...getCompetitorColumns(competitorFYs)];
+  }, [entity, competitorFYs]);
+
   // Close picker on outside click
   const handleOutsideClick = useCallback((e: MouseEvent) => {
     if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
@@ -516,8 +524,6 @@ export default function ExploreFilters({
     }
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [pickerOpen, handleOutsideClick]);
-
-  const columns = COLUMNS_BY_ENTITY[entity];
 
   // Group columns by group, filtered by search query
   const groupedColumns = columns.reduce<Record<string, ColumnDef[]>>((acc, col) => {
@@ -588,7 +594,7 @@ export default function ExploreFilters({
 
   // Click-to-edit: open picker pre-populated with existing filter
   const handleChipClick = (filter: ExploreFilter) => {
-    const col = COLUMNS_BY_ENTITY[entity].find((c) => c.key === filter.column);
+    const col = columns.find((c) => c.key === filter.column);
     if (!col) return;
 
     setEditingFilterId(filter.id);
@@ -691,7 +697,7 @@ export default function ExploreFilters({
           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[#C4E7E6]/30 text-[#403770] rounded-full border border-[#C4E7E6]/50 cursor-pointer hover:bg-[#C4E7E6]/50 transition-colors"
           onClick={() => handleChipClick(filter)}
         >
-          {formatFilterPill(entity, filter)}
+          {formatFilterPill(columns, filter)}
           <button
             onClick={(e) => {
               e.stopPropagation();

@@ -3,6 +3,7 @@ import prisma from "../src/lib/prisma";
 import {
   ensureAutoTagsExist,
   syncLocaleTagForDistrict,
+  syncAllClassificationTags,
 } from "../src/lib/autoTags";
 
 async function main() {
@@ -30,9 +31,10 @@ async function main() {
   }
   console.log(`Locale tags synced for ${localeCount} districts.`);
 
-  // Step 4: Classification tags (Churn Risk, Key Account, EK12/Fullmind tags)
-  // are manually applied — no auto-sync needed.
-  console.log("Classification tags are manually applied — skipping auto-sync.");
+  // Step 4: Sync classification tags (EK12/Fullmind return, win-back, churn risk)
+  console.log("Syncing classification tags...");
+  const classificationCount = await syncAllClassificationTags();
+  console.log(`Classification tags synced for ${classificationCount} districts.`);
 
   console.log("Done!");
 }

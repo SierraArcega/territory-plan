@@ -10,6 +10,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useUpdateDistrictEdits,
+  useUpdateDistrictTargets,
   useUsers,
   useTags,
   useAddDistrictTag,
@@ -167,9 +168,10 @@ function formatCellValue(value: unknown, key: string): string {
       return `${(value * 100).toFixed(1)}%`;
     }
     if (CURRENCY_KEYS.has(key) || key.startsWith("comp_")) {
-      if (Math.abs(value) >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-      if (Math.abs(value) >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-      return `$${value.toLocaleString()}`;
+      const rounded = Math.round(value);
+      if (Math.abs(rounded) >= 1_000_000) return `$${(rounded / 1_000_000).toFixed(1)}M`;
+      if (Math.abs(rounded) >= 1_000) return `$${(rounded / 1_000).toFixed(1)}K`;
+      return `$${rounded.toLocaleString()}`;
     }
     return value.toLocaleString();
   }
@@ -332,6 +334,71 @@ function EditableTextCell({
       }}
     >
       {formatCellValue(value, column) || <span className="text-[13px] text-gray-300">click to edit</span>}
+      <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+// ---- Inline currency editing (plan district targets) ----
+
+function EditableCurrencyCell({
+  value: serverValue,
+  onSave,
+}: {
+  value: number;
+  onSave: (value: number) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  // Optimistic state — show saved value immediately, reconcile when server data arrives
+  const [optimisticValue, setOptimisticValue] = useState<number | null>(null);
+  const serverRef = useRef(serverValue);
+  if (serverRef.current !== serverValue) {
+    serverRef.current = serverValue;
+    if (optimisticValue !== null) setOptimisticValue(null);
+  }
+
+  const displayValue = optimisticValue !== null ? optimisticValue : serverValue;
+
+  const startEditing = () => {
+    setEditValue(displayValue ? String(Math.round(displayValue)) : "");
+    setIsEditing(true);
+  };
+
+  const save = () => {
+    const parsed = parseInt(editValue.replace(/[^0-9.-]/g, ""), 10);
+    const newValue = isNaN(parsed) ? 0 : parsed;
+    setOptimisticValue(newValue);
+    onSave(newValue);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        autoFocus
+        className="w-full px-2 py-1 text-[12px] text-right border border-[#403770]/30 rounded-md outline-none focus:ring-1 focus:ring-[#403770]/40 text-gray-700 tabular-nums"
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="group/cell cursor-text inline-flex items-center justify-end gap-1 w-full px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => { e.stopPropagation(); startEditing(); }}
+    >
+      <span className="tabular-nums">{displayValue ? `$${Math.round(displayValue).toLocaleString()}` : "\u2014"}</span>
       <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -655,6 +722,7 @@ export default function ExploreTable({
 
   const queryClient = useQueryClient();
   const updateEdits = useUpdateDistrictEdits();
+  const updateTargets = useUpdateDistrictTargets();
   const { data: users } = useUsers();
 
   // Stable save handler — each editable cell component manages its own editing
@@ -672,6 +740,18 @@ export default function ExploreTable({
       }
     );
   }, [updateEdits, queryClient]);
+
+  // Save handler for plan district targets
+  const handleTargetSave = useCallback((planId: string, leaid: string, field: string, value: number) => {
+    updateTargets.mutate(
+      { planId, leaid, [field]: value || null },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["explore"] });
+        },
+      }
+    );
+  }, [updateTargets, queryClient]);
 
   // Column drag handlers
   const handleColDragStart = useCallback((idx: number) => { setDragColIdx(idx); }, []);
@@ -1037,31 +1117,38 @@ export default function ExploreTable({
                     {isPlanEntity && expandedPlanIds.has(rowId) && (
                       <tr className="bg-[#f8f7fb]">
                         <td colSpan={visibleColumns.length + 1} className="px-0 py-0">
-                          <div className="mx-6 my-3 rounded-lg border border-gray-200/80 bg-white overflow-hidden shadow-sm">
+                          <div className="mx-6 my-3 rounded-lg border border-gray-200/80 bg-white shadow-sm">
                             <table className="w-full text-[12px]" style={{ tableLayout: "fixed" }}>
                               <colgroup>
-                                <col style={{ width: "22%" }} />
-                                <col style={{ width: "18%" }} />
-                                <col style={{ width: "12%" }} />
-                                <col style={{ width: "12%" }} />
-                                <col style={{ width: "12%" }} />
-                                <col style={{ width: "12%" }} />
-                                <col style={{ width: "12%" }} />
+                                <col style={{ width: "14%" }} />
+                                <col style={{ width: "9%" }} />
+                                <col style={{ width: "13%" }} />
+                                <col style={{ width: "8%" }} />
+                                <col style={{ width: "8%" }} />
+                                <col style={{ width: "9%" }} />
+                                <col style={{ width: "9%" }} />
+                                <col style={{ width: "9%" }} />
+                                <col style={{ width: "10%" }} />
+                                <col style={{ width: "11%" }} />
                               </colgroup>
                               <thead>
                                 <tr className="text-left text-[10px] text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/60">
                                   <th className="px-3 py-2 font-semibold">District</th>
+                                  <th className="px-3 py-2 font-semibold">Owner</th>
                                   <th className="px-3 py-2 font-semibold">Tags</th>
+                                  <th className="px-3 py-2 font-semibold text-right">FM</th>
+                                  <th className="px-3 py-2 font-semibold text-right">EK12</th>
                                   <th className="px-3 py-2 font-semibold text-right">Renewal</th>
                                   <th className="px-3 py-2 font-semibold text-right">Expansion</th>
                                   <th className="px-3 py-2 font-semibold text-right">Win Back</th>
-                                  <th className="px-3 py-2 font-semibold text-right">New Business</th>
+                                  <th className="px-3 py-2 font-semibold text-right">New Biz</th>
                                   <th className="px-3 py-2 font-semibold text-right">Total</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {((row.original._districts as Array<{
-                                  leaid: string; name: string;
+                                  leaid: string; name: string; owner: string | null;
+                                  fmRevenue: number; ek12Revenue: number;
                                   renewalTarget: number; expansionTarget: number;
                                   winbackTarget: number; newBusinessTarget: number;
                                   tags: { id: number; name: string; color: string }[];
@@ -1077,45 +1164,66 @@ export default function ExploreTable({
                                     return (
                                   <tr key={d.leaid} className="border-t border-gray-100 hover:bg-gray-50/40 transition-colors">
                                     <td className="px-3 py-2 text-[#403770] font-medium truncate">{d.name}</td>
-                                    <td className="px-3 py-2 overflow-hidden">{renderColoredPills(d.tags || [])}</td>
-                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.renewalTarget ? `$${d.renewalTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.expansionTarget ? `$${d.expansionTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.winbackTarget ? `$${d.winbackTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{d.newBusinessTarget ? `$${d.newBusinessTarget.toLocaleString()}` : "\u2014"}</td>
-                                    <td className="px-3 py-2 text-right font-semibold text-[#403770] tabular-nums">{distTotal ? `$${distTotal.toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 overflow-visible">
+                                      <EditableOwnerCell value={d.owner} rowId={d.leaid} onSave={handleSave} users={users} />
+                                    </td>
+                                    <td className="px-3 py-2 overflow-visible">
+                                      <EditableTagsCell tags={d.tags || []} rowId={d.leaid} />
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{d.fmRevenue ? `$${Math.round(d.fmRevenue).toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{d.ek12Revenue ? `$${Math.round(d.ek12Revenue).toLocaleString()}` : "\u2014"}</td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                                      <EditableCurrencyCell value={d.renewalTarget} onSave={(v) => handleTargetSave(rowId, d.leaid, "renewalTarget", v)} />
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                                      <EditableCurrencyCell value={d.expansionTarget} onSave={(v) => handleTargetSave(rowId, d.leaid, "expansionTarget", v)} />
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                                      <EditableCurrencyCell value={d.winbackTarget} onSave={(v) => handleTargetSave(rowId, d.leaid, "winbackTarget", v)} />
+                                    </td>
+                                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                                      <EditableCurrencyCell value={d.newBusinessTarget} onSave={(v) => handleTargetSave(rowId, d.leaid, "newBusinessTarget", v)} />
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-semibold text-[#403770] tabular-nums">{distTotal ? `$${Math.round(distTotal).toLocaleString()}` : "\u2014"}</td>
                                   </tr>
                                     );
                                   })}
                                 {(row.original._districts as unknown[])?.length > 0 && (() => {
                                   const districts = row.original._districts as Array<{
+                                    fmRevenue: number; ek12Revenue: number;
                                     renewalTarget: number; expansionTarget: number;
                                     winbackTarget: number; newBusinessTarget: number;
                                   }>;
                                   const totals = districts.reduce(
                                     (acc, d) => ({
+                                      fm: acc.fm + (d.fmRevenue || 0),
+                                      ek12: acc.ek12 + (d.ek12Revenue || 0),
                                       renewal: acc.renewal + (d.renewalTarget || 0),
                                       expansion: acc.expansion + (d.expansionTarget || 0),
                                       winback: acc.winback + (d.winbackTarget || 0),
                                       newBusiness: acc.newBusiness + (d.newBusinessTarget || 0),
                                     }),
-                                    { renewal: 0, expansion: 0, winback: 0, newBusiness: 0 }
+                                    { fm: 0, ek12: 0, renewal: 0, expansion: 0, winback: 0, newBusiness: 0 }
                                   );
                                   const grandTotal = totals.renewal + totals.expansion + totals.winback + totals.newBusiness;
                                   return (
                                     <tr className="border-t-2 border-gray-200 font-semibold text-[#403770] bg-gray-50/40">
                                       <td className="px-3 py-2.5">Total</td>
                                       <td className="px-3 py-2.5"></td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.renewal ? `$${totals.renewal.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.expansion ? `$${totals.expansion.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.winback ? `$${totals.winback.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.newBusiness ? `$${totals.newBusiness.toLocaleString()}` : "\u2014"}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{grandTotal ? `$${grandTotal.toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5"></td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.fm ? `$${Math.round(totals.fm).toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.ek12 ? `$${Math.round(totals.ek12).toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.renewal ? `$${Math.round(totals.renewal).toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.expansion ? `$${Math.round(totals.expansion).toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.winback ? `$${Math.round(totals.winback).toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{totals.newBusiness ? `$${Math.round(totals.newBusiness).toLocaleString()}` : "\u2014"}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{grandTotal ? `$${Math.round(grandTotal).toLocaleString()}` : "\u2014"}</td>
                                     </tr>
                                   );
                                 })()}
                                 {(!row.original._districts || (row.original._districts as unknown[]).length === 0) && (
                                   <tr>
-                                    <td colSpan={7} className="px-3 py-4 text-center text-gray-400 italic">
+                                    <td colSpan={10} className="px-3 py-4 text-center text-gray-400 italic">
                                       No districts in this plan
                                     </td>
                                   </tr>
