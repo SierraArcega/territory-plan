@@ -124,6 +124,23 @@ export interface DistrictRow {
   lastActivity: string | null;
 }
 
+export const COMPETITORS = [
+  { name: "Proximity Learning", slug: "proximity" },
+  { name: "Elevate K12", slug: "elevate" },
+  { name: "Tutored By Teachers", slug: "tbt" },
+] as const;
+
+const COMP_RE = /^comp_([a-z0-9]+)_(fy\d{2})$/;
+
+/** Parse a dynamic competitor column key like `comp_proximity_fy25`. */
+export function parseCompetitorColumnKey(key: string): { competitor: string; fiscalYear: string } | null {
+  const m = COMP_RE.exec(key);
+  if (!m) return null;
+  const entry = COMPETITORS.find((c) => c.slug === m[1]);
+  if (!entry) return null;
+  return { competitor: entry.name, fiscalYear: m[2] };
+}
+
 const QUARTILE_VALUES = ["well_above", "above", "below", "well_below"];
 
 export const districtColumns: ColumnDef[] = [

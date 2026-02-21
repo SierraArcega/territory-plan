@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { syncClassificationTagsForDistrict } from "@/lib/autoTags";
+import { syncAutoTagsForDistrict } from "@/lib/autoTags";
 import { syncPlanRollups } from "@/lib/plan-rollup-sync";
 
 export const dynamic = "force-dynamic";
@@ -264,7 +264,7 @@ export async function DELETE(
     });
 
     // Sync auto-tags after removal (may affect Prospect tag)
-    await syncClassificationTagsForDistrict(leaid);
+    await syncAutoTagsForDistrict(leaid);
 
     await syncPlanRollups(planId);
 
