@@ -1,7 +1,7 @@
 "use client";
 
-import { useMapV2Store } from "@/lib/map-v2-store";
-import type { PlanSection } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
+import type { PlanSection } from "@/features/map/lib/store";
 import { useTerritoryPlan } from "@/lib/api";
 import PlanOverviewSection from "./PlanOverviewSection";
 import PlanTasksSection from "./PlanTasksSection";

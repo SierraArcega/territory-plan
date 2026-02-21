@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { usePlanContacts, useDeleteContact } from "@/lib/api";
 
 /** Extract initials from a full name (e.g. "Jane Doe" -> "JD") */

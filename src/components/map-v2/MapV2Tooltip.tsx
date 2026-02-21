@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, forwardRef } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 const CATEGORY_LABELS: Record<string, string> = {
   multi_year: "Multi-year customer",

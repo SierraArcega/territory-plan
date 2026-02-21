@@ -7,8 +7,8 @@ import {
   useTerritoryPlans,
   useGoalDashboard,
 } from "@/lib/api";
-import { useMapV2Store } from "@/lib/map-v2-store";
-import { searchLocations, type GeocodeSuggestion } from "@/lib/geocode";
+import { useMapV2Store } from "@/features/map/lib/store";
+import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
 import { getDefaultFiscalYear, formatCurrency } from "@/components/goals/ProgressCard";
 import GoalEditorModal from "@/components/goals/GoalEditorModal";
 

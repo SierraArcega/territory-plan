@@ -6,7 +6,7 @@ import type {
   ExploreFilter,
   ExploreSortConfig,
   ExploreSavedView,
-} from "@/lib/map-v2-store";
+} from "@/features/map/lib/store";
 
 interface ExploreSavedViewsProps {
   entity: ExploreEntity;

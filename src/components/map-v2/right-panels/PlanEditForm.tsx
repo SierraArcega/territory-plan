@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useTerritoryPlan, useUpdateTerritoryPlan, useDeleteTerritoryPlan, useUsers, useStates } from "@/lib/api";
 
 // Plan colors for the color picker

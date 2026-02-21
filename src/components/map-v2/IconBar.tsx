@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMapV2Store, type IconBarTab } from "@/lib/map-v2-store";
+import { useMapV2Store, type IconBarTab } from "@/features/map/lib/store";
 import { useProfile } from "@/lib/api";
 
 const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [

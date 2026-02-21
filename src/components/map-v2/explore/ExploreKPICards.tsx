@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExploreEntity } from "@/lib/map-v2-store";
+import type { ExploreEntity } from "@/features/map/lib/store";
 
 interface KPICardProps {
   label: string;

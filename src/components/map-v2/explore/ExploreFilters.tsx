@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { ExploreEntity, ExploreFilter, FilterOp } from "@/lib/map-v2-store";
+import type { ExploreEntity, ExploreFilter, FilterOp } from "@/features/map/lib/store";
 import { useTags, useTerritoryPlans } from "@/lib/api";
 import type { ColumnDef } from "./columns/districtColumns";
 import { districtColumns } from "./columns/districtColumns";

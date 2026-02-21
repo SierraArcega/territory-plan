@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import TaskForm from "./right-panels/TaskForm";
 import ContactDetail from "./right-panels/ContactDetail";
 import ActivityForm from "./right-panels/ActivityForm";

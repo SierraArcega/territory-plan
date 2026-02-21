@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import type { ExploreEntity } from "@/lib/map-v2-store";
+import type { ExploreEntity } from "@/features/map/lib/store";
 import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";

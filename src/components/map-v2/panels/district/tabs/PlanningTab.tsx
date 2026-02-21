@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import {
   usePlanDistrictDetail,
   useUpdateDistrictTargets,

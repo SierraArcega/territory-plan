@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/lib/api";
 
 export default function MultiSelectChip() {

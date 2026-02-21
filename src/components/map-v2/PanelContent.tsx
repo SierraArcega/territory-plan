@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import SearchPanel from "./panels/SearchPanel";
 import DistrictDetailPanel from "./panels/district/DistrictDetailPanel";
 import PlanFormPanel from "./panels/PlanFormPanel";

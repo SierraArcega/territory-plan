@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { usePlanContacts, useTerritoryPlan } from "@/lib/api";
 import type { Contact } from "@/lib/api";
 

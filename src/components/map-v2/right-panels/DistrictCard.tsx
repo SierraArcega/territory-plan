@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useDistrictDetail, useRemoveDistrictFromPlan } from "@/lib/api";
 import DistrictHeader from "../panels/district/DistrictHeader";
 import DistrictTabStrip, { type DistrictTab } from "../panels/district/tabs/DistrictTabStrip";

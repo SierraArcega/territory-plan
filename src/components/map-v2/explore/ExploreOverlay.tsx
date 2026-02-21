@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useRef } from "react";
-import { useMapV2Store, type ExploreEntity, type ExploreSavedView } from "@/lib/map-v2-store";
+import { useMapV2Store, type ExploreEntity, type ExploreSavedView } from "@/features/map/lib/store";
 import { useExploreData } from "@/lib/api";
 import ExploreKPICards from "./ExploreKPICards";
 import ExploreTable from "./ExploreTable";

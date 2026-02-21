@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useTasks, useUpdateTask } from "@/lib/api";
 import type { TaskStatus } from "@/lib/taskTypes";
 import { TASK_PRIORITY_CONFIG } from "@/lib/taskTypes";

@@ -12,7 +12,7 @@ import {
   type DistrictEducationData,
   type DistrictEnrollmentDemographics,
 } from "@/lib/api";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 const METRICS: { key: SimilarMetricKey; label: string; shortLabel: string }[] = [
   { key: "enrollment", label: "Enrollment", shortLabel: "Enroll" },

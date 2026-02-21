@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import IconBar from "./IconBar";
 import PanelContent from "./PanelContent";
 import RightPanel from "./RightPanel";

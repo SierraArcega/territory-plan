@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { ExploreEntity, ExploreSortConfig } from "@/lib/map-v2-store";
+import type { ExploreEntity, ExploreSortConfig } from "@/features/map/lib/store";
 import type { ColumnDef } from "./columns/districtColumns";
 import { districtColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";

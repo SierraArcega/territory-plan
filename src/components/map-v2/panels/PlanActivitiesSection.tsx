@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useActivities } from "@/lib/api";
 import type { ActivityListItem } from "@/lib/api";
 import type { ActivityStatus } from "@/lib/activityTypes";

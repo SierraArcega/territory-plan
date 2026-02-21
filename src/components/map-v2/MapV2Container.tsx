@@ -3,11 +3,11 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useMapV2Store } from "@/lib/map-v2-store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories } from "@/lib/map-v2-layers";
+import { useMapV2Store } from "@/features/map/lib/store";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories } from "@/features/map/lib/layers";
 import { useIsTouchDevice } from "@/hooks/useIsTouchDevice";
 import { useProfile } from "@/lib/api";
-import { mapV2Ref } from "@/lib/map-v2-ref";
+import { mapV2Ref } from "@/features/map/lib/ref";
 import MapV2Tooltip from "./MapV2Tooltip";
 
 // Throttle interval for hover handlers

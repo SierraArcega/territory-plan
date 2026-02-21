@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useFocusModeData } from "@/lib/api";
 import AnimatedCard from "./AnimatedCard";
 import RevenueTrendCard from "./RevenueTrendCard";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 export default function SelectModePill() {
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);

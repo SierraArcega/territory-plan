@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useCreateAccount, useDuplicateCheck } from "@/lib/api";
 import { ACCOUNT_TYPES } from "@/lib/account-types";
 import { getAccountTypeLabel } from "@/lib/account-types";

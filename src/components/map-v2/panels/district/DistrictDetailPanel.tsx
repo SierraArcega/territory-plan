@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapV2Store } from "@/lib/map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import { useDistrictDetail } from "@/lib/api";
 import DistrictHeader from "./DistrictHeader";
 import EnrollmentCard from "./EnrollmentCard";
