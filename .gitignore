@@ -65,3 +65,9 @@ backups/
 
 # Worktrees
 .worktrees/
+
+# Claude Code / Tessl
+.claude/
+.tessl/
+.mcp.json
+tessl.json
