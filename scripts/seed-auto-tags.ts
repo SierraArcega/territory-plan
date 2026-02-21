@@ -3,7 +3,7 @@ import prisma from "../src/lib/prisma";
 import {
   ensureAutoTagsExist,
   syncLocaleTagForDistrict,
-} from "../src/lib/autoTags";
+} from "../src/features/shared/lib/auto-tags";
 
 async function main() {
   console.log("Seeding auto-tags...");
