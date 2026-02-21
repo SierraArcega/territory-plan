@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { getCategoryForType, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityType } from "@/lib/activityTypes";
+import { getCategoryForType, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityType } from "@/features/activities/types";
 import { updateActivityOnCalendar, deleteActivityFromCalendar } from "@/features/calendar/lib/push";
 
 export const dynamic = "force-dynamic";

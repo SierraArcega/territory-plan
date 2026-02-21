@@ -23,7 +23,7 @@ import {
   VALID_ACTIVITY_STATUSES,
   ACTIVITY_STATUS_CONFIG,
   CATEGORY_LABELS,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import EditActivityFormModal, { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import ActivitiesTable from "@/features/plans/components/ActivitiesTable";

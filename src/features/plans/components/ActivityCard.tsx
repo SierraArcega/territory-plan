@@ -7,8 +7,8 @@ import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_STATUS_CONFIG,
   type ActivityType,
-} from "@/lib/activityTypes";
-import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
+} from "@/features/activities/types";
+import { OUTCOME_CONFIGS, type OutcomeType } from "@/features/activities/outcome-types";
 
 interface ActivityCardProps {
   activity: ActivityListItem;

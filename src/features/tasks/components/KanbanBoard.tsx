@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { TASK_STATUSES, TASK_STATUS_CONFIG, type TaskStatus } from "@/lib/taskTypes";
+import { TASK_STATUSES, TASK_STATUS_CONFIG, type TaskStatus } from "@/features/tasks/types";
 import { useReorderTasks, type TaskItem } from "@/lib/api";
 import TaskCard from "./TaskCard";
 import QuickAddTask from "./QuickAddTask";

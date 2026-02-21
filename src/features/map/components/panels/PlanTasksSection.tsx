@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { useTasks, useUpdateTask } from "@/lib/api";
-import type { TaskStatus } from "@/lib/taskTypes";
-import { TASK_PRIORITY_CONFIG } from "@/lib/taskTypes";
+import type { TaskStatus } from "@/features/tasks/types";
+import { TASK_PRIORITY_CONFIG } from "@/features/tasks/types";
 import type { TaskItem } from "@/lib/api";
 
 // Filter chip options

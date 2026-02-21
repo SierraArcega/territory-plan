@@ -17,12 +17,12 @@ import {
   ACTIVITY_CATEGORIES,
   type ActivityType,
   type ActivityCategory,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 import {
   OUTCOMES_BY_CATEGORY,
   OUTCOME_CONFIGS,
   type OutcomeType,
-} from "@/lib/outcomeTypes";
+} from "@/features/activities/outcome-types";
 
 interface OutcomeModalProps {
   activity: { id: string; type: string; title: string };

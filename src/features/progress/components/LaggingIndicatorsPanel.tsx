@@ -9,7 +9,7 @@ import {
   useOutcomeMetrics,
   type ProgressPeriod,
 } from "@/lib/api";
-import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
+import { OUTCOME_CONFIGS, type OutcomeType } from "@/features/activities/outcome-types";
 import FunnelChart from "./FunnelChart";
 
 const PERIOD_LABELS: Record<ProgressPeriod, string> = {

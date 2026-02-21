@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG, type TaskStatus, type TaskPriority } from "@/lib/taskTypes";
+import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG, type TaskStatus, type TaskPriority } from "@/features/tasks/types";
 import { useUpdateTask, type TaskItem } from "@/lib/api";
 
 // Table/list view for tasks — sortable columns with inline status and priority dropdowns

@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useMapV2Store, ALL_SCHOOL_TYPES, type SchoolType } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, SIGNAL_IDS, SIGNAL_DOT_COLORS, LOCALE_LAYER_META, ALL_LOCALE_IDS, type VendorId, type SignalId, type LocaleId } from "@/features/map/lib/layers";
-import { ACCOUNT_TYPES, type AccountTypeValue } from "@/lib/account-types";
+import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/account-types";
 
 const VENDOR_DOT_COLORS: Record<VendorId, string> = {
   fullmind: "#403770",

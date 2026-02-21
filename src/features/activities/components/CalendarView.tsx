@@ -30,7 +30,7 @@ import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_STATUS_CONFIG,
   CATEGORY_LABELS,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 
 // ============================================================================
 // Types

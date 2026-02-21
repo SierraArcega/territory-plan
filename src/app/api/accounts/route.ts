@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ACCOUNT_TYPES } from "@/lib/account-types";
+import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 import { geocodeAddress } from "@/features/map/lib/geocode";
 
 export const dynamic = "force-dynamic";

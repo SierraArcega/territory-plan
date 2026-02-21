@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTasks, useUpdateTask, type TaskItem, type TasksParams } from "@/lib/api";
-import { TASK_PRIORITY_CONFIG, type TaskPriority } from "@/lib/taskTypes";
+import { TASK_PRIORITY_CONFIG, type TaskPriority } from "@/features/tasks/types";
 import QuickAddTask from "./QuickAddTask";
 import TaskDetailModal from "./TaskDetailModal";
 

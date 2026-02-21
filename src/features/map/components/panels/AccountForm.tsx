@@ -3,8 +3,8 @@
 import { useState, useMemo } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { useCreateAccount, useDuplicateCheck } from "@/lib/api";
-import { ACCOUNT_TYPES } from "@/lib/account-types";
-import { getAccountTypeLabel } from "@/lib/account-types";
+import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
+import { getAccountTypeLabel } from "@/features/shared/types/account-types";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",

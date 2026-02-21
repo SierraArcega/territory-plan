@@ -10,7 +10,7 @@ import {
   ACTIVITY_TYPE_ICONS,
   CATEGORY_LABELS,
   VALID_ACTIVITY_STATUSES,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 
 // Form data structure - updated for new Activity system
 export interface ActivityFormData {

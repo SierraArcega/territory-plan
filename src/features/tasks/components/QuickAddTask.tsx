@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useCreateTask } from "@/lib/api";
-import type { TaskStatus } from "@/lib/taskTypes";
+import type { TaskStatus } from "@/features/tasks/types";
 
 // Inline text input for quickly creating tasks — used at the bottom of kanban columns
 // and in embedded task lists. Pass preLinks to auto-link to a plan, activity, district, etc.

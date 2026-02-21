@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { isValidPersona, isValidSeniorityLevel } from "@/lib/contactTypes";
+import { isValidPersona, isValidSeniorityLevel } from "@/features/shared/types/contact-types";
 
 export const dynamic = "force-dynamic";
 

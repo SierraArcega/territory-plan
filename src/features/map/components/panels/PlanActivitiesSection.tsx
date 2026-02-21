@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { useActivities } from "@/lib/api";
 import type { ActivityListItem } from "@/lib/api";
-import type { ActivityStatus } from "@/lib/activityTypes";
+import type { ActivityStatus } from "@/features/activities/types";
 import {
   ACTIVITY_TYPE_ICONS,
   ACTIVITY_STATUS_CONFIG,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 
 // Filter chip options
 const FILTER_OPTIONS: { label: string; value: ActivityStatus | undefined }[] = [

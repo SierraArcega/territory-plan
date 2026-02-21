@@ -17,12 +17,12 @@ import {
   ACTIVITY_STATUS_CONFIG,
   CATEGORY_LABELS,
   VALID_ACTIVITY_STATUSES,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 import type {
   ActivityType,
   ActivityStatus,
   ActivityCategory,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 
 interface ActivityFormProps {
   activityId?: string;

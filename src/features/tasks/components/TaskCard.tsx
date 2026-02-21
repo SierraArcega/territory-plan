@@ -1,6 +1,6 @@
 "use client";
 
-import { TASK_PRIORITY_CONFIG, type TaskPriority } from "@/lib/taskTypes";
+import { TASK_PRIORITY_CONFIG, type TaskPriority } from "@/features/tasks/types";
 import type { TaskItem } from "@/lib/api";
 
 // Compact card used in the kanban board columns

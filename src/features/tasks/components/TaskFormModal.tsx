@@ -17,8 +17,8 @@ import {
   TASK_PRIORITY_CONFIG,
   type TaskStatus,
   type TaskPriority,
-} from "@/lib/taskTypes";
-import { ACTIVITY_TYPE_ICONS } from "@/lib/activityTypes";
+} from "@/features/tasks/types";
+import { ACTIVITY_TYPE_ICONS } from "@/features/activities/types";
 
 interface TaskFormModalProps {
   isOpen: boolean;

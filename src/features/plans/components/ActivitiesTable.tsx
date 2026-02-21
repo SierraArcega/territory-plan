@@ -19,8 +19,8 @@ import {
   VALID_ACTIVITY_STATUSES,
   type ActivityType,
   type ActivityStatus,
-} from "@/lib/activityTypes";
-import { OUTCOME_CONFIGS, type OutcomeType } from "@/lib/outcomeTypes";
+} from "@/features/activities/types";
+import { OUTCOME_CONFIGS, type OutcomeType } from "@/features/activities/outcome-types";
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
 

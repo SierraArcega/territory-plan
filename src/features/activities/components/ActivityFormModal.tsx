@@ -12,7 +12,7 @@ import {
   CATEGORY_LABELS,
   VALID_ACTIVITY_STATUSES,
   DEFAULT_TYPE_FOR_CATEGORY,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 
 interface ActivityFormModalProps {
   isOpen: boolean;

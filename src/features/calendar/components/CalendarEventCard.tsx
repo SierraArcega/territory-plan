@@ -15,7 +15,7 @@ import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPE_ICONS,
   type ActivityType,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
 
 // Confidence level → left border color

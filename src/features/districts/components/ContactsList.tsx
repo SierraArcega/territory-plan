@@ -8,7 +8,7 @@ import {
   useTriggerClayLookup,
   type Contact,
 } from "@/lib/api";
-import { PERSONAS, SENIORITY_LEVELS } from "@/lib/contactTypes";
+import { PERSONAS, SENIORITY_LEVELS } from "@/features/shared/types/contact-types";
 
 interface ContactsListProps {
   leaid: string;

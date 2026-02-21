@@ -21,7 +21,7 @@ import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_STATUS_CONFIG,
   type ActivityType,
-} from "@/lib/activityTypes";
+} from "@/features/activities/types";
 import CalendarInboxWidget from "@/features/calendar/components/CalendarInboxWidget";
 import LeadingIndicatorsPanel from "@/features/progress/components/LeadingIndicatorsPanel";
 import LaggingIndicatorsPanel from "@/features/progress/components/LaggingIndicatorsPanel";

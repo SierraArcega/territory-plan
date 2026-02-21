@@ -9,7 +9,7 @@ import {
   TASK_PRIORITY_CONFIG,
   type TaskStatus,
   type TaskPriority,
-} from "@/lib/taskTypes";
+} from "@/features/tasks/types";
 import KanbanBoard from "@/features/tasks/components/KanbanBoard";
 import TasksTable from "@/features/tasks/components/TasksTable";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";

@@ -2,7 +2,7 @@
 
 import type { District, FullmindData, Tag, DistrictTrends } from "@/lib/api";
 import SignalBadge from "./signals/SignalBadge";
-import { getAccountTypeLabel } from "@/lib/account-types";
+import { getAccountTypeLabel } from "@/features/shared/types/account-types";
 
 interface DistrictHeaderProps {
   district: District;

@@ -9,8 +9,8 @@ import {
   useUpdateTask,
   useDeleteTask,
 } from "@/lib/api";
-import { TASK_PRIORITIES, TASK_PRIORITY_CONFIG } from "@/lib/taskTypes";
-import type { TaskPriority } from "@/lib/taskTypes";
+import { TASK_PRIORITIES, TASK_PRIORITY_CONFIG } from "@/features/tasks/types";
+import type { TaskPriority } from "@/features/tasks/types";
 
 interface TaskFormProps {
   taskId?: string;
