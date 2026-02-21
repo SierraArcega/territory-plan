@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useDistrictDetail } from "@/lib/api";
-import DistrictHeader from "@/components/panel/DistrictHeader";
+import DistrictHeader from "@/features/districts/components/DistrictHeader";
 import DistrictTabStrip, {
   type DistrictTab,
 } from "@/features/map/components/panels/district/tabs/DistrictTabStrip";

@@ -2,8 +2,8 @@
 
 import type { DistrictDetail } from "@/lib/api";
 import SignalCard from "./signals/SignalCard";
-import TagsEditor from "@/components/panel/TagsEditor";
-import NotesEditor from "@/components/panel/NotesEditor";
+import TagsEditor from "@/features/districts/components/TagsEditor";
+import NotesEditor from "@/features/districts/components/NotesEditor";
 import TaskList from "@/features/tasks/components/TaskList";
 
 interface DistrictDetailsCardProps {

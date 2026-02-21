@@ -2,19 +2,19 @@
 
 import { useMapStore } from "@/lib/store";
 import { useDistrictDetail } from "@/lib/api";
-import DistrictHeader from "./DistrictHeader";
+import DistrictHeader from "@/features/districts/components/DistrictHeader";
 import AddToPlanButton from "./AddToPlanButton";
-import DistrictInfo from "./DistrictInfo";
+import DistrictInfo from "@/features/districts/components/DistrictInfo";
 import FindSimilarDistricts from "./FindSimilarDistricts";
-import FinanceData from "./FinanceData";
-import StaffingSalaries from "./StaffingSalaries";
-import DemographicsChart from "./DemographicsChart";
-import AcademicMetrics from "./AcademicMetrics";
-import StudentPopulations from "./StudentPopulations";
-import FullmindMetrics from "./FullmindMetrics";
-import NotesEditor from "./NotesEditor";
-import TagsEditor from "./TagsEditor";
-import ContactsList from "./ContactsList";
+import FinanceData from "@/features/districts/components/FinanceData";
+import StaffingSalaries from "@/features/districts/components/StaffingSalaries";
+import DemographicsChart from "@/features/districts/components/DemographicsChart";
+import AcademicMetrics from "@/features/districts/components/AcademicMetrics";
+import StudentPopulations from "@/features/districts/components/StudentPopulations";
+import FullmindMetrics from "@/features/districts/components/FullmindMetrics";
+import NotesEditor from "@/features/districts/components/NotesEditor";
+import TagsEditor from "@/features/districts/components/TagsEditor";
+import ContactsList from "@/features/districts/components/ContactsList";
 
 export default function SidePanel() {
   const { selectedLeaid, sidePanelOpen, setSidePanelOpen } = useMapStore();

@@ -12,7 +12,7 @@ import PurchasingHistoryCard from "./PurchasingHistoryCard";
 import CompetitorSpendCard from "./CompetitorSpendCard";
 import FullmindCard from "./FullmindCard";
 import DistrictDetailsCard from "./DistrictDetailsCard";
-import ContactsList from "@/components/panel/ContactsList";
+import ContactsList from "@/features/districts/components/ContactsList";
 import SignalCard from "./signals/SignalCard";
 
 export default function DistrictDetailPanel() {

@@ -1,14 +1,14 @@
 "use client";
 
 import type { DistrictDetail } from "@/lib/api";
-import FullmindMetrics from "@/components/panel/FullmindMetrics";
-import CompetitorSpend from "@/components/panel/CompetitorSpend";
+import FullmindMetrics from "@/features/districts/components/FullmindMetrics";
+import CompetitorSpend from "@/features/districts/components/CompetitorSpend";
 import AddToPlanButton from "./AddToPlanButton";
 import FindSimilarDistricts from "./FindSimilarDistricts";
 import CharterSchools from "./CharterSchools";
-import DistrictInfo from "@/components/panel/DistrictInfo";
-import TagsEditor from "@/components/panel/TagsEditor";
-import NotesEditor from "@/components/panel/NotesEditor";
+import DistrictInfo from "@/features/districts/components/DistrictInfo";
+import TagsEditor from "@/features/districts/components/TagsEditor";
+import NotesEditor from "@/features/districts/components/NotesEditor";
 import TaskList from "@/features/tasks/components/TaskList";
 
 interface DistrictInfoTabProps {
