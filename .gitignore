@@ -62,3 +62,6 @@ Data Files/
 
 # Database backups
 backups/
+
+# Worktrees
+.worktrees/
