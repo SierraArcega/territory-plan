@@ -1,7 +1,12 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import type { StatusFilter, FiscalYear, MetricType } from "./store";
-import type { ActivityType, ActivityCategory, ActivityStatus } from "./activityTypes";
-import type { TaskStatus, TaskPriority } from "./taskTypes";
+import type { ActivityType, ActivityCategory, ActivityStatus } from "@/features/activities/types";
+import type { TaskStatus, TaskPriority } from "@/features/tasks/types";
+import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
+
+// Re-export shared types and api-client for consumers
+export { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
+export type * from "@/features/shared/types/api-types";
 
 // Types
 export interface District {
@@ -326,42 +331,7 @@ export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"
   districts: TerritoryPlanDistrict[];
 }
 
-// API Functions
-const API_BASE = "/api";
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    // Try to read the error body for more context
-    let detail = "";
-    try {
-      const body = await res.json();
-      detail = body.error || JSON.stringify(body);
-    } catch {
-      // Response body isn't JSON (e.g., HTML from a redirect)
-      if (res.redirected) {
-        detail = "Session expired - please refresh the page";
-      }
-    }
-    throw new Error(
-      detail
-        ? `${res.status}: ${detail}`
-        : `API Error: ${res.status} ${res.statusText}`
-    );
-  }
-  // Verify we actually got JSON (not HTML from a redirect)
-  const contentType = res.headers.get("content-type");
-  if (contentType && !contentType.includes("application/json")) {
-    throw new Error("Session expired - please refresh the page");
-  }
-  return res.json();
-}
+// API Functions (fetchJson and API_BASE imported from @/features/shared/lib/api-client)
 
 // District queries
 export function useDistricts(params: {
