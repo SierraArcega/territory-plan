@@ -4,12 +4,12 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/lib/store";
 import AppShell from "@/features/shared/components/layout/AppShell";
-import MapView from "@/components/views/MapView";
-import PlansView from "@/components/views/PlansView";
-import ActivitiesView from "@/components/views/ActivitiesView";
-import TasksView from "@/components/views/TasksView";
-import HomeView from "@/components/views/HomeView";
-import ProfileView from "@/components/views/ProfileView";
+import MapView from "@/features/shared/components/views/MapView";
+import PlansView from "@/features/shared/components/views/PlansView";
+import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
+import TasksView from "@/features/shared/components/views/TasksView";
+import HomeView from "@/features/shared/components/views/HomeView";
+import ProfileView from "@/features/shared/components/views/ProfileView";
 
 // Valid tab IDs for URL validation
 const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "profile"];
