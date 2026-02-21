@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import PanelContainer from "@/components/panel/PanelContainer";
+import PanelContainer from "@/features/shared/components/panel/PanelContainer";
 import MultiSelectActionBar from "@/features/shared/components/MultiSelectActionBar";
 import GoalSetupModal from "@/features/goals/components/GoalSetupModal";
 
