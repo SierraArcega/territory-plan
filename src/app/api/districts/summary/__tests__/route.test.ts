@@ -21,24 +21,49 @@ describe("GET /api/districts/summary", () => {
     mockQuery.mockResolvedValue({
       rows: [
         {
-          category: "multi_year",
-          count: 50,
-          total_enrollment: 200000,
-          sessions_revenue: 5000000,
-          net_invoicing: 3000000,
-          closed_won_bookings: 2000000,
-          open_pipeline: 1000000,
-          weighted_pipeline: 500000,
+          category: "multi_year_growing",
+          count: 30,
+          total_enrollment: 120000,
+          open_pipeline: 500000,
+          closed_won_bookings: 1200000,
+          invoicing: 1800000,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 3000000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+        {
+          category: "multi_year_shrinking",
+          count: 20,
+          total_enrollment: 80000,
+          open_pipeline: 500000,
+          closed_won_bookings: 800000,
+          invoicing: 1200000,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 2000000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
         },
         {
           category: "target",
           count: 100,
           total_enrollment: 400000,
-          sessions_revenue: 0,
-          net_invoicing: 0,
-          closed_won_bookings: 0,
           open_pipeline: 0,
-          weighted_pipeline: 0,
+          closed_won_bookings: 0,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 0,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
         },
       ],
     });
@@ -52,8 +77,9 @@ describe("GET /api/districts/summary", () => {
     expect(res.status).toBe(200);
     expect(body.count).toBe(150);
     expect(body.totalEnrollment).toBe(600000);
-    expect(body.sessionsRevenue).toBe(5000000);
-    expect(body.byCategory.multi_year.count).toBe(50);
+    expect(body.totalRevenue).toBe(5000000);
+    expect(body.byCategory.multi_year_growing.count).toBe(30);
+    expect(body.byCategory.multi_year_shrinking.count).toBe(20);
     expect(body.byCategory.target.count).toBe(100);
   });
 
@@ -80,20 +106,35 @@ describe("GET /api/districts/summary", () => {
 
     const [sql] = mockQuery.mock.calls[0];
     expect(sql).toContain("fy26_fullmind_category");
-    expect(sql).toContain("fy26_sessions_revenue");
   });
 
-  it("omits pipeline columns for fy25", async () => {
+  it("queries vendor_financials table", async () => {
     mockQuery.mockResolvedValue({ rows: [] });
 
     const req = new NextRequest(
-      "http://localhost:3000/api/districts/summary?fy=fy25&vendors=fullmind"
+      "http://localhost:3000/api/districts/summary?fy=fy26&vendors=fullmind"
     );
     await GET(req);
 
     const [sql] = mockQuery.mock.calls[0];
-    expect(sql).toContain("fy25_sessions_revenue");
-    expect(sql).not.toContain("open_pipeline");
+    expect(sql).toContain("vendor_financials");
+    expect(sql).toContain("vf.total_revenue");
+    expect(sql).toContain("vf.open_pipeline");
+  });
+
+  it("uses CTE for enrollment dedup (not SUM DISTINCT)", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+
+    const req = new NextRequest(
+      "http://localhost:3000/api/districts/summary?fy=fy26&vendors=fullmind"
+    );
+    await GET(req);
+
+    const [sql] = mockQuery.mock.calls[0];
+    // Should use CTE approach, not SUM(DISTINCT d.enrollment)
+    expect(sql).toContain("WITH dist AS");
+    expect(sql).toContain("dist.enrollment");
+    expect(sql).not.toContain("SUM(DISTINCT d.enrollment)");
   });
 
   it("returns 500 on database error", async () => {
