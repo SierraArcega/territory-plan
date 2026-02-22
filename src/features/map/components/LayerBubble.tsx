@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useMapV2Store, ALL_SCHOOL_TYPES, type SchoolType } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, SIGNAL_IDS, SIGNAL_DOT_COLORS, LOCALE_LAYER_META, ALL_LOCALE_IDS, type VendorId, type SignalId, type LocaleId } from "@/features/map/lib/layers";
+import { VENDOR_PALETTES, SIGNAL_PALETTES, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/account-types";
 
 const VENDOR_DOT_COLORS: Record<VendorId, string> = {
@@ -106,6 +107,61 @@ function ColorDot({ color, size = "w-2.5 h-2.5" }: { color: string; size?: strin
   );
 }
 
+/* ─── Palette pickers ─── */
+function VendorPalettePicker({ vendorId, activePaletteId, onSelect }: {
+  vendorId: string;
+  activePaletteId: string;
+  onSelect: (paletteId: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5 pl-6 pr-2 py-1.5">
+      {VENDOR_PALETTES.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => onSelect(p.id)}
+          className={`w-5 h-5 rounded-full transition-all ${
+            p.id === activePaletteId
+              ? "ring-2 ring-offset-1 ring-plum scale-110"
+              : "hover:scale-110 ring-1 ring-black/10"
+          }`}
+          style={{ backgroundColor: p.baseColor }}
+          title={p.label}
+          aria-label={`${p.label} palette`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SignalPalettePicker({ activePaletteId, onSelect }: {
+  activePaletteId: string;
+  onSelect: (paletteId: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5 pl-[52px] pr-2 py-1.5">
+      {SIGNAL_PALETTES.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => onSelect(p.id)}
+          className={`flex gap-0.5 items-center px-1.5 py-1 rounded-md transition-all ${
+            p.id === activePaletteId
+              ? "ring-2 ring-offset-1 ring-plum bg-plum/5"
+              : "hover:bg-gray-100 ring-1 ring-black/5"
+          }`}
+          title={p.label}
+          aria-label={`${p.label} palette`}
+        >
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.growthStops[0] }} />
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.growthStops[2] }} />
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.growthStops[4] }} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function LayerBubble() {
   const activeVendors = useMapV2Store((s) => s.activeVendors);
   const toggleVendor = useMapV2Store((s) => s.toggleVendor);
@@ -135,6 +191,10 @@ export default function LayerBubble() {
   const setCompetitorEngagement = useMapV2Store((s) => s.setCompetitorEngagement);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
+  const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
+  const setVendorPalette = useMapV2Store((s) => s.setVendorPalette);
+  const signalPalette = useMapV2Store((s) => s.signalPalette);
+  const setSignalPalette = useMapV2Store((s) => s.setSignalPalette);
   const layerBubbleOpen = useMapV2Store((s) => s.layerBubbleOpen);
   const setLayerBubbleOpen = useMapV2Store((s) => s.setLayerBubbleOpen);
   const ref = useRef<HTMLDivElement>(null);
@@ -191,6 +251,9 @@ export default function LayerBubble() {
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [layerBubbleOpen, setLayerBubbleOpen]);
+
+  // Palette picker toggle: vendorId or "signal", null = closed
+  const [palettePickerOpen, setPalettePickerOpen] = useState<string | null>(null);
 
   // Collapsible section state
   const [accountTypesOpen, setAccountTypesOpen] = useState(false);
@@ -555,7 +618,17 @@ export default function LayerBubble() {
                     onChange={() => toggleVendor("fullmind")}
                     className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
                   />
-                  <ColorDot color="#403770" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPalettePickerOpen(palettePickerOpen === "fullmind" ? null : "fullmind");
+                    }}
+                    className="shrink-0"
+                    title="Change color palette"
+                  >
+                    <ColorDot color={getVendorPalette(vendorPalettes.fullmind).dotColor} />
+                  </button>
                   <span className={`text-sm ${activeVendors.has("fullmind") ? "font-medium text-plum" : "text-gray-600"}`}>
                     Show on Map
                   </span>
@@ -597,6 +670,13 @@ export default function LayerBubble() {
                       >
                         Show all engagement levels
                       </button>
+                    )}
+                    {palettePickerOpen === "fullmind" && (
+                      <VendorPalettePicker
+                        vendorId="fullmind"
+                        activePaletteId={vendorPalettes.fullmind}
+                        onSelect={(id) => setVendorPalette("fullmind", id)}
+                      />
                     )}
                   </>
                 )}
@@ -641,7 +721,17 @@ export default function LayerBubble() {
                           onChange={() => toggleVendor(vendorId)}
                           className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
                         />
-                        <ColorDot color={VENDOR_DOT_COLORS[vendorId]} />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPalettePickerOpen(palettePickerOpen === vendorId ? null : vendorId);
+                          }}
+                          className="shrink-0"
+                          title="Change color palette"
+                        >
+                          <ColorDot color={getVendorPalette(vendorPalettes[vendorId]).dotColor} />
+                        </button>
                         <span
                           className={`text-sm ${isActive ? "font-medium text-plum" : "text-gray-600"}`}
                         >
@@ -684,6 +774,13 @@ export default function LayerBubble() {
                             >
                               Show all engagement levels
                             </button>
+                          )}
+                          {palettePickerOpen === vendorId && (
+                            <VendorPalettePicker
+                              vendorId={vendorId}
+                              activePaletteId={vendorPalettes[vendorId]}
+                              onSelect={(id) => setVendorPalette(vendorId, id)}
+                            />
                           )}
                         </>
                       )}
@@ -754,19 +851,25 @@ export default function LayerBubble() {
                       </button>
 
                       {isActive && (
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[52px] pb-1">
-                          {config.legendItems.map((item) => (
-                            <span key={item.label} className="flex items-center gap-1">
-                              <span
-                                className="w-2 h-2 rounded-sm shrink-0"
-                                style={{ backgroundColor: item.color }}
-                              />
-                              <span className="text-[10px] text-gray-500">
-                                {item.label}
+                        <>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[52px] pb-1">
+                            {config.legendItems.map((item) => (
+                              <span key={item.label} className="flex items-center gap-1">
+                                <span
+                                  className="w-2 h-2 rounded-sm shrink-0"
+                                  style={{ backgroundColor: item.color }}
+                                />
+                                <span className="text-[10px] text-gray-500">
+                                  {item.label}
+                                </span>
                               </span>
-                            </span>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                          <SignalPalettePicker
+                            activePaletteId={signalPalette}
+                            onSelect={setSignalPalette}
+                          />
+                        </>
                       )}
                     </div>
                   );
@@ -1105,7 +1208,7 @@ export default function LayerBubble() {
             <span
               key={vendorId}
               className="w-2.5 h-2.5 rounded-full border border-white"
-              style={{ backgroundColor: VENDOR_DOT_COLORS[vendorId] }}
+              style={{ backgroundColor: getVendorPalette(vendorPalettes[vendorId]).dotColor }}
             />
           ))}
         </div>
