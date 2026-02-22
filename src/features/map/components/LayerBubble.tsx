@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useMapV2Store, ALL_SCHOOL_TYPES, type SchoolType } from "@/features/map/lib/store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, SIGNAL_IDS, SIGNAL_DOT_COLORS, LOCALE_LAYER_META, ALL_LOCALE_IDS, type VendorId, type SignalId, type LocaleId } from "@/features/map/lib/layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, SIGNAL_IDS, LOCALE_LAYER_META, ALL_LOCALE_IDS, type VendorId, type SignalId, type LocaleId } from "@/features/map/lib/layers";
 import { VENDOR_PALETTES, SIGNAL_PALETTES, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/account-types";
 
@@ -59,6 +59,8 @@ interface SavedMapView {
   fullmindEngagement: string[];
   competitorEngagement: Record<string, string[]>;
   selectedFiscalYear: "fy25" | "fy26";
+  vendorPalettes?: Record<string, string>;
+  signalPalette?: string;
 }
 
 const STORAGE_KEY = "territory-plan:saved-map-views";
@@ -199,6 +201,16 @@ export default function LayerBubble() {
   const setLayerBubbleOpen = useMapV2Store((s) => s.setLayerBubbleOpen);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Dynamic engagement colors from active Fullmind palette
+  const fullmindPalette = getVendorPalette(vendorPalettes.fullmind);
+  const dynamicFullmindColors: Record<string, string> = {
+    target: fullmindPalette.stops[0],
+    pipeline: fullmindPalette.stops[2],
+    first_year: fullmindPalette.stops[3],
+    multi_year: fullmindPalette.stops[5],
+    lapsed: "#F37167", // Always coral for churned/lapsed
+  };
+
   // Fetch filter options
   const [owners, setOwners] = useState<string[]>([]);
   const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
@@ -299,13 +311,15 @@ export default function LayerBubble() {
       fullmindEngagement: [...fullmindEngagement],
       competitorEngagement: { ...competitorEngagement },
       selectedFiscalYear,
+      vendorPalettes: { ...vendorPalettes },
+      signalPalette,
     };
     const next = [...savedViews, view];
     setSavedViews(next);
     persistViews(next);
     setViewName("");
     setSaveDialogOpen(false);
-  }, [viewName, activeVendors, filterOwner, filterPlanId, filterStates, visibleSchoolTypes, activeSignal, visibleLocales, filterAccountTypes, fullmindEngagement, competitorEngagement, selectedFiscalYear, savedViews]);
+  }, [viewName, activeVendors, filterOwner, filterPlanId, filterStates, visibleSchoolTypes, activeSignal, visibleLocales, filterAccountTypes, fullmindEngagement, competitorEngagement, selectedFiscalYear, vendorPalettes, signalPalette, savedViews]);
 
   const handleLoadView = useCallback(
     (view: SavedMapView) => {
@@ -335,6 +349,15 @@ export default function LayerBubble() {
         store.setCompetitorEngagement(vid, savedCompEng[vid] ?? []);
       }
       store.setSelectedFiscalYear(view.selectedFiscalYear ?? "fy26");
+      // Restore palette preferences if present
+      if (view.vendorPalettes) {
+        for (const [vid, pid] of Object.entries(view.vendorPalettes)) {
+          store.setVendorPalette(vid as any, pid);
+        }
+      }
+      if (view.signalPalette) {
+        store.setSignalPalette(view.signalPalette);
+      }
     },
     []
   );
@@ -655,7 +678,7 @@ export default function LayerBubble() {
                             onChange={() => toggleFullmindEngagement(level)}
                             className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
                           />
-                          <ColorDot color={meta.color} />
+                          <ColorDot color={dynamicFullmindColors[level] ?? meta.color} />
                           <span className={`text-sm ${isActive ? "font-medium text-gray-800" : "text-gray-600"}`}>
                             {meta.label}
                           </span>
@@ -842,7 +865,7 @@ export default function LayerBubble() {
                             <span className="w-1.5 h-1.5 rounded-full bg-plum" />
                           )}
                         </span>
-                        <ColorDot color={SIGNAL_DOT_COLORS[signalId]} />
+                        <ColorDot color={getSignalPalette(signalPalette).dotColor} />
                         <span
                           className={`text-sm ${isActive ? "font-medium text-plum" : "text-gray-600"}`}
                         >
@@ -853,17 +876,34 @@ export default function LayerBubble() {
                       {isActive && (
                         <>
                           <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[52px] pb-1">
-                            {config.legendItems.map((item) => (
-                              <span key={item.label} className="flex items-center gap-1">
-                                <span
-                                  className="w-2 h-2 rounded-sm shrink-0"
-                                  style={{ backgroundColor: item.color }}
-                                />
-                                <span className="text-[10px] text-gray-500">
-                                  {item.label}
+                            {(() => {
+                              const sigPal = getSignalPalette(signalPalette);
+                              const items = signalId === "expenditure"
+                                ? [
+                                    { label: "Well Above Avg", color: sigPal.expenditureStops[0] },
+                                    { label: "Above Avg",      color: sigPal.expenditureStops[1] },
+                                    { label: "Below Avg",      color: sigPal.expenditureStops[2] },
+                                    { label: "Well Below Avg", color: sigPal.expenditureStops[3] },
+                                  ]
+                                : [
+                                    { label: "Strong Growth",  color: sigPal.growthStops[0] },
+                                    { label: "Growth",         color: sigPal.growthStops[1] },
+                                    { label: "Stable",         color: sigPal.growthStops[2] },
+                                    { label: "Decline",        color: sigPal.growthStops[3] },
+                                    { label: "Strong Decline", color: sigPal.growthStops[4] },
+                                  ];
+                              return items.map((item) => (
+                                <span key={item.label} className="flex items-center gap-1">
+                                  <span
+                                    className="w-2 h-2 rounded-sm shrink-0"
+                                    style={{ backgroundColor: item.color }}
+                                  />
+                                  <span className="text-[10px] text-gray-500">
+                                    {item.label}
+                                  </span>
                                 </span>
-                              </span>
-                            ))}
+                              ));
+                            })()}
                           </div>
                           <SignalPalettePicker
                             activePaletteId={signalPalette}
@@ -1156,7 +1196,7 @@ export default function LayerBubble() {
                       {view.activeVendors.map((v) => (
                         <ColorDot
                           key={v}
-                          color={VENDOR_DOT_COLORS[v]}
+                          color={view.vendorPalettes ? getVendorPalette(view.vendorPalettes[v] || "plum").dotColor : VENDOR_DOT_COLORS[v]}
                           size="w-1.5 h-1.5"
                         />
                       ))}
