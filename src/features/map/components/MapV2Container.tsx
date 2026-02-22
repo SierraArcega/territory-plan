@@ -908,7 +908,7 @@ export default function MapV2Container() {
 
     // Update account point layer too
     if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
-      const firstVendor = [...activeVendors][0];
+      const firstVendor = [...useMapV2Store.getState().activeVendors][0];
       if (firstVendor) {
         const palette = getVendorPalette(vendorPalettes[firstVendor]);
         map.current.setPaintProperty(

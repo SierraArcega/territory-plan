@@ -310,13 +310,6 @@ export function buildSignalFillExpression(
   ];
 }
 
-/** Primary dot color for each signal (used in UI toggles) */
-export const SIGNAL_DOT_COLORS: Record<SignalId, string> = {
-  enrollment: "#4ECDC4",
-  ell: "#4ECDC4",
-  swd: "#4ECDC4",
-  expenditure: "#F37167",
-};
 
 // ============================================
 // Locale definitions

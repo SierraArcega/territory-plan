@@ -3,15 +3,9 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useMapV2Store, ALL_SCHOOL_TYPES, type SchoolType } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, SIGNAL_IDS, LOCALE_LAYER_META, ALL_LOCALE_IDS, type VendorId, type SignalId, type LocaleId } from "@/features/map/lib/layers";
-import { VENDOR_PALETTES, SIGNAL_PALETTES, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
+import { VENDOR_PALETTES, SIGNAL_PALETTES, getVendorPalette, getSignalPalette, DEFAULT_VENDOR_PALETTE } from "@/features/map/lib/palettes";
 import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/account-types";
 
-const VENDOR_DOT_COLORS: Record<VendorId, string> = {
-  fullmind: "#403770",
-  proximity: "#F37167",
-  elevate: "#6EA3BE",
-  tbt: "#FFCF70",
-};
 
 // Fullmind engagement levels
 type FullmindEngagement = "target" | "pipeline" | "first_year" | "multi_year" | "lapsed";
@@ -1196,7 +1190,7 @@ export default function LayerBubble() {
                       {view.activeVendors.map((v) => (
                         <ColorDot
                           key={v}
-                          color={view.vendorPalettes ? getVendorPalette(view.vendorPalettes[v] || "plum").dotColor : VENDOR_DOT_COLORS[v]}
+                          color={getVendorPalette(view.vendorPalettes?.[v] ?? DEFAULT_VENDOR_PALETTE[v as VendorId]).dotColor}
                           size="w-1.5 h-1.5"
                         />
                       ))}
