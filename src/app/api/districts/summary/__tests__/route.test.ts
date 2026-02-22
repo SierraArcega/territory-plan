@@ -137,6 +137,84 @@ describe("GET /api/districts/summary", () => {
     expect(sql).not.toContain("SUM(DISTINCT d.enrollment)");
   });
 
+  it("uses CTE in per-vendor breakdown queries", async () => {
+    // First call: combined query
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          category: "multi_year_growing",
+          count: 10,
+          total_enrollment: 50000,
+          open_pipeline: 100000,
+          closed_won_bookings: 200000,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 300000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+      ],
+    });
+    // Vendor breakdown queries (fullmind + proximity)
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          category: "multi_year_growing",
+          count: 5,
+          total_enrollment: 25000,
+          open_pipeline: 50000,
+          closed_won_bookings: 100000,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 150000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+      ],
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          category: "multi_year_growing",
+          count: 5,
+          total_enrollment: 25000,
+          open_pipeline: 50000,
+          closed_won_bookings: 100000,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 150000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+      ],
+    });
+
+    const req = new NextRequest(
+      "http://localhost:3000/api/districts/summary?fy=fy26&vendors=fullmind,proximity"
+    );
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.byVendor).toBeDefined();
+
+    // All queries should use the CTE approach
+    for (const call of mockQuery.mock.calls) {
+      const [sql] = call;
+      expect(sql).toContain("WITH dist AS");
+      expect(sql).not.toContain("SUM(DISTINCT d.enrollment)");
+    }
+  });
+
   it("returns 500 on database error", async () => {
     mockQuery.mockRejectedValue(new Error("DB connection failed"));
 
