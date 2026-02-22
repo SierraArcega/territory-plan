@@ -22,7 +22,7 @@ const MapV2Container = dynamic(() => import("./MapV2Container"), {
 
 export default function MapV2Shell() {
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#F8F7F4]">
+    <div className="relative w-full h-full overflow-hidden bg-[#F8F7F4]">
       {/* Full-viewport map (renders behind everything) */}
       <MapV2Container />
 
