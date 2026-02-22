@@ -1,16 +1,6 @@
 "use client";
 
-// Format currency with optional compact mode for large numbers
-export function formatCurrency(value: number | null | undefined, compact = false): string {
-  if (value === null || value === undefined) return "-";
-  if (compact && Math.abs(value) >= 1000000) {
-    return `$${(value / 1000000).toLocaleString("en-US", { maximumFractionDigits: 1 })}M`;
-  }
-  if (compact && Math.abs(value) >= 1000) {
-    return `$${(value / 1000).toLocaleString("en-US", { maximumFractionDigits: 0 })}K`;
-  }
-  return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-}
+import { formatCurrency } from "@/features/shared/lib/format";
 
 export function formatPercent(current: number, target: number | null): string {
   if (!target || target === 0) return "-";
@@ -26,6 +16,9 @@ export function getDefaultFiscalYear(): number {
   const year = now.getFullYear();
   return month >= 6 ? year + 1 : year;
 }
+
+// Re-export formatCurrency so existing imports from this module still work
+export { formatCurrency };
 
 // Progress card shows a metric with current value, target, and progress bar
 interface ProgressCardProps {

@@ -13,7 +13,8 @@ import {
   ActivityListItem,
 } from "@/lib/api";
 import { useMapStore } from "@/features/shared/lib/app-store";
-import { getDefaultFiscalYear, formatCurrency } from "@/features/goals/components/ProgressCard";
+import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
+import { formatCurrency } from "@/features/shared/lib/format";
 import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import PlanFormModal, { PlanFormData } from "@/features/plans/components/PlanFormModal";
