@@ -159,6 +159,9 @@ interface MapV2State {
   vendorPalettes: Record<VendorId, string>;
   signalPalette: string;
 
+  // Layer opacity overrides (0–1)
+  vendorOpacities: Record<VendorId, number>;
+
   // Account creation form state
   showAccountForm: boolean;
   accountFormDefaults: { name?: string } | null;
@@ -279,6 +282,7 @@ interface MapV2Actions {
   // Color palette preferences
   setVendorPalette: (vendorId: VendorId, paletteId: string) => void;
   setSignalPalette: (paletteId: string) => void;
+  setVendorOpacity: (vendorId: VendorId, opacity: number) => void;
 
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
@@ -359,6 +363,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   selectedFiscalYear: "fy26",
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
   signalPalette: DEFAULT_SIGNAL_PALETTE,
+  vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75 },
   showAccountForm: false,
   accountFormDefaults: null,
   isExploreActive: false,
@@ -703,6 +708,10 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
       vendorPalettes: { ...s.vendorPalettes, [vendorId]: paletteId },
     })),
   setSignalPalette: (paletteId) => set({ signalPalette: paletteId }),
+  setVendorOpacity: (vendorId, opacity) =>
+    set((s) => ({
+      vendorOpacities: { ...s.vendorOpacities, [vendorId]: opacity },
+    })),
 
   // Account creation form
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),

@@ -6,9 +6,17 @@ import {
 
 const STORAGE_KEY = "territory-plan:palette-prefs";
 
+const DEFAULT_VENDOR_OPACITIES: Record<VendorId, number> = {
+  fullmind: 0.75,
+  proximity: 0.75,
+  elevate: 0.8,
+  tbt: 0.75,
+};
+
 interface PalettePrefs {
   vendorPalettes: Record<VendorId, string>;
   signalPalette: string;
+  vendorOpacities: Record<VendorId, number>;
 }
 
 export function loadPalettePrefs(): PalettePrefs {
@@ -18,16 +26,19 @@ export function loadPalettePrefs(): PalettePrefs {
       return {
         vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
         signalPalette: DEFAULT_SIGNAL_PALETTE,
+        vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES },
       };
     const parsed = JSON.parse(raw);
     return {
       vendorPalettes: { ...DEFAULT_VENDOR_PALETTE, ...parsed.vendorPalettes },
       signalPalette: parsed.signalPalette ?? DEFAULT_SIGNAL_PALETTE,
+      vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES, ...parsed.vendorOpacities },
     };
   } catch {
     return {
       vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
       signalPalette: DEFAULT_SIGNAL_PALETTE,
+      vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES },
     };
   }
 }

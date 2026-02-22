@@ -189,6 +189,8 @@ export default function LayerBubble() {
   const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
   const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
   const setVendorPalette = useMapV2Store((s) => s.setVendorPalette);
+  const vendorOpacities = useMapV2Store((s) => s.vendorOpacities);
+  const setVendorOpacity = useMapV2Store((s) => s.setVendorOpacity);
   const signalPalette = useMapV2Store((s) => s.signalPalette);
   const setSignalPalette = useMapV2Store((s) => s.setSignalPalette);
   const layerBubbleOpen = useMapV2Store((s) => s.layerBubbleOpen);
@@ -696,6 +698,18 @@ export default function LayerBubble() {
                         onSelect={(id) => setVendorPalette("fullmind", id)}
                       />
                     )}
+                    <label className="flex items-center gap-2 pl-6 pr-2 mt-0.5 mb-1">
+                      <span className="text-[11px] text-gray-500 shrink-0">Opacity</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={Math.round((vendorOpacities.fullmind ?? 0.75) * 100)}
+                        onChange={(e) => setVendorOpacity("fullmind", Number(e.target.value) / 100)}
+                        className="w-full h-1 accent-plum cursor-pointer"
+                      />
+                      <span className="text-[10px] text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities.fullmind ?? 0.75) * 100)}%</span>
+                    </label>
                   </>
                 )}
               </div>
@@ -801,6 +815,18 @@ export default function LayerBubble() {
                               onSelect={(id) => setVendorPalette(vendorId, id)}
                             />
                           )}
+                          <label className="flex items-center gap-2 pl-6 pr-2 mt-0.5 mb-1">
+                            <span className="text-[11px] text-gray-500 shrink-0">Opacity</span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={Math.round((vendorOpacities[vendorId] ?? 0.75) * 100)}
+                              onChange={(e) => setVendorOpacity(vendorId as any, Number(e.target.value) / 100)}
+                              className="w-full h-1 accent-plum cursor-pointer"
+                            />
+                            <span className="text-[10px] text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities[vendorId] ?? 0.75) * 100)}%</span>
+                          </label>
                         </>
                       )}
                     </div>

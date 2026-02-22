@@ -138,6 +138,12 @@ describe("palette-storage", () => {
         tbt: "forest",
       },
       signalPalette: "blue-orange",
+      vendorOpacities: {
+        fullmind: 0.5,
+        proximity: 0.6,
+        elevate: 0.7,
+        tbt: 0.8,
+      },
     };
     savePalettePrefs(prefs);
     expect(loadPalettePrefs()).toEqual(prefs);
@@ -147,5 +153,6 @@ describe("palette-storage", () => {
     localStorage.setItem("territory-plan:palette-prefs", "not-json");
     const prefs = loadPalettePrefs();
     expect(prefs.vendorPalettes.fullmind).toBe("plum");
+    expect(prefs.vendorOpacities.fullmind).toBe(0.75);
   });
 });

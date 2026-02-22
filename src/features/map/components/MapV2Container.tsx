@@ -153,6 +153,7 @@ export default function MapV2Container() {
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
+  const vendorOpacities = useMapV2Store((s) => s.vendorOpacities);
   const signalPalette = useMapV2Store((s) => s.signalPalette);
   const pendingFitBounds = useMapV2Store((s) => s.pendingFitBounds);
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
@@ -338,7 +339,7 @@ export default function MapV2Container() {
           filter: ["has", config.tileProperty],
           paint: {
             "fill-color": buildVendorFillExpression(vendorId, getVendorPalette(useMapV2Store.getState().vendorPalettes[vendorId])) as any,
-            "fill-opacity": config.fillOpacity,
+            "fill-opacity": useMapV2Store.getState().vendorOpacities[vendorId] ?? config.fillOpacity,
             "fill-opacity-transition": { duration: 150 },
           },
           layout: {
@@ -919,6 +920,17 @@ export default function MapV2Container() {
       }
     }
   }, [vendorPalettes, mapReady]);
+
+  // Update vendor layer opacity when it changes
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    for (const vendorId of VENDOR_IDS) {
+      const layerId = `district-${vendorId}-fill`;
+      if (!map.current.getLayer(layerId)) continue;
+      map.current.setPaintProperty(layerId, "fill-opacity", vendorOpacities[vendorId]);
+    }
+  }, [vendorOpacities, mapReady]);
 
   // Toggle signal layer — swap paint properties based on active signal
   useEffect(() => {

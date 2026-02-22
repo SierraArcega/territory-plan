@@ -31,6 +31,7 @@ export default function MapV2Shell() {
     const store = useMapV2Store.getState();
     for (const vendorId of VENDOR_IDS) {
       store.setVendorPalette(vendorId, prefs.vendorPalettes[vendorId]);
+      store.setVendorOpacity(vendorId, prefs.vendorOpacities[vendorId]);
     }
     store.setSignalPalette(prefs.signalPalette);
   }, []);
@@ -40,11 +41,13 @@ export default function MapV2Shell() {
     const unsub = useMapV2Store.subscribe((state, prevState) => {
       if (
         state.vendorPalettes !== prevState.vendorPalettes ||
-        state.signalPalette !== prevState.signalPalette
+        state.signalPalette !== prevState.signalPalette ||
+        state.vendorOpacities !== prevState.vendorOpacities
       ) {
         savePalettePrefs({
           vendorPalettes: state.vendorPalettes,
           signalPalette: state.signalPalette,
+          vendorOpacities: state.vendorOpacities,
         });
       }
     });
