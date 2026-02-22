@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useMapV2Store } from "../map-v2-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 describe("useMapV2Store - Plan Workspace", () => {
   beforeEach(() => {

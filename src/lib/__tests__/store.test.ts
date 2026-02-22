@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useMapStore } from "../store";
+import { useMapStore } from "@/features/shared/lib/app-store";
 
 describe("useMapStore - Multi-Select Mode", () => {
   beforeEach(() => {
