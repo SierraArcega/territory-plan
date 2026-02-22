@@ -308,6 +308,8 @@ export default function LayerBubble() {
   const setLayerBubbleOpen = useMapV2Store((s) => s.setLayerBubbleOpen);
   const ref = useRef<HTMLDivElement>(null);
 
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+
   // Dynamic engagement colors from active Fullmind palette
   const fullmindPalette = getVendorPalette(vendorPalettes.fullmind);
   const dynamicFullmindColors: Record<string, string> = {
@@ -351,6 +353,10 @@ export default function LayerBubble() {
     if (!layerBubbleOpen) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
+        if (useMapV2Store.getState().hasUnsavedChanges()) {
+          setShowUnsavedWarning(true);
+          return;
+        }
         setLayerBubbleOpen(false);
       }
     };
@@ -364,12 +370,21 @@ export default function LayerBubble() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
+        if (showUnsavedWarning) {
+          setShowUnsavedWarning(false);
+          setLayerBubbleOpen(false);
+          return;
+        }
+        if (useMapV2Store.getState().hasUnsavedChanges()) {
+          setShowUnsavedWarning(true);
+          return;
+        }
         setLayerBubbleOpen(false);
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [layerBubbleOpen, setLayerBubbleOpen]);
+  }, [layerBubbleOpen, setLayerBubbleOpen, showUnsavedWarning]);
 
   // Palette picker toggle: vendorId or "signal", null = closed
   const [palettePickerOpen, setPalettePickerOpen] = useState<string | null>(null);
@@ -424,6 +439,7 @@ export default function LayerBubble() {
     const next = [...savedViews, view];
     setSavedViews(next);
     persistViews(next);
+    useMapV2Store.getState().captureSnapshot();
     setViewName("");
     setSaveDialogOpen(false);
   }, [viewName, activeVendors, filterOwner, filterPlanId, filterStates, visibleSchoolTypes, activeSignal, visibleLocales, filterAccountTypes, fullmindEngagement, competitorEngagement, selectedFiscalYear, vendorPalettes, signalPalette, savedViews]);
@@ -465,6 +481,7 @@ export default function LayerBubble() {
       if (view.signalPalette) {
         store.setSignalPalette(view.signalPalette);
       }
+      store.captureSnapshot();
     },
     []
   );
@@ -1355,6 +1372,32 @@ export default function LayerBubble() {
               </div>
             )}
           </div>
+
+          {showUnsavedWarning && (
+            <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-200 flex items-center gap-2">
+              <span className="text-xs text-amber-800 flex-1">Unsaved changes</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setSaveDialogOpen(true);
+                }}
+                className="px-2.5 py-1 text-xs font-medium bg-plum text-white rounded-md hover:bg-plum/90 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setLayerBubbleOpen(false);
+                }}
+                className="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       )}
 

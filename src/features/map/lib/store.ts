@@ -166,6 +166,9 @@ interface MapV2State {
   categoryColors: Record<string, string>;
   categoryOpacities: Record<string, number>;
 
+  /** Serialized snapshot of map state at last save/load. null = never saved. */
+  lastSavedSnapshot: string | null;
+
   // Account creation form state
   showAccountForm: boolean;
   accountFormDefaults: { name?: string } | null;
@@ -292,6 +295,8 @@ interface MapV2Actions {
   setCategoryColorsForVendor: (vendorId: VendorId, colors: Record<string, string>) => void;
   setCategoryColorsForSignal: (signalId: string, colors: Record<string, string>) => void;
   initCategoryState: (colors: Record<string, string>, opacities: Record<string, number>) => void;
+  captureSnapshot: () => void;
+  hasUnsavedChanges: () => boolean;
 
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
@@ -339,7 +344,26 @@ const initialTooltip: V2TooltipState = {
   data: null,
 };
 
-export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
+function serializeMapState(s: MapV2State & MapV2Actions): string {
+  return JSON.stringify({
+    activeVendors: [...s.activeVendors].sort(),
+    filterOwner: s.filterOwner,
+    filterPlanId: s.filterPlanId,
+    filterStates: [...s.filterStates].sort(),
+    activeSignal: s.activeSignal,
+    visibleLocales: [...s.visibleLocales].sort(),
+    filterAccountTypes: [...s.filterAccountTypes].sort(),
+    fullmindEngagement: [...s.fullmindEngagement].sort(),
+    competitorEngagement: s.competitorEngagement,
+    selectedFiscalYear: s.selectedFiscalYear,
+    categoryColors: s.categoryColors,
+    categoryOpacities: s.categoryOpacities,
+    vendorPalettes: s.vendorPalettes,
+    signalPalette: s.signalPalette,
+  });
+}
+
+export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => ({
   // Initial state
   panelState: "BROWSE",
   panelHistory: [],
@@ -375,6 +399,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75 },
   categoryColors: { ...DEFAULT_CATEGORY_COLORS },
   categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
+  lastSavedSnapshot: null,
   showAccountForm: false,
   accountFormDefaults: null,
   isExploreActive: false,
@@ -746,6 +771,15 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   setCategoryColorsForSignal: (signalId, colors) =>
     set((s) => ({ categoryColors: { ...s.categoryColors, ...colors } })),
   initCategoryState: (colors, opacities) => set({ categoryColors: colors, categoryOpacities: opacities }),
+  captureSnapshot: () => {
+    const s = get();
+    set({ lastSavedSnapshot: serializeMapState(s) });
+  },
+  hasUnsavedChanges: () => {
+    const s = get();
+    if (!s.lastSavedSnapshot) return false;
+    return serializeMapState(s) !== s.lastSavedSnapshot;
+  },
 
   // Account creation form
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),

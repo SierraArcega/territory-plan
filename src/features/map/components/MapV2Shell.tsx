@@ -36,6 +36,8 @@ export default function MapV2Shell() {
     }
     store.setSignalPalette(prefs.signalPalette);
     store.initCategoryState(prefs.categoryColors, prefs.categoryOpacities);
+    // Capture initial snapshot after state is loaded
+    requestAnimationFrame(() => useMapV2Store.getState().captureSnapshot());
   }, []);
 
   // Auto-save palette prefs when they change
