@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES } from "@/features/map/lib/palettes";
+import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 
 describe("useMapV2Store - Plan Workspace", () => {
   beforeEach(() => {
@@ -123,5 +123,20 @@ describe("useMapV2Store - Palette Preferences", () => {
     const state = useMapV2Store.getState();
     expect(state.categoryColors["fullmind:target"]).toBe("#aaa");
     expect(state.categoryColors["fullmind:lapsed"]).toBe("#bbb");
+  });
+
+  it("setVendorPalette also updates categoryColors for that vendor", () => {
+    useMapV2Store.getState().setVendorPalette("fullmind", "coral");
+    const state = useMapV2Store.getState();
+    const coralPalette = getVendorPalette("coral");
+    expect(state.categoryColors["fullmind:target"]).toBe(coralPalette.stops[0]);
+  });
+
+  it("setSignalPalette also updates categoryColors for all signals", () => {
+    useMapV2Store.getState().setSignalPalette("blue-orange");
+    const state = useMapV2Store.getState();
+    const palette = getSignalPalette("blue-orange");
+    expect(state.categoryColors["enrollment:strong_growth"]).toBe(palette.growthStops[0]);
+    expect(state.categoryColors["expenditure:well_above"]).toBe(palette.expenditureStops[0]);
   });
 });

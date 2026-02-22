@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
-import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES } from "@/features/map/lib/palettes";
+import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
@@ -717,8 +717,22 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   setVendorPalette: (vendorId, paletteId) =>
     set((s) => ({
       vendorPalettes: { ...s.vendorPalettes, [vendorId]: paletteId },
+      categoryColors: {
+        ...s.categoryColors,
+        ...deriveVendorCategoryColors(vendorId, getVendorPalette(paletteId)),
+      },
     })),
-  setSignalPalette: (paletteId) => set({ signalPalette: paletteId }),
+  setSignalPalette: (paletteId) => {
+    const palette = getSignalPalette(paletteId);
+    const signalColors: Record<string, string> = {};
+    for (const sid of ["enrollment", "ell", "swd", "expenditure"]) {
+      Object.assign(signalColors, deriveSignalCategoryColors(sid, palette));
+    }
+    return set((s) => ({
+      signalPalette: paletteId,
+      categoryColors: { ...s.categoryColors, ...signalColors },
+    }));
+  },
   setVendorOpacity: (vendorId, opacity) =>
     set((s) => ({
       vendorOpacities: { ...s.vendorOpacities, [vendorId]: opacity },
