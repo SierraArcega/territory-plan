@@ -635,17 +635,7 @@ export default function LayerBubble() {
                     onChange={() => toggleVendor("fullmind")}
                     className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
                   />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setPalettePickerOpen(palettePickerOpen === "fullmind" ? null : "fullmind");
-                    }}
-                    className="shrink-0"
-                    title="Change color palette"
-                  >
-                    <ColorDot color={getVendorPalette(vendorPalettes.fullmind).dotColor} />
-                  </button>
+                  <ColorDot color={getVendorPalette(vendorPalettes.fullmind).dotColor} />
                   <span className={`text-sm ${activeVendors.has("fullmind") ? "font-medium text-plum" : "text-gray-600"}`}>
                     Show on Map
                   </span>
@@ -688,6 +678,17 @@ export default function LayerBubble() {
                         Show all engagement levels
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setPalettePickerOpen(palettePickerOpen === "fullmind" ? null : "fullmind")}
+                      className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
+                        <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
+                      </svg>
+                      {palettePickerOpen === "fullmind" ? "Hide palette" : "Change colors"}
+                    </button>
                     {palettePickerOpen === "fullmind" && (
                       <VendorPalettePicker
                         vendorId="fullmind"
@@ -738,17 +739,7 @@ export default function LayerBubble() {
                           onChange={() => toggleVendor(vendorId)}
                           className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
                         />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setPalettePickerOpen(palettePickerOpen === vendorId ? null : vendorId);
-                          }}
-                          className="shrink-0"
-                          title="Change color palette"
-                        >
-                          <ColorDot color={getVendorPalette(vendorPalettes[vendorId]).dotColor} />
-                        </button>
+                        <ColorDot color={getVendorPalette(vendorPalettes[vendorId]).dotColor} />
                         <span
                           className={`text-sm ${isActive ? "font-medium text-plum" : "text-gray-600"}`}
                         >
@@ -792,6 +783,17 @@ export default function LayerBubble() {
                               Show all engagement levels
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => setPalettePickerOpen(palettePickerOpen === vendorId ? null : vendorId)}
+                            className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                              <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
+                              <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
+                            </svg>
+                            {palettePickerOpen === vendorId ? "Hide palette" : "Change colors"}
+                          </button>
                           {palettePickerOpen === vendorId && (
                             <VendorPalettePicker
                               vendorId={vendorId}
@@ -899,10 +901,23 @@ export default function LayerBubble() {
                               ));
                             })()}
                           </div>
-                          <SignalPalettePicker
-                            activePaletteId={signalPalette}
-                            onSelect={setSignalPalette}
-                          />
+                          <button
+                            type="button"
+                            onClick={() => setPalettePickerOpen(palettePickerOpen === `signal-${signalId}` ? null : `signal-${signalId}`)}
+                            className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-plum pl-[52px] mt-0.5 mb-1 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                              <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
+                              <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
+                            </svg>
+                            {palettePickerOpen === `signal-${signalId}` ? "Hide palette" : "Change colors"}
+                          </button>
+                          {palettePickerOpen === `signal-${signalId}` && (
+                            <SignalPalettePicker
+                              activePaletteId={signalPalette}
+                              onSelect={setSignalPalette}
+                            />
+                          )}
                         </>
                       )}
                     </div>
