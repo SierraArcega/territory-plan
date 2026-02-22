@@ -14,6 +14,9 @@ import {
 import {
   buildVendorFillExpression,
   buildSignalFillExpression,
+  buildVendorFillExpressionFromCategories,
+  buildSignalFillExpressionFromCategories,
+  buildCategoryOpacityExpression,
 } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 
@@ -166,6 +169,88 @@ describe("DEFAULT_CATEGORY_OPACITIES", () => {
   it("uses vendor config fillOpacity as default", () => {
     expect(DEFAULT_CATEGORY_OPACITIES["fullmind:target"]).toBe(0.75);
     expect(DEFAULT_CATEGORY_OPACITIES["elevate:churned"]).toBe(0.8);
+  });
+});
+
+describe("buildVendorFillExpressionFromCategories", () => {
+  it("builds fullmind expression from category colors", () => {
+    const colors: Record<string, string> = {
+      "fullmind:target": "#aaa",
+      "fullmind:new_pipeline": "#bbb",
+      "fullmind:renewal_pipeline": "#ccc",
+      "fullmind:expansion_pipeline": "#ddd",
+      "fullmind:lapsed": "#eee",
+      "fullmind:new": "#fff",
+      "fullmind:multi_year": "#111",
+    };
+    const expr = buildVendorFillExpressionFromCategories("fullmind", colors);
+    expect(expr[0]).toBe("match");
+    const idx = (expr as any[]).indexOf("target");
+    expect(expr[idx + 1]).toBe("#aaa");
+  });
+
+  it("builds competitor expression from category colors", () => {
+    const colors: Record<string, string> = {
+      "proximity:churned": "#aaa",
+      "proximity:new": "#bbb",
+      "proximity:multi_year": "#ccc",
+    };
+    const expr = buildVendorFillExpressionFromCategories("proximity", colors);
+    expect(expr[0]).toBe("match");
+    const idx = (expr as any[]).indexOf("churned");
+    expect(expr[idx + 1]).toBe("#aaa");
+  });
+});
+
+describe("buildSignalFillExpressionFromCategories", () => {
+  it("builds growth signal expression", () => {
+    const colors: Record<string, string> = {
+      "enrollment:strong_growth": "#a1",
+      "enrollment:growth": "#b1",
+      "enrollment:stable": "#c1",
+      "enrollment:decline": "#d1",
+      "enrollment:strong_decline": "#e1",
+    };
+    const expr = buildSignalFillExpressionFromCategories("enrollment", colors);
+    expect(expr[0]).toBe("match");
+    const idx = (expr as any[]).indexOf("strong_growth");
+    expect(expr[idx + 1]).toBe("#a1");
+  });
+
+  it("builds expenditure signal expression", () => {
+    const colors: Record<string, string> = {
+      "expenditure:well_above": "#a2",
+      "expenditure:above": "#b2",
+      "expenditure:below": "#c2",
+      "expenditure:well_below": "#d2",
+    };
+    const expr = buildSignalFillExpressionFromCategories("expenditure", colors);
+    expect(expr[0]).toBe("match");
+    const idx = (expr as any[]).indexOf("well_above");
+    expect(expr[idx + 1]).toBe("#a2");
+  });
+});
+
+describe("buildCategoryOpacityExpression", () => {
+  it("builds match expression mapping categories to opacities", () => {
+    const opacities: Record<string, number> = {
+      "fullmind:target": 0.5,
+      "fullmind:lapsed": 0.3,
+      "fullmind:new_pipeline": 0.8,
+      "fullmind:renewal_pipeline": 0.7,
+      "fullmind:expansion_pipeline": 0.9,
+      "fullmind:new": 0.6,
+      "fullmind:multi_year": 1.0,
+    };
+    const expr = buildCategoryOpacityExpression("fullmind", opacities);
+    expect(expr[0]).toBe("match");
+    const idx = (expr as any[]).indexOf("target");
+    expect(expr[idx + 1]).toBe(0.5);
+  });
+
+  it("returns literal for empty opacities", () => {
+    const expr = buildCategoryOpacityExpression("fullmind", {});
+    expect(expr[0]).toBe("literal");
   });
 });
 

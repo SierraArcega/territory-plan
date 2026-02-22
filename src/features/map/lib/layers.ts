@@ -310,6 +310,103 @@ export function buildSignalFillExpression(
   ];
 }
 
+/**
+ * Build a MapLibre match expression for a vendor layer using per-category colors.
+ * Keys in categoryColors are "vendorId:categoryName".
+ */
+export function buildVendorFillExpressionFromCategories(
+  vendorId: VendorId,
+  categoryColors: Record<string, string>,
+): ExpressionSpecification {
+  const tileProperty = VENDOR_CONFIGS[vendorId].tileProperty;
+
+  if (vendorId === "fullmind") {
+    return [
+      "match",
+      ["get", tileProperty],
+      "target", categoryColors["fullmind:target"] ?? "#ecebf1",
+      "new_pipeline", categoryColors["fullmind:new_pipeline"] ?? "#b3afc6",
+      "renewal_pipeline", categoryColors["fullmind:renewal_pipeline"] ?? "#665f8d",
+      "expansion_pipeline", categoryColors["fullmind:expansion_pipeline"] ?? "#403770",
+      "lapsed", categoryColors["fullmind:lapsed"] ?? "#d9d7e2",
+      "new", categoryColors["fullmind:new"] ?? "#8c87a9",
+      "multi_year", categoryColors["fullmind:multi_year"] ?? "#403770",
+      "rgba(0,0,0,0)",
+    ];
+  }
+
+  return [
+    "match",
+    ["get", tileProperty],
+    "churned", categoryColors[`${vendorId}:churned`] ?? "#fef1f0",
+    "new", categoryColors[`${vendorId}:new`] ?? "#e06b5e",
+    "multi_year", categoryColors[`${vendorId}:multi_year`] ?? "#F37167",
+    "rgba(0,0,0,0)",
+  ];
+}
+
+/**
+ * Build a MapLibre match expression for a signal layer using per-category colors.
+ */
+export function buildSignalFillExpressionFromCategories(
+  signalId: SignalId,
+  categoryColors: Record<string, string>,
+): ExpressionSpecification {
+  const tileProperty = SIGNAL_CONFIGS[signalId].tileProperty;
+
+  if (signalId === "expenditure") {
+    return [
+      "match",
+      ["get", tileProperty],
+      "well_above", categoryColors[`${signalId}:well_above`] ?? "#4ECDC4",
+      "above", categoryColors[`${signalId}:above`] ?? "#a3e6e1",
+      "below", categoryColors[`${signalId}:below`] ?? "#f5a3a0",
+      "well_below", categoryColors[`${signalId}:well_below`] ?? "#F37167",
+      "rgba(0,0,0,0)",
+    ];
+  }
+
+  return [
+    "match",
+    ["get", tileProperty],
+    "strong_growth", categoryColors[`${signalId}:strong_growth`] ?? "#4ECDC4",
+    "growth", categoryColors[`${signalId}:growth`] ?? "#a3e6e1",
+    "stable", categoryColors[`${signalId}:stable`] ?? "#f0f0e8",
+    "decline", categoryColors[`${signalId}:decline`] ?? "#f5a3a0",
+    "strong_decline", categoryColors[`${signalId}:strong_decline`] ?? "#F37167",
+    "rgba(0,0,0,0)",
+  ];
+}
+
+/**
+ * Build a MapLibre match expression for per-category fill-opacity.
+ */
+export function buildCategoryOpacityExpression(
+  layerId: string,
+  categoryOpacities: Record<string, number>,
+): ExpressionSpecification {
+  const config = VENDOR_CONFIGS[layerId as VendorId];
+  const tileProperty = config?.tileProperty ?? SIGNAL_CONFIGS[layerId as SignalId]?.tileProperty;
+  const defaultOpacity = config?.fillOpacity ?? 0.55;
+
+  const prefix = `${layerId}:`;
+  const entries: (string | number)[] = [];
+  for (const [key, opacity] of Object.entries(categoryOpacities)) {
+    if (key.startsWith(prefix)) {
+      entries.push(key.slice(prefix.length), opacity);
+    }
+  }
+
+  if (entries.length === 0) return ["literal", defaultOpacity] as any;
+
+  return [
+    "match",
+    ["get", tileProperty],
+    ...entries,
+    defaultOpacity,
+  ] as unknown as ExpressionSpecification;
+}
+
 
 // ============================================
 // Locale definitions
