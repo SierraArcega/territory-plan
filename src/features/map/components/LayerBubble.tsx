@@ -8,27 +8,32 @@ import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/ac
 
 
 // Fullmind engagement levels
-type FullmindEngagement = "target" | "pipeline" | "first_year" | "multi_year" | "lapsed";
-const ALL_FULLMIND_ENGAGEMENTS: FullmindEngagement[] = ["target", "pipeline", "first_year", "multi_year", "lapsed"];
+type FullmindEngagement = "target" | "pipeline" | "first_year" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "lapsed";
+const ALL_FULLMIND_ENGAGEMENTS: FullmindEngagement[] = ["target", "pipeline", "first_year", "multi_year_growing", "multi_year_flat", "multi_year_shrinking", "lapsed"];
 
 const FULLMIND_ENGAGEMENT_META: Record<FullmindEngagement, { label: string; color: string }> = {
-  target:     { label: "Target",              color: "#ecebf1" },
-  pipeline:   { label: "Pipeline",            color: "#b3afc6" },
-  first_year: { label: "First Year Customer", color: "#8c87a9" },
-  multi_year: { label: "Multi-Year Customer", color: "#403770" },
-  lapsed:     { label: "Churned",             color: "#F37167" },
+  target:              { label: "Target",                   color: "#ecebf1" },
+  pipeline:            { label: "Pipeline",                 color: "#b3afc6" },
+  first_year:          { label: "First Year Customer",      color: "#8c87a9" },
+  multi_year_growing:  { label: "Multi-Year (Growing)",     color: "#4ECDC4" },
+  multi_year_flat:     { label: "Multi-Year (Flat)",        color: "#403770" },
+  multi_year_shrinking: { label: "Multi-Year (Shrinking)",  color: "#F37167" },
+  lapsed:              { label: "Churned",                  color: "#F37167" },
 };
 
 const COMPETITOR_VENDOR_IDS = VENDOR_IDS.filter((v) => v !== "fullmind");
 
 // Competitor engagement levels
-type CompetitorEngagement = "multi_year" | "new" | "churned";
-const ALL_COMPETITOR_ENGAGEMENTS: CompetitorEngagement[] = ["multi_year", "new", "churned"];
+type CompetitorEngagement = "pipeline" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "new" | "churned";
+const ALL_COMPETITOR_ENGAGEMENTS: CompetitorEngagement[] = ["pipeline", "multi_year_growing", "multi_year_flat", "multi_year_shrinking", "new", "churned"];
 
 const COMPETITOR_ENGAGEMENT_META: Record<CompetitorEngagement, { label: string }> = {
-  multi_year: { label: "Multi-Year" },
-  new:        { label: "New" },
-  churned:    { label: "Churned" },
+  pipeline:            { label: "Pipeline" },
+  multi_year_growing:  { label: "Multi-Year (Growing)" },
+  multi_year_flat:     { label: "Multi-Year (Flat)" },
+  multi_year_shrinking: { label: "Multi-Year (Shrinking)" },
+  new:                 { label: "New" },
+  churned:             { label: "Churned" },
 };
 
 const SCHOOL_TYPE_META: Record<SchoolType, { label: string; color: string }> = {
@@ -52,7 +57,7 @@ interface SavedMapView {
   filterAccountTypes: AccountTypeValue[];
   fullmindEngagement: string[];
   competitorEngagement: Record<string, string[]>;
-  selectedFiscalYear: "fy25" | "fy26";
+  selectedFiscalYear: "fy24" | "fy25" | "fy26" | "fy27";
   vendorPalettes?: Record<string, string>;
   signalPalette?: string;
 }
@@ -316,7 +321,9 @@ export default function LayerBubble() {
     target: fullmindPalette.stops[0],
     pipeline: fullmindPalette.stops[2],
     first_year: fullmindPalette.stops[3],
-    multi_year: fullmindPalette.stops[5],
+    multi_year_growing: "#4ECDC4",
+    multi_year_flat: fullmindPalette.stops[5],
+    multi_year_shrinking: "#F37167",
     lapsed: "#F37167", // Always coral for churned/lapsed
   };
 
@@ -471,7 +478,7 @@ export default function LayerBubble() {
       for (const vid of COMPETITOR_VENDOR_IDS) {
         store.setCompetitorEngagement(vid, savedCompEng[vid] ?? []);
       }
-      store.setSelectedFiscalYear(view.selectedFiscalYear ?? "fy26");
+      store.setSelectedFiscalYear((view.selectedFiscalYear as "fy24" | "fy25" | "fy26" | "fy27") ?? "fy26");
       // Restore palette preferences if present
       if (view.vendorPalettes) {
         for (const [vid, pid] of Object.entries(view.vendorPalettes)) {
@@ -727,11 +734,13 @@ export default function LayerBubble() {
               </span>
               <select
                 value={selectedFiscalYear}
-                onChange={(e) => setSelectedFiscalYear(e.target.value as "fy25" | "fy26")}
+                onChange={(e) => setSelectedFiscalYear(e.target.value as "fy24" | "fy25" | "fy26" | "fy27")}
                 className="text-xs font-medium bg-white border border-gray-200/60 rounded-md px-2 py-1 text-plum focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 cursor-pointer"
               >
+                <option value="fy27">FY27</option>
                 <option value="fy26">FY26</option>
                 <option value="fy25">FY25</option>
+                <option value="fy24">FY24</option>
               </select>
             </div>
           </div>
