@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories } from "@/features/map/lib/layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression } from "@/features/map/lib/layers";
+import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref } from "@/features/map/lib/ref";
@@ -151,6 +152,8 @@ export default function MapV2Container() {
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
+  const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
+  const signalPalette = useMapV2Store((s) => s.signalPalette);
   const pendingFitBounds = useMapV2Store((s) => s.pendingFitBounds);
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
   const focusLeaids = useMapV2Store((s) => s.focusLeaids);
@@ -334,7 +337,7 @@ export default function MapV2Container() {
           "source-layer": "districts",
           filter: ["has", config.tileProperty],
           paint: {
-            "fill-color": config.fillColor as any,
+            "fill-color": buildVendorFillExpression(vendorId, getVendorPalette(useMapV2Store.getState().vendorPalettes[vendorId])) as any,
             "fill-opacity": config.fillOpacity,
             "fill-opacity-transition": { duration: 150 },
           },
@@ -888,6 +891,35 @@ export default function MapV2Container() {
     }
   }, [activeVendors, mapReady]);
 
+  // Update vendor layer colors when palette changes
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    for (const vendorId of VENDOR_IDS) {
+      const layerId = `district-${vendorId}-fill`;
+      if (!map.current.getLayer(layerId)) continue;
+      const palette = getVendorPalette(vendorPalettes[vendorId]);
+      map.current.setPaintProperty(
+        layerId,
+        "fill-color",
+        buildVendorFillExpression(vendorId, palette) as any,
+      );
+    }
+
+    // Update account point layer too
+    if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
+      const firstVendor = [...activeVendors][0];
+      if (firstVendor) {
+        const palette = getVendorPalette(vendorPalettes[firstVendor]);
+        map.current.setPaintProperty(
+          ACCOUNT_POINT_LAYER_ID,
+          "circle-color",
+          buildVendorFillExpression(firstVendor, palette) as any,
+        );
+      }
+    }
+  }, [vendorPalettes, mapReady]);
+
   // Toggle signal layer — swap paint properties based on active signal
   useEffect(() => {
     if (!map.current || !mapReady) return;
@@ -899,8 +931,13 @@ export default function MapV2Container() {
     }
 
     const config = SIGNAL_CONFIGS[activeSignal];
+    const sigPalette = getSignalPalette(signalPalette);
     map.current.setLayoutProperty("district-signal-fill", "visibility", "visible");
-    map.current.setPaintProperty("district-signal-fill", "fill-color", config.fillColor as any);
+    map.current.setPaintProperty(
+      "district-signal-fill",
+      "fill-color",
+      buildSignalFillExpression(activeSignal, sigPalette) as any,
+    );
     map.current.setPaintProperty("district-signal-fill", "fill-opacity", config.fillOpacity);
 
     // Apply combined filter (signal property exists + user filters + account type)
@@ -919,7 +956,7 @@ export default function MapV2Container() {
       ? signalConditions[0]
       : ["all", ...signalConditions];
     map.current.setFilter("district-signal-fill", combined);
-  }, [activeSignal, filterOwner, filterPlanId, filterStates, filterAccountTypes, mapReady]);
+  }, [activeSignal, signalPalette, filterOwner, filterPlanId, filterStates, filterAccountTypes, mapReady]);
 
   // Toggle locale layer — filter by selected locale types
   useEffect(() => {
