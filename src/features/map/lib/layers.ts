@@ -1,4 +1,5 @@
 import type { ExpressionSpecification, CircleLayerSpecification } from "maplibre-gl";
+import type { VendorPalette, SignalPalette } from "@/features/map/lib/palettes";
 
 // ============================================
 // Vendor definitions
@@ -233,6 +234,81 @@ export const SIGNAL_CONFIGS: Record<SignalId, SignalConfig> = {
 };
 
 export const SIGNAL_IDS: SignalId[] = ["enrollment", "ell", "swd", "expenditure"];
+
+// ============================================
+// Dynamic palette expression builders
+// ============================================
+
+/**
+ * Build a MapLibre match expression for a vendor layer using a color palette.
+ */
+export function buildVendorFillExpression(
+  vendorId: VendorId,
+  palette: VendorPalette,
+): ExpressionSpecification {
+  const tileProperty = VENDOR_CONFIGS[vendorId].tileProperty;
+  const s = palette.stops;
+
+  if (vendorId === "fullmind") {
+    return [
+      "match",
+      ["get", tileProperty],
+      "target", s[0],
+      "new_pipeline", s[2],
+      "renewal_pipeline", s[4],
+      "expansion_pipeline", s[5],
+      "lapsed", s[1],
+      "new", s[3],
+      "multi_year", s[6],
+      "rgba(0,0,0,0)",
+    ];
+  }
+
+  // Competitor vendors: 3 categories
+  return [
+    "match",
+    ["get", tileProperty],
+    "churned", s[0],
+    "new", s[4],
+    "multi_year", s[5],
+    "rgba(0,0,0,0)",
+  ];
+}
+
+/**
+ * Build a MapLibre match expression for a signal layer using a color palette.
+ */
+export function buildSignalFillExpression(
+  signalId: SignalId,
+  palette: SignalPalette,
+): ExpressionSpecification {
+  const tileProperty = SIGNAL_CONFIGS[signalId].tileProperty;
+
+  if (signalId === "expenditure") {
+    const s = palette.expenditureStops;
+    return [
+      "match",
+      ["get", tileProperty],
+      "well_above", s[0],
+      "above", s[1],
+      "below", s[2],
+      "well_below", s[3],
+      "rgba(0,0,0,0)",
+    ];
+  }
+
+  const s = palette.growthStops;
+  return [
+    "match",
+    ["get", tileProperty],
+    "strong_growth", s[0],
+    "growth", s[1],
+    "stable", s[2],
+    "decline", s[3],
+    "strong_decline", s[4],
+    "rgba(0,0,0,0)",
+  ];
+}
 
 /** Primary dot color for each signal (used in UI toggles) */
 export const SIGNAL_DOT_COLORS: Record<SignalId, string> = {

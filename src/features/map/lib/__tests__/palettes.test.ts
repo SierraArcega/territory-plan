@@ -7,6 +7,11 @@ import {
   type VendorPalette,
   type SignalPalette,
 } from "@/features/map/lib/palettes";
+import {
+  buildVendorFillExpression,
+  buildSignalFillExpression,
+} from "@/features/map/lib/layers";
+import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 
 describe("palettes", () => {
   it("exports at least 8 vendor palettes", () => {
@@ -55,5 +60,51 @@ describe("palettes", () => {
   it("all palette IDs are unique (signal)", () => {
     const ids = SIGNAL_PALETTES.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("buildVendorFillExpression", () => {
+  it("returns a match expression using the palette stops", () => {
+    const palette = getVendorPalette("plum");
+    const expr = buildVendorFillExpression("fullmind", palette);
+
+    expect(expr[0]).toBe("match");
+    expect(expr[1]).toEqual(["get", "fullmind_category"]);
+    expect(expr).toContain(palette.stops[5]);
+    expect(expr[expr.length - 1]).toBe("rgba(0,0,0,0)");
+  });
+
+  it("works for competitor vendors (3-category)", () => {
+    const palette = getVendorPalette("coral");
+    const expr = buildVendorFillExpression("proximity", palette);
+
+    expect(expr[0]).toBe("match");
+    expect(expr[1]).toEqual(["get", "proximity_category"]);
+    expect(expr).toContain("churned");
+    expect(expr).toContain("new");
+    expect(expr).toContain("multi_year");
+  });
+});
+
+describe("buildSignalFillExpression", () => {
+  it("builds growth signal expression with 5 category stops", () => {
+    const palette = getSignalPalette("mint-coral");
+    const expr = buildSignalFillExpression("enrollment", palette);
+
+    expect(expr[0]).toBe("match");
+    expect(expr[1]).toEqual(["get", "enrollment_signal"]);
+    expect(expr).toContain("strong_growth");
+    expect(expr).toContain("strong_decline");
+    expect(expr).toContain(palette.growthStops[0]);
+  });
+
+  it("builds expenditure signal expression with 4 category stops", () => {
+    const palette = getSignalPalette("mint-coral");
+    const expr = buildSignalFillExpression("expenditure", palette);
+
+    expect(expr[0]).toBe("match");
+    expect(expr[1]).toEqual(["get", "expenditure_signal"]);
+    expect(expr).toContain("well_above");
+    expect(expr).toContain("well_below");
   });
 });
