@@ -35,6 +35,7 @@ export default function MapV2Shell() {
       store.setVendorOpacity(vendorId, prefs.vendorOpacities[vendorId]);
     }
     store.setSignalPalette(prefs.signalPalette);
+    store.initCategoryState(prefs.categoryColors, prefs.categoryOpacities);
   }, []);
 
   // Auto-save palette prefs when they change
@@ -43,12 +44,16 @@ export default function MapV2Shell() {
       if (
         state.vendorPalettes !== prevState.vendorPalettes ||
         state.signalPalette !== prevState.signalPalette ||
-        state.vendorOpacities !== prevState.vendorOpacities
+        state.vendorOpacities !== prevState.vendorOpacities ||
+        state.categoryColors !== prevState.categoryColors ||
+        state.categoryOpacities !== prevState.categoryOpacities
       ) {
         savePalettePrefs({
           vendorPalettes: state.vendorPalettes,
           signalPalette: state.signalPalette,
           vendorOpacities: state.vendorOpacities,
+          categoryColors: state.categoryColors,
+          categoryOpacities: state.categoryOpacities,
         });
       }
     });

@@ -272,6 +272,8 @@ describe("palette-storage", () => {
     const prefs = loadPalettePrefs();
     expect(prefs.vendorPalettes.fullmind).toBe("plum");
     expect(prefs.signalPalette).toBe("mint-coral");
+    expect(prefs.categoryColors).toEqual(DEFAULT_CATEGORY_COLORS);
+    expect(prefs.categoryOpacities).toEqual(DEFAULT_CATEGORY_OPACITIES);
   });
 
   it("round-trips palette preferences", () => {
@@ -289,6 +291,16 @@ describe("palette-storage", () => {
         elevate: 0.7,
         tbt: 0.8,
       },
+      categoryColors: {
+        ...DEFAULT_CATEGORY_COLORS,
+        "fullmind:target": "#ff0000",
+        "proximity:new": "#00ff00",
+      },
+      categoryOpacities: {
+        ...DEFAULT_CATEGORY_OPACITIES,
+        "fullmind:target": 0.4,
+        "proximity:new": 0.9,
+      },
     };
     savePalettePrefs(prefs);
     expect(loadPalettePrefs()).toEqual(prefs);
@@ -299,5 +311,7 @@ describe("palette-storage", () => {
     const prefs = loadPalettePrefs();
     expect(prefs.vendorPalettes.fullmind).toBe("plum");
     expect(prefs.vendorOpacities.fullmind).toBe(0.75);
+    expect(prefs.categoryColors).toEqual(DEFAULT_CATEGORY_COLORS);
+    expect(prefs.categoryOpacities).toEqual(DEFAULT_CATEGORY_OPACITIES);
   });
 });

@@ -2,6 +2,8 @@ import type { VendorId } from "@/features/map/lib/layers";
 import {
   DEFAULT_VENDOR_PALETTE,
   DEFAULT_SIGNAL_PALETTE,
+  DEFAULT_CATEGORY_COLORS,
+  DEFAULT_CATEGORY_OPACITIES,
 } from "@/features/map/lib/palettes";
 
 const STORAGE_KEY = "territory-plan:palette-prefs";
@@ -17,6 +19,8 @@ interface PalettePrefs {
   vendorPalettes: Record<VendorId, string>;
   signalPalette: string;
   vendorOpacities: Record<VendorId, number>;
+  categoryColors: Record<string, string>;
+  categoryOpacities: Record<string, number>;
 }
 
 export function loadPalettePrefs(): PalettePrefs {
@@ -27,18 +31,24 @@ export function loadPalettePrefs(): PalettePrefs {
         vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
         signalPalette: DEFAULT_SIGNAL_PALETTE,
         vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES },
+        categoryColors: { ...DEFAULT_CATEGORY_COLORS },
+        categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
       };
     const parsed = JSON.parse(raw);
     return {
       vendorPalettes: { ...DEFAULT_VENDOR_PALETTE, ...parsed.vendorPalettes },
       signalPalette: parsed.signalPalette ?? DEFAULT_SIGNAL_PALETTE,
       vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES, ...parsed.vendorOpacities },
+      categoryColors: { ...DEFAULT_CATEGORY_COLORS, ...parsed.categoryColors },
+      categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES, ...parsed.categoryOpacities },
     };
   } catch {
     return {
       vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
       signalPalette: DEFAULT_SIGNAL_PALETTE,
       vendorOpacities: { ...DEFAULT_VENDOR_OPACITIES },
+      categoryColors: { ...DEFAULT_CATEGORY_COLORS },
+      categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
     };
   }
 }
