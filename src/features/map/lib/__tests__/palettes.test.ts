@@ -108,3 +108,44 @@ describe("buildSignalFillExpression", () => {
     expect(expr).toContain("well_below");
   });
 });
+
+// ============================================
+// palette-storage tests
+// ============================================
+
+import {
+  loadPalettePrefs,
+  savePalettePrefs,
+} from "@/features/map/lib/palette-storage";
+
+describe("palette-storage", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("returns defaults when nothing stored", () => {
+    const prefs = loadPalettePrefs();
+    expect(prefs.vendorPalettes.fullmind).toBe("plum");
+    expect(prefs.signalPalette).toBe("mint-coral");
+  });
+
+  it("round-trips palette preferences", () => {
+    const prefs = {
+      vendorPalettes: {
+        fullmind: "ocean",
+        proximity: "coral",
+        elevate: "steel-blue",
+        tbt: "forest",
+      },
+      signalPalette: "blue-orange",
+    };
+    savePalettePrefs(prefs);
+    expect(loadPalettePrefs()).toEqual(prefs);
+  });
+
+  it("handles corrupted localStorage gracefully", () => {
+    localStorage.setItem("territory-plan:palette-prefs", "not-json");
+    const prefs = loadPalettePrefs();
+    expect(prefs.vendorPalettes.fullmind).toBe("plum");
+  });
+});

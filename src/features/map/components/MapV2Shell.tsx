@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import FloatingPanel from "./FloatingPanel";
 import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
 import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
+import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
+import { useMapV2Store } from "@/features/map/lib/store";
+import { VENDOR_IDS } from "@/features/map/lib/layers";
 
 // Dynamic import for MapLibre (no SSR)
 const MapV2Container = dynamic(() => import("./MapV2Container"), {
@@ -21,6 +25,32 @@ const MapV2Container = dynamic(() => import("./MapV2Container"), {
 });
 
 export default function MapV2Shell() {
+  // Load saved palette preferences on mount
+  useEffect(() => {
+    const prefs = loadPalettePrefs();
+    const store = useMapV2Store.getState();
+    for (const vendorId of VENDOR_IDS) {
+      store.setVendorPalette(vendorId, prefs.vendorPalettes[vendorId]);
+    }
+    store.setSignalPalette(prefs.signalPalette);
+  }, []);
+
+  // Auto-save palette prefs when they change
+  useEffect(() => {
+    const unsub = useMapV2Store.subscribe((state, prevState) => {
+      if (
+        state.vendorPalettes !== prevState.vendorPalettes ||
+        state.signalPalette !== prevState.signalPalette
+      ) {
+        savePalettePrefs({
+          vendorPalettes: state.vendorPalettes,
+          signalPalette: state.signalPalette,
+        });
+      }
+    });
+    return unsub;
+  }, []);
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#F8F7F4]">
       {/* Full-viewport map (renders behind everything) */}
