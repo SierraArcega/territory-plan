@@ -4,12 +4,25 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/features/shared/lib/app-store";
 import AppShell from "@/features/shared/components/layout/AppShell";
-import MapView from "@/features/shared/components/views/MapView";
+import dynamic from "next/dynamic";
 import PlansView from "@/features/shared/components/views/PlansView";
 import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
 import TasksView from "@/features/shared/components/views/TasksView";
 import HomeView from "@/features/shared/components/views/HomeView";
 import ProfileView from "@/features/shared/components/views/ProfileView";
+
+// Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
+const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
+  ssr: false,
+  loading: () => (
+    <div className="fixed inset-0 flex items-center justify-center bg-[#FFFCFA]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#F37167] border-t-transparent mx-auto mb-4" />
+        <p className="text-[#403770] font-medium">Loading map...</p>
+      </div>
+    </div>
+  ),
+});
 
 // Valid tab IDs for URL validation
 const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "profile"];
@@ -156,7 +169,7 @@ function HomeContent() {
   const renderContent = () => {
     switch (activeTab) {
       case "map":
-        return <MapView />;
+        return <MapV2Shell />;
       case "plans":
         return (
           <PlansView
