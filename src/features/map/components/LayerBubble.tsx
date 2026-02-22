@@ -158,6 +158,113 @@ function SignalPalettePicker({ activePaletteId, onSelect }: {
   );
 }
 
+/* ─── Color swatch presets ─── */
+const SWATCH_COLORS = [
+  "#403770", "#665f8d", "#8c87a9", "#b3afc6", "#ecebf1",
+  "#F37167", "#e06b5e", "#c44f44", "#fde3e1",
+  "#6EA3BE", "#4a8ba8", "#a3c9db",
+  "#FFCF70", "#ffd98d", "#FFB347",
+  "#4ECDC4", "#3ab0a7", "#a3e6e1",
+  "#E74C3C", "#2ECC71", "#3498DB", "#9B59B6",
+  "#95A5A6", "#BDC3C7", "#ECF0F1",
+];
+
+function CategorySwatchPicker({
+  activeColor,
+  onSelect,
+}: {
+  activeColor: string;
+  onSelect: (color: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1 pl-10 pr-2 py-1.5">
+      {SWATCH_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onSelect(c)}
+          className={`w-5 h-5 rounded-full transition-all ${
+            c.toLowerCase() === activeColor.toLowerCase()
+              ? "ring-2 ring-offset-1 ring-plum scale-110"
+              : "hover:scale-110 ring-1 ring-black/10"
+          }`}
+          style={{ backgroundColor: c }}
+          title={c}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CategoryRow({
+  categoryKey,
+  label,
+  checked,
+  onToggle,
+  color,
+  opacity,
+  onColorChange,
+  onOpacityChange,
+  swatchOpen,
+  onToggleSwatch,
+}: {
+  categoryKey: string;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  color: string;
+  opacity: number;
+  onColorChange: (color: string) => void;
+  onOpacityChange: (opacity: number) => void;
+  swatchOpen: boolean;
+  onToggleSwatch: () => void;
+}) {
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-2.5 pl-8 pr-4 py-1.5 rounded-lg transition-colors ${
+          checked ? "bg-plum/5" : "hover:bg-gray-50"
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
+        />
+        <button
+          type="button"
+          onClick={onToggleSwatch}
+          className="shrink-0 group"
+          title="Change color"
+        >
+          <span
+            className="w-3 h-3 rounded-full block ring-1 ring-black/5 group-hover:ring-2 group-hover:ring-plum/40 transition-all"
+            style={{ backgroundColor: color }}
+          />
+        </button>
+        <span className={`text-sm flex-1 ${checked ? "font-medium text-gray-800" : "text-gray-600"}`}>
+          {label}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(opacity * 100)}
+          onChange={(e) => onOpacityChange(Number(e.target.value) / 100)}
+          className="w-16 h-1 accent-plum cursor-pointer shrink-0"
+        />
+        <span className="text-xs text-gray-400 w-7 text-right tabular-nums shrink-0">
+          {Math.round(opacity * 100)}%
+        </span>
+      </div>
+      {swatchOpen && (
+        <CategorySwatchPicker activeColor={color} onSelect={onColorChange} />
+      )}
+    </div>
+  );
+}
+
 export default function LayerBubble() {
   const activeVendors = useMapV2Store((s) => s.activeVendors);
   const toggleVendor = useMapV2Store((s) => s.toggleVendor);
@@ -193,6 +300,10 @@ export default function LayerBubble() {
   const setVendorOpacity = useMapV2Store((s) => s.setVendorOpacity);
   const signalPalette = useMapV2Store((s) => s.signalPalette);
   const setSignalPalette = useMapV2Store((s) => s.setSignalPalette);
+  const categoryColors = useMapV2Store((s) => s.categoryColors);
+  const categoryOpacities = useMapV2Store((s) => s.categoryOpacities);
+  const setCategoryColor = useMapV2Store((s) => s.setCategoryColor);
+  const setCategoryOpacity = useMapV2Store((s) => s.setCategoryOpacity);
   const layerBubbleOpen = useMapV2Store((s) => s.layerBubbleOpen);
   const setLayerBubbleOpen = useMapV2Store((s) => s.setLayerBubbleOpen);
   const ref = useRef<HTMLDivElement>(null);
@@ -610,19 +721,37 @@ export default function LayerBubble() {
 
           {/* Fullmind (inside Sales Data group) */}
           <div className="px-3 pb-2 pt-1 border-t border-gray-100 bg-gray-50/30">
-            <button
-              type="button"
-              onClick={() => setFullmindOpen(!fullmindOpen)}
-              className="w-full flex items-center gap-1.5 mt-2 mb-1 group"
-            >
-              <ChevronDown
-                open={fullmindOpen}
-                className="text-gray-400 group-hover:text-gray-600"
+            <div className="flex items-center gap-1.5 mt-2 mb-1">
+              <button
+                type="button"
+                onClick={() => setFullmindOpen(!fullmindOpen)}
+                className="flex items-center gap-1.5 group flex-1"
+              >
+                <ChevronDown
+                  open={fullmindOpen}
+                  className="text-gray-400 group-hover:text-gray-600"
+                />
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+                  Fullmind
+                </span>
+              </button>
+              {activeVendors.has("fullmind") && (
+                <button
+                  type="button"
+                  onClick={() => setPalettePickerOpen(palettePickerOpen === "fullmind" ? null : "fullmind")}
+                  className="text-xs text-gray-400 hover:text-plum transition-colors"
+                >
+                  Palette
+                </button>
+              )}
+            </div>
+            {palettePickerOpen === "fullmind" && (
+              <VendorPalettePicker
+                vendorId="fullmind"
+                activePaletteId={vendorPalettes.fullmind}
+                onSelect={(id) => setVendorPalette("fullmind", id)}
               />
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
-                Fullmind
-              </span>
-            </button>
+            )}
 
             {fullmindOpen && (
               <div className="space-y-0.5">
@@ -650,25 +779,22 @@ export default function LayerBubble() {
                     </div>
                     {ALL_FULLMIND_ENGAGEMENTS.map((level) => {
                       const meta = FULLMIND_ENGAGEMENT_META[level];
+                      const key = `fullmind:${level}`;
                       const isActive = fullmindEngagement.includes(level);
                       return (
-                        <label
+                        <CategoryRow
                           key={level}
-                          className={`flex items-center gap-2.5 pl-6 pr-2 py-1 rounded-lg cursor-pointer transition-colors ${
-                            isActive ? "bg-plum/5" : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isActive}
-                            onChange={() => toggleFullmindEngagement(level)}
-                            className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
-                          />
-                          <ColorDot color={dynamicFullmindColors[level] ?? meta.color} />
-                          <span className={`text-sm ${isActive ? "font-medium text-gray-800" : "text-gray-600"}`}>
-                            {meta.label}
-                          </span>
-                        </label>
+                          categoryKey={key}
+                          label={meta.label}
+                          checked={isActive}
+                          onToggle={() => toggleFullmindEngagement(level)}
+                          color={categoryColors[key] ?? meta.color}
+                          opacity={categoryOpacities[key] ?? 0.75}
+                          onColorChange={(c) => setCategoryColor(key, c)}
+                          onOpacityChange={(o) => setCategoryOpacity(key, o)}
+                          swatchOpen={palettePickerOpen === key}
+                          onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === key ? null : key)}
+                        />
                       );
                     })}
                     {fullmindEngagement.length > 0 && (
@@ -680,36 +806,6 @@ export default function LayerBubble() {
                         Show all engagement levels
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setPalettePickerOpen(palettePickerOpen === "fullmind" ? null : "fullmind")}
-                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
-                        <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
-                      </svg>
-                      {palettePickerOpen === "fullmind" ? "Hide palette" : "Change colors"}
-                    </button>
-                    {palettePickerOpen === "fullmind" && (
-                      <VendorPalettePicker
-                        vendorId="fullmind"
-                        activePaletteId={vendorPalettes.fullmind}
-                        onSelect={(id) => setVendorPalette("fullmind", id)}
-                      />
-                    )}
-                    <label className="flex items-center gap-2 pl-6 pr-2 mt-0.5 mb-1">
-                      <span className="text-xs text-gray-500 shrink-0">Opacity</span>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={Math.round((vendorOpacities.fullmind ?? 0.75) * 100)}
-                        onChange={(e) => setVendorOpacity("fullmind", Number(e.target.value) / 100)}
-                        className="w-full h-1 accent-plum cursor-pointer"
-                      />
-                      <span className="text-xs text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities.fullmind ?? 0.75) * 100)}%</span>
-                    </label>
                   </>
                 )}
               </div>
@@ -718,19 +814,21 @@ export default function LayerBubble() {
 
           {/* Competitors (inside Sales Data group) */}
           <div className="px-3 pb-2 pt-1 border-t border-gray-100 bg-gray-50/30">
-            <button
-              type="button"
-              onClick={() => setVendorLayersOpen(!vendorLayersOpen)}
-              className="w-full flex items-center gap-1.5 mt-2 mb-1 group"
-            >
-              <ChevronDown
-                open={vendorLayersOpen}
-                className="text-gray-400 group-hover:text-gray-600"
-              />
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
-                Competitors
-              </span>
-            </button>
+            <div className="flex items-center gap-1.5 mt-2 mb-1">
+              <button
+                type="button"
+                onClick={() => setVendorLayersOpen(!vendorLayersOpen)}
+                className="flex items-center gap-1.5 group flex-1"
+              >
+                <ChevronDown
+                  open={vendorLayersOpen}
+                  className="text-gray-400 group-hover:text-gray-600"
+                />
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+                  Competitors
+                </span>
+              </button>
+            </div>
 
             {vendorLayersOpen && (
               <div className="space-y-0.5">
@@ -741,8 +839,8 @@ export default function LayerBubble() {
 
                   return (
                     <div key={vendorId}>
-                      <label
-                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors group ${
+                      <div
+                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors group ${
                           isActive ? "bg-plum/5" : "hover:bg-gray-50"
                         }`}
                         title={config.shadingTooltip}
@@ -755,11 +853,27 @@ export default function LayerBubble() {
                         />
                         <ColorDot color={getVendorPalette(vendorPalettes[vendorId]).dotColor} />
                         <span
-                          className={`text-sm ${isActive ? "font-medium text-plum" : "text-gray-600"}`}
+                          className={`text-sm flex-1 ${isActive ? "font-medium text-plum" : "text-gray-600"}`}
                         >
                           {config.label}
                         </span>
-                      </label>
+                        {isActive && (
+                          <button
+                            type="button"
+                            onClick={() => setPalettePickerOpen(palettePickerOpen === vendorId ? null : vendorId)}
+                            className="text-xs text-gray-400 hover:text-plum transition-colors"
+                          >
+                            Palette
+                          </button>
+                        )}
+                      </div>
+                      {palettePickerOpen === vendorId && (
+                        <VendorPalettePicker
+                          vendorId={vendorId}
+                          activePaletteId={vendorPalettes[vendorId]}
+                          onSelect={(id) => setVendorPalette(vendorId, id)}
+                        />
+                      )}
 
                       {isActive && (
                         <>
@@ -768,24 +882,22 @@ export default function LayerBubble() {
                           </div>
                           {ALL_COMPETITOR_ENGAGEMENTS.map((level) => {
                             const meta = COMPETITOR_ENGAGEMENT_META[level];
+                            const key = `${vendorId}:${level}`;
                             const isChecked = vendorEngagement.includes(level);
                             return (
-                              <label
+                              <CategoryRow
                                 key={level}
-                                className={`flex items-center gap-2.5 pl-6 pr-2 py-1 rounded-lg cursor-pointer transition-colors ${
-                                  isChecked ? "bg-plum/5" : "hover:bg-gray-50"
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => toggleCompetitorEngagement(vendorId, level)}
-                                  className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
-                                />
-                                <span className={`text-sm ${isChecked ? "font-medium text-gray-800" : "text-gray-600"}`}>
-                                  {meta.label}
-                                </span>
-                              </label>
+                                categoryKey={key}
+                                label={meta.label}
+                                checked={isChecked}
+                                onToggle={() => toggleCompetitorEngagement(vendorId, level)}
+                                color={categoryColors[key] ?? getVendorPalette(vendorPalettes[vendorId]).dotColor}
+                                opacity={categoryOpacities[key] ?? 0.75}
+                                onColorChange={(c) => setCategoryColor(key, c)}
+                                onOpacityChange={(o) => setCategoryOpacity(key, o)}
+                                swatchOpen={palettePickerOpen === key}
+                                onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === key ? null : key)}
+                              />
                             );
                           })}
                           {vendorEngagement.length > 0 && (
@@ -797,36 +909,6 @@ export default function LayerBubble() {
                               Show all engagement levels
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setPalettePickerOpen(palettePickerOpen === vendorId ? null : vendorId)}
-                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                              <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
-                              <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
-                            </svg>
-                            {palettePickerOpen === vendorId ? "Hide palette" : "Change colors"}
-                          </button>
-                          {palettePickerOpen === vendorId && (
-                            <VendorPalettePicker
-                              vendorId={vendorId}
-                              activePaletteId={vendorPalettes[vendorId]}
-                              onSelect={(id) => setVendorPalette(vendorId, id)}
-                            />
-                          )}
-                          <label className="flex items-center gap-2 pl-6 pr-2 mt-0.5 mb-1">
-                            <span className="text-xs text-gray-500 shrink-0">Opacity</span>
-                            <input
-                              type="range"
-                              min={0}
-                              max={100}
-                              value={Math.round((vendorOpacities[vendorId] ?? 0.75) * 100)}
-                              onChange={(e) => setVendorOpacity(vendorId as any, Number(e.target.value) / 100)}
-                              className="w-full h-1 accent-plum cursor-pointer"
-                            />
-                            <span className="text-xs text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities[vendorId] ?? 0.75) * 100)}%</span>
-                          </label>
                         </>
                       )}
                     </div>
@@ -847,19 +929,36 @@ export default function LayerBubble() {
 
           {/* Signals */}
           <div className="px-3 pb-2 pt-1 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => setSignalsOpen(!signalsOpen)}
-              className="w-full flex items-center gap-1.5 mt-2 mb-1 group"
-            >
-              <ChevronDown
-                open={signalsOpen}
-                className="text-gray-400 group-hover:text-gray-600"
+            <div className="flex items-center gap-1.5 mt-2 mb-1">
+              <button
+                type="button"
+                onClick={() => setSignalsOpen(!signalsOpen)}
+                className="flex items-center gap-1.5 group flex-1"
+              >
+                <ChevronDown
+                  open={signalsOpen}
+                  className="text-gray-400 group-hover:text-gray-600"
+                />
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+                  Signals
+                </span>
+              </button>
+              {activeSignal && (
+                <button
+                  type="button"
+                  onClick={() => setPalettePickerOpen(palettePickerOpen === "signals" ? null : "signals")}
+                  className="text-xs text-gray-400 hover:text-plum transition-colors"
+                >
+                  Palette
+                </button>
+              )}
+            </div>
+            {palettePickerOpen === "signals" && (
+              <SignalPalettePicker
+                activePaletteId={signalPalette}
+                onSelect={setSignalPalette}
               />
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
-                Signals
-              </span>
-            </button>
+            )}
 
             {signalsOpen && (
               <div className="space-y-0.5">
@@ -897,53 +996,46 @@ export default function LayerBubble() {
 
                       {isActive && (
                         <>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 pl-[52px] pb-1">
+                          <div className="space-y-0.5">
                             {(() => {
-                              const sigPal = getSignalPalette(signalPalette);
                               const items = signalId === "expenditure"
                                 ? [
-                                    { label: "Well Above Avg", color: sigPal.expenditureStops[0] },
-                                    { label: "Above Avg",      color: sigPal.expenditureStops[1] },
-                                    { label: "Below Avg",      color: sigPal.expenditureStops[2] },
-                                    { label: "Well Below Avg", color: sigPal.expenditureStops[3] },
+                                    { label: "Well Above Avg", catName: "well_above" },
+                                    { label: "Above Avg",      catName: "above" },
+                                    { label: "Below Avg",      catName: "below" },
+                                    { label: "Well Below Avg", catName: "well_below" },
                                   ]
                                 : [
-                                    { label: "Strong Growth",  color: sigPal.growthStops[0] },
-                                    { label: "Growth",         color: sigPal.growthStops[1] },
-                                    { label: "Stable",         color: sigPal.growthStops[2] },
-                                    { label: "Decline",        color: sigPal.growthStops[3] },
-                                    { label: "Strong Decline", color: sigPal.growthStops[4] },
+                                    { label: "Strong Growth",  catName: "strong_growth" },
+                                    { label: "Growth",         catName: "growth" },
+                                    { label: "Stable",         catName: "stable" },
+                                    { label: "Decline",        catName: "decline" },
+                                    { label: "Strong Decline", catName: "strong_decline" },
                                   ];
-                              return items.map((item) => (
-                                <span key={item.label} className="flex items-center gap-1">
-                                  <span
-                                    className="w-2 h-2 rounded-sm shrink-0"
-                                    style={{ backgroundColor: item.color }}
+                              const sigPal = getSignalPalette(signalPalette);
+                              return items.map((item) => {
+                                const key = `${signalId}:${item.catName}`;
+                                const defaultColor = signalId === "expenditure"
+                                  ? sigPal.expenditureStops[["well_above","above","below","well_below"].indexOf(item.catName)]
+                                  : sigPal.growthStops[["strong_growth","growth","stable","decline","strong_decline"].indexOf(item.catName)];
+                                return (
+                                  <CategoryRow
+                                    key={item.catName}
+                                    categoryKey={key}
+                                    label={item.label}
+                                    checked={true}
+                                    onToggle={() => {}}
+                                    color={categoryColors[key] ?? defaultColor}
+                                    opacity={categoryOpacities[key] ?? 0.55}
+                                    onColorChange={(c) => setCategoryColor(key, c)}
+                                    onOpacityChange={(o) => setCategoryOpacity(key, o)}
+                                    swatchOpen={palettePickerOpen === key}
+                                    onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === key ? null : key)}
                                   />
-                                  <span className="text-xs text-gray-500">
-                                    {item.label}
-                                  </span>
-                                </span>
-                              ));
+                                );
+                              });
                             })()}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setPalettePickerOpen(palettePickerOpen === `signal-${signalId}` ? null : `signal-${signalId}`)}
-                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-plum pl-[52px] mt-0.5 mb-1 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-                              <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
-                              <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
-                            </svg>
-                            {palettePickerOpen === `signal-${signalId}` ? "Hide palette" : "Change colors"}
-                          </button>
-                          {palettePickerOpen === `signal-${signalId}` && (
-                            <SignalPalettePicker
-                              activePaletteId={signalPalette}
-                              onSelect={setSignalPalette}
-                            />
-                          )}
                         </>
                       )}
                     </div>
