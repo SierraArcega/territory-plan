@@ -94,7 +94,7 @@ function ChevronDown({ open, className = "" }: { open: boolean; className?: stri
 }
 
 /* ─── Color swatch ─── */
-function ColorDot({ color, size = "w-2.5 h-2.5" }: { color: string; size?: string }) {
+function ColorDot({ color, size = "w-3 h-3" }: { color: string; size?: string }) {
   return (
     <span
       className={`${size} rounded-full shrink-0 ring-1 ring-black/5`}
@@ -387,7 +387,7 @@ export default function LayerBubble() {
       {/* Expanded popover */}
       {layerBubbleOpen && (
         <div
-          className="absolute bottom-full right-0 mb-2 w-[320px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          className="absolute bottom-full right-0 mb-2 w-[380px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
           style={{ transformOrigin: "bottom right" }}
         >
           {/* Header */}
@@ -418,7 +418,7 @@ export default function LayerBubble() {
               GROUP 1: FILTERS
               ════════════════════════════════════════════ */}
           <div className="px-3 pb-2 space-y-2">
-            <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+            <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">
               Filters
             </div>
 
@@ -479,7 +479,7 @@ export default function LayerBubble() {
                         type="checkbox"
                         checked={filterStates.includes(s.abbrev)}
                         onChange={() => toggleFilterState(s.abbrev)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                       />
                       <span className="text-sm text-gray-700">{s.name}</span>
                       <span className="text-xs text-gray-400 ml-auto">
@@ -517,11 +517,11 @@ export default function LayerBubble() {
                 open={accountTypesOpen}
                 className="text-gray-400 group-hover:text-gray-600"
               />
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
                 Account Types
               </span>
               {filterAccountTypes.length > 0 && (
-                <span className="ml-auto text-[10px] text-plum font-medium">
+                <span className="ml-auto text-xs text-plum font-medium">
                   {filterAccountTypes.length} selected
                 </span>
               )}
@@ -549,7 +549,7 @@ export default function LayerBubble() {
                         setFilterAccountTypes([]);
                       }
                     }}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                    className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                   />
                   <span
                     className={`text-sm ${
@@ -575,7 +575,7 @@ export default function LayerBubble() {
                         type="checkbox"
                         checked={isActive}
                         onChange={() => toggleAccountType(acctType.value)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                       />
                       <span
                         className={`text-sm ${isActive ? "font-medium text-gray-800" : "text-gray-600"}`}
@@ -594,7 +594,7 @@ export default function LayerBubble() {
               ════════════════════════════════════════════ */}
           <div className="px-3 pt-2 pb-1 bg-gray-50/50 border-t-2 border-gray-200/80">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-plum uppercase tracking-wider">
+              <span className="text-xs font-semibold text-plum uppercase tracking-wider">
                 Sales Data
               </span>
               <select
@@ -619,7 +619,7 @@ export default function LayerBubble() {
                 open={fullmindOpen}
                 className="text-gray-400 group-hover:text-gray-600"
               />
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
                 Fullmind
               </span>
             </button>
@@ -635,7 +635,7 @@ export default function LayerBubble() {
                     type="checkbox"
                     checked={activeVendors.has("fullmind")}
                     onChange={() => toggleVendor("fullmind")}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                    className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                   />
                   <ColorDot color={getVendorPalette(vendorPalettes.fullmind).dotColor} />
                   <span className={`text-sm ${activeVendors.has("fullmind") ? "font-medium text-plum" : "text-gray-600"}`}>
@@ -645,7 +645,7 @@ export default function LayerBubble() {
 
                 {activeVendors.has("fullmind") && (
                   <>
-                    <div className="text-[10px] text-gray-400 mt-1.5 mb-0.5 pl-2">
+                    <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2">
                       Filter by engagement:
                     </div>
                     {ALL_FULLMIND_ENGAGEMENTS.map((level) => {
@@ -662,7 +662,7 @@ export default function LayerBubble() {
                             type="checkbox"
                             checked={isActive}
                             onChange={() => toggleFullmindEngagement(level)}
-                            className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                            className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                           />
                           <ColorDot color={dynamicFullmindColors[level] ?? meta.color} />
                           <span className={`text-sm ${isActive ? "font-medium text-gray-800" : "text-gray-600"}`}>
@@ -675,7 +675,7 @@ export default function LayerBubble() {
                       <button
                         type="button"
                         onClick={() => setFullmindEngagement([])}
-                        className="text-[11px] text-plum hover:text-plum/80 pl-6 mt-0.5 mb-1 transition-colors"
+                        className="text-xs text-plum hover:text-plum/80 pl-6 mt-0.5 mb-1 transition-colors"
                       >
                         Show all engagement levels
                       </button>
@@ -683,7 +683,7 @@ export default function LayerBubble() {
                     <button
                       type="button"
                       onClick={() => setPalettePickerOpen(palettePickerOpen === "fullmind" ? null : "fullmind")}
-                      className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
                         <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
@@ -699,7 +699,7 @@ export default function LayerBubble() {
                       />
                     )}
                     <label className="flex items-center gap-2 pl-6 pr-2 mt-0.5 mb-1">
-                      <span className="text-[11px] text-gray-500 shrink-0">Opacity</span>
+                      <span className="text-xs text-gray-500 shrink-0">Opacity</span>
                       <input
                         type="range"
                         min={0}
@@ -708,7 +708,7 @@ export default function LayerBubble() {
                         onChange={(e) => setVendorOpacity("fullmind", Number(e.target.value) / 100)}
                         className="w-full h-1 accent-plum cursor-pointer"
                       />
-                      <span className="text-[10px] text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities.fullmind ?? 0.75) * 100)}%</span>
+                      <span className="text-xs text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities.fullmind ?? 0.75) * 100)}%</span>
                     </label>
                   </>
                 )}
@@ -727,7 +727,7 @@ export default function LayerBubble() {
                 open={vendorLayersOpen}
                 className="text-gray-400 group-hover:text-gray-600"
               />
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
                 Competitors
               </span>
             </button>
@@ -751,7 +751,7 @@ export default function LayerBubble() {
                           type="checkbox"
                           checked={isActive}
                           onChange={() => toggleVendor(vendorId)}
-                          className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                          className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                         />
                         <ColorDot color={getVendorPalette(vendorPalettes[vendorId]).dotColor} />
                         <span
@@ -763,7 +763,7 @@ export default function LayerBubble() {
 
                       {isActive && (
                         <>
-                          <div className="text-[10px] text-gray-400 mt-1.5 mb-0.5 pl-2">
+                          <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2">
                             Filter by engagement:
                           </div>
                           {ALL_COMPETITOR_ENGAGEMENTS.map((level) => {
@@ -780,7 +780,7 @@ export default function LayerBubble() {
                                   type="checkbox"
                                   checked={isChecked}
                                   onChange={() => toggleCompetitorEngagement(vendorId, level)}
-                                  className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                                  className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                                 />
                                 <span className={`text-sm ${isChecked ? "font-medium text-gray-800" : "text-gray-600"}`}>
                                   {meta.label}
@@ -792,7 +792,7 @@ export default function LayerBubble() {
                             <button
                               type="button"
                               onClick={() => setCompetitorEngagement(vendorId, [])}
-                              className="text-[11px] text-plum hover:text-plum/80 pl-6 mt-0.5 mb-1 transition-colors"
+                              className="text-xs text-plum hover:text-plum/80 pl-6 mt-0.5 mb-1 transition-colors"
                             >
                               Show all engagement levels
                             </button>
@@ -800,7 +800,7 @@ export default function LayerBubble() {
                           <button
                             type="button"
                             onClick={() => setPalettePickerOpen(palettePickerOpen === vendorId ? null : vendorId)}
-                            className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
+                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-plum pl-6 mt-0.5 mb-1 transition-colors"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
                               <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
@@ -816,7 +816,7 @@ export default function LayerBubble() {
                             />
                           )}
                           <label className="flex items-center gap-2 pl-6 pr-2 mt-0.5 mb-1">
-                            <span className="text-[11px] text-gray-500 shrink-0">Opacity</span>
+                            <span className="text-xs text-gray-500 shrink-0">Opacity</span>
                             <input
                               type="range"
                               min={0}
@@ -825,7 +825,7 @@ export default function LayerBubble() {
                               onChange={(e) => setVendorOpacity(vendorId as any, Number(e.target.value) / 100)}
                               className="w-full h-1 accent-plum cursor-pointer"
                             />
-                            <span className="text-[10px] text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities[vendorId] ?? 0.75) * 100)}%</span>
+                            <span className="text-xs text-gray-400 w-7 text-right tabular-nums">{Math.round((vendorOpacities[vendorId] ?? 0.75) * 100)}%</span>
                           </label>
                         </>
                       )}
@@ -840,7 +840,7 @@ export default function LayerBubble() {
               GROUP 3: MARKET DATA (FY-independent)
               ════════════════════════════════════════════ */}
           <div className="px-3 pt-2 pb-1 bg-white border-t-2 border-gray-200/80">
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Market Data
             </span>
           </div>
@@ -856,7 +856,7 @@ export default function LayerBubble() {
                 open={signalsOpen}
                 className="text-gray-400 group-hover:text-gray-600"
               />
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
                 Signals
               </span>
             </button>
@@ -877,7 +877,7 @@ export default function LayerBubble() {
                         }`}
                       >
                         <span
-                          className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                             isActive
                               ? "border-plum"
                               : "border-gray-300"
@@ -920,7 +920,7 @@ export default function LayerBubble() {
                                     className="w-2 h-2 rounded-sm shrink-0"
                                     style={{ backgroundColor: item.color }}
                                   />
-                                  <span className="text-[10px] text-gray-500">
+                                  <span className="text-xs text-gray-500">
                                     {item.label}
                                   </span>
                                 </span>
@@ -930,7 +930,7 @@ export default function LayerBubble() {
                           <button
                             type="button"
                             onClick={() => setPalettePickerOpen(palettePickerOpen === `signal-${signalId}` ? null : `signal-${signalId}`)}
-                            className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-plum pl-[52px] mt-0.5 mb-1 transition-colors"
+                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-plum pl-[52px] mt-0.5 mb-1 transition-colors"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
                               <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
@@ -949,7 +949,7 @@ export default function LayerBubble() {
                     </div>
                   );
                 })}
-                <p className="text-[11px] text-gray-400 italic mt-1 mb-1 pl-2">
+                <p className="text-xs text-gray-400 italic mt-1 mb-1 pl-2">
                   3-year trend (click again to deactivate)
                 </p>
               </div>
@@ -967,7 +967,7 @@ export default function LayerBubble() {
                 open={localeOpen}
                 className="text-gray-400 group-hover:text-gray-600"
               />
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
                 Locale
               </span>
             </button>
@@ -996,7 +996,7 @@ export default function LayerBubble() {
                         setVisibleLocales(new Set(ALL_LOCALE_IDS));
                       }
                     }}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                    className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                   />
                   <span
                     className={`text-sm ${
@@ -1022,7 +1022,7 @@ export default function LayerBubble() {
                         type="checkbox"
                         checked={isActive}
                         onChange={() => toggleLocale(localeId)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                       />
                       <ColorDot color={meta.color} />
                       <span
@@ -1048,7 +1048,7 @@ export default function LayerBubble() {
                 open={dataLayersOpen}
                 className="text-gray-400 group-hover:text-gray-600"
               />
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider group-hover:text-gray-600 transition-colors">
                 Schools
               </span>
             </button>
@@ -1078,7 +1078,7 @@ export default function LayerBubble() {
                         setVisibleSchoolTypes(new Set(ALL_SCHOOL_TYPES));
                       }
                     }}
-                    className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                    className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                   />
                   <span
                     className={`text-sm ${
@@ -1106,7 +1106,7 @@ export default function LayerBubble() {
                         type="checkbox"
                         checked={isActive}
                         onChange={() => toggleSchoolType(type)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-plum focus:ring-plum/30"
+                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                       />
                       <ColorDot color={meta.color} />
                       <span
@@ -1169,7 +1169,7 @@ export default function LayerBubble() {
                 </button>
 
                 {savedViews.length > 0 && (
-                  <span className="text-[10px] text-gray-400 ml-auto">
+                  <span className="text-xs text-gray-400 ml-auto">
                     {savedViews.length} saved
                   </span>
                 )}
@@ -1282,7 +1282,7 @@ export default function LayerBubble() {
           {VENDOR_IDS.filter((v) => activeVendors.has(v)).map((vendorId) => (
             <span
               key={vendorId}
-              className="w-2.5 h-2.5 rounded-full border border-white"
+              className="w-3 h-3 rounded-full border border-white"
               style={{ backgroundColor: getVendorPalette(vendorPalettes[vendorId]).dotColor }}
             />
           ))}
