@@ -251,7 +251,8 @@ model District {
   contacts        Contact[]
   districtTags    DistrictTag[]
   territoryPlans  TerritoryPlanDistrict[]
-  competitorSpend CompetitorSpend[]
+  competitorSpend  CompetitorSpend[]
+  vendorFinancials VendorFinancials[]
   activityLinks   ActivityDistrict[]
   taskLinks       TaskDistrict[]
   schools         School[]
@@ -307,6 +308,34 @@ model CompetitorSpend {
   @@index([leaid])
   @@index([competitor, fiscalYear])
   @@map("competitor_spend")
+}
+
+// ===== Vendor Financials =====
+// Normalized financial metrics for all vendors (Fullmind + competitors)
+// Source: Fullmind CSV, GovSpend PO data, user-provided CSV
+model VendorFinancials {
+  id                Int      @id @default(autoincrement())
+  leaid             String   @db.VarChar(7)
+  vendor            String   @db.VarChar(20)
+  fiscalYear        String   @map("fiscal_year") @db.VarChar(4)
+  openPipeline      Decimal  @default(0) @map("open_pipeline") @db.Decimal(15, 2)
+  closedWonBookings Decimal  @default(0) @map("closed_won_bookings") @db.Decimal(15, 2)
+  invoicing         Decimal  @default(0) @map("invoicing") @db.Decimal(15, 2)
+  scheduledRevenue  Decimal  @default(0) @map("scheduled_revenue") @db.Decimal(15, 2)
+  deliveredRevenue  Decimal  @default(0) @map("delivered_revenue") @db.Decimal(15, 2)
+  deferredRevenue   Decimal  @default(0) @map("deferred_revenue") @db.Decimal(15, 2)
+  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(15, 2)
+  deliveredTake     Decimal  @default(0) @map("delivered_take") @db.Decimal(15, 2)
+  scheduledTake     Decimal  @default(0) @map("scheduled_take") @db.Decimal(15, 2)
+  allTake           Decimal  @default(0) @map("all_take") @db.Decimal(15, 2)
+  lastUpdated       DateTime @default(now()) @map("last_updated")
+
+  district District @relation(fields: [leaid], references: [leaid])
+
+  @@unique([leaid, vendor, fiscalYear])
+  @@index([leaid])
+  @@index([vendor, fiscalYear])
+  @@map("vendor_financials")
 }
 
 model Contact {
@@ -626,6 +655,8 @@ model UserProfile {
   // Territory plan ownership and collaboration
   ownedPlans         TerritoryPlan[]              @relation("PlanOwner")
   collaboratingOn    TerritoryPlanCollaborator[]   @relation("PlanCollaborator")
+  // Saved map view snapshots
+  savedMapViews      MapView[]                    @relation("MapViewOwner")
 
   @@map("user_profiles")
 }
@@ -663,6 +694,23 @@ model TerritoryPlanDistrictService {
 
   @@id([planId, districtLeaid, serviceId, category])
   @@map("territory_plan_district_services")
+}
+
+// ===== Map Views =====
+// Named map state snapshots — captures filter, vendor, palette, and signal configuration
+model MapView {
+  id          String      @id @default(uuid())
+  name        String      @db.VarChar(200)
+  description String?     @db.Text
+  ownerId     String      @map("owner_id") @db.Uuid
+  isShared    Boolean     @default(false) @map("is_shared")
+  state       Json
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  owner       UserProfile @relation("MapViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@map("map_views")
 }
 
 // User goals by fiscal year - tracks revenue, margin, pipeline, and new district targets
