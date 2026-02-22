@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import FloatingPanel from "./FloatingPanel";
 import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
+import MapSummaryBar from "./MapSummaryBar";
 import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
@@ -70,6 +71,9 @@ export default function MapV2Shell() {
 
       {/* Multi-select mode toggle */}
       <SelectModePill />
+
+      {/* Summary stats bar */}
+      <MapSummaryBar />
 
       {/* Layer control bubble */}
       <LayerBubble />
