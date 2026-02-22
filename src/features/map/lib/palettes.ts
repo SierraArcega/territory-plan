@@ -253,3 +253,90 @@ export function getVendorPalette(id: string): VendorPalette {
 export function getSignalPalette(id: string): SignalPalette {
   return signalPaletteMap.get(id) ?? signalPaletteMap.get("mint-coral")!;
 }
+
+// ============================================
+// Per-category color derivation
+// ============================================
+
+/** Derive per-category color map from a vendor palette */
+export function deriveVendorCategoryColors(
+  vendorId: VendorId,
+  palette: VendorPalette,
+): Record<string, string> {
+  const s = palette.stops;
+  if (vendorId === "fullmind") {
+    return {
+      "fullmind:target": s[0],
+      "fullmind:new_pipeline": s[2],
+      "fullmind:renewal_pipeline": s[4],
+      "fullmind:expansion_pipeline": s[5],
+      "fullmind:lapsed": s[1],
+      "fullmind:new": s[3],
+      "fullmind:multi_year": s[6],
+    };
+  }
+  return {
+    [`${vendorId}:churned`]: s[0],
+    [`${vendorId}:new`]: s[4],
+    [`${vendorId}:multi_year`]: s[5],
+  };
+}
+
+/** Derive per-category color map from a signal palette */
+export function deriveSignalCategoryColors(
+  signalId: string,
+  palette: SignalPalette,
+): Record<string, string> {
+  if (signalId === "expenditure") {
+    const s = palette.expenditureStops;
+    return {
+      [`${signalId}:well_above`]: s[0],
+      [`${signalId}:above`]: s[1],
+      [`${signalId}:below`]: s[2],
+      [`${signalId}:well_below`]: s[3],
+    };
+  }
+  const s = palette.growthStops;
+  return {
+    [`${signalId}:strong_growth`]: s[0],
+    [`${signalId}:growth`]: s[1],
+    [`${signalId}:stable`]: s[2],
+    [`${signalId}:decline`]: s[3],
+    [`${signalId}:strong_decline`]: s[4],
+  };
+}
+
+// ============================================
+// Default category colors & opacities
+// ============================================
+
+function buildDefaultCategoryColors(): Record<string, string> {
+  const colors: Record<string, string> = {};
+  const vendorIds: VendorId[] = ["fullmind", "proximity", "elevate", "tbt"];
+  for (const vid of vendorIds) {
+    Object.assign(colors, deriveVendorCategoryColors(vid, getVendorPalette(DEFAULT_VENDOR_PALETTE[vid])));
+  }
+  const signalIds = ["enrollment", "ell", "swd", "expenditure"];
+  const sigPalette = getSignalPalette(DEFAULT_SIGNAL_PALETTE);
+  for (const sid of signalIds) {
+    Object.assign(colors, deriveSignalCategoryColors(sid, sigPalette));
+  }
+  return colors;
+}
+
+function buildDefaultCategoryOpacities(): Record<string, number> {
+  const opacities: Record<string, number> = {};
+  const VENDOR_OPACITIES: Record<string, number> = {
+    fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75,
+  };
+  const SIGNAL_OPACITY = 0.55;
+  const defaults = buildDefaultCategoryColors();
+  for (const key of Object.keys(defaults)) {
+    const vendorId = key.split(":")[0];
+    opacities[key] = VENDOR_OPACITIES[vendorId] ?? SIGNAL_OPACITY;
+  }
+  return opacities;
+}
+
+export const DEFAULT_CATEGORY_COLORS = buildDefaultCategoryColors();
+export const DEFAULT_CATEGORY_OPACITIES = buildDefaultCategoryOpacities();

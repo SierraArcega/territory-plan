@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
-import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE } from "@/features/map/lib/palettes";
+import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES } from "@/features/map/lib/palettes";
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
@@ -162,6 +162,10 @@ interface MapV2State {
   // Layer opacity overrides (0–1)
   vendorOpacities: Record<VendorId, number>;
 
+  // Per-category color and opacity overrides
+  categoryColors: Record<string, string>;
+  categoryOpacities: Record<string, number>;
+
   // Account creation form state
   showAccountForm: boolean;
   accountFormDefaults: { name?: string } | null;
@@ -283,6 +287,11 @@ interface MapV2Actions {
   setVendorPalette: (vendorId: VendorId, paletteId: string) => void;
   setSignalPalette: (paletteId: string) => void;
   setVendorOpacity: (vendorId: VendorId, opacity: number) => void;
+  setCategoryColor: (key: string, color: string) => void;
+  setCategoryOpacity: (key: string, opacity: number) => void;
+  setCategoryColorsForVendor: (vendorId: VendorId, colors: Record<string, string>) => void;
+  setCategoryColorsForSignal: (signalId: string, colors: Record<string, string>) => void;
+  initCategoryState: (colors: Record<string, string>, opacities: Record<string, number>) => void;
 
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
@@ -364,6 +373,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
   signalPalette: DEFAULT_SIGNAL_PALETTE,
   vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75 },
+  categoryColors: { ...DEFAULT_CATEGORY_COLORS },
+  categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
   showAccountForm: false,
   accountFormDefaults: null,
   isExploreActive: false,
@@ -712,6 +723,15 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
     set((s) => ({
       vendorOpacities: { ...s.vendorOpacities, [vendorId]: opacity },
     })),
+  setCategoryColor: (key, color) =>
+    set((s) => ({ categoryColors: { ...s.categoryColors, [key]: color } })),
+  setCategoryOpacity: (key, opacity) =>
+    set((s) => ({ categoryOpacities: { ...s.categoryOpacities, [key]: opacity } })),
+  setCategoryColorsForVendor: (vendorId, colors) =>
+    set((s) => ({ categoryColors: { ...s.categoryColors, ...colors } })),
+  setCategoryColorsForSignal: (signalId, colors) =>
+    set((s) => ({ categoryColors: { ...s.categoryColors, ...colors } })),
+  initCategoryState: (colors, opacities) => set({ categoryColors: colors, categoryOpacities: opacities }),
 
   // Account creation form
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),
