@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useMapV2Store } from "@/features/map/lib/store";
+import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE } from "@/features/map/lib/palettes";
 
 describe("useMapV2Store - Plan Workspace", () => {
   beforeEach(() => {
@@ -66,5 +67,37 @@ describe("useMapV2Store - Plan Workspace", () => {
 
       expect(useMapV2Store.getState().rightPanelContent).toBeNull();
     });
+  });
+});
+
+describe("useMapV2Store - Palette Preferences", () => {
+  beforeEach(() => {
+    useMapV2Store.setState({
+      vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
+      signalPalette: DEFAULT_SIGNAL_PALETTE,
+    });
+  });
+
+  it("initializes with default vendor palettes", () => {
+    const state = useMapV2Store.getState();
+    expect(state.vendorPalettes.fullmind).toBe("plum");
+    expect(state.vendorPalettes.proximity).toBe("coral");
+    expect(state.vendorPalettes.elevate).toBe("steel-blue");
+    expect(state.vendorPalettes.tbt).toBe("golden");
+  });
+
+  it("initializes with default signal palette", () => {
+    expect(useMapV2Store.getState().signalPalette).toBe("mint-coral");
+  });
+
+  it("setVendorPalette updates a single vendor", () => {
+    useMapV2Store.getState().setVendorPalette("fullmind", "ocean");
+    expect(useMapV2Store.getState().vendorPalettes.fullmind).toBe("ocean");
+    expect(useMapV2Store.getState().vendorPalettes.proximity).toBe("coral");
+  });
+
+  it("setSignalPalette updates the signal palette", () => {
+    useMapV2Store.getState().setSignalPalette("blue-orange");
+    expect(useMapV2Store.getState().signalPalette).toBe("blue-orange");
   });
 });

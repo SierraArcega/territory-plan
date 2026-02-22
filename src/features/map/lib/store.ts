@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
+import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE } from "@/features/map/lib/palettes";
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
@@ -154,6 +155,10 @@ interface MapV2State {
   // Fiscal year selector (affects Fullmind + Competitors tile data)
   selectedFiscalYear: "fy25" | "fy26";
 
+  // Color palette preferences
+  vendorPalettes: Record<VendorId, string>;
+  signalPalette: string;
+
   // Account creation form state
   showAccountForm: boolean;
   accountFormDefaults: { name?: string } | null;
@@ -271,6 +276,10 @@ interface MapV2Actions {
   // Fiscal year
   setSelectedFiscalYear: (fy: "fy25" | "fy26") => void;
 
+  // Color palette preferences
+  setVendorPalette: (vendorId: VendorId, paletteId: string) => void;
+  setSignalPalette: (paletteId: string) => void;
+
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
   closeAccountForm: () => void;
@@ -348,6 +357,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
   fullmindEngagement: [],
   competitorEngagement: {},
   selectedFiscalYear: "fy26",
+  vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
+  signalPalette: DEFAULT_SIGNAL_PALETTE,
   showAccountForm: false,
   accountFormDefaults: null,
   isExploreActive: false,
@@ -685,6 +696,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set) => ({
 
   // Fiscal year
   setSelectedFiscalYear: (fy) => set({ selectedFiscalYear: fy }),
+
+  // Color palette preferences
+  setVendorPalette: (vendorId, paletteId) =>
+    set((s) => ({
+      vendorPalettes: { ...s.vendorPalettes, [vendorId]: paletteId },
+    })),
+  setSignalPalette: (paletteId) => set({ signalPalette: paletteId }),
 
   // Account creation form
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),
