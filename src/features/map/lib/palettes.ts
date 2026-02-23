@@ -267,18 +267,27 @@ export function deriveVendorCategoryColors(
   if (vendorId === "fullmind") {
     return {
       "fullmind:target": s[0],
-      "fullmind:new_pipeline": s[2],
+      "fullmind:new_business_pipeline": s[2],
+      "fullmind:winback_pipeline": "#FFB347",
       "fullmind:renewal_pipeline": s[4],
       "fullmind:expansion_pipeline": s[5],
       "fullmind:lapsed": s[1],
       "fullmind:new": s[3],
-      "fullmind:multi_year": s[6],
+      "fullmind:multi_year_growing": "#4ECDC4",
+      "fullmind:multi_year_flat": s[6],
+      "fullmind:multi_year_shrinking": "#F37167",
     };
   }
   return {
     [`${vendorId}:churned`]: s[0],
     [`${vendorId}:new`]: s[4],
-    [`${vendorId}:multi_year`]: s[5],
+    [`${vendorId}:new_business_pipeline`]: s[2],
+    [`${vendorId}:winback_pipeline`]: "#FFB347",
+    [`${vendorId}:renewal_pipeline`]: s[4],
+    [`${vendorId}:expansion_pipeline`]: s[5],
+    [`${vendorId}:multi_year_growing`]: "#4ECDC4",
+    [`${vendorId}:multi_year_flat`]: s[5],
+    [`${vendorId}:multi_year_shrinking`]: "#F37167",
   };
 }
 

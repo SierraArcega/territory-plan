@@ -254,23 +254,32 @@ export function buildVendorFillExpression(
       "match",
       ["get", tileProperty],
       "target", s[0],
-      "new_pipeline", s[2],
+      "new_business_pipeline", s[2],
+      "winback_pipeline", "#FFB347",
       "renewal_pipeline", s[4],
       "expansion_pipeline", s[5],
       "lapsed", s[1],
       "new", s[3],
-      "multi_year", s[6],
+      "multi_year_growing", "#4ECDC4",
+      "multi_year_flat", s[6],
+      "multi_year_shrinking", "#F37167",
       "rgba(0,0,0,0)",
     ];
   }
 
-  // Competitor vendors: 3 categories
+  // Competitor vendors: 9 categories
   return [
     "match",
     ["get", tileProperty],
     "churned", s[0],
     "new", s[4],
-    "multi_year", s[5],
+    "new_business_pipeline", s[2],
+    "winback_pipeline", "#FFB347",
+    "renewal_pipeline", s[4],
+    "expansion_pipeline", s[5],
+    "multi_year_growing", "#4ECDC4",
+    "multi_year_flat", s[5],
+    "multi_year_shrinking", "#F37167",
     "rgba(0,0,0,0)",
   ];
 }
@@ -325,12 +334,15 @@ export function buildVendorFillExpressionFromCategories(
       "match",
       ["get", tileProperty],
       "target", categoryColors["fullmind:target"] ?? "#ecebf1",
-      "new_pipeline", categoryColors["fullmind:new_pipeline"] ?? "#b3afc6",
+      "new_business_pipeline", categoryColors["fullmind:new_business_pipeline"] ?? "#b3afc6",
+      "winback_pipeline", categoryColors["fullmind:winback_pipeline"] ?? "#FFB347",
       "renewal_pipeline", categoryColors["fullmind:renewal_pipeline"] ?? "#665f8d",
       "expansion_pipeline", categoryColors["fullmind:expansion_pipeline"] ?? "#403770",
       "lapsed", categoryColors["fullmind:lapsed"] ?? "#d9d7e2",
       "new", categoryColors["fullmind:new"] ?? "#8c87a9",
-      "multi_year", categoryColors["fullmind:multi_year"] ?? "#403770",
+      "multi_year_growing", categoryColors["fullmind:multi_year_growing"] ?? "#4ECDC4",
+      "multi_year_flat", categoryColors["fullmind:multi_year_flat"] ?? "#403770",
+      "multi_year_shrinking", categoryColors["fullmind:multi_year_shrinking"] ?? "#F37167",
       "rgba(0,0,0,0)",
     ];
   }
@@ -340,7 +352,13 @@ export function buildVendorFillExpressionFromCategories(
     ["get", tileProperty],
     "churned", categoryColors[`${vendorId}:churned`] ?? "#fef1f0",
     "new", categoryColors[`${vendorId}:new`] ?? "#e06b5e",
-    "multi_year", categoryColors[`${vendorId}:multi_year`] ?? "#F37167",
+    "new_business_pipeline", categoryColors[`${vendorId}:new_business_pipeline`] ?? "#f9b5b0",
+    "winback_pipeline", categoryColors[`${vendorId}:winback_pipeline`] ?? "#FFB347",
+    "renewal_pipeline", categoryColors[`${vendorId}:renewal_pipeline`] ?? "#f58d85",
+    "expansion_pipeline", categoryColors[`${vendorId}:expansion_pipeline`] ?? "#F37167",
+    "multi_year_growing", categoryColors[`${vendorId}:multi_year_growing`] ?? "#4ECDC4",
+    "multi_year_flat", categoryColors[`${vendorId}:multi_year_flat`] ?? "#F37167",
+    "multi_year_shrinking", categoryColors[`${vendorId}:multi_year_shrinking`] ?? "#F37167",
     "rgba(0,0,0,0)",
   ];
 }
@@ -476,16 +494,21 @@ export function buildAccountPointLayer(
 
 /** Maps UI engagement level IDs to raw fullmind_category tile values */
 export const FULLMIND_ENGAGEMENT_CATEGORIES: Record<string, string[]> = {
-  target:     ["target"],
-  pipeline:   ["new_pipeline", "renewal_pipeline", "expansion_pipeline"],
-  first_year: ["new"],
-  multi_year: ["multi_year"],
-  lapsed:     ["lapsed"],
+  target:                ["target"],
+  new_business_pipeline: ["new_business_pipeline"],
+  winback_pipeline:      ["winback_pipeline"],
+  renewal_pipeline:      ["renewal_pipeline"],
+  expansion_pipeline:    ["expansion_pipeline"],
+  first_year:            ["new"],
+  multi_year_growing:    ["multi_year_growing"],
+  multi_year_flat:       ["multi_year_flat"],
+  multi_year_shrinking:  ["multi_year_shrinking"],
+  lapsed:                ["lapsed"],
 };
 
 /** Convert selected engagement IDs to the raw fullmind_category values for tile filtering */
 export function engagementToCategories(engagements: string[]): string[] {
-  return engagements.flatMap((e) => FULLMIND_ENGAGEMENT_CATEGORIES[e] ?? []);
+  return engagements.flatMap((e) => FULLMIND_ENGAGEMENT_CATEGORIES[e] ?? [e]);
 }
 
 // ============================================
