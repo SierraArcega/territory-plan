@@ -128,6 +128,7 @@ function SaveViewPopover({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isShared, setIsShared] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const getViewSnapshot = useMapV2Store((s) => s.getViewSnapshot);
   const createView = useCreateMapView();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,6 +139,7 @@ function SaveViewPopover({
 
   const handleSave = async () => {
     if (!name.trim()) return;
+    setError(null);
     try {
       await createView.mutateAsync({
         name: name.trim(),
@@ -146,8 +148,8 @@ function SaveViewPopover({
         state: getViewSnapshot() as unknown as Record<string, unknown>,
       });
       onSuccess(name.trim());
-    } catch {
-      // fetchJson throws with detail
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save view");
     }
   };
 
@@ -180,6 +182,7 @@ function SaveViewPopover({
         />
         Share with team
       </label>
+      {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
       <div className="flex justify-end gap-2">
         <button
           onClick={onClose}
@@ -208,22 +211,25 @@ function LoadViewPopover({
 }) {
   const { data: views, isLoading } = useMapViews();
   const applyViewSnapshot = useMapV2Store((s) => s.applyViewSnapshot);
+  const [error, setError] = useState<string | null>(null);
 
   const handleLoad = async (viewId: string, viewName: string) => {
+    setError(null);
     try {
       const detail = await fetchJson<{ state: MapViewState }>(
         `${API_BASE}/map-views/${viewId}`
       );
       applyViewSnapshot(detail.state);
       onLoaded(viewName);
-    } catch {
-      // fetchJson throws with detail
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load view");
     }
   };
 
   return (
     <Popover onClose={onClose}>
       <div className="text-xs font-semibold text-gray-700 mb-2">Load View</div>
+      {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
       {isLoading ? (
         <div className="text-xs text-gray-400 py-2">Loading...</div>
       ) : !views?.length ? (
@@ -287,6 +293,7 @@ function CreatePlanPopover({
   const createPlan = useCreateTerritoryPlan();
   const addDistricts = useAddDistrictsToPlan();
   const [isWorking, setIsWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const getFilterParams = useFilterParams();
 
@@ -297,6 +304,7 @@ function CreatePlanPopover({
   const handleCreate = async () => {
     if (!name.trim()) return;
     setIsWorking(true);
+    setError(null);
     try {
       const params = getFilterParams();
       const { leaids } = await fetchJson<{ leaids: string[] }>(
@@ -314,7 +322,8 @@ function CreatePlanPopover({
       }
 
       onSuccess(name.trim());
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create plan");
       setIsWorking(false);
     }
   };
@@ -348,6 +357,7 @@ function CreatePlanPopover({
         rows={2}
         className="w-full text-xs border border-gray-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 mb-2 resize-none"
       />
+      {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
       <div className="flex justify-end gap-2">
         <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1">Cancel</button>
         <button
@@ -374,6 +384,7 @@ function AddToPlanPopover({
   const { data: plans, isLoading: plansLoading } = useTerritoryPlans();
   const addDistricts = useAddDistrictsToPlan();
   const [isWorking, setIsWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const getFilterParams = useFilterParams();
 
   const filtered = plans?.filter((p) =>
@@ -385,6 +396,7 @@ function AddToPlanPopover({
     const plan = plans?.find((p) => p.id === selectedPlanId);
     if (!plan) return;
     setIsWorking(true);
+    setError(null);
     try {
       const params = getFilterParams();
       const { leaids } = await fetchJson<{ leaids: string[] }>(
@@ -397,7 +409,8 @@ function AddToPlanPopover({
       });
 
       onSuccess(plan.name, result.added);
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add districts");
       setIsWorking(false);
     }
   };
@@ -439,6 +452,7 @@ function AddToPlanPopover({
           ))
         )}
       </div>
+      {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
       <div className="flex justify-end gap-2">
         <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1">Cancel</button>
         <button

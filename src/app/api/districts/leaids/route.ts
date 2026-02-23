@@ -49,7 +49,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const vendorList = vendors ? vendors.split(",").filter(Boolean) : [];
+    const VALID_VENDORS = ["fullmind", "proximity", "elevate", "tbt"];
+    const vendorList = vendors
+      ? vendors.split(",").filter((v) => VALID_VENDORS.includes(v))
+      : [];
     if (vendorList.length > 0) {
       const vendorOrParts = vendorList.map((v) => `dmf.${fy}_${v}_category IS NOT NULL`);
       conditions.push(`(${vendorOrParts.join(" OR ")})`);

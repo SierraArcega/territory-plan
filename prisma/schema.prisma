@@ -710,6 +710,7 @@ model MapView {
 
   owner       UserProfile @relation("MapViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
+  @@index([ownerId])
   @@map("map_views")
 }
 
