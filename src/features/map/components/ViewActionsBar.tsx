@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useMapV2Store } from "@/features/map/lib/store";
+import { useMapV2Store, ALL_METRIC_IDS, type MetricId } from "@/features/map/lib/store";
 import type { MapViewState } from "@/features/map/lib/store";
 import { useCreateMapView, useMapViews } from "@/features/map/lib/map-view-queries";
 import { useTerritoryPlans, useCreateTerritoryPlan, useAddDistrictsToPlan } from "@/features/plans/lib/queries";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 
-type ActivePopover = "save" | "load" | "create-plan" | "add-to-plan" | null;
+type ActivePopover = "save" | "load" | "create-plan" | "add-to-plan" | "metrics" | null;
 
 export default function ViewActionsBar() {
   const [activePopover, setActivePopover] = useState<ActivePopover>(null);
@@ -30,6 +30,16 @@ export default function ViewActionsBar() {
         <div className="w-px h-4 bg-gray-200/60 shrink-0" />
         <ActionBtn label="Create Plan" onClick={() => toggle("create-plan")} />
         <ActionBtn label="Add to Plan" onClick={() => toggle("add-to-plan")} />
+        <div className="w-px h-4 bg-gray-200/60 shrink-0" />
+        <button
+          onClick={() => toggle("metrics")}
+          className="text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
+          title="Configure visible metrics"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+            <path fillRule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+          </svg>
+        </button>
       </div>
 
       {activePopover === "save" && (
@@ -68,9 +78,12 @@ export default function ViewActionsBar() {
           }}
         />
       )}
+      {activePopover === "metrics" && (
+        <MetricsPopover onClose={() => setActivePopover(null)} />
+      )}
 
       {toast && (
-        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-20">
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-20">
           {toast}
         </div>
       )}
@@ -92,9 +105,11 @@ function ActionBtn({ label, onClick }: { label: string; onClick: () => void }) {
 function Popover({
   onClose,
   children,
+  position = "below",
 }: {
   onClose: () => void;
   children: React.ReactNode;
+  position?: "below" | "above";
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -108,10 +123,15 @@ function Popover({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
+  const posClass =
+    position === "above"
+      ? "bottom-full left-3 mb-1"
+      : "top-full left-3 mt-1";
+
   return (
     <div
       ref={ref}
-      className="absolute top-full left-3 mt-1 w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-20"
+      className={`absolute ${posClass} w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-20`}
     >
       {children}
     </div>
@@ -154,7 +174,7 @@ function SaveViewPopover({
   };
 
   return (
-    <Popover onClose={onClose}>
+    <Popover onClose={onClose} position="above">
       <div className="text-xs font-semibold text-gray-700 mb-2">Save View</div>
       <input
         ref={inputRef}
@@ -227,7 +247,7 @@ function LoadViewPopover({
   };
 
   return (
-    <Popover onClose={onClose}>
+    <Popover onClose={onClose} position="above">
       <div className="text-xs font-semibold text-gray-700 mb-2">Load View</div>
       {error && <div className="text-xs text-red-500 mb-2">{error}</div>}
       {isLoading ? (
@@ -329,7 +349,7 @@ function CreatePlanPopover({
   };
 
   return (
-    <Popover onClose={onClose}>
+    <Popover onClose={onClose} position="above">
       <div className="text-xs font-semibold text-gray-700 mb-2">Create Plan from Visible Districts</div>
       <input
         ref={inputRef}
@@ -416,7 +436,7 @@ function AddToPlanPopover({
   };
 
   return (
-    <Popover onClose={onClose}>
+    <Popover onClose={onClose} position="above">
       <div className="text-xs font-semibold text-gray-700 mb-2">Add Visible Districts to Plan</div>
       <input
         type="text"
@@ -462,6 +482,48 @@ function AddToPlanPopover({
         >
           {isWorking ? "Adding..." : "Add Districts"}
         </button>
+      </div>
+    </Popover>
+  );
+}
+
+const METRIC_LABELS: Record<MetricId, string> = {
+  districts: "Districts",
+  enrollment: "Enrollment",
+  pipeline: "Pipeline",
+  bookings: "Bookings",
+  invoicing: "Invoicing",
+  scheduledRevenue: "Sched Rev",
+  deliveredRevenue: "Deliv Rev",
+  deferredRevenue: "Def Rev",
+  totalRevenue: "Total Rev",
+  deliveredTake: "Deliv Take",
+  scheduledTake: "Sched Take",
+  allTake: "All Take",
+};
+
+function MetricsPopover({ onClose }: { onClose: () => void }) {
+  const visibleMetrics = useMapV2Store((s) => s.visibleMetrics);
+  const toggleMetric = useMapV2Store((s) => s.toggleMetric);
+
+  return (
+    <Popover onClose={onClose} position="above">
+      <div className="text-xs font-semibold text-gray-700 mb-2">Visible Metrics</div>
+      <div className="space-y-0.5">
+        {ALL_METRIC_IDS.map((id) => (
+          <label
+            key={id}
+            className="flex items-center gap-2 text-xs text-gray-600 py-1 px-1 rounded hover:bg-gray-50 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={visibleMetrics.has(id)}
+              onChange={() => toggleMetric(id)}
+              className="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400"
+            />
+            {METRIC_LABELS[id]}
+          </label>
+        ))}
       </div>
     </Popover>
   );
