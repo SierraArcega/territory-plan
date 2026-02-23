@@ -81,7 +81,7 @@ describe("buildVendorFillExpression", () => {
     expect(expr[expr.length - 1]).toBe("rgba(0,0,0,0)");
   });
 
-  it("works for competitor vendors (3-category)", () => {
+  it("works for competitor vendors (5-category)", () => {
     const palette = getVendorPalette("coral");
     const expr = buildVendorFillExpression("proximity", palette);
 
@@ -89,7 +89,9 @@ describe("buildVendorFillExpression", () => {
     expect(expr[1]).toEqual(["get", "proximity_category"]);
     expect(expr).toContain("churned");
     expect(expr).toContain("new");
-    expect(expr).toContain("multi_year");
+    expect(expr).toContain("multi_year_growing");
+    expect(expr).toContain("multi_year_flat");
+    expect(expr).toContain("multi_year_shrinking");
   });
 });
 
@@ -117,20 +119,30 @@ describe("buildSignalFillExpression", () => {
 });
 
 describe("deriveVendorCategoryColors", () => {
-  it("returns 7 keyed entries for fullmind", () => {
+  it("returns 10 keyed entries for fullmind", () => {
     const plum = VENDOR_PALETTES.find((p) => p.id === "plum")!;
     const result = deriveVendorCategoryColors("fullmind", plum);
-    expect(Object.keys(result)).toHaveLength(7);
+    expect(Object.keys(result)).toHaveLength(10);
     expect(result["fullmind:target"]).toBe(plum.stops[0]);
-    expect(result["fullmind:multi_year"]).toBe(plum.stops[6]);
+    expect(result["fullmind:new_business_pipeline"]).toBe(plum.stops[2]);
+    expect(result["fullmind:winback_pipeline"]).toBe("#FFB347");
+    expect(result["fullmind:multi_year_growing"]).toBe("#4ECDC4");
+    expect(result["fullmind:multi_year_flat"]).toBe(plum.stops[6]);
+    expect(result["fullmind:multi_year_shrinking"]).toBe("#F37167");
   });
 
-  it("returns 3 keyed entries for competitor", () => {
+  it("returns 9 keyed entries for competitor (5 spend + 4 pipeline)", () => {
     const coral = VENDOR_PALETTES.find((p) => p.id === "coral")!;
     const result = deriveVendorCategoryColors("proximity", coral);
-    expect(Object.keys(result)).toHaveLength(3);
+    expect(Object.keys(result)).toHaveLength(9);
     expect(result["proximity:churned"]).toBe(coral.stops[0]);
-    expect(result["proximity:multi_year"]).toBe(coral.stops[5]);
+    expect(result["proximity:new_business_pipeline"]).toBe(coral.stops[2]);
+    expect(result["proximity:winback_pipeline"]).toBe("#FFB347");
+    expect(result["proximity:renewal_pipeline"]).toBe(coral.stops[4]);
+    expect(result["proximity:expansion_pipeline"]).toBe(coral.stops[5]);
+    expect(result["proximity:multi_year_growing"]).toBe("#4ECDC4");
+    expect(result["proximity:multi_year_flat"]).toBe(coral.stops[5]);
+    expect(result["proximity:multi_year_shrinking"]).toBe("#F37167");
   });
 });
 
@@ -153,9 +165,9 @@ describe("deriveSignalCategoryColors", () => {
 
 describe("DEFAULT_CATEGORY_COLORS", () => {
   it("has entries for all vendors and signals", () => {
-    // Fullmind: 7, proximity/elevate/tbt: 3 each = 16 vendor keys
+    // Fullmind: 10, proximity/elevate/tbt: 9 each = 37 vendor keys
     // 3 growth signals x 5 + 1 expenditure x 4 = 19 signal keys
-    expect(Object.keys(DEFAULT_CATEGORY_COLORS).length).toBe(16 + 19);
+    expect(Object.keys(DEFAULT_CATEGORY_COLORS).length).toBe(37 + 19);
   });
 });
 
@@ -176,12 +188,15 @@ describe("buildVendorFillExpressionFromCategories", () => {
   it("builds fullmind expression from category colors", () => {
     const colors: Record<string, string> = {
       "fullmind:target": "#aaa",
-      "fullmind:new_pipeline": "#bbb",
+      "fullmind:new_business_pipeline": "#bbb",
+      "fullmind:winback_pipeline": "#b0b",
       "fullmind:renewal_pipeline": "#ccc",
       "fullmind:expansion_pipeline": "#ddd",
       "fullmind:lapsed": "#eee",
       "fullmind:new": "#fff",
-      "fullmind:multi_year": "#111",
+      "fullmind:multi_year_growing": "#111",
+      "fullmind:multi_year_flat": "#222",
+      "fullmind:multi_year_shrinking": "#333",
     };
     const expr = buildVendorFillExpressionFromCategories("fullmind", colors);
     expect(expr[0]).toBe("match");
@@ -193,7 +208,9 @@ describe("buildVendorFillExpressionFromCategories", () => {
     const colors: Record<string, string> = {
       "proximity:churned": "#aaa",
       "proximity:new": "#bbb",
-      "proximity:multi_year": "#ccc",
+      "proximity:multi_year_growing": "#ccc",
+      "proximity:multi_year_flat": "#ddd",
+      "proximity:multi_year_shrinking": "#eee",
     };
     const expr = buildVendorFillExpressionFromCategories("proximity", colors);
     expect(expr[0]).toBe("match");
@@ -236,11 +253,14 @@ describe("buildCategoryOpacityExpression", () => {
     const opacities: Record<string, number> = {
       "fullmind:target": 0.5,
       "fullmind:lapsed": 0.3,
-      "fullmind:new_pipeline": 0.8,
+      "fullmind:new_business_pipeline": 0.8,
+      "fullmind:winback_pipeline": 0.75,
       "fullmind:renewal_pipeline": 0.7,
       "fullmind:expansion_pipeline": 0.9,
       "fullmind:new": 0.6,
-      "fullmind:multi_year": 1.0,
+      "fullmind:multi_year_growing": 1.0,
+      "fullmind:multi_year_flat": 0.9,
+      "fullmind:multi_year_shrinking": 0.8,
     };
     const expr = buildCategoryOpacityExpression("fullmind", opacities);
     expect(expr[0]).toBe("match");

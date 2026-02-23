@@ -148,7 +148,7 @@ describe("InlineEditCell", () => {
           onSave={vi.fn()}
         />
       );
-      expect(screen.getByText("Feb 4, 2026")).toBeInTheDocument();
+      expect(screen.getByText("02/04/2026")).toBeInTheDocument();
     });
 
     it("shows date picker on click", () => {
@@ -160,7 +160,7 @@ describe("InlineEditCell", () => {
         />
       );
 
-      fireEvent.click(screen.getByText("Feb 4, 2026"));
+      fireEvent.click(screen.getByText("02/04/2026"));
 
       const input = screen.getByDisplayValue("2026-02-04");
       expect(input).toHaveAttribute("type", "date");
@@ -176,7 +176,7 @@ describe("InlineEditCell", () => {
         />
       );
 
-      fireEvent.click(screen.getByText("Feb 4, 2026"));
+      fireEvent.click(screen.getByText("02/04/2026"));
       const input = screen.getByDisplayValue("2026-02-04");
       fireEvent.change(input, { target: { value: "2026-03-15" } });
       fireEvent.blur(input);

@@ -6,20 +6,30 @@ import type { SummaryTotals } from "../useMapSummary";
 
 const ENGAGEMENT_TO_CATEGORIES: Record<string, string[]> = {
   target: ["target"],
-  pipeline: ["new_pipeline", "renewal_pipeline", "expansion_pipeline"],
+  renewal_pipeline: ["renewal_pipeline"],
+  expansion_pipeline: ["expansion_pipeline"],
+  new_business_pipeline: ["new_business_pipeline"],
+  winback_pipeline: ["winback_pipeline"],
   first_year: ["new"],
-  multi_year: ["multi_year"],
+  multi_year_growing: ["multi_year_growing"],
+  multi_year_flat: ["multi_year_flat"],
+  multi_year_shrinking: ["multi_year_shrinking"],
   lapsed: ["lapsed"],
 };
 
 const EMPTY_TOTALS: SummaryTotals = {
   count: 0,
   totalEnrollment: 0,
-  sessionsRevenue: 0,
-  netInvoicing: 0,
-  closedWonBookings: 0,
   openPipeline: 0,
-  weightedPipeline: 0,
+  closedWonBookings: 0,
+  invoicing: 0,
+  scheduledRevenue: 0,
+  deliveredRevenue: 0,
+  deferredRevenue: 0,
+  totalRevenue: 0,
+  deliveredTake: 0,
+  scheduledTake: 0,
+  allTake: 0,
 };
 
 function sumCategories(
@@ -31,62 +41,95 @@ function sumCategories(
     if (allowedCategories.has(cat)) {
       totals.count += data.count;
       totals.totalEnrollment += data.totalEnrollment;
-      totals.sessionsRevenue += data.sessionsRevenue;
-      totals.netInvoicing += data.netInvoicing;
-      totals.closedWonBookings += data.closedWonBookings;
       totals.openPipeline += data.openPipeline;
-      totals.weightedPipeline += data.weightedPipeline;
+      totals.closedWonBookings += data.closedWonBookings;
+      totals.invoicing += data.invoicing;
+      totals.scheduledRevenue += data.scheduledRevenue;
+      totals.deliveredRevenue += data.deliveredRevenue;
+      totals.deferredRevenue += data.deferredRevenue;
+      totals.totalRevenue += data.totalRevenue;
+      totals.deliveredTake += data.deliveredTake;
+      totals.scheduledTake += data.scheduledTake;
+      totals.allTake += data.allTake;
     }
   }
   return totals;
 }
 
+const t = (overrides: Partial<SummaryTotals> = {}): SummaryTotals => ({
+  ...EMPTY_TOTALS,
+  ...overrides,
+});
+
 const mockByCategory: Record<string, SummaryTotals> = {
-  target: { count: 100, totalEnrollment: 400000, sessionsRevenue: 0, netInvoicing: 0, closedWonBookings: 0, openPipeline: 0, weightedPipeline: 0 },
-  new_pipeline: { count: 50, totalEnrollment: 200000, sessionsRevenue: 0, netInvoicing: 0, closedWonBookings: 0, openPipeline: 3000000, weightedPipeline: 1500000 },
-  renewal_pipeline: { count: 30, totalEnrollment: 120000, sessionsRevenue: 0, netInvoicing: 0, closedWonBookings: 0, openPipeline: 1500000, weightedPipeline: 750000 },
-  expansion_pipeline: { count: 20, totalEnrollment: 80000, sessionsRevenue: 0, netInvoicing: 0, closedWonBookings: 0, openPipeline: 700000, weightedPipeline: 350000 },
-  new: { count: 40, totalEnrollment: 160000, sessionsRevenue: 2000000, netInvoicing: 1500000, closedWonBookings: 1000000, openPipeline: 0, weightedPipeline: 0 },
-  multi_year: { count: 60, totalEnrollment: 240000, sessionsRevenue: 5000000, netInvoicing: 3500000, closedWonBookings: 2500000, openPipeline: 0, weightedPipeline: 0 },
-  lapsed: { count: 25, totalEnrollment: 100000, sessionsRevenue: 0, netInvoicing: 0, closedWonBookings: 0, openPipeline: 0, weightedPipeline: 0 },
+  target: t({ count: 100, totalEnrollment: 400000 }),
+  new_business_pipeline: t({ count: 30, totalEnrollment: 120000, openPipeline: 1800000 }),
+  winback_pipeline: t({ count: 20, totalEnrollment: 80000, openPipeline: 1200000 }),
+  renewal_pipeline: t({ count: 30, totalEnrollment: 120000, openPipeline: 1500000 }),
+  expansion_pipeline: t({ count: 20, totalEnrollment: 80000, openPipeline: 700000 }),
+  new: t({ count: 40, totalEnrollment: 160000, totalRevenue: 2000000, invoicing: 1500000, closedWonBookings: 1000000 }),
+  multi_year_growing: t({ count: 30, totalEnrollment: 120000, totalRevenue: 3000000, invoicing: 2000000, closedWonBookings: 1500000 }),
+  multi_year_flat: t({ count: 20, totalEnrollment: 80000, totalRevenue: 1500000, invoicing: 1000000, closedWonBookings: 700000 }),
+  multi_year_shrinking: t({ count: 10, totalEnrollment: 40000, totalRevenue: 500000, invoicing: 500000, closedWonBookings: 300000 }),
+  lapsed: t({ count: 25, totalEnrollment: 100000 }),
 };
 
 describe("useMapSummary aggregation logic", () => {
-  it("engagement 'pipeline' maps to new_pipeline + renewal_pipeline + expansion_pipeline", () => {
+  it("all pipeline sub-categories combined equal total pipeline", () => {
     const allowed = new Set<string>();
-    for (const c of ENGAGEMENT_TO_CATEGORIES["pipeline"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["renewal_pipeline"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["expansion_pipeline"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["new_business_pipeline"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["winback_pipeline"]) allowed.add(c);
 
     const result = sumCategories(mockByCategory, allowed);
-    expect(result.count).toBe(50 + 30 + 20); // 100
-    expect(result.openPipeline).toBe(3000000 + 1500000 + 700000); // 5200000
+    expect(result.count).toBe(30 + 20 + 30 + 20); // 100
+    expect(result.openPipeline).toBe(1800000 + 1200000 + 1500000 + 700000); // 5200000
   });
 
-  it("engagement 'multi_year' maps to multi_year category", () => {
-    const allowed = new Set(ENGAGEMENT_TO_CATEGORIES["multi_year"]);
+  it("multi_year sub-categories each map independently", () => {
+    const growing = new Set(ENGAGEMENT_TO_CATEGORIES["multi_year_growing"]);
+    const growingResult = sumCategories(mockByCategory, growing);
+    expect(growingResult.count).toBe(30);
+    expect(growingResult.totalRevenue).toBe(3000000);
+
+    const shrinking = new Set(ENGAGEMENT_TO_CATEGORIES["multi_year_shrinking"]);
+    const shrinkingResult = sumCategories(mockByCategory, shrinking);
+    expect(shrinkingResult.count).toBe(10);
+    expect(shrinkingResult.totalRevenue).toBe(500000);
+  });
+
+  it("all multi_year sub-categories combined equal former multi_year total", () => {
+    const allowed = new Set<string>();
+    for (const c of ENGAGEMENT_TO_CATEGORIES["multi_year_growing"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["multi_year_flat"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["multi_year_shrinking"]) allowed.add(c);
+
     const result = sumCategories(mockByCategory, allowed);
-    expect(result.count).toBe(60);
-    expect(result.sessionsRevenue).toBe(5000000);
+    expect(result.count).toBe(30 + 20 + 10); // 60
+    expect(result.totalRevenue).toBe(3000000 + 1500000 + 500000); // 5000000
   });
 
   it("multiple engagement filters combine additively", () => {
     const allowed = new Set<string>();
     for (const c of ENGAGEMENT_TO_CATEGORIES["target"]) allowed.add(c);
-    for (const c of ENGAGEMENT_TO_CATEGORIES["pipeline"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["renewal_pipeline"]) allowed.add(c);
+    for (const c of ENGAGEMENT_TO_CATEGORIES["new_business_pipeline"]) allowed.add(c);
 
     const result = sumCategories(mockByCategory, allowed);
-    expect(result.count).toBe(100 + 50 + 30 + 20); // 200
+    expect(result.count).toBe(100 + 30 + 30); // 160
   });
 
   it("empty allowed set returns zero totals", () => {
     const result = sumCategories(mockByCategory, new Set());
     expect(result.count).toBe(0);
-    expect(result.sessionsRevenue).toBe(0);
+    expect(result.totalRevenue).toBe(0);
   });
 
   it("engagement 'first_year' maps to 'new' category", () => {
     const allowed = new Set(ENGAGEMENT_TO_CATEGORIES["first_year"]);
     const result = sumCategories(mockByCategory, allowed);
     expect(result.count).toBe(40);
-    expect(result.netInvoicing).toBe(1500000);
+    expect(result.invoicing).toBe(1500000);
   });
 });

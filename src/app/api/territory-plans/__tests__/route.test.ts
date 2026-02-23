@@ -1,7 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// Mock supabase server - routes call getUser()
+vi.mock("@/lib/supabase/server", () => ({
+  getUser: vi.fn().mockResolvedValue({ id: "user-1" }),
+}));
+
+// Mock auto-tags and rollup-sync (used by district routes)
+vi.mock("@/features/shared/lib/auto-tags", () => ({
+  syncClassificationTagsForDistrict: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/features/plans/lib/rollup-sync", () => ({
+  syncPlanRollups: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/features/explore/lib/filters", () => ({
+  buildWhereClause: vi.fn().mockReturnValue({}),
+  DISTRICT_FIELD_MAP: {},
+}));
+
 // Mock Prisma - must be hoisted, so define mock object inline
+const mockTransaction = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   default: {
     territoryPlan: {
@@ -15,10 +35,16 @@ vi.mock("@/lib/prisma", () => ({
       createMany: vi.fn(),
       findUnique: vi.fn(),
       delete: vi.fn(),
+      upsert: vi.fn(),
+    },
+    territoryPlanDistrictService: {
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
     },
     district: {
       findMany: vi.fn(),
     },
+    $transaction: (...args: unknown[]) => mockTransaction(...args),
   },
 }));
 
@@ -32,13 +58,16 @@ import {
 import { POST as addDistricts } from "../[id]/districts/route";
 import { DELETE as removeDistrict } from "../[id]/districts/[leaid]/route";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 
-// Get typed mock
+// Get typed mocks
 const mockPrisma = vi.mocked(prisma);
+const mockGetUser = vi.mocked(getUser);
 
 describe("Territory Plans API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetUser.mockResolvedValue({ id: "user-1" } as never);
   });
 
   describe("GET /api/territory-plans", () => {
@@ -48,14 +77,25 @@ describe("Territory Plans API", () => {
           id: "plan-1",
           name: "Test Plan",
           description: "A test plan",
-          owner: "John",
           color: "#403770",
           status: "working",
+          fiscalYear: 2026,
           startDate: new Date("2024-01-01"),
           endDate: new Date("2024-12-31"),
           createdAt: new Date("2024-01-01"),
           updatedAt: new Date("2024-01-15"),
           _count: { districts: 5 },
+          districts: [
+            { district: { enrollment: 500, stateAbbrev: "CA" } },
+            { district: { enrollment: 300, stateAbbrev: "CA" } },
+          ],
+          taskLinks: [
+            { task: { status: "done" } },
+            { task: { status: "open" } },
+          ],
+          ownerUser: { id: "user-1", fullName: "John", avatarUrl: null },
+          states: [{ state: { fips: "06", abbrev: "CA", name: "California" } }],
+          collaborators: [],
         },
       ];
 
@@ -69,6 +109,10 @@ describe("Territory Plans API", () => {
       expect(data[0].id).toBe("plan-1");
       expect(data[0].name).toBe("Test Plan");
       expect(data[0].districtCount).toBe(5);
+      expect(data[0].totalEnrollment).toBe(800);
+      expect(data[0].taskCount).toBe(2);
+      expect(data[0].completedTaskCount).toBe(1);
+      expect(data[0].owner).toEqual({ id: "user-1", fullName: "John", avatarUrl: null });
     });
 
     it("returns empty array when no plans exist", async () => {
@@ -80,6 +124,16 @@ describe("Territory Plans API", () => {
       expect(response.status).toBe(200);
       expect(data).toEqual([]);
     });
+
+    it("returns 401 when not authenticated", async () => {
+      mockGetUser.mockResolvedValue(null as never);
+
+      const response = await listPlans();
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toContain("Authentication");
+    });
   });
 
   describe("POST /api/territory-plans", () => {
@@ -88,20 +142,23 @@ describe("Territory Plans API", () => {
         id: "new-plan-id",
         name: "New Plan",
         description: null,
-        owner: null,
         color: "#403770",
-        status: "working",
+        status: "planning",
+        fiscalYear: 2026,
         startDate: null,
         endDate: null,
         createdAt: new Date("2024-01-01"),
         updatedAt: new Date("2024-01-01"),
+        ownerUser: null,
+        states: [],
+        collaborators: [],
       };
 
       mockPrisma.territoryPlan.create.mockResolvedValue(mockPlan as never);
 
       const request = new NextRequest("http://localhost/api/territory-plans", {
         method: "POST",
-        body: JSON.stringify({ name: "New Plan" }),
+        body: JSON.stringify({ name: "New Plan", fiscalYear: 2026 }),
       });
 
       const response = await createPlan(request);
@@ -117,13 +174,16 @@ describe("Territory Plans API", () => {
         id: "new-plan-id",
         name: "Full Plan",
         description: "With description",
-        owner: "John",
         color: "#F37167",
         status: "planning",
+        fiscalYear: 2026,
         startDate: new Date("2024-01-01"),
         endDate: new Date("2024-12-31"),
         createdAt: new Date("2024-01-01"),
         updatedAt: new Date("2024-01-01"),
+        ownerUser: null,
+        states: [],
+        collaborators: [],
       };
 
       mockPrisma.territoryPlan.create.mockResolvedValue(mockPlan as never);
@@ -133,9 +193,9 @@ describe("Territory Plans API", () => {
         body: JSON.stringify({
           name: "Full Plan",
           description: "With description",
-          owner: "John",
           color: "#F37167",
           status: "planning",
+          fiscalYear: 2026,
           startDate: "2024-01-01",
           endDate: "2024-12-31",
         }),
@@ -153,7 +213,7 @@ describe("Territory Plans API", () => {
     it("returns 400 when name is missing", async () => {
       const request = new NextRequest("http://localhost/api/territory-plans", {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ fiscalYear: 2026 }),
       });
 
       const response = await createPlan(request);
@@ -163,10 +223,23 @@ describe("Territory Plans API", () => {
       expect(data.error).toContain("name");
     });
 
+    it("returns 400 when fiscalYear is missing", async () => {
+      const request = new NextRequest("http://localhost/api/territory-plans", {
+        method: "POST",
+        body: JSON.stringify({ name: "Plan" }),
+      });
+
+      const response = await createPlan(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain("fiscalYear");
+    });
+
     it("returns 400 for invalid color format", async () => {
       const request = new NextRequest("http://localhost/api/territory-plans", {
         method: "POST",
-        body: JSON.stringify({ name: "Plan", color: "red" }),
+        body: JSON.stringify({ name: "Plan", fiscalYear: 2026, color: "red" }),
       });
 
       const response = await createPlan(request);
@@ -179,7 +252,7 @@ describe("Territory Plans API", () => {
     it("returns 400 for invalid status", async () => {
       const request = new NextRequest("http://localhost/api/territory-plans", {
         method: "POST",
-        body: JSON.stringify({ name: "Plan", status: "invalid" }),
+        body: JSON.stringify({ name: "Plan", fiscalYear: 2026, status: "invalid" }),
       });
 
       const response = await createPlan(request);
@@ -187,6 +260,21 @@ describe("Territory Plans API", () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toContain("status");
+    });
+
+    it("returns 401 when not authenticated", async () => {
+      mockGetUser.mockResolvedValue(null as never);
+
+      const request = new NextRequest("http://localhost/api/territory-plans", {
+        method: "POST",
+        body: JSON.stringify({ name: "Plan", fiscalYear: 2026 }),
+      });
+
+      const response = await createPlan(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toContain("Authentication");
     });
   });
 
@@ -196,26 +284,33 @@ describe("Territory Plans API", () => {
         id: "plan-1",
         name: "Test Plan",
         description: null,
-        owner: null,
         color: "#403770",
         status: "working",
+        fiscalYear: 2026,
         startDate: null,
         endDate: null,
         createdAt: new Date("2024-01-01"),
         updatedAt: new Date("2024-01-15"),
+        ownerUser: null,
+        states: [],
+        collaborators: [],
         districts: [
           {
             districtLeaid: "1234567",
             addedAt: new Date("2024-01-10"),
+            renewalTarget: null,
+            winbackTarget: null,
+            expansionTarget: null,
+            newBusinessTarget: null,
+            notes: null,
             district: {
               name: "Test District",
               stateAbbrev: "CA",
               enrollment: 1000,
-              fullmindData: {
-                isCustomer: true,
-                hasOpenPipeline: false,
-              },
+              owner: null,
+              districtTags: [],
             },
+            targetServices: [],
           },
         ],
       };
@@ -234,7 +329,7 @@ describe("Territory Plans API", () => {
       expect(data.id).toBe("plan-1");
       expect(data.districts).toHaveLength(1);
       expect(data.districts[0].leaid).toBe("1234567");
-      expect(data.districts[0].isCustomer).toBe(true);
+      expect(data.districts[0].name).toBe("Test District");
     });
 
     it("returns 404 when plan not found", async () => {
@@ -255,20 +350,42 @@ describe("Territory Plans API", () => {
 
   describe("PUT /api/territory-plans/[id]", () => {
     it("updates plan metadata", async () => {
-      mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" } as never);
-      mockPrisma.territoryPlan.update.mockResolvedValue({
+      // PUT now uses $transaction - mock accordingly
+      const updatedPlan = {
         id: "plan-1",
         name: "Updated Name",
         description: "Updated desc",
-        owner: null,
         color: "#403770",
         status: "working",
+        fiscalYear: 2026,
         startDate: null,
         endDate: null,
         createdAt: new Date("2024-01-01"),
         updatedAt: new Date("2024-01-20"),
         _count: { districts: 3 },
-      } as never);
+        ownerUser: null,
+        states: [],
+        collaborators: [],
+      };
+
+      mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" } as never);
+      mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+        const tx = {
+          territoryPlan: {
+            update: vi.fn().mockResolvedValue(updatedPlan),
+            findUniqueOrThrow: vi.fn().mockResolvedValue(updatedPlan),
+          },
+          territoryPlanState: {
+            deleteMany: vi.fn(),
+            createMany: vi.fn(),
+          },
+          territoryPlanCollaborator: {
+            deleteMany: vi.fn(),
+            createMany: vi.fn(),
+          },
+        };
+        return fn(tx);
+      });
 
       const request = new NextRequest(
         "http://localhost/api/territory-plans/plan-1",
@@ -399,6 +516,7 @@ describe("Territory Plans API", () => {
 
     it("returns 404 when plan not found", async () => {
       mockPrisma.territoryPlan.findUnique.mockResolvedValue(null);
+      mockPrisma.district.findMany.mockResolvedValue([{ leaid: "1234567" }] as never);
 
       const request = new NextRequest(
         "http://localhost/api/territory-plans/nonexistent/districts",

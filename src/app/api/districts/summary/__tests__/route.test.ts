@@ -215,6 +215,79 @@ describe("GET /api/districts/summary", () => {
     }
   });
 
+  it("includes byVendor for single-vendor requests", async () => {
+    // Combined query
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          category: "target",
+          count: 50,
+          total_enrollment: 200000,
+          open_pipeline: 0,
+          closed_won_bookings: 500000,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 1000000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+      ],
+    });
+    // Per-vendor query for elevate (keyed by elevate categories)
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          category: "churned",
+          count: 30,
+          total_enrollment: 120000,
+          open_pipeline: 0,
+          closed_won_bookings: 300000,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 600000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+        {
+          category: "new",
+          count: 20,
+          total_enrollment: 80000,
+          open_pipeline: 0,
+          closed_won_bookings: 200000,
+          invoicing: 0,
+          scheduled_revenue: 0,
+          delivered_revenue: 0,
+          deferred_revenue: 0,
+          total_revenue: 400000,
+          delivered_take: 0,
+          scheduled_take: 0,
+          all_take: 0,
+        },
+      ],
+    });
+
+    const req = new NextRequest(
+      "http://localhost:3000/api/districts/summary?fy=fy26&vendors=elevate"
+    );
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    // byVendor should be present even for single vendor
+    expect(body.byVendor).toBeDefined();
+    expect(body.byVendor.elevate).toBeDefined();
+    // Per-vendor byCategory uses vendor-specific categories (not fullmind)
+    expect(body.byVendor.elevate.byCategory.churned.count).toBe(30);
+    expect(body.byVendor.elevate.byCategory.new.count).toBe(20);
+    expect(body.byVendor.elevate.closedWonBookings).toBe(500000);
+  });
+
   it("returns 500 on database error", async () => {
     mockQuery.mockRejectedValue(new Error("DB connection failed"));
 

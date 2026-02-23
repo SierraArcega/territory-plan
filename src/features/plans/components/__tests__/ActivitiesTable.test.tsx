@@ -349,9 +349,9 @@ describe("ActivitiesTable", () => {
       );
 
       // First activity has a date range: Mar 15 - Mar 17
-      // The dates are displayed via InlineEditCell in separate elements
-      expect(screen.getByText("Mar 15, 2026")).toBeInTheDocument();
-      expect(screen.getByText("Mar 17, 2026")).toBeInTheDocument();
+      // The dates are displayed via InlineEditCell in MM/DD/YYYY format
+      expect(screen.getByText("03/15/2026")).toBeInTheDocument();
+      expect(screen.getByText("03/17/2026")).toBeInTheDocument();
     });
 
     it("shows single date when endDate equals startDate", () => {

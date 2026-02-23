@@ -25,8 +25,12 @@ const createMockDistrict = (overrides: Partial<{
   urbanCentricLocale: number;
   ellStudents: number;
   specEdStudents: number;
-  educationData: object | null;
-  enrollmentDemographics: object | null;
+  medianHouseholdIncome: number | null;
+  expenditurePerPupil: number | null;
+  salariesTotal: number | null;
+  staffTotalFte: number | null;
+  totalEnrollment: number | null;
+  enrollmentWhite: number | null;
   territoryPlans: { planId: string }[];
 }> = {}) => ({
   leaid: "1234567",
@@ -36,16 +40,12 @@ const createMockDistrict = (overrides: Partial<{
   urbanCentricLocale: 3,
   ellStudents: 100,
   specEdStudents: 150,
-  educationData: {
-    medianHouseholdIncome: 75000,
-    expenditurePerPupil: 12000,
-    salariesTotal: 5000000,
-    staffTotalFte: 100,
-  },
-  enrollmentDemographics: {
-    totalEnrollment: 1000,
-    enrollmentWhite: 400,
-  },
+  medianHouseholdIncome: 75000,
+  expenditurePerPupil: 12000,
+  salariesTotal: 5000000,
+  staffTotalFte: 100,
+  totalEnrollment: 1000,
+  enrollmentWhite: 400,
   territoryPlans: [],
   ...overrides,
 });
@@ -141,7 +141,7 @@ describe("GET /api/districts/similar", () => {
   it("returns 400 when source district missing metric data", async () => {
     const sourceDistrict = createMockDistrict({
       leaid: "1111111",
-      educationData: null, // Missing education data
+      medianHouseholdIncome: null, // Missing metric data
     });
 
     mockPrisma.district.findUnique.mockResolvedValue(sourceDistrict as never);
