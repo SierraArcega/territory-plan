@@ -276,10 +276,9 @@ export default function MapV2Container() {
         type: "fill",
         source: "districts",
         "source-layer": "districts",
-        minzoom: 5,
         paint: {
           "fill-color": "#E5E7EB",
-          "fill-opacity": 0.4,
+          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0.2, 5, 0.4],
         },
       });
 
@@ -289,11 +288,11 @@ export default function MapV2Container() {
         type: "line",
         source: "districts",
         "source-layer": "districts",
-        minzoom: 5,
+        minzoom: 4.5,
         paint: {
           "line-color": "#374151",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.2, 7, 0.6, 10, 1],
-          "line-opacity": 0.4,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 4.5, 0.1, 5, 0.2, 7, 0.6, 10, 1],
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 4.5, 0.15, 5, 0.4],
         },
       });
 
@@ -303,7 +302,6 @@ export default function MapV2Container() {
         type: "fill",
         source: "districts",
         "source-layer": "districts",
-        minzoom: 5,
         paint: {
           "fill-color": "rgba(0,0,0,0)",
           "fill-opacity": 0,
@@ -319,7 +317,6 @@ export default function MapV2Container() {
         type: "fill",
         source: "districts",
         "source-layer": "districts",
-        minzoom: 5,
         filter: ["has", "locale_signal"],
         paint: {
           "fill-color": LOCALE_FILL as any,
@@ -1111,8 +1108,9 @@ export default function MapV2Container() {
           : engagementFilter;
         map.current.setFilter(layerId, combined);
       } else if (vendorId !== "fullmind" && (competitorEngagement[vendorId]?.length ?? 0) > 0) {
-        // Per-competitor engagement filter — category values match directly (multi_year, new, churned)
-        const engagementFilter: any = ["in", ["get", config.tileProperty], ["literal", competitorEngagement[vendorId]]];
+        // Per-competitor engagement filter — expand engagement names to DB category values
+        const categories = engagementToCategories(competitorEngagement[vendorId]);
+        const engagementFilter: any = ["in", ["get", config.tileProperty], ["literal", categories]];
         const combined = combinedFilter
           ? ["all", engagementFilter, combinedFilter]
           : engagementFilter;
