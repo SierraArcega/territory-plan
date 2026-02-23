@@ -55,6 +55,25 @@ export interface ExploreSavedView {
   columns: string[];
 }
 
+/** Serialized map view state for saving/loading named views */
+export interface MapViewState {
+  activeVendors: string[];
+  filterOwner: string | null;
+  filterStates: string[];
+  filterAccountTypes: string[];
+  fullmindEngagement: string[];
+  competitorEngagement: Record<string, string[]>;
+  vendorPalettes: Record<string, string>;
+  signalPalette: string;
+  categoryColors: Record<string, string>;
+  categoryOpacities: Record<string, number>;
+  vendorOpacities: Record<string, number>;
+  activeSignal: string | null;
+  visibleLocales: string[];
+  visibleSchoolTypes: string[];
+  selectedFiscalYear: string;
+}
+
 export interface RightPanelContent {
   type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form" | "plan_card";
   id?: string;
@@ -153,7 +172,7 @@ interface MapV2State {
   competitorEngagement: Record<string, string[]>;
 
   // Fiscal year selector (affects Fullmind + Competitors tile data)
-  selectedFiscalYear: "fy25" | "fy26";
+  selectedFiscalYear: "fy24" | "fy25" | "fy26" | "fy27";
 
   // Color palette preferences
   vendorPalettes: Record<VendorId, string>;
@@ -284,7 +303,7 @@ interface MapV2Actions {
   setCompetitorEngagement: (vendorId: string, levels: string[]) => void;
 
   // Fiscal year
-  setSelectedFiscalYear: (fy: "fy25" | "fy26") => void;
+  setSelectedFiscalYear: (fy: "fy24" | "fy25" | "fy26" | "fy27") => void;
 
   // Color palette preferences
   setVendorPalette: (vendorId: VendorId, paletteId: string) => void;
@@ -297,6 +316,10 @@ interface MapV2Actions {
   initCategoryState: (colors: Record<string, string>, opacities: Record<string, number>) => void;
   captureSnapshot: () => void;
   hasUnsavedChanges: () => boolean;
+
+  // Map view save/load
+  getViewSnapshot: () => MapViewState;
+  applyViewSnapshot: (state: MapViewState) => void;
 
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
@@ -779,6 +802,47 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     const s = get();
     if (!s.lastSavedSnapshot) return false;
     return serializeMapState(s) !== s.lastSavedSnapshot;
+  },
+
+  getViewSnapshot: () => {
+    const s = get();
+    return {
+      activeVendors: [...s.activeVendors].sort(),
+      filterOwner: s.filterOwner,
+      filterStates: [...s.filterStates].sort(),
+      filterAccountTypes: [...s.filterAccountTypes].sort(),
+      fullmindEngagement: [...s.fullmindEngagement].sort(),
+      competitorEngagement: s.competitorEngagement,
+      vendorPalettes: s.vendorPalettes,
+      signalPalette: s.signalPalette,
+      categoryColors: s.categoryColors,
+      categoryOpacities: s.categoryOpacities,
+      vendorOpacities: s.vendorOpacities,
+      activeSignal: s.activeSignal,
+      visibleLocales: [...s.visibleLocales].sort(),
+      visibleSchoolTypes: [...s.visibleSchoolTypes].sort(),
+      selectedFiscalYear: s.selectedFiscalYear,
+    };
+  },
+
+  applyViewSnapshot: (state: MapViewState) => {
+    set({
+      activeVendors: new Set(state.activeVendors as VendorId[]),
+      filterOwner: state.filterOwner,
+      filterStates: state.filterStates,
+      filterAccountTypes: state.filterAccountTypes as AccountTypeValue[],
+      fullmindEngagement: state.fullmindEngagement,
+      competitorEngagement: state.competitorEngagement,
+      vendorPalettes: state.vendorPalettes as Record<VendorId, string>,
+      signalPalette: state.signalPalette,
+      categoryColors: state.categoryColors,
+      categoryOpacities: state.categoryOpacities,
+      vendorOpacities: state.vendorOpacities as Record<VendorId, number>,
+      activeSignal: state.activeSignal as SignalId | null,
+      visibleLocales: new Set(state.visibleLocales as LocaleId[]),
+      visibleSchoolTypes: new Set(state.visibleSchoolTypes as SchoolType[]),
+      selectedFiscalYear: state.selectedFiscalYear as "fy24" | "fy25" | "fy26" | "fy27",
+    });
   },
 
   // Account creation form
