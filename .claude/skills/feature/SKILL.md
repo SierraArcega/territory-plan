@@ -96,11 +96,49 @@ Run exactly 2 review-revise cycles:
 
 ### Step 3: Slack Approval + Human PRD Approval
 
-1. If `slack_channel` is not empty, send a Slack approval request:
+1. If `slack_channel` is not empty, read the PRD and compose a rich Slack approval:
+   - Read the PRD file and extract all key sections
    - Call `slack_send_approval` with:
      - `channel`: config.slack_channel
-     - `title`: "PRD Ready for Review"
-     - `summary`: Feature name, PRD file path, number of agent review rounds, and a 2-3 line PRD summary
+     - `title`: "PRD Ready for Review: [Feature Name]"
+     - `summary`: Plain-text fallback: "[Feature name] — [1-sentence summary]. [N] files affected, [N] agent review rounds."
+     - `sections`: Array of structured sections:
+       ```json
+       [
+         {
+           "heading": "Problem",
+           "text": "[Full Problem Statement from PRD — first 2-3 sentences]"
+         },
+         {
+           "heading": "Proposed Solution",
+           "text": "[Full Proposed Solution from PRD — 2-3 sentences describing the approach]"
+         },
+         {
+           "heading": "Technical Design",
+           "text": "[How it works in 2-3 sentences]\n\n*New files:*\n• [list each]\n\n*Modified files:*\n• [list each with brief reason]"
+         },
+         {
+           "heading": "Scope & Impact",
+           "fields": ["*Data model:* [yes/no + detail]", "*API changes:* [yes/no + detail]", "*UI changes:* [yes/no + detail]", "*Dependencies:* [any new deps or 'None']"]
+         },
+         {
+           "heading": "Edge Cases & Risks",
+           "text": "• [Each edge case from PRD as a bullet with how it's handled]"
+         },
+         {
+           "heading": "Testing Strategy",
+           "text": "• *Unit:* [what]\n• *Integration:* [what]\n• *Component:* [what]\n• ~[N] test cases estimated"
+         },
+         {
+           "heading": "Assumptions & Open Questions",
+           "text": ":warning: [Each assumption or open question as a bullet]"
+         },
+         {
+           "heading": "Review Status",
+           "fields": ["*Agent reviews:* [N] rounds", "*Outcome:* [Approved/Revised]", "*PRD:* `[PRD_PATH]`", "*Branch:* `[branch name]`"]
+         }
+       ]
+       ```
    - Save the returned `approvalId`
 
 2. Use AskUserQuestion to also pause in the terminal:
@@ -189,16 +227,58 @@ The reviewer writes the final report to `[docs_path]/[date]-[slug]-final-report.
 
 ### Step 8: Final Slack Notification + Human Review
 
-1. If `slack_channel` is not empty, send a Slack approval request:
+1. If `slack_channel` is not empty, read the final report and PRD to compose a rich Slack approval:
    - Call `slack_send_approval` with:
      - `channel`: config.slack_channel
-     - `title`: "Feature Ready for Review"
-     - `summary`: Feature name, final report path, recommendation (READY/NEEDS ATTENTION), test pass/fail count
+     - `title`: "Feature Ready for Review: [Feature Name]"
+     - `summary`: Plain-text fallback: "[Feature name] implementation complete. [N] tests passing. Code review: [READY/NEEDS ATTENTION]."
+     - `sections`: Array of structured sections:
+       ```json
+       [
+         {
+           "heading": "What Was Built",
+           "text": "[2-3 sentence summary of what the feature does, from the PRD's Proposed Solution]"
+         },
+         {
+           "heading": "Implementation Summary",
+           "text": "*New files:*\n• [list each new file with brief purpose]\n\n*Modified files:*\n• [list each modified file with what changed]"
+         },
+         {
+           "heading": "Quality",
+           "fields": ["*Tests:* [pass] passing, [fail] failing", "*Design QA:* [PASSED / SKIPPED / issues]", "*Code review:* [READY / NEEDS ATTENTION]", "*Fix attempts:* [N] of [max]"]
+         },
+         {
+           "heading": "Code Review Notes",
+           "text": "[Key findings from the code reviewer — strengths, concerns, suggestions. 3-5 bullets]"
+         },
+         {
+           "heading": "Outstanding Issues",
+           "text": "[Any flagged issues, test failures, or design QA concerns. Use :warning: for each. If none: ':white_check_mark: No outstanding issues']"
+         },
+         {
+           "heading": "Review Details",
+           "fields": ["*Report:* `[REPORT_PATH]`", "*Branch:* `[branch name]`", "*Dev server:* http://localhost:3005", "*PRD:* `[PRD_PATH]`"]
+         }
+       ]
+       ```
 
-2. Present the final report summary to the user (read and display key sections)
+2. **Start a local dev server for review:**
+   - Symlink the `.env` file into the worktree (it's gitignored and won't exist there):
+     ```bash
+     ln -sf /Users/sierrastorm/thespot/territory-plan/.env <worktree-path>/.env
+     ```
+   - Kill any existing process on port 3005, then start the dev server:
+     ```bash
+     lsof -ti :3005 | xargs kill -9 2>/dev/null
+     npx next dev -p 3005
+     ```
+   - Wait for the "Ready" message before presenting the review prompt
+   - Tell the user the app is running at `http://localhost:3005`
 
-3. Use AskUserQuestion:
-   - Question: "Feature implementation is complete. The final report is at `[path]`. What would you like to do?"
+3. Present the final report summary to the user (read and display key sections)
+
+4. Use AskUserQuestion:
+   - Question: "Feature implementation is complete and running at http://localhost:3005. The final report is at `[path]`. What would you like to do?"
    - Options:
      - "Merge to main"
      - "Create a PR"

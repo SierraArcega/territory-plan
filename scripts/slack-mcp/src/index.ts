@@ -70,6 +70,15 @@ mcp.tool(
 );
 
 // Tool: Send an approval request with buttons
+const approvalSectionSchema = z.object({
+  heading: z.string().describe("Bold heading for this section (e.g., 'Problem')"),
+  text: z.string().optional().describe("Mrkdwn body text for this section"),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe("Short field strings rendered in a 2-column grid (e.g., ['Data model: no', 'API changes: yes'])"),
+});
+
 mcp.tool(
   "slack_send_approval",
   "Post an approval request with Approve/Reject buttons to a Slack channel. Returns an approval ID for polling.",
@@ -78,48 +87,91 @@ mcp.tool(
     title: z.string().describe("Short title for the approval (e.g., 'PRD Ready for Review')"),
     summary: z
       .string()
-      .describe("Detailed summary shown in the message body (supports mrkdwn)"),
+      .describe("Plain-text fallback summary (shown in notifications and non-block contexts)"),
+    sections: z
+      .array(approvalSectionSchema)
+      .optional()
+      .describe(
+        "Structured content sections. Each section gets a bold heading and optional body text or 2-column fields. " +
+        "If omitted, the summary is used as a single block.",
+      ),
   },
-  async ({ channel, title, summary }) => {
+  async ({ channel, title, summary, sections }) => {
     try {
       const app = getSlackApp();
       const approval = createApproval(channel, title);
 
-      const result = await app.client.chat.postMessage({
-        token: process.env.SLACK_BOT_TOKEN!,
-        channel,
-        text: `${title}: ${summary}`,
-        blocks: [
-          {
-            type: "header",
-            text: { type: "plain_text", text: title },
-          },
+      // Build Block Kit blocks
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const blocks: any[] = [
+        {
+          type: "header",
+          text: { type: "plain_text", text: title },
+        },
+      ];
+
+      if (sections && sections.length > 0) {
+        for (const section of sections) {
+          // Section heading as its own context block for a subtle label look
+          blocks.push({
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*${section.heading}*${section.text ? `\n${section.text}` : ""}`,
+            },
+          });
+
+          // 2-column fields grid
+          if (section.fields && section.fields.length > 0) {
+            blocks.push({
+              type: "section",
+              fields: section.fields.map((f) => ({
+                type: "mrkdwn",
+                text: f,
+              })),
+            });
+          }
+
+          blocks.push({ type: "divider" });
+        }
+      } else {
+        // Fallback: single summary block
+        blocks.push(
           {
             type: "section",
             text: { type: "mrkdwn", text: summary },
           },
           { type: "divider" },
+        );
+      }
+
+      // Approve / Reject buttons
+      blocks.push({
+        type: "actions",
+        block_id: `approval_${approval.id}`,
+        elements: [
           {
-            type: "actions",
-            block_id: `approval_${approval.id}`,
-            elements: [
-              {
-                type: "button",
-                text: { type: "plain_text", text: "Approve" },
-                style: "primary",
-                action_id: "approve_button",
-                value: approval.id,
-              },
-              {
-                type: "button",
-                text: { type: "plain_text", text: "Reject" },
-                style: "danger",
-                action_id: "reject_button",
-                value: approval.id,
-              },
-            ],
+            type: "button",
+            text: { type: "plain_text", text: "Approve" },
+            style: "primary",
+            action_id: "approve_button",
+            value: approval.id,
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Reject" },
+            style: "danger",
+            action_id: "reject_button",
+            value: approval.id,
           },
         ],
+      });
+
+      const result = await app.client.chat.postMessage({
+        token: process.env.SLACK_BOT_TOKEN!,
+        channel,
+        text: `${title}: ${summary}`,
+        blocks,
       });
 
       approval.messageTs = result.ts;
