@@ -110,7 +110,7 @@ export default function FlippablePlanCard({ plan, variant, onNavigate }: Flippab
         }
       }}
       aria-label={flipped ? "Show plan summary" : "Show plan details"}
-      className="w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-plum hover:bg-gray-100 transition-all flex-shrink-0"
+      className="w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-plum hover:bg-gray-100 transition-all flex-shrink-0 focus-visible:ring-2 focus-visible:ring-plum focus:outline-none"
     >
       <svg
         width="14"
@@ -153,6 +153,7 @@ export default function FlippablePlanCard({ plan, variant, onNavigate }: Flippab
         className={`
           h-full rounded-xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm
           transition-all cursor-pointer overflow-hidden flex
+          focus-visible:ring-2 focus-visible:ring-plum focus:outline-none
           ${isCompact ? "p-3" : "p-4"}
         `}
       >
@@ -240,6 +241,7 @@ export default function FlippablePlanCard({ plan, variant, onNavigate }: Flippab
         className={`
           h-full rounded-xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm
           transition-all cursor-pointer overflow-hidden flex
+          focus-visible:ring-2 focus-visible:ring-plum focus:outline-none
           ${isCompact ? "p-3" : "p-4"}
         `}
       >

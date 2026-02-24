@@ -64,6 +64,7 @@ export default function PlanCardFilters({
           className={`
             flex-shrink-0 rounded-full transition-all text-[10px] font-semibold
             flex items-center justify-center
+            focus-visible:ring-2 focus-visible:ring-plum focus:outline-none
             ${selectedOwnerId === null
               ? "ring-2 ring-plum text-plum bg-plum/10"
               : "text-gray-400 bg-gray-100 hover:bg-gray-200"
@@ -83,6 +84,7 @@ export default function PlanCardFilters({
             title={owner.fullName ?? "Unknown"}
             className={`
               flex-shrink-0 rounded-full transition-all overflow-hidden
+              focus-visible:ring-2 focus-visible:ring-plum focus:outline-none
               ${selectedOwnerId === owner.id
                 ? "ring-2 ring-plum"
                 : "ring-1 ring-gray-200 hover:ring-gray-300"
@@ -115,7 +117,7 @@ export default function PlanCardFilters({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as PlanSortKey)}
-            className="appearance-none bg-gray-100 text-gray-500 text-[10px] rounded-lg pl-2 pr-5 py-1 cursor-pointer hover:bg-gray-200 transition-colors focus:outline-none focus:ring-1 focus:ring-plum/20"
+            className="appearance-none bg-gray-100 text-gray-500 text-[10px] rounded-lg pl-2 pr-5 py-1 cursor-pointer hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-plum/40"
             aria-label="Sort plans"
           >
             {SORT_OPTIONS.map((opt) => (
@@ -139,7 +141,7 @@ export default function PlanCardFilters({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as PlanSortKey)}
-            className="appearance-none bg-gray-100 text-gray-500 text-xs rounded-lg pl-3 pr-7 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors focus:outline-none focus:ring-1 focus:ring-plum/20"
+            className="appearance-none bg-gray-100 text-gray-500 text-xs rounded-lg pl-3 pr-7 py-1.5 cursor-pointer hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-plum/40"
             aria-label="Sort plans"
           >
             {SORT_OPTIONS.map((opt) => (
