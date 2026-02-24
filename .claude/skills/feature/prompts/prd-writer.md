@@ -18,6 +18,7 @@ Before asking any questions, build your own understanding:
 3. **Tech stack conventions** — Read `Docs/.md Files/TECHSTACK.md`
 4. **Existing design patterns** — Scan 2-3 recent files in `Docs/plans/` for PRD format conventions
 5. **Existing components** — Check `src/components/` and `src/features/` for reusable pieces
+6. **Data dictionary** — Read `Docs/data-dictionary.md` for data definitions and business context
 
 ### Phase 2: Ask the Human Clarifying Questions
 

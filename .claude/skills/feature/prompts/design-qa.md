@@ -53,6 +53,12 @@ Review all UI changes for brand compliance, design quality, and accessibility. R
 - [ ] Loading states are handled (skeleton or spinner)
 - [ ] Error states are handled (with appropriate color coding)
 
+### Responsive
+
+- [ ] Layout adapts at key breakpoints if content warrants it (`sm:` 640px, `md:` 768px, `lg:` 1024px, `xl:` 1280px)
+- [ ] Tables scroll horizontally on smaller screens rather than breaking layout
+- [ ] Side panels collapse or stack on tablet/mobile widths
+
 ### Accessibility
 
 - [ ] Semantic HTML elements used (`button`, `nav`, `main`, not `div` for everything)
