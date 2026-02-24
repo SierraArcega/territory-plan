@@ -10,6 +10,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@slack/bolt": "^4.4.0",
+    "dotenv": "^17.3.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
