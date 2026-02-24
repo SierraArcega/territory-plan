@@ -10,8 +10,9 @@ import {
 import { useMapV2Store } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
 import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
-import { formatCurrency } from "@/features/shared/lib/format";
 import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
+import DonutChart from "@/features/goals/components/DonutChart";
+import DonutMetricPopover from "@/features/goals/components/DonutMetricPopover";
 
 const FISCAL_YEARS = [2026, 2027, 2028, 2029];
 
@@ -150,6 +151,12 @@ export default function HomePanel() {
 
   const [avatarError, setAvatarError] = useState(false);
   const [showGoalEditor, setShowGoalEditor] = useState(false);
+  const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
+
+  // Close popover when FY tab changes
+  useEffect(() => {
+    setOpenPopoverIndex(null);
+  }, [selectedFY]);
 
   const initials = profile
     ? (() => {
@@ -427,48 +434,46 @@ export default function HomePanel() {
           </button>
         </div>
         {goalMetrics ? (
-          <div className="space-y-2.5">
-            {goalMetrics.map((m) => {
+          <div className="grid grid-cols-2 gap-3">
+            {goalMetrics.map((m, i) => {
               const pct =
                 m.target && m.target > 0
                   ? Math.min((m.current / m.target) * 100, 100)
                   : 0;
-              const currentFmt =
-                m.format === "currency"
-                  ? formatCurrency(m.current, true)
-                  : m.current.toLocaleString();
-              const targetFmt =
-                m.format === "currency"
-                  ? formatCurrency(m.target, true)
-                  : m.target?.toLocaleString() || "-";
               return (
-                <div key={m.label}>
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-[11px] font-medium text-gray-500">
+                <div
+                  key={m.label}
+                  className="relative flex flex-col items-center text-center"
+                >
+                  <button
+                    type="button"
+                    className="flex flex-col items-center text-center bg-transparent border-none p-0 cursor-pointer"
+                    onClick={() =>
+                      setOpenPopoverIndex(openPopoverIndex === i ? null : i)
+                    }
+                  >
+                    <DonutChart
+                      percent={pct}
+                      color={m.color}
+                      size={48}
+                      strokeWidth={5}
+                      fontSize="text-[10px]"
+                      ariaLabel={m.label}
+                    />
+                    <span className="text-[10px] font-medium text-gray-500 mt-1 truncate w-full">
                       {m.label}
                     </span>
-                    <span className="text-[10px] text-gray-400 tabular-nums">
-                      {currentFmt}
-                      <span className="text-gray-300"> / {targetFmt}</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500 ease-out"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: m.color,
-                        }}
-                      />
-                    </div>
-                    <span
-                      className="text-[10px] font-semibold tabular-nums w-7 text-right"
-                      style={{ color: m.color }}
-                    >
-                      {Math.round(pct)}%
-                    </span>
-                  </div>
+                  </button>
+                  {openPopoverIndex === i && (
+                    <DonutMetricPopover
+                      label={m.label}
+                      current={m.current}
+                      target={m.target}
+                      format={m.format}
+                      color={m.color}
+                      onClose={() => setOpenPopoverIndex(null)}
+                    />
+                  )}
                 </div>
               );
             })}
