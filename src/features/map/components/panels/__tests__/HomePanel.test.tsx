@@ -113,11 +113,11 @@ describe("HomePanel — Goals donut grid", () => {
 
   // Test 12: Tapping a donut opens popover
   it("opens popover with current/target when a donut is tapped", () => {
-    const { container } = render(<HomePanel />);
-    // Find the first donut (role="button" div wrapping the SVG)
-    const donutButtons = container.querySelectorAll('[role="button"]');
-    expect(donutButtons.length).toBeGreaterThanOrEqual(1);
-    fireEvent.click(donutButtons[0]);
+    render(<HomePanel />);
+    // Find the donut cell buttons by their accessible label text
+    const earningsButton = screen.getByRole("button", { name: /Earnings/i });
+    expect(earningsButton).toBeInTheDocument();
+    fireEvent.click(earningsButton);
     const popover = screen.getByTestId("donut-popover");
     expect(popover).toBeInTheDocument();
     // Popover shows current value and target
@@ -127,9 +127,9 @@ describe("HomePanel — Goals donut grid", () => {
 
   // Test 13: Click outside closes popover
   it("closes popover when clicking outside", () => {
-    const { container } = render(<HomePanel />);
-    const donutButtons = container.querySelectorAll('[role="button"]');
-    fireEvent.click(donutButtons[0]);
+    render(<HomePanel />);
+    const earningsButton = screen.getByRole("button", { name: /Earnings/i });
+    fireEvent.click(earningsButton);
     expect(screen.getByTestId("donut-popover")).toBeInTheDocument();
 
     // Click outside the popover

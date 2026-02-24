@@ -445,19 +445,25 @@ export default function HomePanel() {
                   key={m.label}
                   className="relative flex flex-col items-center text-center"
                 >
-                  <DonutChart
-                    percent={pct}
-                    color={m.color}
-                    size={48}
-                    strokeWidth={5}
-                    fontSize="text-[10px]"
+                  <button
+                    type="button"
+                    className="flex flex-col items-center text-center bg-transparent border-none p-0 cursor-pointer"
                     onClick={() =>
                       setOpenPopoverIndex(openPopoverIndex === i ? null : i)
                     }
-                  />
-                  <span className="text-[10px] font-medium text-gray-500 mt-1 truncate w-full">
-                    {m.label}
-                  </span>
+                  >
+                    <DonutChart
+                      percent={pct}
+                      color={m.color}
+                      size={48}
+                      strokeWidth={5}
+                      fontSize="text-[10px]"
+                      ariaLabel={m.label}
+                    />
+                    <span className="text-[10px] font-medium text-gray-500 mt-1 truncate w-full">
+                      {m.label}
+                    </span>
+                  </button>
                   {openPopoverIndex === i && (
                     <DonutMetricPopover
                       label={m.label}

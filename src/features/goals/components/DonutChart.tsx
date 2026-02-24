@@ -9,6 +9,7 @@ interface DonutChartProps {
   strokeWidth?: number;  // ring thickness in px (default 8)
   fontSize?: string;     // Tailwind text size class for center label (default "text-base")
   onClick?: () => void;  // optional tap handler
+  ariaLabel?: string;    // accessible name when interactive (role="button")
 }
 
 export default function DonutChart({
@@ -18,6 +19,7 @@ export default function DonutChart({
   strokeWidth = 8,
   fontSize = "text-base",
   onClick,
+  ariaLabel,
 }: DonutChartProps) {
   const [animatedPercent, setAnimatedPercent] = useState(0);
   const radius = (size - strokeWidth) / 2;
@@ -32,10 +34,22 @@ export default function DonutChart({
 
   return (
     <div
-      className={`relative${onClick ? " cursor-pointer" : ""}`}
+      className={`relative${onClick ? " cursor-pointer hover:opacity-80 transition-opacity duration-150 focus:outline-none focus:ring-2 focus:ring-[#403770] focus:ring-offset-2 rounded-full" : ""}`}
       style={{ width: size, height: size }}
       onClick={onClick}
       role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? ariaLabel : undefined}
+      onKeyDown={
+        onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
       <svg width={size} height={size} className="transform -rotate-90">
         <circle
@@ -57,7 +71,6 @@ export default function DonutChart({
           strokeDashoffset={offset}
           strokeLinecap="round"
           style={{ transition: "stroke-dashoffset 1s ease-out" }}
-          className={onClick ? "hover:opacity-80" : undefined}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
