@@ -13,9 +13,9 @@ function Skeleton() {
     <div className="space-y-2 px-3 py-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-plum/10 animate-pulse" />
-          <div className="h-3 w-20 bg-plum/10 rounded animate-pulse" />
-          <div className="h-3 w-16 bg-plum/10 rounded animate-pulse ml-auto" />
+          <div className="w-2.5 h-2.5 rounded-full bg-robins-egg/20 animate-pulse" />
+          <div className="h-3 w-20 bg-robins-egg/20 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-robins-egg/20 rounded animate-pulse ml-auto" />
         </div>
       ))}
     </div>

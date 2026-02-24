@@ -851,7 +851,7 @@ export default function LayerBubble() {
                   <button
                     type="button"
                     onClick={() => setCompareView("changes")}
-                    className={`flex-1 text-xs font-medium py-1.5 transition-colors ${
+                    className={`flex-1 text-xs font-medium py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-plum/20 ${
                       compareView === "changes"
                         ? "bg-plum text-white"
                         : "bg-white text-gray-600 hover:bg-gray-50"
@@ -861,16 +861,17 @@ export default function LayerBubble() {
                   </button>
                   <button
                     type="button"
+                    disabled={typeof window !== "undefined" && window.innerWidth < 768}
                     onClick={() => {
-                      // Check viewport width for side-by-side
-                      if (typeof window !== "undefined" && window.innerWidth < 768) return;
                       setCompareView("side_by_side");
                     }}
                     title={typeof window !== "undefined" && window.innerWidth < 768 ? "Wider screen required" : undefined}
-                    className={`flex-1 text-xs font-medium py-1.5 transition-colors border-l border-gray-200 ${
-                      compareView === "side_by_side"
-                        ? "bg-plum text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
+                    className={`flex-1 text-xs font-medium py-1.5 transition-colors border-l border-gray-200 focus:outline-none focus:ring-2 focus:ring-plum/20 ${
+                      typeof window !== "undefined" && window.innerWidth < 768
+                        ? "opacity-40 cursor-not-allowed bg-white text-gray-600"
+                        : compareView === "side_by_side"
+                          ? "bg-plum text-white"
+                          : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                   >
                     Side-by-Side
