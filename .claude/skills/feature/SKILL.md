@@ -1,0 +1,228 @@
+---
+name: feature
+description: Use when building a new feature end-to-end — orchestrates PRD creation with human input, codebase-aware review, implementation, design QA, testing, and code review with Slack notifications and human approval gates
+---
+
+# Feature Pipeline
+
+Autonomously build features through a 6-stage pipeline with two human checkpoints. Takes a feature description, produces a reviewed PRD, implemented code, tested and design-QA'd, with a final code review report.
+
+## When to Use
+
+- User says `/feature "description"` or asks to build a new feature end-to-end
+- User wants autonomous PRD + implementation + testing + review pipeline
+- NOT for: quick bug fixes, single-file changes, or exploration tasks
+
+## Configuration
+
+Read `.claude/skills/feature/config.json` for:
+- `slack_webhook_url` — Slack incoming webhook (skip notification if empty)
+- `max_prd_revisions` — Max agent-driven PRD revision cycles (default: 2)
+- `max_test_fix_attempts` — Max test fix attempts (default: 3)
+- `docs_path` — Where to save artifacts (default: `Docs/plans`)
+
+## Pipeline Overview
+
+```
+Phase 1: PRD
+  Step 0: Setup (parse input, create worktree)
+  Step 1: PRD Writer — explores codebase, asks human questions 1-by-1, writes first draft
+  Step 2: Agent Review Loop — 2 autonomous rounds (reviewer + writer revision)
+  Step 3: Slack notification + human approves final PRD
+
+Phase 2: Implementation
+  Step 4: Implementer — writes code per approved PRD
+  Step 5: Design QA — checks UI against Fullmind brand (skip if no UI)
+  Step 6: Test Writer — writes and runs tests (fix loop up to 3x)
+  Step 7: Code Reviewer — final review, writes report
+  Step 8: Slack notification + human does final review
+```
+
+## Execution Steps
+
+Follow these steps exactly. Do not skip or reorder.
+
+### Step 0: Setup
+
+1. Parse the feature description from user input
+2. Generate a slug: strip filler words, lowercase, hyphenate (e.g., "add export to CSV" -> `export-to-csv`)
+3. Set `DATE` to today: `YYYY-MM-DD`
+4. Read config from `.claude/skills/feature/config.json`
+5. Create a git worktree for isolation:
+   - Use the EnterWorktree tool with name set to the feature slug
+   - All subsequent work happens in this worktree
+
+### Step 1: PRD Writer (Human-in-the-Loop)
+
+Read the prompt template from `.claude/skills/feature/prompts/prd-writer.md`.
+
+Dispatch a Task subagent (subagent_type: "general-purpose"):
+- Replace `{{FEATURE_DESCRIPTION}}` with the user's feature description
+- Replace `{{DOCS_PATH}}` with config.docs_path
+- Replace `{{DATE}}` with today's date
+- Replace `{{SLUG}}` with the feature slug
+- Remove `{{REVISION_CONTEXT}}` section (first run)
+
+**Important:** This subagent will use AskUserQuestion to ask the human clarifying questions one at a time. The human's answers shape the first draft. This is the collaborative part — expect 3-6 questions before the PRD is written.
+
+Save the subagent's report (PRD file path and notes) for subsequent steps.
+
+### Step 2: Agent Review Loop (Autonomous, 2 Rounds)
+
+Read the prompt template from `.claude/skills/feature/prompts/prd-reviewer.md`.
+
+Run exactly 2 review-revise cycles:
+
+**Round 1:**
+1. Dispatch reviewer subagent (subagent_type: "general-purpose"):
+   - Replace `{{PRD_PATH}}` with the PRD file path from Step 1
+   - Replace `{{REVIEW_ROUND}}` with `1`
+2. If APPROVED -> skip to Step 3
+3. If REVISE -> dispatch PRD writer subagent with `{{REVISION_CONTEXT}}` set to reviewer feedback
+   - The revision writer does NOT ask human questions again — it silently revises based on agent feedback
+
+**Round 2:**
+1. Dispatch reviewer subagent with `{{REVIEW_ROUND}}` set to `2`
+2. If APPROVED -> proceed to Step 3
+3. If REVISE -> dispatch PRD writer for one final revision
+   - After this revision, proceed to Step 3 regardless (flag remaining issues)
+
+### Step 3: Slack Notification + Human PRD Approval
+
+1. If `slack_webhook_url` is not empty, send a Slack notification:
+
+```bash
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"text\":\"PRD ready for review: $FEATURE_NAME\nFile: $PRD_PATH\nAgent review rounds: $REVIEW_ROUNDS_COMPLETED\nStatus: $STATUS\"}"
+```
+
+2. Use AskUserQuestion to pause and present the PRD:
+   - Question: "The PRD is ready for your review at `[PRD_PATH]`. It went through [N] agent review rounds. What would you like to do?"
+   - Options:
+     - "Approve and continue to implementation"
+     - "Reject with feedback" (user provides notes)
+     - "Discard this feature"
+
+3. If rejected with feedback:
+   - Re-dispatch PRD Writer with the feedback as `{{REVISION_CONTEXT}}`
+   - Run one more reviewer pass
+   - Return to this step (re-present for approval)
+
+4. If approved -> proceed to Phase 2
+
+5. If discarded -> clean up worktree, stop pipeline
+
+### Step 4: Implementer
+
+Read the prompt template from `.claude/skills/feature/prompts/implementer.md`.
+
+Dispatch a Task subagent (subagent_type: "general-purpose"):
+- Replace `{{PRD_PATH}}` with the PRD file path
+- Replace `{{IMPLEMENTATION_CONTEXT}}` with:
+  - The PRD reviewer's final notes (if any)
+  - The human's approval notes (if any)
+  - The worktree directory path
+
+Save the implementer's report for subsequent stages.
+
+### Step 5: Design QA
+
+Read the prompt template from `.claude/skills/feature/prompts/design-qa.md`.
+
+First, check if the implementer's report mentions any `.tsx` files. If no UI files were created or modified, skip this stage and set `design_qa_report` to "SKIPPED — no UI changes".
+
+If UI changes exist, dispatch a Task subagent (subagent_type: "general-purpose"):
+- Replace `{{PRD_PATH}}` with the PRD file path
+- Replace `{{IMPLEMENTER_REPORT}}` with the implementer's report
+
+If issues found:
+- Re-dispatch the implementer with the design QA issues as `{{IMPLEMENTATION_CONTEXT}}`
+- Re-run design QA once more
+- If still issues after second pass, note them for the final report but proceed
+
+### Step 6: Test Writer + Fix Loop
+
+Read the prompt template from `.claude/skills/feature/prompts/test-writer.md`.
+
+Set `fix_attempt = 0`.
+
+**Loop:**
+
+1. Dispatch test writer subagent (subagent_type: "general-purpose"):
+   - Replace `{{PRD_PATH}}` with the PRD file path
+   - Replace `{{IMPLEMENTER_REPORT}}` with the implementer's report
+
+2. If all tests pass -> proceed to Step 7
+
+3. If tests fail and `fix_attempt < max_test_fix_attempts`:
+   - Increment fix_attempt
+   - Re-dispatch implementer with failing test details as `{{IMPLEMENTATION_CONTEXT}}`
+   - Go back to (1) — re-run test writer
+
+4. If tests fail and `fix_attempt >= max_test_fix_attempts`:
+   - Proceed to Step 7, but flag failures in the final report
+
+### Step 7: Code Reviewer
+
+Read the prompt template from `.claude/skills/feature/prompts/code-reviewer.md`.
+
+Dispatch a Task subagent (subagent_type: "general-purpose"):
+- Replace `{{PRD_PATH}}` with the PRD file path
+- Replace `{{IMPLEMENTER_REPORT}}` with the implementer's report
+- Replace `{{DESIGN_QA_REPORT}}` with the design QA result (or "SKIPPED")
+- Replace `{{TEST_REPORT}}` with the test writer's report
+- Replace `{{DOCS_PATH}}` with config.docs_path
+- Replace `{{DATE}}` with today's date
+- Replace `{{SLUG}}` with the feature slug
+- Replace `{{BASE_BRANCH}}` with `main`
+
+The reviewer writes the final report to `[docs_path]/[date]-[slug]-final-report.md`.
+
+### Step 8: Final Slack Notification + Human Review
+
+1. If `slack_webhook_url` is not empty, send Slack notification:
+
+```bash
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"text\":\"Feature ready for review: $FEATURE_NAME\nReport: $FINAL_REPORT_PATH\nRecommendation: $RECOMMENDATION\nTests: $TEST_SUMMARY\"}"
+```
+
+2. Present the final report summary to the user (read and display key sections)
+
+3. Use AskUserQuestion:
+   - Question: "Feature implementation is complete. The final report is at `[path]`. What would you like to do?"
+   - Options:
+     - "Merge to main"
+     - "Create a PR"
+     - "I'll review the worktree manually"
+     - "Discard"
+
+4. Based on choice:
+   - **Merge**: merge the worktree branch into main
+   - **PR**: use `gh pr create` with the final report summary as the PR body
+   - **Manual review**: print the worktree path and branch name
+   - **Discard**: clean up the worktree
+
+## Error Handling
+
+- If any subagent fails or returns unclear results -> pause and present the issue to the user via AskUserQuestion with options to retry, skip the stage, or abort
+- If Slack webhook call fails -> log the error but continue (notifications are non-blocking)
+- If worktree creation fails -> fall back to creating a new branch on the current repo
+
+## Artifacts
+
+For a feature with slug `export-to-csv`:
+
+```
+Docs/plans/
+  2026-02-24-export-to-csv-prd.md           # The approved PRD
+  2026-02-24-export-to-csv-final-report.md   # Code review + summary
+
+src/features/...                              # Implementation code
+src/features/.../__tests__/...                # Test files
+prisma/migrations/...                         # Schema changes (if needed)
+```
+
+Plus a git branch in the worktree with clean, reviewable commits.
