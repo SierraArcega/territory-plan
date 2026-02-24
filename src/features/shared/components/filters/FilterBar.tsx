@@ -2,30 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import type { AccountTypeValue } from "@/features/shared/types/account-types";
-
-// Status mapping: simplified labels -> V2 store filterAccountTypes
-// These values are passed to the Mapbox filter as account_type tile property matches.
-// Cast to AccountTypeValue[] at the store boundary.
-const STATUS_OPTIONS: Array<{
-  value: string;
-  label: string;
-  accountTypes: string[];
-}> = [
-  { value: "all", label: "All Districts", accountTypes: [] },
-  { value: "customer", label: "Customers", accountTypes: ["customer"] },
-  { value: "pipeline", label: "Pipeline", accountTypes: ["prospect"] },
-  {
-    value: "customer_pipeline",
-    label: "Customer + Pipeline",
-    accountTypes: ["customer", "prospect"],
-  },
-  {
-    value: "no_data",
-    label: "No Fullmind Data",
-    accountTypes: ["investigation", "administrative"],
-  },
-];
 
 interface SearchResult {
   leaid: string;
@@ -46,21 +22,9 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
   const setFilterOwner = useMapV2Store((s) => s.setFilterOwner);
   const filterPlanId = useMapV2Store((s) => s.filterPlanId);
   const setFilterPlanId = useMapV2Store((s) => s.setFilterPlanId);
-  const filterAccountTypes = useMapV2Store((s) => s.filterAccountTypes);
-  const setFilterAccountTypes = useMapV2Store((s) => s.setFilterAccountTypes);
   const selectDistrict = useMapV2Store((s) => s.selectDistrict);
 
   const isMapTab = activeTab === "map";
-
-  // Derive current status value from filterAccountTypes
-  const currentStatus =
-    STATUS_OPTIONS.find(
-      (opt) =>
-        opt.accountTypes.length === filterAccountTypes.length &&
-        opt.accountTypes.every((t) =>
-          (filterAccountTypes as string[]).includes(t),
-        ),
-    )?.value ?? "all";
 
   // Fetch filter options (same pattern as LayerBubble)
   const [owners, setOwners] = useState<string[]>([]);
@@ -174,14 +138,12 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
   const hasActiveFilters =
     filterStates.length > 0 ||
     filterOwner ||
-    filterPlanId ||
-    filterAccountTypes.length > 0;
+    filterPlanId;
 
   const handleClearFilters = () => {
     setFilterStates([]);
     setFilterOwner(null);
     setFilterPlanId(null);
-    setFilterAccountTypes([]);
   };
 
   const selectStyle =
@@ -384,26 +346,6 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
               )}
             </div>
 
-            {/* Status Dropdown */}
-            <select
-              value={currentStatus}
-              onChange={(e) => {
-                const opt = STATUS_OPTIONS.find(
-                  (o) => o.value === e.target.value,
-                );
-                setFilterAccountTypes(
-                  (opt?.accountTypes ?? []) as AccountTypeValue[],
-                );
-              }}
-              className={selectStyle}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
             {/* Owner Dropdown */}
             <select
               value={filterOwner || ""}
@@ -467,11 +409,6 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
               {filterStates.length <= 3
                 ? filterStates.sort().join(", ")
                 : `${filterStates.length} states`}
-            </span>
-          )}
-          {currentStatus !== "all" && (
-            <span className="px-2 py-0.5 bg-plum/10 text-plum rounded">
-              {STATUS_OPTIONS.find((o) => o.value === currentStatus)?.label}
             </span>
           )}
           {filterOwner && (
