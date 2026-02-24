@@ -12,8 +12,8 @@ function Skeleton() {
     <div className="flex items-center gap-3 xl:gap-5 px-3 xl:px-5 py-2.5 xl:py-3">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1">
-          <div className="h-2.5 w-12 bg-[#C4E7E6]/20 rounded animate-pulse" />
-          <div className="h-4 w-16 bg-[#C4E7E6]/15 rounded animate-pulse" />
+          <div className="h-2.5 w-12 bg-robins-egg/20 rounded animate-pulse" />
+          <div className="h-4 w-16 bg-robins-egg/15 rounded animate-pulse" />
         </div>
       ))}
     </div>
@@ -23,11 +23,11 @@ function Skeleton() {
 function Stat({ label, compactLabel, value }: { label: string; compactLabel: string; value: string }) {
   return (
     <div className="flex flex-col items-start">
-      <span className="text-[10px] xl:text-[11px] font-medium text-[#403770]/50 uppercase tracking-wider leading-none">
+      <span className="text-[10px] xl:text-[11px] font-medium text-plum/50 uppercase tracking-wider leading-none">
         <span className="xl:hidden">{compactLabel}</span>
         <span className="hidden xl:inline">{label}</span>
       </span>
-      <span className="text-[13px] xl:text-[15px] font-semibold text-[#403770] tabular-nums leading-tight mt-0.5">
+      <span className="text-[13px] xl:text-[15px] font-semibold text-plum tabular-nums leading-tight mt-0.5">
         {value}
       </span>
     </div>
@@ -35,7 +35,7 @@ function Stat({ label, compactLabel, value }: { label: string; compactLabel: str
 }
 
 function Sep({ className = "h-5 xl:h-6" }: { className?: string }) {
-  return <div className={`w-px bg-[#403770]/10 shrink-0 ${className}`} />;
+  return <div className={`w-px bg-plum/10 shrink-0 ${className}`} />;
 }
 
 const METRIC_CONFIG: Record<MetricId, { label: string; compactLabel: string; format: (t: SummaryTotals) => string }> = {
@@ -56,7 +56,7 @@ const METRIC_CONFIG: Record<MetricId, { label: string; compactLabel: string; for
 function FinancialStats({
   t,
   unfilteredCount,
-  height = "h-6",
+  height = "h-5 xl:h-6",
 }: {
   t: SummaryTotals;
   unfilteredCount?: number;
@@ -111,7 +111,7 @@ function VendorRow({
           className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
           style={{ backgroundColor: palette.dotColor }}
         />
-        <span className="text-xs font-medium text-[#403770]/70 truncate">{label}</span>
+        <span className="text-xs font-medium text-plum/70 truncate">{label}</span>
       </div>
       <FinancialStats t={entry.totals} unfilteredCount={unfilteredCount} height="h-4 xl:h-5" />
     </div>
@@ -139,7 +139,7 @@ export default function MapSummaryBar() {
       <div className="absolute bottom-6 left-6 z-10">
         <button
           onClick={toggleSummaryBar}
-          className="bg-[#FFFCFA]/85 backdrop-blur-md rounded-lg ring-1 ring-[#403770]/[0.06] border border-white/60 px-3 py-2 text-xs font-medium text-[#403770]/50 hover:text-[#403770]/70 transition-colors"
+          className="bg-off-white/85 backdrop-blur-md rounded-lg ring-1 ring-plum/[0.06] border border-white/60 px-3 py-2 text-xs font-medium text-plum/50 hover:text-plum/70 transition-colors"
           style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)" }}
           title="Show summary bar"
         >
@@ -156,7 +156,7 @@ export default function MapSummaryBar() {
   return (
     <div className="absolute bottom-6 left-6 z-10">
       <div
-        className="bg-[#FFFCFA]/85 backdrop-blur-md rounded-xl ring-1 ring-[#403770]/[0.06] border border-white/60"
+        className="bg-off-white/85 backdrop-blur-md rounded-xl ring-1 ring-plum/[0.06] border border-white/60"
         style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)" }}
       >
         <ViewActionsBar />
@@ -171,7 +171,7 @@ export default function MapSummaryBar() {
               />
               <button
                 onClick={toggleSummaryBar}
-                className="ml-auto text-[#403770]/25 hover:text-[#403770]/50 p-0.5 rounded transition-colors shrink-0"
+                className="ml-auto text-plum/25 hover:text-plum/50 p-0.5 rounded transition-colors shrink-0"
                 title="Hide summary bar"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
@@ -181,7 +181,7 @@ export default function MapSummaryBar() {
             </div>
             {showVendorBreakdown && (
               <>
-                <div className="h-px bg-[#403770]/10 mx-3" />
+                <div className="h-px bg-plum/10 mx-3" />
                 {VENDOR_IDS.filter((v) => activeVendors.has(v)).map((vendorId) => (
                   <VendorRow
                     key={vendorId}
