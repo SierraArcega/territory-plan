@@ -10,6 +10,7 @@ export default function MultiSelectChip() {
   const createPlanFromSelection = useMapV2Store((s) => s.createPlanFromSelection);
   const toggleMultiSelectMode = useMapV2Store((s) => s.toggleMultiSelectMode);
   const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
+  const summaryBarVisible = useMapV2Store((s) => s.summaryBarVisible);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export default function MultiSelectChip() {
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 chip-enter" ref={dropdownRef}>
+    <div className={`absolute left-1/2 -translate-x-1/2 z-20 chip-enter ${summaryBarVisible ? "bottom-24" : "bottom-6"}`} ref={dropdownRef}>
       {/* Toast */}
       {toast && (
         <div className="absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
