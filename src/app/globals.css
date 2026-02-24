@@ -9,6 +9,7 @@
   --color-robins-egg: #C4E7E6;
   --color-mint: #EDFFE3;
   --color-off-white: #FFFCFA;
+  --color-sage: #8AA891;
 
   --background: var(--color-off-white);
   --foreground: var(--color-plum);
@@ -26,6 +27,7 @@
   --color-robins-egg: #C4E7E6;
   --color-mint: #EDFFE3;
   --color-off-white: #FFFCFA;
+  --color-sage: #8AA891;
 }
 
 *,

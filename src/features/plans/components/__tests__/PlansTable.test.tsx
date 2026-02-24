@@ -46,6 +46,10 @@ const mockPlans: TerritoryPlan[] = [
     collaborators: [],
     taskCount: 0,
     completedTaskCount: 0,
+    renewalRollup: 0,
+    expansionRollup: 0,
+    winbackRollup: 0,
+    newBusinessRollup: 0,
   },
   {
     id: "plan-2",
@@ -66,6 +70,10 @@ const mockPlans: TerritoryPlan[] = [
     collaborators: [],
     taskCount: 0,
     completedTaskCount: 0,
+    renewalRollup: 0,
+    expansionRollup: 0,
+    winbackRollup: 0,
+    newBusinessRollup: 0,
   },
   {
     id: "plan-3",
@@ -86,6 +94,10 @@ const mockPlans: TerritoryPlan[] = [
     collaborators: [],
     taskCount: 0,
     completedTaskCount: 0,
+    renewalRollup: 0,
+    expansionRollup: 0,
+    winbackRollup: 0,
+    newBusinessRollup: 0,
   },
 ];
 

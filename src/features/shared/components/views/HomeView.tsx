@@ -27,6 +27,11 @@ import CalendarInboxWidget from "@/features/calendar/components/CalendarInboxWid
 import LeadingIndicatorsPanel from "@/features/progress/components/LeadingIndicatorsPanel";
 import LaggingIndicatorsPanel from "@/features/progress/components/LaggingIndicatorsPanel";
 import DonutChart from "@/features/goals/components/DonutChart";
+import FlippablePlanCard from "@/features/plans/components/FlippablePlanCard";
+import PlanCardFilters, {
+  filterAndSortPlans,
+  type PlanSortKey,
+} from "@/features/plans/components/PlanCardFilters";
 
 // ============================================================================
 // Helpers
@@ -274,6 +279,8 @@ export default function HomeView() {
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [showGoalEditor, setShowGoalEditor] = useState(false);
+  const [planOwnerId, setPlanOwnerId] = useState<string | null>(null);
+  const [planSortBy, setPlanSortBy] = useState<PlanSortKey>("updated");
 
   const firstName = profile?.fullName?.split(" ")[0] || "there";
 
@@ -291,8 +298,12 @@ export default function HomeView() {
     taskTab === "upcoming" ? upcomingTasks : taskTab === "overdue" ? overdueTasks : completedTasks;
   const visibleTasks = displayedTasks.slice(0, MAX_VISIBLE_TASKS);
 
-  // Plans
-  const displayPlans = plans?.slice(0, MAX_VISIBLE_PLANS) || [];
+  // Plans — apply filter + sort, then limit for display
+  const allDisplayPlans = useMemo(
+    () => filterAndSortPlans(plans || [], planOwnerId, planSortBy),
+    [plans, planOwnerId, planSortBy],
+  );
+  const displayPlans = allDisplayPlans.slice(0, MAX_VISIBLE_PLANS);
 
   // Header stats
   const totalOverdueCount = overdueTasks.length;
@@ -470,7 +481,16 @@ export default function HomeView() {
                 </button>
               </div>
               <div className="flex-1 px-5 pb-5">
-                <div className="grid grid-cols-2 gap-3">
+                <PlanCardFilters
+                  plans={plans || []}
+                  selectedOwnerId={planOwnerId}
+                  onOwnerChange={setPlanOwnerId}
+                  sortBy={planSortBy}
+                  onSortChange={setPlanSortBy}
+                  variant="full"
+                />
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3">
+                  {/* Create plan button (first grid position) */}
                   <button
                     onClick={() => setShowPlanForm(true)}
                     className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#F37167] hover:text-[#F37167] transition-all group"
@@ -483,30 +503,18 @@ export default function HomeView() {
                     <span className="text-sm font-medium">Create plan</span>
                   </button>
                   {displayPlans.map((plan) => (
-                    <button
+                    <FlippablePlanCard
                       key={plan.id}
-                      onClick={() => {
-                        // Push URL with plan param, then dispatch popstate so
-                        // page.tsx reads both tab and plan from the URL
+                      plan={plan}
+                      variant="full"
+                      onNavigate={(id) => {
                         const params = new URLSearchParams(window.location.search);
                         params.set("tab", "plans");
-                        params.set("plan", plan.id);
+                        params.set("plan", id);
                         window.history.pushState(null, "", `?${params.toString()}`);
                         window.dispatchEvent(new PopStateEvent("popstate"));
                       }}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:shadow-md transition-all text-left"
-                    >
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
-                        style={{ backgroundColor: plan.color }}
-                      >
-                        {plan.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[#403770] truncate">{plan.name}</p>
-                        <p className="text-xs text-gray-400">{plan.districtCount} district{plan.districtCount !== 1 ? "s" : ""}</p>
-                      </div>
-                    </button>
+                    />
                   ))}
                 </div>
               </div>

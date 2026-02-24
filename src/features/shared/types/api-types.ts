@@ -304,6 +304,10 @@ export interface TerritoryPlan {
   collaborators: PlanCollaborator[];
   taskCount: number;
   completedTaskCount: number;
+  renewalRollup: number;
+  expansionRollup: number;
+  winbackRollup: number;
+  newBusinessRollup: number;
 }
 
 export interface TerritoryPlanDistrict {

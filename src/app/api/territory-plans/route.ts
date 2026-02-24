@@ -91,6 +91,10 @@ export async function GET() {
         })),
         taskCount,
         completedTaskCount,
+        renewalRollup: Number(plan.renewalRollup),
+        expansionRollup: Number(plan.expansionRollup),
+        winbackRollup: Number(plan.winbackRollup),
+        newBusinessRollup: Number(plan.newBusinessRollup),
       };
     });
 
@@ -208,6 +212,10 @@ export async function POST(request: NextRequest) {
         collaborators: plan.collaborators.map((pc) => ({ id: pc.user.id, fullName: pc.user.fullName, avatarUrl: pc.user.avatarUrl })),
         taskCount: 0,
         completedTaskCount: 0,
+        renewalRollup: 0,
+        expansionRollup: 0,
+        winbackRollup: 0,
+        newBusinessRollup: 0,
       },
       { status: 201 }
     );

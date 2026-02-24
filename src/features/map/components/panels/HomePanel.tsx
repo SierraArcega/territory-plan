@@ -13,6 +13,11 @@ import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
 import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 import DonutChart from "@/features/goals/components/DonutChart";
 import DonutMetricPopover from "@/features/goals/components/DonutMetricPopover";
+import FlippablePlanCard from "@/features/plans/components/FlippablePlanCard";
+import PlanCardFilters, {
+  filterAndSortPlans,
+  type PlanSortKey,
+} from "@/features/plans/components/PlanCardFilters";
 
 const FISCAL_YEARS = [2026, 2027, 2028, 2029];
 
@@ -38,6 +43,8 @@ export default function HomePanel() {
   const locationInputRef = useRef<HTMLDivElement>(null);
 
   const [selectedFY, setSelectedFY] = useState(2027);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<PlanSortKey>("updated");
 
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
@@ -51,6 +58,12 @@ export default function HomePanel() {
   const fyPlans = useMemo(
     () => plans?.filter((p) => p.fiscalYear === selectedFY) || [],
     [plans, selectedFY],
+  );
+
+  // Apply owner filter + sort to FY-filtered plans
+  const displayedPlans = useMemo(
+    () => filterAndSortPlans(fyPlans, selectedOwnerId, sortBy),
+    [fyPlans, selectedOwnerId, sortBy],
   );
 
   // Goal metrics for selected FY
@@ -505,26 +518,26 @@ export default function HomePanel() {
             </p>
           </div>
         ) : (
-          <div className="space-y-0.5">
-            {fyPlans.map((plan) => (
-              <button
-                key={plan.id}
-                onClick={() => viewPlan(plan.id)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left group"
-              >
-                <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: plan.color }}
+          <>
+            <PlanCardFilters
+              plans={fyPlans}
+              selectedOwnerId={selectedOwnerId}
+              onOwnerChange={setSelectedOwnerId}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              variant="compact"
+            />
+            <div className="space-y-2">
+              {displayedPlans.map((plan) => (
+                <FlippablePlanCard
+                  key={plan.id}
+                  plan={plan}
+                  variant="compact"
+                  onNavigate={(id) => viewPlan(id)}
                 />
-                <span className="text-xs text-plum truncate flex-1 group-hover:text-plum/80">
-                  {plan.name}
-                </span>
-                <span className="text-[10px] text-gray-300 tabular-nums">
-                  {plan.districtCount}
-                </span>
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
         <button
           onClick={startNewPlan}
