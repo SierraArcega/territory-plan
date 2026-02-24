@@ -4,7 +4,9 @@ import { useEffect, forwardRef } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  multi_year: "Multi-year customer",
+  multi_year_growing: "Multi-year (Growing)",
+  multi_year_flat: "Multi-year (Flat)",
+  multi_year_shrinking: "Multi-year (Shrinking)",
   new: "New this year",
   lapsed: "Lapsed customer",
   pipeline: "In pipeline",
@@ -12,7 +14,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  multi_year: "#403770",
+  multi_year_growing: "#4ECDC4",
+  multi_year_flat: "#403770",
+  multi_year_shrinking: "#F37167",
   new: "#22C55E",
   lapsed: "#F37167",
   pipeline: "#F59E0B",

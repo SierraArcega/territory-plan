@@ -22,19 +22,17 @@ export default function FloatingPanel() {
   const hasDistrictDetail =
     rightPanelContent?.type === "district_card" && isInPlanWorkspace;
 
-  const panelWidth = panelMode === "collapsed" || panelMode === "hidden"
-    ? "w-[56px]"
-    : hasDistrictDetail
-      ? "w-[65vw] max-w-[900px]"
-      : rightPanelContent && isInPlanWorkspace
-        ? "w-[50vw] max-w-[720px]"
-        : "w-[33vw] min-w-[340px] max-w-[520px]";
+  const panelWidth = hasDistrictDetail
+    ? "w-[65vw] max-w-[900px]"
+    : rightPanelContent && isInPlanWorkspace
+      ? "w-[50vw] max-w-[720px]"
+      : "w-[33vw] min-w-[340px] max-w-[520px]";
 
   // Auto-collapse on tablet viewport
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
-      if (e.matches) setPanelMode("collapsed");
+      if (e.matches) setPanelMode("hidden");
     };
     handler(mq);
     mq.addEventListener("change", handler);
@@ -64,21 +62,17 @@ export default function FloatingPanel() {
               flex flex-row overflow-hidden
               transition-all duration-300 ease-out
               panel-v2-enter
-              ${panelWidth} ${panelMode === "collapsed" ? "bottom-10" : hasDistrictDetail ? "bottom-10" : "bottom-[50%]"}
+              ${panelWidth} ${hasDistrictDetail ? "bottom-10" : "bottom-[50%]"}
             `}
           >
             {/* Icon strip */}
             <IconBar />
 
             {/* Content area + optional right panel */}
-            {panelMode === "full" && (
-              <>
-                <div className="flex-1 flex flex-col min-w-0 overflow-hidden v2-scrollbar panel-content-enter">
-                  <PanelContent />
-                </div>
-                {isInPlanWorkspace && <RightPanel />}
-              </>
-            )}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden v2-scrollbar panel-content-enter">
+              <PanelContent />
+            </div>
+            {isInPlanWorkspace && <RightPanel />}
           </div>
         )}
       </div>
@@ -96,29 +90,13 @@ export default function FloatingPanel() {
             </svg>
             <span className="text-sm font-medium text-gray-500">Menu</span>
           </button>
-        ) : panelMode !== "full" ? (
-          /* Collapsed: floating bottom bar */
-          <button
-            onClick={() => setPanelMode("full")}
-            className="absolute bottom-4 left-4 right-4 z-10 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="7.5" stroke="#403770" strokeWidth="1.5" />
-              <circle cx="10" cy="10" r="1.5" fill="#403770" />
-              <path d="M10 4V6.5M10 13.5V16M4 10H6.5M13.5 10H16" stroke="#403770" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <span className="text-sm font-medium text-gray-700">Explore Districts</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="ml-auto">
-              <path d="M3 7.5L6 4.5L9 7.5" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
         ) : (
           /* Expanded: bottom drawer */
           <>
             {/* Backdrop */}
             <div
               className="absolute inset-0 z-10 bg-black/20"
-              onClick={() => setPanelMode("collapsed")}
+              onClick={() => setPanelMode("hidden")}
             />
             <div className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm rounded-t-2xl shadow-lg max-h-[70vh] flex flex-col">
               {/* Drag handle */}

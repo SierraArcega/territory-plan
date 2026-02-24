@@ -203,7 +203,7 @@ export default function MapV2Container() {
       // Add district tiles source (cache-bust via version param)
       map.current.addSource("districts", {
         type: "vector",
-        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4&fy=fy26`],
+        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=fy26`],
         minzoom: 3.5,
         maxzoom: 12,
       });
@@ -855,7 +855,7 @@ export default function MapV2Container() {
     const source = map.current.getSource("districts") as any;
     if (!source) return;
 
-    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=4&fy=${selectedFiscalYear}`;
+    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${selectedFiscalYear}`;
     source.setTiles([newUrl]);
 
     // Clear tile cache and force re-fetch

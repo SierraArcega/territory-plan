@@ -46,7 +46,10 @@ const EMPTY_TOTALS: SummaryTotals = {
  */
 const ENGAGEMENT_TO_CATEGORIES: Record<string, string[]> = {
   target: ["target"],
-  pipeline: ["new_pipeline", "renewal_pipeline", "expansion_pipeline"],
+  renewal_pipeline: ["renewal_pipeline"],
+  expansion_pipeline: ["expansion_pipeline"],
+  new_business_pipeline: ["new_business_pipeline"],
+  winback_pipeline: ["winback_pipeline"],
   first_year: ["new"],
   multi_year_growing: ["multi_year_growing"],
   multi_year_flat: ["multi_year_flat"],

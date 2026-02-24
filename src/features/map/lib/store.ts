@@ -72,6 +72,7 @@ export interface MapViewState {
   visibleLocales: string[];
   visibleSchoolTypes: string[];
   selectedFiscalYear: string;
+  visibleMetrics: string[];
 }
 
 export interface RightPanelContent {
@@ -148,7 +149,7 @@ interface MapV2State {
   clickRipples: Array<{ id: number; x: number; y: number; color: "coral" | "plum" }>;
 
   // Panel visibility
-  panelMode: "full" | "collapsed" | "hidden";
+  panelMode: "full" | "hidden";
 
   // Layer bubble
   layerBubbleOpen: boolean;
@@ -184,6 +185,10 @@ interface MapV2State {
   // Per-category color and opacity overrides
   categoryColors: Record<string, string>;
   categoryOpacities: Record<string, number>;
+
+  // Summary bar visibility & metric visibility
+  summaryBarVisible: boolean;
+  visibleMetrics: Set<string>;
 
   /** Serialized snapshot of map state at last save/load. null = never saved. */
   lastSavedSnapshot: string | null;
@@ -272,8 +277,8 @@ interface MapV2Actions {
   removeClickRipple: (id: number) => void;
 
   // Panel visibility
-  setPanelMode: (mode: "full" | "collapsed" | "hidden") => void;
-  collapsePanel: () => void; // full→collapsed→hidden
+  setPanelMode: (mode: "full" | "hidden") => void;
+  collapsePanel: () => void; // full↔hidden
 
   // Layer bubble
   setLayerBubbleOpen: (open: boolean) => void;
@@ -321,6 +326,10 @@ interface MapV2Actions {
   getViewSnapshot: () => MapViewState;
   applyViewSnapshot: (state: MapViewState) => void;
 
+  // Summary bar visibility & metric visibility
+  toggleSummaryBar: () => void;
+  toggleMetric: (metricId: string) => void;
+
   // Account creation form
   openAccountForm: (defaults?: { name?: string }) => void;
   closeAccountForm: () => void;
@@ -367,6 +376,24 @@ const initialTooltip: V2TooltipState = {
   data: null,
 };
 
+/** All metric IDs shown in the summary bar, in display order */
+export const ALL_METRIC_IDS = [
+  "districts",
+  "enrollment",
+  "pipeline",
+  "bookings",
+  "invoicing",
+  "scheduledRevenue",
+  "deliveredRevenue",
+  "deferredRevenue",
+  "totalRevenue",
+  "deliveredTake",
+  "scheduledTake",
+  "allTake",
+] as const;
+
+export type MetricId = (typeof ALL_METRIC_IDS)[number];
+
 function serializeMapState(s: MapV2State & MapV2Actions): string {
   return JSON.stringify({
     activeVendors: [...s.activeVendors].sort(),
@@ -383,6 +410,7 @@ function serializeMapState(s: MapV2State & MapV2Actions): string {
     categoryOpacities: s.categoryOpacities,
     vendorPalettes: s.vendorPalettes,
     signalPalette: s.signalPalette,
+    visibleMetrics: [...s.visibleMetrics].sort(),
   });
 }
 
@@ -422,6 +450,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75 },
   categoryColors: { ...DEFAULT_CATEGORY_COLORS },
   categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
+  summaryBarVisible: true,
+  visibleMetrics: new Set<string>(ALL_METRIC_IDS),
   lastSavedSnapshot: null,
   showAccountForm: false,
   accountFormDefaults: null,
@@ -685,7 +715,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   setPanelMode: (mode) => set({ panelMode: mode }),
   collapsePanel: () =>
     set((s) => ({
-      panelMode: s.panelMode === "full" ? "collapsed" : "hidden",
+      panelMode: s.panelMode === "full" ? "hidden" : "full",
     })),
 
   // Layer bubble
@@ -822,6 +852,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       visibleLocales: [...s.visibleLocales].sort(),
       visibleSchoolTypes: [...s.visibleSchoolTypes].sort(),
       selectedFiscalYear: s.selectedFiscalYear,
+      visibleMetrics: [...s.visibleMetrics].sort(),
     };
   },
 
@@ -842,8 +873,24 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       visibleLocales: new Set(state.visibleLocales as LocaleId[]),
       visibleSchoolTypes: new Set(state.visibleSchoolTypes as SchoolType[]),
       selectedFiscalYear: state.selectedFiscalYear as "fy24" | "fy25" | "fy26" | "fy27",
+      visibleMetrics: new Set(state.visibleMetrics ?? ALL_METRIC_IDS as unknown as string[]),
     });
   },
+
+  // Summary bar visibility
+  toggleSummaryBar: () => set((s) => ({ summaryBarVisible: !s.summaryBarVisible })),
+
+  // Summary bar metric visibility
+  toggleMetric: (metricId) =>
+    set((s) => {
+      const next = new Set(s.visibleMetrics);
+      if (next.has(metricId)) {
+        if (next.size > 1) next.delete(metricId);
+      } else {
+        next.add(metricId);
+      }
+      return { visibleMetrics: next };
+    }),
 
   // Account creation form
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),

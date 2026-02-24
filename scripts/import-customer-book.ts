@@ -5,6 +5,8 @@
 //   2. Creates or matches territory plans by name + fiscal year
 //   3. Sets per-district targets (renewal, expansion, winback, new business)
 //   4. Updates FY27 pipeline on the district record
+//   5. Upserts vendor_financials (bookings, revenue, pipeline, etc.) for FY24-FY27
+//   6. Refreshes the district_map_features materialized view
 //
 // Usage:
 //   npx tsx scripts/import-customer-book.ts                          # live run
@@ -68,11 +70,90 @@ interface CSVRow {
   planName: string;
   fiscalYear: number;
   owner: string;
+  company: string;
   renewalTarget: number;
   expansionTarget: number;
   winbackTarget: number;
   newBusinessTarget: number;
   fy27Pipeline: number;
+  fy24Bookings: number;
+  fy24Revenue: number;
+  fy25Bookings: number;
+  fy25Revenue: number;
+  fy26Pipeline: number;
+  fy26Bookings: number;
+  fy26Delivered: number;
+  fy26Scheduled: number;
+  fy26DeferredRevenue: number;
+  fy26Revenue: number;
+  fy27PipelineVF: number;
+}
+
+// ── Vendor mapping ──────────────────────────────────────────────────
+// Maps the "Company" column from the CSV to a vendor_financials vendor ID
+function mapCompanyToVendor(company: string): string | null {
+  const lower = company.toLowerCase();
+  if (lower.includes("elevate")) return "elevate";
+  return null;
+}
+
+// ── Build per-FY financial entries from a CSV row ───────────────────
+// Returns an array of { fiscalYear, data } objects for each FY that has
+// at least one non-zero financial value.
+function buildFinancialEntries(row: CSVRow) {
+  const entries: { fiscalYear: string; data: Record<string, number> }[] = [];
+
+  // FY24
+  if (row.fy24Bookings || row.fy24Revenue) {
+    entries.push({
+      fiscalYear: "FY24",
+      data: {
+        closedWonBookings: row.fy24Bookings,
+        totalRevenue: row.fy24Revenue,
+      },
+    });
+  }
+
+  // FY25
+  if (row.fy25Bookings || row.fy25Revenue) {
+    entries.push({
+      fiscalYear: "FY25",
+      data: {
+        closedWonBookings: row.fy25Bookings,
+        totalRevenue: row.fy25Revenue,
+      },
+    });
+  }
+
+  // FY26
+  if (
+    row.fy26Pipeline || row.fy26Bookings || row.fy26Delivered ||
+    row.fy26Scheduled || row.fy26DeferredRevenue || row.fy26Revenue
+  ) {
+    entries.push({
+      fiscalYear: "FY26",
+      data: {
+        openPipeline: row.fy26Pipeline,
+        closedWonBookings: row.fy26Bookings,
+        deliveredRevenue: row.fy26Delivered,
+        scheduledRevenue: row.fy26Scheduled,
+        deferredRevenue: row.fy26DeferredRevenue,
+        totalRevenue: row.fy26Revenue,
+      },
+    });
+  }
+
+  // FY27
+  if (row.fy27PipelineVF) {
+    entries.push({
+      fiscalYear: "FY27",
+      data: {
+        openPipeline: row.fy27PipelineVF,
+      },
+    });
+  }
+
+  return entries;
 }
 
 // ── Parse all rows from CSV ────────────────────────────────────────
@@ -114,11 +195,23 @@ function parseCSV(filePath: string): CSVRow[] {
       planName: fields[3]?.trim() || "",
       fiscalYear,
       owner: fields[5]?.trim() || "",
-      renewalTarget: parseDollar(fields[7] || ""),
-      expansionTarget: parseDollar(fields[8] || ""),
-      winbackTarget: parseDollar(fields[9] || ""),
-      newBusinessTarget: parseDollar(fields[10] || ""),
-      fy27Pipeline: parseDollar(fields[11] || ""),
+      company: fields[6]?.trim() || "",
+      renewalTarget: parseDollar(fields[8] || ""),
+      expansionTarget: parseDollar(fields[9] || ""),
+      winbackTarget: parseDollar(fields[10] || ""),
+      newBusinessTarget: parseDollar(fields[11] || ""),
+      fy27Pipeline: parseDollar(fields[12] || ""),
+      fy24Bookings: parseDollar(fields[14] || ""),
+      fy24Revenue: parseDollar(fields[15] || ""),
+      fy25Bookings: parseDollar(fields[17] || ""),
+      fy25Revenue: parseDollar(fields[18] || ""),
+      fy26Pipeline: parseDollar(fields[20] || ""),
+      fy26Bookings: parseDollar(fields[21] || ""),
+      fy26Delivered: parseDollar(fields[22] || ""),
+      fy26Scheduled: parseDollar(fields[23] || ""),
+      fy26DeferredRevenue: parseDollar(fields[26] || ""),
+      fy26Revenue: parseDollar(fields[27] || ""),
+      fy27PipelineVF: parseDollar(fields[29] || ""),
     });
   }
 
@@ -174,6 +267,7 @@ async function main() {
   let districtsCreated = 0;
   let targetsUpserted = 0;
   let pipelineUpdated = 0;
+  let financialsUpserted = 0;
   let ownersSet = 0;
   const errors: string[] = [];
 
@@ -262,6 +356,15 @@ async function main() {
       }
       targetsUpserted++;
       if (row.fy27Pipeline > 0) pipelineUpdated++;
+      // Count financial rows that would be upserted
+      const vendorId = mapCompanyToVendor(row.company);
+      if (vendorId) {
+        const fyEntries = buildFinancialEntries(row);
+        financialsUpserted += fyEntries.length;
+        if (fyEntries.length > 0) {
+          console.log(`  [dry-run] Would upsert ${fyEntries.length} vendor_financials rows for ${row.leaid} (${vendorId})`);
+        }
+      }
       continue;
     }
 
@@ -325,6 +428,31 @@ async function main() {
         });
         pipelineUpdated++;
       }
+
+      // 5e. Upsert vendor_financials for each FY with non-zero data
+      const vendorId = mapCompanyToVendor(row.company);
+      if (vendorId) {
+        const fyEntries = buildFinancialEntries(row);
+        for (const entry of fyEntries) {
+          await prisma.vendorFinancials.upsert({
+            where: {
+              leaid_vendor_fiscalYear: {
+                leaid: row.leaid,
+                vendor: vendorId,
+                fiscalYear: entry.fiscalYear,
+              },
+            },
+            create: {
+              leaid: row.leaid,
+              vendor: vendorId,
+              fiscalYear: entry.fiscalYear,
+              ...entry.data,
+            },
+            update: entry.data,
+          });
+          financialsUpserted++;
+        }
+      }
     } catch (err) {
       errors.push(`Row ${i + 3}: DB error for "${row.accountName}" (${row.leaid}) — ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -344,6 +472,7 @@ async function main() {
   console.log(`  Districts created:  ${districtsCreated}`);
   console.log(`  Targets upserted:   ${targetsUpserted}`);
   console.log(`  Pipeline updated:   ${pipelineUpdated}`);
+  console.log(`  Financials upserted:${financialsUpserted}`);
   console.log(`  Owners set:         ${ownersSet}`);
   console.log(`  Errors:             ${errors.length}`);
   console.log("═══════════════════════════════════════\n");
@@ -353,6 +482,13 @@ async function main() {
     for (const err of errors) {
       console.log(`  ⚠ ${err}`);
     }
+  }
+
+  // Step 7: Refresh materialized view
+  if (!dryRun) {
+    console.log("Refreshing district_map_features materialized view...");
+    await prisma.$executeRawUnsafe("REFRESH MATERIALIZED VIEW district_map_features");
+    console.log("Done.\n");
   }
 }
 

@@ -19,24 +19,32 @@ in_plan AS (
   FROM territory_plan_districts
 ),
 -- FY27 Fullmind categories: FY26→FY27 comparison
--- No fy27_net_invoicing exists yet, only fy27_open_pipeline.
--- Revenue districts = those with FY26 invoicing. Pipeline = fy27_open_pipeline.
+-- No fy27 revenue data yet, only fy27_open_pipeline.
+-- Prior-year revenue from vendor_financials FY26.
 fullmind_fy27 AS (
   SELECT
     d.leaid,
     CASE
-      -- Pipeline stages using fy27_open_pipeline vs FY26 revenue
-      WHEN COALESCE(d.fy26_net_invoicing, 0) > 0
-        AND COALESCE(d.fy27_open_pipeline, 0) > COALESCE(d.fy26_net_invoicing, 0)
+      -- Pipeline stages using fy27_open_pipeline vs FY26 total_revenue
+      WHEN COALESCE(vf26.total_revenue, 0) > 0
+        AND COALESCE(d.fy27_open_pipeline, 0) > COALESCE(vf26.total_revenue, 0)
       THEN 'expansion_pipeline'
 
-      WHEN COALESCE(d.fy26_net_invoicing, 0) > 0
+      WHEN COALESCE(vf26.total_revenue, 0) > 0
         AND COALESCE(d.fy27_open_pipeline, 0) > 0
       THEN 'renewal_pipeline'
 
       WHEN COALESCE(d.fy27_open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
-      THEN 'new_pipeline'
+        AND EXISTS (
+          SELECT 1 FROM vendor_financials vf
+          WHERE vf.leaid = d.leaid AND vf.vendor = 'fullmind' AND vf.total_revenue > 0
+        )
+      THEN 'winback_pipeline'
+
+      WHEN COALESCE(d.fy27_open_pipeline, 0) > 0
+        AND ip.leaid IS NOT NULL
+      THEN 'new_business_pipeline'
 
       WHEN ip.leaid IS NOT NULL
       THEN 'target'
@@ -45,47 +53,59 @@ fullmind_fy27 AS (
     END AS fy27_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
+  LEFT JOIN vendor_financials vf26 ON d.leaid = vf26.leaid
+    AND vf26.vendor = 'fullmind' AND vf26.fiscal_year = 'FY26'
 ),
--- FY26 Fullmind categories: FY25→FY26 comparison
+-- FY26 Fullmind categories: FY25→FY26 comparison (revenue-based via vendor_financials)
 fullmind_fy26 AS (
   SELECT
     d.leaid,
     CASE
-      -- Multi-year customers: revenue in both FY25 and FY26
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
-        AND COALESCE(d.fy26_net_invoicing, 0) > 0
-        AND COALESCE(d.fy26_net_invoicing, 0) > COALESCE(d.fy25_net_invoicing, 0)
+      -- Multi-year customers: total_revenue in both FY25 and FY26
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
+        AND COALESCE(vf26.total_revenue, 0) > 0
+        AND vf26.total_revenue > vf25.total_revenue
       THEN 'multi_year_growing'
 
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
-        AND COALESCE(d.fy26_net_invoicing, 0) > 0
-        AND COALESCE(d.fy26_net_invoicing, 0) < COALESCE(d.fy25_net_invoicing, 0)
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
+        AND COALESCE(vf26.total_revenue, 0) > 0
+        AND vf26.total_revenue < vf25.total_revenue
       THEN 'multi_year_shrinking'
 
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
-        AND COALESCE(d.fy26_net_invoicing, 0) > 0
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
+        AND COALESCE(vf26.total_revenue, 0) > 0
       THEN 'multi_year_flat'
 
-      WHEN COALESCE(d.fy26_net_invoicing, 0) > 0
-        AND NOT COALESCE(d.fy25_net_invoicing, 0) > 0
+      -- New customer: FY26 revenue but no FY25 revenue
+      WHEN COALESCE(vf26.total_revenue, 0) > 0
+        AND NOT COALESCE(vf25.total_revenue, 0) > 0
       THEN 'new'
 
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
-        AND NOT COALESCE(d.fy26_net_invoicing, 0) > 0
-      THEN 'lapsed'
-
-      -- Pipeline stages (no FY26 revenue yet)
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
-        AND COALESCE(d.fy26_open_pipeline, 0) > COALESCE(d.fy25_net_invoicing, 0)
+      -- Pipeline (checked BEFORE lapsed — active pipeline trumps churn)
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
+        AND COALESCE(d.fy26_open_pipeline, 0) > COALESCE(vf25.total_revenue, 0)
       THEN 'expansion_pipeline'
 
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
         AND COALESCE(d.fy26_open_pipeline, 0) > 0
       THEN 'renewal_pipeline'
 
       WHEN COALESCE(d.fy26_open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
-      THEN 'new_pipeline'
+        AND EXISTS (
+          SELECT 1 FROM vendor_financials vf
+          WHERE vf.leaid = d.leaid AND vf.vendor = 'fullmind' AND vf.total_revenue > 0
+        )
+      THEN 'winback_pipeline'
+
+      WHEN COALESCE(d.fy26_open_pipeline, 0) > 0
+        AND ip.leaid IS NOT NULL
+      THEN 'new_business_pipeline'
+
+      -- Lapsed: had FY25 revenue, no FY26 revenue, no active pipeline
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
+        AND NOT COALESCE(vf26.total_revenue, 0) > 0
+      THEN 'lapsed'
 
       WHEN ip.leaid IS NOT NULL
       THEN 'target'
@@ -94,25 +114,53 @@ fullmind_fy26 AS (
     END AS fy26_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
+  LEFT JOIN vendor_financials vf25 ON d.leaid = vf25.leaid
+    AND vf25.vendor = 'fullmind' AND vf25.fiscal_year = 'FY25'
+  LEFT JOIN vendor_financials vf26 ON d.leaid = vf26.leaid
+    AND vf26.vendor = 'fullmind' AND vf26.fiscal_year = 'FY26'
 ),
--- FY25 Fullmind categories: FY24→FY25 comparison
--- No fy24_net_invoicing column exists. All revenue districts show as 'new'.
--- No fy25_open_pipeline exists either, so pipeline categories are omitted.
+-- FY25 Fullmind categories: FY24→FY25 comparison (revenue-based via vendor_financials)
+-- No fy25_open_pipeline column exists, so pipeline categories are omitted.
 fullmind_fy25 AS (
   SELECT
     d.leaid,
     CASE
-      WHEN COALESCE(d.fy25_net_invoicing, 0) > 0
+      -- Multi-year: total_revenue in both FY24 and FY25
+      WHEN COALESCE(vf24.total_revenue, 0) > 0
+        AND COALESCE(vf25.total_revenue, 0) > 0
+        AND vf25.total_revenue > vf24.total_revenue
+      THEN 'multi_year_growing'
+
+      WHEN COALESCE(vf24.total_revenue, 0) > 0
+        AND COALESCE(vf25.total_revenue, 0) > 0
+        AND vf25.total_revenue < vf24.total_revenue
+      THEN 'multi_year_shrinking'
+
+      WHEN COALESCE(vf24.total_revenue, 0) > 0
+        AND COALESCE(vf25.total_revenue, 0) > 0
+      THEN 'multi_year_flat'
+
+      -- New customer: FY25 revenue but no FY24 revenue
+      WHEN COALESCE(vf25.total_revenue, 0) > 0
+        AND NOT COALESCE(vf24.total_revenue, 0) > 0
       THEN 'new'
 
+      -- Lapsed: FY24 revenue but no FY25 revenue (no pipeline data for FY25)
+      WHEN COALESCE(vf24.total_revenue, 0) > 0
+        AND NOT COALESCE(vf25.total_revenue, 0) > 0
+      THEN 'lapsed'
+
       WHEN ip.leaid IS NOT NULL
-        AND COALESCE(d.fy25_net_invoicing, 0) = 0
       THEN 'target'
 
       ELSE NULL
     END AS fy25_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
+  LEFT JOIN vendor_financials vf24 ON d.leaid = vf24.leaid
+    AND vf24.vendor = 'fullmind' AND vf24.fiscal_year = 'FY24'
+  LEFT JOIN vendor_financials vf25 ON d.leaid = vf25.leaid
+    AND vf25.vendor = 'fullmind' AND vf25.fiscal_year = 'FY25'
 ),
 -- FY24 Fullmind categories: degraded — no fy24 revenue columns exist at all.
 -- All plan districts are 'target', nothing else.
@@ -160,7 +208,16 @@ vendor_fy27 AS (
       THEN 'renewal_pipeline'
 
       WHEN COALESCE(vp.pipeline, 0) > 0
-      THEN 'new_pipeline'
+        AND EXISTS (
+          SELECT 1 FROM competitor_spend cs2
+          WHERE cs2.leaid = COALESCE(cs_agg.leaid, vp.leaid)
+            AND cs2.competitor = COALESCE(cs_agg.competitor, vp.competitor)
+            AND cs2.total_spend > 0
+        )
+      THEN 'winback_pipeline'
+
+      WHEN COALESCE(vp.pipeline, 0) > 0
+      THEN 'new_business_pipeline'
 
       -- Churned: had FY26 spend but nothing in FY27
       WHEN COALESCE(cs_agg.fy26_spend, 0) > 0
@@ -224,7 +281,16 @@ vendor_fy26 AS (
       THEN 'renewal_pipeline'
 
       WHEN COALESCE(vp.pipeline, 0) > 0
-      THEN 'new_pipeline'
+        AND EXISTS (
+          SELECT 1 FROM competitor_spend cs2
+          WHERE cs2.leaid = COALESCE(cs_agg.leaid, vp.leaid)
+            AND cs2.competitor = COALESCE(cs_agg.competitor, vp.competitor)
+            AND cs2.total_spend > 0
+        )
+      THEN 'winback_pipeline'
+
+      WHEN COALESCE(vp.pipeline, 0) > 0
+      THEN 'new_business_pipeline'
 
       -- Churned: had FY25 spend but nothing in FY26
       WHEN COALESCE(cs_agg.fy25_spend, 0) > 0

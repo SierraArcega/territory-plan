@@ -24,7 +24,8 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const stateFilter = searchParams.get("state");
     const fyParam = searchParams.get("fy") || "fy26";
-    const fy = fyParam === "fy25" ? "fy25" : "fy26"; // whitelist valid values
+    const validFys = ["fy24", "fy25", "fy26", "fy27"] as const;
+    const fy = validFys.includes(fyParam as any) ? fyParam : "fy26";
 
     // At low zoom (national view), only load districts with vendor data
     const isNationalView = zoom < 6 && !stateFilter;

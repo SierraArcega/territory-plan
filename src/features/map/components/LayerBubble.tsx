@@ -8,33 +8,59 @@ import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/ac
 
 
 // Fullmind engagement levels
-type FullmindEngagement = "target" | "pipeline" | "first_year" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "lapsed";
-const ALL_FULLMIND_ENGAGEMENTS: FullmindEngagement[] = ["target", "pipeline", "first_year", "multi_year_growing", "multi_year_flat", "multi_year_shrinking", "lapsed"];
+type FullmindEngagement = "target" | "renewal_pipeline" | "expansion_pipeline" | "new_business_pipeline" | "winback_pipeline" | "first_year" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "lapsed";
 
 const FULLMIND_ENGAGEMENT_META: Record<FullmindEngagement, { label: string; color: string }> = {
-  target:              { label: "Target",                   color: "#ecebf1" },
-  pipeline:            { label: "Pipeline",                 color: "#b3afc6" },
-  first_year:          { label: "First Year Customer",      color: "#8c87a9" },
-  multi_year_growing:  { label: "Multi-Year (Growing)",     color: "#4ECDC4" },
-  multi_year_flat:     { label: "Multi-Year (Flat)",        color: "#403770" },
-  multi_year_shrinking: { label: "Multi-Year (Shrinking)",  color: "#F37167" },
-  lapsed:              { label: "Churned",                  color: "#F37167" },
+  target:              { label: "Target",          color: "#ecebf1" },
+  renewal_pipeline:    { label: "Renewal",         color: "#665f8d" },
+  expansion_pipeline:  { label: "Expansion",       color: "#403770" },
+  new_business_pipeline: { label: "New Business",  color: "#b3afc6" },
+  winback_pipeline:    { label: "Winback",         color: "#FFB347" },
+  first_year:          { label: "First Year Customer", color: "#8c87a9" },
+  multi_year_growing:  { label: "Growing",         color: "#4ECDC4" },
+  multi_year_flat:     { label: "Flat",            color: "#403770" },
+  multi_year_shrinking: { label: "Shrinking",      color: "#F37167" },
+  lapsed:              { label: "Churned",         color: "#F37167" },
 };
+
+// Group definitions for Fullmind
+const FULLMIND_PIPELINE_CHILDREN: FullmindEngagement[] = ["renewal_pipeline", "expansion_pipeline", "new_business_pipeline", "winback_pipeline"];
+const FULLMIND_MULTIYEAR_CHILDREN: FullmindEngagement[] = ["multi_year_growing", "multi_year_flat", "multi_year_shrinking"];
 
 const COMPETITOR_VENDOR_IDS = VENDOR_IDS.filter((v) => v !== "fullmind");
 
 // Competitor engagement levels
-type CompetitorEngagement = "pipeline" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "new" | "churned";
-const ALL_COMPETITOR_ENGAGEMENTS: CompetitorEngagement[] = ["pipeline", "multi_year_growing", "multi_year_flat", "multi_year_shrinking", "new", "churned"];
+type CompetitorEngagement = "renewal_pipeline" | "expansion_pipeline" | "new_business_pipeline" | "winback_pipeline" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "new" | "churned";
 
 const COMPETITOR_ENGAGEMENT_META: Record<CompetitorEngagement, { label: string }> = {
-  pipeline:            { label: "Pipeline" },
-  multi_year_growing:  { label: "Multi-Year (Growing)" },
-  multi_year_flat:     { label: "Multi-Year (Flat)" },
-  multi_year_shrinking: { label: "Multi-Year (Shrinking)" },
+  renewal_pipeline:    { label: "Renewal" },
+  expansion_pipeline:  { label: "Expansion" },
+  new_business_pipeline: { label: "New Business" },
+  winback_pipeline:    { label: "Winback" },
+  multi_year_growing:  { label: "Growing" },
+  multi_year_flat:     { label: "Flat" },
+  multi_year_shrinking: { label: "Shrinking" },
   new:                 { label: "New" },
   churned:             { label: "Churned" },
 };
+
+// Group definitions for Competitors
+const COMPETITOR_PIPELINE_CHILDREN: CompetitorEngagement[] = ["renewal_pipeline", "expansion_pipeline", "new_business_pipeline", "winback_pipeline"];
+const COMPETITOR_MULTIYEAR_CHILDREN: CompetitorEngagement[] = ["multi_year_growing", "multi_year_flat", "multi_year_shrinking"];
+
+/**
+ * Maps an engagement level name to the actual DB category key(s) used by
+ * expression builders and deriveVendorCategoryColors.
+ *
+ * Fullmind's "first_year" maps to "new" in the DB.
+ * All other engagements map 1:1.
+ */
+function engagementToDBKeys(vendorId: string, engagement: string): string[] {
+  if (vendorId === "fullmind" && engagement === "first_year") {
+    return [`fullmind:new`];
+  }
+  return [`${vendorId}:${engagement}`];
+}
 
 const SCHOOL_TYPE_META: Record<SchoolType, { label: string; color: string }> = {
   elementary: { label: "Elementary", color: "#6EA3BE" },  // Steel Blue
@@ -270,6 +296,53 @@ function CategoryRow({
   );
 }
 
+/* ─── Group row with parent toggle ─── */
+function GroupRow({
+  label,
+  childKeys,
+  selectedEngagements,
+  onToggleAll,
+  children,
+}: {
+  label: string;
+  childKeys: string[];
+  selectedEngagements: string[];
+  onToggleAll: (keys: string[], selectAll: boolean) => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  const selectedCount = childKeys.filter((c) => selectedEngagements.includes(c)).length;
+  const allSelected = selectedCount === childKeys.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2.5 pl-8 pr-4 py-1 rounded-lg hover:bg-gray-50">
+        <input
+          type="checkbox"
+          checked={allSelected}
+          ref={(el) => { if (el) el.indeterminate = someSelected; }}
+          onChange={() => onToggleAll(childKeys, !allSelected)}
+          className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-1.5 flex-1 min-w-0"
+        >
+          <span className="text-sm font-medium text-gray-700">{label}</span>
+          <ChevronDown open={open} className="text-gray-400" />
+        </button>
+      </div>
+      {open && (
+        <div className="pl-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LayerBubble() {
   const activeVendors = useMapV2Store((s) => s.activeVendors);
   const toggleVendor = useMapV2Store((s) => s.toggleVendor);
@@ -319,7 +392,10 @@ export default function LayerBubble() {
   const fullmindPalette = getVendorPalette(vendorPalettes.fullmind);
   const dynamicFullmindColors: Record<string, string> = {
     target: fullmindPalette.stops[0],
-    pipeline: fullmindPalette.stops[2],
+    renewal_pipeline: fullmindPalette.stops[4],
+    expansion_pipeline: fullmindPalette.stops[5],
+    new_business_pipeline: fullmindPalette.stops[2],
+    winback_pipeline: "#FFB347",
     first_year: fullmindPalette.stops[3],
     multi_year_growing: "#4ECDC4",
     multi_year_flat: fullmindPalette.stops[5],
@@ -803,23 +879,132 @@ export default function LayerBubble() {
                     <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2">
                       Filter by engagement:
                     </div>
-                    {ALL_FULLMIND_ENGAGEMENTS.map((level) => {
+                    {/* Target (standalone) */}
+                    {(["target"] as FullmindEngagement[]).map((level) => {
                       const meta = FULLMIND_ENGAGEMENT_META[level];
-                      const key = `fullmind:${level}`;
-                      const isActive = fullmindEngagement.includes(level);
+                      const dbKeys = engagementToDBKeys("fullmind", level);
+                      const primaryKey = dbKeys[0];
                       return (
                         <CategoryRow
                           key={level}
-                          categoryKey={key}
+                          categoryKey={primaryKey}
                           label={meta.label}
-                          checked={isActive}
+                          checked={fullmindEngagement.includes(level)}
                           onToggle={() => toggleFullmindEngagement(level)}
-                          color={categoryColors[key] ?? meta.color}
-                          opacity={categoryOpacities[key] ?? 0.75}
-                          onColorChange={(c) => setCategoryColor(key, c)}
-                          onOpacityChange={(o) => setCategoryOpacity(key, o)}
-                          swatchOpen={palettePickerOpen === key}
-                          onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === key ? null : key)}
+                          color={categoryColors[primaryKey] ?? meta.color}
+                          opacity={categoryOpacities[primaryKey] ?? 0.75}
+                          onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                          onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                          swatchOpen={palettePickerOpen === primaryKey}
+                          onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                        />
+                      );
+                    })}
+                    {/* Pipeline (group) */}
+                    <GroupRow
+                      label="Pipeline"
+                      childKeys={FULLMIND_PIPELINE_CHILDREN as string[]}
+                      selectedEngagements={fullmindEngagement}
+                      onToggleAll={(keys, selectAll) => {
+                        const next = selectAll
+                          ? [...new Set([...fullmindEngagement, ...keys])]
+                          : fullmindEngagement.filter((e) => !keys.includes(e));
+                        setFullmindEngagement(next);
+                      }}
+                    >
+                      {FULLMIND_PIPELINE_CHILDREN.map((level) => {
+                        const meta = FULLMIND_ENGAGEMENT_META[level];
+                        const dbKeys = engagementToDBKeys("fullmind", level);
+                        const primaryKey = dbKeys[0];
+                        return (
+                          <CategoryRow
+                            key={level}
+                            categoryKey={primaryKey}
+                            label={meta.label}
+                            checked={fullmindEngagement.includes(level)}
+                            onToggle={() => toggleFullmindEngagement(level)}
+                            color={categoryColors[primaryKey] ?? meta.color}
+                            opacity={categoryOpacities[primaryKey] ?? 0.75}
+                            onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                            onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                            swatchOpen={palettePickerOpen === primaryKey}
+                            onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                          />
+                        );
+                      })}
+                    </GroupRow>
+                    {/* First Year (standalone) */}
+                    {(["first_year"] as FullmindEngagement[]).map((level) => {
+                      const meta = FULLMIND_ENGAGEMENT_META[level];
+                      const dbKeys = engagementToDBKeys("fullmind", level);
+                      const primaryKey = dbKeys[0];
+                      return (
+                        <CategoryRow
+                          key={level}
+                          categoryKey={primaryKey}
+                          label={meta.label}
+                          checked={fullmindEngagement.includes(level)}
+                          onToggle={() => toggleFullmindEngagement(level)}
+                          color={categoryColors[primaryKey] ?? meta.color}
+                          opacity={categoryOpacities[primaryKey] ?? 0.75}
+                          onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                          onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                          swatchOpen={palettePickerOpen === primaryKey}
+                          onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                        />
+                      );
+                    })}
+                    {/* Multi-Year (group) */}
+                    <GroupRow
+                      label="Multi-Year"
+                      childKeys={FULLMIND_MULTIYEAR_CHILDREN as string[]}
+                      selectedEngagements={fullmindEngagement}
+                      onToggleAll={(keys, selectAll) => {
+                        const next = selectAll
+                          ? [...new Set([...fullmindEngagement, ...keys])]
+                          : fullmindEngagement.filter((e) => !keys.includes(e));
+                        setFullmindEngagement(next);
+                      }}
+                    >
+                      {FULLMIND_MULTIYEAR_CHILDREN.map((level) => {
+                        const meta = FULLMIND_ENGAGEMENT_META[level];
+                        const dbKeys = engagementToDBKeys("fullmind", level);
+                        const primaryKey = dbKeys[0];
+                        return (
+                          <CategoryRow
+                            key={level}
+                            categoryKey={primaryKey}
+                            label={meta.label}
+                            checked={fullmindEngagement.includes(level)}
+                            onToggle={() => toggleFullmindEngagement(level)}
+                            color={categoryColors[primaryKey] ?? meta.color}
+                            opacity={categoryOpacities[primaryKey] ?? 0.75}
+                            onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                            onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                            swatchOpen={palettePickerOpen === primaryKey}
+                            onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                          />
+                        );
+                      })}
+                    </GroupRow>
+                    {/* Churned (standalone) */}
+                    {(["lapsed"] as FullmindEngagement[]).map((level) => {
+                      const meta = FULLMIND_ENGAGEMENT_META[level];
+                      const dbKeys = engagementToDBKeys("fullmind", level);
+                      const primaryKey = dbKeys[0];
+                      return (
+                        <CategoryRow
+                          key={level}
+                          categoryKey={primaryKey}
+                          label={meta.label}
+                          checked={fullmindEngagement.includes(level)}
+                          onToggle={() => toggleFullmindEngagement(level)}
+                          color={categoryColors[primaryKey] ?? meta.color}
+                          opacity={categoryOpacities[primaryKey] ?? 0.75}
+                          onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                          onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                          swatchOpen={palettePickerOpen === primaryKey}
+                          onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
                         />
                       );
                     })}
@@ -906,23 +1091,111 @@ export default function LayerBubble() {
                           <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2">
                             Filter by engagement:
                           </div>
-                          {ALL_COMPETITOR_ENGAGEMENTS.map((level) => {
+                          {/* Pipeline (group) */}
+                          <GroupRow
+                            label="Pipeline"
+                            childKeys={COMPETITOR_PIPELINE_CHILDREN as string[]}
+                            selectedEngagements={vendorEngagement}
+                            onToggleAll={(keys, selectAll) => {
+                              const next = selectAll
+                                ? [...new Set([...vendorEngagement, ...keys])]
+                                : vendorEngagement.filter((e) => !keys.includes(e));
+                              setCompetitorEngagement(vendorId, next);
+                            }}
+                          >
+                            {COMPETITOR_PIPELINE_CHILDREN.map((level) => {
+                              const meta = COMPETITOR_ENGAGEMENT_META[level];
+                              const dbKeys = engagementToDBKeys(vendorId, level);
+                              const primaryKey = dbKeys[0];
+                              return (
+                                <CategoryRow
+                                  key={level}
+                                  categoryKey={primaryKey}
+                                  label={meta.label}
+                                  checked={vendorEngagement.includes(level)}
+                                  onToggle={() => toggleCompetitorEngagement(vendorId, level)}
+                                  color={categoryColors[primaryKey] ?? getVendorPalette(vendorPalettes[vendorId]).dotColor}
+                                  opacity={categoryOpacities[primaryKey] ?? 0.75}
+                                  onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                                  onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                                  swatchOpen={palettePickerOpen === primaryKey}
+                                  onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                                />
+                              );
+                            })}
+                          </GroupRow>
+                          {/* New (standalone) */}
+                          {(["new"] as CompetitorEngagement[]).map((level) => {
                             const meta = COMPETITOR_ENGAGEMENT_META[level];
-                            const key = `${vendorId}:${level}`;
-                            const isChecked = vendorEngagement.includes(level);
+                            const dbKeys = engagementToDBKeys(vendorId, level);
+                            const primaryKey = dbKeys[0];
                             return (
                               <CategoryRow
                                 key={level}
-                                categoryKey={key}
+                                categoryKey={primaryKey}
                                 label={meta.label}
-                                checked={isChecked}
+                                checked={vendorEngagement.includes(level)}
                                 onToggle={() => toggleCompetitorEngagement(vendorId, level)}
-                                color={categoryColors[key] ?? getVendorPalette(vendorPalettes[vendorId]).dotColor}
-                                opacity={categoryOpacities[key] ?? 0.75}
-                                onColorChange={(c) => setCategoryColor(key, c)}
-                                onOpacityChange={(o) => setCategoryOpacity(key, o)}
-                                swatchOpen={palettePickerOpen === key}
-                                onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === key ? null : key)}
+                                color={categoryColors[primaryKey] ?? getVendorPalette(vendorPalettes[vendorId]).dotColor}
+                                opacity={categoryOpacities[primaryKey] ?? 0.75}
+                                onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                                onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                                swatchOpen={palettePickerOpen === primaryKey}
+                                onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                              />
+                            );
+                          })}
+                          {/* Multi-Year (group) */}
+                          <GroupRow
+                            label="Multi-Year"
+                            childKeys={COMPETITOR_MULTIYEAR_CHILDREN as string[]}
+                            selectedEngagements={vendorEngagement}
+                            onToggleAll={(keys, selectAll) => {
+                              const next = selectAll
+                                ? [...new Set([...vendorEngagement, ...keys])]
+                                : vendorEngagement.filter((e) => !keys.includes(e));
+                              setCompetitorEngagement(vendorId, next);
+                            }}
+                          >
+                            {COMPETITOR_MULTIYEAR_CHILDREN.map((level) => {
+                              const meta = COMPETITOR_ENGAGEMENT_META[level];
+                              const dbKeys = engagementToDBKeys(vendorId, level);
+                              const primaryKey = dbKeys[0];
+                              return (
+                                <CategoryRow
+                                  key={level}
+                                  categoryKey={primaryKey}
+                                  label={meta.label}
+                                  checked={vendorEngagement.includes(level)}
+                                  onToggle={() => toggleCompetitorEngagement(vendorId, level)}
+                                  color={categoryColors[primaryKey] ?? getVendorPalette(vendorPalettes[vendorId]).dotColor}
+                                  opacity={categoryOpacities[primaryKey] ?? 0.75}
+                                  onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                                  onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                                  swatchOpen={palettePickerOpen === primaryKey}
+                                  onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
+                                />
+                              );
+                            })}
+                          </GroupRow>
+                          {/* Churned (standalone) */}
+                          {(["churned"] as CompetitorEngagement[]).map((level) => {
+                            const meta = COMPETITOR_ENGAGEMENT_META[level];
+                            const dbKeys = engagementToDBKeys(vendorId, level);
+                            const primaryKey = dbKeys[0];
+                            return (
+                              <CategoryRow
+                                key={level}
+                                categoryKey={primaryKey}
+                                label={meta.label}
+                                checked={vendorEngagement.includes(level)}
+                                onToggle={() => toggleCompetitorEngagement(vendorId, level)}
+                                color={categoryColors[primaryKey] ?? getVendorPalette(vendorPalettes[vendorId]).dotColor}
+                                opacity={categoryOpacities[primaryKey] ?? 0.75}
+                                onColorChange={(c) => dbKeys.forEach((k) => setCategoryColor(k, c))}
+                                onOpacityChange={(o) => dbKeys.forEach((k) => setCategoryOpacity(k, o))}
+                                swatchOpen={palettePickerOpen === primaryKey}
+                                onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === primaryKey ? null : primaryKey)}
                               />
                             );
                           })}

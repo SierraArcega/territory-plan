@@ -143,9 +143,10 @@ export async function GET(request: NextRequest) {
         combined.allTake += entry.allTake;
       }
 
-      // Per-vendor breakdown (only when 2+ vendors active)
+      // Per-vendor breakdown (always when vendors are active, so each
+      // vendor's byCategory is keyed by its own category column)
       let byVendor: Record<string, unknown> | undefined;
-      if (vendorList.length >= 2) {
+      if (vendorList.length >= 1) {
         const vendorQueries = vendorList.map((vendor) => {
           const catCol = `${fy}_${vendor}_category`;
           const vConditions = [...baseConditions, `dmf.${catCol} IS NOT NULL`];

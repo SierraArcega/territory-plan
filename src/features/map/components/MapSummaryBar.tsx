@@ -1,7 +1,7 @@
 "use client";
 
 import { useMapSummary, type SummaryTotals, type VendorTotalsMap } from "@/features/map/lib/useMapSummary";
-import { useMapV2Store } from "@/features/map/lib/store";
+import { useMapV2Store, ALL_METRIC_IDS, type MetricId } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, type VendorId } from "@/features/map/lib/layers";
 import { getVendorPalette } from "@/features/map/lib/palettes";
 import { formatCurrency, formatNumber } from "@/features/shared/lib/format";
@@ -9,11 +9,11 @@ import ViewActionsBar from "@/features/map/components/ViewActionsBar";
 
 function Skeleton() {
   return (
-    <div className="flex items-center gap-4 px-4 py-2.5">
+    <div className="flex items-center gap-5 px-5 py-3">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1">
-          <div className="h-2 w-10 bg-gray-200 rounded animate-pulse" />
-          <div className="h-3.5 w-14 bg-gray-100 rounded animate-pulse" />
+          <div className="h-2.5 w-12 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-16 bg-gray-100 rounded animate-pulse" />
         </div>
       ))}
     </div>
@@ -23,10 +23,10 @@ function Skeleton() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col items-start">
-      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider leading-none">
+      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider leading-none">
         {label}
       </span>
-      <span className="text-sm font-semibold text-gray-700 tabular-nums leading-tight mt-0.5">
+      <span className="text-[15px] font-semibold text-gray-700 tabular-nums leading-tight mt-0.5">
         {value}
       </span>
     </div>
@@ -37,6 +37,21 @@ function Sep({ className = "h-6" }: { className?: string }) {
   return <div className={`w-px bg-gray-200/60 shrink-0 ${className}`} />;
 }
 
+const METRIC_CONFIG: Record<MetricId, { label: string; format: (t: SummaryTotals) => string }> = {
+  districts: { label: "Districts", format: (t) => formatNumber(t.count) },
+  enrollment: { label: "Enrollment", format: (t) => formatNumber(t.totalEnrollment) },
+  pipeline: { label: "Pipeline", format: (t) => formatCurrency(t.openPipeline, true) },
+  bookings: { label: "Bookings", format: (t) => formatCurrency(t.closedWonBookings, true) },
+  invoicing: { label: "Invoicing", format: (t) => formatCurrency(t.invoicing, true) },
+  scheduledRevenue: { label: "Sched Rev", format: (t) => formatCurrency(t.scheduledRevenue, true) },
+  deliveredRevenue: { label: "Deliv Rev", format: (t) => formatCurrency(t.deliveredRevenue, true) },
+  deferredRevenue: { label: "Def Rev", format: (t) => formatCurrency(t.deferredRevenue, true) },
+  totalRevenue: { label: "Total Rev", format: (t) => formatCurrency(t.totalRevenue, true) },
+  deliveredTake: { label: "Deliv Take", format: (t) => formatCurrency(t.deliveredTake, true) },
+  scheduledTake: { label: "Sched Take", format: (t) => formatCurrency(t.scheduledTake, true) },
+  allTake: { label: "All Take", format: (t) => formatCurrency(t.allTake, true) },
+};
+
 function FinancialStats({
   t,
   unfilteredCount,
@@ -46,40 +61,27 @@ function FinancialStats({
   unfilteredCount?: number;
   height?: string;
 }) {
+  const visibleMetrics = useMapV2Store((s) => s.visibleMetrics);
   const showOfTotal =
     unfilteredCount != null && unfilteredCount !== t.count;
+
+  const visible = ALL_METRIC_IDS.filter((id) => visibleMetrics.has(id));
+
   return (
     <>
-      <Stat
-        label="Districts"
-        value={
-          showOfTotal
-            ? `${formatNumber(t.count)} of ${formatNumber(unfilteredCount)}`
-            : formatNumber(t.count)
-        }
-      />
-      <Sep className={height} />
-      <Stat label="Enrollment" value={formatNumber(t.totalEnrollment)} />
-      <Sep className={height} />
-      <Stat label="Pipeline" value={formatCurrency(t.openPipeline, true)} />
-      <Sep className={height} />
-      <Stat label="Bookings" value={formatCurrency(t.closedWonBookings, true)} />
-      <Sep className={height} />
-      <Stat label="Invoicing" value={formatCurrency(t.invoicing, true)} />
-      <Sep className={height} />
-      <Stat label="Sched Rev" value={formatCurrency(t.scheduledRevenue, true)} />
-      <Sep className={height} />
-      <Stat label="Deliv Rev" value={formatCurrency(t.deliveredRevenue, true)} />
-      <Sep className={height} />
-      <Stat label="Def Rev" value={formatCurrency(t.deferredRevenue, true)} />
-      <Sep className={height} />
-      <Stat label="Total Rev" value={formatCurrency(t.totalRevenue, true)} />
-      <Sep className={height} />
-      <Stat label="Deliv Take" value={formatCurrency(t.deliveredTake, true)} />
-      <Sep className={height} />
-      <Stat label="Sched Take" value={formatCurrency(t.scheduledTake, true)} />
-      <Sep className={height} />
-      <Stat label="All Take" value={formatCurrency(t.allTake, true)} />
+      {visible.map((id, i) => {
+        const cfg = METRIC_CONFIG[id];
+        const value =
+          id === "districts" && showOfTotal
+            ? `${formatNumber(t.count)} of ${formatNumber(unfilteredCount!)}`
+            : cfg.format(t);
+        return (
+          <span key={id} className="contents">
+            {i > 0 && <Sep className={height} />}
+            <Stat label={cfg.label} value={value} />
+          </span>
+        );
+      })}
     </>
   );
 }
@@ -102,7 +104,7 @@ function VendorRow({
   const unfilteredCount = unfilteredVendorTotals?.[vendorId]?.totals.count;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-1.5 overflow-x-auto">
+    <div className="flex items-center gap-4 px-5 py-2 overflow-x-auto">
       <div className="flex items-center gap-1.5 shrink-0 min-w-[90px]">
         <span
           className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
@@ -126,24 +128,55 @@ export default function MapSummaryBar() {
     enabled,
   } = useMapSummary();
   const activeVendors = useMapV2Store((s) => s.activeVendors);
+  const summaryBarVisible = useMapV2Store((s) => s.summaryBarVisible);
+  const toggleSummaryBar = useMapV2Store((s) => s.toggleSummaryBar);
 
   if (!enabled) return null;
+
+  if (!summaryBarVisible) {
+    return (
+      <div className="absolute bottom-6 left-6 z-10">
+        <button
+          onClick={toggleSummaryBar}
+          className="bg-white/85 backdrop-blur-md rounded-lg ring-1 ring-black/[0.08] border border-white/60 px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+          style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)" }}
+          title="Show summary bar"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5A.75.75 0 012 10z" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
 
   const showVendorBreakdown = activeVendors.size >= 2 && vendorTotals != null;
 
   return (
     <div className="absolute bottom-6 left-6 z-10">
-      <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/60 overflow-hidden">
+      <div
+        className="bg-white/85 backdrop-blur-md rounded-xl ring-1 ring-black/[0.08] border border-white/60"
+        style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)" }}
+      >
         <ViewActionsBar />
         {isLoading ? (
           <Skeleton />
         ) : (
           <>
-            <div className="flex items-center gap-4 px-4 py-2.5 overflow-x-auto">
+            <div className="flex items-center gap-5 px-5 py-3 overflow-x-auto">
               <FinancialStats
                 t={totals}
                 unfilteredCount={isSubFiltered ? unfilteredTotals.count : undefined}
               />
+              <button
+                onClick={toggleSummaryBar}
+                className="ml-auto text-gray-300 hover:text-gray-500 p-0.5 rounded transition-colors shrink-0"
+                title="Hide summary bar"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
             </div>
             {showVendorBreakdown && (
               <>
