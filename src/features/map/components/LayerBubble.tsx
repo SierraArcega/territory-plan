@@ -11,16 +11,16 @@ import { ACCOUNT_TYPES, type AccountTypeValue } from "@/features/shared/types/ac
 type FullmindEngagement = "target" | "renewal_pipeline" | "expansion_pipeline" | "new_business_pipeline" | "winback_pipeline" | "first_year" | "multi_year_growing" | "multi_year_flat" | "multi_year_shrinking" | "lapsed";
 
 const FULLMIND_ENGAGEMENT_META: Record<FullmindEngagement, { label: string; color: string }> = {
-  target:              { label: "Target",          color: "#ecebf1" },
-  renewal_pipeline:    { label: "Renewal",         color: "#665f8d" },
-  expansion_pipeline:  { label: "Expansion",       color: "#403770" },
-  new_business_pipeline: { label: "New Business",  color: "#b3afc6" },
-  winback_pipeline:    { label: "Winback",         color: "#FFB347" },
-  first_year:          { label: "First Year Customer", color: "#8c87a9" },
-  multi_year_growing:  { label: "Growing",         color: "#4ECDC4" },
-  multi_year_flat:     { label: "Flat",            color: "#403770" },
-  multi_year_shrinking: { label: "Shrinking",      color: "#F37167" },
-  lapsed:              { label: "Churned",         color: "#F37167" },
+  target:              { label: "Target",          color: "#e8f1f5" },
+  renewal_pipeline:    { label: "Renewal",         color: "#8bb5cb" },
+  expansion_pipeline:  { label: "Expansion",       color: "#6EA3BE" },
+  new_business_pipeline: { label: "New Business",  color: "#c4dae6" },
+  winback_pipeline:    { label: "Winback",         color: "#d1e3ec" },
+  first_year:          { label: "First Year Customer", color: "#a6c9da" },
+  multi_year_growing:  { label: "Growing",         color: "#a6c9da" },
+  multi_year_flat:     { label: "Flat",            color: "#6EA3BE" },
+  multi_year_shrinking: { label: "Shrinking",      color: "#8bb5cb" },
+  lapsed:              { label: "Churned",         color: "#FFB347" },
 };
 
 // Group definitions for Fullmind
@@ -395,12 +395,12 @@ export default function LayerBubble() {
     renewal_pipeline: fullmindPalette.stops[4],
     expansion_pipeline: fullmindPalette.stops[5],
     new_business_pipeline: fullmindPalette.stops[2],
-    winback_pipeline: "#FFB347",
+    winback_pipeline: fullmindPalette.stops[1],
     first_year: fullmindPalette.stops[3],
-    multi_year_growing: "#4ECDC4",
+    multi_year_growing: fullmindPalette.stops[3],
     multi_year_flat: fullmindPalette.stops[5],
-    multi_year_shrinking: "#F37167",
-    lapsed: "#F37167", // Always coral for churned/lapsed
+    multi_year_shrinking: fullmindPalette.stops[4],
+    lapsed: "#FFB347",
   };
 
   // Fetch filter options
@@ -1401,27 +1401,21 @@ export default function LayerBubble() {
                 </label>
                 {ALL_LOCALE_IDS.map((localeId) => {
                   const meta = LOCALE_LAYER_META[localeId];
-                  const isActive = visibleLocales.has(localeId);
+                  const key = `locale:${localeId}`;
                   return (
-                    <label
+                    <CategoryRow
                       key={localeId}
-                      className={`flex items-center gap-2.5 pl-6 pr-2 py-1 rounded-lg cursor-pointer transition-colors ${
-                        isActive ? "bg-plum/5" : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isActive}
-                        onChange={() => toggleLocale(localeId)}
-                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
-                      />
-                      <ColorDot color={meta.color} />
-                      <span
-                        className={`text-sm ${isActive ? "font-medium text-gray-800" : "text-gray-600"}`}
-                      >
-                        {meta.label}
-                      </span>
-                    </label>
+                      categoryKey={key}
+                      label={meta.label}
+                      checked={visibleLocales.has(localeId)}
+                      onToggle={() => toggleLocale(localeId)}
+                      color={categoryColors[key] ?? meta.color}
+                      opacity={categoryOpacities[key] ?? 0.75}
+                      onColorChange={(c) => setCategoryColor(key, c)}
+                      onOpacityChange={(o) => setCategoryOpacity(key, o)}
+                      swatchOpen={palettePickerOpen === key}
+                      onToggleSwatch={() => setPalettePickerOpen(palettePickerOpen === key ? null : key)}
+                    />
                   );
                 })}
               </div>

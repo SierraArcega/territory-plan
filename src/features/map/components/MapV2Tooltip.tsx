@@ -14,13 +14,13 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  multi_year_growing: "#4ECDC4",
-  multi_year_flat: "#403770",
-  multi_year_shrinking: "#F37167",
-  new: "#22C55E",
-  lapsed: "#F37167",
-  pipeline: "#F59E0B",
-  target: "#6EA3BE",
+  multi_year_growing: "#a6c9da",
+  multi_year_flat: "#6EA3BE",
+  multi_year_shrinking: "#8bb5cb",
+  new: "#a6c9da",
+  lapsed: "#FFB347",
+  pipeline: "#c4dae6",
+  target: "#e8f1f5",
 };
 
 const SCHOOL_LEVEL_LABELS: Record<number, string> = {

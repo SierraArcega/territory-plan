@@ -106,9 +106,9 @@ describe("buildVendorFillExpression", () => {
       expect(arr[idx + 1]).toBe("#s0");
     });
 
-    it("maps lapsed to stops[1]", () => {
+    it("maps lapsed to orange (#FFB347)", () => {
       const idx = arr.indexOf("lapsed");
-      expect(arr[idx + 1]).toBe("#s1");
+      expect(arr[idx + 1]).toBe("#FFB347");
     });
 
     it("maps new_business_pipeline to stops[2]", () => {
@@ -136,19 +136,19 @@ describe("buildVendorFillExpression", () => {
       expect(arr[idx + 1]).toBe("#s6");
     });
 
-    it("hardcodes winback_pipeline to #FFB347", () => {
+    it("maps winback_pipeline to stops[1]", () => {
       const idx = arr.indexOf("winback_pipeline");
-      expect(arr[idx + 1]).toBe("#FFB347");
+      expect(arr[idx + 1]).toBe("#s1");
     });
 
-    it("hardcodes multi_year_growing to #4ECDC4", () => {
+    it("maps multi_year_growing to stops[3]", () => {
       const idx = arr.indexOf("multi_year_growing");
-      expect(arr[idx + 1]).toBe("#4ECDC4");
+      expect(arr[idx + 1]).toBe("#s3");
     });
 
-    it("hardcodes multi_year_shrinking to #F37167", () => {
+    it("maps multi_year_shrinking to stops[4]", () => {
       const idx = arr.indexOf("multi_year_shrinking");
-      expect(arr[idx + 1]).toBe("#F37167");
+      expect(arr[idx + 1]).toBe("#s4");
     });
 
     it("ends with transparent fallback", () => {
@@ -181,10 +181,10 @@ describe("buildVendorFillExpression", () => {
         expect(arr[1]).toEqual(["get", `${vendorId}_category`]);
       });
 
-      it("maps churned to stops[0]", () => {
+      it("maps churned to orange (#FFB347)", () => {
         const idx = arr.indexOf("churned");
         expect(idx).toBeGreaterThan(1);
-        expect(arr[idx + 1]).toBe("#s0");
+        expect(arr[idx + 1]).toBe("#FFB347");
       });
 
       it("maps new_business_pipeline to stops[2]", () => {
@@ -212,19 +212,19 @@ describe("buildVendorFillExpression", () => {
         expect(arr[idx + 1]).toBe("#s5");
       });
 
-      it("hardcodes winback_pipeline to #FFB347", () => {
+      it("maps winback_pipeline to stops[1]", () => {
         const idx = arr.indexOf("winback_pipeline");
-        expect(arr[idx + 1]).toBe("#FFB347");
+        expect(arr[idx + 1]).toBe("#s1");
       });
 
-      it("hardcodes multi_year_growing to #4ECDC4", () => {
+      it("maps multi_year_growing to stops[3]", () => {
         const idx = arr.indexOf("multi_year_growing");
-        expect(arr[idx + 1]).toBe("#4ECDC4");
+        expect(arr[idx + 1]).toBe("#s3");
       });
 
-      it("hardcodes multi_year_shrinking to #F37167", () => {
+      it("maps multi_year_shrinking to stops[4]", () => {
         const idx = arr.indexOf("multi_year_shrinking");
-        expect(arr[idx + 1]).toBe("#F37167");
+        expect(arr[idx + 1]).toBe("#s4");
       });
 
       it("does NOT contain target or lapsed (fullmind-only)", () => {
@@ -360,43 +360,43 @@ describe("buildVendorFillExpressionFromCategories", () => {
     const arr = asArr(expr);
 
     it("falls back to default target color", () => {
-      expect(arr[arr.indexOf("target") + 1]).toBe("#ecebf1");
+      expect(arr[arr.indexOf("target") + 1]).toBe("#e8f1f5");
     });
 
     it("falls back to default new_business_pipeline color", () => {
-      expect(arr[arr.indexOf("new_business_pipeline") + 1]).toBe("#b3afc6");
+      expect(arr[arr.indexOf("new_business_pipeline") + 1]).toBe("#c4dae6");
     });
 
-    it("falls back to default winback_pipeline color (#FFB347)", () => {
-      expect(arr[arr.indexOf("winback_pipeline") + 1]).toBe("#FFB347");
+    it("falls back to default winback_pipeline color", () => {
+      expect(arr[arr.indexOf("winback_pipeline") + 1]).toBe("#d1e3ec");
     });
 
     it("falls back to default renewal_pipeline color", () => {
-      expect(arr[arr.indexOf("renewal_pipeline") + 1]).toBe("#665f8d");
+      expect(arr[arr.indexOf("renewal_pipeline") + 1]).toBe("#8bb5cb");
     });
 
     it("falls back to default expansion_pipeline color", () => {
-      expect(arr[arr.indexOf("expansion_pipeline") + 1]).toBe("#403770");
+      expect(arr[arr.indexOf("expansion_pipeline") + 1]).toBe("#6EA3BE");
     });
 
-    it("falls back to default lapsed color", () => {
-      expect(arr[arr.indexOf("lapsed") + 1]).toBe("#d9d7e2");
+    it("falls back to default lapsed color (orange)", () => {
+      expect(arr[arr.indexOf("lapsed") + 1]).toBe("#FFB347");
     });
 
     it("falls back to default new color", () => {
-      expect(arr[arr.indexOf("new") + 1]).toBe("#8c87a9");
+      expect(arr[arr.indexOf("new") + 1]).toBe("#a6c9da");
     });
 
-    it("falls back to default multi_year_growing (#4ECDC4)", () => {
-      expect(arr[arr.indexOf("multi_year_growing") + 1]).toBe("#4ECDC4");
+    it("falls back to default multi_year_growing color", () => {
+      expect(arr[arr.indexOf("multi_year_growing") + 1]).toBe("#a6c9da");
     });
 
     it("falls back to default multi_year_flat color", () => {
-      expect(arr[arr.indexOf("multi_year_flat") + 1]).toBe("#403770");
+      expect(arr[arr.indexOf("multi_year_flat") + 1]).toBe("#6EA3BE");
     });
 
-    it("falls back to default multi_year_shrinking (#F37167)", () => {
-      expect(arr[arr.indexOf("multi_year_shrinking") + 1]).toBe("#F37167");
+    it("falls back to default multi_year_shrinking color", () => {
+      expect(arr[arr.indexOf("multi_year_shrinking") + 1]).toBe("#8bb5cb");
     });
   });
 
@@ -412,8 +412,8 @@ describe("buildVendorFillExpressionFromCategories", () => {
     });
 
     it("falls back to default for missing keys", () => {
-      expect(arr[arr.indexOf("lapsed") + 1]).toBe("#d9d7e2");
-      expect(arr[arr.indexOf("winback_pipeline") + 1]).toBe("#FFB347");
+      expect(arr[arr.indexOf("lapsed") + 1]).toBe("#FFB347");
+      expect(arr[arr.indexOf("winback_pipeline") + 1]).toBe("#d1e3ec");
     });
   });
 
@@ -456,16 +456,16 @@ describe("buildVendorFillExpressionFromCategories", () => {
     const expr = buildVendorFillExpressionFromCategories("proximity", {});
     const arr = asArr(expr);
 
-    it("falls back to default churned color", () => {
-      expect(arr[arr.indexOf("churned") + 1]).toBe("#fef1f0");
+    it("falls back to default churned color (orange)", () => {
+      expect(arr[arr.indexOf("churned") + 1]).toBe("#FFB347");
     });
 
     it("falls back to default new_business_pipeline color", () => {
-      expect(arr[arr.indexOf("new_business_pipeline") + 1]).toBe("#f9b5b0");
+      expect(arr[arr.indexOf("new_business_pipeline") + 1]).toBe("#fde3e1");
     });
 
-    it("falls back to default winback_pipeline (#FFB347)", () => {
-      expect(arr[arr.indexOf("winback_pipeline") + 1]).toBe("#FFB347");
+    it("falls back to default winback_pipeline color", () => {
+      expect(arr[arr.indexOf("winback_pipeline") + 1]).toBe("#fde3e1");
     });
 
     it("falls back to default renewal_pipeline color", () => {
@@ -477,19 +477,19 @@ describe("buildVendorFillExpressionFromCategories", () => {
     });
 
     it("falls back to default new color", () => {
-      expect(arr[arr.indexOf("new") + 1]).toBe("#e06b5e");
+      expect(arr[arr.indexOf("new") + 1]).toBe("#f58d85");
     });
 
-    it("falls back to default multi_year_growing (#4ECDC4)", () => {
-      expect(arr[arr.indexOf("multi_year_growing") + 1]).toBe("#4ECDC4");
+    it("falls back to default multi_year_growing color", () => {
+      expect(arr[arr.indexOf("multi_year_growing") + 1]).toBe("#f69d96");
     });
 
-    it("falls back to default multi_year_flat (#F37167)", () => {
+    it("falls back to default multi_year_flat color", () => {
       expect(arr[arr.indexOf("multi_year_flat") + 1]).toBe("#F37167");
     });
 
-    it("falls back to default multi_year_shrinking (#F37167)", () => {
-      expect(arr[arr.indexOf("multi_year_shrinking") + 1]).toBe("#F37167");
+    it("falls back to default multi_year_shrinking color", () => {
+      expect(arr[arr.indexOf("multi_year_shrinking") + 1]).toBe("#f58d85");
     });
   });
 

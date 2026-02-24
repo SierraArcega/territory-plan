@@ -227,7 +227,7 @@ export const SIGNAL_PALETTES: SignalPalette[] = [
 // ============================================
 
 export const DEFAULT_VENDOR_PALETTE: Record<VendorId, string> = {
-  fullmind: "plum",
+  fullmind: "steel-blue",
   proximity: "coral",
   elevate: "steel-blue",
   tbt: "golden",
@@ -268,26 +268,26 @@ export function deriveVendorCategoryColors(
     return {
       "fullmind:target": s[0],
       "fullmind:new_business_pipeline": s[2],
-      "fullmind:winback_pipeline": "#FFB347",
+      "fullmind:winback_pipeline": s[1],
       "fullmind:renewal_pipeline": s[4],
       "fullmind:expansion_pipeline": s[5],
-      "fullmind:lapsed": s[1],
+      "fullmind:lapsed": "#FFB347",
       "fullmind:new": s[3],
-      "fullmind:multi_year_growing": "#4ECDC4",
+      "fullmind:multi_year_growing": s[3],
       "fullmind:multi_year_flat": s[6],
-      "fullmind:multi_year_shrinking": "#F37167",
+      "fullmind:multi_year_shrinking": s[4],
     };
   }
   return {
-    [`${vendorId}:churned`]: s[0],
+    [`${vendorId}:churned`]: "#FFB347",
     [`${vendorId}:new`]: s[4],
     [`${vendorId}:new_business_pipeline`]: s[2],
-    [`${vendorId}:winback_pipeline`]: "#FFB347",
+    [`${vendorId}:winback_pipeline`]: s[1],
     [`${vendorId}:renewal_pipeline`]: s[4],
     [`${vendorId}:expansion_pipeline`]: s[5],
-    [`${vendorId}:multi_year_growing`]: "#4ECDC4",
+    [`${vendorId}:multi_year_growing`]: s[3],
     [`${vendorId}:multi_year_flat`]: s[5],
-    [`${vendorId}:multi_year_shrinking`]: "#F37167",
+    [`${vendorId}:multi_year_shrinking`]: s[4],
   };
 }
 

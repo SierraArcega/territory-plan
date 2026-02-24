@@ -49,7 +49,7 @@ describe("palettes", () => {
   });
 
   it("default vendor palettes match current brand colors", () => {
-    expect(DEFAULT_VENDOR_PALETTE.fullmind).toBe("plum");
+    expect(DEFAULT_VENDOR_PALETTE.fullmind).toBe("steel-blue");
     expect(DEFAULT_VENDOR_PALETTE.proximity).toBe("coral");
     expect(DEFAULT_VENDOR_PALETTE.elevate).toBe("steel-blue");
     expect(DEFAULT_VENDOR_PALETTE.tbt).toBe("golden");
@@ -125,24 +125,24 @@ describe("deriveVendorCategoryColors", () => {
     expect(Object.keys(result)).toHaveLength(10);
     expect(result["fullmind:target"]).toBe(plum.stops[0]);
     expect(result["fullmind:new_business_pipeline"]).toBe(plum.stops[2]);
-    expect(result["fullmind:winback_pipeline"]).toBe("#FFB347");
-    expect(result["fullmind:multi_year_growing"]).toBe("#4ECDC4");
+    expect(result["fullmind:winback_pipeline"]).toBe(plum.stops[1]);
+    expect(result["fullmind:multi_year_growing"]).toBe(plum.stops[3]);
     expect(result["fullmind:multi_year_flat"]).toBe(plum.stops[6]);
-    expect(result["fullmind:multi_year_shrinking"]).toBe("#F37167");
+    expect(result["fullmind:multi_year_shrinking"]).toBe(plum.stops[4]);
   });
 
   it("returns 9 keyed entries for competitor (5 spend + 4 pipeline)", () => {
     const coral = VENDOR_PALETTES.find((p) => p.id === "coral")!;
     const result = deriveVendorCategoryColors("proximity", coral);
     expect(Object.keys(result)).toHaveLength(9);
-    expect(result["proximity:churned"]).toBe(coral.stops[0]);
+    expect(result["proximity:churned"]).toBe("#FFB347");
     expect(result["proximity:new_business_pipeline"]).toBe(coral.stops[2]);
-    expect(result["proximity:winback_pipeline"]).toBe("#FFB347");
+    expect(result["proximity:winback_pipeline"]).toBe(coral.stops[1]);
     expect(result["proximity:renewal_pipeline"]).toBe(coral.stops[4]);
     expect(result["proximity:expansion_pipeline"]).toBe(coral.stops[5]);
-    expect(result["proximity:multi_year_growing"]).toBe("#4ECDC4");
+    expect(result["proximity:multi_year_growing"]).toBe(coral.stops[3]);
     expect(result["proximity:multi_year_flat"]).toBe(coral.stops[5]);
-    expect(result["proximity:multi_year_shrinking"]).toBe("#F37167");
+    expect(result["proximity:multi_year_shrinking"]).toBe(coral.stops[4]);
   });
 });
 
@@ -290,7 +290,7 @@ describe("palette-storage", () => {
 
   it("returns defaults when nothing stored", () => {
     const prefs = loadPalettePrefs();
-    expect(prefs.vendorPalettes.fullmind).toBe("plum");
+    expect(prefs.vendorPalettes.fullmind).toBe("steel-blue");
     expect(prefs.signalPalette).toBe("mint-coral");
     expect(prefs.categoryColors).toEqual(DEFAULT_CATEGORY_COLORS);
     expect(prefs.categoryOpacities).toEqual(DEFAULT_CATEGORY_OPACITIES);
@@ -329,7 +329,7 @@ describe("palette-storage", () => {
   it("handles corrupted localStorage gracefully", () => {
     localStorage.setItem("territory-plan:palette-prefs", "not-json");
     const prefs = loadPalettePrefs();
-    expect(prefs.vendorPalettes.fullmind).toBe("plum");
+    expect(prefs.vendorPalettes.fullmind).toBe("steel-blue");
     expect(prefs.vendorOpacities.fullmind).toBe(0.75);
     expect(prefs.categoryColors).toEqual(DEFAULT_CATEGORY_COLORS);
     expect(prefs.categoryOpacities).toEqual(DEFAULT_CATEGORY_OPACITIES);
