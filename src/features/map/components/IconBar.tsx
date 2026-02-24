@@ -6,7 +6,6 @@ import { useProfile } from "@/lib/api";
 
 const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
   { id: "home", icon: "home", label: "Home" },
-  { id: "search", icon: "search", label: "Search" },
   { id: "plans", icon: "plans", label: "Plans" },
   { id: "explore", icon: "explore", label: "Explore" },
   { id: "settings", icon: "settings", label: "Settings" },
@@ -45,24 +44,6 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
   const color = active ? "#403770" : "#9CA3AF";
 
   switch (type) {
-    case "search":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <circle
-            cx="9"
-            cy="9"
-            r="5.5"
-            stroke={color}
-            strokeWidth="1.5"
-          />
-          <path
-            d="M13.5 13.5L17 17"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
     case "plans":
       return (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
