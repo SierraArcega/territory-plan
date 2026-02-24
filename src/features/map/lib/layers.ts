@@ -550,3 +550,101 @@ export function buildFilterExpression(
   if (conditions.length === 1) return conditions[0];
   return ["all", ...conditions] as ExpressionSpecification;
 }
+
+// ============================================
+// Transition fill expression (compare/changes mode)
+// ============================================
+
+/**
+ * Build a MapLibre case expression that classifies two FY category properties
+ * into transition bucket colors at render time.
+ *
+ * Tile properties expected: `{vendor}_category_a` and `{vendor}_category_b`
+ * (aliased by the tile API when `fy2` param is present).
+ */
+export function buildTransitionFillExpression(
+  vendorId: VendorId,
+): ExpressionSpecification {
+  const propA = `${VENDOR_CONFIGS[vendorId].tileProperty}_a`;
+  const propB = `${VENDOR_CONFIGS[vendorId].tileProperty}_b`;
+
+  const CUSTOMER_CATS = ["new", "multi_year_growing", "multi_year_flat", "multi_year_shrinking"];
+  const PIPELINE_CATS = ["target", "new_business_pipeline", "winback_pipeline", "renewal_pipeline", "expansion_pipeline"];
+  const NO_DATA_CATS = ["lapsed", "churned"];
+
+  // Rank values for upgrade/downgrade detection via MapLibre expressions
+  // We use a "match" to convert category string -> numeric rank
+  const rankExpr = (prop: string): ExpressionSpecification => [
+    "match",
+    ["coalesce", ["get", prop], ""],
+    "target", 1,
+    "new_business_pipeline", 2,
+    "winback_pipeline", 3,
+    "renewal_pipeline", 4,
+    "expansion_pipeline", 5,
+    "new", 6,
+    "multi_year_shrinking", 7,
+    "multi_year_flat", 8,
+    "multi_year_growing", 9,
+    // lapsed, churned, empty -> 0
+    0,
+  ] as unknown as ExpressionSpecification;
+
+  return [
+    "case",
+
+    // 1. Unchanged: same category in both (including both null)
+    ["==", ["coalesce", ["get", propA], ""], ["coalesce", ["get", propB], ""]],
+    "#E5E7EB",
+
+    // 2. Churned: had engagement in A (rank >= 1), null/lapsed/churned in B
+    ["all",
+      [">=", rankExpr(propA), 1],
+      ["any",
+        ["!", ["has", propB]],
+        ["in", ["coalesce", ["get", propB], ""], ["literal", [...NO_DATA_CATS, ""]]],
+      ],
+    ],
+    "#F37167",
+
+    // 3. New Customer: null/target/lapsed/churned/pipeline in A, customer category in B
+    ["all",
+      ["any",
+        ["!", ["has", propA]],
+        ["in", ["coalesce", ["get", propA], ""], ["literal", [...PIPELINE_CATS, ...NO_DATA_CATS, ""]]],
+      ],
+      ["in", ["get", propB], ["literal", CUSTOMER_CATS]],
+    ],
+    "#4ECDC4",
+
+    // 4. New Pipeline: null/lapsed/churned in A, pipeline category in B
+    ["all",
+      ["any",
+        ["!", ["has", propA]],
+        ["in", ["coalesce", ["get", propA], ""], ["literal", [...NO_DATA_CATS, ""]]],
+      ],
+      ["in", ["get", propB], ["literal", PIPELINE_CATS]],
+    ],
+    "#C4E7E6",
+
+    // 5. Upgraded: both rank >= 1, rank(B) > rank(A)
+    ["all",
+      [">=", rankExpr(propA), 1],
+      [">=", rankExpr(propB), 1],
+      [">", rankExpr(propB), rankExpr(propA)],
+    ],
+    "#6EA3BE",
+
+    // 6. Downgraded: both rank >= 1, rank(B) < rank(A), B is not lapsed/churned/null
+    ["all",
+      [">=", rankExpr(propA), 1],
+      [">=", rankExpr(propB), 1],
+      ["<", rankExpr(propB), rankExpr(propA)],
+      ["!", ["in", ["coalesce", ["get", propB], ""], ["literal", [...NO_DATA_CATS, ""]]]],
+    ],
+    "#FFCF70",
+
+    // Fallback: unchanged
+    "#E5E7EB",
+  ] as unknown as ExpressionSpecification;
+}

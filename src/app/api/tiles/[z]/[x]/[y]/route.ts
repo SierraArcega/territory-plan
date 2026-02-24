@@ -3,6 +3,9 @@ import pool from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const VALID_FYS = ["fy24", "fy25", "fy26", "fy27"] as const;
+const VENDOR_COLS = ["fullmind", "proximity", "elevate", "tbt"] as const;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ z: string; x: string; y: string }> }
@@ -24,14 +27,53 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const stateFilter = searchParams.get("state");
     const fyParam = searchParams.get("fy") || "fy26";
-    const validFys = ["fy24", "fy25", "fy26", "fy27"] as const;
-    const fy = validFys.includes(fyParam as any) ? fyParam : "fy26";
+    const fy = VALID_FYS.includes(fyParam as (typeof VALID_FYS)[number]) ? fyParam : "fy26";
+
+    // Optional second FY for comparison mode
+    const fy2Param = searchParams.get("fy2");
+    const fy2 = fy2Param && VALID_FYS.includes(fy2Param as (typeof VALID_FYS)[number])
+      ? fy2Param
+      : null;
 
     // At low zoom (national view), only load districts with vendor data
     const isNationalView = zoom < 6 && !stateFilter;
 
     // Geometry simplification tolerance based on zoom level
     const simplifyTolerance = zoom < 5 ? 0.01 : zoom < 7 ? 0.005 : 0.001;
+
+    // Build category column aliases based on whether fy2 is present
+    let categoryColumns: string;
+    if (fy2) {
+      // Comparison mode: include both FYs with _a / _b suffixes
+      const cols: string[] = [];
+      for (const vendor of VENDOR_COLS) {
+        cols.push(`d.${fy}_${vendor}_category AS ${vendor}_category_a`);
+        cols.push(`d.${fy2}_${vendor}_category AS ${vendor}_category_b`);
+      }
+      categoryColumns = cols.join(",\n          ");
+    } else {
+      // Normal mode: single FY aliased to generic names
+      categoryColumns = VENDOR_COLS.map(
+        (vendor) => `d.${fy}_${vendor}_category AS ${vendor}_category`
+      ).join(",\n          ");
+    }
+
+    // Build national view optimization filter
+    let nationalFilter = "";
+    if (isNationalView) {
+      if (fy2) {
+        // Include districts with data in EITHER year
+        const fy1Parts = VENDOR_COLS.map((v) => `d.${fy}_${v}_category IS NOT NULL`);
+        const fy2Parts = VENDOR_COLS.map((v) => `d.${fy2}_${v}_category IS NOT NULL`);
+        nationalFilter = `AND (
+            ${[...fy1Parts, ...fy2Parts].join("\n            OR ")}
+          )`;
+      } else {
+        nationalFilter = `AND (
+            ${VENDOR_COLS.map((v) => `d.${fy}_${v}_category IS NOT NULL`).join("\n            OR ")}
+          )`;
+      }
+    }
 
     const query = `
       WITH tile_bounds AS (
@@ -46,10 +88,7 @@ export async function GET(
           d.state_abbrev,
           d.sales_executive,
           d.plan_ids,
-          d.${fy}_fullmind_category AS fullmind_category,
-          d.${fy}_proximity_category AS proximity_category,
-          d.${fy}_elevate_category AS elevate_category,
-          d.${fy}_tbt_category AS tbt_category,
+          ${categoryColumns},
           d.enrollment_signal,
           d.ell_signal,
           d.swd_signal,
@@ -70,12 +109,7 @@ export async function GET(
         WHERE d.render_geometry IS NOT NULL
           AND d.render_geometry && (SELECT envelope_4326 FROM tile_bounds)
           ${stateFilter ? "AND d.state_abbrev = $4" : ""}
-          ${isNationalView ? `AND (
-            d.${fy}_fullmind_category IS NOT NULL
-            OR d.${fy}_proximity_category IS NOT NULL
-            OR d.${fy}_elevate_category IS NOT NULL
-            OR d.${fy}_tbt_category IS NOT NULL
-          )` : ""}
+          ${nationalFilter}
       )
       SELECT ST_AsMVT(tile_data, 'districts', 4096, 'geom') AS mvt
       FROM tile_data

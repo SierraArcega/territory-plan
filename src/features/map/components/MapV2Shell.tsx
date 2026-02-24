@@ -8,6 +8,7 @@ import LayerBubble from "./LayerBubble";
 import MapSummaryBar from "./MapSummaryBar";
 import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
+import ComparisonMapShell from "./ComparisonMapShell";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_IDS } from "@/features/map/lib/layers";
@@ -26,6 +27,9 @@ const MapV2Container = dynamic(() => import("./MapV2Container"), {
 });
 
 export default function MapV2Shell() {
+  const compareMode = useMapV2Store((s) => s.compareMode);
+  const compareView = useMapV2Store((s) => s.compareView);
+
   // Load saved palette preferences on mount
   useEffect(() => {
     const prefs = loadPalettePrefs();
@@ -62,10 +66,13 @@ export default function MapV2Shell() {
     return unsub;
   }, []);
 
+  // In changes view, the TransitionLegend replaces the MapSummaryBar
+  const showSummaryBar = !compareMode || compareView !== "changes";
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#F8F7F4]">
       {/* Full-viewport map (renders behind everything) */}
-      <MapV2Container />
+      {compareMode ? <ComparisonMapShell /> : <MapV2Container />}
 
       {/* Floating panel overlay */}
       <FloatingPanel />
@@ -79,8 +86,8 @@ export default function MapV2Shell() {
       {/* Multi-select mode toggle */}
       <SelectModePill />
 
-      {/* Summary stats bar */}
-      <MapSummaryBar />
+      {/* Summary stats bar (hidden in changes view -- TransitionLegend replaces it) */}
+      {showSummaryBar && <MapSummaryBar />}
 
       {/* Layer control bubble */}
       <LayerBubble />

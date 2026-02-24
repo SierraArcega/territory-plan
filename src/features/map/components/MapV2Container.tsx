@@ -4,12 +4,24 @@ import React, { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression } from "@/features/map/lib/layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
-import { mapV2Ref } from "@/features/map/lib/ref";
+import { mapV2Ref, mapV2Refs, type MapRefKey } from "@/features/map/lib/ref";
+import { classifyTransition } from "@/features/map/lib/comparison";
 import MapV2Tooltip from "./MapV2Tooltip";
+
+export interface MapV2ContainerProps {
+  /** Override the fiscal year used for tile requests (for side-by-side panes) */
+  fyOverride?: string;
+  /** Additional query params appended to the tile URL (e.g. "&fy2=fy27") */
+  tileUrlSuffix?: string;
+  /** Which ref slot this instance occupies */
+  refKey?: MapRefKey;
+  /** Maps logical tile property names to actual names (for compare mode tiles) */
+  tooltipPropertyMap?: Record<string, string>;
+}
 
 // Throttle interval for hover handlers
 const HOVER_THROTTLE_MS = 50;
@@ -124,7 +136,12 @@ const ClickRipples = React.memo(function ClickRipples() {
   );
 });
 
-export default function MapV2Container() {
+export default function MapV2Container({
+  fyOverride,
+  tileUrlSuffix,
+  refKey = "primary",
+  tooltipPropertyMap,
+}: MapV2ContainerProps = {}) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const schoolFetchController = useRef<AbortController | null>(null);
@@ -187,9 +204,12 @@ export default function MapV2Container() {
       maxZoom: 14,
     });
 
-    mapV2Ref.current = map.current;
+    mapV2Refs[refKey] = map.current;
 
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    // Only add nav control to the primary map (or when not in side-by-side)
+    if (refKey === "primary") {
+      map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+    }
 
     map.current.on("load", () => {
       if (!map.current) return;
@@ -201,12 +221,16 @@ export default function MapV2Container() {
       });
 
       // Add district tiles source (cache-bust via version param)
-      map.current.addSource("districts", {
-        type: "vector",
-        tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=fy26`],
-        minzoom: 3.5,
-        maxzoom: 12,
-      });
+      {
+        const initialFy = fyOverride ?? useMapV2Store.getState().selectedFiscalYear;
+        const suffix = tileUrlSuffix ?? "";
+        map.current.addSource("districts", {
+          type: "vector",
+          tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${initialFy}${suffix}`],
+          minzoom: 3.5,
+          maxzoom: 12,
+        });
+      }
 
       // === LAYERS ===
 
@@ -328,17 +352,26 @@ export default function MapV2Container() {
       });
 
       // Per-vendor fill layers (stacked, semi-transparent)
+      const isChangesMode = !!tileUrlSuffix?.includes("fy2=");
       for (const vendorId of ["fullmind", "proximity", "elevate", "tbt"] as const) {
         const config = VENDOR_CONFIGS[vendorId];
+        const fillColor = isChangesMode
+          ? buildTransitionFillExpression(vendorId) as any
+          : buildVendorFillExpressionFromCategories(vendorId, useMapV2Store.getState().categoryColors) as any;
+        // In changes mode, use the _a property to detect presence (it replaces the base property)
+        const filterProp = isChangesMode ? `${config.tileProperty}_a` : config.tileProperty;
+        const layerFilter = isChangesMode
+          ? ["any", ["has", `${config.tileProperty}_a`], ["has", `${config.tileProperty}_b`]] as any
+          : ["has", filterProp];
         map.current.addLayer({
           id: `district-${vendorId}-fill`,
           type: "fill",
           source: "districts",
           "source-layer": "districts",
-          filter: ["has", config.tileProperty],
+          filter: layerFilter,
           paint: {
-            "fill-color": buildVendorFillExpressionFromCategories(vendorId, useMapV2Store.getState().categoryColors) as any,
-            "fill-opacity": buildCategoryOpacityExpression(vendorId, useMapV2Store.getState().categoryOpacities) as any,
+            "fill-color": fillColor,
+            "fill-opacity": isChangesMode ? 0.75 : buildCategoryOpacityExpression(vendorId, useMapV2Store.getState().categoryOpacities) as any,
             "fill-opacity-transition": { duration: 150 },
           },
           layout: {
@@ -504,8 +537,9 @@ export default function MapV2Container() {
     return () => {
       map.current?.remove();
       map.current = null;
-      mapV2Ref.current = null;
+      mapV2Refs[refKey] = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Clear hover — accesses store via getState(), no subscriptions needed
@@ -597,15 +631,32 @@ export default function MapV2Container() {
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
           map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
 
-          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+          // Build tooltip data, respecting tooltipPropertyMap for compare mode
+          const props = feature.properties;
+          const tooltipData: import("@/features/map/lib/store").V2TooltipData = {
             type: "district",
             leaid,
-            name: feature.properties?.name || "Unknown",
-            stateAbbrev: feature.properties?.state_abbrev,
-            enrollment: feature.properties?.enrollment,
-            customerCategory: feature.properties?.fullmind_category,
-            salesExecutive: feature.properties?.sales_executive,
-          });
+            name: props?.name || "Unknown",
+            stateAbbrev: props?.state_abbrev,
+            enrollment: props?.enrollment,
+            salesExecutive: props?.sales_executive,
+          };
+
+          if (tooltipPropertyMap) {
+            // Compare / changes mode: read _a / _b properties
+            const catPropA = tooltipPropertyMap["fullmind_category_a"] || "fullmind_category_a";
+            const catPropB = tooltipPropertyMap["fullmind_category_b"] || "fullmind_category_b";
+            tooltipData.customerCategoryA = props?.[catPropA] || undefined;
+            tooltipData.customerCategoryB = props?.[catPropB] || undefined;
+            tooltipData.transitionBucket = classifyTransition(
+              tooltipData.customerCategoryA ?? null,
+              tooltipData.customerCategoryB ?? null,
+            );
+          } else {
+            tooltipData.customerCategory = props?.fullmind_category;
+          }
+
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, tooltipData);
         } else if (leaid === lastHoveredLeaidRef.current) {
           // Same district — update tooltip position directly via DOM, no store write
           if (tooltipElRef.current) {
@@ -849,13 +900,15 @@ export default function MapV2Container() {
     }
   }, [multiSelectMode, mapReady]);
 
-  // Update tile source when fiscal year changes
+  // Update tile source when fiscal year changes (or fyOverride / tileUrlSuffix)
   useEffect(() => {
     if (!map.current || !mapReady) return;
     const source = map.current.getSource("districts") as any;
     if (!source) return;
 
-    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${selectedFiscalYear}`;
+    const effectiveFy = fyOverride ?? selectedFiscalYear;
+    const suffix = tileUrlSuffix ?? "";
+    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${effectiveFy}${suffix}`;
     source.setTiles([newUrl]);
 
     // Clear tile cache and force re-fetch
@@ -864,7 +917,7 @@ export default function MapV2Container() {
       sourceCache.clearTiles();
     }
     map.current.triggerRepaint();
-  }, [selectedFiscalYear, mapReady]);
+  }, [selectedFiscalYear, fyOverride, tileUrlSuffix, mapReady]);
 
   // Toggle vendor layer visibility + update circle layer color
   useEffect(() => {
@@ -895,18 +948,20 @@ export default function MapV2Container() {
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
+    const isChangesMode = !!tileUrlSuffix?.includes("fy2=");
+
     for (const vendorId of VENDOR_IDS) {
       const layerId = `district-${vendorId}-fill`;
       if (!map.current.getLayer(layerId)) continue;
-      map.current.setPaintProperty(
-        layerId,
-        "fill-color",
-        buildVendorFillExpressionFromCategories(vendorId, categoryColors) as any,
-      );
+      // In changes mode, use transition fill expression; otherwise normal category colors
+      const fillExpr = isChangesMode
+        ? buildTransitionFillExpression(vendorId) as any
+        : buildVendorFillExpressionFromCategories(vendorId, categoryColors) as any;
+      map.current.setPaintProperty(layerId, "fill-color", fillExpr);
     }
 
-    // Update account point layer too
-    if (map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
+    // Update account point layer too (not applicable in changes mode)
+    if (!isChangesMode && map.current.getLayer(ACCOUNT_POINT_LAYER_ID)) {
       const firstVendor = [...useMapV2Store.getState().activeVendors][0];
       if (firstVendor) {
         map.current.setPaintProperty(
@@ -916,7 +971,7 @@ export default function MapV2Container() {
         );
       }
     }
-  }, [categoryColors, mapReady]);
+  }, [categoryColors, mapReady, tileUrlSuffix]);
 
   // Update vendor layer opacity when per-category opacities change
   useEffect(() => {
