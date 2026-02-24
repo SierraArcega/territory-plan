@@ -22,7 +22,7 @@ export type PanelState =
   | "PLAN_PERF";
 
 // Icon bar navigation
-export type IconBarTab = "home" | "search" | "plans" | "explore" | "settings";
+export type IconBarTab = "home" | "plans" | "explore" | "settings";
 
 // Plan workspace sections
 export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
@@ -442,7 +442,17 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   activeSignal: null,
   visibleLocales: new Set<LocaleId>(),
   filterAccountTypes: [],
-  fullmindEngagement: [],
+  fullmindEngagement: [
+    "new_business_pipeline",
+    "winback_pipeline",
+    "renewal_pipeline",
+    "expansion_pipeline",
+    "first_year",
+    "multi_year_growing",
+    "multi_year_flat",
+    "multi_year_shrinking",
+    "lapsed",
+  ],
   competitorEngagement: {},
   selectedFiscalYear: "fy26",
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
@@ -556,7 +566,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({
       activeIconTab: tab,
       // Reset to browse when switching tabs
-      panelState: tab === "home" || tab === "search" ? "BROWSE" : s.panelState,
+      panelState: tab === "home" ? "BROWSE" : s.panelState,
       panelHistory: [],
       isExploreActive: tab === "explore",
       // Clear filtered districts when leaving explore

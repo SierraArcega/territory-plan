@@ -23,14 +23,18 @@ You: /feature "add export to CSV"
 │  Phase 1: PRD                    │
 │  ┌─────────────────────────────┐ │
 │  │ Create git worktree         │ │
-│  │ Stage 1: PRD Writer         │ │
-│  │ Stage 2: PRD Reviewer       │ │
-│  │ (revision loop, up to 2x)   │ │
+│  │ Stage 1a: PRD Writer        │ │
+│  │   (explores codebase, asks  │ │
+│  │    human questions 1-by-1,  │ │
+│  │    writes first draft)      │ │
+│  │ Stage 1b: Agent Review Loop │ │
+│  │   (2 autonomous rounds:     │ │
+│  │    reviewer → writer revise)│ │
 │  └─────────────────────────────┘ │
 │         │                        │
 │         ▼                        │
 │  [Slack notification + pause]    │
-│  Human approves PRD              │
+│  Human approves final PRD        │
 │         │                        │
 │         ▼                        │
 │  Phase 2: Implementation         │
@@ -50,9 +54,9 @@ You: /feature "add export to CSV"
 
 ## Stage Details
 
-### Stage 1 — PRD Writer
+### Stage 1a — PRD Writer (Human-in-the-Loop)
 
-**Input:** Feature description (natural language)
+**Input:** Feature description (natural language) + human answers to clarifying questions
 **Output:** `docs/plans/YYYY-MM-DD-<feature>-prd.md`
 
 The PRD writer agent:
@@ -60,6 +64,7 @@ The PRD writer agent:
 - Reads existing design docs in `Docs/plans/` for conventions
 - Reads `Docs/.md Files/TECHSTACK.md` and `Docs/data-dictionary.md` for technical context
 - Reads `prisma/schema.prisma` for data model context
+- **Asks the human clarifying questions one at a time** — purpose, scope, constraints, UI preferences, priority, edge cases, etc. The human's answers shape the first draft
 - Produces a PRD covering:
   - Problem statement — what and why
   - Proposed solution — high-level approach
@@ -68,21 +73,25 @@ The PRD writer agent:
   - Edge cases & error handling
   - Testing strategy
 
-### Stage 2 — PRD Reviewer
+### Stage 1b — Agent Review Loop (Autonomous, 2 Rounds)
 
 **Input:** The PRD + full codebase access
-**Output:** Review notes appended to PRD, or "APPROVED"
+**Output:** Revised PRD with review notes
+
+Two autonomous revision rounds:
+1. PRD Reviewer reviews → identifies issues/improvements
+2. PRD Writer revises based on feedback
+3. PRD Reviewer reviews again → identifies remaining issues
+4. PRD Writer makes final revisions
 
 The reviewer agent:
-- Reads the PRD
 - Cross-references against the actual codebase to check feasibility
 - Checks for conflicts with existing features
 - Validates data model changes against `prisma/schema.prisma`
 - Checks for missing edge cases
 - Verifies testing strategy is adequate
-- Outputs: APPROVED or a structured list of issues/suggestions
 
-**Revision loop:** If issues found → PRD writer revises → reviewer re-reviews. Max 2 revision cycles (3 total reviews). If still not clean after 3 reviews, proceeds with flags.
+After 2 rounds, the PRD proceeds to human approval regardless (with any remaining flags noted).
 
 ### Human Checkpoint: PRD Approval
 

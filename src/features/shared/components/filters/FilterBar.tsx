@@ -1,111 +1,375 @@
 "use client";
 
-import { useMapStore, StatusFilter, TabId } from "@/features/shared/lib/app-store";
-import { useStates, useSalesExecutives } from "@/lib/api";
-import SearchBox from "./SearchBox";
-import MultiSelectToggle from "./MultiSelectToggle";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useMapV2Store } from "@/features/map/lib/store";
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All Districts" },
-  { value: "customer", label: "Customers" },
-  { value: "pipeline", label: "Pipeline" },
-  { value: "customer_pipeline", label: "Customer + Pipeline" },
-  { value: "no_data", label: "No Fullmind Data" },
-];
+interface SearchResult {
+  leaid: string;
+  name: string;
+  stateAbbrev: string;
+  enrollment: number | null;
+}
 
 interface FilterBarProps {
-  // Current active tab - determines which controls to show
-  // On "map" tab: show all filters and search
-  // On other tabs: show minimal header (logo + user menu)
-  activeTab: TabId;
+  activeTab: string;
 }
 
 export default function FilterBar({ activeTab }: FilterBarProps) {
-  const {
-    filters,
-    setStateFilter,
-    setStatusFilter,
-    setSalesExecutive,
-    clearFilters,
-    setActiveTab,
-  } = useMapStore();
+  const filterStates = useMapV2Store((s) => s.filterStates);
+  const toggleFilterState = useMapV2Store((s) => s.toggleFilterState);
+  const setFilterStates = useMapV2Store((s) => s.setFilterStates);
+  const filterOwner = useMapV2Store((s) => s.filterOwner);
+  const setFilterOwner = useMapV2Store((s) => s.setFilterOwner);
+  const filterPlanId = useMapV2Store((s) => s.filterPlanId);
+  const setFilterPlanId = useMapV2Store((s) => s.setFilterPlanId);
+  const selectDistrict = useMapV2Store((s) => s.selectDistrict);
 
-  const { data: states } = useStates();
-  const { data: salesExecs } = useSalesExecutives();
-
-  // Check if we're on the map tab - only show filters there
   const isMapTab = activeTab === "map";
 
-  const hasActiveFilters =
-    filters.stateAbbrev ||
-    filters.statusFilter !== "all" ||
-    filters.salesExecutive ||
-    filters.searchQuery;
+  // Fetch filter options (same pattern as LayerBubble)
+  const [owners, setOwners] = useState<string[]>([]);
+  const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
+  const [states, setStates] = useState<
+    Array<{ abbrev: string; name: string }>
+  >([]);
 
-  // Common compact input styling
+  useEffect(() => {
+    fetch("/api/sales-executives")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) =>
+        setOwners(
+          data.map?.((d: Record<string, unknown>) => d.name || d) || [],
+        ),
+      )
+      .catch(() => {});
+    fetch("/api/territory-plans")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setPlans(Array.isArray(data) ? data : data.plans || []))
+      .catch(() => {});
+    fetch("/api/states")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) =>
+        setStates(
+          (data as Array<{ abbrev: string; name: string }>).sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
+        ),
+      )
+      .catch(() => {});
+  }, []);
+
+  // District search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const doSearch = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const res = await fetch(
+        `/api/districts?search=${encodeURIComponent(query)}&limit=8`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.districts || []);
+        setShowResults(true);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(value), 250);
+  };
+
+  const handleSelectDistrict = (result: SearchResult) => {
+    setSearchQuery("");
+    setShowResults(false);
+    setSearchResults([]);
+    selectDistrict(result.leaid);
+  };
+
+  // Close search results on outside click
+  useEffect(() => {
+    if (!showResults) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showResults]);
+
+  // States dropdown state
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const stateDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!stateDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        stateDropdownRef.current &&
+        !stateDropdownRef.current.contains(e.target as Node)
+      ) {
+        setStateDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [stateDropdownOpen]);
+
+  const hasActiveFilters =
+    filterStates.length > 0 ||
+    filterOwner ||
+    filterPlanId;
+
+  const handleClearFilters = () => {
+    setFilterStates([]);
+    setFilterOwner(null);
+    setFilterPlanId(null);
+  };
+
   const selectStyle =
-    "h-9 px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white text-[#403770]";
+    "h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 bg-white text-gray-700";
 
   return (
-    <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-2">
+    <div className="flex-shrink-0 bg-white border-b border-gray-200/60 px-4 py-2">
       <div className="flex items-center gap-3">
-        {/* Fullmind Logo/Wordmark - clicking navigates to Map tab */}
-        <button
-          onClick={() => setActiveTab("map")}
-          className="flex-shrink-0 text-[#403770] font-bold text-base hover:text-[#F37167] transition-colors"
-          title="Territory Plan Builder"
-        >
+        {/* Fullmind Logo */}
+        <span className="flex-shrink-0 text-plum font-bold text-base">
           Fullmind
-        </button>
+        </span>
 
-        {/* Map tab controls - only shown when on Map tab */}
         {isMapTab && (
           <>
-            {/* Divider */}
             <div className="h-6 border-l border-gray-200" />
 
-            {/* Search */}
-            <div className="flex-1 min-w-[180px] max-w-sm">
-              <SearchBox compact />
+            {/* District Search */}
+            <div
+              ref={searchContainerRef}
+              className="relative flex-1 min-w-[180px] max-w-sm"
+            >
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <circle
+                  cx="7"
+                  cy="7"
+                  r="4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M10.5 10.5L14 14"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() =>
+                  searchResults.length > 0 && setShowResults(true)
+                }
+                placeholder="Search districts..."
+                className="w-full h-9 pl-9 pr-8 text-sm bg-gray-50 border border-gray-200/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 placeholder:text-gray-400"
+              />
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-3.5 h-3.5 border-2 border-gray-200 border-t-plum rounded-full tile-loading-spinner" />
+                </div>
+              )}
+              {!searchLoading && searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setShowResults(false);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
+                  aria-label="Clear search"
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path
+                      d="M2 2L8 8M8 2L2 8"
+                      stroke="#6B7280"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              )}
+
+              {/* Search results dropdown */}
+              {showResults && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50 max-h-[280px] overflow-y-auto">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.leaid}
+                      onClick={() => handleSelectDistrict(result)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        className="text-gray-300 shrink-0"
+                      >
+                        <path
+                          d="M7 1C4.5 1 2.5 3.5 2.5 6C2.5 9 7 13 7 13S11.5 9 11.5 6C11.5 3.5 9.5 1 7 1Z"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                        />
+                        <circle
+                          cx="7"
+                          cy="6"
+                          r="1.5"
+                          stroke="currentColor"
+                          strokeWidth="1.2"
+                        />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-gray-700 truncate">
+                          {result.name}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {result.stateAbbrev}
+                          {result.enrollment
+                            ? ` \u00B7 ${result.enrollment.toLocaleString()} students`
+                            : ""}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {showResults &&
+                searchResults.length === 0 &&
+                searchQuery.length >= 2 &&
+                !searchLoading && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-3 z-50 text-center">
+                    <p className="text-xs text-gray-400">
+                      No districts found
+                    </p>
+                  </div>
+                )}
             </div>
 
-            {/* State Filter */}
-            <select
-              value={filters.stateAbbrev || ""}
-              onChange={(e) => setStateFilter(e.target.value || null)}
-              className={selectStyle}
-            >
-              <option value="">All States</option>
-              {states?.map((state) => (
-                <option key={state.abbrev} value={state.abbrev}>
-                  {state.name}
-                </option>
-              ))}
-            </select>
+            {/* States Multi-Select Dropdown */}
+            <div ref={stateDropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setStateDropdownOpen(!stateDropdownOpen)}
+                className={`${selectStyle} flex items-center gap-1.5 min-w-[120px]`}
+              >
+                <span
+                  className={
+                    filterStates.length === 0
+                      ? "text-gray-500"
+                      : "text-gray-700 truncate"
+                  }
+                >
+                  {filterStates.length === 0
+                    ? "All States"
+                    : filterStates.length <= 2
+                      ? filterStates.sort().join(", ")
+                      : `${filterStates.length} states`}
+                </span>
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 10 10"
+                  fill="none"
+                  className="shrink-0 text-gray-400"
+                >
+                  <path
+                    d="M2.5 4L5 6.5L7.5 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
 
-            {/* Status Filter */}
-            <select
-              value={filters.statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className={selectStyle}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              {stateDropdownOpen && (
+                <div className="absolute z-50 left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto min-w-[200px]">
+                  {filterStates.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterStates([])}
+                      className="w-full text-left text-xs text-plum hover:bg-gray-50 px-2.5 py-1.5 border-b border-gray-100"
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                  {states.map((s) => (
+                    <label
+                      key={s.abbrev}
+                      className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filterStates.includes(s.abbrev)}
+                        onChange={() => toggleFilterState(s.abbrev)}
+                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
+                      />
+                      <span className="text-sm text-gray-700">{s.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            {/* Sales Executive Filter */}
+            {/* Owner Dropdown */}
             <select
-              value={filters.salesExecutive || ""}
-              onChange={(e) => setSalesExecutive(e.target.value || null)}
+              value={filterOwner || ""}
+              onChange={(e) => setFilterOwner(e.target.value || null)}
               className={selectStyle}
             >
               <option value="">All Sales Execs</option>
-              {salesExecs?.map((exec) => (
-                <option key={exec} value={exec}>
-                  {exec}
+              {owners.map((owner) => (
+                <option key={owner} value={owner}>
+                  {owner}
+                </option>
+              ))}
+            </select>
+
+            {/* Territory Plan Dropdown */}
+            <select
+              value={filterPlanId || ""}
+              onChange={(e) => setFilterPlanId(e.target.value || null)}
+              className={selectStyle}
+            >
+              <option value="">All Plans</option>
+              {plans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name}
                 </option>
               ))}
             </select>
@@ -113,8 +377,8 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
             {/* Clear Filters */}
             {hasActiveFilters && (
               <button
-                onClick={clearFilters}
-                className="h-9 px-2 text-sm text-[#F37167] hover:text-[#403770] font-medium flex items-center gap-1"
+                onClick={handleClearFilters}
+                className="h-9 px-2 text-sm text-plum/70 hover:text-plum font-medium flex items-center gap-1 transition-colors"
                 title="Clear all filters"
               >
                 <svg
@@ -132,39 +396,29 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
                 </svg>
               </button>
             )}
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Multi-Select Toggle */}
-            <MultiSelectToggle />
           </>
         )}
       </div>
 
-      {/* Active Filters Summary - only shown on Map tab when filters active */}
+      {/* Active filter chips */}
       {isMapTab && hasActiveFilters && (
         <div className="flex items-center gap-2 mt-1.5 text-xs">
           <span className="text-gray-400">Filters:</span>
-          {filters.stateAbbrev && (
-            <span className="px-2 py-0.5 bg-[#C4E7E6] text-[#403770] rounded">
-              {filters.stateAbbrev}
+          {filterStates.length > 0 && (
+            <span className="px-2 py-0.5 bg-plum/10 text-plum rounded">
+              {filterStates.length <= 3
+                ? filterStates.sort().join(", ")
+                : `${filterStates.length} states`}
             </span>
           )}
-          {filters.statusFilter !== "all" && (
-            <span className="px-2 py-0.5 bg-[#C4E7E6] text-[#403770] rounded">
-              {STATUS_OPTIONS.find((o) => o.value === filters.statusFilter)
-                ?.label}
+          {filterOwner && (
+            <span className="px-2 py-0.5 bg-plum/10 text-plum rounded">
+              {filterOwner}
             </span>
           )}
-          {filters.salesExecutive && (
-            <span className="px-2 py-0.5 bg-[#C4E7E6] text-[#403770] rounded">
-              {filters.salesExecutive}
-            </span>
-          )}
-          {filters.searchQuery && (
-            <span className="px-2 py-0.5 bg-[#C4E7E6] text-[#403770] rounded">
-              &quot;{filters.searchQuery}&quot;
+          {filterPlanId && (
+            <span className="px-2 py-0.5 bg-plum/10 text-plum rounded">
+              {plans.find((p) => p.id === filterPlanId)?.name || "Plan"}
             </span>
           )}
         </div>

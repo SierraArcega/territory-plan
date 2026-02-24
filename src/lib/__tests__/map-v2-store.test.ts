@@ -80,7 +80,7 @@ describe("useMapV2Store - Palette Preferences", () => {
 
   it("initializes with default vendor palettes", () => {
     const state = useMapV2Store.getState();
-    expect(state.vendorPalettes.fullmind).toBe("plum");
+    expect(state.vendorPalettes.fullmind).toBe("steel-blue");
     expect(state.vendorPalettes.proximity).toBe("coral");
     expect(state.vendorPalettes.elevate).toBe("steel-blue");
     expect(state.vendorPalettes.tbt).toBe("golden");

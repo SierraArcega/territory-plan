@@ -144,10 +144,15 @@ export async function POST(
       addedCount = result.count;
     }
 
-    // Sync auto-tags for all added districts
-    await Promise.all(
-      districtLeaids.map((leaid) => syncClassificationTagsForDistrict(leaid))
-    );
+    // Sync auto-tags in batches to avoid exhausting the DB connection pool
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < districtLeaids.length; i += BATCH_SIZE) {
+      await Promise.all(
+        districtLeaids.slice(i, i + BATCH_SIZE).map((leaid) =>
+          syncClassificationTagsForDistrict(leaid)
+        )
+      );
+    }
 
     await syncPlanRollups(planId);
 

@@ -20,19 +20,22 @@ export interface VendorConfig {
 }
 
 // Fullmind shading: target (lightest) → expansion_pipeline (darkest)
-// Plus existing customer categories: lapsed, new, multi_year
-// Colors from brand Plum tint/shade table
+// Plus existing customer categories: lapsed (orange), new, multi_year
+// Colors from brand Steel Blue tint/shade table
 const FULLMIND_FILL: ExpressionSpecification = [
   "match",
   ["get", "fullmind_category"],
-  "target", "#ecebf1",             // Plum 90% tint (lightest)
-  "new_pipeline", "#b3afc6",       // Plum 50% tint
-  "renewal_pipeline", "#665f8d",   // Plum 20% shade
-  "expansion_pipeline", "#403770", // Plum (full)
-  "lapsed", "#d9d7e2",             // Plum 80% tint
-  "new", "#8c87a9",                // Plum 40% tint
-  "multi_year", "#403770",         // Plum (full)
-  "rgba(0,0,0,0)",                 // Transparent if no category
+  "target", "#e8f1f5",               // Steel Blue 90% tint (lightest)
+  "new_business_pipeline", "#c4dae6", // Steel Blue 60% tint
+  "winback_pipeline", "#d1e3ec",      // Steel Blue 70% tint
+  "renewal_pipeline", "#8bb5cb",      // Steel Blue 20% tint
+  "expansion_pipeline", "#6EA3BE",    // Steel Blue (full)
+  "lapsed", "#FFB347",               // Orange (always)
+  "new", "#a6c9da",                   // Steel Blue 40% tint
+  "multi_year_growing", "#a6c9da",    // Steel Blue 40% tint
+  "multi_year_flat", "#6EA3BE",       // Steel Blue (full)
+  "multi_year_shrinking", "#8bb5cb",  // Steel Blue 20% tint
+  "rgba(0,0,0,0)",                    // Transparent if no category
 ];
 
 // Competitor shading: churned (lightest) → multi_year (darkest)
@@ -255,14 +258,14 @@ export function buildVendorFillExpression(
       ["get", tileProperty],
       "target", s[0],
       "new_business_pipeline", s[2],
-      "winback_pipeline", "#FFB347",
+      "winback_pipeline", s[1],
       "renewal_pipeline", s[4],
       "expansion_pipeline", s[5],
-      "lapsed", s[1],
+      "lapsed", "#FFB347",
       "new", s[3],
-      "multi_year_growing", "#4ECDC4",
+      "multi_year_growing", s[3],
       "multi_year_flat", s[6],
-      "multi_year_shrinking", "#F37167",
+      "multi_year_shrinking", s[4],
       "rgba(0,0,0,0)",
     ];
   }
@@ -271,15 +274,15 @@ export function buildVendorFillExpression(
   return [
     "match",
     ["get", tileProperty],
-    "churned", s[0],
+    "churned", "#FFB347",
     "new", s[4],
     "new_business_pipeline", s[2],
-    "winback_pipeline", "#FFB347",
+    "winback_pipeline", s[1],
     "renewal_pipeline", s[4],
     "expansion_pipeline", s[5],
-    "multi_year_growing", "#4ECDC4",
+    "multi_year_growing", s[3],
     "multi_year_flat", s[5],
-    "multi_year_shrinking", "#F37167",
+    "multi_year_shrinking", s[4],
     "rgba(0,0,0,0)",
   ];
 }
@@ -333,16 +336,16 @@ export function buildVendorFillExpressionFromCategories(
     return [
       "match",
       ["get", tileProperty],
-      "target", categoryColors["fullmind:target"] ?? "#ecebf1",
-      "new_business_pipeline", categoryColors["fullmind:new_business_pipeline"] ?? "#b3afc6",
-      "winback_pipeline", categoryColors["fullmind:winback_pipeline"] ?? "#FFB347",
-      "renewal_pipeline", categoryColors["fullmind:renewal_pipeline"] ?? "#665f8d",
-      "expansion_pipeline", categoryColors["fullmind:expansion_pipeline"] ?? "#403770",
-      "lapsed", categoryColors["fullmind:lapsed"] ?? "#d9d7e2",
-      "new", categoryColors["fullmind:new"] ?? "#8c87a9",
-      "multi_year_growing", categoryColors["fullmind:multi_year_growing"] ?? "#4ECDC4",
-      "multi_year_flat", categoryColors["fullmind:multi_year_flat"] ?? "#403770",
-      "multi_year_shrinking", categoryColors["fullmind:multi_year_shrinking"] ?? "#F37167",
+      "target", categoryColors["fullmind:target"] ?? "#e8f1f5",
+      "new_business_pipeline", categoryColors["fullmind:new_business_pipeline"] ?? "#c4dae6",
+      "winback_pipeline", categoryColors["fullmind:winback_pipeline"] ?? "#d1e3ec",
+      "renewal_pipeline", categoryColors["fullmind:renewal_pipeline"] ?? "#8bb5cb",
+      "expansion_pipeline", categoryColors["fullmind:expansion_pipeline"] ?? "#6EA3BE",
+      "lapsed", categoryColors["fullmind:lapsed"] ?? "#FFB347",
+      "new", categoryColors["fullmind:new"] ?? "#a6c9da",
+      "multi_year_growing", categoryColors["fullmind:multi_year_growing"] ?? "#a6c9da",
+      "multi_year_flat", categoryColors["fullmind:multi_year_flat"] ?? "#6EA3BE",
+      "multi_year_shrinking", categoryColors["fullmind:multi_year_shrinking"] ?? "#8bb5cb",
       "rgba(0,0,0,0)",
     ];
   }
@@ -350,15 +353,15 @@ export function buildVendorFillExpressionFromCategories(
   return [
     "match",
     ["get", tileProperty],
-    "churned", categoryColors[`${vendorId}:churned`] ?? "#fef1f0",
-    "new", categoryColors[`${vendorId}:new`] ?? "#e06b5e",
-    "new_business_pipeline", categoryColors[`${vendorId}:new_business_pipeline`] ?? "#f9b5b0",
-    "winback_pipeline", categoryColors[`${vendorId}:winback_pipeline`] ?? "#FFB347",
+    "churned", categoryColors[`${vendorId}:churned`] ?? "#FFB347",
+    "new", categoryColors[`${vendorId}:new`] ?? "#f58d85",
+    "new_business_pipeline", categoryColors[`${vendorId}:new_business_pipeline`] ?? "#fde3e1",
+    "winback_pipeline", categoryColors[`${vendorId}:winback_pipeline`] ?? "#fde3e1",
     "renewal_pipeline", categoryColors[`${vendorId}:renewal_pipeline`] ?? "#f58d85",
     "expansion_pipeline", categoryColors[`${vendorId}:expansion_pipeline`] ?? "#F37167",
-    "multi_year_growing", categoryColors[`${vendorId}:multi_year_growing`] ?? "#4ECDC4",
+    "multi_year_growing", categoryColors[`${vendorId}:multi_year_growing`] ?? "#f69d96",
     "multi_year_flat", categoryColors[`${vendorId}:multi_year_flat`] ?? "#F37167",
-    "multi_year_shrinking", categoryColors[`${vendorId}:multi_year_shrinking`] ?? "#F37167",
+    "multi_year_shrinking", categoryColors[`${vendorId}:multi_year_shrinking`] ?? "#f58d85",
     "rgba(0,0,0,0)",
   ];
 }

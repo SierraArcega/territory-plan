@@ -68,6 +68,7 @@ backups/
 
 # Claude Code / Tessl
 .claude/
+!.claude/skills/
 .tessl/
 .mcp.json
 tessl.json
