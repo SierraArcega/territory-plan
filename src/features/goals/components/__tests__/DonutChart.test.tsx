@@ -116,4 +116,75 @@ describe("DonutChart", () => {
     const label = screen.getByText("50%");
     expect(label.className).toContain("text-[10px]");
   });
+
+  // ─── Accessibility & keyboard interaction tests ───
+
+  it("sets role=button and tabIndex=0 when onClick is provided", () => {
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" onClick={() => {}} ariaLabel="Earnings goal" />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper).toHaveAttribute("role", "button");
+    expect(wrapper).toHaveAttribute("tabindex", "0");
+  });
+
+  it("does not set role or tabIndex when onClick is not provided", () => {
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper).not.toHaveAttribute("role");
+    expect(wrapper).not.toHaveAttribute("tabindex");
+  });
+
+  it("sets aria-label when onClick and ariaLabel are provided", () => {
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" onClick={() => {}} ariaLabel="View Earnings" />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper).toHaveAttribute("aria-label", "View Earnings");
+  });
+
+  it("fires onClick on Enter key press", () => {
+    const handleClick = vi.fn();
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" onClick={handleClick} />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    fireEvent.keyDown(wrapper, { key: "Enter" });
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires onClick on Space key press", () => {
+    const handleClick = vi.fn();
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" onClick={handleClick} />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    fireEvent.keyDown(wrapper, { key: " " });
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not have cursor-pointer class when onClick is not provided", () => {
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.className).not.toContain("cursor-pointer");
+  });
+
+  it("uses default size of 100 when size prop is omitted", () => {
+    const { container } = render(
+      <DonutChart percent={50} color="#F37167" />,
+    );
+    const svg = container.querySelector("svg");
+    expect(svg).toHaveAttribute("width", "100");
+    expect(svg).toHaveAttribute("height", "100");
+  });
+
+  it("uses default fontSize text-base when fontSize prop is omitted", () => {
+    render(<DonutChart percent={50} color="#F37167" />);
+    const label = screen.getByText("50%");
+    expect(label.className).toContain("text-base");
+  });
 });

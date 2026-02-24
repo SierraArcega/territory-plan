@@ -143,4 +143,53 @@ describe("HomePanel — Goals donut grid", () => {
     render(<HomePanel />);
     expect(screen.getByText(/No goals set for FY27/)).toBeInTheDocument();
   });
+
+  // Additional: Escape key closes popover
+  it("closes popover when Escape key is pressed", () => {
+    render(<HomePanel />);
+    const earningsButton = screen.getByRole("button", { name: /Earnings/i });
+    fireEvent.click(earningsButton);
+    expect(screen.getByTestId("donut-popover")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByTestId("donut-popover")).not.toBeInTheDocument();
+  });
+
+  // Additional: Popover shows number-format metric correctly (New Districts)
+  it("shows number-format values in popover for New Districts", () => {
+    render(<HomePanel />);
+    const newDistrictsButton = screen.getByRole("button", { name: /New Districts/i });
+    fireEvent.click(newDistrictsButton);
+    const popover = screen.getByTestId("donut-popover");
+    expect(popover).toBeInTheDocument();
+    expect(popover.textContent).toContain("New Districts");
+    expect(popover.textContent).toContain("2");
+    expect(popover.textContent).toContain("of 5");
+  });
+
+  // Additional: All 4 metric labels are visible
+  it("displays all four metric labels beneath the donuts", () => {
+    render(<HomePanel />);
+    expect(screen.getByText("Earnings")).toBeInTheDocument();
+    expect(screen.getByText("Take")).toBeInTheDocument();
+    expect(screen.getByText("Total Target")).toBeInTheDocument();
+    expect(screen.getByText("New Districts")).toBeInTheDocument();
+  });
+
+  // Additional: Tapping a second donut closes the first popover
+  it("closes one popover when a different donut is tapped", () => {
+    render(<HomePanel />);
+    const earningsButton = screen.getByRole("button", { name: /Earnings/i });
+    fireEvent.click(earningsButton);
+    const popover1 = screen.getByTestId("donut-popover");
+    expect(popover1.textContent).toContain("Earnings");
+
+    // Button accessible name includes percentage, e.g. "40% Take"
+    const takeButton = screen.getByRole("button", { name: /\d+%\s+Take/i });
+    fireEvent.click(takeButton);
+    // There should be exactly one popover showing Take data
+    const popover2 = screen.getByTestId("donut-popover");
+    expect(popover2.textContent).toContain("Take");
+    expect(popover2.textContent).not.toContain("Earnings");
+  });
 });
