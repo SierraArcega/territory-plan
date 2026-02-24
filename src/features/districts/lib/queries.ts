@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
-import type { StatusFilter, FiscalYear, MetricType } from "@/features/shared/lib/app-store";
+import type { FiscalYear, MetricType } from "@/features/shared/lib/app-store";
+
+type StatusFilter = "all" | "customer" | "pipeline" | "customer_pipeline" | "no_data";
 import type {
   DistrictListItem,
   DistrictDetail,

@@ -4,7 +4,6 @@ import { persist } from "zustand/middleware";
 // Navigation tab types - these match the sidebar tabs
 export type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "profile";
 
-export type StatusFilter = "all" | "customer" | "pipeline" | "customer_pipeline" | "no_data";
 export type MetricType =
   | "sessions_revenue"
   | "sessions_take"
@@ -15,13 +14,6 @@ export type MetricType =
   | "open_pipeline_weighted";
 
 export type FiscalYear = "fy25" | "fy26" | "fy27";
-
-interface Filters {
-  stateAbbrev: string | null;
-  statusFilter: StatusFilter;
-  salesExecutive: string | null;
-  searchQuery: string;
-}
 
 // Tooltip types
 export interface TooltipData {
@@ -68,7 +60,6 @@ interface MapState {
   hoveredLeaid: string | null;
   metricType: MetricType;
   fiscalYear: FiscalYear;
-  filters: Filters;
   sidePanelOpen: boolean;
   // Unified panel management - one panel at a time
   activePanelType: PanelType;
@@ -101,12 +92,7 @@ interface MapActions {
   setHoveredLeaid: (leaid: string | null) => void;
   setMetricType: (metric: MetricType) => void;
   setFiscalYear: (year: FiscalYear) => void;
-  setStateFilter: (state: string | null) => void;
-  setStatusFilter: (status: StatusFilter) => void;
-  setSalesExecutive: (exec: string | null) => void;
-  setSearchQuery: (query: string) => void;
   setSidePanelOpen: (open: boolean) => void;
-  clearFilters: () => void;
   // Unified panel actions
   openStatePanel: (stateCode: string) => void;
   openDistrictPanel: (leaid: string) => void;
@@ -139,13 +125,6 @@ interface MapActions {
   openSchoolPanel: (ncessch: string) => void;
 }
 
-const initialFilters: Filters = {
-  stateAbbrev: null,
-  statusFilter: "all",
-  salesExecutive: null,
-  searchQuery: "",
-};
-
 const initialTooltip: TooltipState = {
   visible: false,
   exiting: false,
@@ -168,7 +147,6 @@ export const useMapStore = create<MapState & MapActions>()(
       hoveredLeaid: null,
       metricType: "net_invoicing",
       fiscalYear: "fy26",
-      filters: initialFilters,
       sidePanelOpen: false,
       activePanelType: null,
       selectedStateCode: null,
@@ -199,16 +177,7 @@ export const useMapStore = create<MapState & MapActions>()(
   setHoveredLeaid: (leaid) => set({ hoveredLeaid: leaid }),
   setMetricType: (metric) => set({ metricType: metric }),
   setFiscalYear: (year) => set({ fiscalYear: year }),
-  setStateFilter: (state) =>
-    set((s) => ({ filters: { ...s.filters, stateAbbrev: state } })),
-  setStatusFilter: (status) =>
-    set((s) => ({ filters: { ...s.filters, statusFilter: status } })),
-  setSalesExecutive: (exec) =>
-    set((s) => ({ filters: { ...s.filters, salesExecutive: exec } })),
-  setSearchQuery: (query) =>
-    set((s) => ({ filters: { ...s.filters, searchQuery: query } })),
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
-  clearFilters: () => set({ filters: initialFilters }),
 
   // Unified panel actions
   openStatePanel: (stateCode) =>
@@ -326,7 +295,6 @@ export const useMapStore = create<MapState & MapActions>()(
 );
 
 // Selector helpers
-export const selectFilters = (state: MapState) => state.filters;
 export const selectMetricConfig = (state: MapState) => ({
   metric: state.metricType,
   year: state.fiscalYear,

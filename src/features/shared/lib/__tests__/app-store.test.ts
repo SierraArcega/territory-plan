@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   useMapStore,
-  selectFilters,
   selectPanelState,
   type TooltipData,
 } from "../app-store";
@@ -17,12 +16,6 @@ beforeEach(() => {
     hoveredLeaid: null,
     metricType: "net_invoicing",
     fiscalYear: "fy26",
-    filters: {
-      stateAbbrev: null,
-      statusFilter: "all",
-      salesExecutive: null,
-      searchQuery: "",
-    },
     sidePanelOpen: false,
     activePanelType: null,
     selectedStateCode: null,
@@ -102,52 +95,6 @@ describe("District / Map actions", () => {
     useMapStore.getState().setFiscalYear("fy25");
 
     expect(useMapStore.getState().fiscalYear).toBe("fy25");
-  });
-});
-
-// ===========================================================================
-// Filters
-// ===========================================================================
-
-describe("Filters", () => {
-  it("setStateFilter updates filters.stateAbbrev", () => {
-    useMapStore.getState().setStateFilter("CA");
-
-    expect(useMapStore.getState().filters.stateAbbrev).toBe("CA");
-  });
-
-  it("setStatusFilter updates filters.statusFilter", () => {
-    useMapStore.getState().setStatusFilter("customer");
-
-    expect(useMapStore.getState().filters.statusFilter).toBe("customer");
-  });
-
-  it("setSalesExecutive updates filters.salesExecutive", () => {
-    useMapStore.getState().setSalesExecutive("Jane Doe");
-
-    expect(useMapStore.getState().filters.salesExecutive).toBe("Jane Doe");
-  });
-
-  it("setSearchQuery updates filters.searchQuery", () => {
-    useMapStore.getState().setSearchQuery("Springfield");
-
-    expect(useMapStore.getState().filters.searchQuery).toBe("Springfield");
-  });
-
-  it("clearFilters resets all filters to initial values", () => {
-    // Set various filters first
-    useMapStore.getState().setStateFilter("TX");
-    useMapStore.getState().setStatusFilter("pipeline");
-    useMapStore.getState().setSalesExecutive("John Smith");
-    useMapStore.getState().setSearchQuery("Dallas");
-
-    useMapStore.getState().clearFilters();
-
-    const { filters } = useMapStore.getState();
-    expect(filters.stateAbbrev).toBe(null);
-    expect(filters.statusFilter).toBe("all");
-    expect(filters.salesExecutive).toBe(null);
-    expect(filters.searchQuery).toBe("");
   });
 });
 
@@ -369,20 +316,6 @@ describe("Layer toggles", () => {
 // ===========================================================================
 
 describe("Selectors", () => {
-  it("selectFilters returns filters object", () => {
-    useMapStore.getState().setStateFilter("NY");
-    useMapStore.getState().setStatusFilter("pipeline");
-
-    const filters = selectFilters(useMapStore.getState());
-
-    expect(filters).toEqual({
-      stateAbbrev: "NY",
-      statusFilter: "pipeline",
-      salesExecutive: null,
-      searchQuery: "",
-    });
-  });
-
   it("selectPanelState returns panel-related state", () => {
     useMapStore.getState().openDistrictPanel("1234567");
 
