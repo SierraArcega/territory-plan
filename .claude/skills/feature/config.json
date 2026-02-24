@@ -1,5 +1,5 @@
 {
-  "slack_webhook_url": "",
+  "slack_channel": "",
   "max_prd_revisions": 2,
   "max_test_fix_attempts": 3,
   "docs_path": "Docs/plans"

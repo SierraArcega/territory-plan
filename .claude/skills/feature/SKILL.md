@@ -16,10 +16,17 @@ Autonomously build features through a 6-stage pipeline with two human checkpoint
 ## Configuration
 
 Read `.claude/skills/feature/config.json` for:
-- `slack_webhook_url` — Slack incoming webhook (skip notification if empty)
+- `slack_channel` — Slack channel ID for notifications (skip Slack if empty)
 - `max_prd_revisions` — Max agent-driven PRD revision cycles (default: 2)
 - `max_test_fix_attempts` — Max test fix attempts (default: 3)
 - `docs_path` — Where to save artifacts (default: `Docs/plans`)
+
+**Slack MCP server** (`slack` in .mcp.json) provides:
+- `slack_send_approval` — post approval request with Approve/Reject buttons
+- `slack_check_approval` — poll for button click result
+- `slack_wait_for_approval` — block until resolved (up to 5 min)
+- `slack_send_message` — send a plain message
+- `slack_list_channels` — find channel IDs
 
 ## Pipeline Overview
 
@@ -87,22 +94,23 @@ Run exactly 2 review-revise cycles:
 3. If REVISE -> dispatch PRD writer for one final revision
    - After this revision, proceed to Step 3 regardless (flag remaining issues)
 
-### Step 3: Slack Notification + Human PRD Approval
+### Step 3: Slack Approval + Human PRD Approval
 
-1. If `slack_webhook_url` is not empty, send a Slack notification:
+1. If `slack_channel` is not empty, send a Slack approval request:
+   - Call `slack_send_approval` with:
+     - `channel`: config.slack_channel
+     - `title`: "PRD Ready for Review"
+     - `summary`: Feature name, PRD file path, number of agent review rounds, and a 2-3 line PRD summary
+   - Save the returned `approvalId`
 
-```bash
-curl -s -X POST "$SLACK_WEBHOOK_URL" \
-  -H "Content-Type: application/json" \
-  -d "{\"text\":\"PRD ready for review: $FEATURE_NAME\nFile: $PRD_PATH\nAgent review rounds: $REVIEW_ROUNDS_COMPLETED\nStatus: $STATUS\"}"
-```
-
-2. Use AskUserQuestion to pause and present the PRD:
-   - Question: "The PRD is ready for your review at `[PRD_PATH]`. It went through [N] agent review rounds. What would you like to do?"
+2. Use AskUserQuestion to also pause in the terminal:
+   - Question: "The PRD is ready for your review at `[PRD_PATH]`. It went through [N] agent review rounds. You can also approve/reject from Slack. What would you like to do?"
    - Options:
      - "Approve and continue to implementation"
      - "Reject with feedback" (user provides notes)
      - "Discard this feature"
+
+   **Dual-channel approval:** The user can approve from either Slack (button click) or the terminal (AskUserQuestion). If Slack approval comes first, check it with `slack_check_approval` before presenting the terminal prompt.
 
 3. If rejected with feedback:
    - Re-dispatch PRD Writer with the feedback as `{{REVISION_CONTEXT}}`
@@ -181,13 +189,11 @@ The reviewer writes the final report to `[docs_path]/[date]-[slug]-final-report.
 
 ### Step 8: Final Slack Notification + Human Review
 
-1. If `slack_webhook_url` is not empty, send Slack notification:
-
-```bash
-curl -s -X POST "$SLACK_WEBHOOK_URL" \
-  -H "Content-Type: application/json" \
-  -d "{\"text\":\"Feature ready for review: $FEATURE_NAME\nReport: $FINAL_REPORT_PATH\nRecommendation: $RECOMMENDATION\nTests: $TEST_SUMMARY\"}"
-```
+1. If `slack_channel` is not empty, send a Slack approval request:
+   - Call `slack_send_approval` with:
+     - `channel`: config.slack_channel
+     - `title`: "Feature Ready for Review"
+     - `summary`: Feature name, final report path, recommendation (READY/NEEDS ATTENTION), test pass/fail count
 
 2. Present the final report summary to the user (read and display key sections)
 
@@ -208,7 +214,7 @@ curl -s -X POST "$SLACK_WEBHOOK_URL" \
 ## Error Handling
 
 - If any subagent fails or returns unclear results -> pause and present the issue to the user via AskUserQuestion with options to retry, skip the stage, or abort
-- If Slack webhook call fails -> log the error but continue (notifications are non-blocking)
+- If Slack MCP tools fail (server not running, no tokens) -> skip Slack notifications and rely on terminal-only approval. Slack is non-blocking — the pipeline works without it
 - If worktree creation fails -> fall back to creating a new branch on the current repo
 
 ## Artifacts
