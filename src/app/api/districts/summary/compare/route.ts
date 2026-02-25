@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 const VALID_FYS = ["fy24", "fy25", "fy26", "fy27"] as const;
-const VALID_VENDORS = ["fullmind", "proximity", "elevate", "tbt"] as const;
+const VALID_VENDORS = ["fullmind", "proximity", "elevate", "tbt", "educere"] as const;
 
 // Category classification sets (mirrors client-side comparison.ts)
 const CUSTOMER_CATS = new Set([

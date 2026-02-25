@@ -230,7 +230,7 @@ vendor_fy27 AS (
       SUM(CASE WHEN fiscal_year = 'FY26' THEN total_spend ELSE 0 END) AS fy26_spend,
       SUM(CASE WHEN fiscal_year = 'FY27' THEN total_spend ELSE 0 END) AS fy27_spend
     FROM competitor_spend
-    WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')
+    WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
     GROUP BY leaid, competitor
   ) cs_agg
   FULL OUTER JOIN (
@@ -239,10 +239,11 @@ vendor_fy27 AS (
         WHEN 'proximity' THEN 'Proximity Learning'
         WHEN 'elevate' THEN 'Elevate K12'
         WHEN 'tbt' THEN 'Tutored By Teachers'
+        WHEN 'educere' THEN 'Educere'
       END AS competitor,
       open_pipeline AS pipeline
     FROM vendor_financials
-    WHERE vendor IN ('proximity', 'elevate', 'tbt')
+    WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
       AND fiscal_year = 'FY27'
       AND open_pipeline > 0
   ) vp ON cs_agg.leaid = vp.leaid AND cs_agg.competitor = vp.competitor
@@ -303,7 +304,7 @@ vendor_fy26 AS (
       SUM(CASE WHEN fiscal_year = 'FY25' THEN total_spend ELSE 0 END) AS fy25_spend,
       SUM(CASE WHEN fiscal_year = 'FY26' THEN total_spend ELSE 0 END) AS fy26_spend
     FROM competitor_spend
-    WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')
+    WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
     GROUP BY leaid, competitor
   ) cs_agg
   FULL OUTER JOIN (
@@ -312,10 +313,11 @@ vendor_fy26 AS (
         WHEN 'proximity' THEN 'Proximity Learning'
         WHEN 'elevate' THEN 'Elevate K12'
         WHEN 'tbt' THEN 'Tutored By Teachers'
+        WHEN 'educere' THEN 'Educere'
       END AS competitor,
       open_pipeline AS pipeline
     FROM vendor_financials
-    WHERE vendor IN ('proximity', 'elevate', 'tbt')
+    WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
       AND fiscal_year = 'FY26'
       AND open_pipeline > 0
   ) vp ON cs_agg.leaid = vp.leaid AND cs_agg.competitor = vp.competitor
@@ -346,7 +348,7 @@ vendor_fy25 AS (
       ELSE NULL
     END AS category
   FROM competitor_spend cs
-  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')
+  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
   GROUP BY cs.leaid, cs.competitor
 ),
 -- Per-vendor competitor categories: FY24 (FY23→FY24 spend)
@@ -375,7 +377,7 @@ vendor_fy24 AS (
       ELSE NULL
     END AS category
   FROM competitor_spend cs
-  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')
+  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
   GROUP BY cs.leaid, cs.competitor
 )
 SELECT
@@ -391,15 +393,19 @@ SELECT
   MAX(CASE WHEN v27.competitor = 'Proximity Learning' THEN v27.category END) AS fy27_proximity_category,
   MAX(CASE WHEN v27.competitor = 'Elevate K12' THEN v27.category END) AS fy27_elevate_category,
   MAX(CASE WHEN v27.competitor = 'Tutored By Teachers' THEN v27.category END) AS fy27_tbt_category,
+  MAX(CASE WHEN v27.competitor = 'Educere' THEN v27.category END) AS fy27_educere_category,
   MAX(CASE WHEN v26.competitor = 'Proximity Learning' THEN v26.category END) AS fy26_proximity_category,
   MAX(CASE WHEN v26.competitor = 'Elevate K12' THEN v26.category END) AS fy26_elevate_category,
   MAX(CASE WHEN v26.competitor = 'Tutored By Teachers' THEN v26.category END) AS fy26_tbt_category,
+  MAX(CASE WHEN v26.competitor = 'Educere' THEN v26.category END) AS fy26_educere_category,
   MAX(CASE WHEN v25.competitor = 'Proximity Learning' THEN v25.category END) AS fy25_proximity_category,
   MAX(CASE WHEN v25.competitor = 'Elevate K12' THEN v25.category END) AS fy25_elevate_category,
   MAX(CASE WHEN v25.competitor = 'Tutored By Teachers' THEN v25.category END) AS fy25_tbt_category,
+  MAX(CASE WHEN v25.competitor = 'Educere' THEN v25.category END) AS fy25_educere_category,
   MAX(CASE WHEN v24.competitor = 'Proximity Learning' THEN v24.category END) AS fy24_proximity_category,
   MAX(CASE WHEN v24.competitor = 'Elevate K12' THEN v24.category END) AS fy24_elevate_category,
   MAX(CASE WHEN v24.competitor = 'Tutored By Teachers' THEN v24.category END) AS fy24_tbt_category,
+  MAX(CASE WHEN v24.competitor = 'Educere' THEN v24.category END) AS fy24_educere_category,
   -- Signal columns: bucket trends into categories
   CASE
     WHEN d.enrollment_trend_3yr >= 5  THEN 'strong_growth'
@@ -464,25 +470,29 @@ CREATE INDEX idx_dmf_has_data_fy27 ON district_map_features(fy27_fullmind_catego
   WHERE fy27_fullmind_category IS NOT NULL
      OR fy27_proximity_category IS NOT NULL
      OR fy27_elevate_category IS NOT NULL
-     OR fy27_tbt_category IS NOT NULL;
+     OR fy27_tbt_category IS NOT NULL
+     OR fy27_educere_category IS NOT NULL;
 
 CREATE INDEX idx_dmf_has_data_fy26 ON district_map_features(fy26_fullmind_category)
   WHERE fy26_fullmind_category IS NOT NULL
      OR fy26_proximity_category IS NOT NULL
      OR fy26_elevate_category IS NOT NULL
-     OR fy26_tbt_category IS NOT NULL;
+     OR fy26_tbt_category IS NOT NULL
+     OR fy26_educere_category IS NOT NULL;
 
 CREATE INDEX idx_dmf_has_data_fy25 ON district_map_features(fy25_fullmind_category)
   WHERE fy25_fullmind_category IS NOT NULL
      OR fy25_proximity_category IS NOT NULL
      OR fy25_elevate_category IS NOT NULL
-     OR fy25_tbt_category IS NOT NULL;
+     OR fy25_tbt_category IS NOT NULL
+     OR fy25_educere_category IS NOT NULL;
 
 CREATE INDEX idx_dmf_has_data_fy24 ON district_map_features(fy24_fullmind_category)
   WHERE fy24_fullmind_category IS NOT NULL
      OR fy24_proximity_category IS NOT NULL
      OR fy24_elevate_category IS NOT NULL
-     OR fy24_tbt_category IS NOT NULL;
+     OR fy24_tbt_category IS NOT NULL
+     OR fy24_educere_category IS NOT NULL;
 
 ANALYZE district_map_features;
 
@@ -504,5 +514,9 @@ SELECT
   COUNT(*) FILTER (WHERE fy27_tbt_category IS NOT NULL) AS fy27_tbt,
   COUNT(*) FILTER (WHERE fy26_tbt_category IS NOT NULL) AS fy26_tbt,
   COUNT(*) FILTER (WHERE fy25_tbt_category IS NOT NULL) AS fy25_tbt,
-  COUNT(*) FILTER (WHERE fy24_tbt_category IS NOT NULL) AS fy24_tbt
+  COUNT(*) FILTER (WHERE fy24_tbt_category IS NOT NULL) AS fy24_tbt,
+  COUNT(*) FILTER (WHERE fy27_educere_category IS NOT NULL) AS fy27_educere,
+  COUNT(*) FILTER (WHERE fy26_educere_category IS NOT NULL) AS fy26_educere,
+  COUNT(*) FILTER (WHERE fy25_educere_category IS NOT NULL) AS fy25_educere,
+  COUNT(*) FILTER (WHERE fy24_educere_category IS NOT NULL) AS fy24_educere
 FROM district_map_features;

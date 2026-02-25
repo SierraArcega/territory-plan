@@ -79,7 +79,7 @@ export default function PlanningTab({ data, leaid, planId: planIdProp }: Plannin
         </>
       )}
 
-      <PurchasingHistoryCard fullmindData={data.fullmindData} />
+      <PurchasingHistoryCard fullmindData={data.fullmindData} leaid={leaid} />
       <CompetitorSpendCard leaid={leaid} />
     </div>
   );

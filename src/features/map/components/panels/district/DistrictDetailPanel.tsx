@@ -74,7 +74,7 @@ export default function DistrictDetailPanel() {
 
             {/* Signal Cards */}
             <div className="p-3 space-y-3">
-              <PurchasingHistoryCard fullmindData={data.fullmindData} />
+              <PurchasingHistoryCard fullmindData={data.fullmindData} leaid={selectedLeaid!} />
 
               <CompetitorSpendCard leaid={selectedLeaid!} />
 

@@ -353,7 +353,7 @@ export default function MapV2Container({
 
       // Per-vendor fill layers (stacked, semi-transparent)
       const isChangesMode = !!tileUrlSuffix?.includes("fy2=");
-      for (const vendorId of ["fullmind", "proximity", "elevate", "tbt"] as const) {
+      for (const vendorId of VENDOR_IDS) {
         const config = VENDOR_CONFIGS[vendorId];
         const fillColor = isChangesMode
           ? buildTransitionFillExpression(vendorId) as any

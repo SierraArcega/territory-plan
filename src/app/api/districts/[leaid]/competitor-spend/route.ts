@@ -9,6 +9,7 @@ const COMPETITOR_COLORS: Record<string, string> = {
   "Proximity Learning": "#6EA3BE",
   "Elevate K12": "#E07A5F",
   "Tutored By Teachers": "#7C3AED",
+  "Educere": "#403770",
 };
 
 // Helper to convert Decimal to number

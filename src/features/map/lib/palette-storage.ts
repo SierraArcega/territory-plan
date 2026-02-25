@@ -9,13 +9,14 @@ import {
 const STORAGE_KEY = "territory-plan:palette-prefs";
 
 /** Bump this when default palettes/colors change to clear stale cached prefs */
-const PREFS_VERSION = 3;
+const PREFS_VERSION = 4;
 
 const DEFAULT_VENDOR_OPACITIES: Record<VendorId, number> = {
   fullmind: 0.75,
   proximity: 0.75,
   elevate: 0.8,
   tbt: 0.75,
+  educere: 0.75,
 };
 
 interface PalettePrefs {

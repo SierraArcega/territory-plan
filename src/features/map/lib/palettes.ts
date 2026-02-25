@@ -1,4 +1,5 @@
 import type { VendorId } from "@/features/map/lib/layers";
+import { VENDOR_IDS } from "@/features/map/lib/layers";
 
 export interface VendorPalette {
   id: string;
@@ -231,6 +232,7 @@ export const DEFAULT_VENDOR_PALETTE: Record<VendorId, string> = {
   proximity: "coral",
   elevate: "steel-blue",
   tbt: "golden",
+  educere: "plum",
 };
 
 export const DEFAULT_SIGNAL_PALETTE = "mint-coral";
@@ -321,8 +323,7 @@ export function deriveSignalCategoryColors(
 
 function buildDefaultCategoryColors(): Record<string, string> {
   const colors: Record<string, string> = {};
-  const vendorIds: VendorId[] = ["fullmind", "proximity", "elevate", "tbt"];
-  for (const vid of vendorIds) {
+  for (const vid of VENDOR_IDS) {
     Object.assign(colors, deriveVendorCategoryColors(vid, getVendorPalette(DEFAULT_VENDOR_PALETTE[vid])));
   }
   const signalIds = ["enrollment", "ell", "swd", "expenditure"];
@@ -336,7 +337,7 @@ function buildDefaultCategoryColors(): Record<string, string> {
 function buildDefaultCategoryOpacities(): Record<string, number> {
   const opacities: Record<string, number> = {};
   const VENDOR_OPACITIES: Record<string, number> = {
-    fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75,
+    fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75, educere: 0.75,
   };
   const SIGNAL_OPACITY = 0.55;
   const defaults = buildDefaultCategoryColors();

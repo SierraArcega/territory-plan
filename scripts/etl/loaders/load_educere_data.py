@@ -1,24 +1,25 @@
 """
-Competitor Spend CSV Data Loader
+Educere Competitor Spend CSV Data Loader
 
-Parses the GovSpend competitor PO data CSV and populates the competitor_spend table.
-Aggregates spend by district, competitor, and fiscal year.
+Parses the Educere unique PO CSV export and populates the competitor_spend table.
+Aggregates spend by district and fiscal year.
 
-Fiscal Year Logic:
-- FY runs July 1 - June 30
-- July 2025 - June 2026 = FY26
-- July 2024 - June 2025 = FY25
+The CSV contains columns: Agency NCES ID, Competitor, PO Number, PO Amount,
+Agency, Agency City, Agency State, PO Signed Date, Fiscal Year.
+
+Unlike the GovSpend CSV used by competitor_spend.py, this CSV has a pre-computed
+Fiscal Year column, so FY is read directly rather than derived from the PO date.
 """
 
 import os
 import csv
+import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
 from collections import defaultdict
 import psycopg2
 from psycopg2.extras import execute_values
-from tqdm import tqdm
 
 # Import utilities
 import sys
@@ -27,90 +28,47 @@ from utils.currency import parse_currency
 from utils.leaid import normalize_leaid
 
 
-def parse_po_date(date_str: str) -> Optional[datetime]:
-    """
-    Parse PO date from ISO format string.
+# Default CSV path relative to project root
+DEFAULT_CSV_PATH = "data/Educere_Unique_POs.xlsx - Unique POs.csv"
 
-    Handles formats like: 2026-01-28T12:00:00.000Z
-    """
-    if not date_str or not date_str.strip():
-        return None
-
-    try:
-        # Handle ISO format with Z suffix
-        date_str = date_str.strip().replace('Z', '+00:00')
-        return datetime.fromisoformat(date_str.replace('.000+00:00', '+00:00'))
-    except ValueError:
-        try:
-            # Try parsing just the date portion
-            return datetime.strptime(date_str[:10], '%Y-%m-%d')
-        except ValueError:
-            return None
+# Hardcoded competitor name
+COMPETITOR = "Educere"
 
 
-def get_fiscal_year(date: datetime) -> str:
-    """
-    Get fiscal year string from a date.
-
-    Fiscal year runs July 1 - June 30.
-    - July 2025 - June 2026 = FY26
-    - July 2024 - June 2025 = FY25
-    """
-    if date.month >= 7:
-        # July-December: FY is next calendar year
-        fy = date.year + 1
-    else:
-        # January-June: FY is current calendar year
-        fy = date.year
-
-    # Return last 2 digits with FY prefix
-    return f"FY{fy % 100:02d}"
-
-
-def parse_csv_row(row: Dict[str, str]) -> Optional[Dict]:
+def parse_educere_row(row: Dict[str, str]) -> Optional[Dict]:
     """
     Parse a CSV row into a normalized record.
 
     Returns None if the row cannot be parsed (missing required fields).
     """
     # Get NCES ID (LEAID)
-    leaid_raw = row.get("NCES ID - Clean", "")
+    leaid_raw = row.get("Agency NCES ID", "")
     leaid = normalize_leaid(leaid_raw)
 
     if not leaid:
         return None
 
-    # Get competitor name
-    competitor = row.get("Competitor", "").strip()
-    if not competitor:
-        return None
-
-    # Parse PO date
-    po_date_str = row.get("PO Date", "")
-    po_date = parse_po_date(po_date_str)
-    if not po_date:
-        return None
-
-    # Parse spend amount
-    spend = parse_currency(row.get("PO Spend", ""))
+    # Parse PO amount
+    spend = parse_currency(row.get("PO Amount", ""))
     if spend <= 0:
         return None
 
-    # Calculate fiscal year
-    fiscal_year = get_fiscal_year(po_date)
+    # Read fiscal year directly from CSV (e.g., "FY26", "FY22")
+    fiscal_year = row.get("Fiscal Year", "").strip()
+    if not fiscal_year:
+        return None
 
     return {
         "leaid": leaid,
-        "competitor": competitor,
+        "competitor": COMPETITOR,
         "fiscal_year": fiscal_year,
         "spend": spend,
-        "po_id": row.get("POID", ""),
     }
 
 
-def load_competitor_spend_csv(csv_path: Path) -> List[Dict]:
+def load_educere_csv(csv_path: Path) -> List[Dict]:
     """
-    Load and parse the competitor spend CSV file.
+    Load and parse the Educere CSV file.
 
     Args:
         csv_path: Path to the CSV file
@@ -120,46 +78,53 @@ def load_competitor_spend_csv(csv_path: Path) -> List[Dict]:
     """
     records = []
     skipped = 0
+    empty_nces = 0
 
     with open(csv_path, "r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        for row in tqdm(reader, desc="Parsing CSV"):
-            record = parse_csv_row(row)
+        for row in reader:
+            # Track empty NCES IDs separately
+            leaid_raw = row.get("Agency NCES ID", "").strip()
+            if not leaid_raw:
+                empty_nces += 1
+                skipped += 1
+                continue
+
+            record = parse_educere_row(row)
             if record:
                 records.append(record)
             else:
                 skipped += 1
 
-    print(f"Parsed {len(records)} valid PO records, skipped {skipped}")
+    print(f"Parsed {len(records)} valid PO records")
+    print(f"Skipped {skipped} rows ({empty_nces} with empty NCES ID)")
     return records
 
 
-def aggregate_by_district_competitor_fy(records: List[Dict]) -> List[Dict]:
+def aggregate_by_district_fy(records: List[Dict]) -> List[Dict]:
     """
-    Aggregate PO records by district, competitor, and fiscal year.
+    Aggregate PO records by district and fiscal year.
 
     Returns list of aggregated records with total_spend and po_count.
     """
-    # Use nested defaultdict for aggregation
     aggregated = defaultdict(lambda: {"total_spend": 0.0, "po_count": 0})
 
     for r in records:
-        key = (r["leaid"], r["competitor"], r["fiscal_year"])
+        key = (r["leaid"], r["fiscal_year"])
         aggregated[key]["total_spend"] += r["spend"]
         aggregated[key]["po_count"] += 1
 
-    # Convert to list of records
     result = []
-    for (leaid, competitor, fiscal_year), data in aggregated.items():
+    for (leaid, fiscal_year), data in aggregated.items():
         result.append({
             "leaid": leaid,
-            "competitor": competitor,
+            "competitor": COMPETITOR,
             "fiscal_year": fiscal_year,
             "total_spend": round(data["total_spend"], 2),
             "po_count": data["po_count"],
         })
 
-    print(f"Aggregated to {len(result)} district-competitor-FY combinations")
+    print(f"Aggregated to {len(result)} district-FY combinations")
     return result
 
 
@@ -174,18 +139,19 @@ def get_valid_leaids(connection_string: str) -> set:
     return leaids
 
 
-def upsert_competitor_spend(
+def insert_educere_spend(
     connection_string: str,
     records: List[Dict],
     valid_leaids: set,
     batch_size: int = 500
 ) -> Dict:
     """
-    Upsert competitor spend records into the database.
+    Insert Educere spend records into the database.
 
     Only inserts records for districts that exist in the districts table.
+    Deletes only Educere rows before inserting (targeted delete, not truncate).
 
-    Returns dict with counts: matched, unmatched, upserted.
+    Returns dict with counts: matched, unmatched, inserted.
     """
     # Filter to valid LEAIDs
     matched = [r for r in records if r["leaid"] in valid_leaids]
@@ -194,17 +160,24 @@ def upsert_competitor_spend(
     print(f"Matched {len(matched)} records to valid districts")
     print(f"Unmatched {len(unmatched)} records (district not found)")
 
+    if unmatched:
+        # Log unique unmatched LEAIDs
+        unmatched_leaids = sorted(set(r["leaid"] for r in unmatched))
+        print(f"  Unmatched LEAIDs ({len(unmatched_leaids)}): {', '.join(unmatched_leaids[:10])}{'...' if len(unmatched_leaids) > 10 else ''}")
+
     if not matched:
-        return {"matched": 0, "unmatched": len(unmatched), "upserted": 0}
+        return {"matched": 0, "unmatched": len(unmatched), "inserted": 0}
 
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
 
-    # Clear existing data for GovSpend competitors only (targeted delete)
-    print("Clearing existing GovSpend competitor_spend data...")
-    cur.execute("DELETE FROM competitor_spend WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')")
+    # Targeted delete: only Educere rows
+    print("Deleting existing Educere competitor_spend rows...")
+    cur.execute("DELETE FROM competitor_spend WHERE competitor = %s", (COMPETITOR,))
+    deleted = cur.rowcount
+    print(f"  Deleted {deleted} existing rows")
 
-    # Insert all records
+    # Insert all matched records
     insert_sql = """
         INSERT INTO competitor_spend (
             leaid, competitor, fiscal_year, total_spend, po_count, last_updated
@@ -223,9 +196,9 @@ def upsert_competitor_spend(
         for r in matched
     ]
 
-    print(f"Inserting {len(values)} competitor spend records...")
-    for i in tqdm(range(0, len(values), batch_size), desc="Inserting"):
-        batch = values[i:i+batch_size]
+    print(f"Inserting {len(values)} Educere competitor spend records...")
+    for i in range(0, len(values), batch_size):
+        batch = values[i:i + batch_size]
         execute_values(cur, insert_sql, batch)
 
     conn.commit()
@@ -235,7 +208,7 @@ def upsert_competitor_spend(
     return {
         "matched": len(matched),
         "unmatched": len(unmatched),
-        "upserted": len(matched),
+        "inserted": len(matched),
     }
 
 
@@ -255,7 +228,7 @@ def log_data_refresh(
             data_source, records_updated, records_failed, status, error_message, started_at, completed_at
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
-        "competitor_spend",
+        "educere_spend",
         records_updated,
         records_failed,
         status,
@@ -271,43 +244,40 @@ def log_data_refresh(
 
 def print_summary(records: List[Dict]):
     """Print summary statistics of the loaded data."""
-    print("\n=== Competitor Spend Summary ===")
-
-    # By competitor
-    by_competitor = defaultdict(lambda: {"spend": 0, "count": 0, "districts": set()})
-    for r in records:
-        by_competitor[r["competitor"]]["spend"] += r["total_spend"]
-        by_competitor[r["competitor"]]["count"] += r["po_count"]
-        by_competitor[r["competitor"]]["districts"].add(r["leaid"])
-
-    print("\nBy Competitor:")
-    for competitor, data in sorted(by_competitor.items()):
-        print(f"  {competitor}:")
-        print(f"    Total Spend: ${data['spend']:,.2f}")
-        print(f"    PO Count: {data['count']}")
-        print(f"    Districts: {len(data['districts'])}")
+    print("\n=== Educere Spend Summary ===")
 
     # By fiscal year
-    by_fy = defaultdict(lambda: {"spend": 0, "count": 0})
+    by_fy = defaultdict(lambda: {"spend": 0, "count": 0, "districts": set()})
     for r in records:
         by_fy[r["fiscal_year"]]["spend"] += r["total_spend"]
         by_fy[r["fiscal_year"]]["count"] += r["po_count"]
+        by_fy[r["fiscal_year"]]["districts"].add(r["leaid"])
 
     print("\nBy Fiscal Year:")
+    total_spend = 0
+    total_pos = 0
+    total_districts = set()
     for fy in sorted(by_fy.keys(), reverse=True):
         data = by_fy[fy]
-        print(f"  {fy}: ${data['spend']:,.2f} ({data['count']} POs)")
+        print(f"  {fy}: ${data['spend']:,.2f} ({data['count']} POs, {len(data['districts'])} districts)")
+        total_spend += data["spend"]
+        total_pos += data["count"]
+        total_districts.update(data["districts"])
+
+    print(f"\nTotal: ${total_spend:,.2f} ({total_pos} POs, {len(total_districts)} unique districts)")
 
 
 def main():
     """CLI entry point."""
-    import argparse
     from dotenv import load_dotenv
-
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Load competitor spend CSV data")
-    parser.add_argument("--file", required=True, help="Path to competitor spend CSV file")
+    parser = argparse.ArgumentParser(description="Load Educere competitor spend CSV data")
+    parser.add_argument(
+        "--file",
+        default=DEFAULT_CSV_PATH,
+        help=f"Path to Educere CSV file (default: {DEFAULT_CSV_PATH})"
+    )
 
     args = parser.parse_args()
 
@@ -329,18 +299,18 @@ def main():
 
     try:
         # Load and parse CSV
-        records = load_competitor_spend_csv(csv_path)
+        records = load_educere_csv(csv_path)
 
-        # Aggregate by district-competitor-FY
-        aggregated = aggregate_by_district_competitor_fy(records)
+        # Aggregate by district-FY
+        aggregated = aggregate_by_district_fy(records)
 
         # Get valid LEAIDs
         print("Fetching valid LEAIDs from database...")
         valid_leaids = get_valid_leaids(connection_string)
         print(f"Found {len(valid_leaids)} valid district LEAIDs")
 
-        # Upsert to database
-        result = upsert_competitor_spend(connection_string, aggregated, valid_leaids)
+        # Insert to database
+        result = insert_educere_spend(connection_string, aggregated, valid_leaids)
 
         # Print summary
         matched_records = [r for r in aggregated if r["leaid"] in valid_leaids]
@@ -349,7 +319,7 @@ def main():
         # Log success
         log_data_refresh(
             connection_string,
-            records_updated=result["upserted"],
+            records_updated=result["inserted"],
             records_failed=result["unmatched"],
             status="success"
         )
@@ -359,7 +329,7 @@ def main():
         refresh_map_features(connection_string)
 
         print(f"\n=== ETL Complete ===")
-        print(f"Upserted: {result['upserted']} records")
+        print(f"Inserted: {result['inserted']} records")
         print(f"Unmatched: {result['unmatched']} records")
 
     except Exception as e:

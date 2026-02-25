@@ -1,11 +1,26 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { FullmindData } from "@/lib/api";
 import SignalCard from "./signals/SignalCard";
 
+interface CompetitorSpendRecord {
+  competitor: string;
+  fiscalYear: string;
+  totalSpend: number;
+  poCount: number;
+  color: string;
+}
+
+interface CompetitorSpendResponse {
+  competitorSpend: CompetitorSpendRecord[];
+  totalAllCompetitors: number;
+}
+
 interface PurchasingHistoryCardProps {
   fullmindData: FullmindData | null;
+  leaid: string;
 }
 
 function formatCurrency(value: number): string {
@@ -46,7 +61,7 @@ const COLORS = {
   pipeline: "#F37167",
 };
 
-export default function PurchasingHistoryCard({ fullmindData }: PurchasingHistoryCardProps) {
+export default function PurchasingHistoryCard({ fullmindData, leaid }: PurchasingHistoryCardProps) {
   const fy25Revenue = Number(fullmindData?.fy25SessionsRevenue ?? 0);
   const fy26Revenue = Number(fullmindData?.fy26SessionsRevenue ?? 0);
 
@@ -86,9 +101,39 @@ export default function PurchasingHistoryCard({ fullmindData }: PurchasingHistor
     return Math.max(...all, 1);
   }, [fy25Metrics, fy26Metrics, fy27Metrics]);
 
-  const hasAnyData = fy25Metrics.length > 0 || fy26Metrics.length > 0 || fy27Metrics.length > 0;
+  // Fetch competitor spend data
+  const { data: competitorData } = useQuery<CompetitorSpendResponse>({
+    queryKey: ["competitorSpend", leaid],
+    queryFn: async () => {
+      const res = await fetch(`/api/districts/${leaid}/competitor-spend`);
+      if (!res.ok) throw new Error("Failed to fetch competitor spend");
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
 
-  if (!fullmindData || !hasAnyData) return null;
+  // Group competitor spend by competitor, sorted by total descending
+  const sortedCompetitors = useMemo(() => {
+    if (!competitorData?.competitorSpend?.length) return [];
+    const map = new Map<string, { color: string; total: number; records: CompetitorSpendRecord[] }>();
+    for (const r of competitorData.competitorSpend) {
+      if (!map.has(r.competitor)) {
+        map.set(r.competitor, { color: r.color, total: 0, records: [] });
+      }
+      const g = map.get(r.competitor)!;
+      g.total += r.totalSpend;
+      g.records.push(r);
+    }
+    for (const g of map.values()) {
+      g.records.sort((a, b) => b.fiscalYear.localeCompare(a.fiscalYear));
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1].total - a[1].total);
+  }, [competitorData]);
+
+  const hasFullmindData = fy25Metrics.length > 0 || fy26Metrics.length > 0 || fy27Metrics.length > 0;
+  const hasCompetitorData = sortedCompetitors.length > 0;
+
+  if (!hasFullmindData && !hasCompetitorData) return null;
 
   return (
     <SignalCard
@@ -109,7 +154,7 @@ export default function PurchasingHistoryCard({ fullmindData }: PurchasingHistor
                   : "bg-[#6EA3BE]/15 text-[#4d7285]"
             }`}
           >
-            {yoyChange > 0 ? "↑" : yoyChange < 0 ? "↓" : "—"}{" "}
+            {yoyChange > 0 ? "\u2191" : yoyChange < 0 ? "\u2193" : "\u2014"}{" "}
             {Math.abs(yoyChange).toFixed(0)}% YoY
           </span>
         ) : (
@@ -138,9 +183,45 @@ export default function PurchasingHistoryCard({ fullmindData }: PurchasingHistor
               </div>
             </div>
           )}
-          {fullmindData.fy26SessionsCount > 0 && (
+          {fullmindData && fullmindData.fy26SessionsCount > 0 && (
             <div className="text-xs text-gray-500">
               {fullmindData.fy26SessionsCount.toLocaleString()} sessions delivered (FY26)
+            </div>
+          )}
+
+          {/* Competitor Spend Section */}
+          {hasCompetitorData && (
+            <div className="border-t border-gray-100 pt-3 mt-3">
+              <div className="text-xs font-semibold text-[#403770] mb-2">Competitor Spend</div>
+              <div className="space-y-2.5">
+                {sortedCompetitors.map(([competitor, { color, records }]) => (
+                  <div key={competitor}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-xs font-medium text-gray-700">{competitor}</span>
+                    </div>
+                    <div className="ml-4 space-y-0.5">
+                      {records.map((r) => (
+                        <div
+                          key={`${r.competitor}-${r.fiscalYear}`}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <span className="text-gray-500 uppercase">{r.fiscalYear}</span>
+                          <span className="text-gray-700">
+                            {formatCurrency(r.totalSpend)}{" "}
+                            <span className="text-gray-400">
+                              ({r.poCount} {r.poCount === 1 ? "PO" : "POs"})
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -10,6 +10,7 @@ import {
   buildFilterExpression,
   VENDOR_CONFIGS,
   SIGNAL_CONFIGS,
+  VENDOR_IDS,
 } from "../layers";
 import type { VendorPalette, SignalPalette } from "../palettes";
 
@@ -43,9 +44,9 @@ const asArr = (expr: unknown) => expr as any[];
 // ============================================
 
 describe("VENDOR_CONFIGS", () => {
-  it("defines all four vendors", () => {
+  it("defines all five vendors", () => {
     expect(Object.keys(VENDOR_CONFIGS)).toEqual(
-      expect.arrayContaining(["fullmind", "proximity", "elevate", "tbt"]),
+      expect.arrayContaining(["fullmind", "proximity", "elevate", "tbt", "educere"]),
     );
   });
 
@@ -60,6 +61,23 @@ describe("VENDOR_CONFIGS", () => {
     expect(VENDOR_CONFIGS.fullmind.fillOpacity).toBe(0.75);
     expect(VENDOR_CONFIGS.proximity.fillOpacity).toBe(0.75);
     expect(VENDOR_CONFIGS.tbt.fillOpacity).toBe(0.75);
+    expect(VENDOR_CONFIGS.educere.fillOpacity).toBe(0.75);
+  });
+
+  it("educere config has correct properties", () => {
+    expect(VENDOR_CONFIGS.educere.id).toBe("educere");
+    expect(VENDOR_CONFIGS.educere.label).toBe("Educere");
+    expect(VENDOR_CONFIGS.educere.tileProperty).toBe("educere_category");
+  });
+});
+
+describe("VENDOR_IDS", () => {
+  it("contains educere", () => {
+    expect(VENDOR_IDS).toContain("educere");
+  });
+
+  it("has no duplicates", () => {
+    expect(new Set(VENDOR_IDS).size).toBe(VENDOR_IDS.length);
   });
 });
 
@@ -167,7 +185,7 @@ describe("buildVendorFillExpression", () => {
     });
   });
 
-  describe.each(["proximity", "elevate", "tbt"] as const)(
+  describe.each(["proximity", "elevate", "tbt", "educere"] as const)(
     "competitor vendor: %s (9 categories)",
     (vendorId) => {
       const expr = buildVendorFillExpression(vendorId, mockVendorPalette);
@@ -417,7 +435,7 @@ describe("buildVendorFillExpressionFromCategories", () => {
     });
   });
 
-  describe.each(["proximity", "elevate", "tbt"] as const)(
+  describe.each(["proximity", "elevate", "tbt", "educere"] as const)(
     "competitor vendor %s with all keys provided",
     (vendorId) => {
       const colors: Record<string, string> = {

@@ -5,7 +5,7 @@ import type { VendorPalette, SignalPalette } from "@/features/map/lib/palettes";
 // Vendor definitions
 // ============================================
 
-export type VendorId = "fullmind" | "proximity" | "elevate" | "tbt";
+export type VendorId = "fullmind" | "proximity" | "elevate" | "tbt" | "educere";
 
 export interface VendorConfig {
   id: VendorId;
@@ -69,6 +69,16 @@ const TBT_FILL: ExpressionSpecification = [
   "rgba(0,0,0,0)",
 ];
 
+// Colors from brand Plum tint/shade table
+const EDUCERE_FILL: ExpressionSpecification = [
+  "match",
+  ["get", "educere_category"],
+  "churned", "#ecebf1",    // Plum 90% tint (lightest)
+  "new", "#665f8d",         // Plum 20% tint
+  "multi_year", "#403770",  // Plum (full)
+  "rgba(0,0,0,0)",
+];
+
 export const VENDOR_CONFIGS: Record<VendorId, VendorConfig> = {
   fullmind: {
     id: "fullmind",
@@ -102,9 +112,17 @@ export const VENDOR_CONFIGS: Record<VendorId, VendorConfig> = {
     fillOpacity: 0.75,
     shadingTooltip: "churned \u203a new \u203a multi-year",
   },
+  educere: {
+    id: "educere",
+    label: "Educere",
+    tileProperty: "educere_category",
+    fillColor: EDUCERE_FILL,
+    fillOpacity: 0.75,
+    shadingTooltip: "churned \u203a new \u203a multi-year",
+  },
 };
 
-export const VENDOR_IDS: VendorId[] = ["fullmind", "proximity", "elevate", "tbt"];
+export const VENDOR_IDS: VendorId[] = ["fullmind", "proximity", "elevate", "tbt", "educere"];
 
 // ============================================
 // Signal definitions

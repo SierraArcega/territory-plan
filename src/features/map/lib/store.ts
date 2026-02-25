@@ -489,7 +489,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   compareFyB: "fy26" as FiscalYear,
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
   signalPalette: DEFAULT_SIGNAL_PALETTE,
-  vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75 },
+  vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75, educere: 0.75 },
   categoryColors: { ...DEFAULT_CATEGORY_COLORS },
   categoryOpacities: { ...DEFAULT_CATEGORY_OPACITIES },
   summaryBarVisible: true,

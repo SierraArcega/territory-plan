@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const VALID_VENDORS = ["fullmind", "proximity", "elevate", "tbt"];
+    const VALID_VENDORS = ["fullmind", "proximity", "elevate", "tbt", "educere"];
     const vendorList = vendors
       ? vendors.split(",").filter((v) => VALID_VENDORS.includes(v))
       : [];

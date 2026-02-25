@@ -53,6 +53,7 @@ describe("palettes", () => {
     expect(DEFAULT_VENDOR_PALETTE.proximity).toBe("coral");
     expect(DEFAULT_VENDOR_PALETTE.elevate).toBe("steel-blue");
     expect(DEFAULT_VENDOR_PALETTE.tbt).toBe("golden");
+    expect(DEFAULT_VENDOR_PALETTE.educere).toBe("plum");
   });
 
   it("default signal palette is mint-coral", () => {
@@ -118,6 +119,25 @@ describe("buildSignalFillExpression", () => {
   });
 });
 
+describe("educere palette integration", () => {
+  it("deriveVendorCategoryColors returns 9 keyed entries for educere", () => {
+    const plum = VENDOR_PALETTES.find((p) => p.id === "plum")!;
+    const result = deriveVendorCategoryColors("educere", plum);
+    expect(Object.keys(result)).toHaveLength(9);
+    expect(result["educere:churned"]).toBe("#FFB347");
+    expect(result["educere:new"]).toBe(plum.stops[4]);
+    expect(result["educere:multi_year_growing"]).toBe(plum.stops[3]);
+    expect(result["educere:multi_year_flat"]).toBe(plum.stops[5]);
+    expect(result["educere:multi_year_shrinking"]).toBe(plum.stops[4]);
+  });
+
+  it("DEFAULT_CATEGORY_COLORS includes educere keys", () => {
+    expect(DEFAULT_CATEGORY_COLORS["educere:churned"]).toBeDefined();
+    expect(DEFAULT_CATEGORY_COLORS["educere:new"]).toBeDefined();
+    expect(DEFAULT_CATEGORY_COLORS["educere:multi_year_growing"]).toBeDefined();
+  });
+});
+
 describe("deriveVendorCategoryColors", () => {
   it("returns 10 keyed entries for fullmind", () => {
     const plum = VENDOR_PALETTES.find((p) => p.id === "plum")!;
@@ -165,9 +185,9 @@ describe("deriveSignalCategoryColors", () => {
 
 describe("DEFAULT_CATEGORY_COLORS", () => {
   it("has entries for all vendors and signals", () => {
-    // Fullmind: 10, proximity/elevate/tbt: 9 each = 37 vendor keys
+    // Fullmind: 10, proximity/elevate/tbt/educere: 9 each = 46 vendor keys
     // 3 growth signals x 5 + 1 expenditure x 4 = 19 signal keys
-    expect(Object.keys(DEFAULT_CATEGORY_COLORS).length).toBe(37 + 19);
+    expect(Object.keys(DEFAULT_CATEGORY_COLORS).length).toBe(46 + 19);
   });
 });
 
@@ -303,6 +323,7 @@ describe("palette-storage", () => {
         proximity: "coral",
         elevate: "steel-blue",
         tbt: "forest",
+        educere: "plum",
       },
       signalPalette: "blue-orange",
       vendorOpacities: {
@@ -310,6 +331,7 @@ describe("palette-storage", () => {
         proximity: 0.6,
         elevate: 0.7,
         tbt: 0.8,
+        educere: 0.75,
       },
       categoryColors: {
         ...DEFAULT_CATEGORY_COLORS,
