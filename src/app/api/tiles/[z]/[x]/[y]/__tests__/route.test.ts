@@ -105,6 +105,7 @@ describe("GET /api/tiles/[z]/[x]/[y]", () => {
       expect(sql).toContain("fy26_proximity_category");
       expect(sql).toContain("fy26_elevate_category");
       expect(sql).toContain("fy26_tbt_category");
+      expect(sql).toContain("fy26_educere_category");
     });
 
     it("uses fy24 when specified", async () => {
@@ -117,6 +118,7 @@ describe("GET /api/tiles/[z]/[x]/[y]", () => {
       expect(sql).toContain("fy24_proximity_category");
       expect(sql).toContain("fy24_elevate_category");
       expect(sql).toContain("fy24_tbt_category");
+      expect(sql).toContain("fy24_educere_category");
     });
 
     it("uses fy25 when specified", async () => {
@@ -212,6 +214,7 @@ describe("GET /api/tiles/[z]/[x]/[y]", () => {
       expect(sql).toContain("proximity_category IS NOT NULL");
       expect(sql).toContain("elevate_category IS NOT NULL");
       expect(sql).toContain("tbt_category IS NOT NULL");
+      expect(sql).toContain("educere_category IS NOT NULL");
     });
 
     it("does not activate national view for zoom >= 6", async () => {
@@ -366,6 +369,90 @@ describe("GET /api/tiles/[z]/[x]/[y]", () => {
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.error).toBe("Failed to generate tile");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Educere vendor column integration
+  // ---------------------------------------------------------------------------
+  describe("educere vendor columns", () => {
+    it("includes educere_category column in normal mode", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("7", "10", "20");
+
+      const [sql] = mockQuery.mock.calls[0];
+      expect(sql).toMatch(/d\.fy26_educere_category\s+AS\s+educere_category/);
+    });
+
+    it("includes educere_category_a and educere_category_b in comparison mode", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("7", "10", "20", { fy: "fy25", fy2: "fy26" });
+
+      const [sql] = mockQuery.mock.calls[0];
+      expect(sql).toMatch(/d\.fy25_educere_category\s+AS\s+educere_category_a/);
+      expect(sql).toMatch(/d\.fy26_educere_category\s+AS\s+educere_category_b/);
+    });
+
+    it("includes educere in national view filter", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("4", "5", "5");
+
+      const [sql] = mockQuery.mock.calls[0];
+      expect(sql).toContain("fy26_educere_category IS NOT NULL");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Comparison mode (fy2 parameter)
+  // ---------------------------------------------------------------------------
+  describe("comparison mode", () => {
+    it("generates _a and _b suffixed columns for all vendors when fy2 is provided", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("7", "10", "20", { fy: "fy25", fy2: "fy26" });
+
+      const [sql] = mockQuery.mock.calls[0];
+      for (const vendor of ["fullmind", "proximity", "elevate", "tbt", "educere"]) {
+        expect(sql).toContain(`${vendor}_category_a`);
+        expect(sql).toContain(`${vendor}_category_b`);
+      }
+    });
+
+    it("uses correct FY columns for each comparison side", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("7", "10", "20", { fy: "fy24", fy2: "fy27" });
+
+      const [sql] = mockQuery.mock.calls[0];
+      expect(sql).toContain("fy24_fullmind_category AS fullmind_category_a");
+      expect(sql).toContain("fy27_fullmind_category AS fullmind_category_b");
+      expect(sql).toContain("fy24_educere_category AS educere_category_a");
+      expect(sql).toContain("fy27_educere_category AS educere_category_b");
+    });
+
+    it("ignores invalid fy2 parameter", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("7", "10", "20", { fy: "fy26", fy2: "fy99" });
+
+      const [sql] = mockQuery.mock.calls[0];
+      // Should fall back to normal mode (no _a/_b suffixes)
+      expect(sql).toContain("educere_category");
+      expect(sql).not.toContain("educere_category_a");
+      expect(sql).not.toContain("educere_category_b");
+    });
+
+    it("includes both FY columns in national view filter during comparison", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+
+      await callGET("4", "5", "5", { fy: "fy25", fy2: "fy26" });
+
+      const [sql] = mockQuery.mock.calls[0];
+      expect(sql).toContain("fy25_educere_category IS NOT NULL");
+      expect(sql).toContain("fy26_educere_category IS NOT NULL");
     });
   });
 
