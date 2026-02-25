@@ -298,10 +298,14 @@ export default function HomeView() {
     taskTab === "upcoming" ? upcomingTasks : taskTab === "overdue" ? overdueTasks : completedTasks;
   const visibleTasks = displayedTasks.slice(0, MAX_VISIBLE_TASKS);
 
-  // Plans — apply filter + sort, then limit for display
+  // Plans — only show plans owned by current user, then sort + limit
+  const myPlans = useMemo(
+    () => (plans || []).filter((p) => p.owner?.id === profile?.id),
+    [plans, profile?.id],
+  );
   const allDisplayPlans = useMemo(
-    () => filterAndSortPlans(plans || [], planOwnerId, planSortBy),
-    [plans, planOwnerId, planSortBy],
+    () => filterAndSortPlans(myPlans, planOwnerId, planSortBy),
+    [myPlans, planOwnerId, planSortBy],
   );
   const displayPlans = allDisplayPlans.slice(0, MAX_VISIBLE_PLANS);
 
@@ -472,8 +476,8 @@ export default function HomeView() {
           {/* ============================================================ */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
-            {/* ---- My Plans (left, 2 cols) ---- */}
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            {/* ---- My Plans (left, 3 cols) ---- */}
+            <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
               <div className="px-5 pt-5 pb-3 flex items-center justify-between">
                 <h2 className="text-base font-semibold text-[#403770]">My Plans</h2>
                 <button onClick={() => setActiveTab("plans")} className="text-xs text-gray-400 hover:text-[#403770] transition-colors">
@@ -482,14 +486,14 @@ export default function HomeView() {
               </div>
               <div className="flex-1 px-5 pb-5">
                 <PlanCardFilters
-                  plans={plans || []}
+                  plans={myPlans}
                   selectedOwnerId={planOwnerId}
                   onOwnerChange={setPlanOwnerId}
                   sortBy={planSortBy}
                   onSortChange={setPlanSortBy}
                   variant="full"
                 />
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {/* Create plan button (first grid position) */}
                   <button
                     onClick={() => setShowPlanForm(true)}
@@ -520,8 +524,8 @@ export default function HomeView() {
               </div>
             </div>
 
-            {/* ---- My Tasks (right, 3 cols) ---- */}
-            <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+            {/* ---- My Tasks (right, 2 cols) ---- */}
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
               <div className="px-5 pt-5">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-base font-semibold text-[#403770]">My Tasks</h2>
@@ -601,11 +605,6 @@ export default function HomeView() {
           </div>
 
           {/* ============================================================ */}
-          {/* 2.5 Calendar Inbox Widget                                    */}
-          {/* ============================================================ */}
-          <CalendarInboxWidget onNavigateToActivities={() => setActiveTab("activities")} />
-
-          {/* ============================================================ */}
           {/* 2.7 Progress Panels — Leading & Lagging Indicators           */}
           {/* ============================================================ */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -625,6 +624,11 @@ export default function HomeView() {
               >
                 View all &rarr;
               </button>
+            </div>
+
+            {/* Calendar Inbox — pending meetings to log as activities */}
+            <div className="px-6 pb-4">
+              <CalendarInboxWidget onNavigateToActivities={() => setActiveTab("activities")} />
             </div>
 
             <div className="px-6 pb-6">

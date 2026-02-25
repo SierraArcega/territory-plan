@@ -25,7 +25,12 @@ export async function GET() {
         districts: {
           select: {
             district: {
-              select: { enrollment: true, stateAbbrev: true },
+              select: {
+                enrollment: true,
+                stateAbbrev: true,
+                fy26OpenPipeline: true,
+                fy27OpenPipeline: true,
+              },
             },
           },
         },
@@ -57,6 +62,17 @@ export async function GET() {
         (sum, d) => sum + (d.district.enrollment ?? 0),
         0
       );
+
+      // Aggregate open pipeline for the plan's fiscal year
+      const pipelineTotal = plan.districts.reduce((sum, d) => {
+        const pipeline =
+          plan.fiscalYear === 2026
+            ? Number(d.district.fy26OpenPipeline ?? 0)
+            : plan.fiscalYear === 2027
+              ? Number(d.district.fy27OpenPipeline ?? 0)
+              : 0;
+        return sum + pipeline;
+      }, 0);
       const taskCount = plan.taskLinks.length;
       const completedTaskCount = plan.taskLinks.filter(
         (tl) => tl.task.status === "done"
@@ -95,6 +111,7 @@ export async function GET() {
         expansionRollup: Number(plan.expansionRollup),
         winbackRollup: Number(plan.winbackRollup),
         newBusinessRollup: Number(plan.newBusinessRollup),
+        pipelineTotal,
       };
     });
 
@@ -216,6 +233,7 @@ export async function POST(request: NextRequest) {
         expansionRollup: 0,
         winbackRollup: 0,
         newBusinessRollup: 0,
+        pipelineTotal: 0,
       },
       { status: 201 }
     );

@@ -308,6 +308,7 @@ export interface TerritoryPlan {
   expansionRollup: number;
   winbackRollup: number;
   newBusinessRollup: number;
+  pipelineTotal: number;
 }
 
 export interface TerritoryPlanDistrict {

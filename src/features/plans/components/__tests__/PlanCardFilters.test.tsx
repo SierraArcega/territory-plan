@@ -28,6 +28,7 @@ function makePlan(overrides: Partial<TerritoryPlan> = {}): TerritoryPlan {
     expansionRollup: 20000,
     winbackRollup: 10000,
     newBusinessRollup: 30000,
+    pipelineTotal: 50000,
     ...overrides,
   };
 }

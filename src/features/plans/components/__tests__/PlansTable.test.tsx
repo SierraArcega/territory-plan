@@ -50,6 +50,7 @@ const mockPlans: TerritoryPlan[] = [
     expansionRollup: 0,
     winbackRollup: 0,
     newBusinessRollup: 0,
+    pipelineTotal: 0,
   },
   {
     id: "plan-2",
@@ -74,6 +75,7 @@ const mockPlans: TerritoryPlan[] = [
     expansionRollup: 0,
     winbackRollup: 0,
     newBusinessRollup: 0,
+    pipelineTotal: 0,
   },
   {
     id: "plan-3",
@@ -98,6 +100,7 @@ const mockPlans: TerritoryPlan[] = [
     expansionRollup: 0,
     winbackRollup: 0,
     newBusinessRollup: 0,
+    pipelineTotal: 0,
   },
 ];
 

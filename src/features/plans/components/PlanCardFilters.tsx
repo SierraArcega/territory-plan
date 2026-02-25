@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback, useState } from "react";
 import type { TerritoryPlan, PlanOwner } from "@/features/shared/types/api-types";
 
 export type PlanSortKey = "updated" | "name" | "districts" | "totalTarget";
@@ -38,6 +38,15 @@ export default function PlanCardFilters({
 }: PlanCardFiltersProps) {
   const isCompact = variant === "compact";
   const avatarSize = isCompact ? 24 : 28;
+  const [brokenAvatars, setBrokenAvatars] = useState<Set<string>>(new Set());
+
+  const handleAvatarError = useCallback((ownerId: string) => {
+    setBrokenAvatars((prev) => {
+      const next = new Set(prev);
+      next.add(ownerId);
+      return next;
+    });
+  }, []);
 
   // Derive unique owners from plans
   const uniqueOwners = useMemo(() => {
@@ -93,10 +102,11 @@ export default function PlanCardFilters({
             style={{ width: avatarSize, height: avatarSize }}
             aria-label={`Filter by ${owner.fullName ?? "Unknown"}`}
           >
-            {owner.avatarUrl ? (
+            {owner.avatarUrl && !brokenAvatars.has(owner.id) ? (
               <img
                 src={owner.avatarUrl}
                 alt=""
+                onError={() => handleAvatarError(owner.id)}
                 className="w-full h-full object-cover"
               />
             ) : (

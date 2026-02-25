@@ -31,6 +31,7 @@ function makePlan(overrides: Partial<TerritoryPlan> = {}): TerritoryPlan {
     expansionRollup: 50000,
     winbackRollup: 25000,
     newBusinessRollup: 75000,
+    pipelineTotal: 120000,
     ...overrides,
   };
 }
@@ -39,121 +40,91 @@ describe("FlippablePlanCard", () => {
   const onNavigate = vi.fn();
 
   // Test 8: Front face renders plan name and district count
-  it("renders plan name and district count on front face", () => {
+  it("renders plan name and district count", () => {
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
     expect(screen.getByText("West Region Q1")).toBeInTheDocument();
-    expect(screen.getByText("15 districts")).toBeInTheDocument();
+    expect(screen.getByText(/15 districts/)).toBeInTheDocument();
   });
 
-  // Test 9: Front face renders owner name
-  it("renders owner name on front face", () => {
+  // Test 9: Renders owner name
+  it("renders owner name", () => {
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
     expect(screen.getByText("John Smith")).toBeInTheDocument();
   });
 
-  // Test 10: Front face renders "Unassigned" when no owner
+  // Test 10: Shows "Unassigned" when no owner
   it('shows "Unassigned" when plan has no owner', () => {
     render(
       <FlippablePlanCard plan={makePlan({ owner: null })} variant="full" onNavigate={onNavigate} />
     );
-    // Both faces will show "Unassigned" — at least one in DOM
-    expect(screen.getAllByText("Unassigned").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Unassigned")).toBeInTheDocument();
   });
 
-  // Test 11: Clicking flip icon toggles to back face
-  it("toggles flipped state when flip icon is clicked", () => {
-    const { container } = render(
-      <FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />
-    );
-
-    // Both faces have a flip button; pick the first (front face)
-    const flipButtons = screen.getAllByLabelText("Show plan details");
-    fireEvent.click(flipButtons[0]);
-
-    // After flip, the inner container should have rotateY(180deg) in style
-    const inner = container.querySelector("[style*='preserve-3d']");
-    expect(inner).toBeInTheDocument();
-    expect(inner?.getAttribute("style")).toContain("rotateY(180deg)");
+  // Test 11: Shows "Owner" label
+  it('displays "Owner" label', () => {
+    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
+    expect(screen.getByText("Owner")).toBeInTheDocument();
   });
 
-  // Test 12: Clicking flip icon on back returns to front
-  it("returns to front face when flip icon is clicked twice", () => {
-    const { container } = render(
-      <FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />
-    );
-
-    // First click: flip to back
-    const flipButtons = screen.getAllByLabelText("Show plan details");
-    fireEvent.click(flipButtons[0]);
-
-    // After flip, labels change to "Show plan summary"
-    const flipBackButtons = screen.getAllByLabelText("Show plan summary");
-    fireEvent.click(flipBackButtons[0]);
-
-    const inner = container.querySelector("[style*='preserve-3d']");
-    expect(inner?.getAttribute("style")).toContain("rotateY(0deg)");
+  // Test 12: Shows "Targets" label beneath donut
+  it('displays "Targets" label beneath the donut', () => {
+    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
+    expect(screen.getByText("Targets")).toBeInTheDocument();
   });
 
-  // Test 13: Clicking card body calls onNavigate
-  it("calls onNavigate with plan ID when card body is clicked", () => {
+  // Test 13: Clicking card calls onNavigate
+  it("calls onNavigate with plan ID when card is clicked", () => {
     onNavigate.mockClear();
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
 
-    // Click on the card body (the role="button" div, not the flip icon button)
-    const cardBodies = screen.getAllByRole("button").filter(
-      (b) => !b.hasAttribute("aria-label")
-    );
-    if (cardBodies.length > 0) fireEvent.click(cardBodies[0]);
+    const card = screen.getByRole("button");
+    fireEvent.click(card);
 
     expect(onNavigate).toHaveBeenCalledWith("plan-1");
   });
 
-  // Test 14: Clicking card body does NOT flip
-  it("does not toggle flipped state when card body is clicked", () => {
-    const { container } = render(
-      <FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />
-    );
-
-    // Click on card body (not the flip icon)
-    const cardBodies = screen.getAllByRole("button").filter(
-      (b) => !b.hasAttribute("aria-label")
-    );
-    if (cardBodies.length > 0) fireEvent.click(cardBodies[0]);
-
-    // Should still show front (rotateY(0deg))
-    const inner = container.querySelector("[style*='preserve-3d']");
-    expect(inner?.getAttribute("style")).toContain("rotateY(0deg)");
-  });
-
-  // Test 15: Back face shows status badge
-  it("shows status badge on back face", () => {
+  // Test 14: Keyboard navigation works
+  it("calls onNavigate when Enter is pressed on the card", () => {
+    onNavigate.mockClear();
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    // Status text is in DOM on the back face (always rendered, hidden via 3D transform)
-    expect(screen.getByText("working")).toBeInTheDocument();
+
+    const card = screen.getByRole("button");
+    fireEvent.keyDown(card, { key: "Enter" });
+
+    expect(onNavigate).toHaveBeenCalledWith("plan-1");
   });
 
-  // Test 16: Back face shows description
-  it("shows description on back face", () => {
+  // Test 15: Shows states inline with districts
+  it("shows state abbreviations after district count", () => {
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    // Description is rendered in DOM (on back face) even when not flipped
-    expect(screen.getByText("Expanding in the Western region")).toBeInTheDocument();
+    // States are in a nested span: " · CA, TX"
+    expect(screen.getByText((_, el) => el?.textContent?.includes("CA, TX") && el.tagName === "SPAN" || false)).toBeInTheDocument();
   });
 
-  // Test 17: Back face hides description when null
-  it("does not render description element when description is null", () => {
-    render(
-      <FlippablePlanCard plan={makePlan({ description: null })} variant="full" onNavigate={onNavigate} />
-    );
-    expect(screen.queryByText("Expanding in the Western region")).not.toBeInTheDocument();
+  // Test 16: Shows pipeline and target labels
+  it("shows Pipeline and Target labels with formatted values", () => {
+    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
+    expect(screen.getByText("Pipeline")).toBeInTheDocument();
+    expect(screen.getByText("Target")).toBeInTheDocument();
+    // Pipeline = 120K, Target = 250K (100k+50k+25k+75k)
+    expect(screen.getByText("$120K")).toBeInTheDocument();
+    expect(screen.getByText("$250K")).toBeInTheDocument();
+  });
+
+  // Test 17: Shows percentage to target
+  it("shows percentage to target", () => {
+    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
+    // 120000 / 250000 = 48%
+    expect(screen.getByText("48%")).toBeInTheDocument();
   });
 
   // Test 18: Compact variant uses smaller donut
-  it("renders donut with size 40 in compact variant", () => {
+  it("renders donut with size 44 in compact variant", () => {
     const { container } = render(
       <FlippablePlanCard plan={makePlan()} variant="compact" onNavigate={onNavigate} />
     );
     const svg = container.querySelector('svg[aria-label="Target breakdown donut chart"]');
-    expect(svg).toHaveAttribute("width", "40");
+    expect(svg).toHaveAttribute("width", "44");
   });
 
   // Test 19: Full variant uses larger donut
@@ -165,17 +136,44 @@ describe("FlippablePlanCard", () => {
     expect(svg).toHaveAttribute("width", "56");
   });
 
-  // Test 20: Flip icon has correct aria-label
-  it("toggles aria-label between 'Show plan details' and 'Show plan summary'", () => {
-    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
+  // Test 20: Shows owner initials fallback when no avatar
+  it("shows initials fallback when owner has no avatar", () => {
+    render(
+      <FlippablePlanCard
+        plan={makePlan({ owner: { id: "user-1", fullName: "John Smith", avatarUrl: null } })}
+        variant="full"
+        onNavigate={onNavigate}
+      />
+    );
+    expect(screen.getByText("JS")).toBeInTheDocument();
+  });
 
-    // Initially both faces show "Show plan details" (since flipped=false)
-    const detailButtons = screen.getAllByLabelText("Show plan details");
-    expect(detailButtons.length).toBe(2);
+  // Test: Hides pipeline/target section when all rollups are zero
+  it("hides pipeline bar when total target is zero", () => {
+    render(
+      <FlippablePlanCard
+        plan={makePlan({
+          renewalRollup: 0,
+          expansionRollup: 0,
+          winbackRollup: 0,
+          newBusinessRollup: 0,
+          pipelineTotal: 0,
+        })}
+        variant="full"
+        onNavigate={onNavigate}
+      />
+    );
+    expect(screen.queryByText("Target")).not.toBeInTheDocument();
+    expect(screen.queryByText("%")).not.toBeInTheDocument();
+  });
 
-    // After flip, both labels change to "Show plan summary"
-    fireEvent.click(detailButtons[0]);
-    const summaryButtons = screen.getAllByLabelText("Show plan summary");
-    expect(summaryButtons.length).toBe(2);
+  // Test: Color bar uses plan.color
+  it("renders left color bar with plan color", () => {
+    const { container } = render(
+      <FlippablePlanCard plan={makePlan({ color: "#FF5733" })} variant="full" onNavigate={onNavigate} />
+    );
+    const colorBar = container.querySelector('[style*="background-color: rgb(255, 87, 51)"]') ||
+      container.querySelector('[style*="#FF5733"]');
+    expect(colorBar).toBeInTheDocument();
   });
 });
