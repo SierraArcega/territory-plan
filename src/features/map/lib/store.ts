@@ -2,6 +2,10 @@ import { create } from "zustand";
 import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
+import type { TransitionBucket } from "@/features/map/lib/comparison";
+
+export type FiscalYear = "fy24" | "fy25" | "fy26" | "fy27";
+export type CompareView = "side_by_side" | "changes";
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
@@ -73,6 +77,11 @@ export interface MapViewState {
   visibleSchoolTypes: string[];
   selectedFiscalYear: string;
   visibleMetrics: string[];
+  // Compare mode (optional -- absent in legacy saved views)
+  compareMode?: boolean;
+  compareView?: CompareView;
+  compareFyA?: string;
+  compareFyB?: string;
 }
 
 export interface RightPanelContent {
@@ -91,6 +100,10 @@ export interface V2TooltipData {
   stateAbbrev?: string;
   enrollment?: number;
   customerCategory?: string;
+  // Compare mode fields
+  customerCategoryA?: string;
+  customerCategoryB?: string;
+  transitionBucket?: TransitionBucket;
   dominantVendor?: string;
   salesExecutive?: string | null;
   // School-specific
@@ -173,7 +186,13 @@ interface MapV2State {
   competitorEngagement: Record<string, string[]>;
 
   // Fiscal year selector (affects Fullmind + Competitors tile data)
-  selectedFiscalYear: "fy24" | "fy25" | "fy26" | "fy27";
+  selectedFiscalYear: FiscalYear;
+
+  // Comparison mode
+  compareMode: boolean;
+  compareView: CompareView;
+  compareFyA: FiscalYear;
+  compareFyB: FiscalYear;
 
   // Color palette preferences
   vendorPalettes: Record<VendorId, string>;
@@ -308,7 +327,14 @@ interface MapV2Actions {
   setCompetitorEngagement: (vendorId: string, levels: string[]) => void;
 
   // Fiscal year
-  setSelectedFiscalYear: (fy: "fy24" | "fy25" | "fy26" | "fy27") => void;
+  setSelectedFiscalYear: (fy: FiscalYear) => void;
+
+  // Comparison mode
+  enterCompareMode: () => void;
+  exitCompareMode: () => void;
+  setCompareView: (view: CompareView) => void;
+  setCompareFyA: (fy: FiscalYear) => void;
+  setCompareFyB: (fy: FiscalYear) => void;
 
   // Color palette preferences
   setVendorPalette: (vendorId: VendorId, paletteId: string) => void;
@@ -454,7 +480,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     "lapsed",
   ],
   competitorEngagement: {},
-  selectedFiscalYear: "fy26",
+  selectedFiscalYear: "fy26" as FiscalYear,
+
+  // Comparison mode defaults
+  compareMode: false,
+  compareView: "changes" as CompareView,
+  compareFyA: "fy25" as FiscalYear,
+  compareFyB: "fy26" as FiscalYear,
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
   signalPalette: DEFAULT_SIGNAL_PALETTE,
   vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75 },
@@ -801,6 +833,39 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   // Fiscal year
   setSelectedFiscalYear: (fy) => set({ selectedFiscalYear: fy }),
 
+  // Comparison mode
+  enterCompareMode: () =>
+    set((s) => {
+      const fyOrder: FiscalYear[] = ["fy24", "fy25", "fy26", "fy27"];
+      const currentIdx = fyOrder.indexOf(s.selectedFiscalYear);
+      const prevFy = currentIdx > 0 ? fyOrder[currentIdx - 1] : fyOrder[0];
+      return {
+        compareMode: true,
+        compareView: "changes",
+        compareFyA: prevFy,
+        compareFyB: s.selectedFiscalYear,
+      };
+    }),
+
+  exitCompareMode: () =>
+    set({ compareMode: false }),
+
+  setCompareView: (view) => set({ compareView: view }),
+
+  setCompareFyA: (fy) =>
+    set((s) => {
+      // Prevent setting A === B; swap if needed
+      if (fy === s.compareFyB) return s;
+      return { compareFyA: fy };
+    }),
+
+  setCompareFyB: (fy) =>
+    set((s) => {
+      // Prevent setting B === A; swap if needed
+      if (fy === s.compareFyA) return s;
+      return { compareFyB: fy };
+    }),
+
   // Color palette preferences
   setVendorPalette: (vendorId, paletteId) =>
     set((s) => ({
@@ -863,6 +928,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       visibleSchoolTypes: [...s.visibleSchoolTypes].sort(),
       selectedFiscalYear: s.selectedFiscalYear,
       visibleMetrics: [...s.visibleMetrics].sort(),
+      // Only include compare state when active
+      ...(s.compareMode ? {
+        compareMode: true,
+        compareView: s.compareView,
+        compareFyA: s.compareFyA,
+        compareFyB: s.compareFyB,
+      } : {}),
     };
   },
 
@@ -882,8 +954,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       activeSignal: state.activeSignal as SignalId | null,
       visibleLocales: new Set(state.visibleLocales as LocaleId[]),
       visibleSchoolTypes: new Set(state.visibleSchoolTypes as SchoolType[]),
-      selectedFiscalYear: state.selectedFiscalYear as "fy24" | "fy25" | "fy26" | "fy27",
+      selectedFiscalYear: state.selectedFiscalYear as FiscalYear,
       visibleMetrics: new Set(state.visibleMetrics ?? ALL_METRIC_IDS as unknown as string[]),
+      // Restore or clear compare state
+      compareMode: state.compareMode ?? false,
+      compareView: (state.compareView ?? "changes") as CompareView,
+      compareFyA: (state.compareFyA ?? "fy25") as FiscalYear,
+      compareFyB: (state.compareFyB ?? "fy26") as FiscalYear,
     });
   },
 

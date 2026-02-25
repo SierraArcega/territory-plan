@@ -372,6 +372,15 @@ export default function LayerBubble() {
   const setCompetitorEngagement = useMapV2Store((s) => s.setCompetitorEngagement);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
+  const compareMode = useMapV2Store((s) => s.compareMode);
+  const compareView = useMapV2Store((s) => s.compareView);
+  const compareFyA = useMapV2Store((s) => s.compareFyA);
+  const compareFyB = useMapV2Store((s) => s.compareFyB);
+  const enterCompareMode = useMapV2Store((s) => s.enterCompareMode);
+  const exitCompareMode = useMapV2Store((s) => s.exitCompareMode);
+  const setCompareView = useMapV2Store((s) => s.setCompareView);
+  const setCompareFyA = useMapV2Store((s) => s.setCompareFyA);
+  const setCompareFyB = useMapV2Store((s) => s.setCompareFyB);
   const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
   const setVendorPalette = useMapV2Store((s) => s.setVendorPalette);
   const vendorOpacities = useMapV2Store((s) => s.vendorOpacities);
@@ -811,7 +820,8 @@ export default function LayerBubble() {
               <select
                 value={selectedFiscalYear}
                 onChange={(e) => setSelectedFiscalYear(e.target.value as "fy24" | "fy25" | "fy26" | "fy27")}
-                className="text-xs font-medium bg-white border border-gray-200/60 rounded-md px-2 py-1 text-plum focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 cursor-pointer"
+                disabled={compareMode}
+                className={`text-xs font-medium bg-white border border-gray-200/60 rounded-md px-2 py-1 text-plum focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 cursor-pointer ${compareMode ? "opacity-40 cursor-not-allowed" : ""}`}
               >
                 <option value="fy27">FY27</option>
                 <option value="fy26">FY26</option>
@@ -819,6 +829,93 @@ export default function LayerBubble() {
                 <option value="fy24">FY24</option>
               </select>
             </div>
+
+            {/* Compare Years toggle */}
+            <label className="flex items-center gap-2 mt-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={compareMode}
+                onChange={() => compareMode ? exitCompareMode() : enterCompareMode()}
+                className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
+              />
+              <span className={`text-xs font-medium ${compareMode ? "text-plum" : "text-gray-500"}`}>
+                Compare Years
+              </span>
+            </label>
+
+            {/* Compare controls (visible when toggle ON) */}
+            {compareMode && (
+              <div className="mt-2 mb-1 space-y-2 bg-white rounded-lg border border-gray-200/60 p-2.5">
+                {/* Segmented control: Changes / Side-by-Side */}
+                <div className="flex rounded-md overflow-hidden border border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setCompareView("changes")}
+                    className={`flex-1 text-xs font-medium py-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-plum/20 ${
+                      compareView === "changes"
+                        ? "bg-plum text-white"
+                        : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Changes
+                  </button>
+                  <button
+                    type="button"
+                    disabled={typeof window !== "undefined" && window.innerWidth < 768}
+                    onClick={() => {
+                      setCompareView("side_by_side");
+                    }}
+                    title={typeof window !== "undefined" && window.innerWidth < 768 ? "Wider screen required" : undefined}
+                    className={`flex-1 text-xs font-medium py-1.5 transition-colors border-l border-gray-200 focus:outline-none focus:ring-2 focus:ring-plum/20 ${
+                      typeof window !== "undefined" && window.innerWidth < 768
+                        ? "opacity-40 cursor-not-allowed bg-white text-gray-600"
+                        : compareView === "side_by_side"
+                          ? "bg-plum text-white"
+                          : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Side-by-Side
+                  </button>
+                </div>
+
+                {/* FY dropdowns */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-10 shrink-0">From:</span>
+                  <select
+                    value={compareFyA}
+                    onChange={(e) => setCompareFyA(e.target.value as "fy24" | "fy25" | "fy26" | "fy27")}
+                    className="flex-1 text-xs font-medium bg-gray-50 border border-gray-200/60 rounded-md px-2 py-1.5 text-plum focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30"
+                  >
+                    {(["fy24", "fy25", "fy26", "fy27"] as const)
+                      .filter((fy) => fy !== compareFyB)
+                      .map((fy) => (
+                        <option key={fy} value={fy}>{fy.replace("fy", "FY")}</option>
+                      ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-10 shrink-0">To:</span>
+                  <select
+                    value={compareFyB}
+                    onChange={(e) => setCompareFyB(e.target.value as "fy24" | "fy25" | "fy26" | "fy27")}
+                    className="flex-1 text-xs font-medium bg-gray-50 border border-gray-200/60 rounded-md px-2 py-1.5 text-plum focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30"
+                  >
+                    {(["fy24", "fy25", "fy26", "fy27"] as const)
+                      .filter((fy) => fy !== compareFyA)
+                      .map((fy) => (
+                        <option key={fy} value={fy}>{fy.replace("fy", "FY")}</option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Same-FY warning */}
+                {compareFyA === compareFyB && (
+                  <p className="text-xs text-coral italic">
+                    Select different fiscal years to see changes.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Fullmind (inside Sales Data group) */}
@@ -876,9 +973,15 @@ export default function LayerBubble() {
 
                 {activeVendors.has("fullmind") && (
                   <>
-                    <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2">
+                    <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2 flex items-center gap-1.5">
                       Filter by engagement:
+                      {compareMode && compareView === "changes" && (
+                        <span className="text-[10px] italic text-gray-300" title="Filters disabled in Changes view">
+                          (disabled)
+                        </span>
+                      )}
                     </div>
+                    <div className={compareMode && compareView === "changes" ? "pointer-events-none opacity-40" : ""}>
                     {/* Target (standalone) */}
                     {(["target"] as FullmindEngagement[]).map((level) => {
                       const meta = FULLMIND_ENGAGEMENT_META[level];
@@ -1017,6 +1120,7 @@ export default function LayerBubble() {
                         Show all engagement levels
                       </button>
                     )}
+                    </div>{/* end disabled wrapper */}
                   </>
                 )}
               </div>
@@ -1088,9 +1192,15 @@ export default function LayerBubble() {
 
                       {isActive && (
                         <>
-                          <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2">
+                          <div className="text-xs text-gray-400 mt-1.5 mb-0.5 pl-2 flex items-center gap-1.5">
                             Filter by engagement:
+                            {compareMode && compareView === "changes" && (
+                              <span className="text-[10px] italic text-gray-300" title="Filters disabled in Changes view">
+                                (disabled)
+                              </span>
+                            )}
                           </div>
+                          <div className={compareMode && compareView === "changes" ? "pointer-events-none opacity-40" : ""}>
                           {/* Pipeline (group) */}
                           <GroupRow
                             label="Pipeline"
@@ -1208,6 +1318,7 @@ export default function LayerBubble() {
                               Show all engagement levels
                             </button>
                           )}
+                          </div>{/* end disabled wrapper */}
                         </>
                       )}
                     </div>

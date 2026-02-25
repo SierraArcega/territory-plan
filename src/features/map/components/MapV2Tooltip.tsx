@@ -2,6 +2,7 @@
 
 import { useEffect, forwardRef } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
+import { TRANSITION_BUCKET_MAP } from "@/features/map/lib/comparison";
 
 const CATEGORY_LABELS: Record<string, string> = {
   multi_year_growing: "Multi-year (Growing)",
@@ -9,8 +10,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   multi_year_shrinking: "Multi-year (Shrinking)",
   new: "New this year",
   lapsed: "Lapsed customer",
+  churned: "Churned",
   pipeline: "In pipeline",
   target: "Target",
+  new_business_pipeline: "New Business Pipeline",
+  winback_pipeline: "Winback Pipeline",
+  renewal_pipeline: "Renewal Pipeline",
+  expansion_pipeline: "Expansion Pipeline",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -39,6 +45,10 @@ const SCHOOL_LEVEL_COLORS: Record<number, string> = {
 
 const MapV2Tooltip = forwardRef<HTMLDivElement>(function MapV2Tooltip(_, ref) {
   const tooltip = useMapV2Store((s) => s.tooltip);
+  const compareMode = useMapV2Store((s) => s.compareMode);
+  const compareView = useMapV2Store((s) => s.compareView);
+  const compareFyA = useMapV2Store((s) => s.compareFyA);
+  const compareFyB = useMapV2Store((s) => s.compareFyB);
 
   // Handle exit animation cleanup
   useEffect(() => {
@@ -94,18 +104,63 @@ const MapV2Tooltip = forwardRef<HTMLDivElement>(function MapV2Tooltip(_, ref) {
               </span>
             )}
           </div>
-          {data.customerCategory && (
-            <div className="flex items-center gap-1.5 mt-1">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{
-                  backgroundColor: CATEGORY_COLORS[data.customerCategory] || "#9CA3AF",
-                }}
-              />
-              <span className="text-xs text-gray-500">
-                {CATEGORY_LABELS[data.customerCategory] || data.customerCategory}
-              </span>
-            </div>
+
+          {/* Compare mode: changes view -- show both FY categories + transition bucket */}
+          {compareMode && compareView === "changes" && data.transitionBucket ? (
+            <>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className="text-[10px] text-gray-400 w-8 shrink-0">
+                  {compareFyA.replace("fy", "FY")}:
+                </span>
+                <span className="text-xs text-gray-500">
+                  {data.customerCategoryA
+                    ? (CATEGORY_LABELS[data.customerCategoryA] || data.customerCategoryA)
+                    : "None"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] text-gray-400 w-8 shrink-0">
+                  {compareFyB.replace("fy", "FY")}:
+                </span>
+                <span className="text-xs text-gray-500">
+                  {data.customerCategoryB
+                    ? (CATEGORY_LABELS[data.customerCategoryB] || data.customerCategoryB)
+                    : "None"}
+                </span>
+              </div>
+              {/* Transition bucket */}
+              <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-gray-100">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: data.transitionBucket === "unchanged"
+                      ? "transparent"
+                      : TRANSITION_BUCKET_MAP[data.transitionBucket].color,
+                    border: data.transitionBucket === "unchanged"
+                      ? `1.5px solid ${TRANSITION_BUCKET_MAP[data.transitionBucket].color}`
+                      : "none",
+                  }}
+                />
+                <span className="text-xs font-medium text-gray-600">
+                  {TRANSITION_BUCKET_MAP[data.transitionBucket].label}
+                </span>
+              </div>
+            </>
+          ) : (
+            /* Normal mode (and side-by-side): show single category */
+            data.customerCategory && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor: CATEGORY_COLORS[data.customerCategory] || "#9CA3AF",
+                  }}
+                />
+                <span className="text-xs text-gray-500">
+                  {CATEGORY_LABELS[data.customerCategory] || data.customerCategory}
+                </span>
+              </div>
+            )
           )}
         </>
       )}
