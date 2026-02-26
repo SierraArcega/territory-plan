@@ -717,6 +717,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({
       panelState: "PLAN_NEW",
       panelHistory: [...s.panelHistory, s.panelState],
+      panelMode: "full",
     })),
 
   toggleMultiSelectMode: () =>
