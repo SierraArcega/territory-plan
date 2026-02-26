@@ -491,6 +491,9 @@ export default function LayerBubble() {
 
   // State dropdown
   const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [stateHighlight, setStateHighlight] = useState(0);
+  const stateSearchRef = useRef<HTMLInputElement>(null);
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedMapView[]>([]);
@@ -646,7 +649,15 @@ export default function LayerBubble() {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setStateDropdownOpen(!stateDropdownOpen)}
+                onClick={() => {
+                  const next = !stateDropdownOpen;
+                  setStateDropdownOpen(next);
+                  if (next) {
+                    setStateSearch("");
+                    setStateHighlight(0);
+                    requestAnimationFrame(() => stateSearchRef.current?.focus());
+                  }
+                }}
                 className="w-full flex items-center justify-between text-sm bg-gray-50 border border-gray-200/60 rounded-lg px-2.5 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30"
               >
                 <span
@@ -679,36 +690,92 @@ export default function LayerBubble() {
                 </svg>
               </button>
 
-              {stateDropdownOpen && (
-                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {filterStates.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setFilterStates([])}
-                      className="w-full text-left text-xs text-plum hover:bg-gray-50 px-2.5 py-1.5 border-b border-gray-100"
-                    >
-                      Clear selection
-                    </button>
-                  )}
-                  {states.map((s) => (
-                    <label
-                      key={s.abbrev}
-                      className="flex items-center gap-2 px-2.5 py-1 hover:bg-gray-50 cursor-pointer"
-                    >
+              {stateDropdownOpen && (() => {
+                const q = stateSearch.toLowerCase();
+                const filtered = q
+                  ? states.filter(
+                      (s) =>
+                        s.name.toLowerCase().includes(q) ||
+                        s.abbrev.toLowerCase().includes(q)
+                    )
+                  : states;
+                return (
+                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                    <div className="px-2 pt-2 pb-1 border-b border-gray-100">
                       <input
-                        type="checkbox"
-                        checked={filterStates.includes(s.abbrev)}
-                        onChange={() => toggleFilterState(s.abbrev)}
-                        className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
+                        ref={stateSearchRef}
+                        type="text"
+                        value={stateSearch}
+                        onChange={(e) => {
+                          setStateSearch(e.target.value);
+                          setStateHighlight(0);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setStateHighlight((h) => Math.min(h + 1, filtered.length - 1));
+                          } else if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setStateHighlight((h) => Math.max(h - 1, 0));
+                          } else if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (filtered[stateHighlight]) {
+                              toggleFilterState(filtered[stateHighlight].abbrev);
+                            }
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            setStateDropdownOpen(false);
+                          }
+                        }}
+                        placeholder="Search states..."
+                        className="w-full text-sm bg-gray-50 border border-gray-200/60 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 placeholder:text-gray-400"
                       />
-                      <span className="text-sm text-gray-700">{s.name}</span>
-                      <span className="text-xs text-gray-400 ml-auto">
-                        {s.abbrev}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              )}
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {filterStates.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setFilterStates([])}
+                          className="w-full text-left text-xs text-plum hover:bg-gray-50 px-2.5 py-1.5 border-b border-gray-100"
+                        >
+                          Clear selection
+                        </button>
+                      )}
+                      {filtered.length === 0 && (
+                        <div className="px-2.5 py-2 text-xs text-gray-400 italic">
+                          No states match &ldquo;{stateSearch}&rdquo;
+                        </div>
+                      )}
+                      {filtered.map((s, i) => (
+                        <label
+                          key={s.abbrev}
+                          ref={(el) => {
+                            if (i === stateHighlight && el) {
+                              el.scrollIntoView({ block: "nearest" });
+                            }
+                          }}
+                          className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer transition-colors ${
+                            i === stateHighlight
+                              ? "bg-plum/10"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterStates.includes(s.abbrev)}
+                            onChange={() => toggleFilterState(s.abbrev)}
+                            className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
+                          />
+                          <span className="text-sm text-gray-700">{s.name}</span>
+                          <span className="text-xs text-gray-400 ml-auto">
+                            {s.abbrev}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Owner filter */}

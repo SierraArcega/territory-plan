@@ -4,7 +4,7 @@ import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/territory-plans/[id] - Get a single plan with its districts (user-scoped)
+// GET /api/territory-plans/[id] - Get a single plan with its districts
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,8 +13,13 @@ export async function GET(
     const { id } = await params;
     const user = await getUser();
 
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Team shares visibility across plans (matches list endpoint)
     const plan = await prisma.territoryPlan.findUnique({
-      where: { id, userId: user?.id },
+      where: { id },
       include: {
         districts: {
           include: {

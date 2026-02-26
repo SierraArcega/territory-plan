@@ -13,9 +13,13 @@ export async function GET(
     const { id } = await params;
     const user = await getUser();
 
-    // Verify plan exists and belongs to user
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Team shares visibility across plans (matches list endpoint)
     const plan = await prisma.territoryPlan.findUnique({
-      where: { id, userId: user?.id },
+      where: { id },
       include: {
         districts: {
           select: {
