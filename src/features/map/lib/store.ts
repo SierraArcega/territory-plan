@@ -236,7 +236,14 @@ interface MapV2State {
   // Focus Map — zooms + filters to a specific plan's footprint
   focusPlanId: string | null;
   focusLeaids: string[];
-  preFocusFilters: { filterStates: string[]; filterPlanId: string | null } | null;
+  preFocusFilters: {
+    filterStates: string[];
+    filterPlanId: string | null;
+    filterOwner: string | null;
+    filterAccountTypes: AccountTypeValue[];
+    fullmindEngagement: string[];
+    competitorEngagement: Record<string, string[]>;
+  } | null;
   pendingFitBounds: [[number, number], [number, number]] | null;
 }
 
@@ -1134,7 +1141,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   setSelectAllMatchingFilters: (value) =>
     set({ selectAllMatchingFilters: value }),
 
-  // Focus Map — saves current filters, applies state filter + highlight layers, queues fitBounds
+  // Focus Map — saves ALL current filters, clears them, applies plan state filter + highlight layers, queues fitBounds
   focusPlan: (planId, stateAbbrevs, leaids, bounds) =>
     set((s) => ({
       focusPlanId: planId,
@@ -1142,8 +1149,27 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       preFocusFilters: {
         filterStates: s.filterStates,
         filterPlanId: s.filterPlanId,
+        filterOwner: s.filterOwner,
+        filterAccountTypes: s.filterAccountTypes,
+        fullmindEngagement: s.fullmindEngagement,
+        competitorEngagement: s.competitorEngagement,
       },
+      // Clear all filters and apply only the plan's state filter
       filterStates: stateAbbrevs,
+      filterOwner: null,
+      filterAccountTypes: [],
+      fullmindEngagement: [
+        "new_business_pipeline",
+        "winback_pipeline",
+        "renewal_pipeline",
+        "expansion_pipeline",
+        "first_year",
+        "multi_year_growing",
+        "multi_year_flat",
+        "multi_year_shrinking",
+        "lapsed",
+      ],
+      competitorEngagement: {},
       // Don't set filterPlanId — we want non-plan districts visible (dimmed),
       // not hidden. The highlight layers make plan districts stand out.
       pendingFitBounds: bounds,
@@ -1155,6 +1181,20 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       focusLeaids: [],
       filterStates: s.preFocusFilters?.filterStates ?? [],
       filterPlanId: s.preFocusFilters?.filterPlanId ?? null,
+      filterOwner: s.preFocusFilters?.filterOwner ?? null,
+      filterAccountTypes: s.preFocusFilters?.filterAccountTypes ?? [],
+      fullmindEngagement: s.preFocusFilters?.fullmindEngagement ?? [
+        "new_business_pipeline",
+        "winback_pipeline",
+        "renewal_pipeline",
+        "expansion_pipeline",
+        "first_year",
+        "multi_year_growing",
+        "multi_year_flat",
+        "multi_year_shrinking",
+        "lapsed",
+      ],
+      competitorEngagement: s.preFocusFilters?.competitorEngagement ?? {},
       preFocusFilters: null,
     })),
 
