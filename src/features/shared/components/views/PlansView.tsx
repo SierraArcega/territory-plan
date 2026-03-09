@@ -530,6 +530,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
           isDeletingActivity={deleteActivity.isPending}
           onDistrictClick={handleDistrictClick}
           onContactClick={handleContactClick}
+          onGoToMap={() => setActiveTab("map")}
         />
       </main>
 

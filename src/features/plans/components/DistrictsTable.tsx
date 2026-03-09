@@ -11,6 +11,7 @@ interface DistrictsTableProps {
   onRemove: (leaid: string) => void;
   isRemoving?: boolean;
   onDistrictClick?: (leaid: string) => void;
+  onGoToMap?: () => void;
 }
 
 interface ConfirmRemoveDialogProps {
@@ -192,6 +193,7 @@ export default function DistrictsTable({
   onRemove,
   isRemoving,
   onDistrictClick,
+  onGoToMap,
 }: DistrictsTableProps) {
   const [confirmRemove, setConfirmRemove] = useState<TerritoryPlanDistrict | null>(null);
   const updateTargets = useUpdateDistrictTargets();
@@ -227,8 +229,8 @@ export default function DistrictsTable({
         <p className="text-sm text-gray-500 max-w-sm mx-auto">
           Add districts to this plan from the map view. Select a district and click &quot;Add to Plan&quot;.
         </p>
-        <Link
-          href="/"
+        <button
+          onClick={onGoToMap}
           className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,7 +242,7 @@ export default function DistrictsTable({
             />
           </svg>
           Go to Map
-        </Link>
+        </button>
       </div>
     );
   }
