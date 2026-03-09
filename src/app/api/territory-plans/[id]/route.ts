@@ -109,7 +109,7 @@ export async function GET(
   }
 }
 
-// PUT /api/territory-plans/[id] - Update plan metadata (user-scoped)
+// PUT /api/territory-plans/[id] - Update plan metadata
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -120,9 +120,13 @@ export async function PUT(
     const body = await request.json();
     const { name, description, ownerId, color, status, fiscalYear, startDate, endDate, stateFips, collaboratorIds } = body;
 
-    // Check if plan exists and belongs to user
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Check if plan exists (any authenticated user can update)
     const existing = await prisma.territoryPlan.findUnique({
-      where: { id, userId: user?.id },
+      where: { id },
     });
 
     if (!existing) {
