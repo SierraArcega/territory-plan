@@ -42,6 +42,7 @@ interface PlanTabsProps {
   // Click handlers for opening the district detail panel
   onDistrictClick?: (leaid: string) => void;
   onContactClick?: (leaid: string, contactId: number) => void;
+  onGoToMap?: () => void;
 }
 
 // Filter configurations per tab
@@ -183,6 +184,7 @@ export default function PlanTabs({
   onDeleteContact,
   onDistrictClick,
   onContactClick,
+  onGoToMap,
 }: PlanTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("districts");
   const [views, setViews] = useState<Record<TabId, "cards" | "table">>({
@@ -573,6 +575,7 @@ export default function PlanTabs({
               onRemove={onRemoveDistrict}
               isRemoving={isRemovingDistrict}
               onDistrictClick={onDistrictClick}
+              onGoToMap={onGoToMap}
             />
           );
         }
@@ -595,6 +598,7 @@ export default function PlanTabs({
                     onRemove={onRemoveDistrict}
                     isRemoving={isRemovingDistrict}
                     onDistrictClick={onDistrictClick}
+                    onGoToMap={onGoToMap}
                   />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
