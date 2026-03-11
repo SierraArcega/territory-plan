@@ -87,7 +87,7 @@ describe("useMapV2Store - Palette Preferences", () => {
   });
 
   it("initializes with default signal palette", () => {
-    expect(useMapV2Store.getState().signalPalette).toBe("mint-coral");
+    expect(useMapV2Store.getState().signalPalette).toBe("teal-coral");
   });
 
   it("setVendorPalette updates a single vendor", () => {

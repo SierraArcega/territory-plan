@@ -56,8 +56,8 @@ describe("palettes", () => {
     expect(DEFAULT_VENDOR_PALETTE.educere).toBe("plum");
   });
 
-  it("default signal palette is mint-coral", () => {
-    expect(DEFAULT_SIGNAL_PALETTE).toBe("mint-coral");
+  it("default signal palette is teal-coral", () => {
+    expect(DEFAULT_SIGNAL_PALETTE).toBe("teal-coral");
   });
 
   it("all palette IDs are unique (vendor)", () => {
@@ -98,7 +98,7 @@ describe("buildVendorFillExpression", () => {
 
 describe("buildSignalFillExpression", () => {
   it("builds growth signal expression with 5 category stops", () => {
-    const palette = getSignalPalette("mint-coral");
+    const palette = getSignalPalette("teal-coral");
     const expr = buildSignalFillExpression("enrollment", palette);
 
     expect(expr[0]).toBe("match");
@@ -109,7 +109,7 @@ describe("buildSignalFillExpression", () => {
   });
 
   it("builds expenditure signal expression with 4 category stops", () => {
-    const palette = getSignalPalette("mint-coral");
+    const palette = getSignalPalette("teal-coral");
     const expr = buildSignalFillExpression("expenditure", palette);
 
     expect(expr[0]).toBe("match");
@@ -168,7 +168,7 @@ describe("deriveVendorCategoryColors", () => {
 
 describe("deriveSignalCategoryColors", () => {
   it("returns 5 keyed entries for growth signal", () => {
-    const palette = SIGNAL_PALETTES.find((p) => p.id === "mint-coral")!;
+    const palette = SIGNAL_PALETTES.find((p) => p.id === "teal-coral")!;
     const result = deriveSignalCategoryColors("enrollment", palette);
     expect(Object.keys(result)).toHaveLength(5);
     expect(result["enrollment:strong_growth"]).toBe(palette.growthStops[0]);
@@ -176,7 +176,7 @@ describe("deriveSignalCategoryColors", () => {
   });
 
   it("returns 4 keyed entries for expenditure signal", () => {
-    const palette = SIGNAL_PALETTES.find((p) => p.id === "mint-coral")!;
+    const palette = SIGNAL_PALETTES.find((p) => p.id === "teal-coral")!;
     const result = deriveSignalCategoryColors("expenditure", palette);
     expect(Object.keys(result)).toHaveLength(4);
     expect(result["expenditure:well_above"]).toBe(palette.expenditureStops[0]);
@@ -311,7 +311,7 @@ describe("palette-storage", () => {
   it("returns defaults when nothing stored", () => {
     const prefs = loadPalettePrefs();
     expect(prefs.vendorPalettes.fullmind).toBe("steel-blue");
-    expect(prefs.signalPalette).toBe("mint-coral");
+    expect(prefs.signalPalette).toBe("teal-coral");
     expect(prefs.categoryColors).toEqual(DEFAULT_CATEGORY_COLORS);
     expect(prefs.categoryOpacities).toEqual(DEFAULT_CATEGORY_OPACITIES);
   });

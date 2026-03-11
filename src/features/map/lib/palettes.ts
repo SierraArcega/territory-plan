@@ -97,8 +97,8 @@ export const VENDOR_PALETTES: VendorPalette[] = [
     ],
   },
   {
-    id: "mint",
-    label: "Mint",
+    id: "teal",
+    label: "Teal",
     baseColor: "#4ECDC4",
     dotColor: "#4ECDC4",
     stops: [
@@ -194,8 +194,8 @@ export const VENDOR_PALETTES: VendorPalette[] = [
 
 export const SIGNAL_PALETTES: SignalPalette[] = [
   {
-    id: "mint-coral",
-    label: "Mint / Coral",
+    id: "teal-coral",
+    label: "Teal / Coral",
     growthStops: ["#4ECDC4", "#8EDDD7", "#6EA3BE", "#f58d85", "#F37167"],
     expenditureStops: ["#F37167", "#FFCF70", "#6EA3BE", "#4ECDC4"],
     dotColor: "#4ECDC4",
@@ -235,7 +235,7 @@ export const DEFAULT_VENDOR_PALETTE: Record<VendorId, string> = {
   educere: "plum",
 };
 
-export const DEFAULT_SIGNAL_PALETTE = "mint-coral";
+export const DEFAULT_SIGNAL_PALETTE = "teal-coral";
 
 // ============================================
 // Lookup helpers
@@ -253,7 +253,7 @@ export function getVendorPalette(id: string): VendorPalette {
 }
 
 export function getSignalPalette(id: string): SignalPalette {
-  return signalPaletteMap.get(id) ?? signalPaletteMap.get("mint-coral")!;
+  return signalPaletteMap.get(id) ?? signalPaletteMap.get("teal-coral")!;
 }
 
 // ============================================

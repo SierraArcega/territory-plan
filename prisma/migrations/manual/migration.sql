@@ -1,0 +1,3 @@
+-- Manual migration scripts (run separately, not by Prisma)
+-- This file exists to satisfy Prisma's migration directory structure.
+-- See the other .sql files in this directory for the actual scripts.
