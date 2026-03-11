@@ -51,7 +51,7 @@ Pagination lives canonically in `Navigation/pagination.md`. Tables docs referenc
 All navigation components use the same active/selected indicator pattern.
 
 **Vertical navigation (sidebar, icon bar, tree view):**
-- Active: `border-l-3 border-[#F37167]` + `bg-[#FEF2F1]` + `text-[#F37167]`
+- Active: `border-l-3 border-[#F37167]` + `bg-[#fef1f0]` + `text-[#F37167]`
 - Inactive: `text-[#6E6390]` + `border-l-3 border-transparent`
 - Hover (inactive): `bg-[#EFEDF5]` + `text-[#403770]`
 
@@ -227,7 +227,7 @@ Based on existing SignalCard pattern, standardized.
 
 **Tier 3 — Advanced Filter Builder (ExploreFilters pattern):**
 - 3-step picker: Column > Operator > Value
-- Picker popover: `w-56 bg-white rounded-lg border border-gray-200 shadow-lg`
+- Picker popover: `w-56 bg-white rounded-lg border border-[#D4CFE2] shadow-lg`
 - Step groups: `text-[10px] font-semibold uppercase tracking-wider text-[#A69DC0]`
 - Step items: `px-3 py-1.5 text-[13px] text-[#6E6390] hover:bg-[#C4E7E6]/15 hover:text-[#403770]`
 - Back button: chevron left `w-3.5 h-3.5 text-[#A69DC0] hover:text-[#403770]`
@@ -308,7 +308,7 @@ Canonical source for pagination — referenced by table docs.
 **Icon Bar (Panel strip):**
 - Container: `flex flex-col items-center py-3 gap-1 w-[56px] border-r border-[#E2DEEC]`
 - Items: `w-9 h-9 rounded-xl` using Medium icon size
-- Active: `bg-[#FEF2F1]` tint (coral system adapted for icon-only)
+- Active: `bg-[#fef1f0]` tint (coral system adapted for icon-only)
 - Inactive hover: `hover:bg-[#EFEDF5]`
 - Tooltips: same spec as sidebar collapsed tooltips
 - Quick action button (bottom): `bg-[#403770] text-white rounded-xl hover:bg-[#322a5a] shadow-sm`
@@ -368,7 +368,7 @@ New component — not yet in codebase.
 **Node anatomy:**
 - `flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-[#6E6390]`
 - Hover: `bg-[#EFEDF5]`
-- Selected: coral accent system — `bg-[#FEF2F1] text-[#F37167] border-l-2 border-[#F37167]`
+- Selected: coral accent system — `bg-[#fef1f0] text-[#F37167] border-l-3 border-[#F37167]`
 
 **Expand/collapse:**
 - Chevron: `w-3.5 h-3.5 text-[#8A80A8]` (right-pointing collapsed, down expanded)
