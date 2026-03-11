@@ -391,3 +391,97 @@ Click-to-edit cells and card sections. Minimal chrome, optimized for speed. Uses
   autoFocus
 />
 ```
+
+---
+
+## Shared Primitives (Recommended)
+
+Located in `src/features/shared/components/forms/`. These are recommended for new forms and gradual migration of existing forms. Not mandated — existing forms can continue working without them.
+
+### FormField
+
+```tsx
+interface FormFieldProps {
+  label: string;
+  htmlFor: string;
+  required?: boolean;
+  error?: string;
+  helpText?: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}
+```
+
+**Responsibilities:**
+
+- Renders label with correct styling and required marker
+- Renders error message below input when present
+- Renders help text: `text-xs text-[#A69DC0] mt-1`
+- Applies error/disabled label color changes
+
+### FormSection
+
+```tsx
+interface FormSectionProps {
+  title?: string;
+  children: React.ReactNode;
+  compact?: boolean; // uses space-y-3 instead of space-y-4
+}
+```
+
+### FormActions
+
+```tsx
+interface FormActionsProps {
+  onCancel: () => void;
+  onSubmit?: () => void; // if not inside a <form>
+  submitLabel?: string;
+  cancelLabel?: string;
+  isPending?: boolean;
+  disabled?: boolean;
+  variant?: "modal" | "panel"; // modal: border-t footer bar, panel: full-width button
+}
+```
+
+---
+
+## Migration Guide
+
+Existing forms should migrate to these patterns when next modified. The following patterns in existing code are non-conforming:
+
+| Current Pattern | Replace With | Found In |
+|----------------|-------------|----------|
+| `border-gray-200`, `border-gray-300` | `border-[#C2BBD4]` (Border Strong) | TaskFormModal, GoalFormModal, PlanFormModal, OutcomeModal |
+| `border-gray-200/60` | `border-[#C2BBD4]` (Border Strong) | AccountForm |
+| `text-gray-500`, `text-gray-700` on labels | `text-[#8A80A8]` (Secondary) | PlanFormModal, GoalFormModal, DistrictTargetEditor |
+| `text-xs font-semibold` on field labels | `text-xs font-medium` | TaskFormModal, OutcomeModal |
+| `text-red-500` for required marker | `text-[#F37167]` (Coral) | PlanFormModal |
+| `bg-gray-50` on inputs | `bg-white` | AccountForm |
+| `rounded-xl` on inputs | `rounded-lg` | AccountForm |
+| `rounded-md` on inputs | `rounded-lg` | NotesEditor |
+| `rounded-xl` on modal containers | `rounded-2xl` | All modal forms |
+| `focus:ring-[#403770]` on form inputs | `focus:ring-[#F37167]` (Coral) | GoalFormModal, GoalEditorModal, PlanFormModal, DistrictTargetEditor |
+| `focus:ring-plum/20 focus:border-plum/30` | `focus:ring-2 focus:ring-[#F37167] focus:border-transparent` | AccountForm |
+| `focus:ring-[#F37167]/30 focus:border-[#F37167]` | `focus:ring-2 focus:ring-[#F37167] focus:border-transparent` | OutcomeModal |
+| `focus:ring-0` (no focus ring) | `focus:ring-2 focus:ring-[#F37167]` | TaskForm (right panel), ActivityForm (right panel) |
+| `text-[10px]` labels | `text-xs` (12px) | TaskForm (right panel), ActivityForm (right panel) |
+| `bg-gray-800` submit buttons | `bg-[#403770]` (Plum) | TaskForm (right panel), ActivityForm (right panel) |
+| `bg-red-50 border-red-200 text-red-600` errors | Semantic Error tokens (`#fef1f0` / `#f58d85` / `#F37167`) | GoalFormModal, PlanFormModal, AccountForm, login page |
+| `text-gray-400` for placeholders | `placeholder:text-[#A69DC0]` (Muted) | Multiple files |
+| `bg-black/40`, `bg-black/50` backdrops | `bg-[#403770]/40` | TaskFormModal, OutcomeModal, PlanFormModal, DistrictTargetEditor |
+| `border-gray-100` on dividers | `border-[#E2DEEC]` (Border Subtle) for inner dividers, `border-[#D4CFE2]` (Border Default) for section dividers | Multiple files |
+| `bg-gray-300` toggle off state | `bg-[#C2BBD4]` (Border Strong) | OutcomeModal |
+
+---
+
+## File Reference
+
+| What | Where |
+|------|-------|
+| Guide output | `Documentation/UI Framework/Components/forms.md` |
+| Design tokens | `Documentation/UI Framework/tokens.md` |
+| Shared primitives | `src/features/shared/components/forms/` (new) |
+| Modal form examples | `src/features/tasks/components/TaskFormModal.tsx`, `src/features/goals/components/GoalFormModal.tsx`, `src/features/goals/components/GoalEditorModal.tsx`, `src/features/plans/components/PlanFormModal.tsx`, `src/features/plans/components/DistrictTargetEditor.tsx`, `src/features/activities/components/ActivityFormModal.tsx`, `src/features/activities/components/OutcomeModal.tsx` |
+| Panel form examples | `src/features/map/components/panels/AccountForm.tsx`, `src/features/map/components/right-panels/PlanEditForm.tsx`, `src/features/map/components/right-panels/TaskForm.tsx`, `src/features/map/components/right-panels/ActivityForm.tsx`, `src/features/map/components/panels/PlanFormPanel.tsx` |
+| Inline edit | `src/features/shared/components/InlineEditCell.tsx`, `src/features/tasks/components/QuickAddTask.tsx`, `src/features/districts/components/NotesEditor.tsx` |
+| Login form | `src/app/login/page.tsx` |
