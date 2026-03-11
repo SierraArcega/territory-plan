@@ -165,3 +165,229 @@ disabled:bg-[#F7F5FA] disabled:border-[#E2DEEC] disabled:text-[#A69DC0] disabled
 - Mark with `*` in Coral after label text
 - Client-side: prevent submit if empty, show field-level error
 - No asterisk legend needed (convention: all fields required unless stated otherwise)
+
+---
+
+## Modal Form Pattern
+
+The canonical modal form structure for creating and editing entities. All modals follow this exact layout.
+
+### Structure
+
+- **Backdrop:** `fixed inset-0 z-50 bg-[#403770]/40`
+- **Container:** `bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col`
+- **Header:** `px-6 py-4 border-b border-[#D4CFE2]` — title uses `text-lg font-bold text-[#403770]`, plus a close button
+- **Body:** `flex-1 overflow-y-auto px-6 py-4 space-y-4`
+- **Footer:** `px-6 py-4 border-t border-[#D4CFE2] bg-[#F7F5FA]`
+
+### Buttons
+
+- **Submit:** `px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50`
+- **Cancel:** `px-4 py-2 text-sm font-medium text-[#6E6390] hover:text-[#403770]`
+- **Destructive:** `bg-[#F37167] hover:bg-[#e05f55]`
+- **Pending:** text changes to "Creating..." / "Saving...", `disabled:opacity-50`
+
+### JSX Skeleton
+
+```tsx
+{/* Backdrop */}
+<div className="fixed inset-0 z-50 flex items-center justify-center bg-[#403770]/40">
+  {/* Container */}
+  <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col">
+
+    {/* Header */}
+    <div className="px-6 py-4 border-b border-[#D4CFE2] flex items-center justify-between">
+      <h2 className="text-lg font-bold text-[#403770]">Create Task</h2>
+      <button
+        onClick={onClose}
+        className="text-[#A69DC0] hover:text-[#403770]"
+      >
+        ✕
+      </button>
+    </div>
+
+    {/* Body */}
+    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      {/* FormField slots */}
+      <div>
+        <label htmlFor="field-1" className="block text-xs font-medium text-[#8A80A8] mb-1">
+          Field Label <span className="text-[#F37167]">*</span>
+        </label>
+        <input
+          id="field-1"
+          type="text"
+          className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
+            bg-white text-[#403770] placeholder:text-[#A69DC0]
+            focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="field-2" className="block text-xs font-medium text-[#8A80A8] mb-1">
+          Another Field
+        </label>
+        <select
+          id="field-2"
+          className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
+            bg-white text-[#403770]
+            focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+        >
+          <option>Option A</option>
+          <option>Option B</option>
+        </select>
+      </div>
+    </div>
+
+    {/* Footer */}
+    <div className="px-6 py-4 border-t border-[#D4CFE2] bg-[#F7F5FA] flex justify-end gap-3">
+      <button
+        type="button"
+        onClick={onClose}
+        className="px-4 py-2 text-sm font-medium text-[#6E6390] hover:text-[#403770]"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        disabled={isPending}
+        className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50"
+      >
+        {isPending ? "Creating..." : "Create Task"}
+      </button>
+    </div>
+
+  </div>
+</div>
+```
+
+---
+
+## Panel Form Pattern
+
+Panel forms are embedded in sidebar panels on the map view. They use tighter spacing and have no independent shadow since the panel provides elevation.
+
+### Structure
+
+- **Header:** `px-3 py-2.5 border-b border-[#E2DEEC]` with back button and uppercase title (`text-xs font-medium text-[#8A80A8] uppercase tracking-wider`)
+- **Body:** `flex-1 p-3 space-y-4 overflow-y-auto`
+- **Submit:** `w-full py-2.5 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90`
+- **No sticky footer** — the submit button scrolls with content
+- **Optional fields toggle:** "Show/Hide optional fields" pattern for secondary fields
+
+### JSX Skeleton
+
+```tsx
+<div className="flex flex-col h-full">
+
+  {/* Header */}
+  <div className="px-3 py-2.5 border-b border-[#E2DEEC] flex items-center gap-2">
+    <button onClick={onBack} className="text-[#A69DC0] hover:text-[#403770]">
+      ← Back
+    </button>
+    <h3 className="text-xs font-medium text-[#8A80A8] uppercase tracking-wider">
+      Edit Account
+    </h3>
+  </div>
+
+  {/* Body */}
+  <div className="flex-1 p-3 space-y-4 overflow-y-auto">
+    {/* FormField slots */}
+    <div>
+      <label htmlFor="panel-field-1" className="block text-xs font-medium text-[#8A80A8] mb-1">
+        Account Name <span className="text-[#F37167]">*</span>
+      </label>
+      <input
+        id="panel-field-1"
+        type="text"
+        className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
+          bg-white text-[#403770] placeholder:text-[#A69DC0]
+          focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+      />
+    </div>
+
+    <div>
+      <label htmlFor="panel-field-2" className="block text-xs font-medium text-[#8A80A8] mb-1">
+        Region
+      </label>
+      <select
+        id="panel-field-2"
+        className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
+          bg-white text-[#403770]
+          focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+      >
+        <option>Northeast</option>
+        <option>Southeast</option>
+      </select>
+    </div>
+
+    {/* Submit scrolls with content */}
+    <button
+      type="submit"
+      disabled={isPending}
+      className="w-full py-2.5 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90 disabled:opacity-50"
+    >
+      {isPending ? "Saving..." : "Save Changes"}
+    </button>
+  </div>
+
+</div>
+```
+
+---
+
+## Inline Editing Pattern
+
+Click-to-edit cells and card sections. Minimal chrome, optimized for speed. Uses plum ring (not coral) for contextual differentiation from full form inputs.
+
+### States
+
+- **Display mode:** `cursor-pointer px-1.5 py-0.5 rounded hover:bg-[#C4E7E6]/30`
+- **Edit mode:** `border border-[#C2BBD4] ring-2 ring-[#403770]` (plum ring — not coral — for inline context differentiation)
+- **Success flash:** `bg-[#F7FFF2]` (Semantic Success bg)
+
+### Keyboard Interactions
+
+| Input Type | Save | Cancel |
+|-----------|------|--------|
+| Text | blur or Enter | Escape |
+| Date | blur or Enter | Escape |
+| Textarea | blur or Ctrl+Enter | Escape |
+| Select | auto-save on change | Escape |
+
+### Variants
+
+- **Quick-add:** Single-field create pattern, Enter to save, Escape to cancel. Uses same canonical input styling.
+- **Click-to-edit card:** Display-to-edit toggle within a card section (not a table cell). Same save/cancel behavior as inline cells.
+
+### JSX Examples
+
+**Display mode:**
+
+```tsx
+<span
+  onClick={() => setEditing(true)}
+  className="cursor-pointer px-1.5 py-0.5 rounded hover:bg-[#C4E7E6]/30 text-sm text-[#403770]"
+>
+  {value || <span className="text-[#A69DC0]">Click to edit</span>}
+</span>
+```
+
+**Edit mode:**
+
+```tsx
+<input
+  ref={inputRef}
+  type="text"
+  value={draft}
+  onChange={(e) => setDraft(e.target.value)}
+  onBlur={handleSave}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") handleCancel();
+  }}
+  className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
+    bg-white text-[#403770] placeholder:text-[#A69DC0]
+    focus:outline-none ring-2 ring-[#403770] focus:border-transparent"
+  autoFocus
+/>
+```
