@@ -269,7 +269,7 @@ Panel forms are embedded in sidebar panels on the map view. They use tighter spa
 ### Structure
 
 - **Header:** `px-3 py-2.5 border-b border-[#E2DEEC]` with back button and uppercase title (`text-xs font-medium text-[#8A80A8] uppercase tracking-wider`)
-- **Body:** `flex-1 p-3 space-y-4 overflow-y-auto`
+- **Body:** `flex-1 p-3 space-y-3 overflow-y-auto`
 - **Submit:** `w-full py-2.5 bg-[#403770] text-white text-sm font-medium rounded-lg hover:bg-[#403770]/90`
 - **No sticky footer** — the submit button scrolls with content
 - **Optional fields toggle:** "Show/Hide optional fields" pattern for secondary fields
@@ -290,7 +290,7 @@ Panel forms are embedded in sidebar panels on the map view. They use tighter spa
   </div>
 
   {/* Body */}
-  <div className="flex-1 p-3 space-y-4 overflow-y-auto">
+  <div className="flex-1 p-3 space-y-3 overflow-y-auto">
     {/* FormField slots */}
     <div>
       <label htmlFor="panel-field-1" className="block text-xs font-medium text-[#8A80A8] mb-1">
