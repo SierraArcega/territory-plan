@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useMapV2Store, type ExploreEntity, type ExploreSavedView } from "@/features/map/lib/store";
 import { useExploreData } from "@/lib/api";
 import ExploreKPICards from "./ExploreKPICards";
-import ExploreTable from "./ExploreTable";
 import ExploreColumnPicker from "./ExploreColumnPicker";
 import ExploreFilters from "./ExploreFilters";
 import ExploreSortDropdown from "./ExploreSortDropdown";
 import ExploreSavedViews from "./ExploreSavedViews";
 import BulkActionBar from "./BulkActionBar";
 import RightPanel from "../RightPanel";
-import { districtColumns } from "./columns/districtColumns";
+import { DataGrid } from "@/features/shared/components/DataGrid";
+import { useDistrictCellRenderers, usePlanCellRenderers, PlanExpansionRow } from "./cellRenderers";
+import { districtColumns, parseCompetitorColumnKey } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
 import { planColumns } from "./columns/planColumns";
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 const ENTITY_TABS: { key: ExploreEntity; label: string; path: string; stroke: boolean }[] = [
   { key: "districts", label: "Districts", path: "M3 3H7V7H3V3ZM9 3H13V7H9V3ZM3 9H7V13H3V9ZM9 9H13V13H9V9Z", stroke: false },
@@ -33,6 +35,49 @@ const DEFAULT_COLUMNS: Record<ExploreEntity, string[]> = {
   contacts: contactColumns.filter((c) => c.isDefault).map((c) => c.key),
   plans: planColumns.filter((c) => c.isDefault).map((c) => c.key),
 };
+
+// Column definitions per entity — used by DataGrid
+const ENTITY_COLUMN_DEFS: Record<string, ColumnDef[]> = {
+  districts: districtColumns,
+  activities: activityColumns,
+  tasks: taskColumns,
+  contacts: contactColumns,
+  plans: planColumns,
+};
+
+// Build per-entity label maps for column label resolution
+const ENTITY_LABEL_MAPS: Record<string, Record<string, string>> = {};
+for (const [entity, cols] of Object.entries(ENTITY_COLUMN_DEFS)) {
+  const m: Record<string, string> = {};
+  for (const col of cols) m[col.key] = col.label;
+  ENTITY_LABEL_MAPS[entity] = m;
+}
+
+// Fallback flat map for shared/dynamic columns
+const FLAT_LABEL_MAP: Record<string, string> = {};
+for (const cols of Object.values(ENTITY_COLUMN_DEFS)) {
+  for (const col of cols) {
+    if (!FLAT_LABEL_MAP[col.key]) FLAT_LABEL_MAP[col.key] = col.label;
+  }
+}
+
+/**
+ * Resolve a column key to a human-readable label.
+ * Checks entity-specific labels first, then falls back to shared labels,
+ * then handles dynamic competitor columns, then camelCase fallback.
+ */
+function getColumnLabel(key: string, entity?: string): string {
+  if (entity && ENTITY_LABEL_MAPS[entity]?.[key]) return ENTITY_LABEL_MAPS[entity][key];
+  if (FLAT_LABEL_MAP[key]) return FLAT_LABEL_MAP[key];
+  // Dynamic competitor columns
+  const comp = parseCompetitorColumnKey(key);
+  if (comp) return `${comp.competitor} ${comp.fiscalYear.toUpperCase()} ($)`;
+  // camelCase -> "Camel Case"
+  const spaced = key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 const ALL_ENTITIES: ExploreEntity[] = ["districts", "activities", "tasks", "contacts", "plans"];
 
@@ -74,6 +119,27 @@ export default function ExploreOverlay() {
   const setDistrictSelection = useMapV2Store((s) => s.setDistrictSelection);
   const clearDistrictSelection = useMapV2Store((s) => s.clearDistrictSelection);
   const setSelectAllMatchingFilters = useMapV2Store((s) => s.setSelectAllMatchingFilters);
+
+  // Cell renderers for DataGrid
+  const districtCellRenderers = useDistrictCellRenderers();
+  const planCellRenderers = usePlanCellRenderers();
+  const cellRenderers =
+    exploreEntity === "districts"
+      ? districtCellRenderers
+      : exploreEntity === "plans"
+        ? planCellRenderers
+        : undefined;
+
+  // Expanded plan rows (local state — not in global store)
+  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set());
+  const togglePlanExpand = useCallback((id: string) => {
+    setExpandedPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Load saved views from localStorage on mount (bulk, avoids O(n^2) write-back)
   const viewsHydratedRef = useRef(false);
@@ -148,8 +214,8 @@ export default function ExploreOverlay() {
     }
   };
 
-  // Sort toggle handler
-  const handleSort = (column: string) => {
+  // Sort toggle handler (shiftKey param accepted for DataGrid compatibility, currently unused)
+  const handleSort = (column: string, _shiftKey?: boolean) => {
     const currentSorts = exploreSort[exploreEntity];
     const existing = currentSorts.find((s) => s.column === column);
     if (existing) {
@@ -198,7 +264,7 @@ export default function ExploreOverlay() {
   }, [currentActiveViewId, exploreEntity, loadView]);
 
   // Fetch data
-  const { data: result, isLoading } = useExploreData(exploreEntity, {
+  const { data: result, isLoading, isError, refetch } = useExploreData(exploreEntity, {
     filters: exploreFilters[exploreEntity],
     sorts: exploreSort[exploreEntity],
     page: explorePage,
@@ -342,37 +408,48 @@ export default function ExploreOverlay() {
 
         {/* Data table */}
         <div className="flex-1 px-6 pb-6 overflow-hidden">
-          <div className="relative bg-white rounded-lg border border-gray-200 shadow-sm h-full flex flex-col overflow-hidden">
-            <ExploreTable
-              data={result?.data || []}
-              visibleColumns={exploreColumns[exploreEntity]}
-              sorts={exploreSort[exploreEntity]}
-              onSort={handleSort}
-              onRowClick={handleRowClick}
-              isLoading={isLoading}
-              pagination={result?.pagination}
-              onPageChange={(page) => setExplorePage(page)}
-              entityType={exploreEntity}
-              selectedIds={exploreEntity === "districts" ? selectedDistrictLeaids : undefined}
-              onToggleSelect={exploreEntity === "districts" ? toggleDistrictSelection : undefined}
-              onSelectPage={exploreEntity === "districts" ? (ids) => setDistrictSelection(ids) : undefined}
-              onClearSelection={exploreEntity === "districts" ? clearDistrictSelection : undefined}
-              onReorderColumns={(cols) => setExploreColumns(exploreEntity, cols)}
-            />
+          <DataGrid
+            data={result?.data || []}
+            columnDefs={ENTITY_COLUMN_DEFS[exploreEntity]}
+            entityType={exploreEntity}
+            isLoading={isLoading}
+            isError={isError}
+            onRetry={() => refetch()}
+            visibleColumns={exploreColumns[exploreEntity]}
+            onColumnsChange={(cols) => setExploreColumns(exploreEntity, cols)}
+            sorts={exploreSort[exploreEntity]}
+            onSort={handleSort}
+            hasActiveFilters={exploreFilters[exploreEntity]?.length > 0}
+            onClearFilters={() => clearExploreFilters(exploreEntity)}
+            pagination={result?.pagination}
+            onPageChange={(page) => setExplorePage(page)}
+            selectedIds={exploreEntity === "districts" ? selectedDistrictLeaids : undefined}
+            selectAllMatchingFilters={selectAllMatchingFilters}
+            onToggleSelect={exploreEntity === "districts" ? toggleDistrictSelection : undefined}
+            onSelectPage={exploreEntity === "districts" ? (ids) => setDistrictSelection(ids) : undefined}
+            onSelectAllMatching={exploreEntity === "districts" ? () => setSelectAllMatchingFilters(true) : undefined}
+            onClearSelection={exploreEntity === "districts" ? clearDistrictSelection : undefined}
+            onRowClick={handleRowClick}
+            cellRenderers={cellRenderers}
+            columnLabel={(key) => getColumnLabel(key, exploreEntity)}
+            rowIdAccessor={exploreEntity === "districts" ? "leaid" : "id"}
+            expandedRowIds={exploreEntity === "plans" ? expandedPlanIds : undefined}
+            onToggleExpand={exploreEntity === "plans" ? togglePlanExpand : undefined}
+            renderExpandedRow={exploreEntity === "plans" ? (row) => <PlanExpansionRow row={row} /> : undefined}
+          />
 
-            {/* Bulk action bar */}
-            {exploreEntity === "districts" && (
-              <BulkActionBar
-                selectedCount={selectedDistrictLeaids.size}
-                selectedIds={Array.from(selectedDistrictLeaids)}
-                selectAllMatchingFilters={selectAllMatchingFilters}
-                totalMatching={result?.pagination?.total ?? 0}
-                filters={exploreFilters.districts}
-                onSelectAllMatching={() => setSelectAllMatchingFilters(true)}
-                onClearSelection={clearDistrictSelection}
-              />
-            )}
-          </div>
+          {/* Bulk action bar */}
+          {exploreEntity === "districts" && (
+            <BulkActionBar
+              selectedCount={selectedDistrictLeaids.size}
+              selectedIds={Array.from(selectedDistrictLeaids)}
+              selectAllMatchingFilters={selectAllMatchingFilters}
+              totalMatching={result?.pagination?.total ?? 0}
+              filters={exploreFilters.districts}
+              onSelectAllMatching={() => setSelectAllMatchingFilters(true)}
+              onClearSelection={clearDistrictSelection}
+            />
+          )}
         </div>
       </div>
 
