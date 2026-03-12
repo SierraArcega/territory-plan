@@ -7,7 +7,7 @@ Create a `Data Visualization/` folder under `Documentation/UI Framework/Componen
 ## Decisions
 
 - **Library**: Keep Recharts (v3.7.0). No migration to Elastic Charts or any other library.
-- **Scope**: Donut/pie, bar (vertical/horizontal/stacked/grouped), line/area — plus a decision tree for chart type selection.
+- **Scope**: Donut/pie, bar (vertical/horizontal/stacked/grouped), line/area, combo (bar + line) — plus a decision tree for chart type selection.
 - **Token drift**: Document only the corrected token values. Existing gray-* drift will be cleaned up in a separate ticket.
 - **External references**: None. Docs are fully self-contained.
 - **Pattern**: Follow the existing `_foundations.md` + individual component files convention used by Tables/, Navigation/, Display/, and Containers/.
@@ -20,6 +20,7 @@ Documentation/UI Framework/Components/Data Visualization/
   donut-chart.md       — pie/donut chart guide
   bar-chart.md         — bar chart guide (vertical, horizontal, stacked, grouped)
   line-chart.md        — line and area chart guide (time series, trends)
+  combo-chart.md       — combined bar + line chart guide (magnitude + trend)
 ```
 
 ---
@@ -37,11 +38,13 @@ A numbered decision tree (same format as Containers `_foundations.md`):
 1. **Showing parts of a whole (composition/proportion)?** → [Donut Chart](donut-chart.md)
 2. **Comparing discrete categories or ranking items?** → [Bar Chart](bar-chart.md)
 3. **Showing change over time or continuous trends?** → [Line Chart](line-chart.md)
+4. **Comparing magnitude AND showing a trend on the same data?** → [Combo Chart](combo-chart.md)
 
 Edge-case guidance:
 - Few categories (≤5) with a time dimension → Bar chart (grouped by period), not line
 - Single value out of a total → Donut with one filled segment + empty track
 - Sparkline-style inline trend → Line chart at micro size (see line-chart.md § Sparkline Variant)
+- Bars with a rolling average or target line → Combo chart, not separate charts
 
 #### 2. Data Visualization Color Palette
 
@@ -412,6 +415,60 @@ Each example includes full Recharts setup with token-correct styling.
 
 #### Codebase Examples
 (Currently no line/area charts in codebase — table starts empty, filled as components are built.)
+
+---
+
+## File 5: `combo-chart.md`
+
+### Purpose
+Guide for combined bar + line charts — showing magnitude and trend together.
+
+### Sections
+
+#### When to Use
+- Showing volume/counts (bars) alongside a rate, average, or trend (line) on the same chart
+- e.g., monthly activity counts as bars with a 3-month rolling average line overlay
+- e.g., revenue per district as bars with a target/benchmark line
+- Not when both series are the same unit and scale — use grouped bar or multi-series line instead
+- Not for unrelated metrics — the two series must share a meaningful relationship
+
+#### Dual Y-Axis Pattern
+
+| Axis | Position | Series type | Styling |
+|------|----------|------------|---------|
+| Left (primary) | `yAxisId="left"` | Bars (magnitude) | Tick fill `#8A80A8`, fontSize `11` |
+| Right (secondary) | `yAxisId="right"` | Line (rate/trend) | Tick fill `#8A80A8`, fontSize `11`, `orientation="right"` |
+
+Rules:
+- Left axis labels the bar series, right axis labels the line series
+- Both axes use the same tick styling from `_foundations.md` § Axis Styling
+- Include axis labels (`<Label>`) when the units differ (e.g., "Count" on left, "%" on right) to avoid ambiguity
+- Hide right axis grid lines — only the left axis grid renders `<CartesianGrid>`
+
+#### Visual Encoding Rules
+- **Bars** get the primary palette color (slot 1 — Plum `#403770`)
+- **Line** gets a contrasting palette color (slot 3 — Coral `#F37167` recommended for visibility over bars)
+- Bar styling follows bar-chart.md § Bar Styling (rounded top corners, `maxBarSize: 48`)
+- Line styling follows line-chart.md § Line Styling (`strokeWidth: 2`, `type: "monotone"`, `dot: false`)
+- The line should visually "float" above the bars — its color must contrast clearly against bar fills
+
+#### Legend
+Legend must clearly distinguish the two series types. Include a visual hint of the encoding:
+- Bar series: color swatch as a small rectangle (not circle)
+- Line series: color swatch as a short line segment or circle
+
+#### TSX Example
+Complete canonical example with:
+- `<ComposedChart>` from Recharts (not `<BarChart>` or `<LineChart>`)
+- `<Bar>` with `yAxisId="left"`
+- `<Line>` with `yAxisId="right"`
+- Dual `<YAxis>` components
+- Custom tooltip showing both series
+- Legend distinguishing bar vs. line
+- `role="img"` + `aria-label`
+
+#### Codebase Examples
+(Currently no combo charts in codebase — table starts empty, filled as components are built.)
 
 ---
 
