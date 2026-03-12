@@ -56,10 +56,10 @@ A dedicated ordered palette for chart series data, drawn from brand tokens. This
 | 2 | `#6EA3BE` | Steel Blue | Secondary series |
 | 3 | `#F37167` | Coral | Tertiary / attention |
 | 4 | `#FFCF70` | Golden | Fourth series |
-| 5 | `#8AA891` | Sage | Fifth series (derived from success family) |
+| 5 | `#EDFFE3` | Mint | Fifth series (light green — use with dark text for contrast) |
 | 6 | `#C4E7E6` | Robin's Egg | Sixth series (light, use with dark text) |
 
-**Prerequisite:** `#8AA891` (Sage) is used across the codebase but has not been formally added to `tokens.md` Brand Palette. It must be added to `tokens.md` before or alongside this documentation work.
+**Note:** `#8AA891` appears across the codebase as an undocumented "Sage" color. This is drift — `#EDFFE3` (Mint) is the correct green token per `tokens.md`. The cleanup ticket should address `#8AA891` usage.
 
 **Max series:** 6 is the practical limit. Charts with more than 6 series should group the smallest values into an "Other" segment using `#EFEDF5` (Hover surface).
 
