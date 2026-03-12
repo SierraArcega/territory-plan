@@ -6,7 +6,7 @@ Create a `Containers/` folder under `Documentation/UI Framework/Components/` tha
 
 ## Context
 
-The codebase has ~68 files using container patterns (modals, panels, cards, popovers, tabs, accordions, flyouts, bottom bars) with significant inconsistency:
+The codebase has ~98 files using container patterns (modals, panels, cards, popovers, tabs, accordions, flyouts, bottom bars) with significant inconsistency:
 
 - **Borders**: `border-gray-100`, `border-gray-200`, `border-gray-200/60` used instead of plum-derived `#D4CFE2`, `#E2DEEC`
 - **Radius**: `rounded-xl`, `rounded-lg`, `rounded-2xl` applied inconsistently across container types
@@ -30,7 +30,9 @@ Documentation/UI Framework/Components/
 ├── Navigation/
 │   ├── _foundations.md
 │   ├── buttons.md
-│   └── breadcrumbs.md          (collapsible-views.md moved out)
+│   ├── breadcrumbs.md
+│   ├── tabs.md                  (navigation tab mechanics — cross-refs Containers/tabs.md)
+│   └── ...                      (other files unchanged: collapsible-views.md removed)
 ├── Tables/
 │   ├── _foundations.md
 │   ├── data-table.md
@@ -43,11 +45,13 @@ Documentation/UI Framework/Components/
 │   ├── panel.md
 │   ├── popover.md
 │   ├── accordion.md            ← moved from Navigation/collapsible-views.md
-│   ├── tabs.md
+│   ├── tabs.md                 ← tab container shell (cross-refs Navigation/tabs.md for strip mechanics)
 │   ├── bottom-bar.md
 │   └── flyout.md
 └── forms.md
 ```
+
+**Note on Navigation/tabs.md overlap:** `Navigation/tabs.md` covers tab strip navigation mechanics (active states, keyboard, indicator styling). `Containers/tabs.md` covers the tab container shell (the wrapping card/panel, padding, content area switching). Each file cross-references the other. Navigation owns the strip; Containers owns the shell.
 
 ## Foundations: `_foundations.md`
 
@@ -102,7 +106,9 @@ Two sizes, one pattern:
 
 Shared styling: `flex items-center justify-center hover:bg-[#EFEDF5] transition-colors`
 
-Icon: `stroke="#A69DC0"` default, `hover:stroke="#403770"`.
+Icon: `stroke="#A69DC0"` default, `hover:stroke="#403770"`. Always `rounded-lg` — never `rounded-full`.
+
+**Migration note:** Several components use non-conformant close buttons: `PlanFormModal` uses `rounded-full`, `RightPanel` uses `stroke="#9CA3AF"` (Tailwind gray, not plum-derived). Both should migrate to this canonical pattern.
 
 Code snippet provided in foundations.
 
@@ -191,9 +197,9 @@ See `_foundations.md` for shared styling foundations.
 
 [Keyboard interactions specific to this container]
 
-## Responsive Behavior
+## Responsive Behavior (optional)
 
-[Breakpoint-specific patterns, if applicable]
+[Breakpoint-specific patterns. Omit section if container renders identically at all breakpoints.]
 
 ## Codebase Examples
 
@@ -215,6 +221,8 @@ See `_foundations.md` for shared styling foundations.
 - Interactive: adds `hover:border-[#C4E7E6] hover:shadow-lg transition-all cursor-pointer`
 - With expandable footer: border-t trigger for details (SignalCard pattern)
 
+**Responsive:** No responsive variants — renders identically at all breakpoints.
+
 **Key codebase examples:** SignalCard, CalendarEventCard, DistrictCard (right panel)
 
 ### 2. Modal (`modal.md`)
@@ -229,7 +237,17 @@ See `_foundations.md` for shared styling foundations.
 
 **Sub-pattern — Confirmation Dialog:** No header/footer split; single `p-6` content area.
 
-**Key codebase examples:** PlanFormModal, TaskFormModal, GoalFormModal, ActivityFormModal, OutcomeModal
+**Key codebase examples:**
+
+| Component | Current | Issue |
+|-----------|---------|-------|
+| PlanFormModal | `rounded-xl shadow-2xl bg-black/50` | Wrong radius (xl→2xl), wrong shadow (2xl→xl), wrong backdrop (black/50→black/40) |
+| TaskFormModal | `rounded-xl shadow-xl` | Wrong radius |
+| ActivityFormModal | `rounded-xl shadow-xl` | Wrong radius |
+| GoalFormModal | TBD | Audit needed |
+| OutcomeModal | `rounded-xl shadow-xl` | Wrong radius |
+
+**Responsive:** No responsive variants — modal renders identically at all breakpoints (always centered overlay).
 
 ### 3. Panel (`panel.md`)
 
@@ -240,10 +258,13 @@ See `_foundations.md` for shared styling foundations.
 **Mobile (bottom drawer):** `bg-white/95 backdrop-blur-sm rounded-t-2xl shadow-lg max-h-[70vh]`
 
 **Key rules:**
-- No outer border — shadow + blur provide separation
+- No outer border on the floating panel shell — shadow + blur provide separation
+- Embedded sub-panels (e.g., RightPanel) may use a directional border (`border-l border-[#E2DEEC]`) as a layout divider — this is a layout concern, not a container border
 - Close button only (no auto-dismiss)
 - Auto-collapse on tablet via media query
 - Widths are context-dependent
+
+**Responsive:** Desktop renders as floating rounded panel. Tablet auto-collapses to hidden. Mobile renders as bottom drawer (`rounded-t-2xl`).
 
 **Key codebase examples:** FloatingPanel, RightPanel, PlanDistrictPanel
 
@@ -263,7 +284,15 @@ See `_foundations.md` for shared styling foundations.
 - Selected item: `bg-[#EFEDF5] text-[#403770] font-medium`
 - Destructive: `text-[#F37167] hover:bg-[#fef1f0]`
 
-**Key codebase examples:** DonutMetricPopover, BulkActionBar sort/tag/plan popovers
+**Key codebase examples:**
+
+| Component | Current | Issue |
+|-----------|---------|-------|
+| DonutMetricPopover | `rounded-lg border-gray-100` | Wrong radius (lg→xl), wrong border color |
+| BulkActionBar popovers | `rounded-lg border-gray-200` | Wrong radius (lg→xl), wrong border color |
+| Sort dropdown (tables) | `rounded-xl border-gray-200` | Wrong border color |
+
+**Responsive:** No responsive variants — popovers render identically at all breakpoints.
 
 ### 5. Accordion (`accordion.md`)
 
@@ -280,6 +309,8 @@ See `_foundations.md` for shared styling foundations.
 - Chevron points right (collapsed), rotated 90° (expanded)
 - Dividers: `border-[#E2DEEC]`
 - Keyboard: Enter/Space toggles
+
+**Responsive:** No responsive variants — renders identically at all breakpoints.
 
 **Key codebase examples:** SignalCard detail expand, sidebar collapse
 
@@ -301,6 +332,8 @@ See `_foundations.md` for shared styling foundations.
 - Keyboard: Arrow keys navigate tabs, Enter/Space activates
 - Tab strip separated by `border-b border-[#E2DEEC]`
 
+**Responsive:** No responsive variants — tab strip renders identically at all breakpoints.
+
 **Key codebase examples:** DistrictTabStrip, PlanWorkspace icon tabs
 
 ### 7. Bottom Bar (`bottom-bar.md`)
@@ -315,6 +348,8 @@ See `_foundations.md` for shared styling foundations.
 - Active action (has queued value): `bg-white/20 ring-1 ring-inset ring-white/25`
 - Dividers: `w-px h-5 bg-white/20`
 - Animate in: `animate-slide-up` on first selection
+
+**Responsive:** No responsive variants — hidden when no selection exists regardless of viewport.
 
 **Key codebase examples:** BulkActionBar
 
