@@ -1,0 +1,806 @@
+// src/features/map/components/explore/cellRenderers.tsx
+// Entity-specific cell renderers extracted from ExploreTable.
+// Each hook returns a Record<string, CellRendererFn> suitable for
+// DataGrid's cellRenderers prop.
+"use client";
+
+import React, { useMemo, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useUpdateDistrictEdits,
+  useUpdateDistrictTargets,
+  useUsers,
+  useTags,
+  useAddDistrictTag,
+  useRemoveDistrictTag,
+  useCreateTag,
+  useTerritoryPlans,
+  useAddDistrictsToPlan,
+  useRemoveDistrictFromPlan,
+  type TerritoryPlan,
+} from "@/lib/api";
+import type { CellRendererFn, ColumnDef } from "@/features/shared/components/DataGrid/types";
+import { formatCellValue } from "@/features/shared/components/DataGrid/renderCell";
+
+// ---- Constants ----
+
+export const PLAN_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  planning: { bg: "#6EA3BE18", text: "#4d7285" },
+  working:  { bg: "#40377018", text: "#403770" },
+  stale:    { bg: "#FFCF7020", text: "#997c43" },
+  archived: { bg: "#9CA3AF18", text: "#6B7280" },
+};
+
+const TAG_COLORS = ["#403770", "#F37167", "#6EA3BE", "#8AA891", "#D4A84B", "#9B59B6", "#E67E22"];
+
+// ---- Utility: renderColoredPills ----
+
+function renderColoredPills(items: { name: string; color: string }[]) {
+  if (items.length === 0) return <span className="text-gray-300">{"\u2014"}</span>;
+  return (
+    <span className="inline-flex flex-wrap gap-1">
+      {items.map((item, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium leading-tight"
+          style={{
+            backgroundColor: item.color + "18",
+            color: item.color,
+            border: `1px solid ${item.color}30`,
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: item.color }}
+          />
+          {item.name}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// ---- Hook: useOutsideClick ----
+
+export function useOutsideClick(ref: React.RefObject<HTMLElement | null>, onClose: () => void, active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [active, ref, onClose]);
+}
+
+// ---- EditableOwnerCell ----
+
+function EditableOwnerCell({
+  value,
+  rowId,
+  onSave,
+  users,
+}: {
+  value: unknown;
+  rowId: string;
+  onSave: (rowId: string, column: string, value: string) => void;
+  users: { id: string; fullName: string | null; email: string }[] | undefined;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setIsOpen(false); setSearch(""); }, []);
+  useOutsideClick(ref, close, isOpen);
+
+  const filtered = useMemo(() => {
+    if (!users) return [];
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter((u) => (u.fullName || u.email).toLowerCase().includes(q));
+  }, [users, search]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <span
+        className="group/cell cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+        onClick={(e) => { e.stopPropagation(); setIsOpen((o) => !o); }}
+      >
+        {value ? (
+          <span className="text-[13px] text-gray-600">{String(value)}</span>
+        ) : (
+          <span className="text-[13px] text-gray-300">assign owner</span>
+        )}
+        <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M4 6L8 10L12 6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+
+      {isOpen && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-2 pt-2 pb-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search users\u2026"
+              autoFocus
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770]/30 focus:border-[#403770]/40"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); onSave(rowId, "owner", ""); close(); }}
+              className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                !value ? "text-[#403770] font-medium bg-[#403770]/5" : "text-gray-400 italic hover:bg-gray-50"
+              }`}
+            >
+              {"\u2014"} Unassigned {"\u2014"}
+            </button>
+            {filtered.map((u) => {
+              const display = u.fullName || u.email;
+              const selected = String(value) === display;
+              return (
+                <button
+                  key={u.id}
+                  onClick={(e) => { e.stopPropagation(); onSave(rowId, "owner", display); close(); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors ${
+                    selected ? "text-[#403770] font-medium bg-[#403770]/5" : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {display}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && search.trim() && (
+              <div className="px-3 py-2 text-[10px] text-gray-400 italic">
+                {"No users matching \u201c"}{search}{"\u201d"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- EditableTextCell ----
+
+function EditableTextCell({
+  value,
+  rowId,
+  column,
+  onSave,
+}: {
+  value: unknown;
+  rowId: string;
+  column: string;
+  onSave: (rowId: string, column: string, value: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  const startEditing = () => {
+    setEditValue(String(value || ""));
+    setIsEditing(true);
+  };
+
+  const save = () => {
+    onSave(rowId, column, editValue);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        autoFocus
+        className="w-full px-2 py-1 text-[13px] border border-[#403770]/30 rounded-md outline-none focus:ring-1 focus:ring-[#403770]/40 text-gray-700"
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="group/cell cursor-text inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => {
+        e.stopPropagation();
+        startEditing();
+      }}
+    >
+      {formatCellValue(value, column) || <span className="text-[13px] text-gray-300">click to edit</span>}
+      <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+// ---- EditableCurrencyCell ----
+
+export function EditableCurrencyCell({
+  value: serverValue,
+  onSave,
+}: {
+  value: number;
+  onSave: (value: number) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  // Optimistic state — show saved value immediately, reconcile when server data arrives
+  const [optimisticValue, setOptimisticValue] = useState<number | null>(null);
+  const serverRef = useRef(serverValue);
+  if (serverRef.current !== serverValue) {
+    serverRef.current = serverValue;
+    if (optimisticValue !== null) setOptimisticValue(null);
+  }
+
+  const displayValue = optimisticValue !== null ? optimisticValue : serverValue;
+
+  const startEditing = () => {
+    setEditValue(displayValue ? String(Math.round(displayValue)) : "");
+    setIsEditing(true);
+  };
+
+  const save = () => {
+    const parsed = parseInt(editValue.replace(/[^0-9.-]/g, ""), 10);
+    const newValue = isNaN(parsed) ? 0 : parsed;
+    setOptimisticValue(newValue);
+    onSave(newValue);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        autoFocus
+        className="w-full px-2 py-1 text-[12px] text-right border border-[#403770]/30 rounded-md outline-none focus:ring-1 focus:ring-[#403770]/40 text-gray-700 tabular-nums"
+        value={editValue}
+        onChange={(e) => setEditValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="group/cell cursor-text inline-flex items-center justify-end gap-1 w-full px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => { e.stopPropagation(); startEditing(); }}
+    >
+      <span className="tabular-nums">{displayValue ? `$${Math.round(displayValue).toLocaleString()}` : "\u2014"}</span>
+      <svg className="shrink-0 opacity-0 group-hover/cell:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+// ---- EditableTagsCell ----
+
+function EditableTagsCell({ tags: serverTags, rowId }: { tags: { id: number; name: string; color: string }[]; rowId: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setIsOpen(false); setSearch(""); }, []);
+  useOutsideClick(ref, close, isOpen);
+
+  const { data: allTags } = useTags();
+  const addTag = useAddDistrictTag();
+  const removeTag = useRemoveDistrictTag();
+  const createTag = useCreateTag();
+
+  // Optimistic state — show changes immediately, reconcile when server data arrives
+  const [optimisticAdds, setOptimisticAdds] = useState<number[]>([]);
+  const [optimisticRemoves, setOptimisticRemoves] = useState<number[]>([]);
+  const serverTagRef = useRef(serverTags);
+  if (serverTagRef.current !== serverTags) {
+    serverTagRef.current = serverTags;
+    // Server data arrived — clear optimistic state
+    if (optimisticAdds.length > 0) setOptimisticAdds([]);
+    if (optimisticRemoves.length > 0) setOptimisticRemoves([]);
+  }
+
+  const displayTags = useMemo(() => {
+    let tags = serverTags.filter((t) => !optimisticRemoves.includes(t.id));
+    const added = (allTags || []).filter((t) => optimisticAdds.includes(t.id) && !serverTags.some((st) => st.id === t.id));
+    return [...tags, ...added];
+  }, [serverTags, optimisticAdds, optimisticRemoves, allTags]);
+
+  const displayIds = useMemo(() => new Set(displayTags.map((t) => t.id)), [displayTags]);
+
+  const available = useMemo(() => {
+    const pool = (allTags || []).filter((t) => !displayIds.has(t.id));
+    if (!search.trim()) return pool;
+    const q = search.toLowerCase();
+    return pool.filter((t) => t.name.toLowerCase().includes(q));
+  }, [allTags, displayIds, search]);
+
+  const handleAdd = (tagId: number) => {
+    setOptimisticAdds((prev) => [...prev, tagId]);
+    addTag.mutate({ leaid: rowId, tagId });
+  };
+  const handleRemove = (tagId: number) => {
+    setOptimisticRemoves((prev) => [...prev, tagId]);
+    removeTag.mutate({ leaid: rowId, tagId });
+  };
+
+  const handleCreate = async () => {
+    if (!search.trim()) return;
+    const color = TAG_COLORS[displayTags.length % TAG_COLORS.length];
+    try {
+      const newTag = await createTag.mutateAsync({ name: search.trim(), color });
+      setOptimisticAdds((prev) => [...prev, newTag.id]);
+      addTag.mutate({ leaid: rowId, tagId: newTag.id });
+      setSearch("");
+    } catch { /* tag name may already exist */ }
+  };
+
+  const exactMatch = search.trim() && (allTags || []).some((t) => t.name.toLowerCase() === search.trim().toLowerCase());
+
+  return (
+    <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {displayTags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium leading-tight"
+            style={{ backgroundColor: tag.color + "18", color: tag.color, border: `1px solid ${tag.color}30` }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+            {tag.name}
+            <button
+              onClick={() => handleRemove(tag.id)}
+              className="ml-0.5 rounded-full hover:bg-black/10 p-px transition-colors"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M2 2L6 6M6 2L2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        <button
+          onClick={() => setIsOpen((o) => !o)}
+          className="inline-flex items-center px-1 py-0.5 rounded text-[10px] text-gray-400 hover:text-[#403770] hover:bg-[#403770]/5 border border-dashed border-gray-200 hover:border-[#403770]/30 transition-colors"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+            <path d="M4 1v6M1 4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </span>
+
+      {isOpen && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-2 pt-2 pb-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={"Search or create tag\u2026"}
+              autoFocus
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770]/30 focus:border-[#403770]/40"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && search.trim() && available.length === 0 && !exactMatch) handleCreate();
+              }}
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto py-1">
+            {available.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={(e) => { e.stopPropagation(); handleAdd(tag.id); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                {tag.name}
+              </button>
+            ))}
+            {search.trim() && !exactMatch && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleCreate(); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-[#403770] hover:bg-[#403770]/5 transition-colors"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M5 2v6M2 5h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                {"Create \u201c"}{search.trim()}{"\u201d"}
+              </button>
+            )}
+            {available.length === 0 && !search.trim() && (
+              <div className="px-3 py-2 text-[10px] text-gray-400 italic">No more tags to add</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- EditablePlansCell ----
+
+function EditablePlansCell({ plans: serverPlans, rowId }: { plans: { id: string; name: string; color: string }[]; rowId: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => { setIsOpen(false); setSearch(""); }, []);
+  useOutsideClick(ref, close, isOpen);
+
+  const { data: allPlans } = useTerritoryPlans();
+  const addToPlan = useAddDistrictsToPlan();
+  const removeFromPlan = useRemoveDistrictFromPlan();
+
+  // Optimistic state — show changes immediately, reconcile when server data arrives
+  const [optimisticAdds, setOptimisticAdds] = useState<string[]>([]);
+  const [optimisticRemoves, setOptimisticRemoves] = useState<string[]>([]);
+  const serverPlanRef = useRef(serverPlans);
+  if (serverPlanRef.current !== serverPlans) {
+    serverPlanRef.current = serverPlans;
+    if (optimisticAdds.length > 0) setOptimisticAdds([]);
+    if (optimisticRemoves.length > 0) setOptimisticRemoves([]);
+  }
+
+  const displayPlans = useMemo(() => {
+    let plans = serverPlans.filter((p) => !optimisticRemoves.includes(p.id));
+    const added = (allPlans || [])
+      .filter((p: TerritoryPlan) => optimisticAdds.includes(p.id) && !serverPlans.some((sp) => sp.id === p.id))
+      .map((p: TerritoryPlan) => ({ id: p.id, name: p.name, color: p.color }));
+    return [...plans, ...added];
+  }, [serverPlans, optimisticAdds, optimisticRemoves, allPlans]);
+
+  const displayIds = useMemo(() => new Set(displayPlans.map((p) => p.id)), [displayPlans]);
+
+  const available = useMemo(() => {
+    const pool = (allPlans || []).filter((p: TerritoryPlan) => !displayIds.has(p.id));
+    if (!search.trim()) return pool;
+    const q = search.toLowerCase();
+    return pool.filter((p: TerritoryPlan) => p.name.toLowerCase().includes(q));
+  }, [allPlans, displayIds, search]);
+
+  const handleAdd = (planId: string) => {
+    setOptimisticAdds((prev) => [...prev, planId]);
+    addToPlan.mutate({ planId, leaids: rowId });
+  };
+  const handleRemove = (planId: string) => {
+    setOptimisticRemoves((prev) => [...prev, planId]);
+    removeFromPlan.mutate({ planId, leaid: rowId });
+  };
+
+  return (
+    <div className="relative" ref={ref} onClick={(e) => e.stopPropagation()}>
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {displayPlans.map((plan) => (
+          <span
+            key={plan.id}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium leading-tight"
+            style={{ backgroundColor: plan.color + "18", color: plan.color, border: `1px solid ${plan.color}30` }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+            {plan.name}
+            <button
+              onClick={() => handleRemove(plan.id)}
+              className="ml-0.5 rounded-full hover:bg-black/10 p-px transition-colors"
+            >
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                <path d="M2 2L6 6M6 2L2 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        ))}
+        <button
+          onClick={() => setIsOpen((o) => !o)}
+          className="inline-flex items-center px-1 py-0.5 rounded text-[10px] text-gray-400 hover:text-[#403770] hover:bg-[#403770]/5 border border-dashed border-gray-200 hover:border-[#403770]/30 transition-colors"
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+            <path d="M4 1v6M1 4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </span>
+
+      {isOpen && (
+        <div className="absolute z-30 top-full mt-1 left-0 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-2 pt-2 pb-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={"Search plans\u2026"}
+              autoFocus
+              className="w-full px-2 py-1 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770]/30 focus:border-[#403770]/40"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            {(available as TerritoryPlan[]).map((plan) => (
+              <button
+                key={plan.id}
+                onClick={(e) => { e.stopPropagation(); handleAdd(plan.id); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+                <span className="flex-1 truncate">{plan.name}</span>
+                <span className="text-[9px] text-gray-400">{plan.districtCount}d</span>
+              </button>
+            ))}
+            {(available as TerritoryPlan[]).length === 0 && (
+              <div className="px-3 py-2 text-[10px] text-gray-400 italic">
+                {search.trim() ? "No matching plans" : "Already in all plans"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- ClickToCopyCell ----
+
+function ClickToCopyCell({ value }: { value: unknown }) {
+  const [copied, setCopied] = useState(false);
+  const text = value == null ? "" : String(value);
+  if (!text) return <span className="text-gray-300">{"\u2014"}</span>;
+  return (
+    <span
+      className="group/copy cursor-pointer inline-flex items-center gap-1 px-1 -mx-1 py-0.5 -my-0.5 rounded border border-transparent hover:border-dashed hover:border-plum/30 hover:bg-plum/5 transition-all"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      title="Click to copy"
+    >
+      <span className="text-[13px] text-gray-600 font-mono">{text}</span>
+      {copied ? (
+        <svg className="shrink-0 w-3 h-3 text-green-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 8.5L6.5 12L13 4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg className="shrink-0 opacity-0 group-hover/copy:opacity-50 w-3 h-3 text-[#403770]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <rect x="5" y="5" width="8" height="8" rx="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M3 11V3C3 2.44772 3.44772 2 4 2H12" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+// ---- PlanExpansionRow ----
+// Renders the expanded district sub-table inside plan rows.
+// Exported for use as DataGrid's renderExpandedRow prop.
+
+export function PlanExpansionRow({ row }: { row: Record<string, unknown> }) {
+  const queryClient = useQueryClient();
+  const updateEdits = useUpdateDistrictEdits();
+  const updateTargets = useUpdateDistrictTargets();
+  const { data: users } = useUsers();
+
+  const planId = (row.id || "") as string;
+
+  const handleSave = useCallback((rowId: string, column: string, value: string) => {
+    updateEdits.mutate(
+      { leaid: rowId, [column]: value || undefined },
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["explore"] }); } }
+    );
+  }, [updateEdits, queryClient]);
+
+  const handleTargetSave = useCallback((targetPlanId: string, leaid: string, field: string, value: number) => {
+    updateTargets.mutate(
+      { planId: targetPlanId, leaid, [field]: value || null },
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["explore"] }); } }
+    );
+  }, [updateTargets, queryClient]);
+
+  const districts = (row._districts as Array<{
+    leaid: string; name: string; owner: string | null;
+    fmRevenue: number; ek12Revenue: number;
+    renewalTarget: number; expansionTarget: number;
+    winbackTarget: number; newBusinessTarget: number;
+    tags: { id: number; name: string; color: string }[];
+  }>) || [];
+
+  const sortedDistricts = useMemo(() =>
+    [...districts].sort((a, b) => {
+      const aTotal = (a.renewalTarget || 0) + (a.expansionTarget || 0) + (a.winbackTarget || 0) + (a.newBusinessTarget || 0);
+      const bTotal = (b.renewalTarget || 0) + (b.expansionTarget || 0) + (b.winbackTarget || 0) + (b.newBusinessTarget || 0);
+      return bTotal - aTotal;
+    }),
+  [districts]);
+
+  const totals = useMemo(() =>
+    districts.reduce(
+      (acc, d) => ({
+        fm: acc.fm + (d.fmRevenue || 0),
+        ek12: acc.ek12 + (d.ek12Revenue || 0),
+        renewal: acc.renewal + (d.renewalTarget || 0),
+        expansion: acc.expansion + (d.expansionTarget || 0),
+        winback: acc.winback + (d.winbackTarget || 0),
+        newBusiness: acc.newBusiness + (d.newBusinessTarget || 0),
+      }),
+      { fm: 0, ek12: 0, renewal: 0, expansion: 0, winback: 0, newBusiness: 0 }
+    ),
+  [districts]);
+
+  const grandTotal = totals.renewal + totals.expansion + totals.winback + totals.newBusiness;
+
+  return (
+    <div className="mx-6 my-3 rounded-lg border border-gray-200/80 bg-white shadow-sm">
+      <table className="w-full text-[12px]" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "13%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "11%" }} />
+        </colgroup>
+        <thead>
+          <tr className="text-left text-[10px] text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/60">
+            <th className="px-3 py-2 font-semibold">District</th>
+            <th className="px-3 py-2 font-semibold">Owner</th>
+            <th className="px-3 py-2 font-semibold">Tags</th>
+            <th className="px-3 py-2 font-semibold text-right">FM</th>
+            <th className="px-3 py-2 font-semibold text-right">EK12</th>
+            <th className="px-3 py-2 font-semibold text-right">Renewal</th>
+            <th className="px-3 py-2 font-semibold text-right">Expansion</th>
+            <th className="px-3 py-2 font-semibold text-right">Win Back</th>
+            <th className="px-3 py-2 font-semibold text-right">New Biz</th>
+            <th className="px-3 py-2 font-semibold text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedDistricts.map((d) => {
+            const distTotal = (d.renewalTarget || 0) + (d.expansionTarget || 0) + (d.winbackTarget || 0) + (d.newBusinessTarget || 0);
+            return (
+              <tr key={d.leaid} className="border-t border-gray-100 hover:bg-gray-50/40 transition-colors">
+                <td className="px-3 py-2 text-[#403770] font-medium truncate">{d.name}</td>
+                <td className="px-3 py-2 overflow-visible">
+                  <EditableOwnerCell value={d.owner} rowId={d.leaid} onSave={handleSave} users={users} />
+                </td>
+                <td className="px-3 py-2 overflow-visible">
+                  <EditableTagsCell tags={d.tags || []} rowId={d.leaid} />
+                </td>
+                <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{d.fmRevenue ? `$${Math.round(d.fmRevenue).toLocaleString()}` : "\u2014"}</td>
+                <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{d.ek12Revenue ? `$${Math.round(d.ek12Revenue).toLocaleString()}` : "\u2014"}</td>
+                <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                  <EditableCurrencyCell value={d.renewalTarget} onSave={(v) => handleTargetSave(planId, d.leaid, "renewalTarget", v)} />
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                  <EditableCurrencyCell value={d.expansionTarget} onSave={(v) => handleTargetSave(planId, d.leaid, "expansionTarget", v)} />
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                  <EditableCurrencyCell value={d.winbackTarget} onSave={(v) => handleTargetSave(planId, d.leaid, "winbackTarget", v)} />
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                  <EditableCurrencyCell value={d.newBusinessTarget} onSave={(v) => handleTargetSave(planId, d.leaid, "newBusinessTarget", v)} />
+                </td>
+                <td className="px-3 py-2 text-right font-semibold text-[#403770] tabular-nums">{distTotal ? `$${Math.round(distTotal).toLocaleString()}` : "\u2014"}</td>
+              </tr>
+            );
+          })}
+          {districts.length > 0 && (
+            <tr className="border-t-2 border-gray-200 font-semibold text-[#403770] bg-gray-50/40">
+              <td className="px-3 py-2.5">Total</td>
+              <td className="px-3 py-2.5"></td>
+              <td className="px-3 py-2.5"></td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{totals.fm ? `$${Math.round(totals.fm).toLocaleString()}` : "\u2014"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{totals.ek12 ? `$${Math.round(totals.ek12).toLocaleString()}` : "\u2014"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{totals.renewal ? `$${Math.round(totals.renewal).toLocaleString()}` : "\u2014"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{totals.expansion ? `$${Math.round(totals.expansion).toLocaleString()}` : "\u2014"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{totals.winback ? `$${Math.round(totals.winback).toLocaleString()}` : "\u2014"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{totals.newBusiness ? `$${Math.round(totals.newBusiness).toLocaleString()}` : "\u2014"}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{grandTotal ? `$${Math.round(grandTotal).toLocaleString()}` : "\u2014"}</td>
+            </tr>
+          )}
+          {districts.length === 0 && (
+            <tr>
+              <td colSpan={10} className="px-3 py-4 text-center text-gray-400 italic">
+                No districts in this plan
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ---- Cell renderer hooks ----
+
+/**
+ * Returns cell renderers for district-specific columns.
+ * Must be called at the component level (uses React hooks internally).
+ *
+ * Columns handled: owner, notes (editable text), tags, planNames, leaid (click-to-copy),
+ * and any other editable column from districtColumns.
+ */
+export function useDistrictCellRenderers(): Record<string, CellRendererFn> {
+  const queryClient = useQueryClient();
+  const updateEdits = useUpdateDistrictEdits();
+  const { data: users } = useUsers();
+
+  const handleSave = useCallback((rowId: string, column: string, value: string) => {
+    updateEdits.mutate(
+      { leaid: rowId, [column]: value || undefined },
+      { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["explore"] }); } }
+    );
+  }, [updateEdits, queryClient]);
+
+  return useMemo<Record<string, CellRendererFn>>(() => ({
+    owner: ({ value, row }) => {
+      const rowId = (row.leaid || row.id) as string;
+      return <EditableOwnerCell value={value} rowId={rowId} onSave={handleSave} users={users} />;
+    },
+    notes: ({ value, row }) => {
+      const rowId = (row.leaid || row.id) as string;
+      return <EditableTextCell value={value} rowId={rowId} column="notes" onSave={handleSave} />;
+    },
+    tags: ({ row }) => {
+      const rowId = (row.leaid || row.id) as string;
+      const tags = (row.tags || []) as { id: number; name: string; color: string }[];
+      return <EditableTagsCell tags={tags} rowId={rowId} />;
+    },
+    planNames: ({ row }) => {
+      const rowId = (row.leaid || row.id) as string;
+      const plans = (row.planNames || []) as { id: string; name: string; color: string }[];
+      return <EditablePlansCell plans={plans} rowId={rowId} />;
+    },
+    leaid: ({ value }) => <ClickToCopyCell value={value} />,
+  }), [handleSave, users]);
+}
+
+/**
+ * Returns cell renderers for plan-specific columns.
+ * Must be called at the component level (uses React hooks internally).
+ *
+ * Columns handled: status (colored pill), color (swatch + hex), fiscalYear (FY abbreviation).
+ */
+export function usePlanCellRenderers(): Record<string, CellRendererFn> {
+  return useMemo<Record<string, CellRendererFn>>(() => ({
+    status: ({ value }) => {
+      if (!value || typeof value !== "string") return <span className="text-gray-300">{"\u2014"}</span>;
+      const style = PLAN_STATUS_STYLES[value] || PLAN_STATUS_STYLES.archived;
+      return (
+        <span
+          className="px-2 py-0.5 text-[11px] font-medium rounded-full capitalize"
+          style={{ backgroundColor: style.bg, color: style.text }}
+        >
+          {value}
+        </span>
+      );
+    },
+    color: ({ value }) => {
+      const hex = value;
+      if (!hex || typeof hex !== "string") return <span className="text-gray-300">{"\u2014"}</span>;
+      return (
+        <span className="inline-flex items-center gap-2">
+          <span
+            className="w-4 h-4 rounded-full shrink-0 border border-black/10"
+            style={{ backgroundColor: hex }}
+          />
+          <span className="text-[13px] text-gray-500 font-mono">{hex}</span>
+        </span>
+      );
+    },
+    fiscalYear: ({ value }) => {
+      if (value == null || typeof value !== "number") return <span className="text-gray-300">{"\u2014"}</span>;
+      return <>{`FY${String(value).slice(-2)}`}</>;
+    },
+  }), []);
+}
