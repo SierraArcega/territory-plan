@@ -71,6 +71,8 @@ No `shadow-md` or `shadow-2xl` in new code.
 
 ## Close Button
 
+The close icon is the Lucide `X` icon — see `iconography.md` for the canonical icon map. Import: `import { X } from 'lucide-react';`
+
 Two sizes, one pattern:
 
 | Size | Classes | Used by |
