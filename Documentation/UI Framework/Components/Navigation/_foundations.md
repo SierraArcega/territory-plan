@@ -54,12 +54,9 @@ Three tiers. Every button, tab, and nav item uses one of these.
 
 ## Icon Conventions
 
-- Stroke-based only: `fill="none" stroke="currentColor"`
-- Stroke width: `strokeWidth={2}`
-- Line caps: `strokeLinecap="round" strokeLinejoin="round"`
-- ViewBox: `viewBox="0 0 24 24"` (sized via Tailwind `w-` / `h-` classes)
-- Color: inherits from parent via `currentColor`
-- Gap from label text: `gap-2`
+See `iconography.md` for the Lucide icon library, technical specs, size scale, and semantic icon map.
+
+The size scale in this file's [Size Scale](#size-scale) table defines component-specific icon sizes for navigation elements. These are valid overrides of the system-wide defaults in `iconography.md`.
 
 ---
 
