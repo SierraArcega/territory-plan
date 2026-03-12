@@ -19,7 +19,7 @@ Horizontal row of pill toggles. Uses the chip/toggle button variant from `button
     Active
     <span className="text-[10px] font-bold bg-white/20 rounded-full px-1.5 ml-1">12</span>
   </button>
-  <button className="rounded-full border border-[#D4CFE2] text-[#8A80A8] bg-white px-3 py-1 text-xs font-medium hover:bg-[#EFEDF5] focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none transition-colors duration-100">
+  <button className="rounded-full border border-[#D4CFE2] text-[#8A80A8] bg-white px-3 py-1 text-xs font-medium hover:border-[#403770] hover:text-[#403770] focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none transition-colors duration-100">
     Inactive
   </button>
 </div>

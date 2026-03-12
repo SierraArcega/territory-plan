@@ -72,6 +72,12 @@ Same as inline link, with an external-link icon suffix and new-tab behavior.
 - Never use `text-decoration: none` on inline links — let underline appear on hover
 - External links always open in new tab with `rel="noopener noreferrer"`
 
+## Keyboard
+
+Standard `<a>` keyboard behavior applies (`Tab` to focus, `Enter` to activate). See `_foundations.md` for focus ring conventions.
+
+---
+
 ## Codebase Examples
 
 | Component | File |

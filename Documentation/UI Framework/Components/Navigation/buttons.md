@@ -308,6 +308,12 @@ When multiple buttons appear together horizontally:
 
 ---
 
+## Keyboard
+
+Standard `<button>` keyboard behavior applies (`Enter` / `Space` to activate). See `_foundations.md` for focus ring conventions.
+
+---
+
 ## Codebase Examples
 
 | Button | Variant | Size | File |
