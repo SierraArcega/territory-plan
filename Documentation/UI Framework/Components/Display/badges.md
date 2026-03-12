@@ -157,6 +157,8 @@ Recency badges combine a status dot with a text label to communicate how recentl
 | Stale (>21d) | `#F37167` | `#c25a52` | `#fef1f0` |
 | No activity | `#A69DC0` | `#A69DC0` | `#F7F5FA` |
 
+The recency dot uses `w-1.5 h-1.5` rather than the standard `w-2 h-2` status dot from `_foundations.md` for visual balance at the compact `text-[10px]` badge size.
+
 ### TSX Example
 
 ```tsx

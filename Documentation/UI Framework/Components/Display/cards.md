@@ -42,7 +42,7 @@ function EnrollmentMetricCard() {
         <span className="text-sm font-semibold text-[#403770]">
           Total Enrollment
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-[#EAF4EC] text-[#2D7A3A]">
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[#EDFFE3] text-[#5f665b]">
           On Track
         </span>
       </div>
@@ -87,10 +87,10 @@ function PlanContentCard() {
       <div className="px-4 py-3 space-y-2">
         {/* Badge row */}
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-[#EEF0FD] text-[#403770]">
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-[#403770] text-white">
             Q2 Goal
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-[#FDF3E7] text-[#8A4E0F]">
+          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[#fffaf1] text-[#997c43]">
             At Risk
           </span>
         </div>
@@ -112,9 +112,9 @@ function PlanContentCard() {
           <span className="text-xs text-[#8A80A8]">Progress</span>
           <span className="text-xs font-medium text-[#403770]">{progress}%</span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-[#EEE9F8]">
+        <div className="h-1.5 w-full rounded-full bg-[#EFEDF5] overflow-hidden">
           <div
-            className="h-1.5 rounded-full bg-[#6B5EA8]"
+            className="h-full rounded-full bg-[#403770] transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
