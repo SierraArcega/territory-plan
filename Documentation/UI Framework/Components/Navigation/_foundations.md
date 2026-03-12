@@ -92,3 +92,5 @@ No hover or focus effects. Applied identically across all components.
 | Arrow keys | Navigates within a group (tabs, menu items, tree nodes) |
 | `Tab` | Moves between distinct control groups |
 | `Home` / `End` | Jumps to first/last item in a group (tabs, tree) |
+
+---
