@@ -210,8 +210,8 @@ All destructive actions use a consistent confirmation dialog:
 
 ```tsx
 <div className="fixed inset-0 z-50 flex items-center justify-center">
-  <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-  <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+  <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+  <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
     <h3 className="text-lg font-semibold text-[#403770] mb-2">Delete Item?</h3>
     <p className="text-[#6E6390] text-sm mb-6">
       Are you sure? This action cannot be undone.

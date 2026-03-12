@@ -6,6 +6,8 @@ not redefine it — just reference this file.
 
 All values come from `tokens.md`. No Tailwind grays (`gray-*`) in navigation components.
 
+For expand/collapse container patterns (accordion, collapsible sections), see `Containers/accordion.md`. The sidebar collapse pattern remains documented here as a navigation concern.
+
 ---
 
 ## Active State System — Coral Accent

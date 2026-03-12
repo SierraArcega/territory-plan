@@ -156,6 +156,9 @@ Do not use `rounded-sm` or `rounded-md` in new code.
 | Button | `rounded-lg` | none | varies |
 | Pill/Chip | `rounded-full` | none | `border border-[#D4CFE2]` |
 | Input | `rounded-lg` | none | `border border-[#C2BBD4]` |
+| Panel (floating) | `rounded-2xl` | `shadow-lg` | none (blur provides separation) |
+| Bottom Bar | `rounded-xl` | `shadow-lg` | none |
+| Flyout | none (desktop) / `rounded-t-2xl` (mobile) | `shadow-lg` | `border-l border-[#E2DEEC]` (desktop) |
 
 ---
 

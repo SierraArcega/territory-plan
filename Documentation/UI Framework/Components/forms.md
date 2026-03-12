@@ -8,6 +8,8 @@ Standard styling for all forms in the territory planner. Three form types cover 
 
 Full-screen overlay dialogs for creating/editing entities.
 
+For modal shell styling (radius, shadow, backdrop, close button), see `Containers/modal.md`. This file covers form-specific patterns within modal containers.
+
 **Use when:** Creating or editing a record that needs focused attention and has multiple fields.
 
 **Features:** Backdrop overlay, scrollable body, sticky header/footer, Cancel + Submit actions.
