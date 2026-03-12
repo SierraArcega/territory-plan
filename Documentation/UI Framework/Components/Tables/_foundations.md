@@ -20,7 +20,7 @@ Rule of thumb: if you're unsure between Data Table and Data Grid, **start with D
 
 All new tables should use `useReactTable` from `@tanstack/react-table` with `getCoreRowModel`. Simpler tiers just use fewer features from the same foundation. This ensures any table can grow features without a rewrite.
 
-The shared `ColumnDef` interface (see `data-grid.md`) is the canonical column definition format for all tiers. Even Data Tables should define columns using this interface so they can be upgraded to Data Grids without restructuring.
+The shared `ColumnDef` interface (see `data-grid.md`) is the canonical column definition format for all tiers. New Data Tables should define columns using this interface so they can be upgraded to Data Grids without restructuring. Existing tables will be migrated incrementally.
 
 ## Table Types
 

@@ -42,6 +42,8 @@ All values come from `tokens.md`. No Tailwind grays (`gray-*`) in chart componen
 - Never use Tailwind grays or arbitrary hex values not in `tokens.md`.
 - For segments representing "empty" or "remaining" track, use `#EFEDF5` (Hover surface).
 
+**Note:** `#8AA891` appears across the codebase as an undocumented "Sage" color. This is drift — `#EDFFE3` (Mint) is the correct green token per `tokens.md`. The cleanup ticket should address `#8AA891` usage.
+
 ---
 
 ## Recharts Wrapper Pattern

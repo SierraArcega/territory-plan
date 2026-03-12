@@ -22,7 +22,7 @@ interface ColumnDef {
   enumValues?: string[]; // for filterType: "enum"
   relationSource?: string; // for filterType: "relation"
   editable?: boolean;    // enables inline editing for this column
-  sortable?: boolean;    // defaults to true; set false to disable sorting
+  sortable?: boolean;    // defaults to true; set false to disable sorting (new — add during implementation)
 }
 ```
 
@@ -171,6 +171,8 @@ Lives in the toolbar, after search. Each active filter renders as a pill:
 - "Add filter" button: `text-xs font-medium text-[#403770] rounded-full px-3 py-1 border border-dashed border-[#C2BBD4]`
 - "Clear all" link (when any filters active): `text-xs text-[#F37167] hover:underline`
 
+The filter bar uses **removable pills** (not static chips). Each pill represents one active filter and can be dismissed individually via its `×` button. The "Add filter" button opens a dropdown flow to compose a new filter. This is distinct from static filter chips (preset toggles) — Data Grid filters are always user-composed.
+
 ### Add Filter Flow
 
 1. Click "Add filter" → dropdown of columns (grouped by `group` from ColumnDef)
@@ -207,7 +209,7 @@ type PaginationState = {
 
 - Request: `?page=1&pageSize=50`
 - Response includes `total` count
-- Default page size: `50`. Options: `[25, 50, 100, 200]`
+- Default page size: `50`. Options: `[25, 50, 100, 200]` (Data Grid uses larger options than the standard `[10, 25, 50, 100]` in `pagination.md` because grid datasets are typically larger — 10 is too few rows, and 200 is included for power users)
 
 ### Integration
 
@@ -216,6 +218,8 @@ type PaginationState = {
 - Changing filters, sort, or search resets to page 1
 
 ### Footer
+
+Uses the standard footer container from `_foundations.md` (`px-4 py-2.5 border-t border-[#E2DEEC] bg-[#F7F5FA]`).
 
 - Left side: `{count} {entity}` in `text-xs font-medium text-[#A69DC0]`
 - Right side: optional summary stats (e.g., `Pipeline total: $5.1M`)
@@ -280,7 +284,7 @@ Rules:
 
 ## Column Management
 
-User-controlled column visibility, ordering, and resizing.
+User-controlled column visibility and ordering.
 
 ### Column Picker (Toolbar Button)
 
@@ -522,6 +526,32 @@ Rules:
 
 ---
 
+## Accessibility
+
+### Keyboard Navigation
+
+- `Tab` moves focus through toolbar controls, then into the table
+- `Arrow keys` move focus between cells when the table has focus
+- `Space` toggles checkboxes (row selection, column picker items)
+- `Enter` activates sort on a focused column header, opens inline edit on an editable cell
+- `Escape` cancels inline edit, closes dropdowns/popovers — focus returns to the cell/control that was activated
+
+### ARIA
+
+- Table uses `role="grid"` with `aria-rowcount` and `aria-colcount` reflecting total (not just visible) rows/columns
+- Sortable column headers: `aria-sort="ascending"` / `"descending"` / `"none"`
+- Checkbox column header: `aria-label="Select all rows on this page"`
+- Bulk action bar: `role="toolbar"` with `aria-label="Bulk actions for {n} selected items"`
+- Filter pills: each pill is a button with `aria-label="{column} {operator} {value}, remove filter"`
+- Empty/error states: `role="status"` so screen readers announce the change
+- Footer count and bulk selection count: `aria-live="polite"` so dynamic updates are announced without interrupting
+
+### Color Contrast
+
+All text/background pairings meet WCAG 2.1 AA (4.5:1 for normal text, 3:1 for large text). The plum-derived palette was designed with this constraint — see `tokens.md` for validated pairings. Interactive states (hover, focus) use visible outlines or background shifts, never color alone.
+
+---
+
 ## Assembly Example
 
 Full assembly showing how all feature blocks combine.
@@ -532,26 +562,33 @@ Full assembly showing how all feature blocks combine.
 interface DataGridProps {
   // Data
   data: Record<string, unknown>[];
+  columnDefs: ColumnDef[];       // full column definitions for picker, filtering, edit inference
   entityType: string;
   isLoading: boolean;
   // Columns
   visibleColumns: string[];
-  onReorderColumns: (columns: string[]) => void;
+  onColumnsChange: (columns: string[]) => void; // handles both reorder and visibility toggle
   // Sorting
-  sorts: { column: string; direction: "asc" | "desc" }[];
+  sorts: SortRule[];
   onSort: (column: string) => void;
   // Filtering
   filters: FilterRule[];
   onAddFilter: (filter: FilterRule) => void;
   onRemoveFilter: (index: number) => void;
   onClearFilters: () => void;
+  // Search (optional)
+  searchTerm?: string;
+  onSearch?: (term: string) => void;
   // Pagination
   pagination: { page: number; pageSize: number; total: number };
   onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   // Selection (optional)
   selectedIds?: Set<string>;
+  selectAllMatchingFilters?: boolean;
   onToggleSelect?: (id: string) => void;
   onSelectPage?: (ids: string[]) => void;
+  onSelectAllMatching?: () => void;
   onClearSelection?: () => void;
   // Row interaction
   onRowClick?: (row: Record<string, unknown>) => void;
