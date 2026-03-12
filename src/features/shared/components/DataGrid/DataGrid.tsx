@@ -191,8 +191,23 @@ export function DataGrid({
 
   return (
     <div className="flex flex-col gap-2">
+      <style>{`
+        @keyframes datagrid-progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
       {/* Card wrapper */}
       <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm">
+        {/* Refresh loading progress bar */}
+        {isLoading && data.length > 0 && (
+          <div className="relative h-0.5 overflow-hidden">
+            <div
+              className="absolute inset-0 bg-[#403770]"
+              style={{ animation: "datagrid-progress 1.4s ease-in-out infinite" }}
+            />
+          </div>
+        )}
         {/* Scrollable table area */}
         <div className="overflow-auto">
           <table
@@ -304,7 +319,7 @@ export function DataGrid({
             </thead>
 
             {/* ---- Body ---- */}
-            <tbody>
+            <tbody className={isLoading && data.length > 0 ? "opacity-50 transition-opacity" : ""}>
               {/* Select-all escalation banner */}
               {showSelectAllBanner && (
                 <tr>
@@ -320,12 +335,12 @@ export function DataGrid({
                 </tr>
               )}
 
-              {/* Loading skeleton */}
-              {isLoading &&
-                Array.from({ length: 10 }).map((_, rowIdx) => (
+              {/* Loading skeleton — initial load only (no data yet) */}
+              {isLoading && data.length === 0 &&
+                Array.from({ length: 5 }).map((_, rowIdx) => (
                   <tr
                     key={`skel-${rowIdx}`}
-                    className={rowIdx < 9 ? "border-b border-[#E2DEEC]" : ""}
+                    className={rowIdx < 4 ? "border-b border-[#E2DEEC]" : ""}
                   >
                     {showCheckboxes && (
                       <td className="w-10 px-3 py-3">
@@ -337,14 +352,18 @@ export function DataGrid({
                         <div className="h-4 w-4 bg-[#E2DEEC] rounded animate-pulse" />
                       </td>
                     )}
-                    {visibleColumns.map((col) => (
-                      <td key={col} className="px-4 py-3">
-                        <div
-                          className="h-4 bg-[#C4E7E6]/20 rounded animate-pulse"
-                          style={{ width: `${55 + Math.random() * 30}%` }}
-                        />
-                      </td>
-                    ))}
+                    {visibleColumns.map((col, colIdx) => {
+                      const widths = ["60%", "30%", "40%"];
+                      const w = widths[(colIdx + rowIdx) % widths.length];
+                      return (
+                        <td key={col} className="px-4 py-3">
+                          <div
+                            className="h-4 bg-[#E2DEEC]/60 rounded animate-pulse"
+                            style={{ width: w }}
+                          />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
 
@@ -352,7 +371,7 @@ export function DataGrid({
               {!isLoading && isError && (
                 <tr>
                   <td colSpan={totalColCount} className="py-16">
-                    <div className="flex flex-col items-center justify-center">
+                    <div role="status" className="flex flex-col items-center justify-center">
                       <svg
                         width="48"
                         height="48"
@@ -371,6 +390,9 @@ export function DataGrid({
                       <span className="text-lg font-medium text-[#6E6390] mb-2">
                         Something went wrong
                       </span>
+                      <span className="text-sm text-[#8A80A8] mb-3">
+                        Failed to load {entityType}
+                      </span>
                       {onRetry && (
                         <button
                           onClick={onRetry}
@@ -384,11 +406,11 @@ export function DataGrid({
                 </tr>
               )}
 
-              {/* Empty state */}
-              {!isLoading && !isError && data.length === 0 && (
+              {/* Empty state — filtered (has active filters) */}
+              {!isLoading && !isError && data.length === 0 && hasActiveFilters && (
                 <tr>
                   <td colSpan={totalColCount} className="py-16">
-                    <div className="flex flex-col items-center justify-center">
+                    <div role="status" className="flex flex-col items-center justify-center">
                       <svg
                         width="48"
                         height="48"
@@ -404,32 +426,53 @@ export function DataGrid({
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                       </svg>
                       <span className="text-lg font-medium text-[#6E6390] mb-2">
-                        No results found
+                        No matching results
                       </span>
-                      {hasActiveFilters ? (
-                        <span className="text-sm text-[#8A80A8] max-w-sm text-center">
-                          Try adjusting your filters.{" "}
-                          {onClearFilters && (
-                            <button
-                              onClick={onClearFilters}
-                              className="text-[#403770] underline hover:no-underline"
-                            >
-                              Clear all filters
-                            </button>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-sm text-[#8A80A8]">
-                          No {entityType} to display
-                        </span>
+                      <span className="text-sm text-[#8A80A8] mb-3">
+                        Try adjusting your filters or search term
+                      </span>
+                      {onClearFilters && (
+                        <button
+                          onClick={onClearFilters}
+                          className="text-sm text-[#403770] underline hover:no-underline"
+                        >
+                          Clear all filters
+                        </button>
                       )}
                     </div>
                   </td>
                 </tr>
               )}
 
-              {/* Data rows */}
-              {!isLoading &&
+              {/* Empty state — no data at all */}
+              {!isLoading && !isError && data.length === 0 && !hasActiveFilters && (
+                <tr>
+                  <td colSpan={totalColCount} className="py-16">
+                    <div role="status" className="flex flex-col items-center justify-center">
+                      <svg
+                        width="48"
+                        height="48"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mb-4 text-[#A69DC0]"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                      <span className="text-lg font-medium text-[#6E6390] mb-2">
+                        No {entityType} yet
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {/* Data rows — shown when not loading, or when refreshing with existing data */}
+              {(!isLoading || (isLoading && data.length > 0)) &&
                 !isError &&
                 table.getRowModel().rows.map((row, rowIdx) => {
                   const isLast = rowIdx === table.getRowModel().rows.length - 1;
