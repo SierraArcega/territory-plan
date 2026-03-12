@@ -18,7 +18,7 @@ Responsive grid that adapts from 1 to 3 columns.
 
 | Variant | Classes | Example |
 |---------|---------|---------|
-| 3-column | `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4` | `PlansListView` |
+| 3-column | `grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4` | `PlansView` |
 | 2×3 compact | `grid-cols-2 md:grid-cols-3 gap-3` | `HomeView` plan cards |
 | 4-column | `grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6` | Goal donut charts |
 
@@ -41,7 +41,7 @@ Weighted column splits for primary + secondary content.
 |-------|---------|---------|
 | 3/2 split | `lg:grid-cols-5` with `col-span-3` / `col-span-2` | `HomeView` plans + tasks |
 | Equal split | `lg:grid-cols-2 gap-4` | Indicator panels |
-| 7-column fixed | `grid grid-cols-7` | Calendar day grid |
+| 7-column fixed | `grid grid-cols-7` | `CalendarView` day grid |
 
 ---
 
