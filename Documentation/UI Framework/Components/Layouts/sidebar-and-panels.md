@@ -1,6 +1,6 @@
 # Sidebar and Panels
 
-Three patterns for sidebar layouts, collapsible panels, and scrollable containers. See `_foundations.md` for shared rules (spacing, responsive conventions, full-height patterns).
+Three patterns for sidebar layouts, collapsible panels, and scrollable containers (Patterns 5–7, continuing from `page-shells.md`). See `_foundations.md` for shared rules.
 
 ---
 
@@ -36,7 +36,7 @@ Two-column layout with fixed-width sidebar and flexible main area.
 - Sidebar is conditionally rendered (not hidden with CSS)
 - Sidebar always on the right side in current codebase
 
-Examples: CalendarView, PlanDetailView right panel
+Examples: `CalendarView`, `PlanDetailView` right panel
 
 ---
 
@@ -59,9 +59,9 @@ Content area adjusts margin when panel opens, with transition.
 - `mr-[420px]` — makes room for the panel
 - Panel is fixed-position on the right edge
 
-> **Composite example — PlanDetailView:** This view combines Pattern 2 (Page Shell) with Pattern 6 (Push Panel) and a tab bar. When a district panel opens, the main content transitions its right margin while the panel slides in from the right. This is the most complex layout in the app.
+> **Composite example — PlanDetailView:** This view combines Pattern 2 (Page Shell — see `page-shells.md`) with Pattern 6 (Push Panel) and a tab bar. When a district panel opens, the main content transitions its right margin while the panel slides in from the right. This is the most complex layout in the app.
 
-Example: PlanDetailView district panel
+Examples: `PlanDetailView` district panel
 
 ---
 
@@ -96,7 +96,7 @@ Three-zone panel: fixed header, scrollable body, fixed footer.
 - Footer is optional — omit for panels without actions
 - Header and footer use plum-derived borders (`#E2DEEC`), not `gray-200`
 
-Examples: FloatingPanel, all panel content areas, unscheduled activities list
+Examples: `FloatingPanel`, all panel content areas, unscheduled activities list
 
 ---
 
