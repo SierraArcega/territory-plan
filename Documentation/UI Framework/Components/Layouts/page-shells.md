@@ -58,7 +58,7 @@ Use when you need a scrollable page with header + content. The most common layou
 
 > **Migration:** Existing code uses `border-gray-200` in some page headers. New code should use `border-[#E2DEEC]` (Border Subtle).
 
-Examples: PlansView, TasksView, ActivitiesView
+Examples: `PlansView`, `TasksView`, `ActivitiesView`
 
 ---
 
@@ -91,7 +91,7 @@ Use when you need a gradient banner with negative-margin content overlap.
 
 > **Dashboard variant:** Cards here use `rounded-2xl` (not `rounded-lg`) and `border-gray-100` (not the standard `border-[#D4CFE2]`) for a softer, more prominent feel. This is intentional for the dashboard context.
 
-Example: HomeView
+Examples: `HomeView`
 
 ---
 
