@@ -1,17 +1,46 @@
 # Table Component Foundations
 
-Standard styling for all data tables in the territory planner. Three table types cover
+Standard styling for all data tables in the territory planner. Four table types cover
 every use case. All patterns use the Fullmind design token system (`tokens.md`).
 
 For pagination controls, see `Navigation/pagination.md` (canonical source).
 
+## Choosing a Table Type
+
+| Question | Tier |
+|---|---|
+| Showing key-value attributes of a single record? | **Detail Table** |
+| Small related dataset inside a card, panel, or expanded row? | **Compact Table** |
+| Browsable list with sort + basic actions, <8 columns? | **Data Table** |
+| Needs column management, multi-sort, filters, saved views, bulk selection, or 8+ columns? | **Data Grid** |
+
+Rule of thumb: if you're unsure between Data Table and Data Grid, **start with Data Grid** — it's easier to disable features than to retrofit them later.
+
+## Standard Foundation: TanStack React Table
+
+All new tables should use `useReactTable` from `@tanstack/react-table` with `getCoreRowModel`. Simpler tiers just use fewer features from the same foundation. This ensures any table can grow features without a rewrite.
+
+The shared `ColumnDef` interface (see `data-grid.md`) is the canonical column definition format for all tiers. Even Data Tables should define columns using this interface so they can be upgraded to Data Grids without restructuring.
+
 ## Table Types
+
+### Data Grid
+
+Browse, sort, filter, and manage large datasets with full column control. The power table.
+
+**Use when:** Displaying a collection of entities that needs column management, multi-sort, composable filters, saved views, bulk selection, or has 8+ columns of varied data.
+
+**Features:** Everything in Data Table, plus: column picker, column reordering, multi-sort, composable filter bar, saved views, select-all escalation, bulk action bar, server-side pagination, export.
+
+**See:** `data-grid.md` for the full spec.
+
+**Examples in codebase:** ExploreTable.
 
 ### Data Table
 
 Browse, sort, filter, and act on a collection of records. The workhorse table.
 
-**Use when:** Displaying a list of entities the user needs to search, sort, filter, select, or take action on.
+**Use when:** Displaying a list of entities the user needs to search, sort, filter, select, or take action on, with a manageable number of columns.
 
 **Features:** Toolbar (search, filters, sort), column sorting indicators, pagination, checkbox selection, row actions with overflow, expanding rows, inline editing, loading state, error state, empty state, truncation.
 
