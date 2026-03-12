@@ -238,7 +238,7 @@ export function DataGrid({
                       return (
                         <th
                           key={header.id}
-                          className="w-10 px-3 py-3 bg-[#F7F5FA] sticky top-0 z-10"
+                          className="w-12 pl-4 pr-2 py-3 bg-[#F7F5FA] sticky top-0 z-10"
                         >
                           <input
                             type="checkbox"
@@ -254,7 +254,7 @@ export function DataGrid({
                                 onSelectPage?.(pageIds);
                               }
                             }}
-                            className="w-3.5 h-3.5 rounded border-[#D4CFE2] text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
+                            className="w-4 h-4 rounded border-[#C2BBD4] text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
                           />
                         </th>
                       );
@@ -343,8 +343,8 @@ export function DataGrid({
                     className={rowIdx < 4 ? "border-b border-[#E2DEEC]" : ""}
                   >
                     {showCheckboxes && (
-                      <td className="w-10 px-3 py-3">
-                        <div className="h-3.5 w-3.5 bg-[#E2DEEC] rounded animate-pulse" />
+                      <td className="w-12 pl-4 pr-2 py-3">
+                        <div className="h-4 w-4 bg-[#E2DEEC] rounded animate-pulse" />
                       </td>
                     )}
                     {showExpand && (
@@ -373,24 +373,22 @@ export function DataGrid({
                   <td colSpan={totalColCount} className="py-16">
                     <div role="status" className="flex flex-col items-center justify-center">
                       <svg
-                        width="48"
-                        height="48"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="mb-4 text-[#A69DC0]"
+                        className="w-10 h-10 mb-4 text-[#F37167]"
                       >
                         <circle cx="12" cy="12" r="10" />
                         <line x1="12" y1="8" x2="12" y2="12" />
                         <line x1="12" y1="16" x2="12.01" y2="16" />
                       </svg>
-                      <span className="text-lg font-medium text-[#6E6390] mb-2">
+                      <span className="text-sm font-semibold text-[#544A78] mb-2">
                         Something went wrong
                       </span>
-                      <span className="text-sm text-[#8A80A8] mb-3">
+                      <span className="text-xs text-[#8A80A8] mb-3">
                         Failed to load {entityType}
                       </span>
                       {onRetry && (
@@ -412,29 +410,26 @@ export function DataGrid({
                   <td colSpan={totalColCount} className="py-16">
                     <div role="status" className="flex flex-col items-center justify-center">
                       <svg
-                        width="48"
-                        height="48"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="mb-4 text-[#A69DC0]"
+                        className="w-10 h-10 mb-4 text-[#A69DC0]"
                       >
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
                       </svg>
-                      <span className="text-lg font-medium text-[#6E6390] mb-2">
+                      <span className="text-sm font-semibold text-[#544A78] mb-2">
                         No matching results
                       </span>
-                      <span className="text-sm text-[#8A80A8] mb-3">
+                      <span className="text-xs text-[#8A80A8] mb-3">
                         Try adjusting your filters or search term
                       </span>
                       {onClearFilters && (
                         <button
                           onClick={onClearFilters}
-                          className="text-sm text-[#403770] underline hover:no-underline"
+                          className="text-sm font-medium text-[#403770] border border-[#D4CFE2] rounded-lg px-3 py-1.5 hover:bg-[#EFEDF5] transition-colors mt-3"
                         >
                           Clear all filters
                         </button>
@@ -450,20 +445,17 @@ export function DataGrid({
                   <td colSpan={totalColCount} className="py-16">
                     <div role="status" className="flex flex-col items-center justify-center">
                       <svg
-                        width="48"
-                        height="48"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="mb-4 text-[#A69DC0]"
+                        className="w-10 h-10 mb-4 text-[#A69DC0]"
                       >
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                       </svg>
-                      <span className="text-lg font-medium text-[#6E6390] mb-2">
+                      <span className="text-sm font-semibold text-[#544A78] mb-2">
                         No {entityType} yet
                       </span>
                     </div>
@@ -496,7 +488,7 @@ export function DataGrid({
                           // Checkbox cell
                           if (cell.column.id === "__select") {
                             return (
-                              <td key={cell.id} className="w-10 px-3 py-3">
+                              <td key={cell.id} className="w-12 pl-4 pr-2 py-3">
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
@@ -505,7 +497,7 @@ export function DataGrid({
                                     onToggleSelect?.(rowId);
                                   }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="w-3.5 h-3.5 rounded border-[#D4CFE2] text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
+                                  className="w-4 h-4 rounded border-[#C2BBD4] text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
                                 />
                               </td>
                             );
