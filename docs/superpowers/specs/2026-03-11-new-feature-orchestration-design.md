@@ -89,7 +89,7 @@ The existing `/feature` skill (`.claude/worktrees/cross-year-map-comparison/.cla
 |----------------|---------------|--------|
 | 1a. Requirements | `new-feature` orchestrator (interactive Q&A) | **NEW** |
 | 1b. UI context | `frontend-design` skill (discovery workflow) | Exists (add craft section) |
-| 1c. Backend context | `backend-discovery` prompt | **NEW** |
+| 1c. Backend context | **`backend-discovery`** skill | **NEW** |
 | 2-3. Design exploration | **`design-explore`** skill | **NEW** |
 | 4. Spec writing | `new-feature` orchestrator (compiles artifacts) | **NEW** |
 | 5. Planning | `new-feature` orchestrator (writes plan doc) | **NEW** |
@@ -117,6 +117,24 @@ The existing `/feature` skill (`.claude/worktrees/cross-year-map-comparison/.cla
 3. Read config from `.claude/skills/new-feature/config.json`
 4. Create worktree via `EnterWorktree` with name set to slug
 5. Set `DATE` to today
+
+**Config schema** (`.claude/skills/new-feature/config.json`):
+
+```json
+{
+  "slack_channel": "C07AEK4HR7U",
+  "max_test_fix_attempts": 3,
+  "docs_path": "docs/superpowers"
+}
+```
+
+| Field | Purpose | Default |
+|-------|---------|---------|
+| `slack_channel` | Slack channel ID for approval notifications (empty = skip Slack) | `""` |
+| `max_test_fix_attempts` | Max implementer → test-writer fix loop iterations | `3` |
+| `docs_path` | Base path for specs, plans, and reports | `docs/superpowers` |
+
+Note: The old `/feature` config had `max_prd_revisions` for the PRD agent review loop. This field is dropped — the design exploration phase (stages 2-3) is purely human-gated with no automatic iteration limit.
 
 **Subagent dispatch model:**
 
@@ -503,8 +521,9 @@ Full craft guidance with examples is in the `design-explore` skill (`.claude/ski
 
 1. **`design-explore` skill + `frontend-design` craft enrichment** (ship together — the craft section references design-explore)
 2. **`design-review` skill** (standalone, can be used independently via `/design-review`)
-3. **`new-feature` orchestrator** — create skill, config, migrate prompts from `/feature`, add `backend-discovery` prompt
-4. **Remove old `/feature` skill** — delete `.claude/skills/feature/` (the worktree copy at `.claude/worktrees/cross-year-map-comparison/.claude/skills/feature/` is separate and can be cleaned up when that worktree is removed)
+3. **`backend-discovery` skill** (standalone, also dispatched by orchestrator during stage 1c)
+4. **`new-feature` orchestrator** — create skill, config, migrate prompts from `/feature`
+5. **Remove old `/feature` skill** — delete `.claude/skills/feature/` (the worktree copy at `.claude/worktrees/cross-year-map-comparison/.claude/skills/feature/` is separate and can be cleaned up when that worktree is removed)
 
 ---
 
