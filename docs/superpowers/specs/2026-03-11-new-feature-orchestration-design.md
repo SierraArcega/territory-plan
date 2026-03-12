@@ -176,7 +176,7 @@ Stage 5 (Plan):
 Stage 6 (Implement):
   → Read implementer.md prompt template
   → Dispatch implementer subagent with:
-    - {{PRD_PATH}} = spec path from stage 4
+    - {{SPEC_PATH}} = spec path from stage 4
     - {{IMPLEMENTATION_CONTEXT}} = plan path + backend context path +
       Paper node references for frontend work
   → If plan has independent frontend/backend tasks, dispatch parallel agents
@@ -347,7 +347,7 @@ When prototyping in Paper, apply these principles within the Fullmind brand:
 
 **Purpose:** Explores the backend architecture before implementation. Produces a context document that implementation agents use to write correct backend code.
 
-**Trigger:** Invoked by `new-feature` orchestrator during stage 1c. Can also be invoked standalone via `/backend-discovery`.
+**Trigger:** Invoked by `new-feature` orchestrator during stage 1c. Can also be invoked standalone via `/backend-discovery` (requires a thin SKILL.md wrapper that dispatches this prompt).
 
 **Process:**
 
@@ -474,7 +474,7 @@ When building or prototyping, apply these craft principles:
 - **Motion**: staggered entrances (30-50ms), fast hovers (100ms), natural panel transitions (200-250ms)
 - **Composition**: hero element gets 40-60% visual weight, vertical rhythm across sections
 
-Full craft guidance with examples is in the `design-explore` skill (`/.claude/skills/design-explore/SKILL.md` § Craft Guidance). Read it when prototyping or building new UI.
+Full craft guidance with examples is in the `design-explore` skill (`.claude/skills/design-explore/SKILL.md` § Craft Guidance). Read it when prototyping or building new UI.
 ```
 
 ---
@@ -485,15 +485,17 @@ Full craft guidance with examples is in the `design-explore` skill (`/.claude/sk
 |------|------|
 | `new-feature` skill | `.claude/skills/new-feature/SKILL.md` |
 | `new-feature` config | `.claude/skills/new-feature/config.json` |
-| Backend discovery prompt | `.claude/skills/new-feature/prompts/backend-discovery.md` |
 | Implementer prompt | `.claude/skills/new-feature/prompts/implementer.md` (migrated from `/feature`) |
 | Test writer prompt | `.claude/skills/new-feature/prompts/test-writer.md` (migrated from `/feature`) |
 | Code reviewer prompt | `.claude/skills/new-feature/prompts/code-reviewer.md` (migrated from `/feature`) |
+| `backend-discovery` skill | `.claude/skills/backend-discovery/SKILL.md` |
 | `design-explore` skill | `.claude/skills/design-explore/SKILL.md` |
 | `design-review` skill | `.claude/skills/design-review/SKILL.md` |
 | `frontend-design` (enrichment) | `.claude/skills/frontend-design/SKILL.md` (existing, add craft section) |
 
-**Note:** `backend-discovery` is a subagent prompt dispatched by the `new-feature` orchestrator, not a standalone skill. The three migrated prompts (`implementer.md`, `test-writer.md`, `code-reviewer.md`) are copied from the old `/feature` skill and updated as needed.
+**Notes:**
+- `backend-discovery` is a standalone skill (invocable via `/backend-discovery`) that doubles as the stage 1c subagent when called by the orchestrator.
+- The three migrated prompts (`implementer.md`, `test-writer.md`, `code-reviewer.md`) are copied from the old `/feature` skill and updated as needed.
 
 ---
 
