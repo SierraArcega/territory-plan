@@ -159,7 +159,7 @@ function NotesSection({ leaid, edits }: { leaid: string; edits: DistrictEdits | 
   return (
     <div>
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-bold text-[#403770]">Notes</h3>
+        <h3 className="text-sm font-semibold text-[#403770]">Notes</h3>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
