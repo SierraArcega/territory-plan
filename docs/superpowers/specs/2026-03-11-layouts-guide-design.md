@@ -14,7 +14,7 @@ Establish a layout pattern system for the Fullmind territory planner. The guide 
 
 - **Tailwind patterns only** — no wrapper components. Matches the existing codebase and doc conventions (Tables/, Navigation/).
 - **Subfolder structure** — `Documentation/UI Framework/Components/Layouts/` with `_foundations.md` + 3 pattern files.
-- **8 patterns** across 2 levels (page-level and component-level), grouped into 4 files.
+- **12 patterns** — 7 structural patterns (page-level) and 5 composition patterns (component-level), grouped into 4 files.
 - **Paper companion** — visual reference artboard added to Mapomatic Components page.
 
 ## File Structure
@@ -29,15 +29,15 @@ Documentation/UI Framework/Components/Layouts/
 
 ## Format Convention
 
-Each file follows the established pattern from Tables/ and Navigation/:
+Each file follows the established pattern from Tables/_foundations.md:
 - Section intro with "Use when" guidance
 - Code snippet with actual Tailwind classes from the codebase
 - "Key classes" callout explaining critical classes
 - "Rules" list for constraints and gotchas
 - Codebase examples (which files use this pattern)
-- File reference table at the bottom
+- File reference table at the bottom of each file
 
-All values reference `tokens.md`. No Tailwind grays (`gray-*`) in new code — use plum-derived neutrals.
+All values reference `tokens.md`. New code should use plum-derived neutrals (`border-[#E2DEEC]`, `border-[#D4CFE2]`) instead of Tailwind grays. Existing code still uses `border-gray-200` in some page headers — these are documented as-is with a migration note.
 
 ---
 
@@ -68,12 +68,12 @@ Applied from `tokens.md` Spacing Rhythm section:
 
 ### Responsive Conventions
 
-Three breakpoints from `tokens.md`:
-- Base (0+): single column, mobile-first
-- `sm:` (640px+): panel appears, mobile drawer hides
-- `lg:` or `xl:` (1024px+/1280px+): multi-column grids, sidebar always visible
+Core breakpoints from `tokens.md`: base (0+), `sm:` (640px+), `xl:` (1280px+).
 
-Layout shifts: `grid-cols-1` at base, `md:grid-cols-2` at tablet, `lg:grid-cols-3` at desktop.
+Layout code also uses `md:` (768px) and `lg:` (1024px) for grid column shifts — these are standard Tailwind breakpoints used in layout contexts even though they aren't in the core token set:
+- Base: `grid-cols-1` (single column)
+- `md:`: `grid-cols-2` (two columns on tablet)
+- `lg:`: `grid-cols-3` or `grid-cols-5` (full desktop layout)
 
 ### Full-Height Convention
 
@@ -87,7 +87,7 @@ Layout shifts: `grid-cols-1` at base, `md:grid-cols-2` at tablet, `lg:grid-cols-
 - Arbitrary pixel gaps (`gap-[13px]`, `p-[7px]`) — use Tailwind's 4px grid
 - Nested scroll containers — only one scrollable area per view
 - `w-screen` / `h-screen` — use `h-full` (views live inside AppShell, not the viewport)
-- `shadow-md` or `rounded-sm` / `rounded-md` — not in the elevation scale
+- `shadow-md` or `rounded-sm` / `rounded-md` — not in the elevation scale (note: `hover:shadow-md` exists in HomeView calendar buttons — migrate to `hover:shadow-sm` or `hover:shadow-lg`)
 
 ---
 
@@ -123,7 +123,7 @@ Used by PlansView, TasksView, ActivitiesView — scrollable page with header + c
 
 ```tsx
 <div className="h-full overflow-auto bg-[#FFFCFA]">
-  <header className="bg-white border-b border-gray-200 px-6 py-4">
+  <header className="bg-white border-b border-[#E2DEEC] px-6 py-4">
     <div className="max-w-6xl mx-auto flex items-center justify-between">
       {/* Title + actions */}
     </div>
@@ -138,7 +138,7 @@ Key classes:
 - `h-full overflow-auto` — fills AppShell content area, scrolls vertically
 - `bg-[#FFFCFA]` — Off-White page background
 - `max-w-6xl mx-auto` — caps content width, centers on wide screens
-- Header: `bg-white border-b` with `px-6 py-4`
+- Header: `bg-white border-b border-[#E2DEEC]` with `px-6 py-4` (existing code uses `border-gray-200` — migrate to plum-derived)
 - Content: `px-6 py-8`
 
 ### Pattern 3: Dashboard Shell
@@ -148,7 +148,7 @@ Used by HomeView — gradient banner with negative-margin content overlap.
 ```tsx
 <div className="h-full overflow-auto bg-[#FFFCFA]">
   <div className="px-8 pt-8 pb-28"
-       style={{ background: "linear-gradient(135deg, #403770 0%, #5c4785 100%)" }}>
+       style={{ background: "linear-gradient(135deg, #403770 0%, #4e3d7a 40%, #5c4785 70%, #6b5a90 100%)" }}>
     <div className="max-w-6xl mx-auto">
       {/* Greeting, date, stats */}
     </div>
@@ -165,6 +165,7 @@ Key classes:
 - Banner: `px-8 pt-8 pb-28` — extra bottom padding creates overlap zone
 - Content: `relative -mt-20` — pulls content up into the banner
 - Sections: `space-y-6` — consistent vertical rhythm between cards
+- Section cards: `bg-white rounded-2xl shadow-sm border border-gray-100` — dashboard cards use `rounded-2xl` (not `rounded-lg`) and `border-gray-100` (not the standard `border-[#D4CFE2]`) for a softer, more prominent feel. This is intentional for the dashboard context.
 
 ### Pattern 4: Canvas Shell (Map)
 
@@ -209,7 +210,7 @@ Two-column layout with fixed-width sidebar and flexible main area.
     {/* Main content */}
   </div>
   {panelOpen && (
-    <div className="w-[280px] flex-shrink-0 border-l border-gray-200 bg-white flex flex-col">
+    <div className="w-[280px] flex-shrink-0 border-l border-[#E2DEEC] bg-white flex flex-col">
       {/* Sidebar content */}
     </div>
   )}
@@ -220,7 +221,7 @@ Key classes:
 - Container: `flex h-full`
 - Main: `flex-1 flex flex-col min-w-0` — stretches, prevents text overflow
 - Sidebar: `w-[280px] flex-shrink-0` — fixed width, never shrinks
-- `border-l border-gray-200` — visual separator
+- `border-l border-[#E2DEEC]` — visual separator (existing code uses `border-gray-200` — migrate to plum-derived)
 
 Rules:
 - `min-w-0` on main area is critical — without it, long content overflows
@@ -248,6 +249,8 @@ Key classes:
 - Panel is fixed-position on the right edge
 
 Example: PlanDetailView district panel
+
+**Composite example — PlanDetailView:** This view combines Pattern 2 (Page Shell) with Pattern 6 (Push Panel) and a tab bar. When a district panel opens, the main content transitions its right margin while the panel slides in from the right. This is the most complex layout in the app.
 
 ### Pattern 7: Scrollable Container
 
@@ -284,6 +287,8 @@ Examples: FloatingPanel, all panel content areas, unscheduled activities list
 
 ## File 4: `grids-and-composition.md`
 
+### Grid Layouts
+
 ### Pattern 8: Card Grid (Responsive)
 
 Responsive grid that adapts from 1 to 3 columns.
@@ -314,6 +319,8 @@ Ratios:
 - 3/2 split: `lg:grid-cols-5` with `col-span-3` / `col-span-2` — primary + secondary (HomeView plans + tasks)
 - Equal split: `lg:grid-cols-2 gap-4` — equal weight (indicator panels)
 - 7-column fixed: `grid grid-cols-7` — calendar day grid
+
+### Inline Composition
 
 ### Pattern 10: Toolbar / Action Bar
 
