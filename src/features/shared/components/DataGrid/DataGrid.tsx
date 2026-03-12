@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-table";
 import type { DataGridProps, ColumnDef } from "./types";
 import { renderCell } from "./renderCell";
+import { SelectAllBanner } from "./SelectAllBanner";
 
 // ---------------------------------------------------------------------------
 // Sort indicator arrows
@@ -116,6 +117,7 @@ export function DataGrid({
   const allPageSelected =
     showCheckboxes && pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
   const somePageSelected = showCheckboxes && pageIds.some((id) => selectedIds.has(id));
+  const showSelectAllBanner = allPageSelected && onSelectAllMatching != null;
 
   // ---- Resolve column label ----
   const resolveLabel = useCallback(
@@ -303,6 +305,21 @@ export function DataGrid({
 
             {/* ---- Body ---- */}
             <tbody>
+              {/* Select-all escalation banner */}
+              {showSelectAllBanner && (
+                <tr>
+                  <td colSpan={totalColCount} className="p-0">
+                    <SelectAllBanner
+                      pageRowCount={pageIds.length}
+                      totalMatching={pagination?.total ?? data.length}
+                      selectAllMatchingFilters={selectAllMatchingFilters ?? false}
+                      onSelectAllMatching={onSelectAllMatching!}
+                      onClearSelection={onClearSelection ?? (() => {})}
+                    />
+                  </td>
+                </tr>
+              )}
+
               {/* Loading skeleton */}
               {isLoading &&
                 Array.from({ length: 10 }).map((_, rowIdx) => (
