@@ -27,7 +27,7 @@ Detail views show the full information about a single entity (district, plan, ac
 ├───────────────────────────────────────────┤
 │  Entity Header                             │
 │  - Name (text-lg font-bold text-[#403770])│
-│  - Metadata line (text-xs text-gray-500)  │
+│  - Metadata line (text-xs text-[#8A80A8]) │
 │  - Tags / signal badges                   │
 ├───────────────────────────────────────────┤
 │  Tab Strip (optional)                      │
@@ -47,29 +47,29 @@ All detail views open with a back-button row that doubles as a breadcrumb label.
 
 ```tsx
 {/* Back button header — DistrictDetailPanel */}
-<div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
+<div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#E2DEEC]">
   <button
     onClick={goBack}
-    className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+    className="w-7 h-7 rounded-lg hover:bg-[#EFEDF5] flex items-center justify-center transition-colors text-[#A69DC0] hover:text-[#403770]"
     aria-label="Go back"
   >
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path
         d="M9 3L5 7L9 11"
-        stroke="#6B7280"              {/* ← migration: use currentColor */}
+        stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
   </button>
-  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+  <span className="text-xs font-medium text-[#A69DC0] uppercase tracking-wider">
     District
   </span>
 </div>
 ```
 
-**Migration note:** `border-gray-100` should be `border-[#E2DEEC]`. `stroke="#6B7280"` should use `currentColor` with a text color token. `text-gray-400` should be `text-[#A69DC0]`. `hover:bg-gray-100` should be `hover:bg-[#EFEDF5]`.
+**Codebase status:** `DistrictDetailPanel` still uses `border-gray-100`, `stroke="#6B7280"`, `text-gray-400`, and `hover:bg-gray-100`. Migrate to the token-based values shown above when next modified.
 
 ---
 
@@ -77,19 +77,19 @@ All detail views open with a back-button row that doubles as a breadcrumb label.
 
 | Element | District Header | Plan Workspace Header |
 |---------|----------------|----------------------|
-| Name | `text-lg font-bold text-[#403770]` | `text-sm font-semibold text-gray-800` |
+| Name | `text-lg font-bold text-[#403770]` | `text-sm font-semibold text-[#403770]` |
 | Account type badge | `px-2 py-0.5 text-[10px] bg-plum/10 text-plum rounded-full` | -- |
-| Metadata line | State + County + LEAID in `text-xs text-gray-500` | -- |
-| External links | Website + Job Board icon buttons (`w-7 h-7 rounded-md`) | Edit button (pencil icon, `w-7 h-7 rounded-lg`) |
+| Metadata line | State + County + LEAID in `text-xs text-[#8A80A8]` | -- |
+| External links | Website + Job Board icon buttons (`w-7 h-7 rounded-lg`) | Edit button (pencil icon, `w-7 h-7 rounded-lg`) |
 | Tags | Color-coded tag pills (`rounded-full text-white` + `style={{ backgroundColor }}`) | Status + FY + district count + state badges |
 | Signal strip | `SignalBadge` trend indicators (compact) | -- |
-| Compact stats | Enrollment, Grades, Schools in `text-xs text-gray-500` | Owner + collaborators badges |
+| Compact stats | Enrollment, Grades, Schools in `text-xs text-[#8A80A8]` | Owner + collaborators badges |
 
 ### District Header
 
 ```tsx
 {/* DistrictHeader.tsx — entity header */}
-<div className="px-3 pt-3 pb-2 border-b border-gray-100 bg-gradient-to-b from-[#FFFCFA] to-white">
+<div className="px-3 pt-3 pb-2 border-b border-[#E2DEEC] bg-gradient-to-b from-[#FFFCFA] to-white">
   <h2 className="text-lg font-bold text-[#403770] pr-8 leading-tight">
     {district.name}
   </h2>
@@ -100,7 +100,7 @@ All detail views open with a back-button row that doubles as a breadcrumb label.
     </span>
   )}
   {/* Metadata: State · County · LEAID */}
-  <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+  <div className="flex items-center gap-2 mt-1 text-xs text-[#8A80A8]">
     <span>{district.stateAbbrev}</span>
     <span>·</span>
     <span>{district.countyName} County</span>
@@ -125,7 +125,7 @@ All detail views open with a back-button row that doubles as a breadcrumb label.
     {/* ... additional signal badges */}
   </div>
   {/* Compact stats */}
-  <div className="mt-2 text-xs text-gray-500">
+  <div className="mt-2 text-xs text-[#8A80A8]">
     {district.enrollment.toLocaleString()} students · {formatGrades(...)} · {district.numberOfSchools} schools
   </div>
 </div>
@@ -135,16 +135,16 @@ All detail views open with a back-button row that doubles as a breadcrumb label.
 
 ```tsx
 {/* PlanWorkspace.tsx — header with inline back button */}
-<div className="px-3 pt-2.5 pb-2 border-b border-gray-100">
+<div className="px-3 pt-2.5 pb-2 border-b border-[#E2DEEC]">
   <div className="flex items-center gap-2 mb-2">
-    <button onClick={goBack} className="w-7 h-7 rounded-lg hover:bg-gray-100 ..." aria-label="Go back">
+    <button onClick={goBack} className="w-7 h-7 rounded-lg hover:bg-[#EFEDF5] text-[#A69DC0] hover:text-[#403770] ..." aria-label="Go back">
       {/* ← arrow SVG */}
     </button>
-    <h2 className="text-sm font-semibold text-gray-800 truncate flex-1">
+    <h2 className="text-sm font-semibold text-[#403770] truncate flex-1">
       {plan.name}
     </h2>
-    <button onClick={() => openRightPanel({ type: "plan_edit" })} className="w-7 h-7 rounded-lg ..." aria-label="Edit plan">
-      {/* pencil SVG, stroke="#9CA3AF" — migration: use currentColor */}
+    <button onClick={() => openRightPanel({ type: "plan_edit" })} className="w-7 h-7 rounded-lg text-[#A69DC0] hover:text-[#403770] ..." aria-label="Edit plan">
+      {/* pencil SVG — uses currentColor */}
     </button>
   </div>
   {/* Badge row */}
@@ -155,17 +155,17 @@ All detail views open with a back-button row that doubles as a breadcrumb label.
     <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-plum/10 text-plum">
       FY {plan.fiscalYear}
     </span>
-    <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
+    <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-[#EFEDF5] text-[#6E6390]">
       {plan.districts.length} districts
     </span>
-    {/* State badges: bg-blue-50 text-blue-700 */}
-    {/* Owner: bg-gray-100 text-gray-600 */}
-    {/* Collaborators: bg-purple-50 text-purple-700 */}
+    {/* State badges: bg-[#e8f1f5] text-[#4d7285] */}
+    {/* Owner: bg-[#EFEDF5] text-[#6E6390] */}
+    {/* Collaborators: bg-plum/10 text-plum */}
   </div>
 </div>
 ```
 
-**Migration note (both headers):** `border-gray-100` should be `border-[#E2DEEC]`. `text-gray-500` metadata should be `text-[#8F87A8]`. `text-gray-800` plan name should be `text-[#403770]`.
+**Codebase status (both headers):** Current code uses `border-gray-100`, `text-gray-500`, `text-gray-800`, `hover:bg-gray-100`, `stroke="#9CA3AF"`, `bg-gray-100 text-gray-600` badges. Migrate to the token-based values shown above when next modified.
 
 ---
 
@@ -182,10 +182,10 @@ Two variants share identical button styling.
 
 | Part | Classes |
 |------|---------|
-| Container | `flex border-b border-gray-100` |
+| Container | `flex border-b border-[#E2DEEC]` |
 | Button | `flex-1 flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors` |
 | Active | `bg-plum/10 text-plum` |
-| Inactive | `text-gray-400 hover:text-gray-600 hover:bg-gray-50` |
+| Inactive | `text-[#A69DC0] hover:text-[#6E6390] hover:bg-[#F7F5FA]` |
 | Icon | `width="14" height="14" viewBox="0 0 16 16"`, `stroke="currentColor"` |
 
 ```tsx
@@ -195,7 +195,7 @@ Two variants share identical button styling.
   className={`flex-1 flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors ${
     isActive
       ? "bg-plum/10 text-plum"
-      : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+      : "text-[#A69DC0] hover:text-[#6E6390] hover:bg-[#F7F5FA]"
   }`}
 >
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="shrink-0">
@@ -223,7 +223,7 @@ Two variants share identical button styling.
 )}
 ```
 
-**Migration note:** `border-gray-100` should be `border-[#E2DEEC]`. `text-gray-400` should be `text-[#A69DC0]`. `hover:text-gray-600` should be `hover:text-[#6B6188]`. `hover:bg-gray-50` should be `hover:bg-[#F7F5FA]`.
+**Codebase status:** Both tab strip variants still use `border-gray-100`, `text-gray-400`, `hover:text-gray-600`, `hover:bg-gray-50`. Migrate to the token-based values shown above when next modified.
 
 ---
 
@@ -237,14 +237,14 @@ District detail uses a vertical card stack for data sections.
 
 | Part | Classes |
 |------|---------|
-| Shell | `border border-gray-100 rounded-xl bg-white` |
+| Shell | `border border-[#D4CFE2] rounded-lg bg-white` |
 | Header row | `flex items-center justify-between px-3 pt-3 pb-1` |
-| Icon | `text-gray-400` wrapper around SVG |
+| Icon | `text-[#A69DC0]` wrapper around SVG |
 | Title | `text-sm font-semibold text-[#403770]` |
 | Badge | Right-aligned slot (ReactNode) |
 | Content | `px-3 pb-3` |
-| Expand toggle | `w-full flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-400 hover:text-[#403770] border-t border-gray-50` |
-| Expanded content | `px-3 pb-3 border-t border-gray-50` |
+| Expand toggle | `w-full flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#A69DC0] hover:text-[#403770] border-t border-[#E2DEEC]` |
+| Expanded content | `px-3 pb-3 border-t border-[#E2DEEC]` |
 
 ```tsx
 {/* SignalCard usage — DistrictDetailPanel */}
@@ -265,7 +265,7 @@ District detail uses a vertical card stack for data sections.
 
 Chevron rotates on expand: `transition-transform ${expanded ? "rotate-90" : ""}`.
 
-**Migration note:** `border-gray-100` shell should be `border-[#D4CFE2]`. `border-gray-50` dividers should be `border-[#E2DEEC]`. `text-gray-400` icon/toggle should be `text-[#A69DC0]`.
+**Codebase status:** `SignalCard` still uses `border-gray-100`, `rounded-xl`, `border-gray-50`, `text-gray-400`. Migrate to the token-based values shown above when next modified.
 
 ---
 
@@ -280,29 +280,29 @@ Chevron rotates on expand: `transition-transform ${expanded ? "rotate-90" : ""}`
 | Name placeholder | `h-5 bg-[#C4E7E6]/20 rounded w-4/5 animate-pulse` |
 | Metadata placeholder | `h-3 bg-[#C4E7E6]/15 rounded w-1/3 animate-pulse` |
 | Tag row | `h-5 bg-[#C4E7E6]/20 rounded-full w-20 animate-pulse` (x4) |
-| Card skeleton | `border border-gray-100 rounded-xl p-3 animate-pulse space-y-2` |
+| Card skeleton | `border border-[#D4CFE2] rounded-lg p-3 animate-pulse space-y-2` |
 
 **Plan workspace skeleton** (`PlanWorkspace` inline):
 
 | Element | Classes |
 |---------|---------|
-| Title placeholder | `h-4 bg-gray-200 rounded w-3/4 animate-pulse` |
-| Badge placeholders | `h-5 bg-gray-100 rounded-full w-14 animate-pulse` |
+| Title placeholder | `h-4 bg-[#C4E7E6]/20 rounded w-3/4 animate-pulse` |
+| Badge placeholders | `h-5 bg-[#C4E7E6]/20 rounded-full w-14 animate-pulse` |
 
 **District card skeleton** (`DistrictCard > LoadingSkeleton`):
 
 | Element | Classes |
 |---------|---------|
-| Name placeholder | `h-4 bg-gray-200 rounded w-3/4 animate-pulse` |
+| Name placeholder | `h-4 bg-[#C4E7E6]/20 rounded w-3/4 animate-pulse` |
 | Badge placeholder | `h-5 bg-plum/10 rounded-full w-20 animate-pulse` |
-| Stat grid | `grid grid-cols-2 gap-1.5` with `rounded-lg bg-gray-50 p-2 animate-pulse` cells |
+| Stat grid | `grid grid-cols-2 gap-1.5` with `rounded-lg bg-[#F7F5FA] p-2 animate-pulse` cells |
 
 ### Error / Not Found
 
 | State | Classes | Message |
 |-------|---------|---------|
-| Error | `text-center py-8 text-sm text-red-400` | "Failed to load district details" |
-| Not found | `text-center py-8 text-sm text-gray-400` | "District not found" |
+| Error | `text-center py-8 text-sm text-[#F37167]` | "Failed to load district details" |
+| Not found | `text-center py-8 text-sm text-[#A69DC0]` | "District not found" |
 
 **Migration note:** Skeleton fills use on-brand `bg-[#C4E7E6]/20` in district detail but plain `bg-gray-200` in plan workspace and district card. Plan/card skeletons should migrate to `bg-[#C4E7E6]/20`.
 

@@ -6,6 +6,12 @@ not redefine it — just reference this file.
 
 All values come from `tokens.md`. No Tailwind grays (`gray-*`) in container components.
 
+## Visual Reference — Paper Design System
+
+File: "Mapomatic Design System" → Page: "Components" → Artboard: "Containers" (ID: `28W-1`)
+
+Use `mcp__paper__get_screenshot(nodeId: "28W-1")` for a visual overview, or `mcp__paper__get_children(nodeId: "28W-1")` to browse individual sections.
+
 ---
 
 ## Which Container?

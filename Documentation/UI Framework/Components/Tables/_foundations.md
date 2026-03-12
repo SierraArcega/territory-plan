@@ -5,6 +5,12 @@ every use case. All patterns use the Fullmind design token system (`tokens.md`).
 
 For pagination controls, see `Navigation/pagination.md` (canonical source).
 
+## Visual Reference — Paper Design System
+
+File: "Mapomatic Design System" → Page: "Components" → Artboard: "Tables" (ID: `1CS-0`)
+
+Use `mcp__paper__get_screenshot(nodeId: "1CS-0")` for a visual overview, or `mcp__paper__get_children(nodeId: "1CS-0")` to browse individual sections.
+
 ## Choosing a Table Type
 
 | Question | Tier |

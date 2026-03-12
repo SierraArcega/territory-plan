@@ -4,6 +4,12 @@ Shared rules for all layout patterns in the territory planner. Every pattern fil
 
 For related component patterns, see sibling files: `page-shells.md`, `sidebar-and-panels.md`, `grids-and-composition.md`.
 
+## Visual Reference — Paper Design System
+
+File: "Mapomatic Design System" → Page: "Components" → Artboard: "Layouts" (ID: `22F-1`)
+
+Use `mcp__paper__get_screenshot(nodeId: "22F-1")` for a visual overview, or `mcp__paper__get_children(nodeId: "22F-1")` to browse individual sections.
+
 ---
 
 ## Flex vs Grid Decision Tree

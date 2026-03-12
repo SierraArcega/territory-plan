@@ -8,6 +8,12 @@ All values come from `tokens.md`. No Tailwind grays (`gray-*`) in navigation com
 
 For expand/collapse container patterns (accordion, collapsible sections), see `Containers/accordion.md`. The sidebar collapse pattern remains documented here as a navigation concern.
 
+## Visual Reference — Paper Design System
+
+File: "Mapomatic Design System" → Page: "Components" → Artboard: "Navigation" (ID: `1VO-1`)
+
+Use `mcp__paper__get_screenshot(nodeId: "1VO-1")` for a visual overview, or `mcp__paper__get_children(nodeId: "1VO-1")` to browse individual sections.
+
 ---
 
 ## Active State System — Coral Accent
