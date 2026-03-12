@@ -1,15 +1,7 @@
 // Column definitions for the Contacts entity in the Explore data table.
 // Keys match the field names returned by GET /api/explore/contacts.
 
-export interface ColumnDef {
-  key: string;
-  label: string;
-  group: string;
-  isDefault: boolean;
-  filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags";
-  enumValues?: string[];
-  editable?: boolean;
-}
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 export interface ContactRow {
   id: string;
@@ -79,6 +71,7 @@ export const contactColumns: ColumnDef[] = [
     group: "Profile",
     isDefault: false,
     filterType: "text",
+    sortable: false,
   },
 
   // ---- Association ----

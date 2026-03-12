@@ -1,15 +1,7 @@
 // Column definitions for the Activities entity in the Explore data table.
 // Keys match the field names returned by GET /api/explore/activities.
 
-export interface ColumnDef {
-  key: string;
-  label: string;
-  group: string;
-  isDefault: boolean;
-  filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags";
-  enumValues?: string[];
-  editable?: boolean;
-}
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 export interface ActivityRow {
   id: string;
@@ -137,6 +129,7 @@ export const activityColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: true,
     filterType: "text",
+    sortable: false,
   },
   {
     key: "planNames",
@@ -144,6 +137,7 @@ export const activityColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: true,
     filterType: "text",
+    sortable: false,
   },
   {
     key: "contactNames",
@@ -151,5 +145,6 @@ export const activityColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: false,
     filterType: "text",
+    sortable: false,
   },
 ];

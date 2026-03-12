@@ -1,16 +1,7 @@
 // Column definitions for the Districts entity in the Explore data table.
 // Keys match the field names returned by GET /api/explore/districts.
 
-export interface ColumnDef {
-  key: string;
-  label: string;
-  group: string;
-  isDefault: boolean;
-  filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags" | "relation";
-  enumValues?: string[];
-  relationSource?: "tags" | "plans";
-  editable?: boolean;
-}
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 export interface DistrictRow {
   leaid: string;
@@ -915,6 +906,7 @@ export const districtColumns: ColumnDef[] = [
     group: "Links",
     isDefault: false,
     filterType: "text",
+    sortable: false,
   },
   {
     key: "jobBoardUrl",
@@ -922,6 +914,7 @@ export const districtColumns: ColumnDef[] = [
     group: "Links",
     isDefault: false,
     filterType: "text",
+    sortable: false,
   },
 
   // ---- Signals ----
@@ -932,6 +925,7 @@ export const districtColumns: ColumnDef[] = [
     isDefault: true,
     filterType: "relation",
     relationSource: "plans",
+    sortable: false,
   },
 
   // ---- Engagement ----
@@ -949,6 +943,7 @@ export const districtColumns: ColumnDef[] = [
     isDefault: true,
     filterType: "relation",
     relationSource: "tags",
+    sortable: false,
   },
 ];
 

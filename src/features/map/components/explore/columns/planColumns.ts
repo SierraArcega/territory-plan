@@ -1,7 +1,7 @@
 // Column definitions for the Plans entity in the Explore data table.
 // Keys match the field names returned by GET /api/explore/plans.
 
-import type { ColumnDef } from "./districtColumns";
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 export const planColumns: ColumnDef[] = [
   // ---- Core ----

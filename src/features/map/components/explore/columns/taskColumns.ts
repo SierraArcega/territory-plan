@@ -1,15 +1,7 @@
 // Column definitions for the Tasks entity in the Explore data table.
 // Keys match the field names returned by GET /api/explore/tasks.
 
-export interface ColumnDef {
-  key: string;
-  label: string;
-  group: string;
-  isDefault: boolean;
-  filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags";
-  enumValues?: string[];
-  editable?: boolean;
-}
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 export interface TaskRow {
   id: string;
@@ -81,6 +73,7 @@ export const taskColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: true,
     filterType: "text",
+    sortable: false,
   },
   {
     key: "planNames",
@@ -88,6 +81,7 @@ export const taskColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: true,
     filterType: "text",
+    sortable: false,
   },
   {
     key: "contactNames",
@@ -95,6 +89,7 @@ export const taskColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: false,
     filterType: "text",
+    sortable: false,
   },
   {
     key: "activityNames",
@@ -102,5 +97,6 @@ export const taskColumns: ColumnDef[] = [
     group: "Associations",
     isDefault: false,
     filterType: "text",
+    sortable: false,
   },
 ];
