@@ -2,7 +2,7 @@
 
 ## Overview
 
-A comprehensive visual vocabulary for Mapomatic, establishing the standard icon library, emoji usage policy, and logo/app icon specifications. This document serves as the authoritative cross-cutting reference for all visual assets in the product, sitting alongside `tokens.md` and `forms.md` in the UI Framework.
+A comprehensive visual vocabulary for Mapomatic, establishing the standard icon library, emoji usage policy, and logo/app icon specifications. This document serves as the authoritative cross-cutting reference for all visual assets in the product, sitting alongside `tokens.md` in the UI Framework.
 
 ### Goals
 
@@ -39,7 +39,7 @@ Each component `_foundations.md` file will be updated to reference `iconography.
 **Lucide** (`lucide-react`) is the standard icon library for Mapomatic.
 
 **Rationale:**
-- Stroke-based by default — ships with `fill="none" stroke="currentColor"`, `strokeWidth={2}`, `strokeLinecap="round"`, `strokeLinejoin="round"`. This matches the existing specs already documented in `Navigation/_foundations.md` with zero adaptation.
+- Stroke-based by default — ships with `fill="none" stroke="currentColor"`, `strokeWidth={2}`, `strokeLinecap="round"`, `strokeLinejoin="round"`. This matches the stroke specifications already documented in `Navigation/_foundations.md`.
 - React-first — tree-shakeable named imports (`import { MapPin } from 'lucide-react'`).
 - Domain coverage — strong representation for school/education, map/geography, data/analytics, and organizational concepts.
 - 1,500+ icons — sufficient coverage without the overwhelming catalog size of larger libraries.
@@ -47,7 +47,7 @@ Each component `_foundations.md` file will be updated to reference `iconography.
 
 ### Technical Specifications
 
-These consolidate and canonicalize the icon specs currently scattered across component foundation files.
+These establish the canonical icon specs for Mapomatic. Existing component foundation files (e.g., `Navigation/_foundations.md`) define their own size tiers for component-specific contexts — those remain valid as component-level overrides. This section defines the system-wide defaults.
 
 | Property | Value |
 |----------|-------|
@@ -64,13 +64,17 @@ These consolidate and canonicalize the icon specs currently scattered across com
 
 ### Size Scale
 
-Aligned with the existing type scale from `tokens.md`.
+Aligned with the existing type scale from `tokens.md`. Component `_foundations.md` files may define their own tiers (e.g., Navigation uses `w-3.5 h-3.5` for compact contexts) — those are valid component-level overrides.
 
-| Context | Tailwind Class | Pixel Size | Usage |
-|---------|---------------|------------|-------|
-| Inline / Caption | `w-4 h-4` | 16px | Inside buttons, badges, table cells |
-| Default / Body | `w-5 h-5` | 20px | Navigation items, form inputs, list items |
-| Heading / Standalone | `w-6 h-6` | 24px | Page headers, empty states, card titles |
+| Context | Tailwind Class | Pixel Size | Stroke Width | Usage |
+|---------|---------------|------------|--------------|-------|
+| Compact | `w-3.5 h-3.5` | 14px | `2` | Compact nav items, dense table rows |
+| Inline / Caption | `w-4 h-4` | 16px | `2` | Inside buttons, badges, table cells |
+| Default / Body | `w-5 h-5` | 20px | `2` | Navigation items, form inputs, list items |
+| Heading / Standalone | `w-6 h-6` | 24px | `2` | Page headers, card titles |
+| Feature / Empty State | `w-10 h-10` | 40px | `1.5` | Empty state illustrations, feature highlights |
+
+**Note:** At the Feature / Empty State size, `strokeWidth` drops to `1.5` to maintain visual weight. All other sizes use the default `strokeWidth={2}`.
 
 ### Semantic Icon Map
 
@@ -114,7 +118,7 @@ One concept = one icon, always. This map is the canonical lookup. Organized by d
 | Graduation | `GraduationCap` | Achievement, completion |
 | Book / Curriculum | `BookOpen` | |
 | Calendar / Schedule | `Calendar` | |
-| Backpack / Student | `Backpack` | Individual student context |
+| Student (individual) | `UserRound` | Individual student context |
 
 #### Data & Actions
 
@@ -181,7 +185,7 @@ Used in empty states, onboarding flows, and conversational UI moments to align w
 
 | Context | Examples | Guideline |
 |---------|----------|-----------|
-| Empty states | 📋 🗺️ 🎯 | One emoji per empty state, placed above the heading |
+| Empty states | 📋 🗺️ 🎯 | Optional — may use a Lucide icon (at Feature size) or an emoji above the heading, not both. Existing icon-based empty states remain valid. |
 | Onboarding | 👋 🎉 🚀 | Welcoming tone, used sparingly in step headers |
 | Tooltips / hints | 💡 📌 | Only when the hint is informal/helpful, not critical |
 
@@ -190,7 +194,7 @@ Used in empty states, onboarding flows, and conversational UI moments to align w
 1. **Max one emoji per UI surface.** Never stack or cluster emojis.
 2. **Never in navigation, table data, or form labels.** Those contexts use Lucide icons only.
 3. **System emoji only.** No custom emoji images — rely on native platform rendering for consistency.
-4. **No emoji in error-critical paths.** Error modals and destructive confirmations use icons only for clarity.
+4. **No emoji in destructive/modal contexts.** Error modals and destructive confirmations use Lucide icons only for clarity. Lightweight feedback (toasts, inline alerts) may use Tier 1 emojis.
 5. **Accessibility.** Emojis in HTML receive `role="img"` and `aria-label` describing their meaning. Example: `<span role="img" aria-label="Success">✅</span>`.
 
 ---
@@ -247,13 +251,13 @@ Each component category `_foundations.md` will be updated to:
 
 Specifically:
 - `Navigation/_foundations.md` — currently contains the most icon specs; these move to `iconography.md`.
-- `Display/_foundations.md` — empty state icons reference the emoji policy.
+- `Display/_foundations.md` — empty states may use either a Lucide icon (Feature size) or a Tier 2 emoji; references updated to point to `iconography.md` for both options.
 - `Containers/_foundations.md` — close/dismiss icon standardized to `X`.
 
 ### No changes to
 
 - `tokens.md` — remains focused on color, type, spacing, elevation, animation tokens.
-- `forms.md` — no icon-specific content.
+- `Components/forms.md` — no icon-specific content.
 - Individual component files (e.g., `modal.md`, `tabs.md`) — these reference their `_foundations.md` which in turn references `iconography.md`.
 
 ---
@@ -261,5 +265,4 @@ Specifically:
 ## Open Questions
 
 1. **Custom icons:** If Lucide gaps are discovered during implementation, should custom icons be added to a project-level SVG sprite, or as individual React components?
-2. **Icon map growth:** At what threshold (50+ entries? 75+?) should the semantic icon map be extracted to a separate `icon-map.md` lookup table?
-3. **Emoji rendering variance:** Should the doc include a note about cross-platform emoji rendering differences (Windows vs. macOS vs. mobile), or is native rendering acceptable as-is?
+2. **Emoji rendering variance:** Should the doc include a note about cross-platform emoji rendering differences (Windows vs. macOS vs. mobile), or is native rendering acceptable as-is?
