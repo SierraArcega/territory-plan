@@ -622,8 +622,12 @@ Pagination
 
 | Component | File |
 |---|---|
-| ExploreTable (current implementation) | `src/features/map/components/explore/ExploreTable.tsx` |
-| ExploreOverlay (parent/state owner) | `src/features/map/components/explore/ExploreOverlay.tsx` |
+| DataGrid (shared) | `src/features/shared/components/DataGrid/DataGrid.tsx` |
+| DataGrid types | `src/features/shared/components/DataGrid/types.ts` |
+| renderCell utility | `src/features/shared/components/DataGrid/renderCell.tsx` |
+| SelectAllBanner | `src/features/shared/components/DataGrid/SelectAllBanner.tsx` |
+| ExploreOverlay (state owner) | `src/features/map/components/explore/ExploreOverlay.tsx` |
+| Entity cell renderers | `src/features/map/components/explore/cellRenderers.tsx` |
 | District column definitions | `src/features/map/components/explore/columns/districtColumns.ts` |
 | Activity column definitions | `src/features/map/components/explore/columns/activityColumns.ts` |
 | Task column definitions | `src/features/map/components/explore/columns/taskColumns.ts` |
