@@ -11,6 +11,7 @@ See `bar-chart.md` § Bar Styling and `line-chart.md` § Line Styling for encodi
 
 - Showing volume/counts (bars) alongside a rate, average, or trend (line)
 - e.g., monthly activity counts as bars with a 3-month rolling average line overlay
+- e.g., revenue per district as bars with a target/benchmark line
 - Not when both series are same unit and scale — use grouped bar or multi-series line instead
 - Not for unrelated metrics — the two series must share a meaningful relationship
 
