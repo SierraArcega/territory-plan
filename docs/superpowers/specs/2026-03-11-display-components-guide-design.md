@@ -46,9 +46,13 @@ Maps the semantic colors from `tokens.md` to display component use cases. Every 
 | Semantic | Badge fill | Badge text | Callout bg | Progress bar | Dot indicator |
 |----------|-----------|------------|------------|-------------|---------------|
 | Error | `bg-[#fef1f0]` | `text-[#c25a52]` | `bg-[#fef1f0]` | `bg-[#F37167]` | `bg-[#F37167]` |
-| Warning | `bg-[#FFCF70]/20` | `text-[#997c43]` | `bg-[#fffaf1]` | `bg-[#D4A84B]` | `bg-[#FFCF70]` |
+| Warning | `bg-[#fffaf1]` | `text-[#997c43]` | `bg-[#fffaf1]` | `bg-[#D4A84B]` | `bg-[#FFCF70]` |
 | Success | `bg-[#EDFFE3]` | `text-[#5f665b]` | `bg-[#F7FFF2]` | `bg-[#69B34A]` | `bg-[#8AA891]` |
-| Info | `bg-[#6EA3BE]/15` | `text-[#4d7285]` | `bg-[#e8f1f5]` | `bg-[#6EA3BE]` | `bg-[#6EA3BE]` |
+| Info | `bg-[#e8f1f5]` | `text-[#4d7285]` | `bg-[#e8f1f5]` | `bg-[#6EA3BE]` | `bg-[#6EA3BE]` |
+
+**Badge fill vs callout bg:** Badge fills and callout backgrounds use the same solid semantic background hex from `tokens.md`, except for Success which uses Mint (`#EDFFE3`) from the brand palette for badge fills — the slightly higher saturation reads better at small badge sizes than `#F7FFF2`.
+
+**Display-specific text colors:** The badge text values (`#c25a52`, `#997c43`, `#5f665b`, `#4d7285`) and Warning progress bar color (`#D4A84B`) are darker contrast-friendly variants of the semantic strong colors, needed for WCAG AA text legibility on light badge backgrounds. These extend the `tokens.md` semantic palette and should be added to `tokens.md` as a "Semantic Text (Dark)" row during implementation.
 
 ### Display Container
 
@@ -124,9 +128,13 @@ When a display element has no data:
 | Level | Background | Text |
 |-------|-----------|------|
 | Growing | `bg-[#EDFFE3]` | `text-[#5f665b]` |
-| Stable | `bg-[#6EA3BE]/15` | `text-[#4d7285]` |
-| At Risk | `bg-[#FFCF70]/20` | `text-[#997c43]` |
+| Stable | `bg-[#e8f1f5]` | `text-[#4d7285]` |
+| At Risk | `bg-[#fffaf1]` | `text-[#997c43]` |
 | Declining | `bg-[#fef1f0]` | `text-[#c25a52]` |
+
+All signal badge fills use solid semantic background hex values. This ensures consistent rendering regardless of parent background color.
+
+**Migration note:** SignalBadge currently uses opacity-based fills (`#6EA3BE/15`, `#FFCF70/20`) — migrate to solid hex values above.
 
 ### Status Badges
 
@@ -348,7 +356,7 @@ bg-white/95 backdrop-blur-sm rounded-xl shadow-lg
 px-3 py-2 max-w-[220px]
 ```
 
-Uses `z-20` (Panels tier) per `tokens.md` z-index layers. `rounded-xl` is intentional — tooltips are floating elements, which use `rounded-xl` per `tokens.md`.
+Map tooltips use `z-20` rather than the general `z-30` tooltip tier because they must float above map chrome (`z-10`) but should not overlay panels or popovers — they are contextual to the map surface. General tooltips (e.g., on icon buttons outside the map) should use `z-30` per `tokens.md`. `rounded-xl` is intentional — tooltips are floating elements, which use `rounded-xl` per `tokens.md`.
 
 **Migration note:** MapV2Tooltip currently uses `z-[15]` — migrate to `z-20`.
 
