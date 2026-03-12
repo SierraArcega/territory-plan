@@ -55,7 +55,10 @@ A dedicated ordered palette for chart series data, drawn from brand tokens. This
 | 4 | `#FFCF70` | Golden | Fourth series |
 | 5 | `#8AA891` | Sage | Fifth series (derived from success family) |
 | 6 | `#C4E7E6` | Robin's Egg | Sixth series (light, use with dark text) |
-| 7 | `#544A78` | Plum Strong | Seventh series (darker plum variant) |
+
+**Prerequisite:** `#8AA891` (Sage) is used across the codebase but has not been formally added to `tokens.md` Brand Palette. It must be added to `tokens.md` before or alongside this documentation work.
+
+**Max series:** 6 is the practical limit. Charts with more than 6 series should group the smallest values into an "Other" segment using `#EFEDF5` (Hover surface).
 
 Rules:
 - Always assign colors in this order for unnamed/generic series.
@@ -102,7 +105,7 @@ function ChartTooltip({ active, payload, label, formatter }: TooltipProps) {
       {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-2">
           <div
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            className="w-2 h-2 rounded-full flex-shrink-0"
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-[#6E6390]">{entry.name}</span>
@@ -116,14 +119,22 @@ function ChartTooltip({ active, payload, label, formatter }: TooltipProps) {
 }
 ```
 
+Note: `ChartTooltipProps` is a custom interface — not Recharts' `TooltipProps<ValueType, NameType>`. The `formatter` prop is our extension. Wire it into Recharts via the `content` prop:
+
+```tsx
+<Tooltip content={<ChartTooltip formatter={(v) => `$${v.toLocaleString()}`} />} />
+```
+
+Recharts passes `active`, `payload`, and `label` automatically through the `content` prop.
+
 Key rules:
 - Border: `border-[#D4CFE2]` (Border Default)
-- Shadow: `shadow-lg` (Medium elevation — tooltips float above chart)
+- Shadow: `shadow-lg` (Medium elevation — same tier as map tooltips per Display docs)
 - Radius: `rounded-lg`
 - Label text: `text-[#8A80A8]` (Secondary)
 - Value text: `text-[#403770]` (Primary / Plum)
 - Name text: `text-[#6E6390]` (Body)
-- Color swatch: `w-2.5 h-2.5 rounded-full`
+- Color swatch: `w-2 h-2 rounded-full` (matches Status Dot pattern from Display `_foundations.md`)
 
 #### 5. Legend Pattern
 
@@ -135,7 +146,7 @@ Two layouts depending on context:
   {data.map((item) => (
     <div key={item.key} className="flex items-center gap-2">
       <div
-        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: item.color }}
       />
       <span className="text-[#6E6390] text-xs">{item.label}</span>
@@ -153,7 +164,7 @@ Two layouts depending on context:
   {data.map((item) => (
     <div key={item.key} className="flex items-center gap-2">
       <div
-        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: item.color }}
       />
       <span className="text-[#6E6390] text-xs truncate">{item.label}</span>
@@ -163,8 +174,10 @@ Two layouts depending on context:
 </div>
 ```
 
+Grid legend uses `text-[#8A80A8]` (Secondary) for values instead of `text-[#403770]` (Primary) — this is intentional. In narrow contexts, de-emphasizing the value avoids visual competition with the label text at small sizes.
+
 Rules:
-- Color swatch: `w-2.5 h-2.5 rounded-full` — always matches the chart series color
+- Color swatch: `w-2 h-2 rounded-full` — matches Status Dot from Display `_foundations.md`
 - Never use Recharts' built-in `<Legend>` component — it doesn't match our token system
 - Legend placement: inline (right of chart) when container ≥ 400px wide, grid (below) otherwise
 
@@ -201,7 +214,13 @@ Keep animations subtle. Don't animate on re-render — only on initial mount.
 
 #### 9. Accessibility
 
-- Every chart container must have `role="img"` and a descriptive `aria-label` summarizing the data (e.g., `aria-label="Revenue sources: 45% Local, 35% State, 20% Federal"`).
+- Every chart container must have `role="img"` and a descriptive `aria-label` summarizing the data. Templates by chart type:
+  - **Donut**: `aria-label="{metric}: {value1}% {label1}, {value2}% {label2}, ..."`
+    e.g., `"Revenue sources: 45% Local, 35% State, 20% Federal"`
+  - **Bar**: `aria-label="{metric} by {category}: {label1} {value1}, {label2} {value2}, ..."`
+    e.g., `"Spending by district: Springfield $12K, Shelbyville $9K"`
+  - **Line**: `aria-label="{metric} trend from {start} to {end}"`
+    e.g., `"Enrollment trend from 2020 to 2025"`
 - Color alone must not convey meaning — pair colors with labels in legends and tooltips.
 - Series colors follow the palette order which is designed for distinguishability; however, for charts with 5+ series, verify adjacent segments have sufficient contrast.
 - Tooltip content must be accessible via keyboard focus where the chart library supports it.
@@ -258,6 +277,7 @@ Table of existing components (to be updated as drift is cleaned up):
 | DemographicsChart | `src/features/districts/components/DemographicsChart.tsx` | Needs token migration |
 | FinanceData | `src/features/districts/components/FinanceData.tsx` | Needs token migration |
 | FinanceCard | `src/features/map/components/panels/district/FinanceCard.tsx` | Needs token migration |
+| ProportionalDonut | `src/features/plans/components/ProportionalDonut.tsx` | Lightweight SVG donut (no Recharts) for inline/micro use in plan cards. Keep as-is for its use case; use Recharts PieChart for full-featured donuts. Background track uses `stroke="#f0f0f0"` — migrate to `#EFEDF5`. |
 
 ---
 
@@ -303,7 +323,7 @@ Rules:
 
 | Prop | Value |
 |------|-------|
-| `radius` | `[4, 4, 0, 0]` (top corners rounded) |
+| `radius` | Vertical: `[4, 4, 0, 0]` (top rounded). Horizontal: `[0, 4, 4, 0]` (right rounded). |
 | `maxBarSize` | `48` (prevents bars from being too wide on sparse data) |
 | Bar gap | Use Recharts defaults (`barGap` and `barCategoryGap`) |
 
