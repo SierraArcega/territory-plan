@@ -39,7 +39,7 @@ Applied from `tokens.md` Spacing Rhythm section:
 
 Core breakpoints from `tokens.md`: base (0+), `sm:` (640px+), `xl:` (1280px+).
 
-Layout code also uses `md:` (768px) and `lg:` (1024px) for grid column shifts — these are standard Tailwind breakpoints used in layout contexts even though they aren't in the core token set:
+Layout code also uses `md:` (768px+) and `lg:` (1024px+) for grid column shifts — these are standard Tailwind breakpoints used in layout contexts even though they aren't in the core token set:
 
 - Base: `grid-cols-1` (single column)
 - `md:`: `grid-cols-2` (two columns on tablet)
@@ -61,4 +61,5 @@ Layout code also uses `md:` (768px) and `lg:` (1024px) for grid column shifts �
 - Arbitrary pixel gaps (`gap-[13px]`, `p-[7px]`) — use Tailwind's 4px grid
 - Nested scroll containers — only one scrollable area per view
 - `w-screen` / `h-screen` — use `h-full` (views live inside AppShell, not the viewport)
-- `shadow-md` or `rounded-sm` / `rounded-md` — not in the elevation scale (note: `hover:shadow-md` exists in HomeView calendar buttons — migrate to `hover:shadow-sm` or `hover:shadow-lg`)
+- `shadow-md`, `rounded-sm`, or `rounded-md` — not in the elevation scale
+  - Exception: `hover:shadow-md` in HomeView calendar buttons — migrate to `hover:shadow-sm` or `hover:shadow-lg`
