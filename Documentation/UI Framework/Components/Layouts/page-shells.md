@@ -25,7 +25,7 @@ The outermost container. Every view renders inside this.
 - `fixed inset-0` — viewport-filling root
 - `flex flex-col` — vertical stack (FilterBar on top, content below)
 - `flex-1 flex overflow-hidden min-h-0` — sidebar + content row
-- `main flex-1 relative overflow-hidden` — content area fills remaining space
+- `<main>`: `flex-1 relative overflow-hidden` — content area fills remaining space
 
 File: `src/features/shared/components/layout/AppShell.tsx`
 
@@ -87,7 +87,9 @@ Use when you need a gradient banner with negative-margin content overlap.
 - Banner: `px-8 pt-8 pb-28` — extra bottom padding creates overlap zone
 - Content: `relative -mt-20` — pulls content up into the banner
 - Sections: `space-y-6` — consistent vertical rhythm between cards
-- Section cards: `bg-white rounded-2xl shadow-sm border border-gray-100` — dashboard cards use `rounded-2xl` (not `rounded-lg`) and `border-gray-100` (not the standard `border-[#D4CFE2]`) for a softer, more prominent feel. This is intentional for the dashboard context.
+- Section cards: `bg-white rounded-2xl shadow-sm border border-gray-100`
+
+> **Dashboard variant:** Cards here use `rounded-2xl` (not `rounded-lg`) and `border-gray-100` (not the standard `border-[#D4CFE2]`) for a softer, more prominent feel. This is intentional for the dashboard context.
 
 Example: HomeView
 
@@ -113,7 +115,7 @@ Use when you need a full-bleed canvas with floating chrome overlays.
 - `relative w-full h-full overflow-hidden` — fills parent, no scroll
 - Canvas: renders at `absolute inset-0` behind all overlays
 - All chrome: absolutely positioned at various z-indices
-- Z-layers: `z-10` for map chrome, `z-20` for panels/controls (from `tokens.md`)
+- Z-layers: `z-10` for map chrome, `z-20` for panels/controls (see `tokens.md` Z-Index Layers)
 
 **Rules:**
 
