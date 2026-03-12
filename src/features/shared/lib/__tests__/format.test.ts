@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCurrency, formatNumber } from "../format";
+import { formatCurrency, formatNumber, formatPercent, formatCompactNumber } from "../format";
 
 // ===========================================================================
 // formatCurrency
@@ -78,5 +78,85 @@ describe("formatNumber", () => {
 
   it("formats small numbers without commas", () => {
     expect(formatNumber(100)).toBe("100");
+  });
+});
+
+// ===========================================================================
+// formatPercent
+// ===========================================================================
+
+describe("formatPercent", () => {
+  it("returns '-' for null", () => {
+    expect(formatPercent(null)).toBe("-");
+  });
+
+  it("returns '-' for undefined", () => {
+    expect(formatPercent(undefined)).toBe("-");
+  });
+
+  it("formats a decimal as percentage", () => {
+    expect(formatPercent(0.847)).toBe("84.7%");
+  });
+
+  it("formats 1 as 100%", () => {
+    expect(formatPercent(1)).toBe("100%");
+  });
+
+  it("formats 0 as 0%", () => {
+    expect(formatPercent(0)).toBe("0%");
+  });
+
+  it("respects custom decimal places", () => {
+    expect(formatPercent(0.8471, 2)).toBe("84.71%");
+  });
+
+  it("defaults to 1 decimal place", () => {
+    expect(formatPercent(0.3333)).toBe("33.3%");
+  });
+
+  it("drops trailing zeros", () => {
+    expect(formatPercent(0.5)).toBe("50%");
+  });
+});
+
+// ===========================================================================
+// formatCompactNumber
+// ===========================================================================
+
+describe("formatCompactNumber", () => {
+  it("returns '-' for null", () => {
+    expect(formatCompactNumber(null)).toBe("-");
+  });
+
+  it("returns '-' for undefined", () => {
+    expect(formatCompactNumber(undefined)).toBe("-");
+  });
+
+  it("formats millions with M suffix", () => {
+    expect(formatCompactNumber(1200000)).toBe("1.2M");
+  });
+
+  it("formats thousands with K suffix", () => {
+    expect(formatCompactNumber(14832)).toBe("14.8K");
+  });
+
+  it("formats small numbers without suffix", () => {
+    expect(formatCompactNumber(500)).toBe("500");
+  });
+
+  it("formats zero as '0'", () => {
+    expect(formatCompactNumber(0)).toBe("0");
+  });
+
+  it("handles exactly 1M", () => {
+    expect(formatCompactNumber(1000000)).toBe("1M");
+  });
+
+  it("handles exactly 1K", () => {
+    expect(formatCompactNumber(1000)).toBe("1K");
+  });
+
+  it("handles negative values", () => {
+    expect(formatCompactNumber(-2500000)).toBe("-2.5M");
   });
 });

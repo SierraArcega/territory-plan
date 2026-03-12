@@ -20,3 +20,35 @@ export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
   return value.toLocaleString("en-US");
 }
+
+/**
+ * Format a number as a percentage.
+ * formatPercent(0.847) → "84.7%"
+ * formatPercent(0.8471, 2) → "84.71%"
+ */
+export function formatPercent(
+  value: number | null | undefined,
+  decimals = 1,
+): string {
+  if (value === null || value === undefined) return "-";
+  const pct = value * 100;
+  // Use parseFloat to drop trailing zeros: "50.0" → "50"
+  return `${parseFloat(pct.toFixed(decimals))}%`;
+}
+
+/**
+ * Format a number in compact form without currency symbol.
+ * 14832 → "14.8K"   |   1200000 → "1.2M"   |   500 → "500"
+ */
+export function formatCompactNumber(
+  value: number | null | undefined,
+): string {
+  if (value === null || value === undefined) return "-";
+  if (Math.abs(value) >= 1_000_000) {
+    return `${parseFloat((value / 1_000_000).toFixed(1))}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `${parseFloat((value / 1_000).toFixed(1))}K`;
+  }
+  return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
