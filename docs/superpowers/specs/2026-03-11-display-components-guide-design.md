@@ -13,7 +13,7 @@ Several existing components use Tailwind grays (`gray-100`, `gray-400`, `gray-50
 3. **Subfolder structure** — `Display/` with `_foundations.md` + individual component files (mirrors Navigation/ and Tables/)
 4. **Abstract pattern + concrete examples** — each guide defines the canonical pattern first, then maps to codebase implementations (same approach as `buttons.md`)
 5. **Semantic color application** — foundations define how tokens.md semantic colors map to display-specific use cases (badge fills, progress bars, callout backgrounds, dot indicators)
-6. **Standardized container** — all display cards use `bg-white rounded-lg border border-[#D4CFE2] shadow-sm` (corrects `rounded-xl` and `border-gray-*` drift)
+6. **Standardized container** — all display cards use `bg-white rounded-lg border border-[#D4CFE2] shadow-sm` (corrects `border-gray-*` drift). `rounded-xl` is reserved for floating/popover containers per `tokens.md`
 7. **Number formatting conventions** — standardized null/K/M formatting across stats and KPI displays
 8. **Migration flags** — each component guide notes where existing code deviates from the prescribed pattern
 
@@ -126,7 +126,7 @@ When a display element has no data:
 | Growing | `bg-[#EDFFE3]` | `text-[#5f665b]` |
 | Stable | `bg-[#6EA3BE]/15` | `text-[#4d7285]` |
 | At Risk | `bg-[#FFCF70]/20` | `text-[#997c43]` |
-| Declining | `bg-[#F37167]/15` | `text-[#c25a52]` |
+| Declining | `bg-[#fef1f0]` | `text-[#c25a52]` |
 
 ### Status Badges
 
@@ -159,12 +159,14 @@ Time-based status with dot indicator.
 
 | Recency | Dot color | Text color | Background |
 |---------|-----------|------------|------------|
-| Active (≤7d) | `#8AA891` | `#8AA891` | `#EFF5F0` |
-| Slowing (≤21d) | `#D97706` | `#D97706` | `#FEF3C7` |
-| Stale (>21d) | `#F37167` | `#F37167` | `#FEF2F1` |
+| Active (≤7d) | `#8AA891` | `#8AA891` | `#F7FFF2` |
+| Slowing (≤21d) | `#D4A84B` | `#997c43` | `#fffaf1` |
+| Stale (>21d) | `#F37167` | `#c25a52` | `#fef1f0` |
 | No activity | `#A69DC0` | `#A69DC0` | `#F7F5FA` |
 
-**Migration note:** Recency badge in PlanCard uses inline styles — migrate to Tailwind classes using the values above.
+All recency colors derive from the semantic palette in foundations. Active uses Success, Slowing uses Warning, Stale uses Error.
+
+**Migration note:** Recency badge in PlanCard uses inline styles with non-token colors (`#D97706`, `#FEF3C7`, `#EFF5F0`) — migrate to the plum-derived values above.
 
 ### Codebase Examples
 
@@ -341,12 +343,14 @@ Context-aware tooltip for map entity hover. Shows entity name, metadata, and cat
 **Container:**
 
 ```
-absolute pointer-events-none z-[15]
+absolute pointer-events-none z-20
 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg
 px-3 py-2 max-w-[220px]
 ```
 
-**Note:** Tooltips use `rounded-xl` (not `rounded-lg`) — this is intentional for popovers/floating elements per `tokens.md`.
+Uses `z-20` (Panels tier) per `tokens.md` z-index layers. `rounded-xl` is intentional — tooltips are floating elements, which use `rounded-xl` per `tokens.md`.
+
+**Migration note:** MapV2Tooltip currently uses `z-[15]` — migrate to `z-20`.
 
 **Positioning:** Offset from cursor: `left: x + 12; top: y - 8; transform: translateY(-100%)`
 
@@ -435,6 +439,8 @@ flex items-center gap-4 px-5 py-4 rounded-xl overflow-hidden
 background: linear-gradient(135deg, #403770 0%, #5c4785 70%, #6b5a90 100%)
 ```
 
+Uses `rounded-xl` — promotional banners are large card containers per `tokens.md`.
+
 **Icon container:** `w-10 h-10 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center flex-shrink-0`
 
 **Title:** `text-sm font-semibold text-white`
@@ -443,7 +449,11 @@ background: linear-gradient(135deg, #403770 0%, #5c4785 70%, #6b5a90 100%)
 
 **CTA button:** `px-4 py-2 text-sm font-medium text-[#403770] bg-white rounded-lg hover:bg-white/90 transition-colors`
 
-**Dismiss button:** `absolute top-3 right-3 text-white/50 hover:text-white/80 transition-colors`
+**Dismiss button:** `absolute top-3 right-3 text-white/50 hover:text-white/80 transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:outline-none`
+
+### Accessibility
+
+Interactive display elements (expandable card triggers, callout dismiss buttons) use the standard focus ring from `Navigation/_foundations.md`. Tooltips should use `role="tooltip"` with `aria-describedby` on the trigger element. Callouts with semantic meaning should use `role="alert"` for error/warning or `role="status"` for info/success.
 
 ### Semantic Callout
 
@@ -475,15 +485,17 @@ Inline alert for contextual messages. Uses semantic color system from foundation
 
 ## Cards (`cards.md`)
 
+This guide covers **card content patterns** — how to lay out metrics, badges, metadata, and detail rows inside cards. For the card shell itself (container, radius, shadow, padding variants), see `Containers/card.md` (canonical source for card containers).
+
 ### Card Shell (Base)
 
-The standard container shared across all card types. From `tokens.md`:
+For quick reference, the standard card container from `Containers/card.md`:
 
 ```
 bg-white rounded-lg border border-[#D4CFE2] shadow-sm overflow-hidden
 ```
 
-**Do not use:** `rounded-xl`, `border-gray-*`, `shadow-md` on cards.
+Standard cards use `rounded-lg`. Larger floating card containers (e.g., popover-like cards) may use `rounded-xl` per `tokens.md`.
 
 ### Metric Card
 
@@ -512,7 +524,7 @@ Rich card with multiple badges, metadata, and embedded progress.
 
 Card with collapsible detail section.
 
-**Expand trigger:** `w-full flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-[#A69DC0] hover:text-[#403770] border-t border-[#E2DEEC] transition-colors`
+**Expand trigger:** `w-full flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-[#A69DC0] hover:text-[#403770] border-t border-[#E2DEEC] transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none`
 
 **Chevron:** `w-3 h-3 transition-transform duration-150` — rotates 90° when expanded.
 
@@ -551,5 +563,7 @@ Key codebase deviations to address during implementation:
 | `rounded-xl` on cards | LeadingIndicatorsPanel, LaggingIndicatorsPanel, SignalCard | Change to `rounded-lg` |
 | `border-gray-100/200` on cards | ExploreKPICards, SignalCard | Change to `border-[#D4CFE2]` |
 | `bg-green-400`/`bg-red-400` for status dots | CalendarSyncBadge | Use semantic colors from foundations |
-| Inline styles for recency badge colors | PlanCard | Convert to Tailwind classes |
+| Inline styles for recency badge colors | PlanCard | Convert to plum-derived Tailwind classes |
+| Non-token recency colors (`#D97706`, `#FEF3C7`) | PlanCard | Use semantic Warning/Error palette from foundations |
 | `bg-gray-200 text-gray-700` for planning status | PlanCard | Use `bg-[#F7F5FA] text-[#6E6390]` |
+| `z-[15]` arbitrary z-index | MapV2Tooltip | Use `z-20` (Panels tier) |
