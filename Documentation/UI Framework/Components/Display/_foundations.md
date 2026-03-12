@@ -78,3 +78,11 @@ When a display element has no data:
 - **Badge**: Don't render — hide the element entirely rather than showing an empty badge
 
 ---
+
+## Empty State Visuals
+
+Empty states may use either a Lucide icon at the Feature / Empty State size (`w-10 h-10`, `strokeWidth={1.5}`) or a Tier 2 personality emoji — not both on the same surface.
+
+See `iconography.md` for the icon size scale, semantic icon map, and emoji policy (Tier 2 — Personality / Warmth).
+
+---
