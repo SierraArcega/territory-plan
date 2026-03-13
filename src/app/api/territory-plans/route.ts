@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { getPlanDistrictActuals, fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export async function GET() {
         },
         districts: {
           select: {
+            districtLeaid: true,
             district: {
               select: {
                 enrollment: true,
@@ -57,63 +59,79 @@ export async function GET() {
       },
     });
 
-    const result = plans.map((plan) => {
-      const totalEnrollment = plan.districts.reduce(
-        (sum, d) => sum + (d.district.enrollment ?? 0),
-        0
-      );
+    const result = await Promise.all(
+      plans.map(async (plan) => {
+        const totalEnrollment = plan.districts.reduce(
+          (sum, d) => sum + (d.district.enrollment ?? 0),
+          0
+        );
 
-      // Aggregate open pipeline for the plan's fiscal year
-      const pipelineTotal = plan.districts.reduce((sum, d) => {
-        const pipeline =
-          plan.fiscalYear === 2026
-            ? Number(d.district.fy26OpenPipeline ?? 0)
-            : plan.fiscalYear === 2027
-              ? Number(d.district.fy27OpenPipeline ?? 0)
-              : 0;
-        return sum + pipeline;
-      }, 0);
-      const taskCount = plan.taskLinks.length;
-      const completedTaskCount = plan.taskLinks.filter(
-        (tl) => tl.task.status === "done"
-      ).length;
+        // Aggregate open pipeline for the plan's fiscal year
+        const pipelineTotal = plan.districts.reduce((sum, d) => {
+          const pipeline =
+            plan.fiscalYear === 2026
+              ? Number(d.district.fy26OpenPipeline ?? 0)
+              : plan.fiscalYear === 2027
+                ? Number(d.district.fy27OpenPipeline ?? 0)
+                : 0;
+          return sum + pipeline;
+        }, 0);
 
-      return {
-        id: plan.id,
-        name: plan.name,
-        description: plan.description,
-        owner: plan.ownerUser
-          ? { id: plan.ownerUser.id, fullName: plan.ownerUser.fullName, avatarUrl: plan.ownerUser.avatarUrl }
-          : null,
-        color: plan.color,
-        status: plan.status,
-        fiscalYear: plan.fiscalYear,
-        startDate: plan.startDate?.toISOString() ?? null,
-        endDate: plan.endDate?.toISOString() ?? null,
-        createdAt: plan.createdAt.toISOString(),
-        updatedAt: plan.updatedAt.toISOString(),
-        districtCount: plan._count.districts,
-        totalEnrollment,
-        stateCount: plan.states.length,
-        states: plan.states.map((ps) => ({
-          fips: ps.state.fips,
-          abbrev: ps.state.abbrev,
-          name: ps.state.name,
-        })),
-        collaborators: plan.collaborators.map((pc) => ({
-          id: pc.user.id,
-          fullName: pc.user.fullName,
-          avatarUrl: pc.user.avatarUrl,
-        })),
-        taskCount,
-        completedTaskCount,
-        renewalRollup: Number(plan.renewalRollup),
-        expansionRollup: Number(plan.expansionRollup),
-        winbackRollup: Number(plan.winbackRollup),
-        newBusinessRollup: Number(plan.newBusinessRollup),
-        pipelineTotal,
-      };
-    });
+        // Opportunity actuals (not rep-scoped for plan list)
+        const schoolYr = fiscalYearToSchoolYear(plan.fiscalYear);
+        const priorSchoolYr = fiscalYearToSchoolYear(plan.fiscalYear - 1);
+        const districtLeaIds = plan.districts.map((d) => d.districtLeaid);
+
+        const [currentActuals, priorActuals] = await Promise.all([
+          getPlanDistrictActuals(districtLeaIds, schoolYr),
+          getPlanDistrictActuals(districtLeaIds, priorSchoolYr),
+        ]);
+
+        const taskCount = plan.taskLinks.length;
+        const completedTaskCount = plan.taskLinks.filter(
+          (tl) => tl.task.status === "done"
+        ).length;
+
+        return {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          owner: plan.ownerUser
+            ? { id: plan.ownerUser.id, fullName: plan.ownerUser.fullName, avatarUrl: plan.ownerUser.avatarUrl }
+            : null,
+          color: plan.color,
+          status: plan.status,
+          fiscalYear: plan.fiscalYear,
+          startDate: plan.startDate?.toISOString() ?? null,
+          endDate: plan.endDate?.toISOString() ?? null,
+          createdAt: plan.createdAt.toISOString(),
+          updatedAt: plan.updatedAt.toISOString(),
+          districtCount: plan._count.districts,
+          totalEnrollment,
+          stateCount: plan.states.length,
+          states: plan.states.map((ps) => ({
+            fips: ps.state.fips,
+            abbrev: ps.state.abbrev,
+            name: ps.state.name,
+          })),
+          collaborators: plan.collaborators.map((pc) => ({
+            id: pc.user.id,
+            fullName: pc.user.fullName,
+            avatarUrl: pc.user.avatarUrl,
+          })),
+          taskCount,
+          completedTaskCount,
+          renewalRollup: Number(plan.renewalRollup),
+          expansionRollup: Number(plan.expansionRollup),
+          winbackRollup: Number(plan.winbackRollup),
+          newBusinessRollup: Number(plan.newBusinessRollup),
+          pipelineTotal,
+          revenueActual: currentActuals.totalRevenue,
+          takeActual: currentActuals.totalTake,
+          priorFyRevenue: priorActuals.totalRevenue,
+        };
+      })
+    );
 
     return NextResponse.json(result);
   } catch (error) {
