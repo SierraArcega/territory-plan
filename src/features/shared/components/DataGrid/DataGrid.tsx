@@ -201,7 +201,7 @@ export function DataGrid({
   const totalColCount = columns.length;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 min-h-0 flex-1">
       <style>{`
         @keyframes datagrid-progress {
           0% { transform: translateX(-100%); }
@@ -209,7 +209,7 @@ export function DataGrid({
         }
       `}</style>
       {/* Card wrapper */}
-      <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm">
+      <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex-1 min-h-0 flex flex-col">
         {/* Refresh loading progress bar */}
         {isLoading && data.length > 0 && (
           <div className="relative h-0.5 overflow-hidden">
@@ -220,7 +220,7 @@ export function DataGrid({
           </div>
         )}
         {/* Scrollable table area */}
-        <div className="overflow-auto">
+        <div className="overflow-auto flex-1 min-h-0">
           <table
             role="grid"
             aria-rowcount={pagination?.total ?? data.length}
@@ -306,6 +306,7 @@ export function DataGrid({
                         onDragOver={(e) => handleColDragOver(e, dataColIdx)}
                         onDragEnd={handleColDragEnd}
                         onDrop={(e) => handleColDrop(e, dataColIdx)}
+                        style={colDef?.width ? { width: colDef.width, minWidth: colDef.width, maxWidth: colDef.width } : undefined}
                         className={`px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider whitespace-nowrap bg-[#F7F5FA] sticky top-0 z-10 select-none transition-colors duration-100 ${
                           isSortable
                             ? "cursor-pointer hover:text-[#403770]"
@@ -564,10 +565,15 @@ export function DataGrid({
                           }
 
                           const isPrimary = cell.column.id === primaryColumn;
+                          const cellColDef = columnDefs.find((c) => c.key === cell.column.id);
+                          const hasExplicitWidth = !!cellColDef?.width;
                           return (
                             <td
                               key={cell.id}
-                              className={`px-4 py-3 whitespace-nowrap max-w-[240px] truncate ${
+                              style={hasExplicitWidth ? { width: cellColDef!.width, minWidth: cellColDef!.width, maxWidth: cellColDef!.width } : undefined}
+                              className={`px-4 py-3 whitespace-nowrap truncate ${
+                                hasExplicitWidth ? "" : "max-w-[240px] "
+                              }${
                                 isPrimary
                                   ? "text-sm font-medium text-[#403770]"
                                   : "text-sm text-[#6E6390]"

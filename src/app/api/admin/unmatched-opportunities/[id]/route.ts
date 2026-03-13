@@ -17,7 +17,35 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { resolvedDistrictLeaid } = body as { resolvedDistrictLeaid?: string };
+    const { resolvedDistrictLeaid, reason } = body as {
+      resolvedDistrictLeaid?: string;
+      reason?: string | null;
+    };
+
+    // Reason-only update (no resolution)
+    if (reason !== undefined && !resolvedDistrictLeaid) {
+      const VALID_REASONS = [
+        "Missing District",
+        "Remove Child Opp",
+        "Organization",
+        "University",
+        "Private/Charter",
+      ];
+      if (reason !== null && !VALID_REASONS.includes(reason)) {
+        return NextResponse.json(
+          { error: `Invalid reason. Must be one of: ${VALID_REASONS.join(", ")}` },
+          { status: 400 }
+        );
+      }
+
+      const updated = await prisma.unmatchedOpportunity.update({
+        where: { id },
+        data: { reason },
+        select: { id: true, reason: true },
+      });
+
+      return NextResponse.json(updated);
+    }
 
     if (!resolvedDistrictLeaid || typeof resolvedDistrictLeaid !== "string") {
       return NextResponse.json(
