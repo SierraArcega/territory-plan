@@ -52,7 +52,7 @@ Aggregates the `opportunities` table by `district_lea_id`, `school_yr`, `sales_r
 | `total_take` | SUM(total_take) |
 | `completed_take` | SUM(completed_take) (derived: completed_revenue - educator cost for past sessions) |
 | `scheduled_take` | SUM(scheduled_take) (derived: scheduled_revenue - educator cost for future sessions) |
-| `avg_take_rate` | total_take / NULLIF(total_revenue, 0) |
+| `avg_take_rate` | total_take / NULLIF(total_revenue, 0) — **Note:** this is per-row and cannot be SUMmed across categories/reps. Consumers needing composite take rate must re-derive as SUM(total_take) / NULLIF(SUM(total_revenue), 0). |
 | `invoiced` | SUM(invoiced) |
 | `credited` | SUM(credited) |
 | `opp_count` | COUNT(*) |
