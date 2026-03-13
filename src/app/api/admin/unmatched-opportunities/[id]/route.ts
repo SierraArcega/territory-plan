@@ -39,15 +39,33 @@ export async function PATCH(
       );
     }
 
-    const updated = await prisma.unmatchedOpportunity.update({
+    // Look up the source opportunity to get its accountName
+    const source = await prisma.unmatchedOpportunity.findUnique({
       where: { id },
+      select: { accountName: true },
+    });
+
+    if (!source) {
+      return NextResponse.json({ error: "Opportunity not found" }, { status: 404 });
+    }
+
+    // Resolve all unresolved opportunities with the same accountName
+    const where = source.accountName
+      ? {
+          accountName: { equals: source.accountName, mode: "insensitive" as const },
+          resolved: false,
+        }
+      : { id };
+
+    const { count } = await prisma.unmatchedOpportunity.updateMany({
+      where,
       data: {
         resolved: true,
         resolvedDistrictLeaid,
       },
     });
 
-    return NextResponse.json({ ...updated, resolvedDistrict: district });
+    return NextResponse.json({ resolvedDistrict: district, resolvedCount: count });
   } catch (error) {
     console.error("Error resolving unmatched opportunity:", error);
     return NextResponse.json({ error: "Failed to resolve opportunity" }, { status: 500 });

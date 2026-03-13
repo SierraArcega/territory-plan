@@ -74,7 +74,18 @@ async function searchDistricts(q: string): Promise<{ items: DistrictResult[] }> 
   return res.json();
 }
 
-async function resolveOpportunity(id: string, resolvedDistrictLeaid: string) {
+async function fetchSuggestions(name: string, state?: string | null): Promise<{ items: DistrictResult[] }> {
+  const qs = new URLSearchParams({ name });
+  if (state) qs.set("state", state);
+  const res = await fetch(`/api/admin/districts/suggestions?${qs}`);
+  if (!res.ok) throw new Error("Failed to fetch suggestions");
+  return res.json();
+}
+
+async function resolveOpportunity(
+  id: string,
+  resolvedDistrictLeaid: string,
+): Promise<{ resolvedCount: number }> {
   const res = await fetch(`/api/admin/unmatched-opportunities/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -118,10 +129,48 @@ function StatusBadge({ resolved }: { resolved: boolean }) {
 // District search modal
 // ---------------------------------------------------------------------------
 
+function DistrictRow({
+  district,
+  onSelect,
+}: {
+  district: DistrictResult;
+  onSelect: (d: DistrictResult) => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(district)}
+      className="w-full text-left px-4 py-3 border-b border-[#E2DEEC] last:border-b-0 hover:bg-[#EFEDF5] transition-colors duration-100"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm font-medium text-[#403770]">
+            {district.name}
+          </span>
+          {district.cityLocation && (
+            <span className="text-xs text-[#8A80A8] ml-2">
+              {district.cityLocation}, {district.stateAbbrev}
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-[#A69DC0] font-medium tabular-nums">
+          {district.leaid}
+        </span>
+      </div>
+      {district.enrollment != null && (
+        <div className="text-xs text-[#8A80A8] mt-0.5">
+          Enrollment: {district.enrollment.toLocaleString()}
+        </div>
+      )}
+    </button>
+  );
+}
+
 function DistrictSearchModal({
+  opportunity,
   onSelect,
   onClose,
 }: {
+  opportunity: UnmatchedOpportunity;
   onSelect: (district: DistrictResult) => void;
   onClose: () => void;
 }) {
@@ -138,11 +187,21 @@ function DistrictSearchModal({
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data, isLoading } = useQuery({
+  // Fuzzy suggestions based on opportunity name + state
+  const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
+    queryKey: ["district-suggestions", opportunity.accountName, opportunity.state],
+    queryFn: () => fetchSuggestions(opportunity.accountName ?? "", opportunity.state),
+    enabled: !!opportunity.accountName,
+  });
+
+  const { data: searchResults, isLoading: searchLoading } = useQuery({
     queryKey: ["district-search", debouncedQuery],
     queryFn: () => searchDistricts(debouncedQuery),
     enabled: debouncedQuery.length >= 2,
   });
+
+  const hasSuggestions = (suggestions?.items.length ?? 0) > 0;
+  const isSearching = debouncedQuery.length >= 2;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -152,7 +211,8 @@ function DistrictSearchModal({
           <div>
             <h3 className="text-lg font-semibold text-[#403770]">Resolve to District</h3>
             <p className="text-sm text-[#8A80A8] mt-1">
-              Search by district name, LEAID, or state abbreviation.
+              {opportunity.accountName}
+              {opportunity.state && <span className="ml-1">({opportunity.state})</span>}
             </p>
           </div>
           <button
@@ -165,6 +225,49 @@ function DistrictSearchModal({
             </svg>
           </button>
         </div>
+
+        {/* Suggestions section */}
+        {!isSearching && (
+          <div className="mb-3">
+            {suggestionsLoading && (
+              <div className="px-4 py-4 text-center border border-[#E2DEEC] rounded-lg">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#403770] border-t-transparent mx-auto mb-2" />
+                <span className="text-xs text-[#8A80A8]">Finding potential matches...</span>
+              </div>
+            )}
+            {!suggestionsLoading && hasSuggestions && (
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-semibold text-[#403770] uppercase tracking-wide">
+                    Suggested Matches
+                  </span>
+                  <span className="text-[10px] text-[#8A80A8] bg-[#F5F3FA] px-1.5 py-0.5 rounded">
+                    {suggestions!.items.length} found
+                  </span>
+                </div>
+                <div className="border border-[#D6D0E8] rounded-lg max-h-48 overflow-y-auto bg-[#FDFCFF]">
+                  {suggestions!.items.map((district) => (
+                    <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {!suggestionsLoading && !hasSuggestions && opportunity.accountName && (
+              <div className="px-4 py-3 text-center text-xs text-[#8A80A8] border border-[#E2DEEC] rounded-lg">
+                No automatic matches found — try searching below.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Divider + search label */}
+        {!isSearching && hasSuggestions && (
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 h-px bg-[#E2DEEC]" />
+            <span className="text-[10px] text-[#A69DC0] uppercase tracking-wide">or search manually</span>
+            <div className="flex-1 h-px bg-[#E2DEEC]" />
+          </div>
+        )}
 
         <div className="relative mb-3">
           <svg
@@ -186,56 +289,29 @@ function DistrictSearchModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && onClose()}
-            placeholder="Search districts..."
+            placeholder="Search districts by name, LEAID, or state..."
             className="w-full pl-10 pr-4 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
           />
         </div>
 
-        <div className="max-h-64 overflow-y-auto border border-[#E2DEEC] rounded-lg">
-          {isLoading && debouncedQuery.length >= 2 && (
-            <div className="px-4 py-8 text-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#403770] border-t-transparent mx-auto" />
-            </div>
-          )}
-          {!isLoading && debouncedQuery.length >= 2 && data?.items.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-[#8A80A8]">
-              No districts found
-            </div>
-          )}
-          {!isLoading && debouncedQuery.length < 2 && (
-            <div className="px-4 py-6 text-center text-xs text-[#A69DC0]">
-              Type at least 2 characters to search
-            </div>
-          )}
-          {data?.items.map((district) => (
-            <button
-              key={district.leaid}
-              onClick={() => onSelect(district)}
-              className="w-full text-left px-4 py-3 border-b border-[#E2DEEC] last:border-b-0 hover:bg-[#EFEDF5] transition-colors duration-100"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-sm font-medium text-[#403770]">
-                    {district.name}
-                  </span>
-                  {district.cityLocation && (
-                    <span className="text-xs text-[#8A80A8] ml-2">
-                      {district.cityLocation}, {district.stateAbbrev}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-[#A69DC0] font-medium tabular-nums">
-                  {district.leaid}
-                </span>
+        {/* Search results */}
+        {isSearching && (
+          <div className="max-h-64 overflow-y-auto border border-[#E2DEEC] rounded-lg">
+            {searchLoading && (
+              <div className="px-4 py-8 text-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#403770] border-t-transparent mx-auto" />
               </div>
-              {district.enrollment != null && (
-                <div className="text-xs text-[#8A80A8] mt-0.5">
-                  Enrollment: {district.enrollment.toLocaleString()}
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
+            )}
+            {!searchLoading && searchResults?.items.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-[#8A80A8]">
+                No districts found
+              </div>
+            )}
+            {searchResults?.items.map((district) => (
+              <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
+            ))}
+          </div>
+        )}
 
         <div className="flex justify-end mt-4">
           <button
@@ -270,7 +346,14 @@ export default function UnmatchedOpportunitiesPage() {
     { column: "resolved", operator: "is_false", value: false },
   ]);
 
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolvingOpp, setResolvingOpp] = useState<UnmatchedOpportunity | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Sort handler (single-sort, 3-click cycle: asc -> desc -> clear)
   const handleSort = useCallback((column: string) => {
@@ -310,20 +393,27 @@ export default function UnmatchedOpportunitiesPage() {
   });
 
   const resolveMutation = useMutation({
-    mutationFn: ({ id, leaid }: { id: string; leaid: string }) =>
+    mutationFn: ({ id, leaid }: { id: string; leaid: string; districtName: string }) =>
       resolveOpportunity(id, leaid),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities"] });
-      setResolvingId(null);
+      const count = data.resolvedCount ?? 1;
+      const countLabel = count > 1 ? `${count} opportunities` : "1 opportunity";
+      setToast(`Resolved ${countLabel} to ${variables.districtName} (${variables.leaid})`);
+      setResolvingOpp(null);
     },
   });
 
   const handleResolve = useCallback(
     (district: DistrictResult) => {
-      if (!resolvingId) return;
-      resolveMutation.mutate({ id: resolvingId, leaid: district.leaid });
+      if (!resolvingOpp) return;
+      resolveMutation.mutate({
+        id: resolvingOpp.id,
+        leaid: district.leaid,
+        districtName: district.name,
+      });
     },
-    [resolvingId, resolveMutation]
+    [resolvingOpp, resolveMutation]
   );
 
   // Cell renderers
@@ -380,7 +470,21 @@ export default function UnmatchedOpportunitiesPage() {
     if (isResolved) return null;
     return (
       <button
-        onClick={(e) => { e.stopPropagation(); setResolvingId(row.id as string); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setResolvingOpp({
+            id: row.id as string,
+            name: row.name as string | null,
+            accountName: row.accountName as string | null,
+            state: row.state as string | null,
+            schoolYr: row.schoolYr as string | null,
+            stage: row.stage as string | null,
+            netBookingAmount: row.netBookingAmount as string | null,
+            reason: row.reason as string | null,
+            resolved: row.resolved as boolean,
+            resolvedDistrictLeaid: row.resolvedDistrictLeaid as string | null,
+          });
+        }}
         className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
       >
         Resolve
@@ -444,11 +548,25 @@ export default function UnmatchedOpportunitiesPage() {
       </div>
 
       {/* Resolution modal */}
-      {resolvingId && (
+      {resolvingOpp && (
         <DistrictSearchModal
+          opportunity={resolvingOpp}
           onSelect={handleResolve}
-          onClose={() => setResolvingId(null)}
+          onClose={() => setResolvingOpp(null)}
         />
+      )}
+
+      {/* Success toast */}
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg border bg-[#F7FFF2] border-[#8AC670] shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <svg className="w-4 h-4 text-[#69B34A] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-sm font-medium text-[#5f665b]">{toast}</span>
+        </div>
       )}
     </div>
   );
