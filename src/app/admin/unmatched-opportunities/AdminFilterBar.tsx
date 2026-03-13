@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 import type { FilterRule } from "@/features/shared/components/DataGrid/types";
 
@@ -68,6 +69,112 @@ function formatFilterLabel(columnDefs: ColumnDef[], filter: FilterRule): string 
 }
 
 // ---------------------------------------------------------------------------
+// Custom Dropdown (replaces native <select> for consistent styling)
+// ---------------------------------------------------------------------------
+
+function Dropdown({
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [pos, setPos] = useState({ top: -9999, left: -9999, width: 0 });
+
+  const selectedLabel = options.find((o) => o.value === value)?.label;
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        listRef.current && !listRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isOpen]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => isOpen ? setIsOpen(false) : openDropdown()}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        className={`w-full px-3 pr-8 py-1.5 text-sm text-left border border-[#C2BBD4] rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent transition-colors ${
+          value ? "text-[#403770]" : "text-[#A69DC0]"
+        }`}
+      >
+        {selectedLabel ?? placeholder}
+      </button>
+      <svg
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0] pointer-events-none"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+      {isOpen && createPortal(
+        <ul
+          ref={listRef}
+          role="listbox"
+          onMouseDown={(e) => e.stopPropagation()}
+          className="fixed z-[9999] bg-white rounded-xl shadow-xl border border-[#D4CFE2] max-h-60 overflow-y-auto py-1"
+          style={{ top: pos.top, left: pos.left, width: Math.max(pos.width, 180) }}
+        >
+          {options.map((opt) => {
+            const isSelected = value === opt.value;
+            return (
+              <li
+                key={opt.value}
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                  isSelected
+                    ? "bg-[#F7F5FA] font-medium text-[#403770]"
+                    : "text-[#403770] hover:bg-[#EFEDF5]"
+                }`}
+              >
+                {opt.label}
+              </li>
+            );
+          })}
+        </ul>,
+        document.body
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -126,7 +233,7 @@ export default function AdminFilterBar({
     (c) => c.filterType && OPERATORS_BY_TYPE[c.filterType]
   );
 
-  function handleApply() {
+  const handleApply = useCallback(() => {
     if (!selectedColumn || !selectedOperator) return;
     const needsValue = currentOp?.needsValue ?? true;
     if (needsValue && !filterValue) return;
@@ -141,7 +248,7 @@ export default function AdminFilterBar({
 
     onAddFilter({ column: selectedColumn, operator: selectedOperator, value });
     setIsOpen(false);
-  }
+  }, [selectedColumn, selectedOperator, currentOp, filterValue, colDef, onAddFilter]);
 
   return (
     <div className="flex items-center gap-2 flex-wrap relative">
@@ -198,22 +305,18 @@ export default function AdminFilterBar({
               <label className="text-[10px] font-semibold text-[#A69DC0] uppercase tracking-wider">
                 Column
               </label>
-              <select
-                value={selectedColumn}
-                onChange={(e) => {
-                  setSelectedColumn(e.target.value);
-                  setSelectedOperator("");
-                  setFilterValue("");
-                }}
-                className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#6E6390] px-2.5 py-1.5 focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none"
-              >
-                <option value="">Select column...</option>
-                {filterableColumns.map((col) => (
-                  <option key={col.key} value={col.key}>
-                    {col.label}
-                  </option>
-                ))}
-              </select>
+              <div className="relative mt-1">
+                <Dropdown
+                  value={selectedColumn}
+                  placeholder="Select column..."
+                  options={filterableColumns.map((col) => ({ value: col.key, label: col.label }))}
+                  onChange={(v) => {
+                    setSelectedColumn(v);
+                    setSelectedOperator("");
+                    setFilterValue("");
+                  }}
+                />
+              </div>
             </div>
 
             {/* Operator select */}
@@ -222,20 +325,17 @@ export default function AdminFilterBar({
                 <label className="text-[10px] font-semibold text-[#A69DC0] uppercase tracking-wider">
                   Operator
                 </label>
-                <select
-                  value={selectedOperator}
-                  onChange={(e) => {
-                    setSelectedOperator(e.target.value);
-                    setFilterValue("");
-                  }}
-                  className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#6E6390] px-2.5 py-1.5 focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none"
-                >
-                  {operators.map((op) => (
-                    <option key={op.op} value={op.op}>
-                      {op.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative mt-1">
+                  <Dropdown
+                    value={selectedOperator}
+                    placeholder="Select operator..."
+                    options={operators.map((op) => ({ value: op.op, label: op.label }))}
+                    onChange={(v) => {
+                      setSelectedOperator(v);
+                      setFilterValue("");
+                    }}
+                  />
+                </div>
               </div>
             )}
 
@@ -246,25 +346,21 @@ export default function AdminFilterBar({
                   Value
                 </label>
                 {colDef?.filterType === "enum" && colDef.enumValues ? (
-                  <select
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                    className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#6E6390] px-2.5 py-1.5 focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none"
-                  >
-                    <option value="">Select value...</option>
-                    {colDef.enumValues.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative mt-1">
+                    <Dropdown
+                      value={filterValue}
+                      placeholder="Select value..."
+                      options={colDef.enumValues.map((v) => ({ value: v, label: v }))}
+                      onChange={setFilterValue}
+                    />
+                  </div>
                 ) : colDef?.filterType === "number" ? (
                   <input
                     type="number"
                     value={filterValue}
                     onChange={(e) => setFilterValue(e.target.value)}
                     placeholder="Enter value..."
-                    className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#6E6390] px-2.5 py-1.5 focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+                    className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#403770] px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent placeholder:text-[#A69DC0]"
                   />
                 ) : (
                   <input
@@ -272,7 +368,7 @@ export default function AdminFilterBar({
                     value={filterValue}
                     onChange={(e) => setFilterValue(e.target.value)}
                     placeholder="Enter value..."
-                    className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#6E6390] px-2.5 py-1.5 focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+                    className="mt-1 w-full border border-[#C2BBD4] rounded-lg text-sm text-[#403770] px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent placeholder:text-[#A69DC0]"
                   />
                 )}
               </div>

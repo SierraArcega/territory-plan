@@ -318,14 +318,15 @@ function ReasonDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: -9999, left: -9999 });
 
-  // Position the dropdown when it opens
-  useEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setPos({ top: rect.bottom + 4, left: rect.left });
-  }, [isOpen]);
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setIsOpen(true);
+  };
 
   // Close on outside click, Escape, or scroll
   useEffect(() => {
@@ -367,7 +368,7 @@ function ReasonDropdown({
       <button
         ref={triggerRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); setIsOpen((v) => !v); }}
+        onClick={(e) => { e.stopPropagation(); isOpen ? setIsOpen(false) : openDropdown(); }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={`w-full text-xs text-left border border-transparent rounded-lg pl-1.5 pr-6 py-1 bg-transparent hover:border-[#C2BBD4] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent focus:bg-white cursor-pointer transition-colors ${
