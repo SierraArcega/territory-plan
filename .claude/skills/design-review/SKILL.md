@@ -69,6 +69,7 @@ Compare the structural hierarchy (component nesting, information order, layout t
 | Component correctness | Each component follows its doc spec | Category `_foundations.md` + specific guide |
 | States | Loading, empty, error states implemented per docs | `Patterns/_foundations.md`, component guides |
 | Icons | Lucide only, `currentColor`, correct size tier, semantic map | `iconography.md` |
+| Component reuse | Tables use DataGrid, toolbars use standard filter/sort/column patterns, forms use shared form primitives — no hand-built equivalents | `Tables/_foundations.md` § Standard Foundation, shared component inventory |
 | Accessibility | ARIA labels, keyboard nav, focus rings | `Navigation/_foundations.md` § Focus Ring |
 
 ### 5. Report
@@ -127,3 +128,6 @@ These are the most frequently caught issues. Check for them first:
 | White background | `bg-white` (page) | `bg-[#FFFCFA]` | tokens.md § Surface colors |
 | Non-Lucide icons | any other library | Lucide React only | iconography.md |
 | Wrong font | system fonts | Plus Jakarta Sans (already configured) | tokens.md § Typography |
+| Hand-built table | Custom `<table>` with manual thead/tbody/pagination | `DataGrid` with `ColumnDef[]` | Tables/_foundations.md § Standard Foundation |
+| Hand-built filters | Custom filter chips, raw `<select>`/`<input>` for filtering | Composable filter builder (ExploreFilters pattern) | Toolbar pattern in ExploreOverlay |
+| Hand-built pagination | Custom Previous/Next buttons with page state | `DataGrid` built-in pagination | `DataGrid.tsx` footer section |

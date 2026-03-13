@@ -49,6 +49,26 @@ Before creating anything new, search for what already exists:
 
 Use Glob and Grep to find existing implementations. Reuse and extend before creating.
 
+### Step 2b — Shared Component Gate (HARD REQUIREMENT)
+
+Before building any of the following, check if a shared component already covers the use case:
+
+| Building... | Check first | Location |
+|-------------|-------------|----------|
+| Any data table | DataGrid | `src/features/shared/components/DataGrid/` |
+| Table filters | ExploreFilters pattern | `src/features/map/components/explore/ExploreFilters.tsx` |
+| Column picker | ExploreColumnPicker pattern | `src/features/map/components/explore/ExploreColumnPicker.tsx` |
+| Sort controls | DataGrid built-in sort (click column headers) | `src/features/shared/components/DataGrid/DataGrid.tsx` |
+| Inline editing | InlineEditCell | `src/features/shared/components/InlineEditCell.tsx` |
+| Editable currency | EditableCurrencyCell | `src/features/map/components/explore/cellRenderers.tsx` |
+| Pagination | DataGrid built-in pagination | `src/features/shared/components/DataGrid/DataGrid.tsx` |
+
+**If a shared component covers 80%+ of the need, you MUST use it.** Do not hand-build tables, pagination, filter toolbars, or sort controls. The only acceptable reasons to skip:
+1. The use case is fundamentally different (not just "simpler")
+2. The shared component would need breaking changes
+
+When the shared component is coupled to a specific context (e.g., `ExploreEntity`), build a lightweight version that follows the same visual patterns but accepts generic props (e.g., `ColumnDef[]`). Reference the original for exact class names and layout.
+
 ### Step 3 — Screenshot the Paper design system
 
 The **Mapomatic Design System** in Paper has visual references for every component category:
