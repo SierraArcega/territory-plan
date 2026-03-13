@@ -10,13 +10,14 @@ from sync.opensearch_client import get_client, scroll_all
 
 
 def test_get_client_returns_opensearch_instance():
-    with patch("sync.opensearch_client.OpenSearch") as MockOS:
-        client = get_client()
-        MockOS.assert_called_once()
-        call_kwargs = MockOS.call_args[1]
-        assert call_kwargs["hosts"] == [{"host": "test-host", "port": 9200}]
-        assert call_kwargs["http_auth"] == ("user", "pass")
-        assert call_kwargs["use_ssl"] is True
+    with patch.dict(os.environ, {"OPENSEARCH_HOST": "https://test-host:9200"}):
+        with patch("sync.opensearch_client.OpenSearch") as MockOS:
+            client = get_client()
+            MockOS.assert_called_once()
+            call_kwargs = MockOS.call_args[1]
+            assert call_kwargs["hosts"] == [{"host": "test-host", "port": 9200}]
+            assert call_kwargs["http_auth"] == ("user", "pass")
+            assert call_kwargs["use_ssl"] is True
 
 
 def test_scroll_all_paginates():
