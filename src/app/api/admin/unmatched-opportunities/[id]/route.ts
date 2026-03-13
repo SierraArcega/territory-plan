@@ -25,6 +25,7 @@ export async function PATCH(
     // Reason-only update (no resolution)
     if (reason !== undefined && !resolvedDistrictLeaid) {
       const VALID_REASONS = [
+        "Needs Review",
         "Missing District",
         "Remove Child Opp",
         "Organization",

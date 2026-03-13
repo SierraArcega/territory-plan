@@ -121,7 +121,7 @@ def run_sync():
                     "account_type": first_acc.get("type"),
                     "state": normalize_state(opp.get("state")),
                     "net_booking_amount": record["net_booking_amount"],
-                    "reason": "No NCES/LEAID mapping found for account",
+                    "reason": "Needs Review",
                     "synced_at": now,
                 })
                 # Still upsert to opportunities (with null district)

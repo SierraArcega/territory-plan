@@ -21,8 +21,9 @@ interface ColumnDef {
   filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags" | "relation";
   enumValues?: string[]; // for filterType: "enum"
   relationSource?: string; // for filterType: "relation"
+  width?: number;        // explicit column width in px (applied as min-width + max-width on th/td)
   editable?: boolean;    // enables inline editing for this column
-  sortable?: boolean;    // defaults to true; set false to disable sorting (new — add during implementation)
+  sortable?: boolean;    // defaults to true; set false to disable sorting
 }
 ```
 
@@ -32,6 +33,7 @@ Rules:
 - Every column gets a `group` — even if there's only one group. Future-proofs the column picker.
 - `isDefault` controls initial visibility. Users toggle via the column picker, persisted to localStorage.
 - Currency columns: include `($)` in the label — the cell formatter uses this to auto-detect currency formatting.
+- Set `width` on columns where content has a predictable size (IDs, states, dates, badges). Columns without `width` fall back to `max-w-[240px]` with browser auto-sizing. Aim for total column widths to fit within 1440px viewport when possible to minimize horizontal scrolling.
 
 Column ordering:
 - Definition order = default display order
@@ -78,10 +80,18 @@ Rules:
 ### Rendering
 
 Uses the same wrapper from `_foundations.md`:
-- Wrapper: `overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm`
+- Outer: `flex flex-col gap-2 min-h-0 flex-1` — fills parent height, shrinks in flex containers
+- Card wrapper: `overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex-1 min-h-0 flex flex-col`
+- Scroll area: `overflow-auto flex-1 min-h-0` — contains the `<table>`, scrolls both axes
 - Header: `bg-[#F7F5FA]`, `text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider`
 - Row hover: `hover:bg-[#EFEDF5]`, `border-b border-[#E2DEEC]`
 - Uses `flexRender` for header and cell content instead of hardcoded JSX
+
+### Column Width Behavior
+
+- Columns with `width` set: `style={{ width, minWidth: width, maxWidth: width }}` on both `<th>` and `<td>`. No `max-w-[240px]` class.
+- Columns without `width`: browser auto-sizes, capped at `max-w-[240px]` with `truncate`.
+- Table uses `min-w-full` — it never collapses narrower than its container.
 
 ### Cell Formatting
 
@@ -608,6 +618,25 @@ Toolbar (or BulkActionBar when selected)
 └───────────────────────────────────────────┘
 Pagination
 ```
+
+### Parent Layout Contract
+
+The DataGrid uses `flex-1 min-h-0` to fill available height. For the horizontal scrollbar to stay visible at the bottom of the viewport (instead of being buried below all rows), the parent must provide a height-constrained flex container:
+
+```tsx
+{/* Page root — fixed viewport height */}
+<div className="flex flex-col h-[calc(100vh-64px)]">
+  {/* Header, toolbar, etc. — shrink-0 */}
+  <div className="shrink-0">...</div>
+
+  {/* DataGrid wrapper — flex-1 passes remaining height down */}
+  <div className="flex-1 min-h-0 flex flex-col">
+    <DataGrid ... />
+  </div>
+</div>
+```
+
+The chain must be unbroken: page (fixed height, flex-col) → wrapper (`flex-1 min-h-0 flex flex-col`) → DataGrid outer (`flex-1 min-h-0`) → card (`flex-1 min-h-0 flex flex-col`) → scroll area (`flex-1 min-h-0 overflow-auto`). If any ancestor uses `overflow-auto` instead of `flex flex-col`, the DataGrid card will grow to content height and the horizontal scrollbar will be buried.
 
 ### Key Architectural Rules
 

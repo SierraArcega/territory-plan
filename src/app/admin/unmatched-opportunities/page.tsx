@@ -133,6 +133,7 @@ async function createDistrict(data: {
 }
 
 const UNRESOLVED_REASONS = [
+  "Needs Review",
   "Missing District",
   "Remove Child Opp",
   "Organization",
@@ -326,7 +327,7 @@ function ReasonDropdown({
     setPos({ top: rect.bottom + 4, left: rect.left });
   }, [isOpen]);
 
-  // Close on outside click or Escape
+  // Close on outside click, Escape, or scroll
   useEffect(() => {
     if (!isOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -340,11 +341,14 @@ function ReasonDropdown({
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsOpen(false);
     };
+    const handleScroll = () => setIsOpen(false);
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleKey);
+    document.addEventListener("scroll", handleScroll, true);
     return () => {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("scroll", handleScroll, true);
     };
   }, [isOpen]);
 
@@ -385,7 +389,7 @@ function ReasonDropdown({
         <ul
           ref={dropdownRef}
           role="listbox"
-          className="fixed z-30 min-w-[160px] bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 py-1"
+          className="fixed z-[9999] min-w-[160px] bg-white rounded-xl shadow-xl border border-[#D4CFE2] py-1"
           style={{ top: pos.top, left: pos.left }}
         >
           {options.map((opt) => {
