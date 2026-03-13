@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import {
+  getRepActuals,
+  getNewDistrictsCount,
+  getPlanDistrictActuals,
+  fiscalYearToSchoolYear,
+} from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -57,18 +63,6 @@ export async function GET(
             expansionTarget: true,
             newBusinessTarget: true,
             districtLeaid: true,
-            district: {
-              select: {
-                isCustomer: true,
-                // Get FY-specific actuals based on fiscal year
-                fy25SessionsRevenue: true,
-                fy25SessionsTake: true,
-                fy26SessionsRevenue: true,
-                fy26SessionsTake: true,
-                fy26OpenPipeline: true,
-                fy27OpenPipeline: true,
-              },
-            },
           },
         },
       },
@@ -82,13 +76,6 @@ export async function GET(
     let districtCount = 0;
     const uniqueDistricts = new Set<string>();
 
-    // Calculate actuals from district data
-    let revenueActual = 0;
-    let takeActual = 0;
-    let pipelineActual = 0;
-    let newDistrictsActual = 0;
-    const existingCustomers = new Set<string>();
-
     for (const plan of plans) {
       for (const pd of plan.districts) {
         uniqueDistricts.add(pd.districtLeaid);
@@ -98,36 +85,49 @@ export async function GET(
         if (pd.winbackTarget) totalWinbackTarget += Number(pd.winbackTarget);
         if (pd.expansionTarget) totalExpansionTarget += Number(pd.expansionTarget);
         if (pd.newBusinessTarget) totalNewBusinessTarget += Number(pd.newBusinessTarget);
-
-        // Sum actuals based on fiscal year
-        const district = pd.district;
-        if (fiscalYear === 2025) {
-          revenueActual += Number(district.fy25SessionsRevenue || 0);
-          takeActual += Number(district.fy25SessionsTake || 0);
-        } else if (fiscalYear === 2026) {
-          revenueActual += Number(district.fy26SessionsRevenue || 0);
-          takeActual += Number(district.fy26SessionsTake || 0);
-          pipelineActual += Number(district.fy26OpenPipeline || 0);
-        } else if (fiscalYear === 2027) {
-          pipelineActual += Number(district.fy27OpenPipeline || 0);
-        }
-
-        // Track new vs existing customers
-        if (district.isCustomer) {
-          existingCustomers.add(pd.districtLeaid);
-        }
       }
     }
 
     districtCount = uniqueDistricts.size;
 
-    // New districts = districts in plan that aren't already customers
-    // This is a simplified calculation - in practice you'd want to track
-    // when a district became a customer vs when it was added to the plan
-    newDistrictsActual = districtCount - existingCustomers.size;
+    // Fetch actuals from the materialized view
+    const schoolYr = fiscalYearToSchoolYear(fiscalYear);
+    const priorSchoolYr = fiscalYearToSchoolYear(fiscalYear - 1);
+    const email = user.email ?? "";
 
-    // Calculate projected earnings based on actual take
-    const earningsActual = BASE_SALARY + (takeActual * COMMISSION_RATE);
+    const [repActuals, newDistrictsCount] = await Promise.all([
+      getRepActuals(email, schoolYr),
+      getNewDistrictsCount(email, schoolYr, priorSchoolYr),
+    ]);
+
+    // Build per-plan actuals
+    const plansWithActuals = await Promise.all(
+      plans.map(async (plan) => {
+        const districtLeaIds = plan.districts.map((d) => d.districtLeaid);
+        const planActuals = await getPlanDistrictActuals(districtLeaIds, schoolYr, email);
+
+        const renewal = plan.districts.reduce((sum, pd) => sum + Number(pd.renewalTarget || 0), 0);
+        const winback = plan.districts.reduce((sum, pd) => sum + Number(pd.winbackTarget || 0), 0);
+        const expansion = plan.districts.reduce((sum, pd) => sum + Number(pd.expansionTarget || 0), 0);
+        const newBiz = plan.districts.reduce((sum, pd) => sum + Number(pd.newBusinessTarget || 0), 0);
+
+        return {
+          id: plan.id,
+          name: plan.name,
+          color: plan.color,
+          status: plan.status,
+          districtCount: plan.districts.length,
+          renewalTarget: renewal,
+          winbackTarget: winback,
+          expansionTarget: expansion,
+          newBusinessTarget: newBiz,
+          totalTarget: renewal + winback + expansion + newBiz,
+          revenueActual: planActuals.totalRevenue,
+          takeActual: planActuals.totalTake,
+          bookingsActual: planActuals.bookings,
+        };
+      })
+    );
 
     return NextResponse.json({
       fiscalYear,
@@ -135,6 +135,7 @@ export async function GET(
         ? {
             earningsTarget: userGoal.earningsTarget ? Number(userGoal.earningsTarget) : null,
             takeRatePercent: userGoal.takeRatePercent ? Number(userGoal.takeRatePercent) : null,
+            takeTarget: Number(userGoal.takeTarget) || null,
             renewalTarget: userGoal.renewalTarget ? Number(userGoal.renewalTarget) : null,
             winbackTarget: userGoal.winbackTarget ? Number(userGoal.winbackTarget) : null,
             expansionTarget: userGoal.expansionTarget ? Number(userGoal.expansionTarget) : null,
@@ -152,30 +153,17 @@ export async function GET(
         planCount: plans.length,
       },
       actuals: {
-        earnings: earningsActual,
-        revenue: revenueActual,
-        take: takeActual,
-        pipeline: pipelineActual,
-        newDistricts: newDistrictsActual,
+        earnings: BASE_SALARY + repActuals.totalTake * COMMISSION_RATE,
+        revenue: repActuals.totalRevenue,
+        take: repActuals.totalTake,
+        completedTake: repActuals.completedTake,
+        scheduledTake: repActuals.scheduledTake,
+        pipeline: repActuals.weightedPipeline,
+        bookings: repActuals.bookings,
+        invoiced: repActuals.invoiced,
+        newDistricts: newDistrictsCount,
       },
-      plans: plans.map((plan) => {
-        const renewal = plan.districts.reduce((sum, pd) => sum + Number(pd.renewalTarget || 0), 0);
-        const winback = plan.districts.reduce((sum, pd) => sum + Number(pd.winbackTarget || 0), 0);
-        const expansion = plan.districts.reduce((sum, pd) => sum + Number(pd.expansionTarget || 0), 0);
-        const newBiz = plan.districts.reduce((sum, pd) => sum + Number(pd.newBusinessTarget || 0), 0);
-        return {
-          id: plan.id,
-          name: plan.name,
-          color: plan.color,
-          status: plan.status,
-          districtCount: plan.districts.length,
-          renewalTarget: renewal,
-          winbackTarget: winback,
-          expansionTarget: expansion,
-          newBusinessTarget: newBiz,
-          totalTarget: renewal + winback + expansion + newBiz,
-        };
-      }),
+      plans: plansWithActuals,
     });
   } catch (error) {
     console.error("Error fetching goal dashboard:", error);
