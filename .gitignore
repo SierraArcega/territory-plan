@@ -75,3 +75,6 @@ backups/
 .tessl/
 .mcp.json
 tessl.json
+
+# worktrees
+.worktrees/
