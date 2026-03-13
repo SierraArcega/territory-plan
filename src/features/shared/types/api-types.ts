@@ -729,6 +729,8 @@ export interface PlanDistrictDetail {
   notes: string | null;
   returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
   newServices: Array<{ id: number; name: string; slug: string; color: string }>;
+  actuals?: PlanDistrictActuals | null;
+  opportunities?: PlanDistrictOpportunity[];
 }
 
 // ===== Goal Dashboard Types =====
