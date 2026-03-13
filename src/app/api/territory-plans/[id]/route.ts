@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,39 @@ export async function GET(
       );
     }
 
+    // Batch-fetch per-district actuals (2 queries total, not 2 per district)
+    const schoolYr = fiscalYearToSchoolYear(plan.fiscalYear);
+    const priorSchoolYr = fiscalYearToSchoolYear(plan.fiscalYear - 1);
+    const allLeaIds = plan.districts.map((d) => d.districtLeaid);
+
+    const [currentRows, priorRows] = await Promise.all([
+      prisma.$queryRaw<
+        { district_lea_id: string; total_revenue: number; total_take: number; weighted_pipeline: number }[]
+      >`
+        SELECT district_lea_id,
+               COALESCE(SUM(total_revenue), 0) AS total_revenue,
+               COALESCE(SUM(total_take), 0) AS total_take,
+               COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline
+        FROM district_opportunity_actuals
+        WHERE district_lea_id = ANY(${allLeaIds})
+          AND school_yr = ${schoolYr}
+        GROUP BY district_lea_id
+      `,
+      prisma.$queryRaw<
+        { district_lea_id: string; total_revenue: number }[]
+      >`
+        SELECT district_lea_id,
+               COALESCE(SUM(total_revenue), 0) AS total_revenue
+        FROM district_opportunity_actuals
+        WHERE district_lea_id = ANY(${allLeaIds})
+          AND school_yr = ${priorSchoolYr}
+        GROUP BY district_lea_id
+      `,
+    ]);
+
+    const currentByDistrict = new Map(currentRows.map((r) => [r.district_lea_id, r]));
+    const priorByDistrict = new Map(priorRows.map((r) => [r.district_lea_id, r]));
+
     return NextResponse.json({
       id: plan.id,
       name: plan.name,
@@ -75,30 +109,42 @@ export async function GET(
       endDate: plan.endDate?.toISOString() ?? null,
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
-      districts: plan.districts.map((pd) => ({
-        leaid: pd.districtLeaid,
-        addedAt: pd.addedAt.toISOString(),
-        name: pd.district.name,
-        stateAbbrev: pd.district.stateAbbrev,
-        enrollment: pd.district.enrollment,
-        owner: pd.district.owner ?? null,
-        renewalTarget: pd.renewalTarget ? Number(pd.renewalTarget) : null,
-        winbackTarget: pd.winbackTarget ? Number(pd.winbackTarget) : null,
-        expansionTarget: pd.expansionTarget ? Number(pd.expansionTarget) : null,
-        newBusinessTarget: pd.newBusinessTarget ? Number(pd.newBusinessTarget) : null,
-        notes: pd.notes,
-        returnServices: pd.targetServices
-          .filter((ts) => ts.category === "return_services")
-          .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
-        newServices: pd.targetServices
-          .filter((ts) => ts.category === "new_services")
-          .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
-        tags: pd.district.districtTags.map((dt) => ({
-          id: dt.tag.id,
-          name: dt.tag.name,
-          color: dt.tag.color,
-        })),
-      })),
+      districts: plan.districts.map((pd) => {
+        const curr = currentByDistrict.get(pd.districtLeaid);
+        const prior = priorByDistrict.get(pd.districtLeaid);
+        return {
+          leaid: pd.districtLeaid,
+          addedAt: pd.addedAt.toISOString(),
+          name: pd.district.name,
+          stateAbbrev: pd.district.stateAbbrev,
+          enrollment: pd.district.enrollment,
+          owner: pd.district.owner ?? null,
+          renewalTarget: pd.renewalTarget ? Number(pd.renewalTarget) : null,
+          winbackTarget: pd.winbackTarget ? Number(pd.winbackTarget) : null,
+          expansionTarget: pd.expansionTarget ? Number(pd.expansionTarget) : null,
+          newBusinessTarget: pd.newBusinessTarget ? Number(pd.newBusinessTarget) : null,
+          notes: pd.notes,
+          returnServices: pd.targetServices
+            .filter((ts) => ts.category === "return_services")
+            .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
+          newServices: pd.targetServices
+            .filter((ts) => ts.category === "new_services")
+            .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
+          tags: pd.district.districtTags.map((dt) => ({
+            id: dt.tag.id,
+            name: dt.tag.name,
+            color: dt.tag.color,
+          })),
+          actuals: curr
+            ? {
+                totalRevenue: Number(curr.total_revenue),
+                totalTake: Number(curr.total_take),
+                weightedPipeline: Number(curr.weighted_pipeline),
+                priorFyRevenue: prior ? Number(prior.total_revenue) : 0,
+              }
+            : undefined,
+        };
+      }),
     });
   } catch (error) {
     console.error("Error fetching territory plan:", error);
