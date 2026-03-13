@@ -515,8 +515,15 @@ function DistrictSearchModal({
     enabled: debouncedQuery.length >= 2,
   });
 
+  const { data: schoolResults, isLoading: schoolsLoading } = useQuery({
+    queryKey: ["school-search", debouncedQuery],
+    queryFn: () => searchSchools(debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
+  });
+
   const hasSuggestions = (suggestions?.items.length ?? 0) > 0;
   const isSearching = debouncedQuery.length >= 2;
+  const hasSchoolResults = (schoolResults?.schools.length ?? 0) > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -614,7 +621,7 @@ function DistrictSearchModal({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && onClose()}
-                placeholder="Search districts by name, LEAID, or state..."
+                placeholder="Search districts or schools by name..."
                 className="w-full pl-10 pr-4 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
               />
             </div>
