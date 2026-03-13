@@ -140,7 +140,10 @@ async function resolveOpportunity(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resolvedDistrictLeaid }),
   });
-  if (!res.ok) throw new Error("Failed to resolve");
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Failed to resolve (${res.status})`);
+  }
   return res.json();
 }
 
@@ -817,6 +820,13 @@ export default function UnmatchedOpportunitiesPage() {
       const count = data.resolvedCount ?? 1;
       const countLabel = count > 1 ? `${count} opportunities` : "1 opportunity";
       setToast(`Resolved ${countLabel} to ${variables.districtName} (${variables.leaid})`);
+      setResolvingOpp(null);
+    },
+    onError: (error) => {
+      const msg = error.message?.includes("not found")
+        ? "District not found in system — use Create New District to add it first"
+        : "Failed to resolve opportunity";
+      setToast(msg);
       setResolvingOpp(null);
     },
   });
