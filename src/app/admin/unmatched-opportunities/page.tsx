@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { unmatchedOpportunityColumns } from "./columns";
+import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
+import type { SortRule, FilterRule, CellRendererFn } from "@/features/shared/components/DataGrid/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +45,9 @@ async function fetchOpportunities(params: {
   resolved?: string;
   school_yr?: string;
   state?: string;
+  search?: string;
+  sort_by?: string;
+  sort_dir?: string;
   page: number;
   page_size: number;
 }): Promise<{ items: UnmatchedOpportunity[]; pagination: PaginationInfo }> {
@@ -49,6 +55,9 @@ async function fetchOpportunities(params: {
   if (params.resolved) qs.set("resolved", params.resolved);
   if (params.school_yr) qs.set("school_yr", params.school_yr);
   if (params.state) qs.set("state", params.state);
+  if (params.search) qs.set("search", params.search);
+  if (params.sort_by) qs.set("sort_by", params.sort_by);
+  if (params.sort_dir) qs.set("sort_dir", params.sort_dir);
   qs.set("page", String(params.page));
   qs.set("page_size", String(params.page_size));
   const res = await fetch(`/api/admin/unmatched-opportunities?${qs}`);
@@ -137,10 +146,23 @@ function DistrictSearchModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
-        <h3 className="text-lg font-semibold text-[#403770] mb-1">Resolve to District</h3>
-        <p className="text-sm text-[#8A80A8] mb-4">
-          Search by district name, LEAID, or state abbreviation.
-        </p>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[#403770]">Resolve to District</h3>
+            <p className="text-sm text-[#8A80A8] mt-1">
+              Search by district name, LEAID, or state abbreviation.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-[#A69DC0] hover:text-[#403770] hover:bg-[#EFEDF5] transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <div className="relative mb-3">
           <svg
@@ -227,56 +249,61 @@ function DistrictSearchModal({
 }
 
 // ---------------------------------------------------------------------------
-// Filter chip
-// ---------------------------------------------------------------------------
-
-function FilterChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-        active
-          ? "bg-[#403770] text-white border border-transparent"
-          : "bg-white text-[#8A80A8] border border-[#D4CFE2] hover:border-[#C2BBD4]"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
 export default function UnmatchedOpportunitiesPage() {
   const queryClient = useQueryClient();
 
-  const [resolvedFilter, setResolvedFilter] = useState<string>("false");
-  const [schoolYrFilter, setSchoolYrFilter] = useState<string>("");
-  const [stateFilter, setStateFilter] = useState<string>("");
+  // DataGrid state
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    unmatchedOpportunityColumns.filter((c) => c.isDefault).map((c) => c.key)
+  );
+  const [sorts, setSorts] = useState<SortRule[]>([
+    { column: "netBookingAmount", direction: "desc" },
+  ]);
   const [page, setPage] = useState(1);
-  const pageSize = 50;
+  // Start with "unresolved" filter active (same default as current page)
+  const [filters, setFilters] = useState<FilterRule[]>([
+    { column: "resolved", operator: "is_false", value: false },
+  ]);
 
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
+  // Sort handler (single-sort, 3-click cycle: asc -> desc -> clear)
+  const handleSort = useCallback((column: string) => {
+    setSorts((prev) => {
+      const existing = prev.find((s) => s.column === column);
+      if (!existing) return [{ column, direction: "asc" as const }];
+      if (existing.direction === "asc") return [{ column, direction: "desc" as const }];
+      return [];
+    });
+    setPage(1);
+  }, []);
+
+  // Derive API params from FilterRule[] array
+  const resolvedFilter = filters.find((f) => f.column === "resolved");
+  const resolvedParam = resolvedFilter
+    ? resolvedFilter.operator === "is_true" ? "true" : "false"
+    : undefined;
+  const schoolYrFilter = filters.find((f) => f.column === "schoolYr" && f.operator === "eq");
+  const stateFilterRule = filters.find((f) => f.column === "state" && f.operator === "eq");
+  const searchFilter = filters.find((f) => f.column === "name" && f.operator === "contains");
+
+  const sortRule = sorts[0];
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["unmatched-opportunities", resolvedFilter, schoolYrFilter, stateFilter, page],
+    queryKey: ["unmatched-opportunities", filters, sorts, page],
     queryFn: () =>
       fetchOpportunities({
-        resolved: resolvedFilter || undefined,
-        school_yr: schoolYrFilter || undefined,
-        state: stateFilter || undefined,
+        resolved: resolvedParam,
+        school_yr: schoolYrFilter ? String(schoolYrFilter.value) : undefined,
+        state: stateFilterRule ? String(stateFilterRule.value) : undefined,
+        search: searchFilter ? String(searchFilter.value) : undefined,
+        sort_by: sortRule?.column,
+        sort_dir: sortRule?.direction,
         page,
-        page_size: pageSize,
+        page_size: 50,
       }),
   });
 
@@ -297,14 +324,32 @@ export default function UnmatchedOpportunitiesPage() {
     [resolvingId, resolveMutation]
   );
 
-  const items = data?.items ?? [];
-  const pagination = data?.pagination;
-  const totalPages = pagination ? Math.ceil(pagination.total / pagination.pageSize) : 1;
-
-  const cycleResolvedFilter = (value: string) => {
-    setResolvedFilter((prev) => (prev === value ? "" : value));
-    setPage(1);
-  };
+  // Cell renderers
+  const cellRenderers = useMemo<Record<string, CellRendererFn>>(() => ({
+    resolved: ({ value, row }) => {
+      const isResolved = value as boolean;
+      const leaid = row.resolvedDistrictLeaid as string | null;
+      return (
+        <div className="flex items-center gap-2">
+          <StatusBadge resolved={isResolved} />
+          {!isResolved && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setResolvingId(row.id as string); }}
+              className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            >
+              Resolve
+            </button>
+          )}
+          {isResolved && leaid && (
+            <span className="text-[10px] text-[#8A80A8] font-medium tabular-nums">{leaid}</span>
+          )}
+        </div>
+      );
+    },
+    netBookingAmount: ({ value }) => (
+      <span className="tabular-nums font-medium">{formatCurrency(value as string)}</span>
+    ),
+  }), []);
 
   return (
     <div>
@@ -313,183 +358,34 @@ export default function UnmatchedOpportunitiesPage() {
         <h1 className="text-xl font-bold text-[#403770]">Unmatched Opportunities</h1>
         <p className="text-sm text-[#8A80A8] mt-1">
           Opportunities that could not be automatically matched to a district.
-          {pagination && (
+          {data?.pagination && (
             <span className="ml-1 font-medium text-[#6E6390]">
-              {pagination.total} total
+              {data.pagination.total} total
             </span>
           )}
         </p>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <FilterChip
-          label="Unresolved"
-          active={resolvedFilter === "false"}
-          onClick={() => cycleResolvedFilter("false")}
-        />
-        <FilterChip
-          label="Resolved"
-          active={resolvedFilter === "true"}
-          onClick={() => cycleResolvedFilter("true")}
-        />
-
-        <div className="h-4 w-px bg-[#E2DEEC]" />
-
-        <select
-          value={schoolYrFilter}
-          onChange={(e) => { setSchoolYrFilter(e.target.value); setPage(1); }}
-          className="border border-[#D4CFE2] rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6390] bg-white focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none"
-        >
-          <option value="">All School Years</option>
-          <option value="2024-25">2024-25</option>
-          <option value="2025-26">2025-26</option>
-          <option value="2026-27">2026-27</option>
-        </select>
-
-        <input
-          type="text"
-          placeholder="State (e.g. CA)"
-          maxLength={2}
-          value={stateFilter}
-          onChange={(e) => { setStateFilter(e.target.value.toUpperCase()); setPage(1); }}
-          className="w-24 border border-[#D4CFE2] rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6390] bg-white placeholder:text-[#A69DC0] focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none"
-        />
-      </div>
+      {/* Toolbar placeholder — will be replaced by AdminFilterBar + AdminColumnPicker in Task 5 */}
 
       {/* Table */}
-      <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-[#D4CFE2] bg-[#F7F5FA]">
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider">Account</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider w-16">State</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider w-24">School Year</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider w-28">Stage</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider w-32">Net Booking</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider">Reason</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider w-24">Status</th>
-                <th className="w-20 px-3 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading &&
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className={i < 4 ? "border-b border-[#E2DEEC]" : ""}>
-                    {Array.from({ length: 9 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <div className="bg-[#E2DEEC]/60 animate-pulse rounded h-4" style={{ width: `${[60, 50, 30, 40, 35, 40, 55, 30, 20][j]}%` }} />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-
-              {isError && !isLoading && (
-                <tr>
-                  <td colSpan={9}>
-                    <div className="py-10 flex flex-col items-center">
-                      <p className="text-sm font-semibold text-[#544A78] mt-3">Failed to load opportunities</p>
-                      <button onClick={() => refetch()} className="text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] px-3 py-1.5 rounded-lg border border-[#D4CFE2] mt-4 transition-colors">
-                        Retry
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {!isLoading && !isError && items.length === 0 && (
-                <tr>
-                  <td colSpan={9}>
-                    <div className="text-center py-12">
-                      <h3 className="text-lg font-medium text-[#6E6390] mb-2">No unmatched opportunities</h3>
-                      <p className="text-sm text-[#8A80A8] max-w-sm mx-auto">
-                        {resolvedFilter === "false"
-                          ? "All opportunities have been resolved. Nice work!"
-                          : "No opportunities match the current filters."}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {!isLoading && !isError && items.map((item, idx) => (
-                <tr
-                  key={item.id}
-                  className={`group transition-colors duration-100 hover:bg-[#EFEDF5] ${idx < items.length - 1 ? "border-b border-[#E2DEEC]" : ""}`}
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-[#403770] overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px]" title={item.name ?? undefined}>
-                    {item.name || "\u2014"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[#6E6390] overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]" title={item.accountName ?? undefined}>
-                    {item.accountName || "\u2014"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[#6E6390]">{item.state || "\u2014"}</td>
-                  <td className="px-4 py-3 text-sm text-[#6E6390]">{item.schoolYr || "\u2014"}</td>
-                  <td className="px-4 py-3 text-sm text-[#6E6390] overflow-hidden text-ellipsis whitespace-nowrap" title={item.stage ?? undefined}>
-                    {item.stage || "\u2014"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[#6E6390] text-right tabular-nums font-medium">
-                    {formatCurrency(item.netBookingAmount)}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#8A80A8] overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px]" title={item.reason ?? undefined}>
-                    {item.reason || "\u2014"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge resolved={item.resolved} />
-                  </td>
-                  <td className="px-3 py-3">
-                    {!item.resolved && (
-                      <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                        <button
-                          onClick={() => setResolvingId(item.id)}
-                          className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
-                        >
-                          Resolve
-                        </button>
-                      </div>
-                    )}
-                    {item.resolved && item.resolvedDistrictLeaid && (
-                      <span className="text-[10px] text-[#8A80A8] font-medium tabular-nums">
-                        {item.resolvedDistrictLeaid}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination footer */}
-        {!isLoading && !isError && items.length > 0 && pagination && (
-          <div className="px-4 py-2.5 border-t border-[#E2DEEC] bg-[#F7F5FA] flex items-center justify-between">
-            <span className="text-xs font-medium text-[#A69DC0] tracking-wide">
-              {pagination.total} opportunit{pagination.total !== 1 ? "ies" : "y"}
-            </span>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-2 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-xs text-[#8A80A8] tabular-nums">{page} of {totalPages}</span>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-2 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <DataGrid
+        data={(data?.items ?? []) as unknown as Record<string, unknown>[]}
+        columnDefs={unmatchedOpportunityColumns}
+        entityType="opportunities"
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={() => refetch()}
+        visibleColumns={visibleColumns}
+        onColumnsChange={setVisibleColumns}
+        sorts={sorts}
+        onSort={handleSort}
+        hasActiveFilters={filters.length > 0}
+        onClearFilters={() => { setFilters([]); setPage(1); }}
+        pagination={data?.pagination}
+        onPageChange={setPage}
+        cellRenderers={cellRenderers}
+      />
 
       {/* Resolution modal */}
       {resolvingId && (
