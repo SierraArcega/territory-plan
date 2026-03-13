@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const SORTABLE_COLUMNS = new Set([
   "name", "accountName", "state", "schoolYr", "stage",
-  "netBookingAmount", "reason", "resolved",
+  "netBookingAmount", "reason", "resolved", "resolvedDistrictLeaid",
 ]);
 
 // GET /api/admin/unmatched-opportunities — list with filtering, sorting, and search

@@ -70,6 +70,8 @@ export interface DataGridProps {
   expandedRowIds?: Set<string>;
   onToggleExpand?: (id: string) => void;
   renderExpandedRow?: (row: Record<string, unknown>) => ReactNode;
+  // Row actions (optional — always-visible action column pinned to the right)
+  renderRowAction?: (row: Record<string, unknown>) => ReactNode;
   // Footer
   footerSummary?: ReactNode;
 }

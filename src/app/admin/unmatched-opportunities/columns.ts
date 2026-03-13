@@ -15,6 +15,13 @@ const US_STATES = [
 export const unmatchedOpportunityColumns: ColumnDef[] = [
   // ---- Core ----
   {
+    key: "id",
+    label: "Opp ID",
+    group: "Core",
+    isDefault: true,
+    filterType: "text",
+  },
+  {
     key: "name",
     label: "Name",
     group: "Core",
@@ -24,6 +31,13 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
   {
     key: "accountName",
     label: "Account",
+    group: "Core",
+    isDefault: true,
+    filterType: "text",
+  },
+  {
+    key: "accountLmsId",
+    label: "Account LMS ID",
     group: "Core",
     isDefault: true,
     filterType: "text",
@@ -54,6 +68,13 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
   {
     key: "reason",
     label: "Reason",
+    group: "Core",
+    isDefault: true,
+    filterType: "text",
+  },
+  {
+    key: "resolvedDistrictLeaid",
+    label: "NCES ID",
     group: "Core",
     isDefault: true,
     filterType: "text",

@@ -69,6 +69,7 @@ export function DataGrid({
   expandedRowIds,
   onToggleExpand,
   renderExpandedRow,
+  renderRowAction,
   footerSummary,
 }: DataGridProps) {
   const showCheckboxes = selectedIds !== undefined;
@@ -167,8 +168,18 @@ export function DataGrid({
       });
     }
 
+    // Append actions column
+    if (renderRowAction) {
+      cols.push({
+        id: "__actions",
+        header: () => null,
+        cell: () => null,
+        size: 80,
+      });
+    }
+
     return cols;
-  }, [visibleColumns, columnDefs, showCheckboxes, showExpand, cellRenderers, resolveLabel]);
+  }, [visibleColumns, columnDefs, showCheckboxes, showExpand, renderRowAction, cellRenderers, resolveLabel]);
 
   const table = useReactTable({
     data,
@@ -257,6 +268,16 @@ export function DataGrid({
                             className="w-4 h-4 rounded border-[#C2BBD4] text-[#403770] focus:ring-[#403770]/30 cursor-pointer"
                           />
                         </th>
+                      );
+                    }
+
+                    // Actions header (spacer)
+                    if (colKey === "__actions") {
+                      return (
+                        <th
+                          key={header.id}
+                          className="w-20 bg-[#F7F5FA] sticky top-0 z-10"
+                        />
                       );
                     }
 
@@ -529,6 +550,15 @@ export function DataGrid({
                                     <path d="M6 4L10 8L6 12" />
                                   </svg>
                                 </button>
+                              </td>
+                            );
+                          }
+
+                          // Actions cell
+                          if (cell.column.id === "__actions" && renderRowAction) {
+                            return (
+                              <td key={cell.id} className="w-20 px-3 py-3 text-right">
+                                {renderRowAction(row.original)}
                               </td>
                             );
                           }

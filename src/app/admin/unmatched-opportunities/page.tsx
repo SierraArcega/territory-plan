@@ -328,35 +328,70 @@ export default function UnmatchedOpportunitiesPage() {
 
   // Cell renderers
   const cellRenderers = useMemo<Record<string, CellRendererFn>>(() => ({
-    resolved: ({ value, row }) => {
-      const isResolved = value as boolean;
-      const leaid = row.resolvedDistrictLeaid as string | null;
+    name: ({ value, row }) => {
+      const name = value as string | null;
+      const id = row.id as string;
+      if (!name) return <span className="text-[#A69DC0]">&mdash;</span>;
       return (
-        <div className="flex items-center gap-2">
-          <StatusBadge resolved={isResolved} />
-          {!isResolved && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setResolvingId(row.id as string); }}
-              className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-            >
-              Resolve
-            </button>
-          )}
-          {isResolved && leaid && (
-            <span className="text-[10px] text-[#8A80A8] font-medium tabular-nums">{leaid}</span>
-          )}
-        </div>
+        <a
+          href={`https://lms.fullmindlearning.com/opportunities/${id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-[#6EA3BE] hover:text-[#403770] hover:underline transition-colors"
+          title="Open in LMS"
+        >
+          {name}
+        </a>
       );
+    },
+    accountLmsId: ({ value }) => {
+      const lmsId = value as string | null;
+      if (!lmsId) return <span className="text-[#A69DC0]">&mdash;</span>;
+      return (
+        <a
+          href={`https://lms.fullmindlearning.com/districts/${lmsId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-[#6EA3BE] hover:text-[#403770] hover:underline transition-colors tabular-nums"
+          title="Open in LMS"
+        >
+          {lmsId}
+        </a>
+      );
+    },
+    resolvedDistrictLeaid: ({ value }) => {
+      const leaid = value as string | null;
+      if (!leaid) return <span className="text-[#A69DC0]">&mdash;</span>;
+      return <span className="tabular-nums font-medium text-[#6E6390]">{leaid}</span>;
+    },
+    resolved: ({ value }) => {
+      const isResolved = value as boolean;
+      return <StatusBadge resolved={isResolved} />;
     },
     netBookingAmount: ({ value }) => (
       <span className="tabular-nums font-medium">{formatCurrency(value as string)}</span>
     ),
-  }), [setResolvingId]);
+  }), []);
+
+  const renderRowAction = useCallback((row: Record<string, unknown>) => {
+    const isResolved = row.resolved as boolean;
+    if (isResolved) return null;
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); setResolvingId(row.id as string); }}
+        className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
+      >
+        Resolve
+      </button>
+    );
+  }, []);
 
   return (
-    <div>
+    <div className="flex flex-col h-[calc(100vh-100px)]">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 shrink-0">
         <h1 className="text-xl font-bold text-[#403770]">Unmatched Opportunities</h1>
         <p className="text-sm text-[#8A80A8] mt-1">
           Opportunities that could not be automatically matched to a district.
@@ -369,7 +404,7 @@ export default function UnmatchedOpportunitiesPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
+      <div className="flex items-center gap-2 mb-3 flex-wrap shrink-0">
         <AdminFilterBar
           columnDefs={unmatchedOpportunityColumns}
           filters={filters}
@@ -387,6 +422,7 @@ export default function UnmatchedOpportunitiesPage() {
       </div>
 
       {/* Table */}
+      <div className="flex-1 min-h-0 overflow-auto">
       <DataGrid
         data={(data?.items ?? []) as unknown as Record<string, unknown>[]}
         columnDefs={unmatchedOpportunityColumns}
@@ -403,7 +439,9 @@ export default function UnmatchedOpportunitiesPage() {
         pagination={data?.pagination}
         onPageChange={setPage}
         cellRenderers={cellRenderers}
+        renderRowAction={renderRowAction}
       />
+      </div>
 
       {/* Resolution modal */}
       {resolvingId && (
