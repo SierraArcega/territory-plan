@@ -629,19 +629,49 @@ function DistrictSearchModal({
             {/* Search results */}
             {isSearching && (
               <div className="max-h-64 overflow-y-auto border border-[#E2DEEC] rounded-lg">
-                {searchLoading && (
-                  <div className="px-4 py-8 text-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#403770] border-t-transparent mx-auto" />
+                {/* District results */}
+                {!searchLoading && (searchResults?.items.length ?? 0) > 0 && (
+                  <>
+                    <div className="px-4 py-1.5 bg-[#F5F3FA] border-b border-[#E2DEEC] flex items-center gap-2 sticky top-0">
+                      <span className="text-[10px] font-semibold text-[#403770] uppercase tracking-wide">Districts</span>
+                      <span className="text-[10px] text-[#8A80A8] bg-white px-1.5 py-0.5 rounded">
+                        {searchResults!.items.length}
+                      </span>
+                    </div>
+                    {searchResults!.items.map((district) => (
+                      <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
+                    ))}
+                  </>
+                )}
+
+                {/* School results */}
+                {!schoolsLoading && hasSchoolResults && (
+                  <>
+                    <div className="px-4 py-1.5 bg-[#F5F3FA] border-b border-[#E2DEEC] flex items-center gap-2 sticky top-0">
+                      <span className="text-[10px] font-semibold text-[#403770] uppercase tracking-wide">Schools</span>
+                      <span className="text-[10px] text-[#8A80A8] bg-white px-1.5 py-0.5 rounded">
+                        {schoolResults!.schools.length}
+                      </span>
+                    </div>
+                    {schoolResults!.schools.map((school) => (
+                      <SchoolRow key={school.ncessch} school={school} onSelect={onSelect} />
+                    ))}
+                  </>
+                )}
+
+                {/* Loading spinner when either query is still loading */}
+                {(searchLoading || schoolsLoading) && (
+                  <div className="px-4 py-4 text-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#403770] border-t-transparent mx-auto" />
                   </div>
                 )}
-                {!searchLoading && searchResults?.items.length === 0 && (
+
+                {/* Empty state when both queries done and no results */}
+                {!searchLoading && !schoolsLoading && (searchResults?.items.length ?? 0) === 0 && !hasSchoolResults && (
                   <div className="px-4 py-6 text-center text-sm text-[#8A80A8]">
-                    No districts found
+                    No districts or schools found
                   </div>
                 )}
-                {searchResults?.items.map((district) => (
-                  <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
-                ))}
               </div>
             )}
 
