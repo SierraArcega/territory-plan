@@ -82,6 +82,24 @@ async function fetchSuggestions(name: string, state?: string | null): Promise<{ 
   return res.json();
 }
 
+async function createDistrict(data: {
+  leaid: string;
+  name: string;
+  stateAbbrev: string;
+  cityLocation?: string;
+}): Promise<DistrictResult> {
+  const res = await fetch("/api/admin/districts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to create district" }));
+    throw new Error(err.error || "Failed to create district");
+  }
+  return res.json();
+}
+
 async function resolveOpportunity(
   id: string,
   resolvedDistrictLeaid: string,
@@ -126,6 +144,18 @@ function StatusBadge({ resolved }: { resolved: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
+// US States (for create form dropdown)
+// ---------------------------------------------------------------------------
+
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL",
+  "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME",
+  "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
+  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
+  "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+];
+
+// ---------------------------------------------------------------------------
 // District search modal
 // ---------------------------------------------------------------------------
 
@@ -165,6 +195,115 @@ function DistrictRow({
   );
 }
 
+function CreateDistrictForm({
+  opportunity,
+  onCreated,
+  onCancel,
+}: {
+  opportunity: UnmatchedOpportunity;
+  onCreated: (district: DistrictResult) => void;
+  onCancel: () => void;
+}) {
+  const [leaid, setLeaid] = useState("");
+  const [name, setName] = useState(opportunity.accountName ?? "");
+  const [stateAbbrev, setStateAbbrev] = useState(opportunity.state ?? "");
+  const [cityLocation, setCityLocation] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: () => createDistrict({ leaid, name: name.trim(), stateAbbrev, cityLocation: cityLocation.trim() || undefined }),
+    onSuccess: (district) => onCreated(district),
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const isValid = /^\d{7}$/.test(leaid) && name.trim().length > 0 && stateAbbrev.length === 2;
+
+  return (
+    <div className="space-y-3">
+      {error && (
+        <div role="alert" className="flex items-start gap-2 px-3 py-2.5 rounded-lg border bg-[#fef1f0] border-[#f58d85]">
+          <svg className="w-4 h-4 text-[#c25a52] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+          </svg>
+          <span className="text-xs font-medium text-[#c25a52]">{error}</span>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-xs font-medium text-[#544A78] mb-1">
+          NCES LEAID <span className="text-[#F37167]">*</span>
+        </label>
+        <input
+          type="text"
+          value={leaid}
+          onChange={(e) => { setLeaid(e.target.value.replace(/\D/g, "").slice(0, 7)); setError(null); }}
+          placeholder="7-digit ID (e.g. 0100005)"
+          className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0] tabular-nums"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-[#544A78] mb-1">
+          District Name <span className="text-[#F37167]">*</span>
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError(null); }}
+          placeholder="e.g. Springfield Public Schools"
+          className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <div className="w-28">
+          <label className="block text-xs font-medium text-[#544A78] mb-1">
+            State <span className="text-[#F37167]">*</span>
+          </label>
+          <select
+            value={stateAbbrev}
+            onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
+            className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none bg-white"
+          >
+            <option value="">—</option>
+            {US_STATES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-[#544A78] mb-1">
+            City
+          </label>
+          <input
+            type="text"
+            value={cityLocation}
+            onChange={(e) => setCityLocation(e.target.value)}
+            placeholder="Optional"
+            className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-1">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium text-[#544A78] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+        >
+          Back
+        </button>
+        <button
+          onClick={() => createMutation.mutate()}
+          disabled={!isValid || createMutation.isPending}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+        >
+          {createMutation.isPending ? "Creating..." : "Create & Resolve"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DistrictSearchModal({
   opportunity,
   onSelect,
@@ -176,11 +315,12 @@ function DistrictSearchModal({
 }) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (!showCreate) inputRef.current?.focus();
+  }, [showCreate]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 200);
@@ -209,7 +349,9 @@ function DistrictSearchModal({
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-[#403770]">Resolve to District</h3>
+            <h3 className="text-lg font-semibold text-[#403770]">
+              {showCreate ? "Create New District" : "Resolve to District"}
+            </h3>
             <p className="text-sm text-[#8A80A8] mt-1">
               {opportunity.accountName}
               {opportunity.state && <span className="ml-1">({opportunity.state})</span>}
@@ -226,101 +368,120 @@ function DistrictSearchModal({
           </button>
         </div>
 
-        {/* Suggestions section */}
-        {!isSearching && (
-          <div className="mb-3">
-            {suggestionsLoading && (
-              <div className="px-4 py-4 text-center border border-[#E2DEEC] rounded-lg">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#403770] border-t-transparent mx-auto mb-2" />
-                <span className="text-xs text-[#8A80A8]">Finding potential matches...</span>
-              </div>
-            )}
-            {!suggestionsLoading && hasSuggestions && (
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-semibold text-[#403770] uppercase tracking-wide">
-                    Suggested Matches
-                  </span>
-                  <span className="text-[10px] text-[#8A80A8] bg-[#F5F3FA] px-1.5 py-0.5 rounded">
-                    {suggestions!.items.length} found
-                  </span>
-                </div>
-                <div className="border border-[#D6D0E8] rounded-lg max-h-48 overflow-y-auto bg-[#FDFCFF]">
-                  {suggestions!.items.map((district) => (
-                    <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {!suggestionsLoading && !hasSuggestions && opportunity.accountName && (
-              <div className="px-4 py-3 text-center text-xs text-[#8A80A8] border border-[#E2DEEC] rounded-lg">
-                No automatic matches found — try searching below.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Divider + search label */}
-        {!isSearching && hasSuggestions && (
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex-1 h-px bg-[#E2DEEC]" />
-            <span className="text-[10px] text-[#A69DC0] uppercase tracking-wide">or search manually</span>
-            <div className="flex-1 h-px bg-[#E2DEEC]" />
-          </div>
-        )}
-
-        <div className="relative mb-3">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && onClose()}
-            placeholder="Search districts by name, LEAID, or state..."
-            className="w-full pl-10 pr-4 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+        {showCreate ? (
+          <CreateDistrictForm
+            opportunity={opportunity}
+            onCreated={onSelect}
+            onCancel={() => setShowCreate(false)}
           />
-        </div>
+        ) : (
+          <>
+            {/* Suggestions section */}
+            {!isSearching && (
+              <div className="mb-3">
+                {suggestionsLoading && (
+                  <div className="px-4 py-4 text-center border border-[#E2DEEC] rounded-lg">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#403770] border-t-transparent mx-auto mb-2" />
+                    <span className="text-xs text-[#8A80A8]">Finding potential matches...</span>
+                  </div>
+                )}
+                {!suggestionsLoading && hasSuggestions && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-semibold text-[#403770] uppercase tracking-wide">
+                        Suggested Matches
+                      </span>
+                      <span className="text-[10px] text-[#8A80A8] bg-[#F5F3FA] px-1.5 py-0.5 rounded">
+                        {suggestions!.items.length} found
+                      </span>
+                    </div>
+                    <div className="border border-[#D6D0E8] rounded-lg max-h-48 overflow-y-auto bg-[#FDFCFF]">
+                      {suggestions!.items.map((district) => (
+                        <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!suggestionsLoading && !hasSuggestions && opportunity.accountName && (
+                  <div className="px-4 py-3 text-center text-xs text-[#8A80A8] border border-[#E2DEEC] rounded-lg">
+                    No automatic matches found — try searching below.
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* Search results */}
-        {isSearching && (
-          <div className="max-h-64 overflow-y-auto border border-[#E2DEEC] rounded-lg">
-            {searchLoading && (
-              <div className="px-4 py-8 text-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#403770] border-t-transparent mx-auto" />
+            {/* Divider + search label */}
+            {!isSearching && hasSuggestions && (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 h-px bg-[#E2DEEC]" />
+                <span className="text-[10px] text-[#A69DC0] uppercase tracking-wide">or search manually</span>
+                <div className="flex-1 h-px bg-[#E2DEEC]" />
               </div>
             )}
-            {!searchLoading && searchResults?.items.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-[#8A80A8]">
-                No districts found
+
+            <div className="relative mb-3">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && onClose()}
+                placeholder="Search districts by name, LEAID, or state..."
+                className="w-full pl-10 pr-4 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+              />
+            </div>
+
+            {/* Search results */}
+            {isSearching && (
+              <div className="max-h-64 overflow-y-auto border border-[#E2DEEC] rounded-lg">
+                {searchLoading && (
+                  <div className="px-4 py-8 text-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#403770] border-t-transparent mx-auto" />
+                  </div>
+                )}
+                {!searchLoading && searchResults?.items.length === 0 && (
+                  <div className="px-4 py-6 text-center text-sm text-[#8A80A8]">
+                    No districts found
+                  </div>
+                )}
+                {searchResults?.items.map((district) => (
+                  <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
+                ))}
               </div>
             )}
-            {searchResults?.items.map((district) => (
-              <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
-            ))}
-          </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#6EA3BE] hover:text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create new district
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-[#544A78] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
         )}
-
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-[#544A78] hover:bg-[#EFEDF5] rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
       </div>
     </div>
   );
