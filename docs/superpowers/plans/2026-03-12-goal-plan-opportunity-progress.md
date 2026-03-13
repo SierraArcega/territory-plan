@@ -191,6 +191,7 @@ import {
   getDistrictActuals,
   getRepActuals,
   getDistrictOpportunities,
+  getNewDistrictsCount,
   fiscalYearToSchoolYear,
 } from "@/lib/opportunity-actuals";
 
@@ -1494,7 +1495,11 @@ export default function DistrictPerformanceSection({
           value={formatCurrency(actuals.weightedPipeline)}
           subtext={`${actuals.oppCount} open opp${actuals.oppCount !== 1 ? "s" : ""}`}
         />
-        <MetricCard label="Invoiced" value={formatCurrency(actuals.invoiced)} />
+        <MetricCard
+          label="Invoiced / Credited"
+          value={formatCurrency(actuals.invoiced)}
+          subtext={actuals.credited > 0 ? `Credited: ${formatCurrency(actuals.credited)}` : undefined}
+        />
         <MetricCard
           label="Prior FY Revenue"
           value={formatCurrency(actuals.priorFyRevenue)}
