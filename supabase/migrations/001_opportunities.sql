@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS opportunities (
     district_name TEXT,
     district_lms_id TEXT,
     district_nces_id TEXT,
+    -- No FK constraint: not all opportunities match a district (unmatched opps have NULL here)
     district_lea_id TEXT,
     created_at TIMESTAMPTZ,
     close_date TIMESTAMPTZ,
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS unmatched_opportunities (
     net_booking_amount DECIMAL(15,2),
     reason TEXT,
     resolved BOOLEAN DEFAULT false,
+    -- No FK constraint on resolved_district_leaid: set by admin user action, validated at API layer
     resolved_district_leaid TEXT,
     synced_at TIMESTAMPTZ
 );

@@ -18,6 +18,7 @@ services:
   scheduler:
     build: ./scheduler
     container_name: tp_scheduler
+    profiles: ["scheduler"]
     environment:
       - OPENSEARCH_HOST=${OPENSEARCH_HOST}
       - OPENSEARCH_USERNAME=${OPENSEARCH_USERNAME}
