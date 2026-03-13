@@ -4,7 +4,12 @@ import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/unmatched-opportunities — list with filtering
+const SORTABLE_COLUMNS = new Set([
+  "name", "accountName", "state", "schoolYr", "stage",
+  "netBookingAmount", "reason", "resolved",
+]);
+
+// GET /api/admin/unmatched-opportunities — list with filtering, sorting, and search
 export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
@@ -16,6 +21,9 @@ export async function GET(request: NextRequest) {
     const resolved = searchParams.get("resolved");
     const schoolYr = searchParams.get("school_yr");
     const state = searchParams.get("state");
+    const sortBy = searchParams.get("sort_by") || "netBookingAmount";
+    const sortDir = searchParams.get("sort_dir") === "asc" ? "asc" : "desc";
+    const search = searchParams.get("search") || "";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("page_size") || "50", 10)));
 
@@ -35,10 +43,19 @@ export async function GET(request: NextRequest) {
       where.state = state;
     }
 
+    if (search && search.length >= 2) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { accountName: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const orderByColumn = SORTABLE_COLUMNS.has(sortBy) ? sortBy : "netBookingAmount";
+
     const [items, total] = await Promise.all([
       prisma.unmatchedOpportunity.findMany({
         where,
-        orderBy: { netBookingAmount: "desc" },
+        orderBy: { [orderByColumn]: sortDir },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
