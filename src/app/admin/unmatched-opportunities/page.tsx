@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { unmatchedOpportunityColumns } from "./columns";
 import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
@@ -127,6 +128,30 @@ async function createDistrict(data: {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Failed to create district" }));
     throw new Error(err.error || "Failed to create district");
+  }
+  return res.json();
+}
+
+const UNRESOLVED_REASONS = [
+  "Missing District",
+  "Remove Child Opp",
+  "Organization",
+  "University",
+  "Private/Charter",
+] as const;
+
+async function updateReason(
+  id: string,
+  reason: string | null,
+): Promise<{ id: string; reason: string | null }> {
+  const res = await fetch(`/api/admin/unmatched-opportunities/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Failed to update reason (${res.status})`);
   }
   return res.json();
 }
@@ -272,6 +297,120 @@ function SummaryCards({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reason dropdown (inline cell editor)
+// ---------------------------------------------------------------------------
+
+function ReasonDropdown({
+  value,
+  opportunityId,
+  onUpdate,
+}: {
+  value: string | null;
+  opportunityId: string;
+  onUpdate: (id: string, reason: string | null) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  // Position the dropdown when it opens
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.left });
+  }, [isOpen]);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isOpen]);
+
+  const handleSelect = (reason: string | null) => {
+    onUpdate(opportunityId, reason);
+    setIsOpen(false);
+  };
+
+  const options: { value: string | null; label: string }[] = [
+    { value: null, label: "—" },
+    ...UNRESOLVED_REASONS.map((r) => ({ value: r as string | null, label: r })),
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setIsOpen((v) => !v); }}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        className={`w-full text-xs text-left border border-transparent rounded-lg pl-1.5 pr-6 py-1 bg-transparent hover:border-[#C2BBD4] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent focus:bg-white cursor-pointer transition-colors ${
+          value ? "text-[#403770] font-medium" : "text-[#A69DC0]"
+        }`}
+      >
+        {value ?? "—"}
+      </button>
+      <svg
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A69DC0] pointer-events-none"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+
+      {isOpen && createPortal(
+        <ul
+          ref={dropdownRef}
+          role="listbox"
+          className="fixed z-30 min-w-[160px] bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 py-1"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {options.map((opt) => {
+            const isSelected = value === opt.value;
+            return (
+              <li
+                key={opt.label}
+                role="option"
+                aria-selected={isSelected}
+                onClick={(e) => { e.stopPropagation(); handleSelect(opt.value); }}
+                className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
+                  isSelected
+                    ? "bg-[#F7F5FA] font-medium text-[#403770]"
+                    : opt.value === null
+                      ? "text-[#A69DC0] hover:bg-[#EFEDF5]"
+                      : "text-[#403770] hover:bg-[#EFEDF5]"
+                }`}
+              >
+                {opt.label}
+              </li>
+            );
+          })}
+        </ul>,
+        document.body
+      )}
     </div>
   );
 }
@@ -438,16 +577,28 @@ function CreateDistrictForm({
           <label className="block text-xs font-medium text-[#544A78] mb-1">
             State <span className="text-[#F37167]">*</span>
           </label>
-          <select
-            value={stateAbbrev}
-            onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
-            className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none bg-white"
-          >
-            <option value="">—</option>
-            {US_STATES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={stateAbbrev}
+              onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
+              className={`w-full px-3 pr-9 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent ${
+                stateAbbrev ? "text-[#403770]" : "text-[#A69DC0]"
+              }`}
+            >
+              <option value="">—</option>
+              {US_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <svg
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0] pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
         <div className="flex-1">
           <label className="block text-xs font-medium text-[#544A78] mb-1">
@@ -831,6 +982,25 @@ export default function UnmatchedOpportunitiesPage() {
     },
   });
 
+  const reasonMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string | null }) =>
+      updateReason(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities-facets"] });
+    },
+    onError: (error) => {
+      setToast(error.message || "Failed to update reason");
+    },
+  });
+
+  const handleReasonUpdate = useCallback(
+    (id: string, reason: string | null) => {
+      reasonMutation.mutate({ id, reason });
+    },
+    [reasonMutation]
+  );
+
   const handleResolve = useCallback(
     (district: DistrictResult) => {
       if (!resolvingOpp) return;
@@ -887,10 +1057,17 @@ export default function UnmatchedOpportunitiesPage() {
       const isResolved = value as boolean;
       return <StatusBadge resolved={isResolved} />;
     },
+    reason: ({ value, row }) => (
+      <ReasonDropdown
+        value={value as string | null}
+        opportunityId={row.id as string}
+        onUpdate={handleReasonUpdate}
+      />
+    ),
     netBookingAmount: ({ value }) => (
       <span className="tabular-nums font-medium">{formatCurrency(value as string)}</span>
     ),
-  }), []);
+  }), [handleReasonUpdate]);
 
   const renderRowAction = useCallback((row: Record<string, unknown>) => {
     const isResolved = row.resolved as boolean;
