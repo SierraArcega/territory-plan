@@ -120,7 +120,8 @@ CREATE POLICY "Users can delete own district edits"
 -- ============================================
 
 ALTER TABLE districts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE fullmind_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE unmatched_opportunities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE district_education_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE district_enrollment_demographics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
@@ -135,11 +136,23 @@ CREATE POLICY "Authenticated users can read districts"
   FOR SELECT
   USING (auth.role() = 'authenticated');
 
--- Fullmind Data: Read-only for all authenticated users
-CREATE POLICY "Authenticated users can read fullmind data"
-  ON fullmind_data
+-- Opportunities: Read-only for all authenticated users
+CREATE POLICY "Authenticated users can read opportunities"
+  ON opportunities
   FOR SELECT
   USING (auth.role() = 'authenticated');
+
+-- Unmatched Opportunities: Read for authenticated, update resolved fields for authenticated
+CREATE POLICY "Authenticated users can read unmatched opportunities"
+  ON unmatched_opportunities
+  FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can resolve unmatched opportunities"
+  ON unmatched_opportunities
+  FOR UPDATE
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
 
 -- Education Data: Read-only for all authenticated users
 CREATE POLICY "Authenticated users can read education data"

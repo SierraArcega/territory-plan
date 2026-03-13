@@ -16,6 +16,15 @@ import psycopg2
 from psycopg2.extras import execute_values
 from tqdm import tqdm
 
+# When the scheduler owns pipeline columns, skip writing them from CSV loader
+SCHEDULER_OWNS_PIPELINE = os.environ.get("SCHEDULER_OWNS_PIPELINE", "").lower() == "true"
+
+PIPELINE_COLUMNS = [
+    "fy26_open_pipeline_opp_count", "fy26_open_pipeline", "fy26_open_pipeline_weighted",
+    "fy27_open_pipeline_opp_count", "fy27_open_pipeline", "fy27_open_pipeline_weighted",
+    "has_open_pipeline",
+]
+
 # Import utilities
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -228,9 +237,9 @@ def update_districts_with_fullmind_data(
     cur = conn.cursor()
 
     # Clear existing Fullmind data on districts (set to NULL/defaults)
+    # When SCHEDULER_OWNS_PIPELINE=true, skip pipeline columns — scheduler manages those
     print("Clearing existing Fullmind data on districts...")
-    cur.execute("""
-        UPDATE districts SET
+    reset_cols = """
             account_name = NULL,
             sales_executive = NULL,
             lmsid = NULL,
@@ -246,15 +255,19 @@ def update_districts_with_fullmind_data(
             fy26_closed_won_opp_count = 0,
             fy26_closed_won_net_booking = 0,
             fy26_net_invoicing = 0,
+            is_customer = false"""
+    if not SCHEDULER_OWNS_PIPELINE:
+        reset_cols += """,
             fy26_open_pipeline_opp_count = 0,
             fy26_open_pipeline = 0,
             fy26_open_pipeline_weighted = 0,
             fy27_open_pipeline_opp_count = 0,
             fy27_open_pipeline = 0,
             fy27_open_pipeline_weighted = 0,
-            is_customer = false,
-            has_open_pipeline = false
-    """)
+            has_open_pipeline = false"""
+    else:
+        print("  (Skipping pipeline columns — scheduler owns them)")
+    cur.execute(f"UPDATE districts SET {reset_cols}")
 
     # Use a temp table + UPDATE JOIN pattern for efficient bulk updates
     cur.execute("""
@@ -336,8 +349,7 @@ def update_districts_with_fullmind_data(
 
     # Bulk update districts from temp table
     print("Updating districts table...")
-    cur.execute("""
-        UPDATE districts d SET
+    update_cols = """
             account_name = u.account_name,
             sales_executive = u.sales_executive,
             lmsid = u.lmsid,
@@ -353,14 +365,18 @@ def update_districts_with_fullmind_data(
             fy26_closed_won_opp_count = u.fy26_closed_won_opp_count,
             fy26_closed_won_net_booking = u.fy26_closed_won_net_booking,
             fy26_net_invoicing = u.fy26_net_invoicing,
+            is_customer = u.is_customer"""
+    if not SCHEDULER_OWNS_PIPELINE:
+        update_cols += """,
             fy26_open_pipeline_opp_count = u.fy26_open_pipeline_opp_count,
             fy26_open_pipeline = u.fy26_open_pipeline,
             fy26_open_pipeline_weighted = u.fy26_open_pipeline_weighted,
             fy27_open_pipeline_opp_count = u.fy27_open_pipeline_opp_count,
             fy27_open_pipeline = u.fy27_open_pipeline,
             fy27_open_pipeline_weighted = u.fy27_open_pipeline_weighted,
-            is_customer = u.is_customer,
-            has_open_pipeline = u.has_open_pipeline
+            has_open_pipeline = u.has_open_pipeline"""
+    cur.execute(f"""
+        UPDATE districts d SET {update_cols}
         FROM fullmind_updates u
         WHERE d.leaid = u.leaid
     """)

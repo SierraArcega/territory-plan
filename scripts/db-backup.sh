@@ -175,10 +175,10 @@ verify() {
         FROM district_enrollment_demographics
         UNION ALL
         SELECT
-            'Fullmind Data',
-            COUNT(*),
-            COUNT(*) FILTER (WHERE is_customer = true)
-        FROM fullmind_data;
+            'Customers',
+            COUNT(*) FILTER (WHERE is_customer = true),
+            COUNT(*) FILTER (WHERE has_open_pipeline = true)
+        FROM districts;
     " | while IFS='|' read -r type total extra; do
         printf "  %-20s %s records" "$type:" "$total"
         if [ -n "$extra" ] && [ "$extra" != "$total" ]; then

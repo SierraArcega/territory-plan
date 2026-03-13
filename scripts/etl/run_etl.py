@@ -87,7 +87,7 @@ def verify_database_connection(connection_string: str) -> bool:
         cur.execute("""
             SELECT table_name FROM information_schema.tables
             WHERE table_schema = 'public'
-            AND table_name IN ('districts', 'fullmind_data', 'unmatched_accounts')
+            AND table_name IN ('districts', 'unmatched_accounts')
         """)
         tables = [row[0] for row in cur.fetchall()]
         print(f"Found tables: {tables}")

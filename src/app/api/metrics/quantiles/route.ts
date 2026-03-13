@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const query = `
       WITH metric_values AS (
         SELECT ${metricColumn}::float AS value
-        FROM fullmind_data
+        FROM districts
         WHERE ${metricColumn} > 0
       )
       SELECT

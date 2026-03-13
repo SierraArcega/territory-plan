@@ -1014,3 +1014,71 @@ model DistrictGradeEnrollment {
   @@index([year])
   @@map("district_grade_enrollment")
 }
+
+// ===== Opportunities =====
+// Synced from OpenSearch by the opportunity scheduler.
+// Contains financial metrics computed from session data.
+model Opportunity {
+  id                 String    @id @db.Text
+  name               String?   @db.Text
+  schoolYr           String?   @map("school_yr") @db.Text
+  contractType       String?   @map("contract_type") @db.Text
+  state              String?   @db.Text
+  salesRepName       String?   @map("sales_rep_name") @db.Text
+  salesRepEmail      String?   @map("sales_rep_email") @db.Text
+  districtName       String?   @map("district_name") @db.Text
+  districtLmsId      String?   @map("district_lms_id") @db.Text
+  districtNcesId     String?   @map("district_nces_id") @db.Text
+  districtLeaId      String?   @map("district_lea_id") @db.Text
+  createdAt          DateTime? @map("created_at")
+  closeDate          DateTime? @map("close_date")
+  brandAmbassador    String?   @map("brand_ambassador") @db.Text
+  stage              String?   @db.Text
+  netBookingAmount   Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  contractThrough    String?   @map("contract_through") @db.Text
+  fundingThrough     String?   @map("funding_through") @db.Text
+  paymentType        String?   @map("payment_type") @db.Text
+  paymentTerms       String?   @map("payment_terms") @db.Text
+  leadSource         String?   @map("lead_source") @db.Text
+  invoiced           Decimal?  @db.Decimal(15, 2)
+  credited           Decimal?  @db.Decimal(15, 2)
+  completedRevenue   Decimal?  @map("completed_revenue") @db.Decimal(15, 2)
+  completedTake      Decimal?  @map("completed_take") @db.Decimal(15, 2)
+  scheduledSessions  Int?      @map("scheduled_sessions")
+  scheduledRevenue   Decimal?  @map("scheduled_revenue") @db.Decimal(15, 2)
+  scheduledTake      Decimal?  @map("scheduled_take") @db.Decimal(15, 2)
+  totalRevenue       Decimal?  @map("total_revenue") @db.Decimal(15, 2)
+  totalTake          Decimal?  @map("total_take") @db.Decimal(15, 2)
+  averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
+  syncedAt           DateTime? @map("synced_at")
+
+  @@index([schoolYr])
+  @@index([districtNcesId])
+  @@index([districtLeaId])
+  @@index([stage])
+  @@index([districtLeaId, schoolYr, stage])
+  @@map("opportunities")
+}
+
+// ===== Unmatched Opportunities =====
+// Opportunities that couldn't be matched to a district during scheduler sync.
+// Admin UI allows manual resolution by mapping to a district.
+model UnmatchedOpportunity {
+  id                    String    @id @db.Text
+  name                  String?   @db.Text
+  stage                 String?   @db.Text
+  schoolYr              String?   @map("school_yr") @db.Text
+  accountName           String?   @map("account_name") @db.Text
+  accountLmsId          String?   @map("account_lms_id") @db.Text
+  accountType           String?   @map("account_type") @db.Text
+  state                 String?   @db.Text
+  netBookingAmount      Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  reason                String?   @db.Text
+  resolved              Boolean   @default(false)
+  resolvedDistrictLeaid String?   @map("resolved_district_leaid") @db.Text
+  syncedAt              DateTime? @map("synced_at")
+
+  @@index([resolved])
+  @@index([schoolYr])
+  @@map("unmatched_opportunities")
+}

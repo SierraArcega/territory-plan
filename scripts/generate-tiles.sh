@@ -44,12 +44,11 @@ ogr2ogr -f GeoJSON "$GEOJSON_FILE" \
         d.name,
         d.state_abbrev,
         d.enrollment,
-        COALESCE(f.is_customer, false) as is_customer,
-        COALESCE(f.has_open_pipeline, false) as has_open_pipeline,
-        f.sales_executive,
+        COALESCE(d.is_customer, false) as is_customer,
+        COALESCE(d.has_open_pipeline, false) as has_open_pipeline,
+        d.sales_executive,
         ST_Transform(geometry, 4326) as geometry
     FROM districts d
-    LEFT JOIN fullmind_data f ON d.leaid = f.leaid
     WHERE geometry IS NOT NULL"
 
 echo "GeoJSON exported to: $GEOJSON_FILE"
