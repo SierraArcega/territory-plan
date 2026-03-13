@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { syncClassificationTagsForDistrict } from "@/features/shared/lib/auto-tags";
 import { syncPlanRollups } from "@/features/plans/lib/rollup-sync";
+import {
+  getDistrictActuals,
+  getDistrictOpportunities,
+  fiscalYearToSchoolYear,
+} from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +50,52 @@ export async function GET(
       );
     }
 
+    // Fetch actuals and opportunities
+    const plan = await prisma.territoryPlan.findUnique({
+      where: { id: planId },
+      select: { fiscalYear: true },
+    });
+
+    let actuals = null;
+    let opportunities: Awaited<ReturnType<typeof getDistrictOpportunities>> = [];
+
+    if (plan) {
+      const schoolYr = fiscalYearToSchoolYear(plan.fiscalYear);
+      const priorSchoolYr = fiscalYearToSchoolYear(plan.fiscalYear - 1);
+
+      const [currentActuals, priorActuals, opps] = await Promise.all([
+        getDistrictActuals(leaid, schoolYr),
+        getDistrictActuals(leaid, priorSchoolYr),
+        getDistrictOpportunities(leaid, schoolYr),
+      ]);
+
+      const yoyRevenueChange =
+        priorActuals.totalRevenue > 0
+          ? ((currentActuals.totalRevenue - priorActuals.totalRevenue) /
+              priorActuals.totalRevenue) *
+            100
+          : null;
+
+      actuals = {
+        totalRevenue: currentActuals.totalRevenue,
+        completedRevenue: currentActuals.completedRevenue,
+        scheduledRevenue: currentActuals.scheduledRevenue,
+        totalTake: currentActuals.totalTake,
+        completedTake: currentActuals.completedTake,
+        scheduledTake: currentActuals.scheduledTake,
+        takeRate: currentActuals.takeRate,
+        openPipeline: currentActuals.openPipeline,
+        weightedPipeline: currentActuals.weightedPipeline,
+        invoiced: currentActuals.invoiced,
+        credited: currentActuals.credited,
+        oppCount: currentActuals.oppCount,
+        priorFyRevenue: priorActuals.totalRevenue,
+        priorFyTake: priorActuals.totalTake,
+        yoyRevenueChange: yoyRevenueChange ? Math.round(yoyRevenueChange * 100) / 100 : null,
+      };
+      opportunities = opps;
+    }
+
     return NextResponse.json({
       planId,
       leaid: planDistrict.districtLeaid,
@@ -63,6 +114,8 @@ export async function GET(
       newServices: planDistrict.targetServices
         .filter((ts) => ts.category === "new_services")
         .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
+      actuals,
+      opportunities,
     });
   } catch (error) {
     console.error("Error fetching district from plan:", error);
