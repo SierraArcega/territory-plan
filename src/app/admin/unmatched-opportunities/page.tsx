@@ -304,20 +304,18 @@ function DistrictRow({
       className="w-full text-left px-4 py-3 border-b border-[#E2DEEC] last:border-b-0 hover:bg-[#EFEDF5] transition-colors duration-100"
     >
       <div className="flex items-center justify-between">
-        <div>
-          <span className="text-sm font-medium text-[#403770]">
-            {district.name}
-          </span>
-          {district.cityLocation && (
-            <span className="text-xs text-[#8A80A8] ml-2">
-              {district.cityLocation}, {district.stateAbbrev}
-            </span>
-          )}
-        </div>
-        <span className="text-xs text-[#A69DC0] font-medium tabular-nums">
+        <span className="text-sm font-medium text-[#403770]">
+          {district.name}
+        </span>
+        <span className="text-xs text-[#A69DC0] font-medium tabular-nums flex-shrink-0 ml-3">
           {district.leaid}
         </span>
       </div>
+      {district.cityLocation && (
+        <div className="text-xs text-[#8A80A8] mt-0.5">
+          {district.cityLocation}, {district.stateAbbrev}
+        </div>
+      )}
       {district.enrollment != null && (
         <div className="text-xs text-[#8A80A8] mt-0.5">
           Enrollment: {district.enrollment.toLocaleString()}
