@@ -7,6 +7,7 @@ import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
 import type { SortRule, FilterRule, CellRendererFn } from "@/features/shared/components/DataGrid/types";
 import AdminFilterBar from "./AdminFilterBar";
 import AdminColumnPicker from "./AdminColumnPicker";
+import { US_STATES } from "@/lib/states";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -274,18 +275,6 @@ function StatusBadge({ resolved }: { resolved: boolean }) {
     </span>
   );
 }
-
-// ---------------------------------------------------------------------------
-// US States (for create form dropdown)
-// ---------------------------------------------------------------------------
-
-const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL",
-  "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME",
-  "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
-  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
-  "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-];
 
 // ---------------------------------------------------------------------------
 // District search modal

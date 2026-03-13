@@ -3,6 +3,7 @@
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
+from .normalize import normalize_state
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
         "name": opp.get("name"),
         "school_yr": opp.get("school_yr"),
         "contract_type": opp.get("contractType"),
-        "state": opp.get("state"),
+        "state": normalize_state(opp.get("state")),
         "sales_rep_name": sales_rep.get("name"),
         "sales_rep_email": sales_rep.get("email"),
         "stage": opp.get("stage"),

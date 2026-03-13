@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { normalizeState } from "@/lib/states";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const resolved = searchParams.get("resolved");
     const schoolYr = searchParams.get("school_yr");
-    const state = searchParams.get("state");
+    const rawState = searchParams.get("state");
+    const state = rawState ? normalizeState(rawState) : null;
     const stage = searchParams.get("stage");
     const reason = searchParams.get("reason");
     const hasDistrictId = searchParams.get("has_district_id");

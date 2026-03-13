@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
+import { normalizeState } from "@/lib/states";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const charter = searchParams.get("charter");
-    const state = searchParams.get("state");
+    const rawState = searchParams.get("state");
+    const state = rawState ? normalizeState(rawState) : null;
     const leaid = searchParams.get("leaid");
     const schoolLevel = searchParams.get("school_level");
     const search = searchParams.get("search");

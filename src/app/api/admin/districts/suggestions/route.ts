@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { normalizeState } from "@/lib/states";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const name = searchParams.get("name")?.trim();
-    const state = searchParams.get("state")?.trim()?.toUpperCase();
+    const rawState = searchParams.get("state")?.trim();
+    const state = rawState ? normalizeState(rawState) : undefined;
 
     if (!name || name.length < 2) {
       return NextResponse.json({ items: [] });

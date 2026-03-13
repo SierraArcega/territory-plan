@@ -13,6 +13,7 @@ from sync.queries import (
     fetch_district_mappings,
 )
 from sync.compute import build_opportunity_record
+from sync.normalize import normalize_state
 from sync.supabase_writer import (
     get_connection,
     upsert_opportunities,
@@ -59,7 +60,9 @@ def run_sync():
         changed_session_hits = fetch_changed_sessions(os_client, last_synced)
         extra_opp_ids = set()
         for sh in changed_session_hits:
-            oid = sh["_source"]["opportunityId"]
+            oid = sh["_source"].get("opportunityId")
+            if not oid:
+                continue
             if oid not in opp_ids:
                 extra_opp_ids.add(oid)
         if extra_opp_ids:
@@ -116,7 +119,7 @@ def run_sync():
                     "account_name": first_acc.get("name"),
                     "account_lms_id": first_acc.get("id"),
                     "account_type": first_acc.get("type"),
-                    "state": opp.get("state"),
+                    "state": normalize_state(opp.get("state")),
                     "net_booking_amount": record["net_booking_amount"],
                     "reason": "No NCES/LEAID mapping found for account",
                     "synced_at": now,

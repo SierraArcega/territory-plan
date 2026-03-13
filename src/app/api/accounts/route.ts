@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 import { geocodeAddress } from "@/features/map/lib/geocode";
+import { normalizeState } from "@/lib/states";
 
 export const dynamic = "force-dynamic";
 
@@ -123,7 +124,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const name = searchParams.get("name");
-    const state = searchParams.get("state");
+    const rawState = searchParams.get("state");
+    const state = rawState ? normalizeState(rawState) : null;
 
     if (!name || name.trim().length < 2) {
       return NextResponse.json(

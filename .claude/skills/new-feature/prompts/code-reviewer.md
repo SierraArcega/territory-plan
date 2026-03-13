@@ -50,6 +50,11 @@ Perform a thorough code review of ALL changes. Run `git diff {{BASE_BRANCH}}` to
 - [ ] No unnecessary re-renders (check React component structure)
 - [ ] Database queries have appropriate indexes (check schema)
 
+**Shared Utilities:**
+- [ ] No duplicate constants (e.g., `US_STATES` arrays) — use `src/lib/states.ts`
+- [ ] State values normalized at API boundaries via `normalizeState()` from `@/lib/states`
+- [ ] No raw `searchParams.get("state")` without normalization in API routes
+
 **Consistency:**
 - [ ] Code follows existing patterns in the codebase
 - [ ] File structure matches the project conventions

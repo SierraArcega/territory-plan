@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { normalizeState } from "@/lib/states";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const state = searchParams.get("state");
+    const rawState = searchParams.get("state");
+    const state = rawState ? normalizeState(rawState) : null;
     const status = (searchParams.get("status") || "all") as StatusFilter;
     const salesExec = searchParams.get("salesExec");
     const search = searchParams.get("search");

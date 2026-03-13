@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { normalizeState } from "@/lib/states";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,8 @@ export async function GET(
 
     // Get optional state filter
     const { searchParams } = new URL(request.url);
-    const stateFilter = searchParams.get("state");
+    const rawStateFilter = searchParams.get("state");
+    const stateFilter = rawStateFilter ? normalizeState(rawStateFilter) : null;
     const fyParam = searchParams.get("fy") || "fy26";
     const fy = VALID_FYS.includes(fyParam as (typeof VALID_FYS)[number]) ? fyParam : "fy26";
 

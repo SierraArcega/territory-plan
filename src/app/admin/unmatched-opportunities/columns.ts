@@ -2,15 +2,7 @@
 // Keys match the field names returned by the unmatched opportunities API.
 
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
-
-const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL",
-  "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME",
-  "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
-  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "PR",
-  "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV",
-  "WI", "WY",
-];
+import { US_STATES } from "@/lib/states";
 
 export const unmatchedOpportunityColumns: ColumnDef[] = [
   // ---- Core ----

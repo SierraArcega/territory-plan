@@ -5,15 +5,7 @@ import { useMapV2Store } from "@/features/map/lib/store";
 import { useCreateAccount, useDuplicateCheck } from "@/lib/api";
 import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 import { getAccountTypeLabel } from "@/features/shared/types/account-types";
-
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
-  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
-  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
-  "DC",
-];
+import { US_STATES } from "@/lib/states";
 
 export default function AccountForm() {
   const closeAccountForm = useMapV2Store((s) => s.closeAccountForm);
