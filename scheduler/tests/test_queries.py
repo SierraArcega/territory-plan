@@ -37,7 +37,9 @@ def test_fetch_sessions_batches_ids():
 def test_fetch_district_mappings():
     with patch("sync.queries.scroll_all") as mock_scroll:
         mock_scroll.return_value = [
-            {"_source": {"lms_id": "acc1", "nces_id": "123", "leaid": "0100001"}}
+            {"_source": {"id": 12345, "ncesId": "0100001", "name": "Test District"}}
         ]
-        result = fetch_district_mappings(MagicMock(), ["acc1"])
-        assert "acc1" in result
+        result = fetch_district_mappings(MagicMock(), [12345])
+        assert "12345" in result
+        assert result["12345"]["leaid"] == "0100001"
+        assert result["12345"]["nces_id"] == "0100001"

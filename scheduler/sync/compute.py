@@ -84,7 +84,7 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
     accounts = opp.get("accounts") or []
     district_account = None
     for acc in accounts:
-        acc_id = acc.get("id")
+        acc_id = str(acc.get("id", ""))
         if acc_id and acc_id in district_mapping:
             mapped = district_mapping[acc_id]
             if mapped.get("type") == "district" or district_account is None:

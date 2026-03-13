@@ -15,7 +15,7 @@ def test_get_client_returns_opensearch_instance():
             client = get_client()
             MockOS.assert_called_once()
             call_kwargs = MockOS.call_args[1]
-            assert call_kwargs["hosts"] == [{"host": "test-host", "port": 9200}]
+            assert call_kwargs["hosts"] == ["https://test-host:9200"]
             assert call_kwargs["http_auth"] == ("user", "pass")
             assert call_kwargs["use_ssl"] is True
 

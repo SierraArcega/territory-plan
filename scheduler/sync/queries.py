@@ -20,18 +20,47 @@ SESSION_SOURCE_FIELDS = [
 SCHOOL_YEARS = ["2024-25", "2025-26", "2026-27", "2027-28"]
 
 
-def fetch_opportunities(client):
-    """Fetch all opportunities from school year 2024-25 onward."""
-    logger.info("Fetching opportunities...")
-    query = {
-        "bool": {
-            "filter": [
-                {"terms": {"school_yr": SCHOOL_YEARS}}
-            ]
-        }
-    }
+def fetch_opportunities(client, since=None):
+    """Fetch opportunities from school year 2024-25 onward.
+
+    Args:
+        since: Optional datetime. If provided, only fetch records updated after this time.
+    """
+    logger.info("Fetching opportunities%s...", f" updated since {since.isoformat()}" if since else "")
+    filters = [{"terms": {"school_yr.keyword": SCHOOL_YEARS}}]
+    if since is not None:
+        filters.append({"range": {"updated_at": {"gte": since.isoformat()}}})
+    query = {"bool": {"filter": filters}}
     hits = scroll_all(client, "clj-prod-opportunities", query, OPPORTUNITY_SOURCE_FIELDS)
     logger.info(f"Fetched {len(hits)} opportunities")
+    return hits
+
+
+def fetch_opportunities_by_ids(client, opp_ids):
+    """Fetch specific opportunities by ID."""
+    if not opp_ids:
+        return []
+    logger.info(f"Fetching {len(opp_ids)} opportunities by ID...")
+    query = {"bool": {"filter": [{"terms": {"id": opp_ids}}]}}
+    hits = scroll_all(client, "clj-prod-opportunities", query, OPPORTUNITY_SOURCE_FIELDS)
+    logger.info(f"Fetched {len(hits)} opportunities by ID")
+    return hits
+
+
+def fetch_changed_sessions(client, since):
+    """Fetch all sessions updated since a given timestamp."""
+    logger.info(f"Fetching sessions updated since {since.isoformat()}...")
+    query = {
+        "bool": {
+            "filter": [{"range": {"lastIndexedAt": {"gte": since.isoformat()}}}],
+            "must_not": [
+                {"term": {"status": "cancelled"}},
+                {"term": {"doNotBill": True}},
+            ],
+        }
+    }
+    hits = scroll_all(client, "clj-prod-sessions-v2", query, ["opportunityId"])
+    logger.info(f"Fetched {len(hits)} changed sessions")
     return hits
 
 
@@ -44,9 +73,7 @@ def fetch_sessions(client, opportunity_ids):
         batch = opportunity_ids[i : i + batch_size]
         query = {
             "bool": {
-                "filter": [
-                    {"terms": {"opportunityId": batch}},
-                ],
+                "filter": [{"terms": {"opportunityId": batch}}],
                 "must_not": [
                     {"term": {"status": "cancelled"}},
                     {"term": {"doNotBill": True}},
@@ -61,21 +88,33 @@ def fetch_sessions(client, opportunity_ids):
 
 def fetch_district_mappings(client, account_ids):
     """Batch lookup account IDs against clj-prod-districts for NCES/LEAID mapping.
-    Returns dict: {lms_account_id: {nces_id, leaid, parent_district_id, name}}
+    Returns dict: {account_id_str: {ncesId, name, type, ...}}
+
+    Note: Account IDs from opportunities are numeric. The districts index
+    uses 'id' field (numeric) and 'ncesId' for the NCES/LEAID identifier.
     """
     logger.info(f"Fetching district mappings for {len(account_ids)} accounts...")
+    # Convert to strings for terms query
+    str_ids = [str(aid) for aid in account_ids]
     query = {
         "bool": {
-            "filter": [{"terms": {"lms_id": account_ids}}]
+            "filter": [{"terms": {"id": str_ids}}]
         }
     }
     hits = scroll_all(
         client, "clj-prod-districts", query,
-        ["lms_id", "nces_id", "leaid", "parent_district_id", "name", "type"],
+        ["id", "ncesId", "name", "state", "hasParent", "asDistrict"],
     )
     mapping = {}
     for hit in hits:
         src = hit["_source"]
-        mapping[src["lms_id"]] = src
+        account_id = str(src["id"])
+        nces_id = src.get("ncesId")
+        mapping[account_id] = {
+            "nces_id": nces_id,
+            "leaid": nces_id,  # ncesId and leaid are the same
+            "name": src.get("name"),
+            "type": "district",
+        }
     logger.info(f"Resolved {len(mapping)} district mappings")
     return mapping

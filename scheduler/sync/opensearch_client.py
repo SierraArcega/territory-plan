@@ -10,19 +10,19 @@ logger = logging.getLogger(__name__)
 
 def get_client() -> OpenSearch:
     """Create an OpenSearch client from environment variables."""
-    parsed = urlparse(os.environ["OPENSEARCH_HOST"])
-    host = parsed.hostname or os.environ["OPENSEARCH_HOST"]
-    port = parsed.port or 9200
+    host = os.environ.get("OPENSEARCH_HOST") or os.environ["ELASTICSEARCH_HOST"]
 
+    # Pass full URL directly (matches es-bi pattern for AWS OpenSearch)
     return OpenSearch(
-        hosts=[{"host": host, "port": port}],
+        hosts=[host],
         http_auth=(
-            os.environ["OPENSEARCH_USERNAME"],
-            os.environ["OPENSEARCH_PASSWORD"],
+            os.environ.get("OPENSEARCH_USERNAME") or os.environ["ELASTICSEARCH_USERNAME"],
+            os.environ.get("OPENSEARCH_PASSWORD") or os.environ["ELASTICSEARCH_PASSWORD"],
         ),
         use_ssl=True,
         verify_certs=True,
-        timeout=60,
+        ssl_show_warn=False,
+        timeout=30,
     )
 
 

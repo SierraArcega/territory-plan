@@ -3,6 +3,7 @@
 import os
 import logging
 from decimal import Decimal
+from datetime import datetime, timezone
 import psycopg2
 
 logger = logging.getLogger(__name__)
@@ -107,7 +108,7 @@ def update_district_pipeline_aggregates(conn):
             has_open_pipeline = false
     """
 
-    # Step 2: Recompute from opportunities
+    # Step 2: Recompute from opportunities using per-FY subqueries
     update_sql = f"""
         WITH pipeline AS (
             SELECT
@@ -125,23 +126,67 @@ def update_district_pipeline_aggregates(conn):
             WHERE district_lea_id IS NOT NULL
               AND stage LIKE ANY(ARRAY['0 %%', '1 %%', '2 %%', '3 %%', '4 %%', '5 %%'])
             GROUP BY district_lea_id, school_yr
+        ),
+        combined AS (
+            SELECT
+                d.leaid,
+                COALESCE(p26.opp_count, 0) AS fy26_count,
+                COALESCE(p26.total_pipeline, 0) AS fy26_pipeline,
+                COALESCE(p26.weighted_pipeline, 0) AS fy26_weighted,
+                COALESCE(p27.opp_count, 0) AS fy27_count,
+                COALESCE(p27.total_pipeline, 0) AS fy27_pipeline,
+                COALESCE(p27.weighted_pipeline, 0) AS fy27_weighted
+            FROM districts d
+            LEFT JOIN pipeline p26 ON p26.district_lea_id = d.leaid AND p26.school_yr = '2025-26'
+            LEFT JOIN pipeline p27 ON p27.district_lea_id = d.leaid AND p27.school_yr = '2026-27'
+            WHERE p26.district_lea_id IS NOT NULL OR p27.district_lea_id IS NOT NULL
         )
-        UPDATE districts d SET
-            fy26_open_pipeline_opp_count = COALESCE(p26.opp_count, 0),
-            fy26_open_pipeline = COALESCE(p26.total_pipeline, 0),
-            fy26_open_pipeline_weighted = COALESCE(p26.weighted_pipeline, 0),
-            fy27_open_pipeline_opp_count = COALESCE(p27.opp_count, 0),
-            fy27_open_pipeline = COALESCE(p27.total_pipeline, 0),
-            fy27_open_pipeline_weighted = COALESCE(p27.weighted_pipeline, 0),
-            has_open_pipeline = (COALESCE(p26.opp_count, 0) + COALESCE(p27.opp_count, 0)) > 0
-        FROM (SELECT 1) AS dummy
-        LEFT JOIN pipeline p26 ON p26.district_lea_id = d.leaid AND p26.school_yr = '2025-26'
-        LEFT JOIN pipeline p27 ON p27.district_lea_id = d.leaid AND p27.school_yr = '2026-27'
+        UPDATE districts SET
+            fy26_open_pipeline_opp_count = c.fy26_count,
+            fy26_open_pipeline = c.fy26_pipeline,
+            fy26_open_pipeline_weighted = c.fy26_weighted,
+            fy27_open_pipeline_opp_count = c.fy27_count,
+            fy27_open_pipeline = c.fy27_pipeline,
+            fy27_open_pipeline_weighted = c.fy27_weighted,
+            has_open_pipeline = (c.fy26_count + c.fy27_count) > 0
+        FROM combined c
+        WHERE districts.leaid = c.leaid
     """
 
     with conn.cursor() as cur:
         cur.execute(reset_sql)
-    with conn.cursor() as cur:
         cur.execute(update_sql)
     conn.commit()
     logger.info("Updated district pipeline aggregates")
+
+
+def refresh_map_features(conn):
+    """Refresh the materialized view so map tiles reflect updated pipeline data."""
+    with conn.cursor() as cur:
+        cur.execute("REFRESH MATERIALIZED VIEW district_map_features")
+    conn.commit()
+    logger.info("Refreshed district_map_features materialized view")
+
+
+def get_last_synced_at(conn):
+    """Read the last successful sync timestamp. Returns None on first run."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT value FROM sync_state WHERE key = 'last_synced_at'"
+        )
+        row = cur.fetchone()
+        if row:
+            return datetime.fromisoformat(row[0])
+    return None
+
+
+def set_last_synced_at(conn, ts):
+    """Store the sync timestamp for next incremental run."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO sync_state (key, value)
+               VALUES ('last_synced_at', %s)
+               ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value""",
+            (ts.isoformat(),),
+        )
+    conn.commit()

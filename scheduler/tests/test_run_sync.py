@@ -8,6 +8,9 @@ from unittest.mock import patch, MagicMock
 from run_sync import run_sync
 
 
+@patch("run_sync.refresh_map_features")
+@patch("run_sync.set_last_synced_at")
+@patch("run_sync.get_last_synced_at", return_value=None)
 @patch("run_sync.update_district_pipeline_aggregates")
 @patch("run_sync.upsert_unmatched")
 @patch("run_sync.upsert_opportunities")
@@ -21,6 +24,7 @@ def test_run_sync_happy_path(
     mock_get_client, mock_fetch_opps, mock_fetch_sessions,
     mock_fetch_districts, mock_build, mock_get_conn,
     mock_upsert_opps, mock_upsert_unmatched, mock_update_agg,
+    mock_get_last, mock_set_last, mock_refresh,
 ):
     mock_fetch_opps.return_value = [
         {"_source": {"id": "opp1", "accounts": [{"id": "acc1"}]}}
@@ -41,9 +45,14 @@ def test_run_sync_happy_path(
 
     mock_upsert_opps.assert_called_once()
     mock_update_agg.assert_called_once()
+    mock_refresh.assert_called_once()
+    mock_set_last.assert_called_once()
     mock_conn.close.assert_called_once()
 
 
+@patch("run_sync.refresh_map_features")
+@patch("run_sync.set_last_synced_at")
+@patch("run_sync.get_last_synced_at", return_value=None)
 @patch("run_sync.update_district_pipeline_aggregates")
 @patch("run_sync.upsert_unmatched")
 @patch("run_sync.upsert_opportunities")
@@ -57,10 +66,15 @@ def test_run_sync_no_opportunities_skips(
     mock_get_client, mock_fetch_opps, mock_fetch_sessions,
     mock_fetch_districts, mock_build, mock_get_conn,
     mock_upsert_opps, mock_upsert_unmatched, mock_update_agg,
+    mock_get_last, mock_set_last, mock_refresh,
 ):
     mock_fetch_opps.return_value = []
+    mock_conn = MagicMock()
+    mock_get_conn.return_value = mock_conn
 
     run_sync()
 
     mock_fetch_sessions.assert_not_called()
     mock_upsert_opps.assert_not_called()
+    mock_set_last.assert_called_once()  # still updates timestamp
+    mock_conn.close.assert_called_once()
