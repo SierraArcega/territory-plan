@@ -187,6 +187,20 @@ function parseCurrency(value: string): number | null {
   return isNaN(parsed) ? null : parsed;
 }
 
+function ColumnTooltip({ text }: { text: string }) {
+  return (
+    <div className="group relative inline-block ml-1">
+      <svg className="w-3 h-3 text-gray-400 hover:text-gray-600 cursor-help inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-2 bg-[#403770] text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-56 z-50 whitespace-normal">
+        {text}
+        <div className="absolute left-1/2 -translate-x-1/2 top-full border-4 border-transparent border-t-[#403770]" />
+      </div>
+    </div>
+  );
+}
+
 export default function DistrictsTable({
   planId,
   districts,
@@ -255,8 +269,12 @@ export default function DistrictsTable({
       expansionTarget: acc.expansionTarget + (d.expansionTarget || 0),
       newBusinessTarget: acc.newBusinessTarget + (d.newBusinessTarget || 0),
       enrollment: acc.enrollment + (d.enrollment || 0),
+      revenueActual: acc.revenueActual + (d.actuals?.totalRevenue || 0),
+      takeActual: acc.takeActual + (d.actuals?.totalTake || 0),
+      pipelineActual: acc.pipelineActual + (d.actuals?.weightedPipeline || 0),
+      priorFyRevenue: acc.priorFyRevenue + (d.actuals?.priorFyRevenue || 0),
     }),
-    { renewalTarget: 0, winbackTarget: 0, expansionTarget: 0, newBusinessTarget: 0, enrollment: 0 }
+    { renewalTarget: 0, winbackTarget: 0, expansionTarget: 0, newBusinessTarget: 0, enrollment: 0, revenueActual: 0, takeActual: 0, pipelineActual: 0, priorFyRevenue: 0 }
   );
   const grandTotal = totals.renewalTarget + totals.winbackTarget + totals.expansionTarget + totals.newBusinessTarget;
 
@@ -274,15 +292,35 @@ export default function DistrictsTable({
               </th>
               <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Renewal
+                <ColumnTooltip text="Target revenue from renewal opportunities in this district for the current fiscal year" />
               </th>
               <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Winback
+                <ColumnTooltip text="Target revenue from winback opportunities in this district for the current fiscal year" />
               </th>
               <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Expansion
+                <ColumnTooltip text="Target revenue from expansion opportunities in this district for the current fiscal year" />
               </th>
               <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 New Biz
+                <ColumnTooltip text="Target revenue from new business opportunities in this district for the current fiscal year" />
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Revenue
+                <ColumnTooltip text="Actual revenue from completed and scheduled sessions vs your combined revenue targets (renewal + winback + expansion + new business) for this district" />
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Take
+                <ColumnTooltip text="Total take (revenue minus educator costs) for this district in the current fiscal year" />
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Pipeline
+                <ColumnTooltip text="Total weighted open pipeline (stages 0-5) for this district in the current fiscal year" />
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Prior FY
+                <ColumnTooltip text="Total revenue from opportunities in this district during the previous fiscal year" />
               </th>
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Services
@@ -357,6 +395,41 @@ export default function DistrictsTable({
                   displayFormat={formatCurrencyDisplay}
                 />
               </td>
+              <td className="px-3 py-3 text-right">
+                {district.actuals ? (
+                  <div>
+                    <span className="text-[13px] text-gray-600">
+                      {formatCurrency(district.actuals.totalRevenue)}
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      {" / "}
+                      {formatCurrency(
+                        (district.renewalTarget || 0) +
+                        (district.winbackTarget || 0) +
+                        (district.expansionTarget || 0) +
+                        (district.newBusinessTarget || 0)
+                      )}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-[13px] text-gray-400">-</span>
+                )}
+              </td>
+              <td className="px-3 py-3 text-right">
+                <span className="text-[13px] text-gray-600">
+                  {district.actuals ? formatCurrency(district.actuals.totalTake) : "-"}
+                </span>
+              </td>
+              <td className="px-3 py-3 text-right">
+                <span className="text-[13px] text-gray-600">
+                  {district.actuals ? formatCurrency(district.actuals.weightedPipeline) : "-"}
+                </span>
+              </td>
+              <td className="px-3 py-3 text-right">
+                <span className="text-[13px] text-gray-400">
+                  {district.actuals ? formatCurrency(district.actuals.priorFyRevenue) : "-"}
+                </span>
+              </td>
               <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                 <InlineServiceSelector planId={planId} district={district} />
               </td>
@@ -397,9 +470,12 @@ export default function DistrictsTable({
         <span className="text-[12px] font-medium text-gray-400 tracking-wide">
           {districts.length} district{districts.length !== 1 ? "s" : ""}
         </span>
-        <span className="text-[12px] text-gray-400">
-          Total: <span className="font-medium text-gray-500">{formatCurrency(grandTotal)}</span>
-        </span>
+        <div className="flex gap-4 text-[12px] text-gray-400">
+          <span>Target: <span className="font-medium text-gray-500">{formatCurrency(grandTotal)}</span></span>
+          <span>Revenue: <span className="font-medium text-gray-500">{formatCurrency(totals.revenueActual)}</span></span>
+          <span>Take: <span className="font-medium text-gray-500">{formatCurrency(totals.takeActual)}</span></span>
+          <span>Pipeline: <span className="font-medium text-gray-500">{formatCurrency(totals.pipelineActual)}</span></span>
+        </div>
       </div>
 
       {/* Confirm Remove Dialog */}
