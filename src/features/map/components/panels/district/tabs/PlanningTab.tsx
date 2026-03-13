@@ -14,6 +14,7 @@ import {
 import PurchasingHistoryCard from "../PurchasingHistoryCard";
 import CompetitorSpendCard from "../CompetitorSpendCard";
 import AddToPlanButton from "../AddToPlanButton";
+import DistrictPerformanceSection from "@/features/plans/components/DistrictPerformanceSection";
 
 interface PlanningTabProps {
   data: DistrictDetail;
@@ -164,6 +165,21 @@ function PlanAccordionContent({ planId, leaid }: { planId: string; leaid: string
         leaid={leaid}
         notes={planDistrict.notes}
       />
+
+      {/* Performance Section */}
+      <div className="border-t border-gray-200 mt-4 pt-4">
+        <DistrictPerformanceSection
+          actuals={planDistrict.actuals ?? null}
+          opportunities={planDistrict.opportunities ?? []}
+          revenueTarget={
+            (planDistrict.renewalTarget || 0) +
+            (planDistrict.winbackTarget || 0) +
+            (planDistrict.expansionTarget || 0) +
+            (planDistrict.newBusinessTarget || 0)
+          }
+          goalTakeRatePercent={null}
+        />
+      </div>
     </div>
   );
 }
