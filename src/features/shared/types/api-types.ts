@@ -309,6 +309,9 @@ export interface TerritoryPlan {
   winbackRollup: number;
   newBusinessRollup: number;
   pipelineTotal: number;
+  revenueActual?: number;
+  takeActual?: number;
+  priorFyRevenue?: number;
 }
 
 export interface TerritoryPlanDistrict {
@@ -326,6 +329,8 @@ export interface TerritoryPlanDistrict {
   returnServices: Array<{ id: number; name: string; slug: string; color: string }>;
   newServices: Array<{ id: number; name: string; slug: string; color: string }>;
   tags: Array<{ id: number; name: string; color: string }>;
+  actuals?: PlanDistrictActuals;
+  opportunities?: PlanDistrictOpportunity[];
 }
 
 export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"> {
@@ -753,7 +758,11 @@ export interface GoalDashboard {
     earnings: number;
     revenue: number;
     take: number;
+    completedTake: number;
+    scheduledTake: number;
     pipeline: number;
+    bookings: number;
+    invoiced: number;
     newDistricts: number;
   };
   plans: Array<{
@@ -767,7 +776,39 @@ export interface GoalDashboard {
     expansionTarget: number;
     newBusinessTarget: number;
     totalTarget: number;
+    revenueActual: number;
+    takeActual: number;
+    bookingsActual: number;
   }>;
+}
+
+export interface PlanDistrictActuals {
+  totalRevenue: number;
+  completedRevenue: number;
+  scheduledRevenue: number;
+  totalTake: number;
+  completedTake: number;
+  scheduledTake: number;
+  takeRate: number | null;
+  openPipeline: number;
+  weightedPipeline: number;
+  invoiced: number;
+  credited: number;
+  oppCount: number;
+  priorFyRevenue: number;
+  priorFyTake: number;
+  yoyRevenueChange: number | null;
+}
+
+export interface PlanDistrictOpportunity {
+  id: string;
+  name: string;
+  stage: string;
+  netBookingAmount: number;
+  totalRevenue: number;
+  totalTake: number;
+  completedRevenue: number;
+  scheduledRevenue: number;
 }
 
 // ===== Calendar Types =====
