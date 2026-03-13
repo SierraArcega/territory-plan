@@ -17,6 +17,7 @@ from sync.supabase_writer import (
     get_connection,
     upsert_opportunities,
     upsert_unmatched,
+    remove_matched_from_unmatched,
     update_district_pipeline_aggregates,
     refresh_map_features,
     get_last_synced_at,
@@ -127,6 +128,13 @@ def run_sync():
         upsert_opportunities(conn, matched_records)
         if unmatched_records:
             upsert_unmatched(conn, unmatched_records)
+
+        # Clean up: remove opps from unmatched that now have a district match
+        newly_matched_ids = [
+            r["id"] for r in matched_records if r.get("district_lea_id") is not None
+        ]
+        remove_matched_from_unmatched(conn, newly_matched_ids)
+
         update_district_pipeline_aggregates(conn)
         refresh_map_features(conn)
         set_last_synced_at(conn, now)

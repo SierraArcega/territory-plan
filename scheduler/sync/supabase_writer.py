@@ -89,6 +89,25 @@ def upsert_unmatched(conn, records):
     logger.info(f"Upserted {len(records)} unmatched opportunities")
 
 
+def remove_matched_from_unmatched(conn, matched_ids):
+    """Delete unmatched_opportunities rows for opps that now have a district match.
+
+    Removes both unresolved (stale from earlier sync) and resolved (manual
+    resolution already applied) records since they no longer need attention.
+    """
+    if not matched_ids:
+        return
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM unmatched_opportunities WHERE id = ANY(%s)",
+            (list(matched_ids),),
+        )
+        deleted = cur.rowcount
+    conn.commit()
+    if deleted:
+        logger.info(f"Removed {deleted} now-matched opps from unmatched_opportunities")
+
+
 def update_district_pipeline_aggregates(conn):
     """Recompute pipeline aggregates on districts table from synced opportunities."""
 
