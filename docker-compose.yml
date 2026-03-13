@@ -15,5 +15,21 @@ services:
       timeout: 5s
       retries: 5
 
+  scheduler:
+    build: ./scheduler
+    container_name: tp_scheduler
+    profiles: ["scheduler"]
+    environment:
+      - OPENSEARCH_HOST=${OPENSEARCH_HOST}
+      - OPENSEARCH_USERNAME=${OPENSEARCH_USERNAME}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+    volumes:
+      - ./scheduler:/app
+      - scheduler_logs:/app/logs
+    command: python -u /app/run_scheduler.py
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  scheduler_logs:

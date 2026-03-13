@@ -1030,8 +1030,8 @@ model Opportunity {
   districtLmsId      String?   @map("district_lms_id") @db.Text
   districtNcesId     String?   @map("district_nces_id") @db.Text
   districtLeaId      String?   @map("district_lea_id") @db.Text
-  createdAt          DateTime? @map("created_at")
-  closeDate          DateTime? @map("close_date")
+  createdAt          DateTime? @map("created_at") @db.Timestamptz
+  closeDate          DateTime? @map("close_date") @db.Timestamptz
   brandAmbassador    String?   @map("brand_ambassador") @db.Text
   stage              String?   @db.Text
   netBookingAmount   Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
@@ -1050,7 +1050,7 @@ model Opportunity {
   totalRevenue       Decimal?  @map("total_revenue") @db.Decimal(15, 2)
   totalTake          Decimal?  @map("total_take") @db.Decimal(15, 2)
   averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
-  syncedAt           DateTime? @map("synced_at")
+  syncedAt           DateTime? @map("synced_at") @db.Timestamptz
 
   @@index([schoolYr])
   @@index([districtNcesId])
@@ -1076,7 +1076,7 @@ model UnmatchedOpportunity {
   reason                String?   @db.Text
   resolved              Boolean   @default(false)
   resolvedDistrictLeaid String?   @map("resolved_district_leaid") @db.Text
-  syncedAt              DateTime? @map("synced_at")
+  syncedAt              DateTime? @map("synced_at") @db.Timestamptz
 
   @@index([resolved])
   @@index([schoolYr])

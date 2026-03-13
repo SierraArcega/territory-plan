@@ -207,3 +207,28 @@ CREATE POLICY "Authenticated users can read data refresh logs"
 --   ON tags
 --   FOR INSERT
 --   WITH CHECK (auth.role() = 'authenticated');
+
+-- ============================================
+-- Opportunities (synced from OpenSearch)
+-- ============================================
+
+ALTER TABLE opportunities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE unmatched_opportunities ENABLE ROW LEVEL SECURITY;
+
+-- Opportunities: Read-only for all authenticated users
+CREATE POLICY "Authenticated users can read opportunities"
+  ON opportunities
+  FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- Unmatched Opportunities: Read for authenticated, update resolved fields
+CREATE POLICY "Authenticated users can read unmatched opportunities"
+  ON unmatched_opportunities
+  FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can resolve unmatched opportunities"
+  ON unmatched_opportunities
+  FOR UPDATE
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');
