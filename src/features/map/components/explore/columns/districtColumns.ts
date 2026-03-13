@@ -70,6 +70,11 @@ export interface DistrictRow {
   enrollmentTwoOrMore: number | null;
   charterSchoolCount: number | null;
   charterEnrollment: number | null;
+  titleISchoolCount: number | null;
+  titleISchoolwideCount: number | null;
+  totalSchoolCount: number | null;
+  frplRate: number | null;
+  titleIRevenue: number | null;
   enrollmentTrend3yr: number | null;
   staffingTrend3yr: number | null;
   swdTrend3yr: number | null;
@@ -479,6 +484,29 @@ export const districtColumns: ColumnDef[] = [
     key: "charterEnrollment",
     label: "Charter Enrollment",
     group: "Demographics",
+    isDefault: false,
+    filterType: "number",
+  },
+
+  // ---- Title I ----
+  {
+    key: "titleISchoolCount",
+    label: "Title I Schools",
+    group: "Title I",
+    isDefault: false,
+    filterType: "number",
+  },
+  {
+    key: "frplRate",
+    label: "FRPL Rate",
+    group: "Title I",
+    isDefault: false,
+    filterType: "number",
+  },
+  {
+    key: "titleIRevenue",
+    label: "Title I Revenue",
+    group: "Title I",
     isDefault: false,
     filterType: "number",
   },
