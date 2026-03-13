@@ -25,8 +25,9 @@ export default function FlippablePlanCard({ plan, variant, onNavigate }: Flippab
 
   const totalTarget =
     plan.renewalRollup + plan.expansionRollup + plan.winbackRollup + plan.newBusinessRollup;
+  const revenueActual = plan.revenueActual ?? 0;
   const pctToTarget =
-    totalTarget > 0 ? Math.min(Math.round((plan.pipelineTotal / totalTarget) * 100), 999) : 0;
+    totalTarget > 0 ? Math.min(Math.round((revenueActual / totalTarget) * 100), 999) : 0;
 
   return (
     <div
@@ -74,7 +75,7 @@ export default function FlippablePlanCard({ plan, variant, onNavigate }: Flippab
           <div className={`${isCompact ? "mt-2" : "mt-2.5"}`}>
             <div className="flex items-center justify-between mb-1">
               <span className={`text-gray-400 ${isCompact ? "text-[10px]" : "text-[11px]"}`}>
-                {formatCompact(plan.pipelineTotal)} pipeline
+                {formatCompact(revenueActual)} / {formatCompact(totalTarget)} revenue
               </span>
               <span className={`font-semibold tabular-nums ${
                 pctToTarget >= 100 ? "text-[#8AA891]" : pctToTarget >= 50 ? "text-[#403770]/70" : "text-gray-400"
