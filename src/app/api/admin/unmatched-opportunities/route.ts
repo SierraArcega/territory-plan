@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
     const stage = searchParams.get("stage");
     const reason = searchParams.get("reason");
+    const hasDistrictId = searchParams.get("has_district_id");
+    const stageGroup = searchParams.get("stage_group");
     const sortBy = searchParams.get("sort_by") || "netBookingAmount";
     const sortDir = searchParams.get("sort_dir") === "asc" ? "asc" : "desc";
     const search = searchParams.get("search") || "";
@@ -51,6 +53,23 @@ export async function GET(request: NextRequest) {
 
     if (reason) {
       where.reason = reason;
+    }
+
+    if (hasDistrictId === "true") {
+      where.accountLmsId = { not: null };
+    } else if (hasDistrictId === "false") {
+      where.accountLmsId = null;
+    }
+
+    if (stageGroup === "open") {
+      where.NOT = { stage: { contains: "Closed", mode: "insensitive" } };
+    } else if (stageGroup === "closed_won") {
+      where.stage = { contains: "Closed Won", mode: "insensitive" };
+    } else if (stageGroup === "closed_lost") {
+      where.AND = [
+        { stage: { contains: "Closed", mode: "insensitive" } },
+        { NOT: { stage: { contains: "Closed Won", mode: "insensitive" } } },
+      ];
     }
 
     if (search && search.length >= 2) {

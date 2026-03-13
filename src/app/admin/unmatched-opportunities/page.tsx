@@ -50,6 +50,8 @@ async function fetchOpportunities(params: {
   stage?: string;
   reason?: string;
   search?: string;
+  has_district_id?: string;
+  stage_group?: string;
   sort_by?: string;
   sort_dir?: string;
   page: number;
@@ -62,6 +64,8 @@ async function fetchOpportunities(params: {
   if (params.stage) qs.set("stage", params.stage);
   if (params.reason) qs.set("reason", params.reason);
   if (params.search) qs.set("search", params.search);
+  if (params.has_district_id) qs.set("has_district_id", params.has_district_id);
+  if (params.stage_group) qs.set("stage_group", params.stage_group);
   if (params.sort_by) qs.set("sort_by", params.sort_by);
   if (params.sort_dir) qs.set("sort_dir", params.sort_dir);
   qs.set("page", String(params.page));
@@ -169,33 +173,48 @@ async function fetchSummary(): Promise<SummaryData> {
 // KPI Summary Cards
 // ---------------------------------------------------------------------------
 
-function SummaryCards({ data }: { data: SummaryData | undefined }) {
-  const cards = [
+type CardKey = "unmatched" | "hasDistrictId" | "openPipeline" | "closedWon" | "closedLost";
+
+function SummaryCards({
+  data,
+  activeCard,
+  onCardClick,
+}: {
+  data: SummaryData | undefined;
+  activeCard: CardKey | null;
+  onCardClick: (key: CardKey) => void;
+}) {
+  const cards: { key: CardKey; label: string; value: string; subtitle: string; accent: string }[] = [
     {
+      key: "unmatched",
       label: "Unmatched",
       value: data ? data.totalCount.toLocaleString() : "—",
       subtitle: "unresolved opportunities",
       accent: "#403770",
     },
     {
+      key: "hasDistrictId",
       label: "Has District ID",
       value: data ? data.withDistrictId.toLocaleString() : "—",
       subtitle: data ? `${data.withoutDistrictId.toLocaleString()} without` : "",
       accent: "#6EA3BE",
     },
     {
+      key: "openPipeline",
       label: "Open Pipeline",
       value: data ? formatCompactCurrency(data.openBookings) : "—",
       subtitle: "net booking amount",
       accent: "#FFCF70",
     },
     {
+      key: "closedWon",
       label: "Closed Won",
       value: data ? formatCompactCurrency(data.closedWonBookings) : "—",
       subtitle: "net booking amount",
       accent: "#8AA891",
     },
     {
+      key: "closedLost",
       label: "Closed Lost",
       value: data ? formatCompactCurrency(data.closedLostBookings) : "—",
       subtitle: "net booking amount",
@@ -205,26 +224,34 @@ function SummaryCards({ data }: { data: SummaryData | undefined }) {
 
   return (
     <div className="grid gap-3 grid-cols-5">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="bg-white rounded-lg border border-[#D4CFE2] shadow-sm p-4 relative overflow-hidden"
-        >
-          <div
-            className="absolute left-0 top-0 bottom-0 w-[3px]"
-            style={{ backgroundColor: card.accent }}
-          />
-          <p className="text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
-            {card.label}
-          </p>
-          <p className={`text-xl font-bold tabular-nums ${data ? "text-[#403770]" : "text-[#A69DC0]"}`}>
-            {card.value}
-          </p>
-          {card.subtitle && (
-            <p className="text-[11px] text-[#A69DC0]">{card.subtitle}</p>
-          )}
-        </div>
-      ))}
+      {cards.map((card) => {
+        const isActive = activeCard === card.key;
+        return (
+          <button
+            key={card.key}
+            onClick={() => onCardClick(card.key)}
+            className={`text-left bg-white rounded-lg border shadow-sm p-4 relative overflow-hidden transition-all duration-100 ${
+              isActive
+                ? "border-[#403770] ring-2 ring-[#403770]/20"
+                : "border-[#D4CFE2] hover:border-[#C2BBD4] hover:shadow"
+            }`}
+          >
+            <div
+              className="absolute left-0 top-0 bottom-0 w-[3px]"
+              style={{ backgroundColor: card.accent }}
+            />
+            <p className="text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
+              {card.label}
+            </p>
+            <p className={`text-xl font-bold tabular-nums ${data ? "text-[#403770]" : "text-[#A69DC0]"}`}>
+              {card.value}
+            </p>
+            {card.subtitle && (
+              <p className="text-[11px] text-[#A69DC0]">{card.subtitle}</p>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -636,6 +663,7 @@ export default function UnmatchedOpportunitiesPage() {
     { column: "resolved", operator: "is_false", value: false },
   ]);
 
+  const [activeCard, setActiveCard] = useState<CardKey | null>(null);
   const [resolvingOpp, setResolvingOpp] = useState<UnmatchedOpportunity | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -656,6 +684,12 @@ export default function UnmatchedOpportunitiesPage() {
     setPage(1);
   }, []);
 
+  // Card click handler — toggle card filter, reset page
+  const handleCardClick = useCallback((key: CardKey) => {
+    setActiveCard((prev) => (prev === key ? null : key));
+    setPage(1);
+  }, []);
+
   // Derive API params from FilterRule[] array
   const resolvedFilter = filters.find((f) => f.column === "resolved");
   const resolvedParam = resolvedFilter
@@ -667,10 +701,17 @@ export default function UnmatchedOpportunitiesPage() {
   const reasonFilter = filters.find((f) => f.column === "reason" && f.operator === "eq");
   const searchFilter = filters.find((f) => f.column === "name" && f.operator === "contains");
 
+  // Derive card-based API params
+  const cardParams: { has_district_id?: string; stage_group?: string } = {};
+  if (activeCard === "hasDistrictId") cardParams.has_district_id = "true";
+  if (activeCard === "openPipeline") cardParams.stage_group = "open";
+  if (activeCard === "closedWon") cardParams.stage_group = "closed_won";
+  if (activeCard === "closedLost") cardParams.stage_group = "closed_lost";
+
   const sortRule = sorts[0];
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["unmatched-opportunities", filters, sorts, page],
+    queryKey: ["unmatched-opportunities", filters, sorts, page, activeCard],
     queryFn: () =>
       fetchOpportunities({
         resolved: resolvedParam,
@@ -679,6 +720,7 @@ export default function UnmatchedOpportunitiesPage() {
         stage: stageFilter ? String(stageFilter.value) : undefined,
         reason: reasonFilter ? String(reasonFilter.value) : undefined,
         search: searchFilter ? String(searchFilter.value) : undefined,
+        ...cardParams,
         sort_by: sortRule?.column,
         sort_dir: sortRule?.direction,
         page,
@@ -804,7 +846,7 @@ export default function UnmatchedOpportunitiesPage() {
             </p>
           </div>
         </div>
-        <SummaryCards data={summary} />
+        <SummaryCards data={summary} activeCard={activeCard} onCardClick={handleCardClick} />
       </div>
 
       {/* Toolbar */}
