@@ -31,17 +31,20 @@ Sales reps checking progress against their goals and plan targets. They care mos
 
 ## Data Layer
 
-### `district_opportunity_actuals` SQL View
+### `district_opportunity_actuals` Materialized View
 
-Aggregates the `opportunities` table by `district_lea_id` and `school_yr`:
+Materialized view refreshed after each scheduler sync cycle (hourly). Provides better query performance than a regular view since it pre-computes aggregations across potentially thousands of opportunities.
+
+Aggregates the `opportunities` table by `district_lea_id`, `school_yr`, `sales_rep_email`, and `category`:
 
 | Column | Derivation |
 |---|---|
 | `district_lea_id` | Group key |
 | `school_yr` | Group key |
 | `sales_rep_email` | Group key (for rep-scoped queries) |
+| `category` | Group key — derived from `contract_type`: "renewal", "winback", "expansion", or "new_business" (see mapping below) |
 | `bookings` | SUM(net_booking_amount) WHERE stage prefix >= 6 (closed-won) |
-| `open_pipeline` | SUM(net_booking_amount) WHERE stage prefix 0-5 |
+| `open_pipeline` | SUM(net_booking_amount) WHERE stage prefix 0-5 (unweighted) |
 | `weighted_pipeline` | SUM(net_booking_amount * stage_weight) WHERE stage prefix 0-5 |
 | `total_revenue` | SUM(total_revenue) |
 | `completed_revenue` | SUM(completed_revenue) |
@@ -54,6 +57,17 @@ Aggregates the `opportunities` table by `district_lea_id` and `school_yr`:
 | `credited` | SUM(credited) |
 | `opp_count` | COUNT(*) |
 
+**Category mapping** (from `contract_type`):
+
+| `contract_type` contains | `category` value |
+|---|---|
+| "renewal" | "renewal" |
+| "winback" or "win back" | "winback" |
+| "expansion" | "expansion" |
+| anything else / null | "new_business" |
+
+Adding `category` as a group key means consumers can query per-category actuals (e.g., renewal revenue actual vs renewal target) or aggregate across categories for district-level totals using `SUM() ... GROUP BY district_lea_id, school_yr`.
+
 **Stage weight map** (from scheduler spec):
 
 | Stage prefix | Weight |
@@ -65,7 +79,7 @@ Aggregates the `opportunities` table by `district_lea_id` and `school_yr`:
 | 4 | 0.75 |
 | 5 | 0.90 |
 
-**Indexes:** `district_lea_id`, `school_yr`, `sales_rep_email`
+**Indexes:** `district_lea_id`, `school_yr`, `sales_rep_email`, `category`
 
 ### Fiscal Year Scoping
 
@@ -77,6 +91,8 @@ When querying actuals for a plan with `fiscalYear = 26`:
 
 Goal dashboard actuals filter by `sales_rep_email` matching the authenticated user's email. A rep only sees actuals from opportunities assigned to them, even if another rep has opportunities in the same district.
 
+Plan districts table actuals are **not** rep-scoped — they show all opportunity actuals for the district regardless of which rep owns the opportunity. This gives the rep full visibility into district performance. Goals, by contrast, are rep-scoped because they measure individual performance.
+
 ### Deprecation Path
 
 The hardcoded FY columns on the `districts` table (`fy25_net_invoicing`, `fy26_net_invoicing`, etc.) are superseded by this aggregation view. New features consume from `district_opportunity_actuals`. Existing features continue to work; migration of old consumers is out of scope.
@@ -85,27 +101,60 @@ The hardcoded FY columns on the `districts` table (`fy25_net_invoicing`, `fy26_n
 
 ### API Changes: `GET /profile/goals/{fy}/dashboard`
 
-**`actuals` object — enriched fields:**
+**Updated `GoalDashboard` type:**
 
-| Field | Source |
-|---|---|
-| `revenue` | SUM(total_revenue) from aggregation view for rep's districts, current FY |
-| `take` | SUM(total_take) for rep's districts, current FY |
-| `completedTake` | SUM(completed_take) — new field |
-| `scheduledTake` | SUM(scheduled_take) — new field |
-| `pipeline` | SUM(weighted_pipeline) for rep's districts, current FY |
-| `bookings` | SUM(bookings) — new field |
-| `invoiced` | SUM(invoiced) — new field |
-| `earnings` | Derived: BASE_SALARY + (take * COMMISSION_RATE) |
-| `newDistricts` | Count of districts with opportunities but no prior FY opportunities |
+```typescript
+export interface GoalDashboard {
+  fiscalYear: number;
+  goals: {
+    earningsTarget: number | null;
+    takeRatePercent: number | null;
+    renewalTarget: number | null;
+    winbackTarget: number | null;
+    expansionTarget: number | null;
+    newBusinessTarget: number | null;
+    takeTarget: number | null;        // already on UserGoal, now included in dashboard response
+    newDistrictsTarget: number | null;
+  } | null;
+  planTotals: {
+    renewalTarget: number;
+    winbackTarget: number;
+    expansionTarget: number;
+    newBusinessTarget: number;
+    totalTarget: number;
+    districtCount: number;
+    planCount: number;
+  };
+  actuals: {
+    earnings: number;       // Derived: BASE_SALARY + (take * COMMISSION_RATE)
+    revenue: number;        // SUM(total_revenue) for rep's districts, current FY
+    take: number;           // SUM(total_take) for rep's districts, current FY
+    completedTake: number;  // NEW — SUM(completed_take)
+    scheduledTake: number;  // NEW — SUM(scheduled_take)
+    pipeline: number;       // SUM(weighted_pipeline) for rep's districts, current FY
+    bookings: number;       // NEW — SUM(bookings) closed-won
+    invoiced: number;       // NEW — SUM(invoiced)
+    newDistricts: number;   // Count of districts with current FY opps but no prior FY opps
+  };
+  plans: Array<{
+    id: string;
+    name: string;
+    color: string;
+    status: string;
+    districtCount: number;
+    renewalTarget: number;
+    winbackTarget: number;
+    expansionTarget: number;
+    newBusinessTarget: number;
+    totalTarget: number;
+    revenueActual: number;  // NEW — SUM(total_revenue) for this plan's districts, current FY, this rep
+    takeActual: number;     // NEW — SUM(total_take) for this plan's districts, current FY, this rep
+    bookingsActual: number; // NEW — SUM(bookings) for this plan's districts, current FY, this rep
+  }>;
+}
+```
 
-**`plans[]` array — add per-plan actuals:**
-
-| Field | Source |
-|---|---|
-| `revenueActual` | SUM(total_revenue) for districts in this plan, current FY, this rep |
-| `takeActual` | SUM(total_take) for districts in this plan, current FY, this rep |
-| `bookingsActual` | SUM(bookings) for districts in this plan, current FY, this rep |
+**Take target sourcing:** The `goals.takeTarget` field is already stored on `UserGoal` (set by GoalEditorModal's calculation engine). It was previously omitted from the dashboard response — now it's included so the UI can display take progress without re-deriving client-side.
 
 ### UI Changes
 
@@ -146,7 +195,7 @@ Added after the existing target columns (Renewal, Winback, Expansion, New Biz) a
 
 ### Data Source
 
-Per-district actuals come from `district_opportunity_actuals` joined on `district_lea_id` and filtered to the plan's `fiscalYear`. Prior FY uses `fiscalYear - 1`.
+Per-district actuals come from `district_opportunity_actuals` joined on `district_lea_id` and filtered to the plan's `fiscalYear`. Prior FY uses `fiscalYear - 1`. Plan district actuals are **not** rep-scoped — they show all opportunity data for the district (see Rep Scoping section above).
 
 ## District Detail Panel
 
@@ -228,15 +277,19 @@ The plan district detail endpoint (`usePlanDistrictDetail`) adds:
 - Expansion: actual / target
 - New Biz: actual / target
 
-### New Plan-Level Rollup Fields
+Per-category actuals come from the `category` group key on the materialized view (see Data Layer section for mapping rules).
 
-Added to `TerritoryPlan` and computed by `syncPlanRollups()`:
+### New Plan-Level Actuals (Computed at Query Time)
+
+These fields are **not** stored as denormalized columns. They are computed at query time by joining the plan's districts to the `district_opportunity_actuals` materialized view, following the same pattern as the existing `pipelineTotal` field (which is also computed at query time, not stored in the Prisma schema).
 
 | Field | Derivation |
 |---|---|
-| `revenueActual` | SUM(total_revenue) from aggregation view for plan's districts, plan's FY |
+| `revenueActual` | SUM(total_revenue) from materialized view for plan's districts, plan's FY |
 | `takeActual` | SUM(total_take) for plan's districts, plan's FY |
 | `priorFyRevenue` | SUM(total_revenue) for plan's districts, prior FY |
+
+Implementation: raw SQL query in the plan detail API route, joining `territory_plan_district` → `district_opportunity_actuals` on `district_leaid = district_lea_id`. The `syncPlanRollups()` function is **not** modified — these actuals come from the view, not from Prisma aggregations.
 
 ## Phase 2 (Out of Scope)
 
