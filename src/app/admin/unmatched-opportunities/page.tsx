@@ -34,6 +34,15 @@ interface DistrictResult {
   cityLocation: string | null;
 }
 
+interface SchoolResult {
+  ncessch: string;
+  leaid: string;
+  schoolName: string;
+  city: string;
+  stateAbbrev: string;
+  enrollment: number | null;
+}
+
 interface PaginationInfo {
   page: number;
   pageSize: number;
@@ -86,6 +95,13 @@ async function searchDistricts(q: string): Promise<{ items: DistrictResult[] }> 
   if (q.length < 2) return { items: [] };
   const res = await fetch(`/api/admin/districts/search?q=${encodeURIComponent(q)}`);
   if (!res.ok) throw new Error("Failed to search districts");
+  return res.json();
+}
+
+async function searchSchools(q: string): Promise<{ schools: SchoolResult[] }> {
+  if (q.length < 2) return { schools: [] };
+  const res = await fetch(`/api/schools?search=${encodeURIComponent(q)}&limit=10`);
+  if (!res.ok) throw new Error("Failed to search schools");
   return res.json();
 }
 
