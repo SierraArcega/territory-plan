@@ -53,6 +53,12 @@ from loaders.urban_institute_schools import (
     update_district_charter_aggregates,
     ensure_districts_for_schools,
 )
+from loaders.urban_institute_title1 import (
+    fetch_title1_all_states, upsert_title1_data,
+    fetch_demographics_all_states, upsert_demographics_data,
+    fetch_title1_revenue_all_states, upsert_title1_revenue,
+    aggregate_district_title1,
+)
 from loaders.fullmind import (
     load_fullmind_csv,
     get_valid_leaids,
@@ -608,6 +614,47 @@ def run_schools_by_state_etl(
     }
 
 
+def run_title1_etl(
+    connection_string: str,
+    year: int = 2022,
+    finance_year: int = None,
+    start_fips: str = None,
+    skip_title1: bool = False,
+    skip_demographics: bool = False,
+    skip_revenue: bool = False,
+) -> dict:
+    """
+    Run Title I / FRPL / Demographics enrichment ETL.
+    Requires schools to already be loaded.
+    """
+    print("\n" + "=" * 60)
+    print("Title I / FRPL / Demographics Enrichment")
+    print("=" * 60)
+
+    finance_year = finance_year or year
+    results = {"title1": 0, "demographics": 0, "revenue": 0, "aggregated": 0}
+
+    if not skip_title1:
+        records = fetch_title1_all_states(year=year, resume_from_fips=start_fips)
+        if records:
+            results["title1"] = upsert_title1_data(connection_string, records, year)
+
+    if not skip_demographics:
+        records = fetch_demographics_all_states(year=year, resume_from_fips=start_fips)
+        if records:
+            results["demographics"] = upsert_demographics_data(connection_string, records, year)
+
+    if not skip_revenue:
+        records = fetch_title1_revenue_all_states(year=finance_year, resume_from_fips=start_fips)
+        if records:
+            results["revenue"] = upsert_title1_revenue(connection_string, records)
+
+    results["aggregated"] = aggregate_district_title1(connection_string)
+
+    print(f"Title I ETL complete: {results}")
+    return results
+
+
 def run_education_data_by_state_etl(
     connection_string: str,
     year: int = 2022,
@@ -1084,6 +1131,8 @@ Examples:
                         help="Run EdFacts assessment proficiency ETL")
     parser.add_argument("--absenteeism", action="store_true",
                         help="Run CRDC chronic absenteeism ETL")
+    parser.add_argument("--title1", action="store_true",
+                        help="Run Title I / FRPL / Demographics enrichment ETL")
     parser.add_argument("--charter-schools", action="store_true",
                         help="Run charter schools ETL (directory + 5-year enrollment history + district aggregates)")
     parser.add_argument("--all-schools", action="store_true",
@@ -1261,6 +1310,13 @@ Examples:
             year=args.enrollment_year,
             start_fips=args.start_fips,
             directory_only=args.directory_only,
+        )
+
+    if args.title1:
+        run_title1_etl(
+            connection_string,
+            year=args.year,
+            start_fips=args.start_fips,
         )
 
     # Grade-level enrollment ETL
