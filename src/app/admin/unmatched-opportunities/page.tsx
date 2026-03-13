@@ -330,6 +330,46 @@ function DistrictRow({
   );
 }
 
+function SchoolRow({
+  school,
+  onSelect,
+}: {
+  school: SchoolResult;
+  onSelect: (d: DistrictResult) => void;
+}) {
+  return (
+    <button
+      onClick={() =>
+        onSelect({
+          leaid: school.leaid,
+          name: `${school.schoolName} (via school)`,
+          stateAbbrev: school.stateAbbrev,
+          enrollment: school.enrollment,
+          cityLocation: school.city,
+        })
+      }
+      className="w-full text-left px-4 py-3 border-b border-[#E2DEEC] last:border-b-0 hover:bg-[#EFEDF5] transition-colors duration-100"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-[#403770]">
+          {school.schoolName}
+        </span>
+        <span className="text-xs text-[#A69DC0] font-medium tabular-nums flex-shrink-0 ml-3">
+          {school.leaid}
+        </span>
+      </div>
+      <div className="text-xs text-[#8A80A8] mt-0.5">
+        {school.city}, {school.stateAbbrev}
+      </div>
+      {school.enrollment != null && (
+        <div className="text-xs text-[#8A80A8] mt-0.5">
+          Enrollment: {school.enrollment.toLocaleString()}
+        </div>
+      )}
+    </button>
+  );
+}
+
 function CreateDistrictForm({
   opportunity,
   onCreated,
