@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
     const resolved = searchParams.get("resolved");
     const schoolYr = searchParams.get("school_yr");
     const state = searchParams.get("state");
+    const stage = searchParams.get("stage");
+    const reason = searchParams.get("reason");
     const sortBy = searchParams.get("sort_by") || "netBookingAmount";
     const sortDir = searchParams.get("sort_dir") === "asc" ? "asc" : "desc";
     const search = searchParams.get("search") || "";
@@ -41,6 +43,14 @@ export async function GET(request: NextRequest) {
 
     if (state) {
       where.state = state;
+    }
+
+    if (stage) {
+      where.stage = stage;
+    }
+
+    if (reason) {
+      where.reason = reason;
     }
 
     if (search && search.length >= 2) {

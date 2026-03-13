@@ -63,14 +63,16 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     label: "Stage",
     group: "Core",
     isDefault: true,
-    filterType: "text",
+    filterType: "enum",
+    enumValues: [], // populated at runtime from facets API
   },
   {
     key: "reason",
     label: "Reason",
     group: "Core",
     isDefault: true,
-    filterType: "text",
+    filterType: "enum",
+    enumValues: [], // populated at runtime from facets API
   },
   {
     key: "resolvedDistrictLeaid",

@@ -47,6 +47,8 @@ async function fetchOpportunities(params: {
   resolved?: string;
   school_yr?: string;
   state?: string;
+  stage?: string;
+  reason?: string;
   search?: string;
   sort_by?: string;
   sort_dir?: string;
@@ -57,6 +59,8 @@ async function fetchOpportunities(params: {
   if (params.resolved) qs.set("resolved", params.resolved);
   if (params.school_yr) qs.set("school_yr", params.school_yr);
   if (params.state) qs.set("state", params.state);
+  if (params.stage) qs.set("stage", params.stage);
+  if (params.reason) qs.set("reason", params.reason);
   if (params.search) qs.set("search", params.search);
   if (params.sort_by) qs.set("sort_by", params.sort_by);
   if (params.sort_dir) qs.set("sort_dir", params.sort_dir);
@@ -64,6 +68,12 @@ async function fetchOpportunities(params: {
   qs.set("page_size", String(params.page_size));
   const res = await fetch(`/api/admin/unmatched-opportunities?${qs}`);
   if (!res.ok) throw new Error("Failed to fetch");
+  return res.json();
+}
+
+async function fetchFacets(): Promise<{ stages: string[]; reasons: string[] }> {
+  const res = await fetch("/api/admin/unmatched-opportunities/facets");
+  if (!res.ok) throw new Error("Failed to fetch facets");
   return res.json();
 }
 
@@ -494,6 +504,23 @@ function DistrictSearchModal({
 export default function UnmatchedOpportunitiesPage() {
   const queryClient = useQueryClient();
 
+  // Fetch distinct stage/reason values for filter dropdowns
+  const { data: facets } = useQuery({
+    queryKey: ["unmatched-opportunities-facets"],
+    queryFn: fetchFacets,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Hydrate column defs with facet values
+  const hydratedColumns = useMemo(() => {
+    if (!facets) return unmatchedOpportunityColumns;
+    return unmatchedOpportunityColumns.map((col) => {
+      if (col.key === "stage") return { ...col, enumValues: facets.stages };
+      if (col.key === "reason") return { ...col, enumValues: facets.reasons };
+      return col;
+    });
+  }, [facets]);
+
   // DataGrid state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
     unmatchedOpportunityColumns.filter((c) => c.isDefault).map((c) => c.key)
@@ -534,6 +561,8 @@ export default function UnmatchedOpportunitiesPage() {
     : undefined;
   const schoolYrFilter = filters.find((f) => f.column === "schoolYr" && f.operator === "eq");
   const stateFilterRule = filters.find((f) => f.column === "state" && f.operator === "eq");
+  const stageFilter = filters.find((f) => f.column === "stage" && f.operator === "eq");
+  const reasonFilter = filters.find((f) => f.column === "reason" && f.operator === "eq");
   const searchFilter = filters.find((f) => f.column === "name" && f.operator === "contains");
 
   const sortRule = sorts[0];
@@ -545,6 +574,8 @@ export default function UnmatchedOpportunitiesPage() {
         resolved: resolvedParam,
         school_yr: schoolYrFilter ? String(schoolYrFilter.value) : undefined,
         state: stateFilterRule ? String(stateFilterRule.value) : undefined,
+        stage: stageFilter ? String(stageFilter.value) : undefined,
+        reason: reasonFilter ? String(reasonFilter.value) : undefined,
         search: searchFilter ? String(searchFilter.value) : undefined,
         sort_by: sortRule?.column,
         sort_dir: sortRule?.direction,
@@ -671,7 +702,7 @@ export default function UnmatchedOpportunitiesPage() {
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3 flex-wrap shrink-0">
         <AdminFilterBar
-          columnDefs={unmatchedOpportunityColumns}
+          columnDefs={hydratedColumns}
           filters={filters}
           onAddFilter={(f) => { setFilters((prev) => [...prev, f]); setPage(1); }}
           onRemoveFilter={(i) => { setFilters((prev) => prev.filter((_, idx) => idx !== i)); setPage(1); }}
@@ -679,7 +710,7 @@ export default function UnmatchedOpportunitiesPage() {
         />
         <div className="ml-auto">
           <AdminColumnPicker
-            columnDefs={unmatchedOpportunityColumns}
+            columnDefs={hydratedColumns}
             visibleColumns={visibleColumns}
             onColumnsChange={setVisibleColumns}
           />
@@ -690,7 +721,7 @@ export default function UnmatchedOpportunitiesPage() {
       <div className="flex-1 min-h-0 overflow-auto">
       <DataGrid
         data={(data?.items ?? []) as unknown as Record<string, unknown>[]}
-        columnDefs={unmatchedOpportunityColumns}
+        columnDefs={hydratedColumns}
         entityType="opportunities"
         isLoading={isLoading}
         isError={isError}
