@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { unmatchedOpportunityColumns } from "./columns";
 import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
 import type { SortRule, FilterRule, CellRendererFn } from "@/features/shared/components/DataGrid/types";
+import AdminFilterBar from "./AdminFilterBar";
+import AdminColumnPicker from "./AdminColumnPicker";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -349,7 +351,7 @@ export default function UnmatchedOpportunitiesPage() {
     netBookingAmount: ({ value }) => (
       <span className="tabular-nums font-medium">{formatCurrency(value as string)}</span>
     ),
-  }), []);
+  }), [setResolvingId]);
 
   return (
     <div>
@@ -366,7 +368,23 @@ export default function UnmatchedOpportunitiesPage() {
         </p>
       </div>
 
-      {/* Toolbar placeholder — will be replaced by AdminFilterBar + AdminColumnPicker in Task 5 */}
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <AdminFilterBar
+          columnDefs={unmatchedOpportunityColumns}
+          filters={filters}
+          onAddFilter={(f) => { setFilters((prev) => [...prev, f]); setPage(1); }}
+          onRemoveFilter={(i) => { setFilters((prev) => prev.filter((_, idx) => idx !== i)); setPage(1); }}
+          onUpdateFilter={(i, f) => { setFilters((prev) => prev.map((existing, idx) => idx === i ? f : existing)); setPage(1); }}
+        />
+        <div className="ml-auto">
+          <AdminColumnPicker
+            columnDefs={unmatchedOpportunityColumns}
+            visibleColumns={visibleColumns}
+            onColumnsChange={setVisibleColumns}
+          />
+        </div>
+      </div>
 
       {/* Table */}
       <DataGrid
