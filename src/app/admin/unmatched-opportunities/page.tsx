@@ -134,6 +134,101 @@ function formatCurrency(value: string | number | null | undefined): string {
   return "$" + Math.round(num).toLocaleString();
 }
 
+function formatCompactCurrency(value: number): string {
+  if (value >= 1_000_000) {
+    const m = value / 1_000_000;
+    return "$" + (m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)) + "M";
+  }
+  if (value >= 1_000) {
+    const k = value / 1_000;
+    return "$" + (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + "K";
+  }
+  return "$" + Math.round(value).toLocaleString();
+}
+
+// ---------------------------------------------------------------------------
+// Summary data
+// ---------------------------------------------------------------------------
+
+interface SummaryData {
+  totalCount: number;
+  withDistrictId: number;
+  withoutDistrictId: number;
+  openBookings: number;
+  closedWonBookings: number;
+  closedLostBookings: number;
+}
+
+async function fetchSummary(): Promise<SummaryData> {
+  const res = await fetch("/api/admin/unmatched-opportunities/summary");
+  if (!res.ok) throw new Error("Failed to fetch summary");
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// KPI Summary Cards
+// ---------------------------------------------------------------------------
+
+function SummaryCards({ data }: { data: SummaryData | undefined }) {
+  const cards = [
+    {
+      label: "Unmatched",
+      value: data ? data.totalCount.toLocaleString() : "—",
+      subtitle: "unresolved opportunities",
+      accent: "#403770",
+    },
+    {
+      label: "Has District ID",
+      value: data ? data.withDistrictId.toLocaleString() : "—",
+      subtitle: data ? `${data.withoutDistrictId.toLocaleString()} without` : "",
+      accent: "#6EA3BE",
+    },
+    {
+      label: "Open Pipeline",
+      value: data ? formatCompactCurrency(data.openBookings) : "—",
+      subtitle: "net booking amount",
+      accent: "#FFCF70",
+    },
+    {
+      label: "Closed Won",
+      value: data ? formatCompactCurrency(data.closedWonBookings) : "—",
+      subtitle: "net booking amount",
+      accent: "#8AA891",
+    },
+    {
+      label: "Closed Lost",
+      value: data ? formatCompactCurrency(data.closedLostBookings) : "—",
+      subtitle: "net booking amount",
+      accent: "#F37167",
+    },
+  ];
+
+  return (
+    <div className="grid gap-3 grid-cols-5">
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          className="bg-white rounded-lg border border-[#D4CFE2] shadow-sm p-4 relative overflow-hidden"
+        >
+          <div
+            className="absolute left-0 top-0 bottom-0 w-[3px]"
+            style={{ backgroundColor: card.accent }}
+          />
+          <p className="text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
+            {card.label}
+          </p>
+          <p className={`text-xl font-bold tabular-nums ${data ? "text-[#403770]" : "text-[#A69DC0]"}`}>
+            {card.value}
+          </p>
+          {card.subtitle && (
+            <p className="text-[11px] text-[#A69DC0]">{card.subtitle}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Status badge
 // ---------------------------------------------------------------------------
@@ -504,6 +599,13 @@ function DistrictSearchModal({
 export default function UnmatchedOpportunitiesPage() {
   const queryClient = useQueryClient();
 
+  // Summary stats for KPI cards
+  const { data: summary } = useQuery({
+    queryKey: ["unmatched-opportunities-summary"],
+    queryFn: fetchSummary,
+    staleTime: 30 * 1000,
+  });
+
   // Fetch distinct stage/reason values for filter dropdowns
   const { data: facets } = useQuery({
     queryKey: ["unmatched-opportunities-facets"],
@@ -589,6 +691,7 @@ export default function UnmatchedOpportunitiesPage() {
       resolveOpportunity(id, leaid),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities-summary"] });
       const count = data.resolvedCount ?? 1;
       const countLabel = count > 1 ? `${count} opportunities` : "1 opportunity";
       setToast(`Resolved ${countLabel} to ${variables.districtName} (${variables.leaid})`);
@@ -685,22 +788,27 @@ export default function UnmatchedOpportunitiesPage() {
   }, []);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)]">
-      {/* Header */}
-      <div className="mb-6 shrink-0">
-        <h1 className="text-xl font-bold text-[#403770]">Unmatched Opportunities</h1>
-        <p className="text-sm text-[#8A80A8] mt-1">
-          Opportunities that could not be automatically matched to a district.
-          {data?.pagination && (
-            <span className="ml-1 font-medium text-[#6E6390]">
-              {data.pagination.total} total
-            </span>
-          )}
-        </p>
+    <div className="flex flex-col h-[calc(100vh-64px)]">
+      {/* Header + Summary */}
+      <div className="mb-3 shrink-0">
+        <div className="flex items-baseline justify-between mb-3">
+          <div>
+            <h1 className="text-xl font-bold text-[#403770]">Unmatched Opportunities</h1>
+            <p className="text-sm text-[#8A80A8] mt-0.5">
+              Opportunities that could not be automatically matched to a district.
+              {data?.pagination && (
+                <span className="ml-1 font-medium text-[#6E6390]">
+                  {data.pagination.total} showing
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        <SummaryCards data={summary} />
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap shrink-0">
+      <div className="flex items-center gap-2 mb-2 flex-wrap shrink-0">
         <AdminFilterBar
           columnDefs={hydratedColumns}
           filters={filters}
