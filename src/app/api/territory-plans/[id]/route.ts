@@ -65,30 +65,33 @@ export async function GET(
     const priorSchoolYr = fiscalYearToSchoolYear(plan.fiscalYear - 1);
     const allLeaIds = plan.districts.map((d) => d.districtLeaid);
 
-    const [currentRows, priorRows] = await Promise.all([
-      prisma.$queryRaw<
-        { district_lea_id: string; total_revenue: number; total_take: number; weighted_pipeline: number }[]
-      >`
-        SELECT district_lea_id,
-               COALESCE(SUM(total_revenue), 0) AS total_revenue,
-               COALESCE(SUM(total_take), 0) AS total_take,
-               COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline
-        FROM district_opportunity_actuals
-        WHERE district_lea_id = ANY(${allLeaIds})
-          AND school_yr = ${schoolYr}
-        GROUP BY district_lea_id
-      `,
-      prisma.$queryRaw<
-        { district_lea_id: string; total_revenue: number }[]
-      >`
-        SELECT district_lea_id,
-               COALESCE(SUM(total_revenue), 0) AS total_revenue
-        FROM district_opportunity_actuals
-        WHERE district_lea_id = ANY(${allLeaIds})
-          AND school_yr = ${priorSchoolYr}
-        GROUP BY district_lea_id
-      `,
-    ]);
+    let currentRows: { district_lea_id: string; total_revenue: number; total_take: number; weighted_pipeline: number }[] = [];
+    let priorRows: { district_lea_id: string; total_revenue: number }[] = [];
+
+    try {
+      [currentRows, priorRows] = await Promise.all([
+        prisma.$queryRaw<typeof currentRows>`
+          SELECT district_lea_id,
+                 COALESCE(SUM(total_revenue), 0) AS total_revenue,
+                 COALESCE(SUM(total_take), 0) AS total_take,
+                 COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline
+          FROM district_opportunity_actuals
+          WHERE district_lea_id = ANY(${allLeaIds})
+            AND school_yr = ${schoolYr}
+          GROUP BY district_lea_id
+        `,
+        prisma.$queryRaw<typeof priorRows>`
+          SELECT district_lea_id,
+                 COALESCE(SUM(total_revenue), 0) AS total_revenue
+          FROM district_opportunity_actuals
+          WHERE district_lea_id = ANY(${allLeaIds})
+            AND school_yr = ${priorSchoolYr}
+          GROUP BY district_lea_id
+        `,
+      ]);
+    } catch {
+      // View doesn't exist yet — continue with empty actuals
+    }
 
     const currentByDistrict = new Map(currentRows.map((r) => [r.district_lea_id, r]));
     const priorByDistrict = new Map(priorRows.map((r) => [r.district_lea_id, r]));

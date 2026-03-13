@@ -2,6 +2,27 @@
 import prisma from "@/lib/prisma";
 
 /**
+ * Safely execute a raw query, returning fallback if the relation doesn't exist yet.
+ * Catches PostgreSQL error 42P01 (undefined_table) which occurs when the
+ * materialized view or opportunities table hasn't been created.
+ */
+async function safeQueryRaw<T>(query: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await query;
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error as { code: string }).code === "P2010" &&
+      error.message.includes("42P01")
+    ) {
+      return fallback;
+    }
+    throw error;
+  }
+}
+
+/**
  * Convert a fiscal year number (26 or 2026) to school year string ("2025-26").
  * School year "2025-26" = FY26 (fiscal year starts July 1 of the first year).
  */
@@ -87,24 +108,27 @@ export async function getDistrictActuals(
   districtLeaId: string,
   schoolYr: string
 ): Promise<DistrictActuals> {
-  const rows = await prisma.$queryRaw<RawDistrictActuals[]>`
-    SELECT
-      COALESCE(SUM(total_revenue), 0) AS total_revenue,
-      COALESCE(SUM(completed_revenue), 0) AS completed_revenue,
-      COALESCE(SUM(scheduled_revenue), 0) AS scheduled_revenue,
-      COALESCE(SUM(total_take), 0) AS total_take,
-      COALESCE(SUM(completed_take), 0) AS completed_take,
-      COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
-      COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
-      COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
-      COALESCE(SUM(bookings), 0) AS bookings,
-      COALESCE(SUM(invoiced), 0) AS invoiced,
-      COALESCE(SUM(credited), 0) AS credited,
-      COALESCE(SUM(opp_count), 0)::int AS opp_count
-    FROM district_opportunity_actuals
-    WHERE district_lea_id = ${districtLeaId}
-      AND school_yr = ${schoolYr}
-  `;
+  const rows = await safeQueryRaw(
+    prisma.$queryRaw<RawDistrictActuals[]>`
+      SELECT
+        COALESCE(SUM(total_revenue), 0) AS total_revenue,
+        COALESCE(SUM(completed_revenue), 0) AS completed_revenue,
+        COALESCE(SUM(scheduled_revenue), 0) AS scheduled_revenue,
+        COALESCE(SUM(total_take), 0) AS total_take,
+        COALESCE(SUM(completed_take), 0) AS completed_take,
+        COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
+        COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
+        COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
+        COALESCE(SUM(bookings), 0) AS bookings,
+        COALESCE(SUM(invoiced), 0) AS invoiced,
+        COALESCE(SUM(credited), 0) AS credited,
+        COALESCE(SUM(opp_count), 0)::int AS opp_count
+      FROM district_opportunity_actuals
+      WHERE district_lea_id = ${districtLeaId}
+        AND school_yr = ${schoolYr}
+    `,
+    []
+  );
 
   if (rows.length === 0) return { ...EMPTY_ACTUALS };
   return mapRawToActuals(rows[0]);
@@ -128,29 +152,32 @@ export async function getRepActuals(
   salesRepEmail: string,
   schoolYr: string
 ): Promise<RepActuals> {
-  const rows = await prisma.$queryRaw<
-    {
-      total_revenue: number;
-      total_take: number;
-      completed_take: number;
-      scheduled_take: number;
-      weighted_pipeline: number;
-      bookings: number;
-      invoiced: number;
-    }[]
-  >`
-    SELECT
-      COALESCE(SUM(total_revenue), 0) AS total_revenue,
-      COALESCE(SUM(total_take), 0) AS total_take,
-      COALESCE(SUM(completed_take), 0) AS completed_take,
-      COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
-      COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
-      COALESCE(SUM(bookings), 0) AS bookings,
-      COALESCE(SUM(invoiced), 0) AS invoiced
-    FROM district_opportunity_actuals
-    WHERE sales_rep_email = ${salesRepEmail}
-      AND school_yr = ${schoolYr}
-  `;
+  const rows = await safeQueryRaw(
+    prisma.$queryRaw<
+      {
+        total_revenue: number;
+        total_take: number;
+        completed_take: number;
+        scheduled_take: number;
+        weighted_pipeline: number;
+        bookings: number;
+        invoiced: number;
+      }[]
+    >`
+      SELECT
+        COALESCE(SUM(total_revenue), 0) AS total_revenue,
+        COALESCE(SUM(total_take), 0) AS total_take,
+        COALESCE(SUM(completed_take), 0) AS completed_take,
+        COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
+        COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
+        COALESCE(SUM(bookings), 0) AS bookings,
+        COALESCE(SUM(invoiced), 0) AS invoiced
+      FROM district_opportunity_actuals
+      WHERE sales_rep_email = ${salesRepEmail}
+        AND school_yr = ${schoolYr}
+    `,
+    []
+  );
 
   if (rows.length === 0) {
     return {
@@ -185,18 +212,21 @@ export async function getNewDistrictsCount(
   currentSchoolYr: string,
   priorSchoolYr: string
 ): Promise<number> {
-  const rows = await prisma.$queryRaw<[{ count: number }]>`
-    SELECT COUNT(DISTINCT curr.district_lea_id)::int AS count
-    FROM district_opportunity_actuals curr
-    WHERE curr.sales_rep_email = ${salesRepEmail}
-      AND curr.school_yr = ${currentSchoolYr}
-      AND curr.district_lea_id NOT IN (
-        SELECT DISTINCT prior.district_lea_id
-        FROM district_opportunity_actuals prior
-        WHERE prior.sales_rep_email = ${salesRepEmail}
-          AND prior.school_yr = ${priorSchoolYr}
-      )
-  `;
+  const rows = await safeQueryRaw(
+    prisma.$queryRaw<[{ count: number }]>`
+      SELECT COUNT(DISTINCT curr.district_lea_id)::int AS count
+      FROM district_opportunity_actuals curr
+      WHERE curr.sales_rep_email = ${salesRepEmail}
+        AND curr.school_yr = ${currentSchoolYr}
+        AND curr.district_lea_id NOT IN (
+          SELECT DISTINCT prior.district_lea_id
+          FROM district_opportunity_actuals prior
+          WHERE prior.sales_rep_email = ${salesRepEmail}
+            AND prior.school_yr = ${priorSchoolYr}
+        )
+    `,
+    [{ count: 0 }]
+  );
   return rows[0]?.count ?? 0;
 }
 
@@ -219,29 +249,32 @@ export async function getDistrictOpportunities(
   districtLeaId: string,
   schoolYr: string
 ): Promise<OpportunityDetail[]> {
-  const rows = await prisma.$queryRaw<
-    {
-      id: string;
-      name: string;
-      stage: string;
-      net_booking_amount: number;
-      total_revenue: number;
-      total_take: number;
-      completed_revenue: number;
-      scheduled_revenue: number;
-    }[]
-  >`
-    SELECT id, name, stage,
-           COALESCE(net_booking_amount, 0) AS net_booking_amount,
-           COALESCE(total_revenue, 0) AS total_revenue,
-           COALESCE(total_take, 0) AS total_take,
-           COALESCE(completed_revenue, 0) AS completed_revenue,
-           COALESCE(scheduled_revenue, 0) AS scheduled_revenue
-    FROM opportunities
-    WHERE district_lea_id = ${districtLeaId}
-      AND school_yr = ${schoolYr}
-    ORDER BY net_booking_amount DESC
-  `;
+  const rows = await safeQueryRaw(
+    prisma.$queryRaw<
+      {
+        id: string;
+        name: string;
+        stage: string;
+        net_booking_amount: number;
+        total_revenue: number;
+        total_take: number;
+        completed_revenue: number;
+        scheduled_revenue: number;
+      }[]
+    >`
+      SELECT id, name, stage,
+             COALESCE(net_booking_amount, 0) AS net_booking_amount,
+             COALESCE(total_revenue, 0) AS total_revenue,
+             COALESCE(total_take, 0) AS total_take,
+             COALESCE(completed_revenue, 0) AS completed_revenue,
+             COALESCE(scheduled_revenue, 0) AS scheduled_revenue
+      FROM opportunities
+      WHERE district_lea_id = ${districtLeaId}
+        AND school_yr = ${schoolYr}
+      ORDER BY net_booking_amount DESC
+    `,
+    []
+  );
 
   return rows.map((r) => ({
     id: r.id,
@@ -270,7 +303,31 @@ export async function getPlanDistrictActuals(
   }
 
   if (salesRepEmail) {
-    const rows = await prisma.$queryRaw<
+    const rows = await safeQueryRaw(
+      prisma.$queryRaw<
+        { total_revenue: number; total_take: number; bookings: number }[]
+      >`
+        SELECT
+          COALESCE(SUM(total_revenue), 0) AS total_revenue,
+          COALESCE(SUM(total_take), 0) AS total_take,
+          COALESCE(SUM(bookings), 0) AS bookings
+        FROM district_opportunity_actuals
+        WHERE district_lea_id = ANY(${districtLeaIds})
+          AND school_yr = ${schoolYr}
+          AND sales_rep_email = ${salesRepEmail}
+      `,
+      []
+    );
+    if (rows.length === 0) return { totalRevenue: 0, totalTake: 0, bookings: 0 };
+    return {
+      totalRevenue: Number(rows[0].total_revenue),
+      totalTake: Number(rows[0].total_take),
+      bookings: Number(rows[0].bookings),
+    };
+  }
+
+  const rows = await safeQueryRaw(
+    prisma.$queryRaw<
       { total_revenue: number; total_take: number; bookings: number }[]
     >`
       SELECT
@@ -280,27 +337,9 @@ export async function getPlanDistrictActuals(
       FROM district_opportunity_actuals
       WHERE district_lea_id = ANY(${districtLeaIds})
         AND school_yr = ${schoolYr}
-        AND sales_rep_email = ${salesRepEmail}
-    `;
-    if (rows.length === 0) return { totalRevenue: 0, totalTake: 0, bookings: 0 };
-    return {
-      totalRevenue: Number(rows[0].total_revenue),
-      totalTake: Number(rows[0].total_take),
-      bookings: Number(rows[0].bookings),
-    };
-  }
-
-  const rows = await prisma.$queryRaw<
-    { total_revenue: number; total_take: number; bookings: number }[]
-  >`
-    SELECT
-      COALESCE(SUM(total_revenue), 0) AS total_revenue,
-      COALESCE(SUM(total_take), 0) AS total_take,
-      COALESCE(SUM(bookings), 0) AS bookings
-    FROM district_opportunity_actuals
-    WHERE district_lea_id = ANY(${districtLeaIds})
-      AND school_yr = ${schoolYr}
-  `;
+    `,
+    []
+  );
 
   if (rows.length === 0) return { totalRevenue: 0, totalTake: 0, bookings: 0 };
   return {
