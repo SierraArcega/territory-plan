@@ -25,7 +25,7 @@ The `tp_scheduler` container runs an hourly sync from OpenSearch to Supabase (op
 
 ### 1. Scheduler State File
 
-The scheduler writes a structured state file (`sync_state.json`) after each sync cycle, replacing the simple heartbeat as the primary state signal.
+The scheduler writes a structured state file (`/app/logs/sync_state.json`) after each sync cycle, replacing the simple heartbeat as the primary state signal. All state files live under `/app/logs/` (the shared `scheduler_logs` named volume), ensuring the monitor container can read them.
 
 ```json
 {
@@ -44,9 +44,23 @@ The scheduler writes a structured state file (`sync_state.json`) after each sync
 - `consecutive_failures` increments on failure, resets to 0 on success
 - Single source of truth for the monitor
 
-Additionally, the scheduler appends to `sync_history.jsonl` — one JSON line per sync cycle — for daily summary computation.
+**No-op cycles** (no new/updated opportunities): recorded as `{"status": "success", "opps_synced": 0, "unmatched_count": null}`.
 
-### 2. Monitor Script
+Additionally, the scheduler appends to `sync_history.jsonl` — one JSON line per sync cycle — for daily summary computation. The monitor truncates entries older than 48 hours after computing each daily summary to prevent unbounded growth.
+
+### 2. Changes to Existing Code
+
+**`run_sync.py`**
+- `run_sync()` returns a result dict: `{"status": "success"|"failed", "opps_synced": int, "unmatched_count": int, "error": str|None}`
+- Currently returns nothing; minimal change to capture and return what it already logs
+- Early return path (no new opps) returns `{"status": "success", "opps_synced": 0, "unmatched_count": null, "error": null}`
+
+**`run_scheduler.py` — `safe_sync()` changes**
+- On success: returns the result dict from whichever `run_sync()` attempt succeeded, with an added `"attempts"` field
+- On all-retries-exhausted: returns `{"status": "failed", "opps_synced": 0, "unmatched_count": null, "error": "<last error>", "attempts": 3}`
+- The main loop writes `sync_state.json` and appends to `sync_history.jsonl` after `safe_sync()` returns, using the returned dict
+
+### 3. Monitor Script
 
 A standalone `monitor.py` runs as its own container alongside the scheduler. It performs three checks:
 
@@ -54,6 +68,7 @@ A standalone `monitor.py` runs as its own container alongside the scheduler. It 
 - Reads `sync_state.json`
 - If `heartbeat_at` is older than 2 hours, alert Slack
 - If the file doesn't exist, alert Slack (scheduler never started)
+- Note: A hung sync (e.g., OpenSearch connection hangs) will surface as a stale heartbeat rather than a failure, since the main loop is blocked and can't write the heartbeat. The alert message reflects this ambiguity.
 
 **Sync failure detection (every 15 min)**
 - If `last_sync_status` is `"failed"` and `consecutive_failures >= 3`, alert Slack
@@ -61,11 +76,13 @@ A standalone `monitor.py` runs as its own container alongside the scheduler. It 
 - Tracks last alerted failure timestamp to avoid re-alerting for the same failure
 
 **Daily summary (once per day, 8 AM ET)**
+- Uses `zoneinfo.ZoneInfo("America/New_York")` from Python stdlib to determine 8 AM ET
 - Reads `sync_history.jsonl`, filters to last 24 hours
 - Computes: total syncs, failures, total opps synced, current unmatched count
 - Posts summary to Slack
+- Truncates `sync_history.jsonl` entries older than 48 hours after computing
 
-### 3. Slack Integration
+### 4. Slack Integration
 
 Uses a Slack Incoming Webhook URL pointed at `#data-flow`. Stored as `SLACK_WEBHOOK_URL` env var on the monitor container only. Posts via `urllib.request` — no SDK dependencies.
 
@@ -79,35 +96,55 @@ Failure alert:
 Stale heartbeat:
 > :warning: **Scheduler Alert — Heartbeat Stale**
 > Last heartbeat: 2026-03-13 03:39 UTC (2h 15m ago)
-> The scheduler process may be down.
+> The scheduler process may be down or a sync may be hanging.
 
 Daily summary:
 > :chart_with_upwards_trend: **Daily Sync Summary — Mar 13**
 > Syncs: 24 | Failures: 0 | Opps: 1,432 | Unmatched: 8
 
 **Anti-spam:**
-- Monitor tracks `last_alert_at` per alert type in `monitor_state.json`
+- Monitor tracks alerts in `monitor_state.json`:
+```json
+{
+  "last_alert_at": {
+    "sync_failure": "2026-03-13T12:00:00Z",
+    "stale_heartbeat": null,
+    "daily_summary": "2026-03-13T13:00:00Z"
+  }
+}
+```
 - Same alert type won't re-send more than once per hour
 - Daily summary sends exactly once per day
 
-### 4. File & Container Layout
+### 5. File & Container Layout
 
 **New/modified files:**
 
 ```
 scheduler/
-├── run_scheduler.py      # Modified — write sync_state.json + append sync_history.jsonl
-├── run_sync.py            # Modified — return result dict (opps count, status, error)
+├── run_scheduler.py      # Modified — safe_sync() returns result, writes state files
+├── run_sync.py            # Modified — return result dict
 ├── monitor.py             # New — reads state files, posts to Slack
 ├── Dockerfile             # Existing (scheduler)
-├── Dockerfile.monitor     # New — lightweight image for monitor
-└── logs/
+├── Dockerfile.monitor     # New — lightweight image for monitor (see below)
+└── logs/                  # All runtime state lives here (shared volume)
     ├── sync_state.json    # Runtime — current scheduler state
-    ├── sync_history.jsonl # Runtime — append-only sync log for daily summaries
+    ├── sync_history.jsonl # Runtime — append-only sync log (truncated at 48h)
     ├── monitor_state.json # Runtime — anti-spam tracking
     ├── heartbeat          # Existing — kept for backward compat
     └── scheduler.log      # Existing
 ```
+
+**`Dockerfile.monitor`:**
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY monitor.py .
+CMD ["python", "-u", "monitor.py"]
+```
+
+Zero pip dependencies — uses only stdlib (`urllib.request`, `json`, `zoneinfo`, `schedule` is not needed; monitor uses its own simple loop with `time.sleep`).
 
 **docker-compose.yml — new service:**
 
@@ -125,20 +162,9 @@ tp_monitor:
   restart: unless-stopped
 ```
 
-- Both `tp_scheduler` and `tp_monitor` share the `scheduler_logs` volume
+- Both `tp_scheduler` and `tp_monitor` share the `scheduler_logs` named volume
 - Both start with `--profile scheduler`
 - Monitor has no OpenSearch or Supabase access — reads files only, posts to Slack only
-
-### 5. Changes to Existing Code
-
-**`run_sync.py`**
-- `run_sync()` returns a result dict: `{"status": "success"|"failed", "opps_synced": int, "unmatched_count": int, "error": str|None}`
-- Currently returns nothing; minimal change to capture and return what it already logs
-
-**`run_scheduler.py`**
-- After each `safe_sync()` call, write `sync_state.json` with the result
-- Append a line to `sync_history.jsonl` with timestamp + result
-- Continue writing heartbeat file (existing behavior) but also update `heartbeat_at` in state file
 
 ## Future: Managed Service Migration
 
