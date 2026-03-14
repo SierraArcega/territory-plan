@@ -41,8 +41,12 @@ def test_run_sync_happy_path(
     mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
     mock_get_conn.return_value = mock_conn
 
-    run_sync()
+    result = run_sync()
 
+    assert result["status"] == "success"
+    assert result["opps_synced"] == 1
+    assert result["unmatched_count"] == 0
+    assert result["error"] is None
     mock_upsert_opps.assert_called_once()
     mock_update_agg.assert_called_once()
     mock_refresh.assert_called_once()
@@ -72,8 +76,12 @@ def test_run_sync_no_opportunities_skips(
     mock_conn = MagicMock()
     mock_get_conn.return_value = mock_conn
 
-    run_sync()
+    result = run_sync()
 
+    assert result["status"] == "success"
+    assert result["opps_synced"] == 0
+    assert result["unmatched_count"] is None
+    assert result["error"] is None
     mock_fetch_sessions.assert_not_called()
     mock_upsert_opps.assert_not_called()
     mock_set_last.assert_called_once()  # still updates timestamp

@@ -52,7 +52,7 @@ def run_sync():
         logger.info("No new/updated opportunities, skipping cycle")
         set_last_synced_at(conn, now)
         conn.close()
-        return
+        return {"status": "success", "opps_synced": 0, "unmatched_count": None, "error": None}
 
     # Phase 2a: Find opps with changed sessions (session changed but opp didn't)
     opp_ids = set(h["_source"]["id"] for h in opp_hits)
@@ -146,6 +146,12 @@ def run_sync():
             f"=== Sync complete: {len(matched_records)} opps, "
             f"{len(unmatched_records)} unmatched ==="
         )
+        return {
+            "status": "success",
+            "opps_synced": len(matched_records),
+            "unmatched_count": len(unmatched_records),
+            "error": None,
+        }
     finally:
         conn.close()
 
