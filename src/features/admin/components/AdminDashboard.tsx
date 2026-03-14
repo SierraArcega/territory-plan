@@ -35,22 +35,24 @@ export default function AdminDashboard() {
   const router = useRouter();
   const { data: stats, isLoading } = useAdminStats();
 
-  // Read initial tab from URL, default to "unmatched"
-  const tabParam = searchParams.get("tab") as AdminTab | null;
+  // Read initial section from URL, default to "unmatched"
+  const sectionParam = searchParams.get("section") as AdminTab | null;
   const [activeTab, setActiveTab] = useState<AdminTab>(
-    tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : "unmatched",
+    sectionParam && TABS.some((t) => t.id === sectionParam) ? sectionParam : "unmatched",
   );
 
   // Sync tab state with URL
   useEffect(() => {
-    if (tabParam && TABS.some((t) => t.id === tabParam) && tabParam !== activeTab) {
-      setActiveTab(tabParam);
+    if (sectionParam && TABS.some((t) => t.id === sectionParam) && sectionParam !== activeTab) {
+      setActiveTab(sectionParam);
     }
-  }, [tabParam, activeTab]);
+  }, [sectionParam, activeTab]);
 
   const handleTabChange = (tab: AdminTab) => {
     setActiveTab(tab);
-    router.replace(`/admin?tab=${tab}`, { scroll: false });
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("section", tab);
+    router.replace(`?${params.toString()}`, { scroll: false });
   };
 
   return (

@@ -11,6 +11,7 @@ import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
 import TasksView from "@/features/shared/components/views/TasksView";
 import HomeView from "@/features/shared/components/views/HomeView";
 import ProfileView from "@/features/shared/components/views/ProfileView";
+import AdminDashboard from "@/features/admin/components/AdminDashboard";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
 const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
@@ -26,7 +27,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "profile"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "profile", "admin"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -190,6 +191,14 @@ function HomeContent() {
         return <HomeView />;
       case "profile":
         return <ProfileView />;
+      case "admin":
+        return (
+          <div className="h-full overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-6 py-8">
+              <AdminDashboard />
+            </div>
+          </div>
+        );
       default:
         return <HomeView />;
     }

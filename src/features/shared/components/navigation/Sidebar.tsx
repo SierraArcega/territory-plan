@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "profile";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "profile" | "admin";
 
 interface Tab {
   id: TabId;
@@ -12,19 +12,13 @@ interface Tab {
   icon: React.ReactNode;
 }
 
-// Admin sub-item config
-interface AdminSubItem {
-  id: string;
-  label: string;
-  href: string;
-}
-
-const ADMIN_SUB_ITEMS: AdminSubItem[] = [
-  { id: "dashboard", label: "Dashboard", href: "/admin" },
-  { id: "unmatched", label: "Unmatched Opps", href: "/admin?tab=unmatched" },
-  { id: "users", label: "Users", href: "/admin?tab=users" },
-  { id: "integrations", label: "Integrations", href: "/admin?tab=integrations" },
-  { id: "sync", label: "Data Sync", href: "/admin?tab=sync" },
+// Admin sub-item labels (rendered inside sidebar when expanded)
+const ADMIN_SUB_ITEMS = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "unmatched", label: "Unmatched Opps" },
+  { id: "users", label: "Users" },
+  { id: "integrations", label: "Integrations" },
+  { id: "sync", label: "Data Sync" },
 ];
 
 // SVG icons for each tab - kept inline for simplicity
@@ -215,31 +209,39 @@ export default function Sidebar({
   const renderAdminSection = () => {
     if (!isAdmin) return null;
 
+    const isAdminActive = activeTab === "admin";
+
     return (
       <>
         <div className="mx-3 border-t border-[#E2DEEC]" />
         <div className="py-1">
-          {/* Admin header — toggles expand/collapse */}
+          {/* Admin header — toggles expand/collapse, or navigates when collapsed */}
           <button
             onClick={() => {
               if (collapsed) {
-                // When collapsed, navigate directly to admin
-                window.location.href = "/admin";
+                onTabChange("admin" as TabId);
               } else {
                 setAdminExpanded(!adminExpanded);
               }
             }}
             onMouseEnter={() => setHoveredAdmin("admin-header")}
             onMouseLeave={() => setHoveredAdmin(null)}
-            className="relative w-full flex items-center gap-3 px-4 py-3 text-[#403770] hover:bg-[#EFEDF5] transition-colors duration-150 border-l-3 border-transparent"
+            className={`
+              relative w-full flex items-center gap-3 px-4 py-3
+              transition-colors duration-150 border-l-3
+              ${isAdminActive
+                ? "bg-[#FEF2F1] text-[#F37167] border-[#F37167]"
+                : "text-[#403770] hover:bg-[#EFEDF5] border-transparent"
+              }
+            `}
             title={collapsed ? "Admin" : undefined}
           >
-            <span className="flex-shrink-0 text-[#403770]">
+            <span className={`flex-shrink-0 ${isAdminActive ? "text-[#F37167]" : "text-[#403770]"}`}>
               <AdminIcon />
             </span>
             {!collapsed && (
               <>
-                <span className="text-sm font-medium truncate">Admin</span>
+                <span className={`text-sm font-medium truncate ${isAdminActive ? "text-[#F37167]" : ""}`}>Admin</span>
                 <span
                   className={`ml-auto flex-shrink-0 transition-transform duration-150 ${
                     adminExpanded ? "" : "-rotate-90"
@@ -261,15 +263,15 @@ export default function Sidebar({
           {!collapsed && adminExpanded && (
             <nav className="flex flex-col">
               {ADMIN_SUB_ITEMS.map((item) => (
-                <a
+                <button
                   key={item.id}
-                  href={item.href}
+                  onClick={() => onTabChange("admin" as TabId)}
                   onMouseEnter={() => setHoveredAdmin(item.id)}
                   onMouseLeave={() => setHoveredAdmin(null)}
-                  className="flex items-center pl-12 pr-4 py-2 text-[13px] font-medium text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770] transition-colors duration-100"
+                  className="flex items-center pl-12 pr-4 py-2 text-[13px] font-medium text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770] transition-colors duration-100 w-full text-left"
                 >
                   {item.label}
-                </a>
+                </button>
               ))}
             </nav>
           )}
