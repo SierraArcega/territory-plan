@@ -10,6 +10,7 @@ interface PlanProgressTableProps {
     districtCount: number;
     districts: UnmappedDistrict[];
   };
+  onPlanClick?: (planId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -294,12 +295,14 @@ function PlanRows({
   expandedDistricts,
   togglePlan,
   toggleDistrict,
+  onPlanClick,
 }: {
   plan: PlanProgress;
   expandedPlans: Set<string>;
   expandedDistricts: Set<string>;
   togglePlan: (id: string) => void;
   toggleDistrict: (leaid: string) => void;
+  onPlanClick?: (planId: string) => void;
 }) {
   const isExpanded = expandedPlans.has(plan.id);
 
@@ -323,13 +326,16 @@ function PlanRows({
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: plan.color }}
             />
-            <a
-              href={`/?tab=plans&plan=${plan.id}`}
-              className="text-sm font-semibold text-[#403770] hover:text-[#F37167] hover:underline transition-colors"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              type="button"
+              className="text-sm font-semibold text-[#403770] hover:text-[#F37167] hover:underline transition-colors text-left"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlanClick?.(plan.id);
+              }}
             >
               {plan.name}
-            </a>
+            </button>
             <span className="text-[11px] text-gray-400 ml-1">
               {plan.districtCount} district{plan.districtCount !== 1 ? "s" : ""}
             </span>
@@ -429,7 +435,7 @@ function UnmappedDistrictRows({
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function PlanProgressTable({ plans, unmapped }: PlanProgressTableProps) {
+export default function PlanProgressTable({ plans, unmapped, onPlanClick }: PlanProgressTableProps) {
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set());
   const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
   const [unmappedExpanded, setUnmappedExpanded] = useState(false);
@@ -496,6 +502,7 @@ export default function PlanProgressTable({ plans, unmapped }: PlanProgressTable
                 expandedDistricts={expandedDistricts}
                 togglePlan={togglePlan}
                 toggleDistrict={toggleDistrict}
+                onPlanClick={onPlanClick}
               />
             ))}
           </tbody>

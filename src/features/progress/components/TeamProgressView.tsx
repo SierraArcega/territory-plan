@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import { useTeamProgress } from "../lib/queries";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "../lib/types";
 import CategoryCard from "./CategoryCard";
@@ -12,6 +14,13 @@ const FY_OPTIONS = [2025, 2026, 2027];
 
 export default function TeamProgressView() {
   const [fiscalYear, setFiscalYear] = useState(2026);
+  const router = useRouter();
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+
+  const handlePlanClick = useCallback((planId: string) => {
+    setActiveTab("plans");
+    router.push(`/?tab=plans&plan=${planId}`);
+  }, [setActiveTab, router]);
   const { data, isLoading, error } = useTeamProgress(fiscalYear);
 
   return (
@@ -122,6 +131,7 @@ export default function TeamProgressView() {
             <PlanProgressTable
               plans={data.plans}
               unmapped={data.unmapped}
+              onPlanClick={handlePlanClick}
             />
           </>
         )}
