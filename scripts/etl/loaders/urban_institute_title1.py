@@ -512,7 +512,7 @@ def aggregate_district_title1(connection_string: str) -> int:
             frpl_total_count = agg.frpl_sum,
             frpl_rate = CASE
                 WHEN agg.enrollment_sum > 0 AND agg.frpl_sum IS NOT NULL
-                THEN ROUND((agg.frpl_sum::numeric / agg.enrollment_sum) * 100, 2)
+                THEN LEAST(ROUND((agg.frpl_sum::numeric / agg.enrollment_sum) * 100, 2), 100.00)
                 ELSE NULL
             END,
             updated_at = NOW()
