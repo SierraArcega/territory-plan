@@ -26,16 +26,14 @@ export default function AdminShell({ children }: AdminShellProps) {
 
       {/* Content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Admin header */}
-        <header className="border-b border-[#D4CFE2] bg-white px-6 py-4 flex-shrink-0">
+        {/* Top bar — matches main app FilterBar */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200/60 px-4 py-2">
           <div className="flex items-center gap-3">
-            <a href="/" className="text-sm font-medium text-[#8A80A8] hover:text-[#403770] transition-colors">
-              &larr; Territory Planner
-            </a>
-            <span className="text-[#D4CFE2]">/</span>
-            <span className="text-sm font-semibold text-[#403770]">Admin</span>
+            <span className="flex-shrink-0 text-plum font-bold text-base">
+              Fullmind
+            </span>
           </div>
-        </header>
+        </div>
 
         {/* Scrollable content */}
         <main className="flex-1 overflow-y-auto">
