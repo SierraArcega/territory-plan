@@ -62,6 +62,7 @@ export function useCreateActivity() {
       districtLeaids?: string[];
       contactIds?: number[];
       stateFips?: string[];
+      assignedToUserId?: string | null;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities`, {
         method: "POST",
@@ -91,6 +92,7 @@ export function useUpdateActivity() {
       notes?: string | null;
       outcome?: string | null;
       outcomeType?: string | null;
+      assignedToUserId?: string | null;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",

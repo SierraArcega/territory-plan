@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useCreateActivity, useTerritoryPlans, useStates } from "@/lib/api";
+import { useCreateActivity, useUpdateActivity, useTerritoryPlans, useStates, useUsers, useProfile } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -13,12 +13,15 @@ import {
   VALID_ACTIVITY_STATUSES,
   DEFAULT_TYPE_FOR_CATEGORY,
 } from "@/features/activities/types";
+import type { ActivityListItem } from "@/features/shared/types/api-types";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
+  // Provide initialData to open in edit mode
+  initialData?: ActivityListItem | null;
 }
 
 export default function ActivityFormModal({
@@ -26,11 +29,17 @@ export default function ActivityFormModal({
   onClose,
   defaultCategory,
   defaultPlanId,
+  initialData,
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
+  const { data: users } = useUsers();
+  const { data: profile } = useProfile();
+
+  const isEditing = !!initialData;
 
   // Form state
   const [type, setType] = useState<ActivityType>(
@@ -48,23 +57,38 @@ export default function ActivityFormModal({
     defaultPlanId ? [defaultPlanId] : []
   );
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
+  const [assignedToUserId, setAssignedToUserId] = useState<string>("");
 
-  // Reset form when modal opens
+  // Reset form when modal opens — populate from initialData on edit, defaults on create
   useEffect(() => {
     if (isOpen) {
-      setType(
-        defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference"
-      );
-      setTitle("");
-      setStartDate(new Date().toISOString().split("T")[0]);
-      setEndDate("");
-      setIsMultiDay(false);
-      setNotes("");
-      setStatus("planned");
-      setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
-      setSelectedStateFips([]);
+      if (initialData) {
+        setType(initialData.type as ActivityType);
+        setTitle(initialData.title);
+        setStartDate(initialData.startDate ? initialData.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+        const hasEndDate = initialData.endDate && initialData.endDate !== initialData.startDate;
+        setEndDate(hasEndDate ? initialData.endDate!.split("T")[0] : "");
+        setIsMultiDay(!!hasEndDate);
+        setNotes(""); // ActivityListItem doesn't carry notes
+        setStatus(initialData.status);
+        setSelectedPlanIds([]);
+        setSelectedStateFips([]);
+        setAssignedToUserId(initialData.assignedToUserId ?? profile?.id ?? "");
+      } else {
+        setType(defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference");
+        setTitle("");
+        setStartDate(new Date().toISOString().split("T")[0]);
+        setEndDate("");
+        setIsMultiDay(false);
+        setNotes("");
+        setStatus("planned");
+        setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
+        setSelectedStateFips([]);
+        // Default assignee to the logged-in user
+        setAssignedToUserId(profile?.id ?? "");
+      }
     }
-  }, [isOpen, defaultCategory, defaultPlanId]);
+  }, [isOpen, initialData, defaultCategory, defaultPlanId, profile?.id]);
 
   // Close on escape key
   useEffect(() => {
@@ -87,19 +111,33 @@ export default function ActivityFormModal({
     if (!title.trim()) return;
 
     try {
-      await createActivity.mutateAsync({
-        type,
-        title: title.trim(),
-        startDate: startDate || undefined,
-        endDate: isMultiDay && endDate ? endDate : undefined,
-        notes: notes.trim() || undefined,
-        status,
-        planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
-        stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
-      });
+      if (isEditing) {
+        await updateActivity.mutateAsync({
+          activityId: initialData!.id,
+          type,
+          title: title.trim(),
+          startDate: startDate || undefined,
+          endDate: isMultiDay && endDate ? endDate : null,
+          notes: notes.trim() || undefined,
+          status,
+          assignedToUserId: assignedToUserId || null,
+        });
+      } else {
+        await createActivity.mutateAsync({
+          type,
+          title: title.trim(),
+          startDate: startDate || undefined,
+          endDate: isMultiDay && endDate ? endDate : undefined,
+          notes: notes.trim() || undefined,
+          status,
+          planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+          stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
+          assignedToUserId: assignedToUserId || null,
+        });
+      }
       onClose();
     } catch (error) {
-      console.error("Failed to create activity:", error);
+      console.error("Failed to save activity:", error);
     }
   };
 
@@ -121,6 +159,8 @@ export default function ActivityFormModal({
 
   if (!isOpen) return null;
 
+  const isPending = createActivity.isPending || updateActivity.isPending;
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -132,7 +172,9 @@ export default function ActivityFormModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-[#403770]">New Activity</h2>
+          <h2 className="text-lg font-semibold text-[#403770]">
+            {isEditing ? "Edit Activity" : "New Activity"}
+          </h2>
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
@@ -224,76 +266,100 @@ export default function ActivityFormModal({
               </label>
             </div>
 
-            {/* Plans selector */}
+            {/* Assign to */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Link to Plans
+                Assign to
               </label>
-              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                {plans && plans.length > 0 ? (
-                  plans.map((plan) => (
-                    <label
-                      key={plan.id}
-                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedPlanIds.includes(plan.id)}
-                        onChange={() => togglePlan(plan.id)}
-                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                      />
-                      <span
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: plan.color }}
-                      />
-                      <span className="text-sm text-gray-700 truncate">
-                        {plan.name}
-                      </span>
-                    </label>
-                  ))
-                ) : (
-                  <p className="px-3 py-2 text-sm text-gray-500">
-                    No plans yet
-                  </p>
-                )}
-              </div>
-              {selectedPlanIds.length === 0 && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Activities without plans will be flagged for follow-up
-                </p>
-              )}
+              <select
+                value={assignedToUserId}
+                onChange={(e) => setAssignedToUserId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              >
+                <option value="">Unassigned</option>
+                {users?.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.fullName || user.email}
+                    {user.id === profile?.id ? " (you)" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* States selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                States
-              </label>
-              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                {states && states.length > 0 ? (
-                  states.map((state) => (
-                    <label
-                      key={state.fips}
-                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStateFips.includes(state.fips)}
-                        onChange={() => toggleState(state.fips)}
-                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                      />
-                      <span className="text-sm text-gray-700">
-                        {state.name} ({state.abbrev})
-                      </span>
-                    </label>
-                  ))
-                ) : (
-                  <p className="px-3 py-2 text-sm text-gray-500">
-                    Loading states...
+            {/* Plans selector — only shown on create */}
+            {!isEditing && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Link to Plans
+                </label>
+                <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
+                  {plans && plans.length > 0 ? (
+                    plans.map((plan) => (
+                      <label
+                        key={plan.id}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedPlanIds.includes(plan.id)}
+                          onChange={() => togglePlan(plan.id)}
+                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
+                        />
+                        <span
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: plan.color }}
+                        />
+                        <span className="text-sm text-gray-700 truncate">
+                          {plan.name}
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500">
+                      No plans yet
+                    </p>
+                  )}
+                </div>
+                {selectedPlanIds.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Activities without plans will be flagged for follow-up
                   </p>
                 )}
               </div>
-            </div>
+            )}
+
+            {/* States selector — only shown on create */}
+            {!isEditing && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  States
+                </label>
+                <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
+                  {states && states.length > 0 ? (
+                    states.map((state) => (
+                      <label
+                        key={state.fips}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedStateFips.includes(state.fips)}
+                          onChange={() => toggleState(state.fips)}
+                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {state.name} ({state.abbrev})
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-gray-500">
+                      Loading states...
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Notes */}
             <div>
@@ -346,10 +412,12 @@ export default function ActivityFormModal({
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || createActivity.isPending}
+              disabled={!title.trim() || isPending}
               className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {createActivity.isPending ? "Creating..." : "Create Activity"}
+              {isPending
+                ? isEditing ? "Saving..." : "Creating..."
+                : isEditing ? "Save Changes" : "Create Activity"}
             </button>
           </div>
         </form>
