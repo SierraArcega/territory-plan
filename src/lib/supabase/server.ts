@@ -49,13 +49,19 @@ export async function getAdminUser() {
   const user = await getUser()
   if (!user) return null
 
-  const { default: prisma } = await import('@/lib/prisma')
-  const profile = await prisma.userProfile.findUnique({
-    where: { id: user.id },
-    select: { id: true, role: true, email: true, fullName: true },
-  })
+  try {
+    const { default: prisma } = await import('@/lib/prisma')
+    const profile = await prisma.userProfile.findUnique({
+      where: { id: user.id },
+      select: { id: true, role: true, email: true, fullName: true },
+    })
 
-  if (!profile || profile.role !== 'admin') return null
+    if (!profile || profile.role !== 'admin') return null
 
-  return { user, profile }
+    return { user, profile }
+  } catch {
+    // If the role column doesn't exist yet (migration not applied),
+    // the query will fail — treat as non-admin gracefully.
+    return null
+  }
 }
