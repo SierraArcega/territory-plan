@@ -30,6 +30,18 @@ services:
     command: python -u /app/run_scheduler.py
     restart: unless-stopped
 
+  tp_monitor:
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile.monitor
+    container_name: tp_monitor
+    profiles: ["scheduler"]
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    volumes:
+      - scheduler_logs:/app/logs
+    restart: unless-stopped
+
 volumes:
   pgdata:
   scheduler_logs:
