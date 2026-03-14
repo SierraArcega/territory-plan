@@ -643,7 +643,7 @@ export default function ExploreFilters({
       case "relation":
         return (
           <RelationFilterInput
-            relationSource={selectedColumn.relationSource || "tags"}
+            relationSource={(selectedColumn.relationSource || "tags") as "tags" | "plans"}
             initialValue={editingFilterId && Array.isArray(existingValue) ? existingValue as string[] : undefined}
             onSubmit={(vals) => handleSubmitFilter(selectedOperator.op, vals)}
           />

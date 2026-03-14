@@ -2,6 +2,7 @@
 // Keys match the field names returned by GET /api/explore/districts.
 
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
+export type { ColumnDef };
 
 export interface DistrictRow {
   leaid: string;
