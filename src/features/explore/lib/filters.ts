@@ -79,6 +79,12 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   enrollmentTwoOrMore: "enrollmentTwoOrMore",
   charterSchoolCount: "charterSchoolCount",
   charterEnrollment: "charterEnrollment",
+  // Title I
+  titleISchoolCount: "titleISchoolCount",
+  titleISchoolwideCount: "titleISchoolwideCount",
+  totalSchoolCount: "totalSchoolCount",
+  frplRate: "frplRate",
+  titleIRevenue: "titleIRevenue",
   // Finance
   totalRevenue: "totalRevenue",
   federalRevenue: "federalRevenue",

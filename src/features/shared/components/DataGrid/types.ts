@@ -9,6 +9,7 @@ export interface ColumnDef {
   filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags" | "relation";
   enumValues?: string[];
   relationSource?: string; // intentionally wide per spec (existing districtColumns uses "tags" | "plans")
+  width?: number;    // explicit column width in px (applied as min-width + max-width)
   editable?: boolean;
   sortable?: boolean; // defaults to true; set false to disable sorting
 }

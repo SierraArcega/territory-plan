@@ -710,7 +710,24 @@ export interface SchoolListItem {
   lograde: string | null;
   higrade: string | null;
   schoolStatus: number | null;
+  // Title I
+  titleIStatus: number | null;
+  titleIEligible: number | null;
+  titleISchoolwide: number | null;
+  // FRPL
+  freeLunch: number | null;
+  reducedPriceLunch: number | null;
+  frplTotal: number | null;
+  // Existing
   enrollmentHistory?: { year: number; enrollment: number | null }[];
+}
+
+export interface SchoolsSummary {
+  totalSchools: number;
+  titleISchools: number;
+  titleISchoolwide: number;
+  frplTotal: number;
+  frplRate: number | null;
 }
 
 // ===== Plan District Detail Types =====

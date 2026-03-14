@@ -12,6 +12,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "text",
+    width: 120,
   },
   {
     key: "name",
@@ -19,6 +20,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "text",
+    width: 200,
   },
   {
     key: "accountName",
@@ -26,6 +28,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "text",
+    width: 180,
   },
   {
     key: "accountLmsId",
@@ -33,6 +36,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "text",
+    width: 110,
   },
   {
     key: "state",
@@ -41,6 +45,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     isDefault: true,
     filterType: "enum",
     enumValues: US_STATES,
+    width: 60,
   },
   {
     key: "schoolYr",
@@ -49,6 +54,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     isDefault: true,
     filterType: "enum",
     enumValues: ["2024-25", "2025-26", "2026-27"],
+    width: 90,
   },
   {
     key: "stage",
@@ -57,6 +63,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     isDefault: true,
     filterType: "enum",
     enumValues: [], // populated at runtime from facets API
+    width: 130,
   },
   {
     key: "reason",
@@ -65,6 +72,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     isDefault: true,
     filterType: "enum",
     enumValues: [], // populated at runtime from facets API
+    width: 150,
   },
   {
     key: "resolvedDistrictLeaid",
@@ -72,6 +80,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "text",
+    width: 90,
   },
   {
     key: "resolved",
@@ -79,6 +88,7 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "boolean",
+    width: 90,
   },
 
   // ---- Financial ----
@@ -88,5 +98,6 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Financial",
     isDefault: true,
     filterType: "number",
+    width: 120,
   },
 ];

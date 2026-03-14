@@ -5,7 +5,7 @@ import FullmindMetrics from "@/features/districts/components/FullmindMetrics";
 import CompetitorSpend from "@/features/districts/components/CompetitorSpend";
 import AddToPlanButton from "./AddToPlanButton";
 import FindSimilarDistricts from "./FindSimilarDistricts";
-import CharterSchools from "./CharterSchools";
+import SchoolsCard from "./SchoolsCard";
 import DistrictInfo from "@/features/districts/components/DistrictInfo";
 import TagsEditor from "@/features/districts/components/TagsEditor";
 import NotesEditor from "@/features/districts/components/NotesEditor";
@@ -40,8 +40,8 @@ export default function DistrictInfoTab({ data, leaid }: DistrictInfoTabProps) {
         />
       </div>
 
-      {/* Charter Schools */}
-      <CharterSchools leaid={leaid} />
+      {/* Schools (Title I, FRPL) */}
+      <SchoolsCard leaid={leaid} />
 
       {/* District Info */}
       <DistrictInfo district={data.district} />
