@@ -25,7 +25,7 @@ Added assignee field to Activity model so activities can be assigned to team mem
 - Auth: view/edit allows creator OR assignee; delete remains creator-only
 - `api-types.ts` — `assignedToUserId` added to `Activity`, `ActivityListItem`, `ActivitiesParams`
 
-### Phase 2 — ActivityFormModal: assignee dropdown ⬜ Up next
+### Phase 2 — ActivityFormModal: assignee dropdown ✅ Complete
 Add an "Assign to" user picker inside the existing activity create/edit modal.
 
 - Use existing `useUsers()` hook (already fetches all UserProfile records)
@@ -33,7 +33,7 @@ Add an "Assign to" user picker inside the existing activity create/edit modal.
 - Defaults to current user on create; shows current assignee on edit
 - Sends `assignedToUserId` on POST and PATCH
 
-### Phase 3 — LineupView component ⬜
+### Phase 3 — LineupView component ✅ Complete
 New view component at `src/features/lineup/components/LineupView.tsx`.
 
 - **Date header**: large day + date display with prev/next arrow navigation
@@ -44,7 +44,7 @@ New view component at `src/features/lineup/components/LineupView.tsx`.
 - **Filters**: plan multi-select + district multi-select (independent; narrowing deferred)
 - **Click row**: opens existing `ActivityFormModal`
 
-### Phase 4 — Navigation wiring ⬜
+### Phase 4 — Navigation wiring ✅ Complete
 Add The Lineup as its own first-position tab in the left nav. Home stays exactly as it is.
 
 - `Sidebar.tsx` — add "Lineup" as the first entry in `MAIN_TABS` above Home; add icon; update `TabId` type
@@ -56,6 +56,20 @@ Add The Lineup as its own first-position tab in the left nav. Home stays exactly
 ## Future Revisit Items
 
 These are intentional deferments — decisions made with awareness of the tradeoff.
+
+---
+
+### Lineup Plan Filter — Specific Plan Matching
+
+**Current decision**: The plan filter chips in LineupView show all plans but can only narrow results to "has a plan / no plan" client-side. `ActivityListItem` does not carry plan IDs, so matching a chip to a specific plan is not possible without API changes.
+
+**Why deferred**: Requires either (a) adding `planIds: string[]` to `ActivityListItem` in the API response, or (b) making a separate `/activities?planId=X` call per selected plan and merging results client-side.
+
+**What to revisit**:
+- Add `planIds` to `ActivityListItem` so client-side filtering can match specific plans
+- Or add multi-plan support to the API query (`planIds[]` param) and pass it directly
+
+**Suggested approach**: Add `planIds: string[]` to `ActivityListItem` in the Prisma query and API response — low-risk schema-adjacent change with no migration needed.
 
 ---
 
