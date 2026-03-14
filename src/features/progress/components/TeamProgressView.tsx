@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMapStore } from "@/features/shared/lib/app-store";
 import { useTeamProgress } from "../lib/queries";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "../lib/types";
 import type { PlanProgress } from "../lib/types";
-import FilterBar, { type FilterConfig } from "@/features/plans/components/FilterBar";
+import FilterBar, { type FilterConfig, type SavedView } from "@/features/plans/components/FilterBar";
 import CategoryCard from "./CategoryCard";
 import StackedProgressBar from "./StackedProgressBar";
 import UnmappedAlert from "./UnmappedAlert";
@@ -68,6 +68,44 @@ export default function TeamProgressView() {
     direction: "desc",
   });
   const [groupBy, setGroupBy] = useState("none");
+
+  // Saved views (persisted to localStorage)
+  const SAVED_VIEWS_KEY = "team-progress-saved-views";
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(SAVED_VIEWS_KEY);
+    if (stored) {
+      try { setSavedViews(JSON.parse(stored)); } catch { /* ignore */ }
+    }
+  }, []);
+
+  const handleSaveView = useCallback((name: string) => {
+    const newView: SavedView = {
+      id: `view-${Date.now()}`,
+      name,
+      tab: "progress",
+      filters,
+      sort,
+      groupBy,
+      viewMode: "table",
+    };
+    const updated = [...savedViews, newView];
+    localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(updated));
+    setSavedViews(updated);
+  }, [filters, sort, groupBy, savedViews]);
+
+  const handleLoadView = useCallback((view: SavedView) => {
+    setFilters(view.filters);
+    setSort(view.sort);
+    setGroupBy(view.groupBy);
+  }, []);
+
+  const handleDeleteView = useCallback((viewId: string) => {
+    const updated = savedViews.filter((v) => v.id !== viewId);
+    localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(updated));
+    setSavedViews(updated);
+  }, [savedViews]);
 
   // Build dynamic filter configs from data
   const filterConfigs: FilterConfig[] = useMemo(() => {
@@ -299,10 +337,10 @@ export default function TeamProgressView() {
               groupOptions={GROUP_OPTIONS}
               currentGroup={groupBy}
               onGroupChange={setGroupBy}
-              savedViews={[]}
-              onSaveView={() => {}}
-              onLoadView={() => {}}
-              onDeleteView={() => {}}
+              savedViews={savedViews}
+              onSaveView={handleSaveView}
+              onLoadView={handleLoadView}
+              onDeleteView={handleDeleteView}
             />
 
             {/* Plan Drill-down Table — grouped */}
