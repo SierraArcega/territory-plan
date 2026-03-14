@@ -45,11 +45,11 @@ New view component at `src/features/lineup/components/LineupView.tsx`.
 - **Click row**: opens existing `ActivityFormModal`
 
 ### Phase 4 — Navigation wiring ⬜
-Wire The Lineup into the app shell as the default landing experience.
+Add The Lineup as its own first-position tab in the left nav. Home stays exactly as it is.
 
-- `Sidebar.tsx` — add "Lineup" tab entry and icon; update `TabId` type
-- `AppShell.tsx` / `page.tsx` — Lineup becomes the default tab on load
-- Existing Home dashboard moves to a sub-tab within the same view (toggle: "Lineup" | "Dashboard")
+- `Sidebar.tsx` — add "Lineup" as the first entry in `MAIN_TABS` above Home; add icon; update `TabId` type
+- `page.tsx` — Lineup becomes the default tab on first load (replaces `home` as the landing route)
+- Existing Home tab and dashboard: no changes
 
 ---
 
