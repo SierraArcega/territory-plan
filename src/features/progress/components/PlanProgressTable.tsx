@@ -7,6 +7,7 @@ interface PlanProgressTableProps {
   plans: PlanProgress[];
   unmapped: {
     totalRevenue: number;
+    totalTake: number;
     districtCount: number;
     districts: UnmappedDistrict[];
   };
@@ -192,14 +193,14 @@ function OpportunityRow({ opp }: { opp: OpportunityItem }) {
       {/* Span across the four category columns */}
       <td colSpan={4} />
       <td className="px-3 py-2 text-right">
-        <div className="flex items-center justify-end gap-3">
-          <span className="text-[12px] tabular-nums text-gray-500">
-            Rev {formatCompact(opp.totalRevenue)}
-          </span>
-          <span className="text-[12px] tabular-nums text-gray-400">
-            Take {formatCompact(opp.totalTake)}
-          </span>
-        </div>
+        <span className="text-[12px] tabular-nums text-gray-500">
+          {formatCompact(opp.totalRevenue)}
+        </span>
+      </td>
+      <td className="px-3 py-2 text-right">
+        <span className="text-[12px] tabular-nums text-gray-400">
+          {formatCompact(opp.totalTake)}
+        </span>
       </td>
     </tr>
   );
@@ -274,6 +275,11 @@ function DistrictRows({
           </span>
           <span className="text-[11px] text-gray-400 ml-1">
             / {formatCompact(totalTarget)}
+          </span>
+        </td>
+        <td className="px-3 py-2.5 text-right">
+          <span className="text-[13px] tabular-nums text-gray-500">
+            {formatCompact(district.currentTake)}
           </span>
         </td>
       </tr>
@@ -363,6 +369,11 @@ function PlanRows({
             / {formatCompact(plan.total.target)}
           </span>
         </td>
+        <td className="px-3 py-3 text-right">
+          <span className="text-sm tabular-nums text-gray-600">
+            {formatCompact(plan.totalTake)}
+          </span>
+        </td>
       </tr>
       {isExpanded &&
         plan.districts.map((district) => (
@@ -420,6 +431,11 @@ function UnmappedDistrictRows({
         <td className="px-3 py-2.5 text-right">
           <span className="text-[13px] tabular-nums text-gray-600">
             {formatCompact(district.currentRevenue)}
+          </span>
+        </td>
+        <td className="px-3 py-2.5 text-right">
+          <span className="text-[13px] tabular-nums text-gray-500">
+            {formatCompact(district.currentTake)}
           </span>
         </td>
       </tr>
@@ -487,7 +503,10 @@ export default function PlanProgressTable({ plans, unmapped, onPlanClick }: Plan
                 </th>
               ))}
               <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">
-                Total
+                Revenue
+              </th>
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">
+                Take
               </th>
             </tr>
           </thead>
@@ -512,7 +531,7 @@ export default function PlanProgressTable({ plans, unmapped, onPlanClick }: Plan
             <tbody>
               {/* Dashed separator */}
               <tr>
-                <td colSpan={7} className="px-4 py-0">
+                <td colSpan={8} className="px-4 py-0">
                   <div className="border-t-2 border-dashed border-gray-200" />
                 </td>
               </tr>
@@ -543,6 +562,11 @@ export default function PlanProgressTable({ plans, unmapped, onPlanClick }: Plan
                 <td className="px-3 py-3 text-right">
                   <span className="text-sm font-semibold tabular-nums text-amber-700">
                     {formatCompact(unmapped.totalRevenue)}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-right">
+                  <span className="text-sm tabular-nums text-amber-600">
+                    {formatCompact(unmapped.totalTake)}
                   </span>
                 </td>
               </tr>
@@ -583,6 +607,12 @@ export default function PlanProgressTable({ plans, unmapped, onPlanClick }: Plan
               </span>
             );
           })}
+          <span>
+            <span className="font-medium text-gray-500">Take:</span>{" "}
+            <span className="font-medium text-gray-500">
+              {formatCompact(plans.reduce((s, p) => s + p.totalTake, 0))}
+            </span>
+          </span>
         </div>
       </div>
     </div>

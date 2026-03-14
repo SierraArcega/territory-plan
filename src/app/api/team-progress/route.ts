@@ -18,6 +18,7 @@ export const dynamic = "force-dynamic";
 interface RawDistrictRevenue {
   district_lea_id: string;
   total_revenue: number;
+  total_take: number;
 }
 
 interface RawOpportunity {
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
       [currentRevRows, priorRevRows, twoYearsAgoRevRows, currentOpps] = await Promise.all([
         // Current year revenue per district (all districts, not just plan districts)
         prisma.$queryRaw<RawDistrictRevenue[]>`
-          SELECT district_lea_id, COALESCE(SUM(total_revenue), 0) AS total_revenue
+          SELECT district_lea_id, COALESCE(SUM(total_revenue), 0) AS total_revenue, COALESCE(SUM(total_take), 0) AS total_take
           FROM district_opportunity_actuals
           WHERE school_yr = ${currentSchoolYr}
           GROUP BY district_lea_id
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build lookup maps
-    const currentRevByDistrict = new Map(currentRevRows.map((r) => [r.district_lea_id, Number(r.total_revenue)]));
+    const currentRevByDistrict = new Map(currentRevRows.map((r) => [r.district_lea_id, { revenue: Number(r.total_revenue), take: Number(r.total_take) }]));
     const priorRevByDistrict = new Map(priorRevRows.map((r) => [r.district_lea_id, Number(r.total_revenue)]));
     const twoYearsAgoRevByDistrict = new Map(twoYearsAgoRevRows.map((r) => [r.district_lea_id, Number(r.total_revenue)]));
 
@@ -144,6 +145,7 @@ export async function GET(request: NextRequest) {
       winback: { target: 0, actual: 0 },
       newBusiness: { target: 0, actual: 0 },
     };
+    let teamTotalTake = 0;
 
     const planResults = plans.map((plan) => {
       const planTotals = {
@@ -152,10 +154,13 @@ export async function GET(request: NextRequest) {
         winback: { target: 0, actual: 0 },
         newBusiness: { target: 0, actual: 0 },
       };
+      let planTake = 0;
 
       const districts = plan.districts.map((pd) => {
         const leaid = pd.districtLeaid;
-        const currentRev = currentRevByDistrict.get(leaid) || 0;
+        const currentData = currentRevByDistrict.get(leaid) || { revenue: 0, take: 0 };
+        const currentRev = currentData.revenue;
+        const currentTake = currentData.take;
         const priorRev = priorRevByDistrict.get(leaid) || 0;
         const twoYearsAgoRev = twoYearsAgoRevByDistrict.get(leaid) || 0;
 
@@ -196,6 +201,7 @@ export async function GET(request: NextRequest) {
         planTotals.winback.actual += winbackActual;
         planTotals.newBusiness.target += newBusinessTarget;
         planTotals.newBusiness.actual += newBusinessActual;
+        planTake += currentTake;
 
         // Opportunities for this district
         const districtOpps = (oppsByDistrict.get(leaid) || []).map((o) => ({
@@ -222,6 +228,7 @@ export async function GET(request: NextRequest) {
           winbackTarget,
           newBusinessTarget,
           currentRevenue: currentRev,
+          currentTake: currentTake,
           priorRevenue: priorRev,
           opportunities: districtOpps,
         };
@@ -236,6 +243,7 @@ export async function GET(request: NextRequest) {
       teamTotals.winback.actual += planTotals.winback.actual;
       teamTotals.newBusiness.target += planTotals.newBusiness.target;
       teamTotals.newBusiness.actual += planTotals.newBusiness.actual;
+      teamTotalTake += planTake;
 
       const totalTarget =
         planTotals.renewal.target + planTotals.expansion.target +
@@ -257,6 +265,7 @@ export async function GET(request: NextRequest) {
         winback: planTotals.winback,
         newBusiness: planTotals.newBusiness,
         total: { target: totalTarget, actual: totalActual },
+        totalTake: planTake,
         districts,
       };
     });
@@ -267,6 +276,7 @@ export async function GET(request: NextRequest) {
       name: string;
       stateAbbrev: string | null;
       currentRevenue: number;
+      currentTake: number;
       opportunities: Array<{
         id: string;
         name: string;
@@ -279,8 +289,8 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     const unmappedLeaIds: string[] = [];
-    for (const [leaid, rev] of currentRevByDistrict) {
-      if (rev > 0 && !allPlanDistrictIds.has(leaid)) {
+    for (const [leaid, data] of currentRevByDistrict) {
+      if (data.revenue > 0 && !allPlanDistrictIds.has(leaid)) {
         unmappedLeaIds.push(leaid);
       }
     }
@@ -296,7 +306,7 @@ export async function GET(request: NextRequest) {
 
       for (const leaid of unmappedLeaIds) {
         const info = nameMap.get(leaid);
-        const rev = currentRevByDistrict.get(leaid) || 0;
+        const distData = currentRevByDistrict.get(leaid) || { revenue: 0, take: 0 };
         const districtOpps = (oppsByDistrict.get(leaid) || []).map((o) => ({
           id: o.id,
           name: o.name || "Unnamed",
@@ -311,7 +321,8 @@ export async function GET(request: NextRequest) {
           leaid,
           name: info?.name || leaid,
           stateAbbrev: info?.stateAbbrev || null,
-          currentRevenue: rev,
+          currentRevenue: distData.revenue,
+          currentTake: distData.take,
           opportunities: districtOpps,
         });
       }
@@ -321,6 +332,7 @@ export async function GET(request: NextRequest) {
     }
 
     const unmappedTotalRevenue = unmappedDistricts.reduce((sum, d) => sum + d.currentRevenue, 0);
+    const unmappedTotalTake = unmappedDistricts.reduce((sum, d) => sum + d.currentTake, 0);
 
     const combinedTarget =
       teamTotals.renewal.target + teamTotals.expansion.target +
@@ -334,10 +346,12 @@ export async function GET(request: NextRequest) {
       totals: {
         ...teamTotals,
         combined: { target: combinedTarget, actual: combinedActual },
+        totalTake: teamTotalTake,
       },
       plans: planResults,
       unmapped: {
         totalRevenue: unmappedTotalRevenue,
+        totalTake: unmappedTotalTake,
         districtCount: unmappedDistricts.length,
         districts: unmappedDistricts,
       },

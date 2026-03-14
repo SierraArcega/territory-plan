@@ -29,6 +29,7 @@ export interface DistrictProgress {
   winbackTarget: number;
   newBusinessTarget: number;
   currentRevenue: number;
+  currentTake: number;
   priorRevenue: number;
   opportunities: OpportunityItem[];
 }
@@ -44,6 +45,7 @@ export interface PlanProgress {
   winback: CategoryMetric;
   newBusiness: CategoryMetric;
   total: CategoryMetric;
+  totalTake: number;
   districts: DistrictProgress[];
 }
 
@@ -52,6 +54,7 @@ export interface UnmappedDistrict {
   name: string;
   stateAbbrev: string | null;
   currentRevenue: number;
+  currentTake: number;
   opportunities: OpportunityItem[];
 }
 
@@ -63,10 +66,12 @@ export interface TeamProgressResponse {
     winback: CategoryMetric;
     newBusiness: CategoryMetric;
     combined: CategoryMetric;
+    totalTake: number;
   };
   plans: PlanProgress[];
   unmapped: {
     totalRevenue: number;
+    totalTake: number;
     districtCount: number;
     districts: UnmappedDistrict[];
   };
