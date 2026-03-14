@@ -12,6 +12,21 @@ interface Tab {
   icon: React.ReactNode;
 }
 
+// Admin sub-item config
+interface AdminSubItem {
+  id: string;
+  label: string;
+  href: string;
+}
+
+const ADMIN_SUB_ITEMS: AdminSubItem[] = [
+  { id: "dashboard", label: "Dashboard", href: "/admin" },
+  { id: "unmatched", label: "Unmatched Opps", href: "/admin?tab=unmatched" },
+  { id: "users", label: "Users", href: "/admin?tab=users" },
+  { id: "integrations", label: "Integrations", href: "/admin?tab=integrations" },
+  { id: "sync", label: "Data Sync", href: "/admin?tab=sync" },
+];
+
 // SVG icons for each tab - kept inline for simplicity
 // Using stroke-based icons for consistency with the rest of the app
 const MapIcon = () => (
@@ -79,6 +94,24 @@ const ProfileIcon = () => (
   </svg>
 );
 
+// Admin gear icon
+const AdminIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+    />
+  </svg>
+);
+
 // Chevron icons for collapse/expand toggle
 const ChevronLeft = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,6 +122,12 @@ const ChevronLeft = () => (
 const ChevronRight = () => (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const ChevronDown = () => (
+  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
 
@@ -111,6 +150,7 @@ interface SidebarProps {
   onTabChange: (tab: TabId) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  isAdmin?: boolean;
 }
 
 export default function Sidebar({
@@ -118,9 +158,14 @@ export default function Sidebar({
   onTabChange,
   collapsed,
   onCollapsedChange,
+  isAdmin = false,
 }: SidebarProps) {
   // Track which tab is being hovered for tooltip display
   const [hoveredTab, setHoveredTab] = useState<TabId | null>(null);
+  // Admin section expand/collapse
+  const [adminExpanded, setAdminExpanded] = useState(false);
+  // Track hovered admin item for collapsed tooltip
+  const [hoveredAdmin, setHoveredAdmin] = useState<string | null>(null);
 
   // Render a single tab item
   // Shows icon + label when expanded, icon only (with tooltip) when collapsed
@@ -139,7 +184,7 @@ export default function Sidebar({
           transition-colors duration-150
           ${isActive
             ? "bg-[#FEF2F1] text-[#F37167] border-l-3 border-[#F37167]"
-            : "text-[#403770] hover:bg-gray-50 border-l-3 border-transparent"
+            : "text-[#403770] hover:bg-[#EFEDF5] border-l-3 border-transparent"
           }
         `}
         title={collapsed ? tab.label : undefined}
@@ -158,7 +203,7 @@ export default function Sidebar({
 
         {/* Tooltip - shows on hover when collapsed */}
         {collapsed && isHovered && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-[#403770] text-white text-sm rounded shadow-lg whitespace-nowrap z-50">
+          <div className="absolute left-full ml-2 px-2 py-1 bg-[#403770] text-white text-sm rounded-lg shadow-lg whitespace-nowrap z-50">
             {tab.label}
           </div>
         )}
@@ -166,10 +211,77 @@ export default function Sidebar({
     );
   };
 
+  // Render the admin section (expandable with sub-items)
+  const renderAdminSection = () => {
+    if (!isAdmin) return null;
+
+    return (
+      <>
+        <div className="mx-3 border-t border-[#E2DEEC]" />
+        <div className="py-1">
+          {/* Admin header — toggles expand/collapse */}
+          <button
+            onClick={() => {
+              if (collapsed) {
+                // When collapsed, navigate directly to admin
+                window.location.href = "/admin";
+              } else {
+                setAdminExpanded(!adminExpanded);
+              }
+            }}
+            onMouseEnter={() => setHoveredAdmin("admin-header")}
+            onMouseLeave={() => setHoveredAdmin(null)}
+            className="relative w-full flex items-center gap-3 px-4 py-3 text-[#403770] hover:bg-[#EFEDF5] transition-colors duration-150 border-l-3 border-transparent"
+            title={collapsed ? "Admin" : undefined}
+          >
+            <span className="flex-shrink-0 text-[#403770]">
+              <AdminIcon />
+            </span>
+            {!collapsed && (
+              <>
+                <span className="text-sm font-medium truncate">Admin</span>
+                <span
+                  className={`ml-auto flex-shrink-0 transition-transform duration-150 ${
+                    adminExpanded ? "" : "-rotate-90"
+                  }`}
+                >
+                  <ChevronDown />
+                </span>
+              </>
+            )}
+            {/* Tooltip when collapsed */}
+            {collapsed && hoveredAdmin === "admin-header" && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-[#403770] text-white text-sm rounded-lg shadow-lg whitespace-nowrap z-50">
+                Admin
+              </div>
+            )}
+          </button>
+
+          {/* Admin sub-items — visible when expanded and sidebar is not collapsed */}
+          {!collapsed && adminExpanded && (
+            <nav className="flex flex-col">
+              {ADMIN_SUB_ITEMS.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.href}
+                  onMouseEnter={() => setHoveredAdmin(item.id)}
+                  onMouseLeave={() => setHoveredAdmin(null)}
+                  className="flex items-center pl-12 pr-4 py-2 text-[13px] font-medium text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770] transition-colors duration-100"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          )}
+        </div>
+      </>
+    );
+  };
+
   return (
     <aside
       className={`
-        flex flex-col bg-white border-r border-gray-200
+        flex flex-col bg-white border-r border-[#D4CFE2]
         transition-all duration-200 ease-in-out
         ${collapsed ? "w-14" : "w-[140px]"}
       `}
@@ -179,8 +291,11 @@ export default function Sidebar({
         {MAIN_TABS.map(renderTab)}
       </nav>
 
-      {/* Divider between main tabs and bottom section */}
-      <div className="mx-3 border-t border-gray-200" />
+      {/* Admin section (expandable, only for admins) */}
+      {renderAdminSection()}
+
+      {/* Divider between main/admin tabs and bottom section */}
+      <div className="mx-3 border-t border-[#E2DEEC]" />
 
       {/* Bottom tabs (Profile) */}
       <nav className="py-2">
@@ -192,8 +307,8 @@ export default function Sidebar({
         onClick={() => onCollapsedChange(!collapsed)}
         className="
           flex items-center justify-center py-3
-          text-gray-400 hover:text-[#403770] hover:bg-gray-50
-          transition-colors duration-150 border-t border-gray-200
+          text-[#A69DC0] hover:text-[#403770] hover:bg-[#EFEDF5]
+          transition-colors duration-150 border-t border-[#E2DEEC]
         "
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >

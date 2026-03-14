@@ -1,16 +1,74 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
-import { getUser } from "@/lib/supabase/server";
+import { getAdminUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+
+// GET /api/admin/users — list all users with pagination, search, role filter
+export async function GET(request: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("page_size") || "25", 10)));
+    const search = searchParams.get("search") || "";
+    const role = searchParams.get("role");
+
+    const where: Record<string, unknown> = {};
+
+    if (role === "admin" || role === "user") {
+      where.role = role;
+    }
+
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: "insensitive" } },
+        { fullName: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      prisma.userProfile.findMany({
+        where,
+        orderBy: { lastLoginAt: { sort: "desc", nulls: "last" } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          avatarUrl: true,
+          jobTitle: true,
+          role: true,
+          hasCompletedSetup: true,
+          lastLoginAt: true,
+          createdAt: true,
+        },
+      }),
+      prisma.userProfile.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      items,
+      pagination: { page, pageSize, total },
+    });
+  } catch (error) {
+    console.error("Error listing users:", error);
+    return NextResponse.json({ error: "Failed to list users" }, { status: 500 });
+  }
+}
 
 // POST /api/admin/users - Create a stub user profile (pre-provision before login)
 export async function POST(request: Request) {
   try {
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const body = await request.json();

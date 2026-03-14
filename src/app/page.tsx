@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/features/shared/lib/app-store";
 import AppShell from "@/features/shared/components/layout/AppShell";
+import { useProfile } from "@/features/shared/lib/queries";
 import dynamic from "next/dynamic";
 import PlansView from "@/features/shared/components/views/PlansView";
 import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
@@ -76,6 +77,10 @@ function HomeContent() {
     sidebarCollapsed,
     setSidebarCollapsed,
   } = useMapStore();
+
+  // Check if the current user is an admin
+  const { data: profile } = useProfile();
+  const isAdmin = profile?.role === "admin";
 
   // Track the selected plan ID for PlansView (from URL)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -202,6 +207,7 @@ function HomeContent() {
       }}
       sidebarCollapsed={sidebarCollapsed}
       onSidebarCollapsedChange={setSidebarCollapsed}
+      isAdmin={isAdmin}
     >
       {renderContent()}
     </AppShell>
