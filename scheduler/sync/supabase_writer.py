@@ -99,8 +99,8 @@ def remove_matched_from_unmatched(conn, matched_ids):
         return
     with conn.cursor() as cur:
         cur.execute(
-            "DELETE FROM unmatched_opportunities WHERE id = ANY(%s)",
-            (list(matched_ids),),
+            "DELETE FROM unmatched_opportunities WHERE id = ANY(%s::text[])",
+            ([str(mid) for mid in matched_ids],),
         )
         deleted = cur.rowcount
     conn.commit()
