@@ -22,6 +22,7 @@ import {
 } from "@/features/activities/types";
 import { OUTCOME_CONFIGS, type OutcomeType } from "@/features/activities/outcome-types";
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
+import { formatScope } from "@/features/shared/lib/format";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
 
 interface ActivitiesTableProps {
@@ -43,20 +44,7 @@ const STATUS_OPTIONS = VALID_ACTIVITY_STATUSES.map((status) => ({
   label: ACTIVITY_STATUS_CONFIG[status as ActivityStatus]?.label || status,
 }));
 
-// Format scope text: "X district(s) (STATE, STATE)"
-function formatScope(districtCount: number, stateAbbrevs: string[]): string {
-  if (districtCount === 0 && stateAbbrevs.length === 0) {
-    return "All districts";
-  }
-  if (districtCount === 0) {
-    return stateAbbrevs.join(", ");
-  }
-  const districtText = `${districtCount} district${districtCount !== 1 ? "s" : ""}`;
-  if (stateAbbrevs.length > 0) {
-    return `${districtText} (${stateAbbrevs.join(", ")})`;
-  }
-  return districtText;
-}
+// formatScope imported from @/features/shared/lib/format
 
 // Delete confirmation modal
 interface DeleteConfirmModalProps {

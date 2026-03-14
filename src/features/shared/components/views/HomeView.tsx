@@ -19,10 +19,14 @@ import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import PlanFormModal, { PlanFormData } from "@/features/plans/components/PlanFormModal";
 import {
-  ACTIVITY_TYPE_LABELS,
-  ACTIVITY_STATUS_CONFIG,
-  type ActivityType,
-} from "@/features/activities/types";
+  getToday,
+  toDateKey,
+  getMonthStart,
+  getMonthEnd,
+  isSameDay,
+  formatTimeShort,
+} from "@/features/shared/lib/date-utils";
+import ActivityRow from "@/features/activities/components/ActivityRow";
 import CalendarInboxWidget from "@/features/calendar/components/CalendarInboxWidget";
 import LeadingIndicatorsPanel from "@/features/progress/components/LeadingIndicatorsPanel";
 import LaggingIndicatorsPanel from "@/features/progress/components/LaggingIndicatorsPanel";
@@ -52,10 +56,6 @@ function formatDateHeader(): string {
   });
 }
 
-function getToday(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function formatTaskDate(dueDate: string | null): string {
   if (!dueDate) return "";
@@ -64,27 +64,7 @@ function formatTaskDate(dueDate: string | null): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Calendar helpers
-function getMonthStart(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function getMonthEnd(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function toDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function formatTimeShort(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-}
+// Calendar helpers are imported from @/features/shared/lib/date-utils
 
 // ============================================================================
 // Task Checkbox
@@ -659,40 +639,13 @@ export default function HomeView() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {selectedDateActivities.map((activity) => {
-                        const statusCfg = ACTIVITY_STATUS_CONFIG[activity.status] || ACTIVITY_STATUS_CONFIG.planned;
-                        const typeLabel = ACTIVITY_TYPE_LABELS[activity.type as ActivityType] || activity.type;
-                        return (
-                          <button
-                            key={activity.id}
-                            onClick={() => setActiveTab("activities")}
-                            className="w-full text-left flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:shadow-md transition-all"
-                          >
-                            <div
-                              className="w-1 h-10 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: statusCfg.color }}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-[#403770] truncate">{activity.title}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs text-gray-400">{typeLabel}</span>
-                                {activity.startDate && (
-                                  <>
-                                    <span className="text-gray-300">&middot;</span>
-                                    <span className="text-xs text-gray-400">{formatTimeShort(activity.startDate)}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <span
-                              className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: statusCfg.bgColor, color: statusCfg.color }}
-                            >
-                              {statusCfg.label}
-                            </span>
-                          </button>
-                        );
-                      })}
+                      {selectedDateActivities.map((activity) => (
+                        <ActivityRow
+                          key={activity.id}
+                          activity={activity}
+                          onOpen={() => setActiveTab("activities")}
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
