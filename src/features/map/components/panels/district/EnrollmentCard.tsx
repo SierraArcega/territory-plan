@@ -5,7 +5,6 @@ import SignalBadge from "./signals/SignalBadge";
 import TrendArrow from "./signals/TrendArrow";
 import SignalCard from "./signals/SignalCard";
 import DemographicsChart from "@/features/districts/components/DemographicsChart";
-import CharterSchools from "./CharterSchools";
 
 interface EnrollmentCardProps {
   district: District;
@@ -35,7 +34,6 @@ export default function EnrollmentCard({
       detail={
         <div className="space-y-4 pt-2">
           {demographics && <DemographicsChart demographics={demographics} />}
-          <CharterSchools leaid={district.leaid} />
           {district.numberOfSchools != null && (
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>Schools in district</span>

@@ -131,13 +131,19 @@ def fetch_title1_all_states(
     year: int = 2022,
     delay: float = 0.3,
     resume_from_fips: Optional[str] = None,
+    single_fips: Optional[str] = None,
 ) -> List[Dict]:
     """Fetch school Title I + FRPL data state-by-state from CCD directory."""
     url = f"{API_BASE_URL}/schools/ccd/directory/{year}/"
     all_records = []
+
+    if single_fips:
+        states = [s for s in STATES_50_DC if s["fips"] == single_fips]
+    else:
+        states = STATES_50_DC
     started = resume_from_fips is None
 
-    for state in tqdm(STATES_50_DC, desc=f"Title I {year}"):
+    for state in tqdm(states, desc=f"Title I {year}"):
         fips = state["fips"]
         if not started:
             if fips == resume_from_fips:
@@ -256,13 +262,19 @@ def fetch_demographics_all_states(
     year: int = 2022,
     delay: float = 0.3,
     resume_from_fips: Optional[str] = None,
+    single_fips: Optional[str] = None,
 ) -> List[Dict]:
     """Fetch school enrollment by race state-by-state."""
     url = f"{API_BASE_URL}/schools/ccd/enrollment/{year}/grade-99/race/"
     all_records = []
+
+    if single_fips:
+        states = [s for s in STATES_50_DC if s["fips"] == single_fips]
+    else:
+        states = STATES_50_DC
     started = resume_from_fips is None
 
-    for state in tqdm(STATES_50_DC, desc=f"Demographics {year}"):
+    for state in tqdm(states, desc=f"Demographics {year}"):
         fips = state["fips"]
         if not started:
             if fips == resume_from_fips:
@@ -391,13 +403,19 @@ def fetch_title1_revenue_all_states(
     year: int = 2020,
     delay: float = 0.3,
     resume_from_fips: Optional[str] = None,
+    single_fips: Optional[str] = None,
 ) -> List[Dict]:
     """Fetch district Title I revenue from finance endpoint state-by-state."""
     url = f"{API_BASE_URL}/school-districts/ccd/finance/{year}/"
     all_records = []
+
+    if single_fips:
+        states = [s for s in STATES_50_DC if s["fips"] == single_fips]
+    else:
+        states = STATES_50_DC
     started = resume_from_fips is None
 
-    for state in tqdm(STATES_50_DC, desc=f"Title I Revenue {year}"):
+    for state in tqdm(states, desc=f"Title I Revenue {year}"):
         fips = state["fips"]
         if not started:
             if fips == resume_from_fips:
@@ -569,7 +587,7 @@ def main():
     parser.add_argument("--year", type=int, default=2022, help="Data year (default: 2022)")
     parser.add_argument("--finance-year", type=int, default=None,
                         help="Finance data year for Title I revenue (default: same as --year)")
-    parser.add_argument("--fips", type=str, default=None, help="Single state FIPS code")
+    parser.add_argument("--fips", type=str, default=None, help="Run for a single state FIPS code only")
     parser.add_argument("--start-fips", type=str, default=None, help="Resume from this FIPS code")
     parser.add_argument("--no-title1", action="store_true", help="Skip Title I + FRPL pass")
     parser.add_argument("--no-demographics", action="store_true", help="Skip demographics pass")
@@ -588,6 +606,10 @@ def main():
     total_updated = 0
     total_failed = 0
 
+    # --fips = single state only; --start-fips = resume from that state onward
+    single_fips = args.fips
+    resume_fips = args.start_fips
+
     try:
         # Pass 1: Title I + FRPL
         if not args.no_title1:
@@ -597,7 +619,8 @@ def main():
             records = fetch_title1_all_states(
                 year=args.year,
                 delay=args.delay,
-                resume_from_fips=args.start_fips or args.fips,
+                resume_from_fips=resume_fips,
+                single_fips=single_fips,
             )
             if records:
                 updated = upsert_title1_data(connection_string, records, args.year)
@@ -611,7 +634,8 @@ def main():
             records = fetch_demographics_all_states(
                 year=args.year,
                 delay=args.delay,
-                resume_from_fips=args.start_fips or args.fips,
+                resume_from_fips=resume_fips,
+                single_fips=single_fips,
             )
             if records:
                 updated = upsert_demographics_data(connection_string, records, args.year)
@@ -625,7 +649,8 @@ def main():
             records = fetch_title1_revenue_all_states(
                 year=finance_year,
                 delay=args.delay,
-                resume_from_fips=args.start_fips or args.fips,
+                resume_from_fips=resume_fips,
+                single_fips=single_fips,
             )
             if records:
                 updated = upsert_title1_revenue(connection_string, records)

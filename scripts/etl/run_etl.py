@@ -619,6 +619,7 @@ def run_title1_etl(
     year: int = 2022,
     finance_year: int = None,
     start_fips: str = None,
+    single_fips: str = None,
     skip_title1: bool = False,
     skip_demographics: bool = False,
     skip_revenue: bool = False,
@@ -635,17 +636,17 @@ def run_title1_etl(
     results = {"title1": 0, "demographics": 0, "revenue": 0, "aggregated": 0}
 
     if not skip_title1:
-        records = fetch_title1_all_states(year=year, resume_from_fips=start_fips)
+        records = fetch_title1_all_states(year=year, resume_from_fips=start_fips, single_fips=single_fips)
         if records:
             results["title1"] = upsert_title1_data(connection_string, records, year)
 
     if not skip_demographics:
-        records = fetch_demographics_all_states(year=year, resume_from_fips=start_fips)
+        records = fetch_demographics_all_states(year=year, resume_from_fips=start_fips, single_fips=single_fips)
         if records:
             results["demographics"] = upsert_demographics_data(connection_string, records, year)
 
     if not skip_revenue:
-        records = fetch_title1_revenue_all_states(year=finance_year, resume_from_fips=start_fips)
+        records = fetch_title1_revenue_all_states(year=finance_year, resume_from_fips=start_fips, single_fips=single_fips)
         if records:
             results["revenue"] = upsert_title1_revenue(connection_string, records)
 
@@ -1133,6 +1134,12 @@ Examples:
                         help="Run CRDC chronic absenteeism ETL")
     parser.add_argument("--title1", action="store_true",
                         help="Run Title I / FRPL / Demographics enrichment ETL")
+    parser.add_argument("--no-title1-pass", action="store_true",
+                        help="Skip Title I + FRPL pass (used with --title1)")
+    parser.add_argument("--no-demographics-pass", action="store_true",
+                        help="Skip demographics pass (used with --title1)")
+    parser.add_argument("--no-revenue-pass", action="store_true",
+                        help="Skip Title I revenue pass (used with --title1)")
     parser.add_argument("--charter-schools", action="store_true",
                         help="Run charter schools ETL (directory + 5-year enrollment history + district aggregates)")
     parser.add_argument("--all-schools", action="store_true",
@@ -1317,6 +1324,9 @@ Examples:
             connection_string,
             year=args.year,
             start_fips=args.start_fips,
+            skip_title1=args.no_title1_pass,
+            skip_demographics=args.no_demographics_pass,
+            skip_revenue=args.no_revenue_pass,
         )
 
     # Grade-level enrollment ETL

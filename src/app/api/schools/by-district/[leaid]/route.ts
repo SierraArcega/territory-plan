@@ -63,7 +63,7 @@ export async function GET(
         titleISchools,
         titleISchoolwide,
         frplTotal,
-        frplRate: enrollmentTotal > 0 ? Math.round((frplTotal / enrollmentTotal) * 1000) / 10 : null,
+        frplRate: enrollmentTotal > 0 ? Math.round((frplTotal / enrollmentTotal) * 10000) / 100 : null,
       },
     });
   } catch (error) {
