@@ -323,9 +323,13 @@ function PlanRows({
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: plan.color }}
             />
-            <span className="text-sm font-semibold text-[#403770]">
+            <a
+              href={`/?tab=plans&plan=${plan.id}`}
+              className="text-sm font-semibold text-[#403770] hover:text-[#F37167] hover:underline transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
               {plan.name}
-            </span>
+            </a>
             <span className="text-[11px] text-gray-400 ml-1">
               {plan.districtCount} district{plan.districtCount !== 1 ? "s" : ""}
             </span>
