@@ -2,9 +2,6 @@
 
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useAdminStats } from "../hooks/useAdminStats";
-import AdminKPICards from "./AdminKPICards";
-
 // Lazy-load tab content to keep initial bundle small
 const UnmatchedOpsContent = lazy(() => import("@/app/admin/unmatched-opportunities/page"));
 const UsersTab = lazy(() => import("./UsersTab"));
@@ -33,7 +30,6 @@ function TabSkeleton() {
 export default function AdminDashboard() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { data: stats, isLoading } = useAdminStats();
 
   // Read initial section from URL, default to "unmatched"
   const sectionParam = searchParams.get("section") as AdminTab | null;
@@ -62,13 +58,6 @@ export default function AdminDashboard() {
         <h1 className="text-2xl font-bold text-[#403770]">Admin</h1>
         <p className="text-sm text-[#8A80A8] mt-1">System overview and management</p>
       </div>
-
-      {/* KPI Cards */}
-      <AdminKPICards
-        stats={stats}
-        isLoading={isLoading}
-        onNavigateTab={handleTabChange}
-      />
 
       {/* Tabs */}
       <div>
