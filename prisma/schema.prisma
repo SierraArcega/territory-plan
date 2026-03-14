@@ -555,9 +555,11 @@ model Activity {
   startDate       DateTime? @map("start_date")
   endDate         DateTime? @map("end_date")
   status          String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
-  createdByUserId String?   @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdByUserId  String?   @map("created_by_user_id") @db.Uuid
+  // Who is responsible for completing this activity — defaults to creator, can be reassigned
+  assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   // ===== Calendar Sync Fields =====
   // Links activity to a Google Calendar event for two-way sync
@@ -578,6 +580,7 @@ model Activity {
   taskLinks TaskActivity[]
 
   @@index([createdByUserId])
+  @@index([assignedToUserId])
   @@index([type])
   @@index([startDate])
   @@map("activities")

@@ -30,9 +30,17 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
+    // assignedToUserIds: comma-separated list of user IDs to filter by.
+    // Defaults to the logged-in user so each person sees their own activities.
+    // The Lineup passes multiple IDs when viewing teammates' activities.
+    const assignedToUserIdsParam = searchParams.get("assignedToUserIds");
+    const assignedToUserIds = assignedToUserIdsParam
+      ? assignedToUserIdsParam.split(",").filter(Boolean)
+      : [user.id];
+
     // Build where clause
     const where: Prisma.ActivityWhereInput = {
-      createdByUserId: user.id,
+      assignedToUserId: { in: assignedToUserIds },
     };
 
     // Filter by category (maps to types)
@@ -103,6 +111,7 @@ export async function GET(request: NextRequest) {
           status: true,
           source: true,
           outcomeType: true,
+          assignedToUserId: true,
           // Only fetch the IDs and flags we need for list view, not full related objects
           plans: {
             select: { planId: true },
@@ -175,6 +184,7 @@ export async function GET(request: NextRequest) {
           status: activity.status,
           source: activity.source || "manual",
           outcomeType: activity.outcomeType,
+          assignedToUserId: activity.assignedToUserId ?? null,
           needsPlanAssociation: needsPlan,
           hasUnlinkedDistricts: hasUnlinked,
           planCount: activity.plans.length,
@@ -232,6 +242,7 @@ export async function POST(request: NextRequest) {
       startDate,
       endDate,
       status = "planned",
+      assignedToUserId = user.id, // defaults to creator; can be overridden to assign to a teammate
       planIds = [],
       districtLeaids = [],
       contactIds = [],
@@ -282,6 +293,7 @@ export async function POST(request: NextRequest) {
         endDate: endDate ? new Date(endDate) : null,
         status,
         createdByUserId: user.id,
+        assignedToUserId,
         plans: {
           create: planIds.map((planId: string) => ({ planId })),
         },
@@ -344,6 +356,7 @@ export async function POST(request: NextRequest) {
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
       createdByUserId: activity.createdByUserId,
+      assignedToUserId: activity.assignedToUserId ?? null,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
       needsPlanAssociation: activity.plans.length === 0,

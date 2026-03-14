@@ -42,8 +42,13 @@ export async function GET(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow viewing if user owns it OR if it has no owner (backwards compatibility)
-    if (activity.createdByUserId && activity.createdByUserId !== user.id) {
+    // Allow viewing if user is creator, assignee, or activity has no owner (backwards compat).
+    // Team members can view activities assigned to others so The Lineup works correctly.
+    const canView =
+      !activity.createdByUserId ||
+      activity.createdByUserId === user.id ||
+      activity.assignedToUserId === user.id;
+    if (!canView) {
       return NextResponse.json({ error: "Not authorized to view this activity" }, { status: 403 });
     }
 
@@ -95,6 +100,7 @@ export async function GET(
       outcome: activity.outcome,
       outcomeType: activity.outcomeType,
       createdByUserId: activity.createdByUserId,
+      assignedToUserId: activity.assignedToUserId ?? null,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
       needsPlanAssociation,
@@ -147,13 +153,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow editing if user owns it OR if it has no owner (backwards compatibility)
-    if (existing.createdByUserId && existing.createdByUserId !== user.id) {
+    // Allow editing if user is creator, current assignee, or activity has no owner (backwards compat).
+    const canEdit =
+      !existing.createdByUserId ||
+      existing.createdByUserId === user.id ||
+      existing.assignedToUserId === user.id;
+    if (!canEdit) {
       return NextResponse.json({ error: "Not authorized to edit this activity" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { type, title, notes, startDate, endDate, status, outcome, outcomeType } = body;
+    const { type, title, notes, startDate, endDate, status, outcome, outcomeType, assignedToUserId } = body;
 
     // Validate type if provided
     if (type && !ALL_ACTIVITY_TYPES.includes(type)) {
@@ -207,6 +217,7 @@ export async function PATCH(
         ...(status && { status }),
         ...(outcome !== undefined && { outcome: outcome?.trim() || null }),
         ...(outcomeType !== undefined && { outcomeType: outcomeType || null }),
+        ...(assignedToUserId !== undefined && { assignedToUserId: assignedToUserId || null }),
       },
     });
 
@@ -250,7 +261,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow deleting if user owns it OR if it has no owner (backwards compatibility)
+    // Only the creator can delete — assignment doesn't grant delete permission.
     if (activity.createdByUserId && activity.createdByUserId !== user.id) {
       return NextResponse.json({ error: "Not authorized to delete this activity" }, { status: 403 });
     }
