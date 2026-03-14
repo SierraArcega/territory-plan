@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build lookup maps
-    const currentRevByDistrict = new Map(currentRevRows.map((r) => [r.district_lea_id, { revenue: Number(r.total_revenue), take: Number(r.total_take) }]));
+    const currentRevByDistrict = new Map(currentRevRows.map((r) => [r.district_lea_id, { revenue: Number(r.total_revenue) || 0, take: Number(r.total_take) || 0 }]));
     const priorRevByDistrict = new Map(priorRevRows.map((r) => [r.district_lea_id, Number(r.total_revenue)]));
     const twoYearsAgoRevByDistrict = new Map(twoYearsAgoRevRows.map((r) => [r.district_lea_id, Number(r.total_revenue)]));
 
@@ -322,7 +322,7 @@ export async function GET(request: NextRequest) {
           name: info?.name || leaid,
           stateAbbrev: info?.stateAbbrev || null,
           currentRevenue: distData.revenue,
-          currentTake: distData.take,
+          currentTake: distData.take || 0,
           opportunities: districtOpps,
         });
       }

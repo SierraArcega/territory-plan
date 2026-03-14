@@ -19,7 +19,7 @@ interface PlanProgressTableProps {
 // ---------------------------------------------------------------------------
 
 function formatCompact(value: number): string {
-  if (value === 0) return "$0";
+  if (!value || !isFinite(value)) return "$0";
   const abs = Math.abs(value);
   const sign = value < 0 ? "-" : "";
   if (abs >= 1_000_000) {
