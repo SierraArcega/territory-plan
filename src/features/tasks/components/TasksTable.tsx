@@ -17,6 +17,8 @@ const STATUS_ORDER: Record<string, number> = { todo: 0, in_progress: 1, blocked:
 const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 
 // Module-level constant so the reference is stable across renders (avoids useMemo churn)
+// Note: 'title' is not listed below because it's a non-nullable string field.
+// The useSortableTable hook's defaultCompare fallback handles it via localeCompare.
 const taskComparators: Record<string, SortComparator<TaskItem>> = {
   status: (a, b, dir) => {
     const r = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
@@ -35,6 +37,7 @@ const taskComparators: Record<string, SortComparator<TaskItem>> = {
     return dir === "desc" ? -r : r;
   },
   createdAt: (a, b, dir) => {
+    // createdAt is typed as string (non-nullable), so no null check needed
     const r = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     return dir === "desc" ? -r : r;
   },

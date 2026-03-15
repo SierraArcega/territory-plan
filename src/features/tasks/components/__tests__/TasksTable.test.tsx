@@ -84,6 +84,7 @@ describe("TasksTable sorting", () => {
     fireEvent.click(screen.getByRole("columnheader", { name: /title/i }));
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("Charlie");
+    expect(rows[2]).toHaveTextContent("Alice"); // Verify full descending order
   });
 
   it("clicking Title a third time restores original order", () => {
