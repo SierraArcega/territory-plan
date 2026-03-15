@@ -86,7 +86,6 @@ export function useSortableTable<T>({
   }, [data, sortState, comparators]);
 
   // Wrapped in useCallback so callers receive a stable function reference.
-  // setSortState is stable from useState, so the dependency array is empty.
   const onSort = useCallback((field: string) => {
     setSortState((prev) => {
       if (prev.field !== field) return { field, dir: "asc" };

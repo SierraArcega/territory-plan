@@ -78,7 +78,7 @@ describe("ContactsTable sorting", () => {
 
   it("Last Activity column header has no sort", () => {
     renderTable([makeContact()]);
-    const lastActivityHeader = screen.queryByRole("columnheader", { name: /last activity/i });
-    if (lastActivityHeader) expect(lastActivityHeader).not.toHaveAttribute("aria-sort");
+    const lastActivityHeader = screen.getByRole("columnheader", { name: /last activity/i });
+    expect(lastActivityHeader).not.toHaveAttribute("aria-sort");
   });
 });
