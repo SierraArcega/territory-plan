@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 export type SortDir = "asc" | "desc" | null;
 
@@ -37,6 +37,10 @@ function applyNullPolicy(aVal: unknown, bVal: unknown): number | null {
   return null;          // neither is null, keep comparing
 }
 
+// Stable empty-object fallback so callers that omit `comparators` don't
+// force useMemo to recompute on every render due to a fresh object reference.
+const EMPTY_COMPARATORS: Record<string, SortComparator<unknown>> = {};
+
 // Runtime type detection: check instanceof Date first, then typeof.
 // NOTE: ISO date strings (typeof === "string") fall into localeCompare.
 // ISO 8601 sorts correctly lexicographically, but if you have non-ISO date
@@ -57,7 +61,7 @@ export function useSortableTable<T>({
   data,
   defaultField,
   defaultDir = "asc",
-  comparators = {},
+  comparators = EMPTY_COMPARATORS as Record<string, SortComparator<T>>,
 }: UseSortableTableOptions<T>): UseSortableTableReturn<T> {
   const [sortState, setSortState] = useState<SortState>({
     field: defaultField ?? null,
@@ -81,13 +85,15 @@ export function useSortableTable<T>({
     });
   }, [data, sortState, comparators]);
 
-  const onSort = (field: string) => {
+  // Wrapped in useCallback so callers receive a stable function reference.
+  // setSortState is stable from useState, so the dependency array is empty.
+  const onSort = useCallback((field: string) => {
     setSortState((prev) => {
       if (prev.field !== field) return { field, dir: "asc" };
       if (prev.dir === "asc") return { field, dir: "desc" };
       return { field: null, dir: null };
     });
-  };
+  }, [setSortState]);
 
   return { sorted, sortState, onSort };
 }
