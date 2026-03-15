@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const [items, total] = await Promise.all([
       prisma.userProfile.findMany({
         where,
-        orderBy: { lastLoginAt: { sort: "desc", nulls: "last" } },
+        orderBy: { lastLoginAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
         select: {
