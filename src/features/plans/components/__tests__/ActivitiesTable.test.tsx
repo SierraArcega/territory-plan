@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ActivitiesTable from "../ActivitiesTable";
 import type { ActivityListItem } from "@/lib/api";
+import type { ActivityType } from "@/features/activities/types";
 
 // Create mock functions outside so they can be accessed in tests
 const mockUpdateMutate = vi.fn().mockResolvedValue({});
@@ -21,27 +22,10 @@ vi.mock("@/lib/api", async () => {
 });
 
 // Mock activity types
-vi.mock("@/lib/activityTypes", () => ({
-  ACTIVITY_TYPE_LABELS: {
-    conference: "Conference",
-    road_trip: "Road Trip",
-    email_campaign: "Email Campaign",
-    discovery_call: "Discovery Call",
-  },
-  ACTIVITY_TYPE_ICONS: {
-    conference: "🎤",
-    road_trip: "🚗",
-    email_campaign: "📧",
-    discovery_call: "🔍",
-  },
-  ACTIVITY_STATUS_CONFIG: {
-    planned: { label: "Planned", color: "#6EA3BE", bgColor: "#EEF5F8" },
-    completed: { label: "Completed", color: "#8AA891", bgColor: "#EFF5F0" },
-    cancelled: { label: "Cancelled", color: "#9CA3AF", bgColor: "#F3F4F6" },
-  },
-  ALL_ACTIVITY_TYPES: ["conference", "road_trip", "email_campaign", "discovery_call"],
-  VALID_ACTIVITY_STATUSES: ["planned", "completed", "cancelled"],
-}));
+vi.mock("@/features/activities/types", async () => {
+  const actual = await vi.importActual("@/features/activities/types");
+  return { ...actual };
+});
 
 // Sample test data
 const mockActivities: ActivityListItem[] = [
@@ -60,6 +44,7 @@ const mockActivities: ActivityListItem[] = [
     planCount: 2,
     districtCount: 5,
     stateAbbrevs: ["CA", "TX"],
+
   },
   {
     id: "activity-2",
@@ -76,6 +61,7 @@ const mockActivities: ActivityListItem[] = [
     planCount: 1,
     districtCount: 12,
     stateAbbrevs: ["NY", "NJ", "PA"],
+
   },
   {
     id: "activity-3",
@@ -92,6 +78,7 @@ const mockActivities: ActivityListItem[] = [
     planCount: 0,
     districtCount: 1,
     stateAbbrevs: ["FL"],
+
   },
 ];
 
@@ -369,5 +356,93 @@ describe("ActivitiesTable", () => {
       // We expect single date displays for activities 2 and 3
       expect(rows.length).toBeGreaterThan(1);
     });
+  });
+});
+
+// ─── Sorting tests ───────────────────────────────────────────────────────────
+
+// Factory: builds a minimal valid ActivityListItem, with overrides.
+function makeActivity(overrides: Partial<ActivityListItem> = {}): ActivityListItem {
+  return {
+    id: "test-id",
+    type: "conference" as ActivityType,
+    category: "events" as const,
+    title: "Test Activity",
+    startDate: "2026-01-01",
+    endDate: null,
+    status: "planned" as const,
+    source: "manual" as const,
+    outcomeType: null,
+
+    needsPlanAssociation: false,
+    hasUnlinkedDistricts: false,
+    planCount: 0,
+    districtCount: 0,
+    stateAbbrevs: [],
+    ...overrides,
+  };
+}
+
+// Renders the table with given activities using the same QueryClientProvider wrapper.
+function renderTable(activities: ActivityListItem[]) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ActivitiesTable
+        activities={activities}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    </QueryClientProvider>
+  );
+}
+
+describe("ActivitiesTable sorting", () => {
+  it("clicking Title header sorts activities by title ascending", () => {
+    const activities = [
+      makeActivity({ id: "1", title: "Zeta" }),
+      makeActivity({ id: "2", title: "Alpha" }),
+    ];
+    renderTable(activities);
+    fireEvent.click(screen.getByRole("columnheader", { name: /title/i }));
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("Alpha");
+    expect(rows[1]).toHaveTextContent("Zeta");
+  });
+
+  it("clicking Title again sorts descending", () => {
+    const activities = [
+      makeActivity({ id: "1", title: "Zeta" }),
+      makeActivity({ id: "2", title: "Alpha" }),
+    ];
+    renderTable(activities);
+    const th = screen.getByRole("columnheader", { name: /title/i });
+    fireEvent.click(th);
+    fireEvent.click(th);
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("Zeta");
+    expect(rows[1]).toHaveTextContent("Alpha");
+  });
+
+  it("clicking Title a third time restores original order", () => {
+    const activities = [
+      makeActivity({ id: "1", title: "Zeta" }),
+      makeActivity({ id: "2", title: "Alpha" }),
+    ];
+    renderTable(activities);
+    const th = screen.getByRole("columnheader", { name: /title/i });
+    fireEvent.click(th);
+    fireEvent.click(th);
+    fireEvent.click(th);
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows[0]).toHaveTextContent("Zeta"); // original order
+  });
+
+  it("Scope column header has no sort behavior", () => {
+    renderTable([makeActivity()]);
+    const scopeHeader = screen.getByRole("columnheader", { name: /scope/i });
+    expect(scopeHeader).not.toHaveAttribute("aria-sort");
   });
 });

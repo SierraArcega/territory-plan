@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { ExploreEntity, ExploreFilter, FilterOp } from "@/features/map/lib/store";
 import { useTags, useTerritoryPlans, useCompetitorFYs } from "@/lib/api";
-import type { ColumnDef } from "./columns/districtColumns";
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 import { districtColumns, getCompetitorColumns } from "./columns/districtColumns";
 import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";

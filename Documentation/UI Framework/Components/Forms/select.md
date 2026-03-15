@@ -97,73 +97,296 @@ disabled:bg-[#F7F5FA] disabled:border-[#E2DEEC] disabled:text-[#A69DC0] disabled
 
 ### Multi-Select (Dropdown Checkbox List)
 
-A custom dropdown that opens on trigger click and renders a scrollable list of checkbox + label rows. Selected items are rendered as removable chips below the trigger. The trigger button shows selected count when chips would overflow.
+A custom dropdown with a sticky search input, a Select All row with tri-state logic, and a scrollable checkbox list. Selected items render as removable chips below the trigger. A persistent cursor (`activeIndex`) tracks the last interacted row for both mouse and keyboard.
 
-**Trigger button classes:**
+**Use when:** 2+ simultaneous selections are expected and the option list is large enough to benefit from search filtering (~10+ options).
+
+#### Component Contract
+
+```tsx
+interface MultiSelectOption {
+  value: string;
+  label: string;
+}
+
+interface MultiSelectProps {
+  id: string;
+  label: string;
+  options: MultiSelectOption[];
+  selected: string[];            // controlled — array of currently selected values
+  onChange: (values: string[]) => void;  // always called with full new array
+  placeholder?: string;          // trigger text when nothing selected
+  countLabel?: string;           // unit for "N {countLabel}" trigger (default: "items")
+  searchPlaceholder?: string;    // search input placeholder (default: "Search…")
+  disabled?: boolean;
+}
+```
+
+**Trigger label rules:**
+| Selection count | Trigger text |
+|----------------|-------------|
+| 0 | `placeholder` prop |
+| 1 | The selected option's `label` |
+| 2–3 | Labels joined with comma: `"CA, TX, NY"` |
+| 4+ | `"{N} {countLabel}"` (e.g., `"12 states"`) |
+
+#### Panel Structure
+
+```
+┌─────────────────────────────────┐
+│  [trigger button]               │  always visible, outside dropdown
+├─────────────────────────────────┤
+│  🔍 Search…                     │  fixed above scroll area, auto-focused on open
+│  ─────────────────────────────  │
+│  ▣  Select all 50 states        │  fixed above scroll area; hidden when 0 search results
+│  ─────────────────────────────  │
+│  □  Alabama              AL     │  scrollable <ul role="listbox">
+│  ✓  Alaska               AK     │  cursor row = bg-[#EDE9F7]
+│  ✓  Arizona              AZ     │
+│  □  Arkansas             AR     │
+│  …                              │
+└─────────────────────────────────┘
+```
+
+The search input and Select All row are rendered **outside** the `<ul role="listbox">` so they are fixed above the scrollable list without invalidating the listbox's child element structure. In compact implementations (such as LayerBubble), both rows may instead appear as the first children inside the scrollable container — a documented intentional deviation that is sufficient when the list is short.
+
+#### Visual Spec
+
+**Trigger button (default):**
 ```
 w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
-bg-white text-[#403770] text-left
+bg-white text-left flex items-center justify-between
 focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent
 ```
 
-**Dropdown panel classes:**
+**Trigger button (disabled):**
+```
+opacity-50 cursor-not-allowed pointer-events-none
+```
+Chips are hidden when disabled. The dropdown panel never renders.
+
+**Dropdown panel:**
 ```
 absolute z-10 mt-1 w-full bg-white rounded-xl shadow-lg
-border border-[#D4CFE2]/60 max-h-60 overflow-y-auto
+border border-[#D4CFE2]/60 overflow-hidden
+```
+No `overflow-y-auto` on the panel — only the list zone scrolls.
+
+**Search input:**
+```
+w-full px-3 py-2 text-sm border-b border-[#E2DEEC]
+bg-white text-[#403770] placeholder:text-[#A69DC0]
+focus:outline-none
+```
+No focus ring — this input is always focused while the panel is open.
+
+**Select All row:**
+```
+flex items-center gap-2 px-3 py-2 text-sm font-medium
+text-[#403770] border-b border-[#E2DEEC] bg-[#FDFCFF]
+hover:bg-[#F7F5FA] cursor-pointer select-none
+```
+Hidden (`display: none` / conditional render) when search returns zero results.
+
+**Select All tri-state checkbox variants** — the wrapper `<div>` carries `role="checkbox"` and `aria-checked`; the inner SVG is `aria-hidden="true"`:
+
+Unchecked: `w-4 h-4 rounded border border-[#C2BBD4] bg-white flex-shrink-0`
+
+Indeterminate (dash `—` icon):
+```
+w-4 h-4 rounded border border-[#403770] bg-[#403770]
+flex items-center justify-center flex-shrink-0
+```
+Dash SVG (16×16): `<rect x="3" y="7.5" width="10" height="1" rx="0.5" fill="white"/>`
+
+Checked (checkmark `✓` icon): same container classes as indeterminate.
+Checkmark SVG (16×16): `<path d="M3 8L6.5 11.5L13 5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`
+
+**Option row — default:**
+```
+flex items-center gap-2 px-3 py-2 text-sm text-[#403770]
+hover:bg-[#F7F5FA] cursor-pointer select-none
 ```
 
-**Option row classes:**
+**Option row — cursor active** (`activeIndex` matches this row):
 ```
-flex items-center gap-2 px-3 py-2 text-sm text-[#403770] hover:bg-[#EFEDF5] cursor-pointer
+flex items-center gap-2 px-3 py-2 text-sm text-[#403770]
+bg-[#EDE9F7] cursor-pointer select-none
+```
+Apply as a **mutually exclusive conditional** — one complete string or the other, never both.
+
+**Option checkbox:**
+```
+w-4 h-4 rounded border border-[#C2BBD4] text-[#403770] flex-shrink-0
+```
+Use `tabIndex={-1}` and `aria-hidden="true"`.
+
+**Empty state (no search results):**
+```
+px-3 py-2 text-sm text-[#A69DC0] italic
 ```
 
-**Checkbox classes** (each option):
-```
-rounded border-[#C2BBD4] text-[#403770] focus:ring-[#F37167]
-```
-
-**Chip classes** (selected item):
+**Chips (below trigger):**
 ```
 inline-flex items-center gap-1 px-2 py-0.5 bg-[#F7F5FA] rounded-full text-xs text-[#403770]
 ```
+Chip remove button: `text-[#A69DC0] hover:text-[#403770] transition-colors`
 
-**Chip remove button:**
-```
-text-[#A69DC0] hover:text-[#403770] transition-colors
-```
+Chips render in insertion order (`selected` array order). If a value has no matching entry in `options` (stale data), render the raw value string as the label — don't skip it silently.
 
-**Use case:** Filter bars (filter by status, type, or tag), tag selection on plans or activities, any field where multiple simultaneous selections are needed.
+#### Select All / Deselect All Logic
 
-**TSX example:**
+The row label and action are binary based on whether any filtered options are currently selected:
+
+| Filtered selection state | `aria-checked` | Label | Clicking does |
+|--------------------------|---------------|-------|---------------|
+| None selected | `"false"` | `"Select all {N}"` / `"Select {N} results"` | Add all filtered to selection |
+| Any selected (some or all) | `"mixed"` or `"true"` | `"Deselect all"` | Remove all filtered from selection |
+
+"Filtered" = options matching the current search query. When no search is active, filtered = all options.
+
+**Label rules:**
+- Any filtered options selected: `"Deselect all"` (regardless of search state)
+- No filtered options selected, no search: `"Select all {N}"` (N = total option count)
+- No filtered options selected, search active with results: `"Select {N} results"` (N = filtered count)
+- Search active with zero results: row is hidden
+
+#### Cursor (`activeIndex`) Behavior
+
+`activeIndex` is an integer: `-1` = no row highlighted, `0` = Select All row, `1…N` = filtered option rows.
+
+Updates on:
+- `mousedown` on any row (sets to that row's index AND toggles it)
+- `ArrowDown` / `ArrowUp` keystrokes
+
+Hover does **not** update `activeIndex`.
+
+**Keyboard table** (all handled on the search input):
+
+| Key | `activeIndex` before | Result |
+|-----|---------------------|--------|
+| `↓` | `-1` | Move to `0` (Select All) |
+| `↓` | `0` | Move to `1` |
+| `↓` | `1…N-1` | Increment |
+| `↓` | `N` | Stay (clamp) |
+| `↑` | `-1` | Move to `0` (Select All) |
+| `↑` | `0` | Stay (clamp) |
+| `↑` | `1` | Move to `0` |
+| `↑` | `2…N` | Decrement |
+| `Enter` | `0` | Apply Select All logic |
+| `Enter` | `1…N` | Toggle option at index |
+| `Enter` | `-1` | No-op |
+| `Escape` | search has text | Clear search, reset `activeIndex` to `-1` |
+| `Escape` | search empty | Close dropdown |
+| `Tab` | any | Close dropdown, move focus to next field |
+
+Both `↓` and `↑` from `-1` move to `0` — the first keypress always activates the top of the list.
+
+When a keyboard move lands outside the visible scroll area, call `element.scrollIntoView({ block: "nearest" })`.
+
+#### Accessibility
+
+- Trigger button: `aria-haspopup="listbox"`, `aria-expanded={isOpen}`
+- Search input: `aria-label="Search options"`, `aria-controls="{id}-listbox"`, `aria-activedescendant` = `"{id}-option-{value}"` for active option rows, `"{id}-select-all"` for the Select All row, omitted when `activeIndex === -1`
+- Select All `<div>`: `id="{id}-select-all"`, `role="checkbox"`, `aria-checked="true|false|mixed"`, `tabIndex={-1}`, `aria-label` matches the visible label exactly — `"Deselect all"` when any filtered options are selected, `"Select all {N}"` or `"Select {N} results"` otherwise
+- Option list `<ul>`: `role="listbox"`, `aria-multiselectable="true"`, `id="{id}-listbox"`, `aria-label={label}`
+- Each option `<li>`: `role="option"`, `aria-selected={isSelected}`, `id="{id}-option-{value}"`
+- Chip remove buttons: `aria-label="Remove {label}"`
+- Option checkboxes: `tabIndex={-1}`, `aria-hidden="true"`
+
+#### TSX Example
+
 ```tsx
 function MultiSelect({
+  id,
+  label,
   options,
   selected,
   onChange,
-  label,
-  id,
-}: {
-  options: { value: string; label: string }[];
-  selected: string[];
-  onChange: (values: string[]) => void;
-  label: string;
-  id: string;
-}) {
+  placeholder = "Select…",
+  countLabel = "items",
+  searchPlaceholder = "Search…",
+  disabled = false,
+}: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const optionRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const selectAllRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  const filtered = query.trim()
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  // How many of the filtered options are currently selected?
+  const filteredSelected = filtered.filter((o) => selected.includes(o.value));
+  const anyFilteredSelected = filteredSelected.length > 0;
+  const selectAllState: "true" | "false" | "mixed" =
+    filteredSelected.length === 0
+      ? "false"
+      : filteredSelected.length === filtered.length
+      ? "true"
+      : "mixed";
+
+  // Label is binary: any filtered selected → "Deselect all"; none selected → "Select all N"
+  const selectAllLabel = anyFilteredSelected
+    ? "Deselect all"
+    : query.trim()
+    ? `Select ${filtered.length} results`
+    : `Select all ${options.length}`;
+
+  // Trigger label
+  const triggerText = (() => {
+    if (selected.length === 0) return placeholder;
+    if (selected.length === 1) {
+      return options.find((o) => o.value === selected[0])?.label ?? selected[0];
+    }
+    if (selected.length <= 3) {
+      return selected
+        .map((v) => options.find((o) => o.value === v)?.label ?? v)
+        .join(", ");
+    }
+    return `${selected.length} ${countLabel}`;
+  })();
+
+  // Open/close
+  const open = () => {
+    setIsOpen(true);
+    setQuery("");
+    setActiveIndex(-1);
+    requestAnimationFrame(() => searchRef.current?.focus());
+  };
+
+  const close = () => {
+    setIsOpen(false);
+    setQuery("");
+    setActiveIndex(-1);
+  };
+
+  // Outside click — empty deps is intentional: useState setters are stable references
+  // so `close` never changes identity. If your linter flags this, wrap `close` in useCallback.
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
+        close();
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggle = (value: string) => {
+  // Scroll active row into view
+  useEffect(() => {
+    if (activeIndex === 0) {
+      selectAllRef.current?.scrollIntoView({ block: "nearest" });
+    } else if (activeIndex > 0) {
+      optionRefs.current[activeIndex - 1]?.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIndex]);
+
+  const toggleOption = (value: string) => {
     onChange(
       selected.includes(value)
         ? selected.filter((v) => v !== value)
@@ -171,36 +394,98 @@ function MultiSelect({
     );
   };
 
-  const removeChip = (value: string) => {
-    onChange(selected.filter((v) => v !== value));
+  const applySelectAll = () => {
+    if (anyFilteredSelected) {
+      // Deselect all filtered
+      const filteredValues = new Set(filtered.map((o) => o.value));
+      onChange(selected.filter((v) => !filteredValues.has(v)));
+    } else {
+      // Select all filtered (merge with existing selection)
+      const filteredValues = filtered.map((o) => o.value);
+      const existing = new Set(selected);
+      onChange([...selected, ...filteredValues.filter((v) => !existing.has(v))]);
+    }
   };
 
-  const selectedLabels = options.filter((o) => selected.includes(o.value));
+  const activeDescendant =
+    activeIndex === 0
+      ? `${id}-select-all`
+      : activeIndex > 0
+      ? `${id}-option-${filtered[activeIndex - 1]?.value}`
+      : undefined;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const max = filtered.length; // indices 1…max
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (max === 0) return; // nothing to navigate when list is empty
+      setActiveIndex((i) => (i < max ? i + 1 : i));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (max === 0) return;
+      setActiveIndex((i) => (i <= 0 ? 0 : i - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex === 0) applySelectAll();
+      else if (activeIndex > 0) toggleOption(filtered[activeIndex - 1].value);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      if (query) {
+        setQuery("");
+        setActiveIndex(-1);
+      } else {
+        close();
+      }
+    } else if (e.key === "Tab") {
+      close();
+    }
+  };
+
+  const selectedLabels = selected.map((v) => ({
+    value: v,
+    label: options.find((o) => o.value === v)?.label ?? v, // fallback to raw value
+  }));
+
+  if (disabled) {
+    return (
+      <div>
+        <label className="block text-xs font-medium text-[#8A80A8] mb-1">{label}</label>
+        <button
+          type="button"
+          disabled
+          className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
+            bg-white text-left flex items-center justify-between
+            opacity-50 cursor-not-allowed pointer-events-none"
+        >
+          <span className="text-[#A69DC0]">{placeholder}</span>
+          <svg className="w-4 h-4 text-[#A69DC0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="relative">
-      <label htmlFor={id} className="block text-xs font-medium text-[#8A80A8] mb-1">
-        {label}
-      </label>
+      <label className="block text-xs font-medium text-[#8A80A8] mb-1">{label}</label>
 
       {/* Trigger */}
       <button
         id={id}
         type="button"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => (isOpen ? close() : open())}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg
           bg-white text-left flex items-center justify-between
           focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
       >
-        <span className={selected.length === 0 ? "text-[#A69DC0]" : "text-[#403770]"}>
-          {selected.length === 0
-            ? "Select service types…"
-            : `${selected.length} selected`}
+        <span className={selected.length === 0 ? "text-[#A69DC0]" : "text-[#403770] truncate"}>
+          {triggerText}
         </span>
         <svg
-          className={`w-4 h-4 text-[#A69DC0] transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-[#A69DC0] flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -211,52 +496,134 @@ function MultiSelect({
 
       {/* Dropdown panel */}
       {isOpen && (
-        <ul
-          role="listbox"
-          aria-multiselectable="true"
-          aria-label={label}
-          className="absolute z-10 mt-1 w-full bg-white rounded-xl shadow-lg
-            border border-[#D4CFE2]/60 max-h-60 overflow-y-auto"
-        >
-          {options.map((option) => {
-            const isSelected = selected.includes(option.value);
-            return (
-              <li
-                key={option.value}
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => toggle(option.value)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-[#403770]
-                  hover:bg-[#EFEDF5] cursor-pointer"
+        <div className="absolute z-10 mt-1 w-full bg-white rounded-xl shadow-lg
+          border border-[#D4CFE2]/60 overflow-hidden">
+
+          {/* Search */}
+          <input
+            ref={searchRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActiveIndex(-1);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={searchPlaceholder}
+            aria-label="Search options"
+            aria-controls={`${id}-listbox`}
+            aria-activedescendant={activeDescendant}
+            autoComplete="off"
+            className="w-full px-3 py-2 text-sm border-b border-[#E2DEEC]
+              bg-white text-[#403770] placeholder:text-[#A69DC0] focus:outline-none"
+          />
+
+          {/* Select All row — hidden when search returns 0 results */}
+          {filtered.length > 0 && (
+            <div
+              ref={selectAllRef}
+              id={`${id}-select-all`}
+              role="checkbox"
+              aria-checked={selectAllState}
+              aria-label={selectAllLabel}
+              tabIndex={-1}
+              onMouseDown={(e) => {
+                e.preventDefault(); // keep focus on search input
+                setActiveIndex(0);
+                applySelectAll();
+              }}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium
+                text-[#403770] border-b border-[#E2DEEC] bg-[#FDFCFF]
+                hover:bg-[#F7F5FA] cursor-pointer select-none"
+            >
+              {/* Tri-state checkbox */}
+              <div
+                aria-hidden="true"
+                className={
+                  selectAllState === "false"
+                    ? "w-4 h-4 rounded border border-[#C2BBD4] bg-white flex-shrink-0"
+                    : "w-4 h-4 rounded border border-[#403770] bg-[#403770] flex items-center justify-center flex-shrink-0"
+                }
               >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggle(option.value)}
-                  tabIndex={-1}
-                  className="rounded border-[#C2BBD4] text-[#403770] focus:ring-[#F37167]"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {option.label}
+                {selectAllState === "mixed" && (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="3" y="7.5" width="10" height="1" rx="0.5" fill="white" />
+                  </svg>
+                )}
+                {selectAllState === "true" && (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8L6.5 11.5L13 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+              <span>{selectAllLabel}</span>
+            </div>
+          )}
+
+          {/* Scrollable list */}
+          <ul
+            id={`${id}-listbox`}
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label={label}
+            className="max-h-60 overflow-y-auto"
+          >
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-[#A69DC0] italic">
+                No matches found
               </li>
-            );
-          })}
-        </ul>
+            ) : (
+              filtered.map((option, i) => {
+                const isSelected = selected.includes(option.value);
+                const isCursor = activeIndex === i + 1;
+                return (
+                  <li
+                    key={option.value}
+                    ref={(el) => { optionRefs.current[i] = el; }}
+                    id={`${id}-option-${option.value}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // keep focus on search input
+                      setActiveIndex(i + 1);
+                      toggleOption(option.value);
+                    }}
+                    className={
+                      isCursor
+                        ? "flex items-center gap-2 px-3 py-2 text-sm text-[#403770] bg-[#EDE9F7] cursor-pointer select-none"
+                        : "flex items-center gap-2 px-3 py-2 text-sm text-[#403770] hover:bg-[#F7F5FA] cursor-pointer select-none"
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => {}} // controlled via onMouseDown on <li>
+                      tabIndex={-1}
+                      aria-hidden="true"
+                      className="w-4 h-4 rounded border border-[#C2BBD4] text-[#403770] flex-shrink-0"
+                    />
+                    {option.label}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
       )}
 
-      {/* Selected chips */}
+      {/* Chips */}
       {selectedLabels.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
-          {selectedLabels.map((option) => (
+          {selectedLabels.map(({ value, label: chipLabel }) => (
             <span
-              key={option.value}
+              key={value}
               className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F7F5FA] rounded-full text-xs text-[#403770]"
             >
-              {option.label}
+              {chipLabel}
               <button
                 type="button"
-                onClick={() => removeChip(option.value)}
-                aria-label={`Remove ${option.label}`}
+                onClick={() => onChange(selected.filter((v) => v !== value))}
+                aria-label={`Remove ${chipLabel}`}
                 className="text-[#A69DC0] hover:text-[#403770] transition-colors"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,6 +642,8 @@ function MultiSelect({
 <MultiSelect
   id="service-types"
   label="Service Types"
+  countLabel="types"
+  placeholder="All service types"
   options={[
     { value: "curriculum", label: "Curriculum" },
     { value: "pd", label: "Professional Development" },
@@ -553,11 +922,14 @@ States are inherited from `_foundations.md`. The native select uses them directl
 
 ### Multi-Select
 
+All keyboard interaction is handled on the search input (auto-focused on open). See the full keyboard table in the Multi-Select section above.
+
 | Key | Action |
 |-----|--------|
-| `Space` / `Enter` | Open dropdown (on trigger); toggle focused option (inside list) |
-| `Arrow Up` / `Arrow Down` | Navigate options in the open dropdown |
-| `Escape` | Close dropdown without changing selection |
+| `↓` / `↑` | Move cursor through Select All row and option rows |
+| `Enter` | Toggle option at cursor; apply Select All if cursor is on Select All row |
+| `Escape` (search has text) | Clear search query, reset cursor |
+| `Escape` (search empty) | Close dropdown |
 | `Tab` | Close dropdown and move focus to next field |
 
 ### Combobox / Search-Select

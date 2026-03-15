@@ -4,6 +4,47 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useUpdateDistrictTargets, useServices, type TerritoryPlanDistrict } from "@/lib/api";
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
+import { useSortableTable, type SortComparator } from "@/features/shared/hooks/useSortableTable";
+import { SortHeader } from "@/features/shared/components/SortHeader";
+
+// Revenue, Take, Pipeline, Prior FY are nested under district.actuals —
+// they are not top-level fields on TerritoryPlanDistrict.
+// Virtual string keys ("revenue", "take", etc.) are used here; this works
+// because useSortableTable uses field: string (not keyof T) by design.
+const districtComparators: Record<string, SortComparator<TerritoryPlanDistrict>> = {
+  revenue: (a, b, dir) => {
+    const aVal = a.actuals?.totalRevenue ?? null;
+    const bVal = b.actuals?.totalRevenue ?? null;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    return dir === "desc" ? bVal - aVal : aVal - bVal;
+  },
+  take: (a, b, dir) => {
+    const aVal = a.actuals?.totalTake ?? null;
+    const bVal = b.actuals?.totalTake ?? null;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    return dir === "desc" ? bVal - aVal : aVal - bVal;
+  },
+  pipeline: (a, b, dir) => {
+    const aVal = a.actuals?.weightedPipeline ?? null;
+    const bVal = b.actuals?.weightedPipeline ?? null;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    return dir === "desc" ? bVal - aVal : aVal - bVal;
+  },
+  priorFy: (a, b, dir) => {
+    const aVal = a.actuals?.priorFyRevenue ?? null;
+    const bVal = b.actuals?.priorFyRevenue ?? null;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
+    return dir === "desc" ? bVal - aVal : aVal - bVal;
+  },
+};
 
 interface DistrictsTableProps {
   planId: string;
@@ -211,6 +252,10 @@ export default function DistrictsTable({
 }: DistrictsTableProps) {
   const [confirmRemove, setConfirmRemove] = useState<TerritoryPlanDistrict | null>(null);
   const updateTargets = useUpdateDistrictTargets();
+  const { sorted: sortedDistricts, sortState, onSort } = useSortableTable({
+    data: districts,
+    comparators: districtComparators,
+  });
 
   const handleRemoveClick = (district: TerritoryPlanDistrict) => {
     setConfirmRemove(district);
@@ -284,44 +329,16 @@ export default function DistrictsTable({
         <table className="min-w-full">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50/80">
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                District
-              </th>
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                State
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Renewal
-                <ColumnTooltip text="Target revenue from renewal opportunities in this district for the current fiscal year" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Winback
-                <ColumnTooltip text="Target revenue from winback opportunities in this district for the current fiscal year" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Expansion
-                <ColumnTooltip text="Target revenue from expansion opportunities in this district for the current fiscal year" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                New Biz
-                <ColumnTooltip text="Target revenue from new business opportunities in this district for the current fiscal year" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Revenue
-                <ColumnTooltip text="Actual revenue from completed and scheduled sessions vs your combined revenue targets (renewal + winback + expansion + new business) for this district" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Take
-                <ColumnTooltip text="Total take (revenue minus educator costs) for this district in the current fiscal year" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Pipeline
-                <ColumnTooltip text="Total weighted open pipeline (stages 0-5) for this district in the current fiscal year" />
-              </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Prior FY
-                <ColumnTooltip text="Total revenue from opportunities in this district during the previous fiscal year" />
-              </th>
+              <SortHeader field="name" label="District" sortState={sortState} onSort={onSort} className="px-4" />
+              <SortHeader field="stateAbbrev" label="State" sortState={sortState} onSort={onSort} className="px-4" />
+              <SortHeader field="renewalTarget" label="Renewal" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from renewal opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="winbackTarget" label="Winback" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from winback opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="expansionTarget" label="Expansion" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from expansion opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="newBusinessTarget" label="New Biz" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from new business opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="revenue" label="Revenue" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Actual revenue from completed and scheduled sessions vs your combined revenue targets (renewal + winback + expansion + new business) for this district" />} />
+              <SortHeader field="take" label="Take" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Total take (revenue minus educator costs) for this district in the current fiscal year" />} />
+              <SortHeader field="pipeline" label="Pipeline" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Total weighted open pipeline (stages 0-5) for this district in the current fiscal year" />} />
+              <SortHeader field="priorFy" label="Prior FY" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Total revenue from opportunities in this district during the previous fiscal year" />} />
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Services
               </th>
@@ -329,8 +346,8 @@ export default function DistrictsTable({
             </tr>
           </thead>
         <tbody>
-          {districts.map((district, idx) => {
-            const isLast = idx === districts.length - 1;
+          {sortedDistricts.map((district, idx) => {
+            const isLast = idx === sortedDistricts.length - 1;
             return (
             <tr
               key={district.leaid}
