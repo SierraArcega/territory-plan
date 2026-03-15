@@ -23,6 +23,7 @@ export function useActivities(params: ActivitiesParams = {}) {
     searchParams.set("needsPlanAssociation", params.needsPlanAssociation.toString());
   if (params.hasUnlinkedDistricts !== undefined)
     searchParams.set("hasUnlinkedDistricts", params.hasUnlinkedDistricts.toString());
+  if (params.source) searchParams.set("source", params.source);
   if (params.limit) searchParams.set("limit", params.limit.toString());
   if (params.offset) searchParams.set("offset", params.offset.toString());
 
