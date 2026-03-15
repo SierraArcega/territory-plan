@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { ExploreEntity, ExploreSortConfig } from "@/features/map/lib/store";
-import type { ColumnDef } from "./columns/districtColumns";
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 import { districtColumns, getCompetitorColumns } from "./columns/districtColumns";
 import { useCompetitorFYs } from "@/lib/api";
 import { activityColumns } from "./columns/activityColumns";
