@@ -18,12 +18,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const connection = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
+    const integration = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
       select: {
         id: true,
-        googleAccountEmail: true,
-        companyDomain: true,
+        accountEmail: true,
+        metadata: true,
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
@@ -35,9 +35,11 @@ export async function GET() {
       },
     });
 
-    if (!connection) {
+    if (!integration) {
       return NextResponse.json({ connected: false, connection: null });
     }
+
+    const metadata = (integration.metadata as Record<string, unknown>) || {};
 
     // Also get the count of pending calendar events for badge display
     const pendingCount = await prisma.calendarEvent.count({
@@ -85,11 +87,11 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { syncEnabled, companyDomain, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
 
-    const connection = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
+    const integration = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
     });
 
-    if (!connection) {
+    if (!integration) {
       return NextResponse.json(
         { error: "No calendar connection found" },
         { status: 404 }
@@ -98,7 +100,11 @@ export async function PATCH(request: Request) {
 
     const updateData: Record<string, unknown> = {};
     if (typeof syncEnabled === "boolean") updateData.syncEnabled = syncEnabled;
-    if (typeof companyDomain === "string") updateData.companyDomain = companyDomain;
+    if (typeof companyDomain === "string") {
+      // Merge companyDomain into existing metadata
+      const existingMetadata = (integration.metadata as Record<string, unknown>) || {};
+      updateData.metadata = { ...existingMetadata, companyDomain };
+    }
 
     // Sync direction validation
     if (syncDirection !== undefined) {
@@ -155,8 +161,8 @@ export async function PATCH(request: Request) {
       data: updateData,
       select: {
         id: true,
-        googleAccountEmail: true,
-        companyDomain: true,
+        accountEmail: true,
+        metadata: true,
         syncEnabled: true,
         lastSyncAt: true,
         status: true,

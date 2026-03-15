@@ -1,11 +1,12 @@
 // GET /api/calendar/callback — Handles the OAuth redirect from Google
 // After the rep approves calendar access, Google redirects here with an auth code
-// We exchange the code for tokens and store them in CalendarConnection
+// We exchange the code for tokens and store them in UserIntegration (encrypted)
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { exchangeCodeForTokens } from "@/features/calendar/lib/google";
 import { syncCalendarEvents } from "@/features/calendar/lib/sync";
+import { encrypt } from "@/features/integrations/lib/encryption";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -74,26 +75,27 @@ export async function GET(request: NextRequest) {
     const userEmail = user.email || "";
     const companyDomain = userEmail.split("@")[1] || "";
 
-    // Upsert the calendar connection — one per user
-    // If the user re-connects, we update the existing connection with new tokens
-    await prisma.calendarConnection.upsert({
-      where: { userId: user.id },
+    // Upsert the calendar integration — one per user per service
+    // If the user re-connects, we update the existing integration with new tokens
+    await prisma.userIntegration.upsert({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
       update: {
-        googleAccountEmail: tokens.email,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        accountEmail: tokens.email,
+        accessToken: encrypt(tokens.accessToken),
+        refreshToken: encrypt(tokens.refreshToken),
         tokenExpiresAt: tokens.expiresAt,
-        companyDomain,
+        metadata: { companyDomain },
         status: "connected",
         syncEnabled: true,
       },
       create: {
         userId: user.id,
-        googleAccountEmail: tokens.email,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        service: "google_calendar",
+        accountEmail: tokens.email,
+        accessToken: encrypt(tokens.accessToken),
+        refreshToken: encrypt(tokens.refreshToken),
         tokenExpiresAt: tokens.expiresAt,
-        companyDomain,
+        metadata: { companyDomain },
         status: "connected",
         syncEnabled: true,
       },
