@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useCreateActivity, useUpdateActivity, useTerritoryPlans, useStates, useUsers, useProfile } from "@/lib/api";
+import { useActivity } from "@/features/activities/lib/queries";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -20,8 +21,13 @@ interface ActivityFormModalProps {
   onClose: () => void;
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
+  defaultDistrictLeaid?: string;
+  defaultActivityType?: ActivityType;
+  defaultTitle?: string;
   // Provide initialData to open in edit mode
   initialData?: ActivityListItem | null;
+  // Called after a new activity is successfully created — receives the new activity's ID
+  onSuccess?: (activityId: string) => void;
 }
 
 export default function ActivityFormModal({
@@ -29,7 +35,11 @@ export default function ActivityFormModal({
   onClose,
   defaultCategory,
   defaultPlanId,
+  defaultDistrictLeaid,
+  defaultActivityType,
+  defaultTitle,
   initialData,
+  onSuccess,
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
@@ -40,6 +50,11 @@ export default function ActivityFormModal({
   const { data: profile } = useProfile();
 
   const isEditing = !!initialData;
+
+  // In edit mode, fetch the full activity to get plan/state IDs (ActivityListItem only carries counts)
+  const { data: fullActivity, isLoading: isActivityLoading } = useActivity(
+    isEditing && isOpen ? (initialData?.id ?? null) : null
+  );
 
   // Form state
   const [type, setType] = useState<ActivityType>(
@@ -75,8 +90,11 @@ export default function ActivityFormModal({
         setSelectedStateFips([]);
         setAssignedToUserId(initialData.assignedToUserId ?? profile?.id ?? "");
       } else {
-        setType(defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference");
-        setTitle("");
+        setType(
+          defaultActivityType ??
+          (defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference")
+        );
+        setTitle(defaultTitle ?? "");
         setStartDate(new Date().toISOString().split("T")[0]);
         setEndDate("");
         setIsMultiDay(false);
@@ -88,7 +106,18 @@ export default function ActivityFormModal({
         setAssignedToUserId(profile?.id ?? "");
       }
     }
-  }, [isOpen, initialData, defaultCategory, defaultPlanId, profile?.id]);
+  }, [isOpen, initialData, defaultCategory, defaultPlanId, defaultActivityType, defaultTitle, profile?.id]);
+
+  // Pre-populate plans, states, and notes once the full activity fetch resolves
+  useEffect(() => {
+    if (fullActivity && isEditing) {
+      setSelectedPlanIds(fullActivity.plans.map((p) => p.planId));
+      setSelectedStateFips(
+        fullActivity.states.filter((s) => s.isExplicit).map((s) => s.fips)
+      );
+      setNotes(fullActivity.notes ?? "");
+    }
+  }, [fullActivity, isEditing]);
 
   // Close on escape key
   useEffect(() => {
@@ -121,9 +150,11 @@ export default function ActivityFormModal({
           notes: notes.trim() || undefined,
           status,
           assignedToUserId: assignedToUserId || null,
+          planIds: selectedPlanIds,
+          stateFips: selectedStateFips,
         });
       } else {
-        await createActivity.mutateAsync({
+        const created = await createActivity.mutateAsync({
           type,
           title: title.trim(),
           startDate: startDate || undefined,
@@ -134,6 +165,7 @@ export default function ActivityFormModal({
           stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
           assignedToUserId: assignedToUserId || null,
         });
+        onSuccess?.(created.id);
       }
       onClose();
     } catch (error) {
@@ -160,6 +192,7 @@ export default function ActivityFormModal({
   if (!isOpen) return null;
 
   const isPending = createActivity.isPending || updateActivity.isPending;
+  const isSaveDisabled = !title.trim() || isPending || (isEditing && isActivityLoading);
 
   return (
     <div
@@ -286,80 +319,78 @@ export default function ActivityFormModal({
               </select>
             </div>
 
-            {/* Plans selector — only shown on create */}
-            {!isEditing && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Link to Plans
-                </label>
-                <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                  {plans && plans.length > 0 ? (
-                    plans.map((plan) => (
-                      <label
-                        key={plan.id}
-                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedPlanIds.includes(plan.id)}
-                          onChange={() => togglePlan(plan.id)}
-                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                        />
-                        <span
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: plan.color }}
-                        />
-                        <span className="text-sm text-gray-700 truncate">
-                          {plan.name}
-                        </span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="px-3 py-2 text-sm text-gray-500">
-                      No plans yet
-                    </p>
-                  )}
-                </div>
-                {selectedPlanIds.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    Activities without plans will be flagged for follow-up
+            {/* Plans selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Link to Plans
+              </label>
+              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
+                {plans && plans.length > 0 ? (
+                  plans.map((plan) => (
+                    <label
+                      key={plan.id}
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedPlanIds.includes(plan.id)}
+                        onChange={() => togglePlan(plan.id)}
+                        disabled={isEditing && isActivityLoading}
+                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
+                      />
+                      <span
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: plan.color }}
+                      />
+                      <span className="text-sm text-gray-700 truncate">
+                        {plan.name}
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm text-gray-500">
+                    No plans yet
                   </p>
                 )}
               </div>
-            )}
+              {selectedPlanIds.length === 0 && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Activities without plans will be flagged for follow-up
+                </p>
+              )}
+            </div>
 
-            {/* States selector — only shown on create */}
-            {!isEditing && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  States
-                </label>
-                <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                  {states && states.length > 0 ? (
-                    states.map((state) => (
-                      <label
-                        key={state.fips}
-                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedStateFips.includes(state.fips)}
-                          onChange={() => toggleState(state.fips)}
-                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {state.name} ({state.abbrev})
-                        </span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="px-3 py-2 text-sm text-gray-500">
-                      Loading states...
-                    </p>
-                  )}
-                </div>
+            {/* States selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                States
+              </label>
+              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
+                {states && states.length > 0 ? (
+                  states.map((state) => (
+                    <label
+                      key={state.fips}
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStateFips.includes(state.fips)}
+                        onChange={() => toggleState(state.fips)}
+                        disabled={isEditing && isActivityLoading}
+                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {state.name} ({state.abbrev})
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-sm text-gray-500">
+                    Loading states...
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Notes */}
             <div>
@@ -412,7 +443,7 @@ export default function ActivityFormModal({
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || isPending}
+              disabled={isSaveDisabled}
               className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isPending
