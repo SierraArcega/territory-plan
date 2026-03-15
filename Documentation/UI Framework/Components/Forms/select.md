@@ -897,11 +897,14 @@ States are inherited from `_foundations.md`. The native select uses them directl
 
 ### Multi-Select
 
+All keyboard interaction is handled on the search input (auto-focused on open). See the full keyboard table in the Multi-Select section above.
+
 | Key | Action |
 |-----|--------|
-| `Space` / `Enter` | Open dropdown (on trigger); toggle focused option (inside list) |
-| `Arrow Up` / `Arrow Down` | Navigate options in the open dropdown |
-| `Escape` | Close dropdown without changing selection |
+| `↓` / `↑` | Move cursor through Select All row and option rows |
+| `Enter` | Toggle option at cursor; apply Select All if cursor is on Select All row |
+| `Escape` (search has text) | Clear search query, reset cursor |
+| `Escape` (search empty) | Close dropdown |
 | `Tab` | Close dropdown and move focus to next field |
 
 ### Combobox / Search-Select
