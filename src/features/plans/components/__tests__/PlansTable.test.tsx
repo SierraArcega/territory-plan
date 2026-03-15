@@ -414,6 +414,7 @@ describe("PlansTable sorting", () => {
     fireEvent.click(th);
     const rows = screen.getAllByRole("row").slice(1, 3);
     expect(rows[0]).toHaveTextContent("Zeta Plan"); // original order
+    expect(rows[1]).toHaveTextContent("Alpha Plan");
   });
 
   it("Description column header has no sort (aria-sort is none)", () => {

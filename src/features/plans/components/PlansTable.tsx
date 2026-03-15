@@ -77,7 +77,7 @@ const planComparators: Record<string, SortComparator<TerritoryPlan>> = {
     const aName = a.owner?.fullName ?? null;
     const bName = b.owner?.fullName ?? null;
     if (!aName && !bName) return 0;
-    if (!aName) return 1;
+    if (!aName) return 1; // null-last is direction-independent by design — nulls always appear at the end
     if (!bName) return -1;
     const r = aName.localeCompare(bName);
     return dir === "desc" ? -r : r;
