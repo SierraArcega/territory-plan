@@ -710,17 +710,21 @@ export default function LayerBubble() {
                     : filteredSelected.length === filteredValues.length
                     ? "true"
                     : "mixed";
-                // When q is active but no results, this produces "Select 0 results" — but the row is hidden
-                // when filtered.length === 0 (see the conditional render below), so this label is never shown.
-                const selectAllLabel = q
+                // Label is binary: any filtered items selected → "Deselect all"; none selected → "Select all N"
+                const anyFilteredSelected = filteredSelected.length > 0;
+                const selectAllLabel = anyFilteredSelected
+                  ? "Deselect all"
+                  : q
                   ? `Select ${filteredValues.length} results`
                   : `Select all ${states.length}`;
 
                 const applySelectAll = () => {
-                  if (selectAllState === "true") {
+                  if (anyFilteredSelected) {
+                    // Deselect all filtered
                     const filteredSet = new Set(filteredValues);
                     setFilterStates(filterStates.filter((s) => !filteredSet.has(s)));
                   } else {
+                    // Select all filtered
                     const existing = new Set(filterStates);
                     setFilterStates([...filterStates, ...filteredValues.filter((v) => !existing.has(v))]);
                   }
