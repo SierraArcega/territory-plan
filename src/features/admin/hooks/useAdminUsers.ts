@@ -5,7 +5,7 @@ export interface AdminUser {
   id: string;
   email: string;
   fullName: string | null;
-  role: "admin" | "user";
+  role: "admin" | "manager" | "rep";
   jobTitle: string | null;
   lastLoginAt: string | null;
   hasCompletedSetup: boolean;

@@ -172,9 +172,13 @@ export default function UsersTab() {
                       <span className="bg-[#403770] text-white px-2 py-0.5 text-xs font-medium rounded-full">
                         Admin
                       </span>
+                    ) : user.role === "manager" ? (
+                      <span className="bg-[#8AA891]/15 text-[#5f665b] px-2 py-0.5 text-xs font-medium rounded-full">
+                        Manager
+                      </span>
                     ) : (
                       <span className="bg-[#6EA3BE]/15 text-[#4d7285] px-2 py-0.5 text-xs font-medium rounded-full">
-                        User
+                        Rep
                       </span>
                     )}
                   </td>

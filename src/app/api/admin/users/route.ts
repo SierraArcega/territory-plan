@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
 
-    if (role === "admin" || role === "user") {
+    if (role === "admin" || role === "manager" || role === "rep") {
       where.role = role;
     }
 

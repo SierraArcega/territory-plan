@@ -12,7 +12,7 @@ interface EditUserModalProps {
 export default function EditUserModal({ user, onClose }: EditUserModalProps) {
   const [fullName, setFullName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
-  const [role, setRole] = useState<"admin" | "user">("user");
+  const [role, setRole] = useState<"admin" | "manager" | "rep">("rep");
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -31,7 +31,7 @@ export default function EditUserModal({ user, onClose }: EditUserModalProps) {
       id: string;
       fullName: string;
       jobTitle: string;
-      role: "admin" | "user";
+      role: "admin" | "manager" | "rep";
     }) => {
       const res = await fetch(`/api/admin/users/${data.id}`, {
         method: "PATCH",
@@ -123,11 +123,12 @@ export default function EditUserModal({ user, onClose }: EditUserModalProps) {
               </label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as "admin" | "user")}
+                onChange={(e) => setRole(e.target.value as "admin" | "manager" | "rep")}
                 className="w-full border border-[#C2BBD4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 bg-white"
               >
                 <option value="admin">Admin</option>
-                <option value="user">User</option>
+                <option value="manager">Manager</option>
+                <option value="rep">Rep</option>
               </select>
             </div>
           </div>

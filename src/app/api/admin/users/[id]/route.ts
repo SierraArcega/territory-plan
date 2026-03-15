@@ -33,8 +33,8 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
 
     if (role !== undefined) {
-      if (role !== "admin" && role !== "user") {
-        return NextResponse.json({ error: "Invalid role. Must be 'admin' or 'user'" }, { status: 400 });
+      if (role !== "admin" && role !== "manager" && role !== "rep") {
+        return NextResponse.json({ error: "Invalid role. Must be 'admin', 'manager', or 'rep'" }, { status: 400 });
       }
       // Prevent removing your own admin role
       if (id === admin.profile.id && role !== "admin") {
