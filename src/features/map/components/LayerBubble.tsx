@@ -791,8 +791,9 @@ export default function LayerBubble() {
                           aria-label={selectAllLabel}
                           tabIndex={-1}
                           onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation(); // prevent document mousedown handler from seeing a detached node after Zustand re-render
+                            e.preventDefault(); // keep focus on search input
+                          }}
+                          onClick={() => {
                             setActiveIndex(0);
                             applySelectAll();
                           }}
