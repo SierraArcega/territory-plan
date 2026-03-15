@@ -181,6 +181,15 @@ export function useLinkActivityDistricts() {
   });
 }
 
+// Fetch unlinked activities (synced but not matched to any district)
+export function useUnlinkedActivities() {
+  return useQuery<{ activities: any[]; count: number }>({
+    queryKey: ["activities", "unlinked"],
+    queryFn: () => fetchJson("/api/activities/unlinked"),
+    staleTime: 2 * 60_000,
+  });
+}
+
 // Unlink district from activity mutation
 export function useUnlinkActivityDistrict() {
   const queryClient = useQueryClient();

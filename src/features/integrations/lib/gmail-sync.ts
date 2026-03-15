@@ -329,10 +329,10 @@ export async function syncGmailMessages(
       // Match emails to contacts in the database
       const contactMatches = await matchEmailToContacts(allEmails);
 
-      // Skip messages with no contact matches — we only create activities for
-      // emails involving known contacts
-      if (contactMatches.length === 0) continue;
-
+      // Always create the Activity — even with zero contact matches.
+      // Unmatched activities land in the unlinked queue for manual triage.
+      // Junction rows (ActivityDistrict / ActivityContact) are only created
+      // when matches exist.
       result.contactMatches += contactMatches.length;
 
       // Parse the message date
