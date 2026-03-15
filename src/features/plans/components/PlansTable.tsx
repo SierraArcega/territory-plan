@@ -11,6 +11,8 @@ import {
   type TerritoryPlan,
 } from "@/lib/api";
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
+import { useSortableTable, type SortComparator } from "@/features/shared/hooks/useSortableTable";
+import { SortHeader } from "@/features/shared/components/SortHeader";
 
 interface PlansTableProps {
   plans: TerritoryPlan[];
@@ -60,6 +62,39 @@ function formatDate(dateString: string | null): string {
   });
 }
 
+// Sort order for plan statuses — used by the custom status comparator
+const PLAN_STATUS_ORDER: Record<string, number> = {
+  planning: 0,
+  working: 1,
+  stale: 2,
+  archived: 3,
+};
+
+// Custom comparators for columns that can't be sorted lexicographically.
+// Defined at module level (not inline) so useMemo's dependency stays stable.
+const planComparators: Record<string, SortComparator<TerritoryPlan>> = {
+  owner: (a, b, dir) => {
+    const aName = a.owner?.fullName ?? null;
+    const bName = b.owner?.fullName ?? null;
+    if (!aName && !bName) return 0;
+    if (!aName) return 1;
+    if (!bName) return -1;
+    const r = aName.localeCompare(bName);
+    return dir === "desc" ? -r : r;
+  },
+  status: (a, b, dir) => {
+    const r = (PLAN_STATUS_ORDER[a.status] ?? 9) - (PLAN_STATUS_ORDER[b.status] ?? 9);
+    return dir === "desc" ? -r : r;
+  },
+  startDate: (a, b, dir) => {
+    if (!a.startDate && !b.startDate) return 0;
+    if (!a.startDate) return 1;
+    if (!b.startDate) return -1;
+    const r = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    return dir === "desc" ? -r : r;
+  },
+};
+
 // Delete confirmation modal
 interface DeleteConfirmModalProps {
   plan: TerritoryPlan;
@@ -108,6 +143,11 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
 
   const updatePlan = useUpdateTerritoryPlan();
   const deletePlan = useDeleteTerritoryPlan();
+
+  const { sorted: sortedPlans, sortState, onSort } = useSortableTable({
+    data: plans,
+    comparators: planComparators,
+  });
 
   // Handle inline field updates
   const handleFieldUpdate = async (
@@ -174,34 +214,58 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
               >
                 {/* Color dot column */}
               </th>
-              <th className="w-[18%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Name
-              </th>
+              <SortHeader
+                field="name"
+                label="Name"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[18%]"
+              />
               <th className="w-[22%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Description
               </th>
-              <th className="w-[12%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Owner
-              </th>
-              <th className="w-[40px] px-1 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                FY
-              </th>
-              <th className="w-[10%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="w-[16%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Dates
-              </th>
-              <th className="w-[44px] px-2 py-2 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                Dist.
-              </th>
+              <SortHeader
+                field="owner"
+                label="Owner"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[12%]"
+              />
+              <SortHeader
+                field="fiscalYear"
+                label="FY"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[40px] px-1 text-center"
+              />
+              <SortHeader
+                field="status"
+                label="Status"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[10%]"
+              />
+              <SortHeader
+                field="startDate"
+                label="Dates"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[16%]"
+              />
+              <SortHeader
+                field="districtCount"
+                label="Dist."
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[44px] text-center"
+              />
               <th className="w-[56px] px-2 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {plans.map((plan) => (
+            {sortedPlans.map((plan) => (
               <tr
                 key={plan.id}
                 className="hover:bg-gray-50 transition-colors"
