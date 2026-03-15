@@ -101,7 +101,7 @@ export default function SuggestionsBanner({ date, activityCount }: SuggestionsBa
                 Nothing urgent right now — check back tomorrow.
               </p>
             ) : (
-              suggestions.map((s, i) => <SuggestionCard key={i} suggestion={s} />)
+              suggestions.map((s) => <SuggestionCard key={s.districtLeaid ?? s.title} suggestion={s} />)
             )}
 
             {/* Feedback button — demand signal for AI-powered recommendations */}

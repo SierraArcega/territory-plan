@@ -21,7 +21,6 @@ interface ActivityFormModalProps {
   onClose: () => void;
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
-  defaultDistrictLeaid?: string;
   defaultActivityType?: ActivityType;
   defaultTitle?: string;
   // Provide initialData to open in edit mode
@@ -35,7 +34,6 @@ export default function ActivityFormModal({
   onClose,
   defaultCategory,
   defaultPlanId,
-  defaultDistrictLeaid,
   defaultActivityType,
   defaultTitle,
   initialData,
