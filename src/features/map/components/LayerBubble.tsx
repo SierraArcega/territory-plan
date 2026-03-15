@@ -792,6 +792,7 @@ export default function LayerBubble() {
                           tabIndex={-1}
                           onMouseDown={(e) => {
                             e.preventDefault();
+                            e.stopPropagation(); // prevent document mousedown handler from seeing a detached node after Zustand re-render
                             setActiveIndex(0);
                             applySelectAll();
                           }}
