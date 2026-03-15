@@ -699,6 +699,29 @@ export default function LayerBubble() {
                         s.abbrev.toLowerCase().includes(q)
                     )
                   : states;
+
+                const filteredValues = filtered.map((s) => s.abbrev);
+                const filteredSelected = filteredValues.filter((abbrev) => filterStates.includes(abbrev));
+                const selectAllState: "true" | "false" | "mixed" =
+                  filteredSelected.length === 0
+                    ? "false"
+                    : filteredSelected.length === filteredValues.length
+                    ? "true"
+                    : "mixed";
+                const selectAllLabel = q
+                  ? `Select ${filteredValues.length} results`
+                  : `Select all ${states.length}`;
+
+                const applySelectAll = () => {
+                  if (selectAllState === "true") {
+                    const filteredSet = new Set(filteredValues);
+                    setFilterStates(filterStates.filter((s) => !filteredSet.has(s)));
+                  } else {
+                    const existing = new Set(filterStates);
+                    setFilterStates([...filterStates, ...filteredValues.filter((v) => !existing.has(v))]);
+                  }
+                };
+
                 return (
                   <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
                     <div className="px-2 pt-2 pb-1 border-b border-gray-100">
@@ -713,33 +736,81 @@ export default function LayerBubble() {
                         onKeyDown={(e) => {
                           if (e.key === "ArrowDown") {
                             e.preventDefault();
-                            setActiveIndex((h) => Math.min(h + 1, filtered.length - 1));
+                            if (filtered.length === 0) return;
+                            setActiveIndex((h) => Math.min(h + 1, filtered.length)); // 0=SelectAll, 1…N=options
                           } else if (e.key === "ArrowUp") {
                             e.preventDefault();
-                            setActiveIndex((h) => Math.max(h - 1, 0));
+                            if (filtered.length === 0) return;
+                            setActiveIndex((h) => (h <= 0 ? 0 : h - 1));
                           } else if (e.key === "Enter") {
                             e.preventDefault();
-                            if (filtered[activeIndex]) {
-                              toggleFilterState(filtered[activeIndex].abbrev);
+                            if (activeIndex === 0) {
+                              applySelectAll();
+                            } else if (activeIndex > 0 && filtered[activeIndex - 1]) {
+                              toggleFilterState(filtered[activeIndex - 1].abbrev);
                             }
                           } else if (e.key === "Escape") {
                             e.preventDefault();
-                            setStateDropdownOpen(false);
+                            if (stateSearch) {
+                              setStateSearch("");
+                              setActiveIndex(-1);
+                            } else {
+                              setStateDropdownOpen(false);
+                            }
                           }
                         }}
                         placeholder="Search states..."
+                        aria-label="Search states"
+                        aria-controls="state-listbox"
+                        aria-activedescendant={
+                          activeIndex === 0
+                            ? "state-select-all"
+                            : activeIndex > 0 && filtered[activeIndex - 1]
+                            ? `state-option-${filtered[activeIndex - 1].abbrev}`
+                            : undefined
+                        }
                         className="w-full text-sm bg-gray-50 border border-gray-200/60 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 placeholder:text-gray-400"
                       />
                     </div>
-                    <div className="max-h-48 overflow-y-auto">
-                      {filterStates.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setFilterStates([])}
-                          className="w-full text-left text-xs text-plum hover:bg-gray-50 px-2.5 py-1.5 border-b border-gray-100"
+                    <div id="state-listbox" className="max-h-48 overflow-y-auto">
+                      {/* Select All row — hidden when search returns 0 results */}
+                      {filtered.length > 0 && (
+                        <div
+                          id="state-select-all"
+                          role="checkbox"
+                          aria-checked={selectAllState}
+                          aria-label={selectAllLabel}
+                          tabIndex={-1}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setActiveIndex(0);
+                            applySelectAll();
+                          }}
+                          className="flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium
+                            text-gray-700 border-b border-gray-100 bg-gray-50/50
+                            hover:bg-gray-50 cursor-pointer select-none"
                         >
-                          Clear selection
-                        </button>
+                          <div
+                            aria-hidden="true"
+                            className={
+                              selectAllState === "false"
+                                ? "w-4 h-4 rounded border border-gray-300 bg-white flex-shrink-0"
+                                : "w-4 h-4 rounded border border-plum bg-plum flex items-center justify-center flex-shrink-0"
+                            }
+                          >
+                            {selectAllState === "mixed" && (
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <rect x="3" y="7.5" width="10" height="1" rx="0.5" fill="white" />
+                              </svg>
+                            )}
+                            {selectAllState === "true" && (
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M3 8L6.5 11.5L13 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </div>
+                          <span>{selectAllLabel}</span>
+                        </div>
                       )}
                       {filtered.length === 0 && (
                         <div className="px-2.5 py-2 text-xs text-gray-400 italic">
@@ -749,6 +820,7 @@ export default function LayerBubble() {
                       {filtered.map((s, i) => (
                         <label
                           key={s.abbrev}
+                          id={`state-option-${s.abbrev}`}
                           ref={(el) => {
                             if (i === activeIndex - 1 && el) {
                               el.scrollIntoView({ block: "nearest" });
