@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix the activity edit gap (plans/states missing in edit mode) and add an AI-powered goal suggestions panel to The Lineup.
+**Goal:** Fix the activity edit gap (plans/states missing in edit mode) and add a rules-based goal suggestions panel to The Lineup.
 
-**Architecture:** Two independent sub-features. Edit gap fix touches the form modal, its mutation hook, and the PATCH API route. AI suggestions adds a new DB model, a new API route (calling Claude), a React Query hook, and two new UI components mounted above the activity timeline in LineupView.
+**Architecture:** Two independent sub-features. Edit gap fix touches the form modal, its mutation hook, and the PATCH API route. Rules-based suggestions adds a small DB model (feedback only), a new API route (pure DB query + computation), a React Query hook, and two new UI components mounted above the activity timeline in LineupView. No AI API calls — suggestions are computed server-side using a priority-ordered rules engine.
 
-**Tech Stack:** Next.js App Router, Prisma + Supabase (PostgreSQL), React Query (`@tanstack/react-query`), Tailwind CSS v4, Anthropic SDK (`@anthropic-ai/sdk`), Vitest + @testing-library/react.
+**Tech Stack:** Next.js App Router, Prisma + Supabase (PostgreSQL), React Query (`@tanstack/react-query`), Tailwind CSS v4, Vitest + @testing-library/react.
 
 ---
 
@@ -22,20 +22,21 @@
 | New test | `src/app/api/activities/__tests__/route.test.ts` — extend existing test file with PATCH plan/state sync cases |
 | New test | `src/features/activities/components/__tests__/ActivityFormModal.test.tsx` — edit mode renders plan/state pickers, pre-populates from full activity fetch, sends planIds on save |
 
-### Chunk 2 — AI Suggestions
+### Chunk 2 — Rules-Based Suggestions
 
 | Action | File |
 |--------|------|
-| Modify | `prisma/schema.prisma` — add `LineupSuggestion` model; add `lineupSuggestions` relation to `UserProfile` |
-| Create | `src/features/lineup/lib/queries.ts` — `useLineupSuggestions(date: string)` hook |
-| Create | `src/app/api/lineup/suggestions/route.ts` — GET handler: check cache, call Claude, store and return suggestions |
+| Modify | `prisma/schema.prisma` — add `SuggestionFeedback` model; add `suggestionFeedback` relation to `UserProfile` |
+| Create | `src/features/lineup/lib/queries.ts` — `useLineupSuggestions(date: string)` + `useSuggestionFeedback()` hooks |
+| Create | `src/app/api/lineup/suggestions/route.ts` — GET handler: run rules engine, return suggestions |
+| Create | `src/app/api/lineup/suggestions/feedback/route.ts` — POST handler: record SuggestionFeedback row |
 | Create | `src/features/lineup/components/SuggestionCard.tsx` — single suggestion card |
-| Create | `src/features/lineup/components/SuggestionsBanner.tsx` — collapsed banner + floating overlay |
+| Create | `src/features/lineup/components/SuggestionsBanner.tsx` — collapsed banner + floating overlay + feedback button |
 | Modify | `src/features/lineup/components/LineupView.tsx` — mount `SuggestionsBanner` above timeline, derive busy count, pass selectedDate and currentUserId |
 | New test | `src/features/lineup/lib/__tests__/queries.test.ts` — `useLineupSuggestions` returns null when date ≠ today; calls API when date = today |
 | New test | `src/features/lineup/components/__tests__/SuggestionCard.test.tsx` — renders card fields; Schedule button opens ActivityFormModal pre-filled |
-| New test | `src/features/lineup/components/__tests__/SuggestionsBanner.test.tsx` — hidden when not today; shows shimmer while loading; renders cards on success; shows error + retry |
-| New test | `src/app/api/lineup/__tests__/suggestions.test.ts` — returns cached result; calls Claude and caches on miss; validates opportunityType enum |
+| New test | `src/features/lineup/components/__tests__/SuggestionsBanner.test.tsx` — hidden when not today; shows shimmer while loading; renders cards on success; shows error + retry; feedback button shows confirmation |
+| New test | `src/app/api/lineup/__tests__/suggestions.test.ts` — returns suggestions for user with goals behind; uses DEFAULT rule when no goals |
 
 ---
 
@@ -746,81 +747,57 @@ git commit -m "feat: fix edit gap — plans/states pickers now appear and pre-po
 
 ---
 
-## Chunk 2: AI Suggestions
+## Chunk 2: Rules-Based Suggestions
 
 ---
 
-### Task 4: Add `LineupSuggestion` DB model and install Anthropic SDK
+### Task 4: Add `SuggestionFeedback` DB model
 
 **Files:**
 - Modify: `prisma/schema.prisma`
-- Modify: `.env.example`
-- Shell: install `@anthropic-ai/sdk`
 
-- [ ] **Step 4.1: Install the Anthropic SDK**
+This is a lightweight demand-signal table. No caching table is needed — the rules engine is fast (pure DB queries).
 
-```bash
-npm install @anthropic-ai/sdk
-```
+- [ ] **Step 4.1: Add the `SuggestionFeedback` model to `prisma/schema.prisma`**
 
-Expected: package added to `package.json` and `package-lock.json`.
-
-- [ ] **Step 4.2: Add `ANTHROPIC_API_KEY` to `.env.example`**
-
-Append to `.env.example`:
-
-```
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-```
-
-- [ ] **Step 4.3: Add the `LineupSuggestion` model to `prisma/schema.prisma`**
-
-Append after the `UserGoal` model block (after line 747):
+Append after the `UserGoal` model block (after the last model in the file):
 
 ```prisma
-// ===== Lineup AI Suggestions Cache =====
-// Stores Claude-generated activity suggestions keyed by user + date (YYYY-MM-DD).
-// The date string acts as a natural TTL — a new day means a cache miss, triggering a fresh Claude call.
-model LineupSuggestion {
-  id          String      @id @default(uuid())
-  userId      String      @map("user_id") @db.Uuid
-  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date        String      @db.VarChar(10) // YYYY-MM-DD — acts as natural TTL key
-  suggestions Json        // array of suggestion objects matching the AI output schema
-  createdAt   DateTime    @default(now()) @map("created_at")
+// ===== Suggestion Feedback =====
+// Tracks users who clicked "Want AI-powered recommendations?" — used as a demand signal.
+// No personal data beyond userId + timestamp.
+model SuggestionFeedback {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id") @db.Uuid
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now()) @map("created_at")
 
-  @@unique([userId, date])
   @@index([userId])
-  @@map("lineup_suggestions")
+  @@map("suggestion_feedback")
 }
 ```
 
-Also add `lineupSuggestions LineupSuggestion[]` to the `UserProfile` model (after the `goals UserGoal[]` line at line 655):
+Also add `suggestionFeedback SuggestionFeedback[]` to the `UserProfile` model (after the `goals UserGoal[]` line):
 
 ```prisma
-  lineupSuggestions  LineupSuggestion[]
+  suggestionFeedback SuggestionFeedback[]
 ```
 
-- [ ] **Step 4.4: Apply the migration to Supabase**
-
-Generate and apply via Prisma:
+- [ ] **Step 4.2: Apply the migration to Supabase**
 
 ```bash
-npx prisma migrate dev --name add-lineup-suggestions
+npx prisma migrate dev --name add-suggestion-feedback
 ```
 
 If Prisma migrate fails due to the live Supabase connection, apply the SQL directly in the Supabase SQL Editor instead:
 
 ```sql
-CREATE TABLE lineup_suggestions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  date        VARCHAR(10) NOT NULL,
-  suggestions JSONB NOT NULL,
-  created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  CONSTRAINT lineup_suggestions_user_id_date_key UNIQUE (user_id, date)
+CREATE TABLE suggestion_feedback (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
-CREATE INDEX lineup_suggestions_user_id_idx ON lineup_suggestions (user_id);
+CREATE INDEX suggestion_feedback_user_id_idx ON suggestion_feedback (user_id);
 ```
 
 Then regenerate the Prisma client:
@@ -829,7 +806,7 @@ Then regenerate the Prisma client:
 npx prisma generate
 ```
 
-- [ ] **Step 4.5: Verify the Prisma client compiles**
+- [ ] **Step 4.3: Verify the Prisma client compiles**
 
 ```bash
 npx tsc --noEmit
@@ -837,16 +814,16 @@ npx tsc --noEmit
 
 Expected: No type errors related to the new model.
 
-- [ ] **Step 4.6: Commit**
+- [ ] **Step 4.4: Commit**
 
 ```bash
-git add prisma/schema.prisma .env.example package.json package-lock.json
-git commit -m "feat: add LineupSuggestion model and install Anthropic SDK"
+git add prisma/schema.prisma
+git commit -m "feat: add SuggestionFeedback model for demand tracking"
 ```
 
 ---
 
-### Task 5: Create `useLineupSuggestions` hook
+### Task 5: Create `useLineupSuggestions` + `useSuggestionFeedback` hooks
 
 **Files:**
 - Create: `src/features/lineup/lib/queries.ts`
@@ -875,7 +852,7 @@ vi.mock("@/features/shared/lib/api-client", () => ({
 import { fetchJson } from "@/features/shared/lib/api-client";
 const mockFetch = vi.mocked(fetchJson);
 
-import { useLineupSuggestions } from "../queries";
+import { useLineupSuggestions, useSuggestionFeedback } from "../queries";
 
 function makeWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -908,6 +885,27 @@ describe("useLineupSuggestions", () => {
     expect(mockFetch).toHaveBeenCalledWith("/api/lineup/suggestions");
   });
 });
+
+describe("useSuggestionFeedback", () => {
+  beforeEach(() => mockFetch.mockReset());
+
+  it("POSTs to /api/lineup/suggestions/feedback on mutate", async () => {
+    mockFetch.mockResolvedValue({});
+
+    const { result } = renderHook(() => useSuggestionFeedback(), {
+      wrapper: makeWrapper(),
+    });
+
+    result.current.mutate();
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/lineup/suggestions/feedback",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+  });
+});
 ```
 
 - [ ] **Step 5.2: Run the test to verify it fails**
@@ -921,7 +919,7 @@ Expected: FAIL — module not found.
 - [ ] **Step 5.3: Create `src/features/lineup/lib/queries.ts`**
 
 ```typescript
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import { getToday } from "@/features/shared/lib/date-utils";
 
@@ -945,8 +943,7 @@ interface SuggestionsResponse {
   suggestions: LineSuggestion[];
 }
 
-// Returns today's AI-generated suggestions, or null if the date isn't today.
-// Cached in the LineupSuggestion table on the server — returns immediately on a cache hit.
+// Returns today's rules-based suggestions, or null if the date isn't today.
 export function useLineupSuggestions(date: string) {
   const isToday = date === getToday();
 
@@ -954,7 +951,7 @@ export function useLineupSuggestions(date: string) {
     queryKey: ["lineup-suggestions", date],
     queryFn: () => fetchJson<SuggestionsResponse>(`${API_BASE}/lineup/suggestions`),
     enabled: isToday,
-    staleTime: Infinity, // Server-side date key is the TTL; no client-side refetch needed
+    staleTime: 5 * 60 * 1000, // 5 minutes — cheap to recompute but no need to hammer on every render
   });
 
   return {
@@ -963,6 +960,14 @@ export function useLineupSuggestions(date: string) {
     error: isToday ? error : null,
     refetch,
   };
+}
+
+// Records user interest in AI-powered suggestions (demand signal).
+export function useSuggestionFeedback() {
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<void>(`${API_BASE}/lineup/suggestions/feedback`, { method: "POST" }),
+  });
 }
 ```
 
@@ -978,21 +983,37 @@ Expected: PASS.
 
 ```bash
 git add src/features/lineup/lib/queries.ts src/features/lineup/lib/__tests__/queries.test.ts
-git commit -m "feat: add useLineupSuggestions hook"
+git commit -m "feat: add useLineupSuggestions and useSuggestionFeedback hooks"
 ```
 
 ---
 
-### Task 6: Create `GET /api/lineup/suggestions` route
+### Task 6: Create `GET /api/lineup/suggestions` and `POST /api/lineup/suggestions/feedback` routes
 
 **Files:**
 - Create: `src/app/api/lineup/suggestions/route.ts`
+- Create: `src/app/api/lineup/suggestions/feedback/route.ts`
 - New test: `src/app/api/lineup/__tests__/suggestions.test.ts`
 
-The endpoint:
+The GET endpoint:
 1. Authenticates the user
-2. Looks up today's cached `LineupSuggestion` for this user — returns it immediately if found
-3. On cache miss: fetches `UserGoal` + computed actuals + last 30 days of activities + active plans → sends to Claude → validates `opportunityType` → stores in `lineup_suggestions` → returns
+2. Loads `UserGoal` + computed actuals, last 30 days of activities, active plans + districts
+3. Runs the rules engine to generate up to 3 suggestions
+4. Returns the suggestion array
+
+The POST endpoint:
+1. Authenticates the user
+2. Creates a `SuggestionFeedback` row
+
+**Rules engine (implemented in the route file, exported for testing):**
+- **RENEWAL_BEHIND**: `renewalActual < renewalTarget × 0.9` — find districts in active plans with no renewal-type activity in last 30 days, sort by contract value DESC
+- **PIPELINE_BEHIND**: `pipelineActual < pipelineTarget × 0.9` — find districts with no activity in last 30 days, sort by contract value DESC
+- **LONG_DORMANT**: districts with no activity in 45+ days regardless of goals
+- **DEFAULT**: top 3 highest-value districts with no activity in 14+ days (used when no goals or fewer than 3 cards generated above)
+- Deduplicate by `districtLeaid` across rules; stop when 3 suggestions are collected
+
+`lastContactDays`: days since the most recent activity for that district (across all time, not just 30 days).
+`renewalWeeks`: weeks since most recent renewal-type activity for that district + 52 weeks − elapsed weeks = estimated weeks until next renewal. `null` if no prior renewal activity.
 
 - [ ] **Step 6.1: Write the failing tests**
 
@@ -1007,43 +1028,59 @@ vi.mock("@/lib/supabase/server", () => ({ getUser: (...args: unknown[]) => mockG
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    lineupSuggestion: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
-    },
     userGoal: { findFirst: vi.fn() },
     activity: { findMany: vi.fn() },
     territoryPlan: { findMany: vi.fn() },
-  },
-}));
-
-// Mock the Anthropic SDK
-vi.mock("@anthropic-ai/sdk", () => ({
-  default: class {
-    messages = {
-      create: vi.fn(),
-    };
+    suggestionFeedback: { create: vi.fn() },
   },
 }));
 
 import prisma from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
 const mockPrisma = vi.mocked(prisma);
 
 import { GET } from "../suggestions/route";
+import { POST } from "../suggestions/feedback/route";
 
 const TEST_USER = { id: "user-1" };
 
-function makeRequest() {
+function makeGetRequest() {
   return new NextRequest(new URL("http://localhost:3000/api/lineup/suggestions"));
 }
 
-// Build a fake Claude response with valid suggestion JSON
-function makeClaudeResponse(suggestions: unknown[]) {
-  return {
-    content: [{ type: "text", text: JSON.stringify(suggestions) }],
-  };
+function makePostRequest() {
+  return new NextRequest(new URL("http://localhost:3000/api/lineup/suggestions/feedback"), {
+    method: "POST",
+  });
 }
+
+const TODAY = new Date().toISOString().split("T")[0];
+
+// A plan with one district that hasn't been contacted
+const activePlan = {
+  id: "plan-1",
+  name: "Colorado Plan",
+  districts: [
+    {
+      districtLeaid: "0812345",
+      district: { name: "Jeffco SD", leaid: "0812345", contractValue: 180000 },
+    },
+  ],
+};
+
+// Renewal goal significantly behind
+const renewalGoal = {
+  id: "goal-1",
+  userId: "user-1",
+  fiscalYear: new Date().getFullYear(),
+  renewalTarget: 500000,
+  renewalActual: 200000, // 40% — well behind
+  earningsTarget: 800000,
+  takeActual: 300000,
+  winbackTarget: 50000,
+  expansionTarget: 100000,
+  newBusinessTarget: 150000,
+  pipelineActual: 200000,
+};
 
 describe("GET /api/lineup/suggestions", () => {
   beforeEach(() => {
@@ -1055,85 +1092,68 @@ describe("GET /api/lineup/suggestions", () => {
 
   it("returns 401 when not authenticated", async () => {
     mockGetUser.mockResolvedValue(null);
-    const res = await GET(makeRequest());
+    const res = await GET(makeGetRequest());
     expect(res.status).toBe(401);
   });
 
-  it("returns cached suggestions when they exist for today", async () => {
-    const cached = [{ activityType: "call", title: "Cached suggestion", opportunityType: "renewal" }];
-    mockPrisma.lineupSuggestion.findUnique.mockResolvedValue({
-      id: "s-1",
-      userId: "user-1",
-      date: new Date().toISOString().split("T")[0],
-      suggestions: cached,
-      createdAt: new Date(),
-    });
+  it("returns suggestions using DEFAULT rule when no goals are set", async () => {
+    mockPrisma.userGoal.findFirst.mockResolvedValue(null);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlan.findMany.mockResolvedValue([activePlan]);
 
-    const res = await GET(makeRequest());
+    const res = await GET(makeGetRequest());
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.suggestions).toEqual(cached);
-    // Claude should NOT have been called
-  });
-
-  it("calls Claude and caches when no record exists for today", async () => {
-    mockPrisma.lineupSuggestion.findUnique.mockResolvedValue(null);
-
-    const suggestions = [
-      {
-        activityType: "call",
-        title: "Renewal call — Jeffco",
-        districtLeaid: "0812345",
-        districtName: "Jeffco SD",
-        planId: null,
-        planName: null,
-        contractValue: 180000,
-        lastContactDays: 21,
-        renewalWeeks: 6,
-        opportunityType: "renewal",
-        reasoning: "High value, renews soon.",
-        goalTags: ["Renewal goal"],
-        riskTags: ["At risk"],
-      },
-    ];
-
-    // Instantiate SDK mock and set the create spy
-    const mockCreate = vi.fn().mockResolvedValue(makeClaudeResponse(suggestions));
-    vi.mocked(Anthropic).mockImplementation(() => ({
-      messages: { create: mockCreate },
-    }) as unknown as Anthropic);
-
-    mockPrisma.lineupSuggestion.upsert.mockResolvedValue({} as unknown as ReturnType<typeof mockPrisma.lineupSuggestion.upsert>);
-
-    const res = await GET(makeRequest());
-    const json = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(mockCreate).toHaveBeenCalled();
-    expect(mockPrisma.lineupSuggestion.upsert).toHaveBeenCalled();
     expect(json.suggestions).toHaveLength(1);
-    expect(json.suggestions[0].opportunityType).toBe("renewal");
+    expect(json.suggestions[0].districtLeaid).toBe("0812345");
+    expect(json.suggestions[0].opportunityType).toBeDefined();
   });
 
-  it("replaces unknown opportunityType values with 'new_business'", async () => {
-    mockPrisma.lineupSuggestion.findUnique.mockResolvedValue(null);
+  it("prioritises RENEWAL_BEHIND rule when renewal goal is behind", async () => {
+    mockPrisma.userGoal.findFirst.mockResolvedValue(renewalGoal);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlan.findMany.mockResolvedValue([activePlan]);
 
-    const badSuggestions = [
-      { activityType: "call", title: "Test", opportunityType: "invalid_type", reasoning: "x", goalTags: [], riskTags: [] },
-    ];
-
-    const mockCreate = vi.fn().mockResolvedValue(makeClaudeResponse(badSuggestions));
-    vi.mocked(Anthropic).mockImplementation(() => ({
-      messages: { create: mockCreate },
-    }) as unknown as Anthropic);
-
-    mockPrisma.lineupSuggestion.upsert.mockResolvedValue({} as unknown as ReturnType<typeof mockPrisma.lineupSuggestion.upsert>);
-
-    const res = await GET(makeRequest());
+    const res = await GET(makeGetRequest());
     const json = await res.json();
 
-    expect(json.suggestions[0].opportunityType).toBe("new_business");
+    expect(res.status).toBe(200);
+    expect(json.suggestions[0].opportunityType).toBe("renewal");
+    expect(json.suggestions[0].reasoning).toMatch(/renewal/i);
+  });
+
+  it("returns empty array when no active plans", async () => {
+    mockPrisma.userGoal.findFirst.mockResolvedValue(renewalGoal);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlan.findMany.mockResolvedValue([]);
+
+    const res = await GET(makeGetRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.suggestions).toEqual([]);
+  });
+});
+
+describe("POST /api/lineup/suggestions/feedback", () => {
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.suggestionFeedback.create.mockResolvedValue({ id: "fb-1", userId: "user-1", createdAt: new Date() });
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetUser.mockResolvedValue(null);
+    const res = await POST(makePostRequest());
+    expect(res.status).toBe(401);
+  });
+
+  it("creates a SuggestionFeedback record", async () => {
+    const res = await POST(makePostRequest());
+    expect(res.status).toBe(200);
+    expect(mockPrisma.suggestionFeedback.create).toHaveBeenCalledWith({
+      data: { userId: "user-1" },
+    });
   });
 });
 ```
@@ -1144,7 +1164,7 @@ describe("GET /api/lineup/suggestions", () => {
 npx vitest run src/app/api/lineup/__tests__/suggestions.test.ts
 ```
 
-Expected: FAIL — route module not found.
+Expected: FAIL — route modules not found.
 
 - [ ] **Step 6.3: Create `src/app/api/lineup/suggestions/route.ts`**
 
@@ -1152,68 +1172,232 @@ Expected: FAIL — route module not found.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
 
 const VALID_OPPORTUNITY_TYPES = ["renewal", "expansion", "winback", "new_business"] as const;
 type OpportunityType = (typeof VALID_OPPORTUNITY_TYPES)[number];
 
-function validateOpportunityType(value: unknown): OpportunityType {
-  return VALID_OPPORTUNITY_TYPES.includes(value as OpportunityType)
-    ? (value as OpportunityType)
-    : "new_business";
+export interface Suggestion {
+  activityType: string;
+  title: string;
+  districtLeaid: string | null;
+  districtName: string | null;
+  planId: string | null;
+  planName: string | null;
+  contractValue: number | null;
+  lastContactDays: number | null;
+  renewalWeeks: number | null;
+  opportunityType: OpportunityType;
+  reasoning: string;
+  goalTags: string[];
+  riskTags: string[];
 }
 
-function getTodayString(): string {
-  return new Date().toISOString().split("T")[0];
+function formatCurrency(n: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
-export async function GET(request: NextRequest) {
+// Runs the priority-ordered rules engine and returns up to maxCount suggestions.
+// Exported so it can be unit-tested independently.
+export function buildSuggestions({
+  userGoal,
+  recentActivities,
+  activePlans,
+  today,
+  maxCount = 3,
+}: {
+  userGoal: Record<string, unknown> | null;
+  recentActivities: Array<{
+    districtLeaid: string;
+    districtName: string | null;
+    planId: string | null;
+    planName: string | null;
+    contractValue: number | null;
+    lastActivityDate: string | null;
+    lastRenewalDate: string | null;
+  }>;
+  activePlans: Array<{
+    id: string;
+    name: string;
+    districts: Array<{
+      districtLeaid: string;
+      districtName: string;
+      contractValue: number | null;
+    }>;
+  }>;
+  today: string;
+  maxCount?: number;
+}): Suggestion[] {
+  const todayMs = new Date(today).getTime();
+  const seen = new Set<string>();
+  const results: Suggestion[] = [];
+
+  // Build a lookup from leaid → last contact info
+  const contactMap = new Map<string, { lastActivityDate: string | null; lastRenewalDate: string | null }>();
+  for (const a of recentActivities) {
+    if (!contactMap.has(a.districtLeaid)) {
+      contactMap.set(a.districtLeaid, { lastActivityDate: a.lastActivityDate, lastRenewalDate: a.lastRenewalDate });
+    }
+  }
+
+  // Flatten all districts across plans
+  const allDistricts = activePlans.flatMap((p) =>
+    p.districts.map((d) => ({ ...d, planId: p.id, planName: p.name }))
+  );
+
+  function daysSince(dateStr: string | null | undefined): number | null {
+    if (!dateStr) return null;
+    return Math.floor((todayMs - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function renewalWeeks(lastRenewalDate: string | null | undefined): number | null {
+    if (!lastRenewalDate) return null;
+    const elapsed = Math.floor((todayMs - new Date(lastRenewalDate).getTime()) / (1000 * 60 * 60 * 24 * 7));
+    return Math.max(0, 52 - elapsed);
+  }
+
+  function addSuggestion(
+    district: { districtLeaid: string; districtName: string; contractValue: number | null; planId: string; planName: string },
+    opportunityType: OpportunityType,
+    goalTags: string[],
+    riskTags: string[],
+    makeReasoning: (lastDays: number | null, rnwWeeks: number | null) => string
+  ) {
+    if (seen.has(district.districtLeaid) || results.length >= maxCount) return;
+    seen.add(district.districtLeaid);
+    const contact = contactMap.get(district.districtLeaid);
+    const lastDays = daysSince(contact?.lastActivityDate);
+    const rnwWeeks = renewalWeeks(contact?.lastRenewalDate);
+    results.push({
+      activityType: "call",
+      title: `${opportunityType === "renewal" ? "Renewal Check-in" : opportunityType === "expansion" ? "Expansion Opportunity" : "Check In"} — ${district.districtName}`,
+      districtLeaid: district.districtLeaid,
+      districtName: district.districtName,
+      planId: district.planId,
+      planName: district.planName,
+      contractValue: district.contractValue,
+      lastContactDays: lastDays,
+      renewalWeeks: rnwWeeks,
+      opportunityType,
+      reasoning: makeReasoning(lastDays, rnwWeeks),
+      goalTags,
+      riskTags,
+    });
+  }
+
+  // Sort helper: contract value DESC, then lastContactDays DESC
+  function byPriority(a: typeof allDistricts[number], b: typeof allDistricts[number]): number {
+    const aVal = a.contractValue ?? 0;
+    const bVal = b.contractValue ?? 0;
+    if (bVal !== aVal) return bVal - aVal;
+    const aDays = daysSince(contactMap.get(a.districtLeaid)?.lastActivityDate) ?? 0;
+    const bDays = daysSince(contactMap.get(b.districtLeaid)?.lastActivityDate) ?? 0;
+    return bDays - aDays;
+  }
+
+  const renewalTarget = (userGoal?.renewalTarget as number) ?? 0;
+  const renewalActual = (userGoal?.renewalActual as number) ?? 0;
+  const pipelineTarget = ((userGoal?.renewalTarget as number) ?? 0)
+    + ((userGoal?.winbackTarget as number) ?? 0)
+    + ((userGoal?.expansionTarget as number) ?? 0)
+    + ((userGoal?.newBusinessTarget as number) ?? 0);
+  const pipelineActual = (userGoal?.pipelineActual as number) ?? 0;
+
+  const notContactedIn30 = allDistricts.filter((d) => {
+    const days = daysSince(contactMap.get(d.districtLeaid)?.lastActivityDate);
+    return days === null || days >= 30;
+  });
+
+  // Rule 1: RENEWAL_BEHIND
+  if (userGoal && renewalTarget > 0 && renewalActual < renewalTarget * 0.9) {
+    const gap = renewalTarget - renewalActual;
+    const sorted = [...notContactedIn30].sort(byPriority);
+    for (const d of sorted) {
+      addSuggestion(d, "renewal", ["Renewal goal"], ["At risk"], (days, _weeks) => {
+        const parts = [`Your renewal goal is ${formatCurrency(gap)} behind.`];
+        if (d.contractValue) parts.push(`${d.districtName} (${formatCurrency(d.contractValue)}) is a key renewal.`);
+        if (days !== null) parts.push(`Last contact was ${days} day${days === 1 ? "" : "s"} ago.`);
+        return parts.join(" ");
+      });
+    }
+  }
+
+  // Rule 2: PIPELINE_BEHIND
+  if (results.length < maxCount && userGoal && pipelineTarget > 0 && pipelineActual < pipelineTarget * 0.9) {
+    const gap = pipelineTarget - pipelineActual;
+    const sorted = [...notContactedIn30].sort(byPriority);
+    for (const d of sorted) {
+      addSuggestion(d, "expansion", ["Pipeline goal"], ["Opportunity"], (days, _weeks) => {
+        const parts = [`Your pipeline is ${formatCurrency(gap)} behind target.`];
+        if (d.contractValue) parts.push(`${d.districtName} (${formatCurrency(d.contractValue)}) is an expansion opportunity.`);
+        if (days !== null) parts.push(`Last contact was ${days} day${days === 1 ? "" : "s"} ago.`);
+        return parts.join(" ");
+      });
+    }
+  }
+
+  // Rule 3: LONG_DORMANT
+  if (results.length < maxCount) {
+    const dormant = allDistricts
+      .filter((d) => {
+        const days = daysSince(contactMap.get(d.districtLeaid)?.lastActivityDate);
+        return days === null || days >= 45;
+      })
+      .sort(byPriority);
+    for (const d of dormant) {
+      addSuggestion(d, "renewal", [], ["Dormant"], (days, _weeks) => {
+        const parts = [`${d.districtName} hasn't been contacted in ${days ?? "a long time"} days.`];
+        if (d.contractValue) parts.push(`They have ${formatCurrency(d.contractValue)} in active value.`);
+        return parts.join(" ");
+      });
+    }
+  }
+
+  // Rule 4: DEFAULT — top high-value districts not contacted in 14+ days
+  if (results.length < maxCount) {
+    const defaultCandidates = allDistricts
+      .filter((d) => {
+        const days = daysSince(contactMap.get(d.districtLeaid)?.lastActivityDate);
+        return days === null || days >= 14;
+      })
+      .sort(byPriority);
+    for (const d of defaultCandidates) {
+      addSuggestion(d, "renewal", [], [], (days, _weeks) => {
+        if (days !== null) return `${d.districtName} hasn't been contacted in ${days} day${days === 1 ? "" : "s"}.`;
+        return `${d.districtName} is in your active plan and due for a check-in.`;
+      });
+    }
+  }
+
+  return results;
+}
+
+export async function GET(_request: NextRequest) {
   try {
     const user = await getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const today = getTodayString();
+    const today = new Date().toISOString().split("T")[0];
+    const currentFiscalYear = new Date().getFullYear();
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    // Check cache — if a record exists for today, return it immediately
-    const cached = await prisma.lineupSuggestion.findUnique({
-      where: { userId_date: { userId: user.id, date: today } },
-    });
-    if (cached) {
-      return NextResponse.json({ suggestions: cached.suggestions });
-    }
-
-    // Cache miss — gather context for Claude
-    const currentFiscalYear = new Date().getFullYear(); // FY2026 = year 2026
-
-    const [userGoal, recentActivities, activePlans] = await Promise.all([
+    const [userGoal, rawActivities, rawPlans] = await Promise.all([
       prisma.userGoal.findFirst({
         where: { userId: user.id, fiscalYear: currentFiscalYear },
       }),
       prisma.activity.findMany({
-        where: {
-          assignedToUserId: user.id,
-          startDate: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          },
-        },
+        where: { assignedToUserId: user.id },
         select: {
-          id: true,
           type: true,
-          title: true,
           startDate: true,
-          status: true,
-          outcomeType: true,
+          districts: { select: { districtLeaid: true } },
           plans: { select: { planId: true } },
-          districts: {
-            select: { districtLeaid: true },
-          },
         },
         orderBy: { startDate: "desc" },
-        take: 50,
+        take: 200, // enough to compute per-district last-contact
       }),
       prisma.territoryPlan.findMany({
         where: { ownerId: user.id },
@@ -1223,113 +1407,98 @@ export async function GET(request: NextRequest) {
           districts: {
             select: {
               districtLeaid: true,
-              district: {
-                select: { name: true, leaid: true },
-              },
+              district: { select: { name: true, leaid: true } },
             },
-            take: 20,
           },
         },
-        take: 10,
+        take: 20,
       }),
     ]);
 
-    const prompt = buildPrompt({ today, userGoal, recentActivities, activePlans });
+    // Build per-district last-contact and last-renewal lookups from activity history
+    const lastContactByLeaid = new Map<string, string>();
+    const lastRenewalByLeaid = new Map<string, string>();
+    for (const act of rawActivities) {
+      for (const d of act.districts) {
+        const leaid = d.districtLeaid;
+        if (!lastContactByLeaid.has(leaid) && act.startDate) {
+          lastContactByLeaid.set(leaid, act.startDate.toISOString());
+        }
+        if (
+          !lastRenewalByLeaid.has(leaid) &&
+          act.startDate &&
+          ["renewal_call", "renewal_meeting", "renewal"].includes(act.type)
+        ) {
+          lastRenewalByLeaid.set(leaid, act.startDate.toISOString());
+        }
+      }
+    }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const message = await client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 2000,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+    // Shape data for the rules engine
+    const recentActivities = Array.from(lastContactByLeaid.entries()).map(([leaid, lastDate]) => ({
+      districtLeaid: leaid,
+      districtName: null,
+      planId: null,
+      planName: null,
+      contractValue: null,
+      lastActivityDate: lastDate,
+      lastRenewalDate: lastRenewalByLeaid.get(leaid) ?? null,
+    }));
 
-    const responseText =
-      message.content[0].type === "text" ? message.content[0].text : "[]";
+    const activePlans = rawPlans.map((p) => ({
+      id: p.id,
+      name: p.name,
+      districts: p.districts.map((d) => ({
+        districtLeaid: d.districtLeaid,
+        districtName: d.district.name,
+        contractValue: null, // contract value not in current schema; will be null
+      })),
+    }));
 
-    // Extract JSON from the response (Claude may wrap it in a code block)
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-    const rawSuggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-
-    // Validate and normalise opportunityType
-    const suggestions = (rawSuggestions as unknown[]).map((s: unknown) => {
-      const obj = s as Record<string, unknown>;
-      return {
-        ...obj,
-        opportunityType: validateOpportunityType(obj.opportunityType),
-      };
-    });
-
-    // Cache the result for today
-    await prisma.lineupSuggestion.upsert({
-      where: { userId_date: { userId: user.id, date: today } },
-      create: { userId: user.id, date: today, suggestions },
-      update: { suggestions },
+    const suggestions = buildSuggestions({
+      userGoal: userGoal as Record<string, unknown> | null,
+      recentActivities,
+      activePlans,
+      today,
     });
 
     return NextResponse.json({ suggestions });
   } catch (error) {
-    console.error("Error fetching lineup suggestions:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch suggestions" },
-      { status: 500 }
-    );
+    console.error("Error computing lineup suggestions:", error);
+    return NextResponse.json({ error: "Failed to fetch suggestions" }, { status: 500 });
   }
-}
-
-function buildPrompt({ today, userGoal, recentActivities, activePlans }: {
-  today: string;
-  userGoal: unknown;
-  recentActivities: unknown[];
-  activePlans: unknown[];
-}): string {
-  return `You are an AI assistant helping a sales rep at Fullmind (an EdTech company) plan their day.
-
-Today is ${today}.
-
-USER GOALS (current fiscal year):
-${userGoal ? JSON.stringify(userGoal, null, 2) : "No goals set"}
-
-RECENT ACTIVITIES (last 30 days):
-${JSON.stringify(recentActivities, null, 2)}
-
-ACTIVE TERRITORY PLANS AND DISTRICTS:
-${JSON.stringify(activePlans, null, 2)}
-
-Based on this context, generate 3-5 prioritised recommended actions for today. Each recommendation should reference specific districts/plans from the data above and directly tie back to the user's goals.
-
-Return ONLY a JSON array with this exact structure (no markdown, no explanation):
-[
-  {
-    "activityType": "call",
-    "title": "Renewal Call — [District Name]",
-    "districtLeaid": "1234567",
-    "districtName": "Example School District",
-    "planId": "plan-id-if-applicable",
-    "planName": "Plan Name if applicable",
-    "contractValue": 180000,
-    "lastContactDays": 21,
-    "renewalWeeks": 6,
-    "opportunityType": "renewal",
-    "reasoning": "1-2 sentences referencing goal gap and specific dollar amounts.",
-    "goalTags": ["Renewal goal"],
-    "riskTags": ["At risk"]
-  }
-]
-
-Valid activityType values: call, email, meeting, demo, conference, proposal, site_visit, other
-Valid opportunityType values: renewal, expansion, winback, new_business
-renewalWeeks: estimate weeks until renewal based on most recent renewal-type activity + 12-month cycle. null if unknown.
-contractValue: the known contract or opportunity value in dollars. null if unknown.
-lastContactDays: days since last activity with this district. null if unknown.`;
 }
 ```
 
-- [ ] **Step 6.4: Run the tests to verify they pass**
+- [ ] **Step 6.4: Create `src/app/api/lineup/suggestions/feedback/route.ts`**
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(_request: NextRequest) {
+  try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await prisma.suggestionFeedback.create({
+      data: { userId: user.id },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Error recording suggestion feedback:", error);
+    return NextResponse.json({ error: "Failed to record feedback" }, { status: 500 });
+  }
+}
+```
+
+- [ ] **Step 6.5: Run the tests to verify they pass**
 
 ```bash
 npx vitest run src/app/api/lineup/__tests__/suggestions.test.ts
@@ -1337,11 +1506,11 @@ npx vitest run src/app/api/lineup/__tests__/suggestions.test.ts
 
 Expected: PASS — all test cases pass.
 
-- [ ] **Step 6.5: Commit**
+- [ ] **Step 6.6: Commit**
 
 ```bash
-git add src/app/api/lineup/suggestions/route.ts src/app/api/lineup/__tests__/suggestions.test.ts
-git commit -m "feat: add GET /api/lineup/suggestions — Claude-powered daily suggestions with caching"
+git add src/app/api/lineup/suggestions/route.ts src/app/api/lineup/suggestions/feedback/route.ts src/app/api/lineup/__tests__/suggestions.test.ts
+git commit -m "feat: add GET /api/lineup/suggestions (rules engine) and POST /api/lineup/suggestions/feedback"
 ```
 
 ---
@@ -1352,7 +1521,7 @@ git commit -m "feat: add GET /api/lineup/suggestions — Claude-powered daily su
 - Create: `src/features/lineup/components/SuggestionCard.tsx`
 - New test: `src/features/lineup/components/__tests__/SuggestionCard.test.tsx`
 
-Each card shows: activity type + icon, district + plan names, 3 metric chips (contract value, last contact days, renewal weeks), AI reasoning (1-2 sentences), goal/risk tags, and a Schedule button that opens `ActivityFormModal` pre-filled.
+Each card shows: activity type + icon, district + plan names, 3 metric chips (contract value, last contact days, renewal weeks), rule-generated reasoning (1-2 sentences), goal/risk tags, and a Schedule button that opens `ActivityFormModal` pre-filled.
 
 - [ ] **Step 7.1: Write the failing tests**
 
@@ -1544,7 +1713,7 @@ export default function SuggestionCard({ suggestion }: SuggestionCardProps) {
           )}
         </div>
 
-        {/* AI reasoning */}
+        {/* Reasoning */}
         <p className="text-[#6E6390] text-[11px] leading-relaxed mb-2 italic">
           &ldquo;{suggestion.reasoning}&rdquo;
         </p>
@@ -1727,6 +1896,21 @@ describe("SuggestionsBanner", () => {
       expect(screen.getByText(/renewal call — jeffco/i)).toBeInTheDocument();
     });
   });
+
+  it("shows feedback confirmation after clicking 'Want AI-powered recommendations?'", async () => {
+    mockUseSuggestions.mockReturnValue({ suggestions: fakeSuggestions, isLoading: false, error: null, refetch: vi.fn() });
+    render(<SuggestionsBanner date={TODAY} activityCount={0} />, { wrapper: makeWrapper() });
+
+    // Open the overlay
+    await userEvent.click(screen.getByRole("button", { name: /recommended action/i }));
+
+    // Click the feedback link
+    await userEvent.click(screen.getByRole("button", { name: /want.*ai-powered/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/thanks.*tracking interest/i)).toBeInTheDocument();
+    });
+  });
 });
 ```
 
@@ -1744,7 +1928,7 @@ Expected: FAIL — module not found.
 "use client";
 
 import { useState } from "react";
-import { useLineupSuggestions } from "@/features/lineup/lib/queries";
+import { useLineupSuggestions, useSuggestionFeedback } from "@/features/lineup/lib/queries";
 import SuggestionCard from "./SuggestionCard";
 
 interface SuggestionsBannerProps {
@@ -1754,7 +1938,9 @@ interface SuggestionsBannerProps {
 
 export default function SuggestionsBanner({ date, activityCount }: SuggestionsBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
   const { suggestions, isLoading, error, refetch } = useLineupSuggestions(date);
+  const feedback = useSuggestionFeedback();
 
   // Only show when viewing today (hook returns null suggestions when date ≠ today)
   // isLoading is also false when date ≠ today
@@ -1834,6 +2020,24 @@ export default function SuggestionsBanner({ date, activityCount }: SuggestionsBa
                 <SuggestionCard key={i} suggestion={s} />
               ))
             )}
+
+            {/* Feedback button — demand signal for AI-powered recommendations */}
+            <div className="pt-2 border-t border-[#E2DEEC] mt-1 text-center">
+              {feedbackSent ? (
+                <span className="text-[#8A80A8] text-[10px]">Thanks! We&apos;re tracking interest.</span>
+              ) : (
+                <button
+                  onClick={() => {
+                    feedback.mutate(undefined, { onSuccess: () => setFeedbackSent(true) });
+                  }}
+                  disabled={feedback.isPending}
+                  className="text-[#A69DC0] text-[10px] hover:text-[#403770] transition-colors disabled:opacity-50"
+                  aria-label="Want AI-powered recommendations?"
+                >
+                  Want AI-powered recommendations? Let us know →
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1918,7 +2122,7 @@ npm run dev
 Open `http://localhost:3005`. Navigate to The Lineup tab. Viewing today should show the plum banner. Verify:
 - Banner appears when viewing today
 - Banner is absent when navigating to another day
-- Clicking the banner expands the overlay with suggestion cards (or empty state if no suggestions yet — Claude may need an API key in `.env`)
+- Clicking the banner expands the overlay with suggestion cards (or empty state if no active plans)
 - Editing an activity shows plan and state pickers pre-populated
 
 - [ ] **Step 9.5: Run the full test suite**
@@ -1940,8 +2144,6 @@ git commit -m "feat: wire SuggestionsBanner into LineupView above the activity t
 
 ## Final Steps
 
-- [ ] **Add `ANTHROPIC_API_KEY` to your local `.env`** (get key from Anthropic console — not committed to git)
-
 - [ ] **Run the full test suite one last time**
 
 ```bash
@@ -1953,11 +2155,11 @@ Expected: All tests pass, zero failures.
 - [ ] **Create a PR**
 
 ```bash
-gh pr create --title "feat: lineup edit gap fix + AI goal suggestions" \
+gh pr create --title "feat: lineup edit gap fix + rules-based goal suggestions" \
   --body "## Changes
 
 - **Edit gap fix**: Plans and states pickers now appear in activity edit mode, pre-populated from the full activity fetch. Updates are persisted on save.
-- **AI suggestions**: Plum banner above the timeline (today only) opens a floating overlay with 3–5 Claude-generated recommended actions based on the user's goals, recent activity history, and active plans. Cached per user per day.
+- **Rules-based suggestions**: Plum banner above the timeline (today only) opens a floating overlay with up to 3 recommended actions generated by a priority-ordered rules engine (renewal gap → pipeline gap → long dormant → default). No AI API calls. Includes a feedback button to track demand for future AI-powered suggestions.
 
 ## Test plan
 - [ ] Edit an existing activity — verify plan and state pickers appear and pre-populate correctly
@@ -1966,5 +2168,5 @@ gh pr create --title "feat: lineup edit gap fix + AI goal suggestions" \
 - [ ] Navigate to a past date — verify banner disappears
 - [ ] Click banner — verify overlay with suggestion cards appears
 - [ ] Click Schedule on a card — verify ActivityFormModal opens pre-filled
-- [ ] Navigate to a past date and back to today — banner should show cached suggestions (no Claude call)"
+- [ ] Click 'Want AI-powered recommendations?' — verify confirmation text appears"
 ```
