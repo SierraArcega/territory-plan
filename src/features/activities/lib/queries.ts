@@ -95,6 +95,8 @@ export function useUpdateActivity() {
       outcome?: string | null;
       outcomeType?: string | null;
       assignedToUserId?: string | null;
+      planIds?: string[];
+      stateFips?: string[];
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",
