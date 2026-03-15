@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // Navigation tab types - these match the sidebar tabs
-export type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "profile";
+export type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "profile";
 
 export type MetricType =
   | "sessions_revenue"

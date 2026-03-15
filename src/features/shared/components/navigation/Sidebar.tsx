@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "profile";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "profile";
 
 interface Tab {
   id: TabId;
@@ -57,6 +57,17 @@ const TasksIcon = () => (
   </svg>
 );
 
+const ProgressIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+    />
+  </svg>
+);
+
 const HomeIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -99,6 +110,7 @@ const MAIN_TABS: Tab[] = [
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
+  { id: "progress", label: "Progress", icon: <ProgressIcon /> },
 ];
 
 // Bottom tabs (separated at bottom of sidebar)
