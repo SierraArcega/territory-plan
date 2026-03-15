@@ -8,7 +8,7 @@
 
 ## Problem
 
-Four Data Tables (Activities, Plans, Districts, Contacts) have no column sorting despite the UI Framework spec (`data-table.md`) requiring it. TasksTable implemented sorting independently with its own bespoke logic. The result is inconsistent behavior across the app and a pattern that can drift. This spec defines a shared sorting system that brings all five tables into compliance.
+Four Data Tables (Activities, Plans, Districts, Contacts) have no column sorting despite the UI Framework spec (`data-table.md`) requiring it. A fifth table (TasksTable) implemented sorting independently with its own bespoke logic. The result is inconsistent behavior across the app and a pattern that can drift. This spec defines a shared sorting system that brings all five tables into compliance.
 
 **Root cause:** No implementation plan explicitly called out column sorting as a requirement for these tables. Each was shipped without a checklist check against the UI Framework spec. TasksTable happened to get it; the others did not.
 
@@ -25,13 +25,13 @@ Four Data Tables (Activities, Plans, Districts, Contacts) have no column sorting
 - `src/features/plans/components/PlansTable.tsx`
 - `src/features/plans/components/DistrictsTable.tsx`
 - `src/features/plans/components/ContactsTable.tsx`
-- `src/features/tasks/components/TasksTable.tsx` (refactored to use shared hook)
+- `src/features/tasks/components/TasksTable.tsx` (refactored to use shared hook, preserving existing default sort)
 
 ---
 
 ## Architecture
 
-All four tables are client-side rendered with full datasets fetched upfront — no pagination in use. Sorting is purely client-side with no API involvement.
+All five tables are client-side rendered with full datasets fetched upfront — no pagination in use. Sorting is purely client-side with no API involvement.
 
 The shared hook manages sort state and returns a sorted array. The shared component renders a `<th>` with the correct visual state and accessibility attributes. Each table wires them together independently, retaining full control of its own row layout.
 
@@ -68,14 +68,23 @@ interface UseSortableTableReturn<T> {
 2. Same field, currently `asc` → `desc`
 3. Same field, currently `desc` → `null` (unsorted, original order restored)
 
-**Default comparators:**
-- `string` → `localeCompare`
-- `Date` → `.getTime()` comparison
-- `number` → subtraction
+**`null` direction:** Returns the `data` array reference as-is (no copy, no snapshot). This means the parent's current fetch/query order is restored. If `data` updates while sort state is null, the latest parent order is reflected immediately.
 
-**Custom comparators:** Tables pass a `comparators` map to override default behavior for specific fields. Used where alphabetical order is wrong — e.g. Status fields should follow a logical workflow order, not sort as raw strings.
+**Default comparators — field type detection:**
 
-**`null` direction:** Returns the original `data` array unchanged. No sorting applied, no mutation.
+The hook inspects the runtime value of the first non-null element in the dataset for the given field using `typeof` and `instanceof`:
+- `instanceof Date` → `.getTime()` comparison
+- `typeof === "number"` → subtraction
+- `typeof === "string"` → `localeCompare`
+
+ISO date strings (e.g. `"2026-03-14T00:00:00Z"`) are stored as strings in the data model and will fall into the `localeCompare` branch. ISO 8601 sorts correctly lexicographically, but any non-ISO date format will not. **For all date fields in these tables, a custom comparator must be passed** that coerces to `Date` before comparing (see per-table column notes). Do not rely on the string default for date fields.
+
+**Null value policy:** When a field value is `null` or `undefined`, the row sorts to the **end** regardless of sort direction (asc or desc). Null rows always appear after all non-null rows. This matches the existing TasksTable behavior for null `dueDate` (where `Infinity` was used as the sentinel).
+
+**Custom comparators:** Tables pass a `comparators` map to override default behavior for specific fields. Required for:
+- Status/Priority fields with logical workflow order
+- Date fields stored as ISO strings (to ensure correct coercion)
+- Nested fields (see DistrictsTable notes below)
 
 ---
 
@@ -95,13 +104,15 @@ interface SortHeaderProps<T> {
 
 **Visual states** (per `Documentation/UI Framework/Components/Tables/data-table.md`):
 
-| State | Arrow | Text color |
+| State | Arrow icon | Header text |
 |---|---|---|
-| Inactive | Faint `#A69DC0` at 50% opacity on hover | `text-[#8A80A8]` |
-| Active asc | Solid up arrow `#403770` | `text-[#403770]` |
-| Active desc | Solid down arrow `#403770` | `text-[#403770]` |
+| Inactive (no hover) | Not rendered | `text-[#8A80A8]` |
+| Inactive (hover) | `#A69DC0`, 50% opacity on the arrow element only | `text-[#8A80A8]` |
+| Active asc | Solid up arrow, `text-[#403770]` | `text-[#403770]` |
+| Active desc | Solid down arrow, `text-[#403770]` | `text-[#403770]` |
 
 - Arrow size: `w-3 h-3`, positioned right of label with `gap-1`
+- The 50% opacity on hover applies only to the arrow icon element — header text remains at full opacity in all states
 - Cursor: `cursor-pointer` on sortable headers
 - Existing header style preserved: `text-[11px] font-semibold uppercase tracking-wider`
 
@@ -121,41 +132,44 @@ Non-sortable columns remain plain `<th>` elements — `SortHeader` is not used o
 |---|---|---|
 | Title | Yes | String, `localeCompare` |
 | Type | Yes | String, `localeCompare` |
-| Status | Yes | Custom order: Planned → In Progress → Completed |
-| Date | Yes | Date comparison |
+| Status | Yes | Custom comparator: Planned → In Progress → Completed |
+| Date | Yes | Custom comparator: coerce ISO string to `Date` |
 | Scope | No | Derived display string |
 
 ### PlansTable
 | Column | Sortable | Notes |
 |---|---|---|
 | Name | Yes | String, `localeCompare` |
-| Owner | Yes | String, `localeCompare` on `owner?.fullName` |
+| Owner | Yes | Custom comparator: access `plan.owner?.fullName ?? null` |
 | FY | Yes | Number |
-| Status | Yes | Custom order matching plan workflow |
-| Dates | Yes | Sort by `startDate` |
+| Status | Yes | Custom comparator: matching plan workflow order |
+| Dates | Yes | Custom comparator: sort by `startDate`, coerce ISO string to `Date` |
 | Dist. | Yes | Number (district count) |
 | Description | No | Free text, not meaningful to sort |
 | Color | No | Visual only |
 
 ### DistrictsTable
+
+The `Revenue`, `Take`, `Pipeline`, and `Prior FY` columns are sourced from `district.actuals?.totalRevenue` etc. — nested under `actuals`, not top-level fields on `TerritoryPlanDistrict`. These are not directly addressable via `keyof T`. **All actuals-based columns require custom comparators** that extract the nested value before comparing.
+
 | Column | Sortable | Notes |
 |---|---|---|
-| District | Yes | String, `localeCompare` |
-| State | Yes | String, `localeCompare` |
-| Renewal | Yes | Number |
-| Winback | Yes | Number |
-| Expansion | Yes | Number |
-| New Biz | Yes | Number |
-| Revenue | Yes | Number (computed from actuals) |
-| Take | Yes | Number |
-| Pipeline | Yes | Number |
-| Prior FY | Yes | Number |
+| District | Yes | String, `localeCompare` on `district.name` |
+| State | Yes | String, `localeCompare` on `district.stateAbbrev` |
+| Renewal | Yes | Number (`district.renewalTarget`) |
+| Winback | Yes | Number (`district.winbackTarget`) |
+| Expansion | Yes | Number (`district.expansionTarget`) |
+| New Biz | Yes | Number (`district.newBizTarget`) |
+| Revenue | Yes | Custom comparator: extract `district.actuals?.totalRevenue ?? null` |
+| Take | Yes | Custom comparator: extract `district.actuals?.totalTake ?? null` |
+| Pipeline | Yes | Custom comparator: extract `district.actuals?.weightedPipeline ?? null` |
+| Prior FY | Yes | Custom comparator: extract `district.actuals?.priorFyRevenue ?? null` |
 | Services | No | Multi-select, no natural sort order |
 
 ### ContactsTable
 | Column | Sortable | Notes |
 |---|---|---|
-| Person | Yes | String, `localeCompare` on contact name |
+| Person | Yes | Custom comparator: access contact name field |
 | Email | Yes | String, `localeCompare` |
 | District | Yes | String, `localeCompare` |
 | Department | Yes | String, `localeCompare` on `contact.persona` |
@@ -163,13 +177,16 @@ Non-sortable columns remain plain `<th>` elements — `SortHeader` is not used o
 | Last Activity | No | Not yet implemented |
 
 ### TasksTable (refactored from existing)
+
+**Default sort preserved:** `defaultField: "createdAt"`, `defaultDir: "desc"` — matches current behavior. The addition of the third `null` sort state is a new capability but not a breaking change since it is only reachable after two clicks.
+
 | Column | Sortable | Notes |
 |---|---|---|
 | Title | Yes | String, `localeCompare` |
-| Status | Yes | Custom order (existing `STATUS_ORDER` map migrated to comparator) |
-| Priority | Yes | Custom order (existing `PRIORITY_ORDER` map migrated to comparator) |
-| Due Date | Yes | Date comparison |
-| Created | Yes | Date comparison |
+| Status | Yes | Custom comparator: migrate existing `STATUS_ORDER` map |
+| Priority | Yes | Custom comparator: migrate existing `PRIORITY_ORDER` map |
+| Due Date | Yes | Custom comparator: coerce to `Date`; existing `Infinity` sentinel for nulls replaced by hook's null-sort-last policy |
+| Created | Yes | Custom comparator: coerce ISO string to `Date` |
 | Linked | No | Computed count badge |
 
 ---
@@ -178,16 +195,21 @@ Non-sortable columns remain plain `<th>` elements — `SortHeader` is not used o
 
 ### Unit — `useSortableTable`
 - Three-state cycle: new field → asc, same asc → desc, same desc → null
-- String sort: correct ascending and descending order
-- Date sort: correct ordering by timestamp
-- Number sort: correct ordering
+- String sort: correct ascending and descending order via `localeCompare`
+- Date sort: correct ordering via `instanceof Date` detection
+- Number sort: correct ordering via `typeof === "number"` detection
+- Type detection — `instanceof Date` branch: dataset with `Date` objects uses `.getTime()` comparison, not `localeCompare`
+- Type detection — ISO string branch: dataset with ISO date strings (e.g. `"2026-03-14T00:00:00Z"`) falls into `localeCompare` branch, not Date branch — confirming the documented footgun
+- Type detection — number branch: dataset with numeric fields uses subtraction comparator
 - Custom comparator: overrides default for a field
-- `null` dir returns original array unchanged
+- `null` dir returns `data` array reference as-is (no copy)
+- Null field values sort to the end regardless of direction (asc and desc)
 
 ### Unit — `SortHeader`
-- Renders correct `aria-sort` for each state
-- Active color classes applied when sorted, inactive when not
-- Arrow visible on hover (inactive), solid when active
+- Renders correct `aria-sort` for each state (ascending / descending / none)
+- Active color class `text-[#403770]` applied when sorted, `text-[#8A80A8]` when not
+- Arrow element renders on hover (inactive) and always when active
+- 50% opacity applied to arrow element only on hover (not to text)
 - `Enter` / `Space` keydown fires `onSort`
 
 ### Integration — per table (one test each)
