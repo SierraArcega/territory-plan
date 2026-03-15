@@ -24,6 +24,8 @@ import { OUTCOME_CONFIGS, type OutcomeType } from "@/features/activities/outcome
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
 import { formatScope } from "@/features/shared/lib/format";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
+import { useSortableTable, type SortComparator } from "@/features/shared/hooks/useSortableTable";
+import { SortHeader } from "@/features/shared/components/SortHeader";
 
 interface ActivitiesTableProps {
   activities: ActivityListItem[];
@@ -45,6 +47,28 @@ const STATUS_OPTIONS = VALID_ACTIVITY_STATUSES.map((status) => ({
 }));
 
 // formatScope imported from @/features/shared/lib/format
+
+// ActivityStatus = "planned" | "completed" | "cancelled" (no "in_progress").
+const ACTIVITY_STATUS_ORDER: Record<string, number> = {
+  planned: 0,
+  completed: 1,
+  cancelled: 2,
+};
+
+// Module-level constant so useSortableTable's useMemo dependency stays stable.
+const activityComparators: Record<string, SortComparator<ActivityListItem>> = {
+  status: (a, b, dir) => {
+    const r = (ACTIVITY_STATUS_ORDER[a.status] ?? 9) - (ACTIVITY_STATUS_ORDER[b.status] ?? 9);
+    return dir === "desc" ? -r : r;
+  },
+  startDate: (a, b, dir) => {
+    if (!a.startDate && !b.startDate) return 0;
+    if (!a.startDate) return 1;
+    if (!b.startDate) return -1;
+    const r = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    return dir === "desc" ? -r : r;
+  },
+};
 
 // Delete confirmation modal
 interface DeleteConfirmModalProps {
@@ -99,6 +123,11 @@ export default function ActivitiesTable({
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
 
   const updateActivity = useUpdateActivity();
+
+  const { sorted: sortedActivities, sortState, onSort } = useSortableTable({
+    data: activities,
+    comparators: activityComparators,
+  });
 
   // Handle inline field updates — intercepts status → "completed" to show outcome popover
   const handleFieldUpdate = async (
@@ -163,20 +192,36 @@ export default function ActivitiesTable({
                 className="w-[28px] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider"
                 aria-label="Icon"
               >
-                {/* Icon column */}
+                {/* Icon column — not sortable */}
               </th>
-              <th className="w-[30%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Title
-              </th>
-              <th className="w-[15%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="w-[12%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="w-[18%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
+              <SortHeader
+                field="title"
+                label="Title"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[30%]"
+              />
+              <SortHeader
+                field="type"
+                label="Type"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[15%]"
+              />
+              <SortHeader
+                field="status"
+                label="Status"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[12%]"
+              />
+              <SortHeader
+                field="startDate"
+                label="Date"
+                sortState={sortState}
+                onSort={onSort}
+                className="w-[18%]"
+              />
               <th className="w-[15%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Scope
               </th>
@@ -184,9 +229,9 @@ export default function ActivitiesTable({
             </tr>
           </thead>
           <tbody>
-            {activities.map((activity, idx) => {
+            {sortedActivities.map((activity, idx) => {
               const typeIcon = ACTIVITY_TYPE_ICONS[activity.type as ActivityType] || "📋";
-              const isLast = idx === activities.length - 1;
+              const isLast = idx === sortedActivities.length - 1;
 
               // Format date display
               const hasDateRange =
