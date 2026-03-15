@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 import PlansView from "@/features/shared/components/views/PlansView";
 import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
 import TasksView from "@/features/shared/components/views/TasksView";
-import HomeView from "@/features/shared/components/views/HomeView";
+import HomeView from "@/features/home/components/HomeView";
 import ProfileView from "@/features/shared/components/views/ProfileView";
 import TeamProgressView from "@/features/progress/components/TeamProgressView";
 import AdminDashboard from "@/features/admin/components/AdminDashboard";
