@@ -61,6 +61,7 @@ describe("clearSelectedDistricts", () => {
     const s = useMapV2Store.getState();
     expect(s.selectedLeaids.size).toBe(0);
     expect(s.panelState).toBe("BROWSE");
+    expect(s.panelHistory).toEqual([]);
   });
 });
 

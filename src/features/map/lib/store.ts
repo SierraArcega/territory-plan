@@ -722,7 +722,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       return { selectedLeaids: next, panelState };
     }),
 
-  clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>(), panelState: "BROWSE" }),
+  clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>(), panelState: "BROWSE", panelHistory: [] }),
 
   createPlanFromSelection: () =>
     set((s) => ({
