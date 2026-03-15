@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: Use when building a new feature end-to-end. Orchestrates discovery, design exploration with Paper prototyping, spec writing, implementation, design review, code review, testing, and shipping. Replaces the old /feature skill.
+description: Use when building a new feature end-to-end. Orchestrates discovery, design exploration, spec writing, implementation, design review, code review, testing, and shipping. Replaces the old /feature skill.
 ---
 
 # New Feature Pipeline
@@ -63,7 +63,6 @@ Compile answers into a `requirements_summary` (keep in conversation context).
 
 Invoke the `frontend-design` skill's discovery workflow:
 - Read relevant `Documentation/UI Framework/` docs
-- Screenshot relevant Paper design system artboards
 - Search `src/components/` and `src/features/` for existing components
 
 Output: `ui_component_candidates` — list of existing components + doc references.
@@ -80,17 +79,17 @@ Output: `backend_context_path` — path to the saved context document.
 
 ### Stage 2: Design Exploration
 
-**Goal:** Explore 2-3 meaningfully different approaches, prototype in Paper, let the user choose.
+**Goal:** Explore 2-3 meaningfully different approaches, present trade-offs, let the user choose.
 
-Invoke the `design-explore` skill with:
+Present 2-3 design directions with:
 - `requirements_summary` from stage 1a
 - `ui_component_candidates` from stage 1b
 - `backend_context_path` from stage 1c
 
-The skill will:
-1. Create 2-3 Paper prototypes
-2. Screenshot and present with trade-offs
-3. Wait for user feedback
+For each direction, describe:
+1. Layout and interaction approach
+2. Component architecture (existing vs new)
+3. Trade-offs (complexity, performance, extensibility)
 
 **GATE:** Present status and wait for user decision:
 ```
@@ -101,28 +100,26 @@ Explored N approaches:
   B. [description]
   C. [description]
 
-Screenshots presented above.
-
 → Pick a direction to refine, request changes, or ask me to explore more options.
 ```
 
-If user requests iteration → loop back to design-explore with feedback.
+If user requests iteration → revise directions with feedback.
 If user picks a direction → proceed to Stage 3.
 
 ---
 
 ### Stage 3: Refine Chosen Direction
 
-**Goal:** Detail the chosen approach, iterate on visual details, get final approval.
+**Goal:** Detail the chosen approach, iterate on specifics, get final approval.
 
-Continue with `design-explore` in refinement mode:
+Refine the chosen direction:
 - Add detail: hover states, loading states, empty states, error states
 - Check component docs for each element used
-- Screenshot and present
+- Describe interaction patterns and responsive behavior
 
-**GATE:** User approves final design.
+**GATE:** User approves final design direction.
 
-Output: `approved_prototype_node_ids` — Paper artboard/node IDs for the approved design.
+Output: `approved_design_description` — detailed description of the approved approach.
 
 ---
 
@@ -144,7 +141,6 @@ Write the spec to `[docs_path]/specs/[DATE]-[SLUG]-spec.md`:
 
 ## Visual Design
 - Approved approach: [description]
-- Paper prototype: Mapomatic Design System → [artboard name] (node IDs: [list])
 - Key architectural decisions: [panel vs page, etc.]
 
 ## Component Plan
@@ -178,7 +174,7 @@ Commit the spec.
 **Goal:** Write a detailed implementation plan with frontend and backend tasks.
 
 Write the plan to `[docs_path]/plans/[DATE]-[SLUG]-plan.md`:
-- Frontend tasks (referencing Paper node IDs + component docs)
+- Frontend tasks (referencing approved design + component docs)
 - Backend tasks (referencing backend context doc)
 - Task dependencies and ordering
 - Test strategy for each task
@@ -195,7 +191,7 @@ Read the implementer prompt from `.claude/skills/new-feature/prompts/implementer
 
 Dispatch implementer subagent (`subagent_type: "general-purpose"`) with:
 - `{{SPEC_PATH}}` = spec path from stage 4
-- `{{IMPLEMENTATION_CONTEXT}}` = plan path + backend context path + Paper node references
+- `{{IMPLEMENTATION_CONTEXT}}` = plan path + backend context path + approved design description
 
 If the plan has independent frontend and backend tasks, dispatch parallel agents.
 
@@ -211,7 +207,7 @@ Save the implementer's report for stages 7-8.
 
 Invoke the `design-review` skill:
 - Pass the list of `.tsx` files from the implementer report
-- Pass the Paper prototype node IDs from stage 3
+- Pass the approved design description from stage 3
 - Pass the spec path
 
 If blockers found → re-dispatch implementer with fix instructions → re-run design review.
@@ -302,4 +298,3 @@ Based on choice:
 - **Subagent failure** → pause, present to user via AskUserQuestion (retry / skip / abort)
 - **Slack MCP unavailable** → skip Slack, terminal-only approval
 - **Worktree creation failure** → fall back to new branch on current repo
-- **Paper MCP unavailable** → fall back to text descriptions of approaches (no prototypes)
