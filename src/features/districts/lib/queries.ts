@@ -14,6 +14,7 @@ import type {
   SimilarDistrictsResponse,
   SchoolListItem,
   SchoolDetail,
+  SchoolsSummary,
 } from "@/features/shared/types/api-types";
 
 // District queries
@@ -176,7 +177,7 @@ export function useSchoolsByDistrict(leaid: string | null) {
   return useQuery({
     queryKey: ["schoolsByDistrict", leaid],
     queryFn: () =>
-      fetchJson<{ schools: SchoolListItem[]; total: number }>(
+      fetchJson<{ schools: SchoolListItem[]; total: number; summary: SchoolsSummary }>(
         `${API_BASE}/schools/by-district/${leaid}`
       ),
     enabled: !!leaid,

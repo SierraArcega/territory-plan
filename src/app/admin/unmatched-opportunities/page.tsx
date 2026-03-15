@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { unmatchedOpportunityColumns } from "./columns";
 import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
@@ -32,6 +33,15 @@ interface DistrictResult {
   stateAbbrev: string | null;
   enrollment: number | null;
   cityLocation: string | null;
+}
+
+interface SchoolResult {
+  ncessch: string;
+  leaid: string;
+  schoolName: string;
+  city: string;
+  stateAbbrev: string;
+  enrollment: number | null;
 }
 
 interface PaginationInfo {
@@ -89,6 +99,13 @@ async function searchDistricts(q: string): Promise<{ items: DistrictResult[] }> 
   return res.json();
 }
 
+async function searchSchools(q: string): Promise<{ schools: SchoolResult[] }> {
+  if (q.length < 2) return { schools: [] };
+  const res = await fetch(`/api/schools?search=${encodeURIComponent(q)}&limit=10`);
+  if (!res.ok) throw new Error("Failed to search schools");
+  return res.json();
+}
+
 async function fetchSuggestions(name: string, state?: string | null): Promise<{ items: DistrictResult[] }> {
   const qs = new URLSearchParams({ name });
   if (state) qs.set("state", state);
@@ -115,6 +132,31 @@ async function createDistrict(data: {
   return res.json();
 }
 
+const UNRESOLVED_REASONS = [
+  "Needs Review",
+  "Missing District",
+  "Remove Child Opp",
+  "Organization",
+  "University",
+  "Private/Charter",
+] as const;
+
+async function updateReason(
+  id: string,
+  reason: string | null,
+): Promise<{ id: string; reason: string | null }> {
+  const res = await fetch(`/api/admin/unmatched-opportunities/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Failed to update reason (${res.status})`);
+  }
+  return res.json();
+}
+
 async function resolveOpportunity(
   id: string,
   resolvedDistrictLeaid: string,
@@ -124,7 +166,10 @@ async function resolveOpportunity(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resolvedDistrictLeaid }),
   });
-  if (!res.ok) throw new Error("Failed to resolve");
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Failed to resolve (${res.status})`);
+  }
   return res.json();
 }
 
@@ -258,6 +303,124 @@ function SummaryCards({
 }
 
 // ---------------------------------------------------------------------------
+// Reason dropdown (inline cell editor)
+// ---------------------------------------------------------------------------
+
+function ReasonDropdown({
+  value,
+  opportunityId,
+  onUpdate,
+}: {
+  value: string | null;
+  opportunityId: string;
+  onUpdate: (id: string, reason: string | null) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLUListElement>(null);
+  const [pos, setPos] = useState({ top: -9999, left: -9999 });
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setIsOpen(true);
+  };
+
+  // Close on outside click, Escape, or scroll
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    const handleScroll = () => setIsOpen(false);
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    document.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [isOpen]);
+
+  const handleSelect = (reason: string | null) => {
+    onUpdate(opportunityId, reason);
+    setIsOpen(false);
+  };
+
+  const options: { value: string | null; label: string }[] = [
+    { value: null, label: "—" },
+    ...UNRESOLVED_REASONS.map((r) => ({ value: r as string | null, label: r })),
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => { e.stopPropagation(); isOpen ? setIsOpen(false) : openDropdown(); }}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        className={`w-full text-xs text-left border border-transparent rounded-lg pl-1.5 pr-6 py-1 bg-transparent hover:border-[#C2BBD4] hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent focus:bg-white cursor-pointer transition-colors ${
+          value ? "text-[#403770] font-medium" : "text-[#A69DC0]"
+        }`}
+      >
+        {value ?? "—"}
+      </button>
+      <svg
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A69DC0] pointer-events-none"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+
+      {isOpen && createPortal(
+        <ul
+          ref={dropdownRef}
+          role="listbox"
+          className="fixed z-[9999] min-w-[160px] bg-white rounded-xl shadow-xl border border-[#D4CFE2] py-1"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {options.map((opt) => {
+            const isSelected = value === opt.value;
+            return (
+              <li
+                key={opt.label}
+                role="option"
+                aria-selected={isSelected}
+                onClick={(e) => { e.stopPropagation(); handleSelect(opt.value); }}
+                className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
+                  isSelected
+                    ? "bg-[#F7F5FA] font-medium text-[#403770]"
+                    : opt.value === null
+                      ? "text-[#A69DC0] hover:bg-[#EFEDF5]"
+                      : "text-[#403770] hover:bg-[#EFEDF5]"
+                }`}
+              >
+                {opt.label}
+              </li>
+            );
+          })}
+        </ul>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Status badge
 // ---------------------------------------------------------------------------
 
@@ -308,6 +471,46 @@ function DistrictRow({
       {district.enrollment != null && (
         <div className="text-xs text-[#8A80A8] mt-0.5">
           Enrollment: {district.enrollment.toLocaleString()}
+        </div>
+      )}
+    </button>
+  );
+}
+
+function SchoolRow({
+  school,
+  onSelect,
+}: {
+  school: SchoolResult;
+  onSelect: (d: DistrictResult) => void;
+}) {
+  return (
+    <button
+      onClick={() =>
+        onSelect({
+          leaid: school.leaid,
+          name: `${school.schoolName} (via school)`,
+          stateAbbrev: school.stateAbbrev,
+          enrollment: school.enrollment,
+          cityLocation: school.city,
+        })
+      }
+      className="w-full text-left px-4 py-3 border-b border-[#E2DEEC] last:border-b-0 hover:bg-[#EFEDF5] transition-colors duration-100"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-[#403770]">
+          {school.schoolName}
+        </span>
+        <span className="text-xs text-[#A69DC0] font-medium tabular-nums flex-shrink-0 ml-3">
+          {school.leaid}
+        </span>
+      </div>
+      <div className="text-xs text-[#8A80A8] mt-0.5">
+        {school.city}, {school.stateAbbrev}
+      </div>
+      {school.enrollment != null && (
+        <div className="text-xs text-[#8A80A8] mt-0.5">
+          Enrollment: {school.enrollment.toLocaleString()}
         </div>
       )}
     </button>
@@ -379,16 +582,28 @@ function CreateDistrictForm({
           <label className="block text-xs font-medium text-[#544A78] mb-1">
             State <span className="text-[#F37167]">*</span>
           </label>
-          <select
-            value={stateAbbrev}
-            onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
-            className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none bg-white"
-          >
-            <option value="">—</option>
-            {US_STATES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={stateAbbrev}
+              onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
+              className={`w-full px-3 pr-9 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent ${
+                stateAbbrev ? "text-[#403770]" : "text-[#A69DC0]"
+              }`}
+            >
+              <option value="">—</option>
+              {US_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <svg
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0] pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
         <div className="flex-1">
           <label className="block text-xs font-medium text-[#544A78] mb-1">
@@ -459,8 +674,15 @@ function DistrictSearchModal({
     enabled: debouncedQuery.length >= 2,
   });
 
+  const { data: schoolResults, isLoading: schoolsLoading } = useQuery({
+    queryKey: ["school-search", debouncedQuery],
+    queryFn: () => searchSchools(debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
+  });
+
   const hasSuggestions = (suggestions?.items.length ?? 0) > 0;
   const isSearching = debouncedQuery.length >= 2;
+  const hasSchoolResults = (schoolResults?.schools.length ?? 0) > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -558,7 +780,7 @@ function DistrictSearchModal({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && onClose()}
-                placeholder="Search districts by name, LEAID, or state..."
+                placeholder="Search districts or schools by name..."
                 className="w-full pl-10 pr-4 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
               />
             </div>
@@ -566,19 +788,49 @@ function DistrictSearchModal({
             {/* Search results */}
             {isSearching && (
               <div className="max-h-64 overflow-y-auto border border-[#E2DEEC] rounded-lg">
-                {searchLoading && (
-                  <div className="px-4 py-8 text-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#403770] border-t-transparent mx-auto" />
+                {/* District results */}
+                {!searchLoading && (searchResults?.items.length ?? 0) > 0 && (
+                  <>
+                    <div className="px-4 py-1.5 bg-[#F5F3FA] border-b border-[#E2DEEC] flex items-center gap-2 sticky top-0">
+                      <span className="text-[10px] font-semibold text-[#403770] uppercase tracking-wide">Districts</span>
+                      <span className="text-[10px] text-[#8A80A8] bg-white px-1.5 py-0.5 rounded">
+                        {searchResults!.items.length}
+                      </span>
+                    </div>
+                    {searchResults!.items.map((district) => (
+                      <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
+                    ))}
+                  </>
+                )}
+
+                {/* School results */}
+                {!schoolsLoading && hasSchoolResults && (
+                  <>
+                    <div className="px-4 py-1.5 bg-[#F5F3FA] border-b border-[#E2DEEC] flex items-center gap-2 sticky top-0">
+                      <span className="text-[10px] font-semibold text-[#403770] uppercase tracking-wide">Schools</span>
+                      <span className="text-[10px] text-[#8A80A8] bg-white px-1.5 py-0.5 rounded">
+                        {schoolResults!.schools.length}
+                      </span>
+                    </div>
+                    {schoolResults!.schools.map((school) => (
+                      <SchoolRow key={school.ncessch} school={school} onSelect={onSelect} />
+                    ))}
+                  </>
+                )}
+
+                {/* Loading spinner when either query is still loading */}
+                {(searchLoading || schoolsLoading) && (
+                  <div className="px-4 py-4 text-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#403770] border-t-transparent mx-auto" />
                   </div>
                 )}
-                {!searchLoading && searchResults?.items.length === 0 && (
+
+                {/* Empty state when both queries done and no results */}
+                {!searchLoading && !schoolsLoading && (searchResults?.items.length ?? 0) === 0 && !hasSchoolResults && (
                   <div className="px-4 py-6 text-center text-sm text-[#8A80A8]">
-                    No districts found
+                    No districts or schools found
                   </div>
                 )}
-                {searchResults?.items.map((district) => (
-                  <DistrictRow key={district.leaid} district={district} onSelect={onSelect} />
-                ))}
               </div>
             )}
 
@@ -726,7 +978,33 @@ export default function UnmatchedOpportunitiesPage() {
       setToast(`Resolved ${countLabel} to ${variables.districtName} (${variables.leaid})`);
       setResolvingOpp(null);
     },
+    onError: (error) => {
+      const msg = error.message?.includes("not found")
+        ? "District not found in system — use Create New District to add it first"
+        : "Failed to resolve opportunity";
+      setToast(msg);
+      setResolvingOpp(null);
+    },
   });
+
+  const reasonMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string | null }) =>
+      updateReason(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities-facets"] });
+    },
+    onError: (error) => {
+      setToast(error.message || "Failed to update reason");
+    },
+  });
+
+  const handleReasonUpdate = useCallback(
+    (id: string, reason: string | null) => {
+      reasonMutation.mutate({ id, reason });
+    },
+    [reasonMutation]
+  );
 
   const handleResolve = useCallback(
     (district: DistrictResult) => {
@@ -784,10 +1062,17 @@ export default function UnmatchedOpportunitiesPage() {
       const isResolved = value as boolean;
       return <StatusBadge resolved={isResolved} />;
     },
+    reason: ({ value, row }) => (
+      <ReasonDropdown
+        value={value as string | null}
+        opportunityId={row.id as string}
+        onUpdate={handleReasonUpdate}
+      />
+    ),
     netBookingAmount: ({ value }) => (
       <span className="tabular-nums font-medium">{formatCurrency(value as string)}</span>
     ),
-  }), []);
+  }), [handleReasonUpdate]);
 
   const renderRowAction = useCallback((row: Record<string, unknown>) => {
     const isResolved = row.resolved as boolean;
@@ -855,7 +1140,7 @@ export default function UnmatchedOpportunitiesPage() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 flex flex-col">
       <DataGrid
         data={(data?.items ?? []) as unknown as Record<string, unknown>[]}
         columnDefs={hydratedColumns}

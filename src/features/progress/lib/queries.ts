@@ -6,6 +6,7 @@ import type {
   OutcomeMetrics,
   PlanEngagement,
 } from "@/features/shared/types/api-types";
+import type { TeamProgressResponse } from "./types";
 
 // Activity metrics — counts by category, source, status, plan, with trends
 export function useActivityMetrics(period: ProgressPeriod = "month") {
@@ -33,5 +34,17 @@ export function usePlanEngagement() {
     queryKey: ["progress", "plans"],
     queryFn: () => fetchJson<PlanEngagement[]>(`${API_BASE}/progress/plans`),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Team progress — targets vs actuals by category across all plans
+export function useTeamProgress(fiscalYear: number) {
+  return useQuery({
+    queryKey: ["teamProgress", fiscalYear],
+    queryFn: () =>
+      fetchJson<TeamProgressResponse>(
+        `${API_BASE}/team-progress?fiscalYear=${fiscalYear}`
+      ),
+    staleTime: 2 * 60 * 1000,
   });
 }

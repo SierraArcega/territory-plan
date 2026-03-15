@@ -9,9 +9,16 @@ export async function GET(
 ) {
   try {
     const { leaid } = await params;
+    const url = request.nextUrl;
+    const includeAll = url.searchParams.get("includeAll") === "true";
+
+    const where: Record<string, unknown> = { leaid };
+    if (!includeAll) {
+      where.OR = [{ schoolStatus: 1 }, { schoolStatus: null }];
+    }
 
     const schools = await prisma.school.findMany({
-      where: { leaid },
+      where,
       include: {
         enrollmentHistory: {
           orderBy: { year: "asc" },
@@ -22,6 +29,7 @@ export async function GET(
 
     const schoolList = schools.map((s) => ({
       ncessch: s.ncessch,
+      leaid: s.leaid,
       schoolName: s.schoolName,
       charter: s.charter,
       schoolLevel: s.schoolLevel,
@@ -29,15 +37,34 @@ export async function GET(
       lograde: s.lograde,
       higrade: s.higrade,
       schoolStatus: s.schoolStatus,
+      titleIStatus: s.titleIStatus,
+      titleIEligible: s.titleIEligible,
+      titleISchoolwide: s.titleISchoolwide,
+      freeLunch: s.freeLunch,
+      reducedPriceLunch: s.reducedPriceLunch,
+      frplTotal: s.frplTotal,
       enrollmentHistory: s.enrollmentHistory.map((eh) => ({
         year: eh.year,
         enrollment: eh.enrollment,
       })),
     }));
 
+    const totalSchools = schoolList.length;
+    const titleISchools = schoolList.filter((s) => s.titleIEligible === 1).length;
+    const titleISchoolwide = schoolList.filter((s) => s.titleISchoolwide === 1).length;
+    const frplTotal = schoolList.reduce((sum, s) => sum + (s.frplTotal || 0), 0);
+    const enrollmentTotal = schoolList.reduce((sum, s) => sum + (s.enrollment || 0), 0);
+
     return NextResponse.json({
       schools: schoolList,
-      total: schoolList.length,
+      total: totalSchools,
+      summary: {
+        totalSchools,
+        titleISchools,
+        titleISchoolwide,
+        frplTotal,
+        frplRate: enrollmentTotal > 0 ? Math.round((frplTotal / enrollmentTotal) * 10000) / 100 : null,
+      },
     });
   } catch (error) {
     console.error("Error fetching schools by district:", error);
