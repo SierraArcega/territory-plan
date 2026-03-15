@@ -451,7 +451,6 @@ export interface Activity {
   endDate: string | null;
   status: ActivityStatus;
   createdByUserId: string | null;
-  assignedToUserId: string | null;
   createdAt: string;
   updatedAt: string;
   googleEventId: string | null;
@@ -476,7 +475,6 @@ export interface ActivityListItem {
   status: ActivityStatus;
   source: "manual" | "calendar_sync";
   outcomeType: string | null;
-  assignedToUserId: string | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
   planCount: number;
@@ -501,7 +499,6 @@ export interface ActivitiesParams {
   unscheduled?: boolean;
   needsPlanAssociation?: boolean;
   hasUnlinkedDistricts?: boolean;
-  assignedToUserIds?: string[]; // filter by one or more assignees; defaults to current user
   limit?: number;
   offset?: number;
 }
@@ -713,7 +710,24 @@ export interface SchoolListItem {
   lograde: string | null;
   higrade: string | null;
   schoolStatus: number | null;
+  // Title I
+  titleIStatus: number | null;
+  titleIEligible: number | null;
+  titleISchoolwide: number | null;
+  // FRPL
+  freeLunch: number | null;
+  reducedPriceLunch: number | null;
+  frplTotal: number | null;
+  // Existing
   enrollmentHistory?: { year: number; enrollment: number | null }[];
+}
+
+export interface SchoolsSummary {
+  totalSchools: number;
+  titleISchools: number;
+  titleISchoolwide: number;
+  frplTotal: number;
+  frplRate: number | null;
 }
 
 // ===== Plan District Detail Types =====

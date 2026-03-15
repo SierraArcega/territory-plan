@@ -23,8 +23,6 @@ export function useActivities(params: ActivitiesParams = {}) {
     searchParams.set("needsPlanAssociation", params.needsPlanAssociation.toString());
   if (params.hasUnlinkedDistricts !== undefined)
     searchParams.set("hasUnlinkedDistricts", params.hasUnlinkedDistricts.toString());
-  if (params.assignedToUserIds && params.assignedToUserIds.length > 0)
-    params.assignedToUserIds.forEach((id) => searchParams.append("assignedToUserIds", id));
   if (params.limit) searchParams.set("limit", params.limit.toString());
   if (params.offset) searchParams.set("offset", params.offset.toString());
 
@@ -64,7 +62,6 @@ export function useCreateActivity() {
       districtLeaids?: string[];
       contactIds?: number[];
       stateFips?: string[];
-      assignedToUserId?: string | null;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities`, {
         method: "POST",
@@ -94,9 +91,6 @@ export function useUpdateActivity() {
       notes?: string | null;
       outcome?: string | null;
       outcomeType?: string | null;
-      assignedToUserId?: string | null;
-      planIds?: string[];
-      stateFips?: string[];
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",

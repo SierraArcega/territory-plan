@@ -10,7 +10,6 @@ import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
 import TasksView from "@/features/shared/components/views/TasksView";
 import HomeView from "@/features/shared/components/views/HomeView";
 import ProfileView from "@/features/shared/components/views/ProfileView";
-import LineupView from "@/features/lineup/components/LineupView";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
 const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
@@ -26,7 +25,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["lineup", "home", "map", "plans", "activities", "tasks", "profile"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "profile"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -113,7 +112,7 @@ function HomeContent() {
       isPopstateRef.current = true;
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      setActiveTab(isValidTab(tabParam) ? tabParam : "lineup");
+      setActiveTab(isValidTab(tabParam) ? tabParam : "home");
       setSelectedPlanId(params.get("plan"));
     };
 
@@ -136,8 +135,8 @@ function HomeContent() {
     // (e.g. calendarConnected=true) that other components manage.
     const params = new URLSearchParams(searchParams.toString());
 
-    // Sync the tab param — lineup is the default landing so it maps to clean "/"
-    if (activeTab === "lineup") {
+    // Sync the tab param
+    if (activeTab === "home") {
       params.delete("tab");
     } else {
       params.set("tab", activeTab);
@@ -169,8 +168,6 @@ function HomeContent() {
   // Render the active view based on current tab
   const renderContent = () => {
     switch (activeTab) {
-      case "lineup":
-        return <LineupView />;
       case "map":
         return <MapV2Shell />;
       case "plans":
@@ -189,7 +186,7 @@ function HomeContent() {
       case "profile":
         return <ProfileView />;
       default:
-        return <LineupView />;
+        return <HomeView />;
     }
   };
 

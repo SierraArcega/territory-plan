@@ -96,6 +96,15 @@ model District {
   medianHouseholdIncome  Decimal? @map("median_household_income") @db.Decimal(12, 2)
   saipeDataYear          Int?     @map("saipe_data_year")
 
+  // ===== Title I Aggregates =====
+  // Source: Computed from schools table + Urban Institute finance endpoint
+  titleISchoolCount      Int?     @map("title_i_school_count")
+  titleISchoolwideCount  Int?     @map("title_i_schoolwide_count")
+  totalSchoolCount       Int?     @map("total_school_count")
+  frplTotalCount         Int?     @map("frpl_total_count")
+  frplRate               Decimal? @map("frpl_rate") @db.Decimal(5, 2)
+  titleIRevenue          Decimal? @map("title_i_revenue") @db.Decimal(15, 2)
+
   // ===== Graduation Data =====
   // Source: Urban Institute API (graduation endpoint)
   graduationRateTotal  Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
@@ -555,11 +564,9 @@ model Activity {
   startDate       DateTime? @map("start_date")
   endDate         DateTime? @map("end_date")
   status          String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
-  createdByUserId  String?   @map("created_by_user_id") @db.Uuid
-  // Who is responsible for completing this activity — defaults to creator, can be reassigned
-  assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // ===== Calendar Sync Fields =====
   // Links activity to a Google Calendar event for two-way sync
@@ -580,7 +587,6 @@ model Activity {
   taskLinks TaskActivity[]
 
   @@index([createdByUserId])
-  @@index([assignedToUserId])
   @@index([type])
   @@index([startDate])
   @@map("activities")
@@ -660,8 +666,6 @@ model UserProfile {
   collaboratingOn    TerritoryPlanCollaborator[]   @relation("PlanCollaborator")
   // Saved map view snapshots
   savedMapViews      MapView[]                    @relation("MapViewOwner")
-  // AI suggestion feedback
-  suggestionFeedback SuggestionFeedback[]
 
   @@map("user_profiles")
 }
@@ -906,6 +910,30 @@ model School {
   enrollment       Int?
   directoryDataYear Int?     @map("directory_data_year")
 
+  // ===== Title I Data =====
+  // Source: Urban Institute API (CCD directory endpoint)
+  titleIStatus       Int?  @map("title_i_status")
+  titleIEligible     Int?  @map("title_i_eligible")
+  titleISchoolwide   Int?  @map("title_i_schoolwide")
+  titleIDataYear     Int?  @map("title_i_data_year")
+
+  // ===== Free/Reduced Price Lunch =====
+  // Source: Urban Institute API (CCD directory endpoint)
+  freeLunch          Int?  @map("free_lunch")
+  reducedPriceLunch  Int?  @map("reduced_price_lunch")
+  frplTotal          Int?  @map("frpl_total")
+
+  // ===== Demographics =====
+  // Source: Urban Institute API (CCD enrollment/race endpoint, grade-99 totals)
+  enrollmentWhite           Int? @map("enrollment_white")
+  enrollmentBlack           Int? @map("enrollment_black")
+  enrollmentHispanic        Int? @map("enrollment_hispanic")
+  enrollmentAsian           Int? @map("enrollment_asian")
+  enrollmentAmericanIndian  Int? @map("enrollment_american_indian")
+  enrollmentPacificIslander Int? @map("enrollment_pacific_islander")
+  enrollmentTwoOrMore       Int? @map("enrollment_two_or_more")
+  demographicsDataYear      Int? @map("demographics_data_year")
+
   // ===== Lightweight CRM Fields =====
   owner          String?   @db.VarChar(100)
   notes          String?
@@ -1086,17 +1114,4 @@ model UnmatchedOpportunity {
   @@index([resolved])
   @@index([schoolYr])
   @@map("unmatched_opportunities")
-}
-
-// ===== Suggestion Feedback =====
-// Tracks users who clicked "Want AI-powered recommendations?" — used as a demand signal.
-// No personal data beyond userId + timestamp.
-model SuggestionFeedback {
-  id        String      @id @default(uuid())
-  userId    String      @map("user_id") @db.Uuid
-  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime    @default(now()) @map("created_at")
-
-  @@index([userId])
-  @@map("suggestion_feedback")
 }

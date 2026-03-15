@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useCreateActivity, useUpdateActivity, useTerritoryPlans, useStates, useUsers, useProfile } from "@/lib/api";
-import { useActivity } from "@/features/activities/lib/queries";
+import { useCreateActivity, useTerritoryPlans, useStates } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -14,19 +13,12 @@ import {
   VALID_ACTIVITY_STATUSES,
   DEFAULT_TYPE_FOR_CATEGORY,
 } from "@/features/activities/types";
-import type { ActivityListItem } from "@/features/shared/types/api-types";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
-  defaultActivityType?: ActivityType;
-  defaultTitle?: string;
-  // Provide initialData to open in edit mode
-  initialData?: ActivityListItem | null;
-  // Called after a new activity is successfully created — receives the new activity's ID
-  onSuccess?: (activityId: string) => void;
 }
 
 export default function ActivityFormModal({
@@ -34,25 +26,11 @@ export default function ActivityFormModal({
   onClose,
   defaultCategory,
   defaultPlanId,
-  defaultActivityType,
-  defaultTitle,
-  initialData,
-  onSuccess,
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
-  const updateActivity = useUpdateActivity();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
-  const { data: users } = useUsers();
-  const { data: profile } = useProfile();
-
-  const isEditing = !!initialData;
-
-  // In edit mode, fetch the full activity to get plan/state IDs (ActivityListItem only carries counts)
-  const { data: fullActivity, isLoading: isActivityLoading } = useActivity(
-    isEditing && isOpen ? (initialData?.id ?? null) : null
-  );
 
   // Form state
   const [type, setType] = useState<ActivityType>(
@@ -70,52 +48,23 @@ export default function ActivityFormModal({
     defaultPlanId ? [defaultPlanId] : []
   );
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
-  const [assignedToUserId, setAssignedToUserId] = useState<string>("");
 
-  // Reset form when modal opens — populate from initialData on edit, defaults on create
+  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (initialData) {
-        setType(initialData.type as ActivityType);
-        setTitle(initialData.title);
-        setStartDate(initialData.startDate ? initialData.startDate.split("T")[0] : new Date().toISOString().split("T")[0]);
-        const hasEndDate = initialData.endDate && initialData.endDate !== initialData.startDate;
-        setEndDate(hasEndDate ? initialData.endDate!.split("T")[0] : "");
-        setIsMultiDay(!!hasEndDate);
-        setNotes(""); // ActivityListItem doesn't carry notes
-        setStatus(initialData.status);
-        setSelectedPlanIds([]);
-        setSelectedStateFips([]);
-        setAssignedToUserId(initialData.assignedToUserId ?? profile?.id ?? "");
-      } else {
-        setType(
-          defaultActivityType ??
-          (defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference")
-        );
-        setTitle(defaultTitle ?? "");
-        setStartDate(new Date().toISOString().split("T")[0]);
-        setEndDate("");
-        setIsMultiDay(false);
-        setNotes("");
-        setStatus("planned");
-        setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
-        setSelectedStateFips([]);
-        // Default assignee to the logged-in user
-        setAssignedToUserId(profile?.id ?? "");
-      }
-    }
-  }, [isOpen, initialData, defaultCategory, defaultPlanId, defaultActivityType, defaultTitle, profile?.id]);
-
-  // Pre-populate plans, states, and notes once the full activity fetch resolves
-  useEffect(() => {
-    if (fullActivity && isEditing && isOpen) {
-      setSelectedPlanIds(fullActivity.plans.map((p) => p.planId));
-      setSelectedStateFips(
-        fullActivity.states.filter((s) => s.isExplicit).map((s) => s.fips)
+      setType(
+        defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference"
       );
-      setNotes(fullActivity.notes ?? "");
+      setTitle("");
+      setStartDate(new Date().toISOString().split("T")[0]);
+      setEndDate("");
+      setIsMultiDay(false);
+      setNotes("");
+      setStatus("planned");
+      setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
+      setSelectedStateFips([]);
     }
-  }, [fullActivity, isEditing, isOpen]);
+  }, [isOpen, defaultCategory, defaultPlanId]);
 
   // Close on escape key
   useEffect(() => {
@@ -138,36 +87,19 @@ export default function ActivityFormModal({
     if (!title.trim()) return;
 
     try {
-      if (isEditing) {
-        await updateActivity.mutateAsync({
-          activityId: initialData!.id,
-          type,
-          title: title.trim(),
-          startDate: startDate || undefined,
-          endDate: isMultiDay && endDate ? endDate : null,
-          notes: notes.trim() || undefined,
-          status,
-          assignedToUserId: assignedToUserId || null,
-          planIds: selectedPlanIds,
-          stateFips: selectedStateFips,
-        });
-      } else {
-        const created = await createActivity.mutateAsync({
-          type,
-          title: title.trim(),
-          startDate: startDate || undefined,
-          endDate: isMultiDay && endDate ? endDate : undefined,
-          notes: notes.trim() || undefined,
-          status,
-          planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
-          stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
-          assignedToUserId: assignedToUserId || null,
-        });
-        onSuccess?.(created.id);
-      }
+      await createActivity.mutateAsync({
+        type,
+        title: title.trim(),
+        startDate: startDate || undefined,
+        endDate: isMultiDay && endDate ? endDate : undefined,
+        notes: notes.trim() || undefined,
+        status,
+        planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+        stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
+      });
       onClose();
     } catch (error) {
-      console.error("Failed to save activity:", error);
+      console.error("Failed to create activity:", error);
     }
   };
 
@@ -189,9 +121,6 @@ export default function ActivityFormModal({
 
   if (!isOpen) return null;
 
-  const isPending = createActivity.isPending || updateActivity.isPending;
-  const isSaveDisabled = !title.trim() || isPending || (isEditing && isActivityLoading);
-
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -203,9 +132,7 @@ export default function ActivityFormModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-[#403770]">
-            {isEditing ? "Edit Activity" : "New Activity"}
-          </h2>
+          <h2 className="text-lg font-semibold text-[#403770]">New Activity</h2>
           <button
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
@@ -297,26 +224,6 @@ export default function ActivityFormModal({
               </label>
             </div>
 
-            {/* Assign to */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Assign to
-              </label>
-              <select
-                value={assignedToUserId}
-                onChange={(e) => setAssignedToUserId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-              >
-                <option value="">Unassigned</option>
-                {users?.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.fullName || user.email}
-                    {user.id === profile?.id ? " (you)" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Plans selector */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -333,7 +240,6 @@ export default function ActivityFormModal({
                         type="checkbox"
                         checked={selectedPlanIds.includes(plan.id)}
                         onChange={() => togglePlan(plan.id)}
-                        disabled={isEditing && isActivityLoading}
                         className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
                       />
                       <span
@@ -374,7 +280,6 @@ export default function ActivityFormModal({
                         type="checkbox"
                         checked={selectedStateFips.includes(state.fips)}
                         onChange={() => toggleState(state.fips)}
-                        disabled={isEditing && isActivityLoading}
                         className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
                       />
                       <span className="text-sm text-gray-700">
@@ -441,12 +346,10 @@ export default function ActivityFormModal({
             </button>
             <button
               type="submit"
-              disabled={isSaveDisabled}
+              disabled={!title.trim() || createActivity.isPending}
               className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isPending
-                ? isEditing ? "Saving..." : "Creating..."
-                : isEditing ? "Save Changes" : "Create Activity"}
+              {createActivity.isPending ? "Creating..." : "Create Activity"}
             </button>
           </div>
         </form>

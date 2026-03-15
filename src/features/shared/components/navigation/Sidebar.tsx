@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "lineup" | "home" | "map" | "plans" | "activities" | "tasks" | "profile";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "profile";
 
 interface Tab {
   id: TabId;
@@ -14,19 +14,6 @@ interface Tab {
 
 // SVG icons for each tab - kept inline for simplicity
 // Using stroke-based icons for consistency with the rest of the app
-
-// Timeline list icon — bullet points with lines, representing The Lineup daily view
-const LineupIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none" />
-    <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none" />
-    <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 6h12" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h12" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 18h12" />
-  </svg>
-);
-
 const MapIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -107,7 +94,6 @@ const ChevronRight = () => (
 
 // Main navigation tabs (top section of sidebar)
 const MAIN_TABS: Tab[] = [
-  { id: "lineup", label: "Lineup", icon: <LineupIcon /> },
   { id: "home", label: "Home", icon: <HomeIcon /> },
   { id: "map", label: "Map", icon: <MapIcon /> },
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
