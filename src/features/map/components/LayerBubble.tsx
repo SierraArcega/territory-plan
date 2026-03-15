@@ -708,6 +708,8 @@ export default function LayerBubble() {
                     : filteredSelected.length === filteredValues.length
                     ? "true"
                     : "mixed";
+                // When q is active but no results, this produces "Select 0 results" — but the row is hidden
+                // when filtered.length === 0 (see the conditional render below), so this label is never shown.
                 const selectAllLabel = q
                   ? `Select ${filteredValues.length} results`
                   : `Select all ${states.length}`;
@@ -741,6 +743,7 @@ export default function LayerBubble() {
                           } else if (e.key === "ArrowUp") {
                             e.preventDefault();
                             if (filtered.length === 0) return;
+                            // h === -1 (no row active) → jump to Select All (0); h === 0 (already at Select All) → clamp at 0
                             setActiveIndex((h) => (h <= 0 ? 0 : h - 1));
                           } else if (e.key === "Enter") {
                             e.preventDefault();
@@ -772,7 +775,7 @@ export default function LayerBubble() {
                         className="w-full text-sm bg-gray-50 border border-gray-200/60 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 placeholder:text-gray-400"
                       />
                     </div>
-                    <div id="state-listbox" className="max-h-48 overflow-y-auto">
+                    <div id="state-listbox" role="listbox" aria-multiselectable="true" className="max-h-48 overflow-y-auto">
                       {/* Select All row — hidden when search returns 0 results */}
                       {filtered.length > 0 && (
                         <div
