@@ -649,6 +649,8 @@ export default function LayerBubble() {
             <div className="relative">
               <button
                 type="button"
+                aria-haspopup="listbox"
+                aria-expanded={stateDropdownOpen}
                 onClick={() => {
                   const next = !stateDropdownOpen;
                   setStateDropdownOpen(next);
@@ -775,7 +777,7 @@ export default function LayerBubble() {
                         className="w-full text-sm bg-gray-50 border border-gray-200/60 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 placeholder:text-gray-400"
                       />
                     </div>
-                    <div id="state-listbox" role="listbox" aria-multiselectable="true" className="max-h-48 overflow-y-auto">
+                    <div id="state-listbox" role="listbox" aria-multiselectable="true" aria-label="States" className="max-h-48 overflow-y-auto">
                       {/* Select All row — hidden when search returns 0 results */}
                       {filtered.length > 0 && (
                         <div
@@ -824,6 +826,8 @@ export default function LayerBubble() {
                         <label
                           key={s.abbrev}
                           id={`state-option-${s.abbrev}`}
+                          role="option"
+                          aria-selected={filterStates.includes(s.abbrev)}
                           ref={(el) => {
                             if (i === activeIndex - 1 && el) {
                               el.scrollIntoView({ block: "nearest" });
@@ -842,7 +846,9 @@ export default function LayerBubble() {
                           <input
                             type="checkbox"
                             checked={filterStates.includes(s.abbrev)}
-                            onChange={() => toggleFilterState(s.abbrev)}
+                            onChange={() => {}}
+                            tabIndex={-1}
+                            aria-hidden="true"
                             className="w-4 h-4 rounded border-gray-300 text-plum focus:ring-plum/30"
                           />
                           <span className="text-sm text-gray-700">{s.name}</span>

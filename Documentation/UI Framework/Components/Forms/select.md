@@ -148,7 +148,7 @@ interface MultiSelectProps {
 └─────────────────────────────────┘
 ```
 
-The search input and Select All row are rendered **outside** the `<ul role="listbox">` so they remain sticky without invalidating the listbox's child element structure.
+The search input and Select All row are rendered **outside** the `<ul role="listbox">` so they are fixed above the scrollable list without invalidating the listbox's child element structure. In compact implementations (such as LayerBubble), both rows may instead appear as the first children inside the scrollable container — a documented intentional deviation that is sufficient when the list is short.
 
 #### Visual Spec
 
