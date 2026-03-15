@@ -7,6 +7,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import type { Contact } from "@/lib/api";
+import { useSortableTable } from "@/features/shared/hooks/useSortableTable";
+import { SortHeader } from "@/features/shared/components/SortHeader";
 
 // Generate a consistent color from a contact's name for their avatar
 // Uses the brand palette so every avatar feels intentional
@@ -96,6 +98,12 @@ export default function ContactsTable({
   onDelete,
   onContactClick,
 }: ContactsTableProps) {
+  // Sort state — Person, Email, Department, Seniority are sortable;
+  // District is derived (no direct field), Last Activity is a future placeholder.
+  const { sorted: sortedContacts, sortState, onSort } = useSortableTable<Contact>({
+    data: contacts,
+  });
+
   // Track which contact IDs are selected for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
@@ -205,21 +213,37 @@ export default function ContactsTable({
                     aria-label="Select all contacts"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Person
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
+                <SortHeader
+                  field="name"
+                  label="Person"
+                  sortState={sortState}
+                  onSort={onSort}
+                  className="px-4 py-3"
+                />
+                <SortHeader
+                  field="email"
+                  label="Email"
+                  sortState={sortState}
+                  onSort={onSort}
+                  className="px-4 py-3"
+                />
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                   District
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Seniority
-                </th>
+                <SortHeader
+                  field="persona"
+                  label="Department"
+                  sortState={sortState}
+                  onSort={onSort}
+                  className="px-4 py-3"
+                />
+                <SortHeader
+                  field="seniorityLevel"
+                  label="Seniority"
+                  sortState={sortState}
+                  onSort={onSort}
+                  className="px-4 py-3"
+                />
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                   Last Activity
                 </th>
@@ -229,12 +253,12 @@ export default function ContactsTable({
 
             {/* ── Rows ── */}
             <tbody>
-              {contacts.map((contact, idx) => {
+              {sortedContacts.map((contact, idx) => {
                 const isSelected = selectedIds.has(contact.id);
                 const districtName = districtNameMap?.get(contact.leaid);
                 const avatarColor = getAvatarColor(contact.name);
                 const initials = getInitials(contact.name);
-                const isLast = idx === contacts.length - 1;
+                const isLast = idx === sortedContacts.length - 1;
 
                 return (
                   <tr
