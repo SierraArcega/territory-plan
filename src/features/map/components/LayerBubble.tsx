@@ -836,6 +836,7 @@ export default function LayerBubble() {
                           onMouseDown={(e) => {
                             e.preventDefault(); // keep focus on search input
                             setActiveIndex(i + 1);
+                            toggleFilterState(s.abbrev);
                           }}
                           className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer transition-colors ${
                             activeIndex === i + 1
