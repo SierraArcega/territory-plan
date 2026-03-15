@@ -101,4 +101,17 @@ describe("SortHeader", () => {
     );
     expect(container.querySelector("th")?.className).toContain("w-[30%]");
   });
+
+  it("renders tooltip when provided", () => {
+    wrap(
+      <SortHeader
+        field="name"
+        label="Name"
+        sortState={makeState(null, null)}
+        onSort={onSort}
+        tooltip={<span data-testid="my-tooltip">Tooltip text</span>}
+      />
+    );
+    expect(screen.getByTestId("my-tooltip")).toBeInTheDocument();
+  });
 });

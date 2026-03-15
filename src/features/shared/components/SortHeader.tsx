@@ -6,6 +6,7 @@ interface SortHeaderProps {
   sortState: SortState;
   onSort: (field: string) => void;
   className?: string;
+  tooltip?: React.ReactNode;
 }
 
 // Renders a sortable <th> per the Fullmind Data Table spec.
@@ -13,7 +14,7 @@ interface SortHeaderProps {
 //   - Inactive: text-[#8A80A8], arrow hidden (opacity-0), faint arrow on hover
 //   - Active asc/desc: text-[#403770], arrow visible at full opacity
 // The 50% opacity on hover applies to the arrow element only, not the label text.
-export function SortHeader({ field, label, sortState, onSort, className = "" }: SortHeaderProps) {
+export function SortHeader({ field, label, sortState, onSort, className = "", tooltip }: SortHeaderProps) {
   const isActive = sortState.field === field;
   const dir = isActive ? sortState.dir : null;
 
@@ -46,6 +47,8 @@ export function SortHeader({ field, label, sortState, onSort, className = "" }: 
           {dir === "desc" ? "▼" : "▲"}
         </span>
       </div>
+      {/* Render tooltip (e.g. ColumnTooltip) if provided — positioned as a sibling to the label/arrow row */}
+      {tooltip}
     </th>
   );
 }

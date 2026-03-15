@@ -66,17 +66,19 @@ describe("DistrictsTable sorting", () => {
 
   it("third click restores original order", () => {
     const districts = [
-      makeDistrict({ leaid: "1", name: "Zeta USD" }),
+      makeDistrict({ leaid: "1", name: "Charlie USD" }),
       makeDistrict({ leaid: "2", name: "Alpha USD" }),
+      makeDistrict({ leaid: "3", name: "Beta USD" }),
     ];
     renderTable(districts);
     const th = screen.getByRole("columnheader", { name: /^district$/i });
-    fireEvent.click(th);
-    fireEvent.click(th);
-    fireEvent.click(th);
+    fireEvent.click(th);  // asc: Alpha, Beta, Charlie
+    fireEvent.click(th);  // desc: Charlie, Beta, Alpha
+    fireEvent.click(th);  // reset: Charlie, Alpha, Beta (original)
     const rows = screen.getAllByRole("row").slice(1);
-    expect(rows[0]).toHaveTextContent("Zeta USD");
-    expect(rows[1]).toHaveTextContent("Alpha USD");
+    expect(rows[0]).toHaveTextContent("Charlie USD"); // original first
+    expect(rows[1]).toHaveTextContent("Alpha USD");   // original second
+    expect(rows[2]).toHaveTextContent("Beta USD");    // original third
   });
 
   it("Services column header has no sort", () => {
@@ -109,7 +111,8 @@ describe("DistrictsTable sorting", () => {
       makeDistrict({ leaid: "3", name: "C", actuals: makeActuals(50) }),
     ];
     renderTable(districts);
-    fireEvent.click(screen.getByRole("columnheader", { name: /^revenue$/i }));
+    // The Revenue header now includes tooltip text in its accessible name; match on the prefix only
+    fireEvent.click(screen.getByRole("columnheader", { name: /^revenue/i }));
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("C"); // 50 < 100
     expect(rows[2]).toHaveTextContent("B"); // null last

@@ -331,14 +331,14 @@ export default function DistrictsTable({
             <tr className="border-b border-gray-200 bg-gray-50/80">
               <SortHeader field="name" label="District" sortState={sortState} onSort={onSort} className="px-4" />
               <SortHeader field="stateAbbrev" label="State" sortState={sortState} onSort={onSort} className="px-4" />
-              <SortHeader field="renewalTarget" label="Renewal" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="winbackTarget" label="Winback" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="expansionTarget" label="Expansion" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="newBusinessTarget" label="New Biz" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="revenue" label="Revenue" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="take" label="Take" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="pipeline" label="Pipeline" sortState={sortState} onSort={onSort} className="px-3 text-right" />
-              <SortHeader field="priorFy" label="Prior FY" sortState={sortState} onSort={onSort} className="px-3 text-right" />
+              <SortHeader field="renewalTarget" label="Renewal" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from renewal opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="winbackTarget" label="Winback" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from winback opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="expansionTarget" label="Expansion" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from expansion opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="newBusinessTarget" label="New Biz" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Target revenue from new business opportunities in this district for the current fiscal year" />} />
+              <SortHeader field="revenue" label="Revenue" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Actual revenue from completed and scheduled sessions vs your combined revenue targets (renewal + winback + expansion + new business) for this district" />} />
+              <SortHeader field="take" label="Take" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Total take (revenue minus educator costs) for this district in the current fiscal year" />} />
+              <SortHeader field="pipeline" label="Pipeline" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Total weighted open pipeline (stages 0-5) for this district in the current fiscal year" />} />
+              <SortHeader field="priorFy" label="Prior FY" sortState={sortState} onSort={onSort} className="px-3 text-right" tooltip={<ColumnTooltip text="Total revenue from opportunities in this district during the previous fiscal year" />} />
               <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                 Services
               </th>
