@@ -511,6 +511,12 @@ export interface ActivityListItem {
   planCount: number;
   districtCount: number;
   stateAbbrevs: string[];
+  // Mixmax enrichment fields (populated by Mixmax sync)
+  mixmaxSequenceName?: string | null;
+  mixmaxSequenceStep?: number | null;
+  mixmaxSequenceTotalSteps?: number | null;
+  mixmaxOpenCount?: number | null;
+  mixmaxClickCount?: number | null;
 }
 
 export interface ActivitiesResponse {
