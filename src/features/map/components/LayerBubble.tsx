@@ -492,7 +492,7 @@ export default function LayerBubble() {
   // State dropdown
   const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
   const [stateSearch, setStateSearch] = useState("");
-  const [stateHighlight, setStateHighlight] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const stateSearchRef = useRef<HTMLInputElement>(null);
 
   // Saved views
@@ -654,7 +654,7 @@ export default function LayerBubble() {
                   setStateDropdownOpen(next);
                   if (next) {
                     setStateSearch("");
-                    setStateHighlight(0);
+                    setActiveIndex(-1);
                     requestAnimationFrame(() => stateSearchRef.current?.focus());
                   }
                 }}
@@ -708,19 +708,19 @@ export default function LayerBubble() {
                         value={stateSearch}
                         onChange={(e) => {
                           setStateSearch(e.target.value);
-                          setStateHighlight(0);
+                          setActiveIndex(-1);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "ArrowDown") {
                             e.preventDefault();
-                            setStateHighlight((h) => Math.min(h + 1, filtered.length - 1));
+                            setActiveIndex((h) => Math.min(h + 1, filtered.length - 1));
                           } else if (e.key === "ArrowUp") {
                             e.preventDefault();
-                            setStateHighlight((h) => Math.max(h - 1, 0));
+                            setActiveIndex((h) => Math.max(h - 1, 0));
                           } else if (e.key === "Enter") {
                             e.preventDefault();
-                            if (filtered[stateHighlight]) {
-                              toggleFilterState(filtered[stateHighlight].abbrev);
+                            if (filtered[activeIndex]) {
+                              toggleFilterState(filtered[activeIndex].abbrev);
                             }
                           } else if (e.key === "Escape") {
                             e.preventDefault();
@@ -750,12 +750,12 @@ export default function LayerBubble() {
                         <label
                           key={s.abbrev}
                           ref={(el) => {
-                            if (i === stateHighlight && el) {
+                            if (i === activeIndex && el) {
                               el.scrollIntoView({ block: "nearest" });
                             }
                           }}
                           className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer transition-colors ${
-                            i === stateHighlight
+                            i === activeIndex
                               ? "bg-plum/10"
                               : "hover:bg-gray-50"
                           }`}
