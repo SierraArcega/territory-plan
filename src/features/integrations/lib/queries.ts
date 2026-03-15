@@ -36,3 +36,71 @@ export function useConnectMixmax() {
     },
   });
 }
+
+// ===== Outreach Action Hooks =====
+
+export function useSendEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      to: string;
+      subject: string;
+      body: string;
+      districtLeaid?: string;
+      contactId?: number;
+    }) =>
+      fetchJson(`${API}/gmail/send`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+export function useSendSlackMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      channelId: string;
+      message: string;
+      districtLeaid?: string;
+    }) =>
+      fetchJson(`${API}/slack/send`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+export function useSlackChannels() {
+  return useQuery<{ channels: Array<{ id: string; name: string }> }>({
+    queryKey: ["slackChannels"],
+    queryFn: () => fetchJson(`${API}/slack/channels`),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useMixmaxCampaigns() {
+  return useQuery<{
+    sequences: Array<{ _id: string; name: string; numStages: number }>;
+  }>({
+    queryKey: ["mixmaxCampaigns"],
+    queryFn: () => fetchJson(`${API}/mixmax/campaigns`),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAddToCampaign() {
+  return useMutation({
+    mutationFn: (data: { sequenceId: string; contactEmail: string }) =>
+      fetchJson(`${API}/mixmax/campaigns`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  });
+}

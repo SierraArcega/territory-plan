@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { usePlanContacts, useDeleteContact } from "@/lib/api";
+import ContactOutreachActions from "@/features/integrations/components/ContactOutreachActions";
 
 /** Extract initials from a full name (e.g. "Jane Doe" -> "JD") */
 function getInitials(name: string): string {
@@ -199,6 +200,21 @@ export default function ContactDetail({ contactId }: ContactDetailProps) {
           </p>
         </div>
       )}
+
+      {/* Outreach Actions */}
+      <div className="pt-1 border-t border-gray-100">
+        <div className="text-[9px] font-medium text-gray-400 uppercase tracking-wider mb-1.5 px-3">
+          Outreach
+        </div>
+        <div className="px-3">
+          <ContactOutreachActions
+            contactEmail={contact.email}
+            contactName={contact.name}
+            contactId={contact.id}
+            districtLeaid={contact.leaid}
+          />
+        </div>
+      </div>
 
       {/* Quick actions */}
       <div className="space-y-1.5 pt-1 border-t border-gray-100">

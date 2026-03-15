@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import type { Contact } from "@/lib/api";
+import ContactOutreachActions from "@/features/integrations/components/ContactOutreachActions";
 
 interface ContactCardProps {
   contact: Contact;
@@ -127,6 +128,16 @@ export default function ContactCard({ contact, districtName, onEdit, onDelete, o
             <span>{contact.phone}</span>
           </a>
         )}
+      </div>
+
+      {/* Outreach Actions */}
+      <div className="mb-2" onClick={(e) => e.stopPropagation()}>
+        <ContactOutreachActions
+          contactEmail={contact.email}
+          contactName={contact.name}
+          contactId={contact.id}
+          districtLeaid={contact.leaid}
+        />
       </div>
 
       {/* Department & Seniority */}
