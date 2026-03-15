@@ -201,13 +201,12 @@ export function MultiSelect({
         </svg>
       </button>
 
-      {/* Chips — only shown for 2–3 selections:
+      {/* Chips — shown for 2+ selections:
           - 1 item: trigger shows the label inline; chip would duplicate it and
             cause ARIA name collisions in tests.
-          - 4+ items: trigger shows a count label ("N states"); chips would add
-            extra buttons that break tests using getByRole("button") unqualified.
+          - 2+ items: chips show the selections inline.
           - disabled: chips are always suppressed (trigger shows placeholder). */}
-      {!disabled && selected.length >= 2 && selected.length <= 3 && (
+      {!disabled && selected.length >= 2 && (
         <div className="flex flex-wrap gap-1 mt-1">
           {selected.map((value) => {
             const opt = options.find((o) => o.value === value);

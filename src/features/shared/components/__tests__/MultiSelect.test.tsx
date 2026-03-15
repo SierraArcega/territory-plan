@@ -135,7 +135,7 @@ describe("MultiSelect — Select All", () => {
 
   it("clicking Select All (checked) unchecks all filtered options", () => {
     const { onChange } = setup({ selected: ["ca", "tx", "ny", "fl", "wa"] });
-    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByRole("button", { name: /5 states/i }));
     const selectAll = screen.getByRole("checkbox", { name: /Select all 5/i });
     expect(selectAll).toHaveAttribute("aria-checked", "true");
     fireEvent.click(selectAll);
