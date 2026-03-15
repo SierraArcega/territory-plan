@@ -234,19 +234,21 @@ Chip remove button: `text-[#A69DC0] hover:text-[#403770] transition-colors`
 
 Chips render in insertion order (`selected` array order). If a value has no matching entry in `options` (stale data), render the raw value string as the label — don't skip it silently.
 
-#### Select All Logic
+#### Select All / Deselect All Logic
 
-| Filtered selection state | `aria-checked` | Clicking does |
-|--------------------------|---------------|---------------|
-| None selected | `"false"` | `onChange(allFilteredValues)` |
-| Some selected | `"mixed"` | `onChange(allFilteredValues)` |
-| All selected | `"true"` | `onChange(selected without filteredValues)` |
+The row label and action are binary based on whether any filtered options are currently selected:
+
+| Filtered selection state | `aria-checked` | Label | Clicking does |
+|--------------------------|---------------|-------|---------------|
+| None selected | `"false"` | `"Select all {N}"` / `"Select {N} results"` | Add all filtered to selection |
+| Any selected (some or all) | `"mixed"` or `"true"` | `"Deselect all"` | Remove all filtered from selection |
 
 "Filtered" = options matching the current search query. When no search is active, filtered = all options.
 
-**Select All label:**
-- No search active: `"Select all {N}"` (N = total option count)
-- Search active with results: `"Select {N} results"` (N = filtered count)
+**Label rules:**
+- Any filtered options selected: `"Deselect all"` (regardless of search state)
+- No filtered options selected, no search: `"Select all {N}"` (N = total option count)
+- No filtered options selected, search active with results: `"Select {N} results"` (N = filtered count)
 - Search active with zero results: row is hidden
 
 #### Cursor (`activeIndex`) Behavior
@@ -286,7 +288,7 @@ When a keyboard move lands outside the visible scroll area, call `element.scroll
 
 - Trigger button: `aria-haspopup="listbox"`, `aria-expanded={isOpen}`
 - Search input: `aria-label="Search options"`, `aria-controls="{id}-listbox"`, `aria-activedescendant` = `"{id}-option-{value}"` for active option rows, `"{id}-select-all"` for the Select All row, omitted when `activeIndex === -1`
-- Select All `<div>`: `id="{id}-select-all"`, `role="checkbox"`, `aria-checked="true|false|mixed"`, `tabIndex={-1}`, `aria-label` = `"Select all {N}"` or `"Select {N} results"` (matches visible label)
+- Select All `<div>`: `id="{id}-select-all"`, `role="checkbox"`, `aria-checked="true|false|mixed"`, `tabIndex={-1}`, `aria-label` matches the visible label exactly — `"Deselect all"` when any filtered options are selected, `"Select all {N}"` or `"Select {N} results"` otherwise
 - Option list `<ul>`: `role="listbox"`, `aria-multiselectable="true"`, `id="{id}-listbox"`, `aria-label={label}`
 - Each option `<li>`: `role="option"`, `aria-selected={isSelected}`, `id="{id}-option-{value}"`
 - Chip remove buttons: `aria-label="Remove {label}"`
@@ -318,8 +320,9 @@ function MultiSelect({
     ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
     : options;
 
-  // Tri-state: how many of filtered are selected?
+  // How many of the filtered options are currently selected?
   const filteredSelected = filtered.filter((o) => selected.includes(o.value));
+  const anyFilteredSelected = filteredSelected.length > 0;
   const selectAllState: "true" | "false" | "mixed" =
     filteredSelected.length === 0
       ? "false"
@@ -327,10 +330,12 @@ function MultiSelect({
       ? "true"
       : "mixed";
 
-  const selectAllLabel =
-    query.trim()
-      ? `Select ${filtered.length} results`
-      : `Select all ${options.length}`;
+  // Label is binary: any filtered selected → "Deselect all"; none selected → "Select all N"
+  const selectAllLabel = anyFilteredSelected
+    ? "Deselect all"
+    : query.trim()
+    ? `Select ${filtered.length} results`
+    : `Select all ${options.length}`;
 
   // Trigger label
   const triggerText = (() => {
@@ -390,12 +395,12 @@ function MultiSelect({
   };
 
   const applySelectAll = () => {
-    if (selectAllState === "true") {
-      // Uncheck all filtered
+    if (anyFilteredSelected) {
+      // Deselect all filtered
       const filteredValues = new Set(filtered.map((o) => o.value));
       onChange(selected.filter((v) => !filteredValues.has(v)));
     } else {
-      // Check all filtered (merge with existing selection)
+      // Select all filtered (merge with existing selection)
       const filteredValues = filtered.map((o) => o.value);
       const existing = new Set(selected);
       onChange([...selected, ...filteredValues.filter((v) => !existing.has(v))]);
