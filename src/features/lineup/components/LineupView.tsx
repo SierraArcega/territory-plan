@@ -20,6 +20,7 @@ import {
 import { getToday, toDateKey, parseLocalDate } from "@/features/shared/lib/date-utils";
 import ActivityRow from "@/features/activities/components/ActivityRow";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
+import SuggestionsBanner from "./SuggestionsBanner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,20 @@ export default function LineupView() {
     // Pass selected user IDs so the API filters by assignee
     assignedToUserIds: selectedUserIds.length > 0 ? selectedUserIds : undefined,
   });
+
+  // Independent fetch for the current user's own activity count today (used for busy-day detection in the banner).
+  // Pinned to getToday() — NOT selectedDate — so it always reflects the real calendar day.
+  const today = getToday();
+  const { data: myTodayData } = useActivities(
+    profile?.id
+      ? {
+          startDateFrom: today,
+          startDateTo: today,
+          assignedToUserIds: [profile.id],
+        }
+      : {}
+  );
+  const myTodayActivityCount = myTodayData?.activities.length ?? 0;
 
   const allActivities = activitiesData?.activities ?? [];
 
@@ -489,6 +504,11 @@ export default function LineupView() {
 
       {/* ── Activity timeline ── */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* ── Suggestions banner (shown only when viewing today) ── */}
+        <SuggestionsBanner
+          date={selectedDate}
+          activityCount={myTodayActivityCount}
+        />
         {isLoading ? (
           <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
             Loading activities...
