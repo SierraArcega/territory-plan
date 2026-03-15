@@ -27,7 +27,7 @@ export type PanelState =
   | "PLAN_PERF";
 
 // Icon bar navigation
-export type IconBarTab = "home" | "plans" | "explore" | "settings";
+export type IconBarTab = "selection" | "home" | "plans" | "explore" | "settings";
 
 // Plan workspace sections
 export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
@@ -451,7 +451,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   filterOwner: null,
   filterPlanId: null,
   filterStates: [],
-  activeIconTab: "home",
+  activeIconTab: "selection" as IconBarTab,
   selectedLeaid: null,
   selectedStateCode: null,
   hoveredLeaid: null,
@@ -599,9 +599,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   setActiveIconTab: (tab) =>
     set((s) => ({
       activeIconTab: tab,
-      // Reset to browse when switching tabs
+      // Only reset to browse when switching to home; selection tab preserves panelState
       panelState: tab === "home" ? "BROWSE" : s.panelState,
-      panelHistory: [],
+      panelHistory: tab === "home" ? [] : s.panelHistory,
       isExploreActive: tab === "explore",
       // Clear filtered districts when leaving explore
       ...(tab !== "explore" ? { filteredDistrictLeaids: [] } : {}),
@@ -719,7 +719,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
         next.size === 0 ? "BROWSE"
         : s.panelState === "BROWSE" ? "MULTI_DISTRICT"
         : s.panelState;
-      return { selectedLeaids: next, panelState };
+      // When adding (next is larger than before), switch to selection tab
+      const activeIconTab = next.size > s.selectedLeaids.size ? "selection" : s.activeIconTab;
+      return { selectedLeaids: next, panelState, activeIconTab };
     }),
 
   clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>(), panelState: "BROWSE", panelHistory: [] }),

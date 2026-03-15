@@ -5,6 +5,7 @@ import { useMapV2Store, type IconBarTab } from "@/features/map/lib/store";
 import { useProfile } from "@/lib/api";
 
 const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
+  { id: "selection", icon: "selection", label: "Selection" },
   { id: "home", icon: "home", label: "Home" },
   { id: "plans", icon: "plans", label: "Plans" },
   { id: "explore", icon: "explore", label: "Explore" },
@@ -44,6 +45,18 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
   const color = active ? "#403770" : "#9CA3AF";
 
   switch (type) {
+    case "selection":
+      return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="5.5" cy="13" r="3.5" stroke={color} strokeWidth="1.5"/>
+          <circle cx="14.5" cy="13" r="3.5" stroke={color} strokeWidth="1.5"/>
+          <path d="M9 13H11" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M2 7.5L4 13" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M18 7.5L16 13" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M4 9H8" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M12 9H16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      );
     case "plans":
       return (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

@@ -33,6 +33,7 @@ export default function PanelContent() {
   if (panelState === "DISTRICT") return <PanelContentWrapper><DistrictDetailPanel /></PanelContentWrapper>;
 
   // Icon tab routing for BROWSE/STATE states
+  if (activeIconTab === "selection") return <PanelContentWrapper><SelectionListPanel /></PanelContentWrapper>;
   if (activeIconTab === "home") return <PanelContentWrapper><HomePanel /></PanelContentWrapper>;
   if (activeIconTab === "plans") return <PanelContentWrapper><PlansListPanel /></PanelContentWrapper>;
   // Default: home panel

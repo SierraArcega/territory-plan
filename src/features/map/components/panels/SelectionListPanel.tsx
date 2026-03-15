@@ -218,6 +218,25 @@ export default function SelectionListPanel() {
   const leaids = [...selectedLeaids].sort();
   const count = leaids.length;
 
+  // Empty state — shown when the selection tab is open but no districts have been picked yet
+  if (count === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mb-4 text-gray-200">
+          <circle cx="13" cy="31" r="9" stroke="currentColor" strokeWidth="2"/>
+          <circle cx="35" cy="31" r="9" stroke="currentColor" strokeWidth="2"/>
+          <path d="M22 31H26" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M4 18L10 31" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M44 18L38 31" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M10 22H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M28 22H38" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        <p className="text-sm font-semibold text-gray-400">Select 1 or more districts to get started</p>
+        <p className="text-xs text-gray-300 mt-1">Click any district on the map</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header: count + clear all */}
