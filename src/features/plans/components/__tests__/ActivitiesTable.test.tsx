@@ -22,27 +22,12 @@ vi.mock("@/lib/api", async () => {
 });
 
 // Mock activity types
-vi.mock("@/lib/activityTypes", () => ({
-  ACTIVITY_TYPE_LABELS: {
-    conference: "Conference",
-    road_trip: "Road Trip",
-    email_campaign: "Email Campaign",
-    discovery_call: "Discovery Call",
-  },
-  ACTIVITY_TYPE_ICONS: {
-    conference: "🎤",
-    road_trip: "🚗",
-    email_campaign: "📧",
-    discovery_call: "🔍",
-  },
-  ACTIVITY_STATUS_CONFIG: {
-    planned: { label: "Planned", color: "#6EA3BE", bgColor: "#EEF5F8" },
-    completed: { label: "Completed", color: "#8AA891", bgColor: "#EFF5F0" },
-    cancelled: { label: "Cancelled", color: "#9CA3AF", bgColor: "#F3F4F6" },
-  },
-  ALL_ACTIVITY_TYPES: ["conference", "road_trip", "email_campaign", "discovery_call"],
-  VALID_ACTIVITY_STATUSES: ["planned", "completed", "cancelled"],
-}));
+vi.mock("@/features/activities/types", async () => {
+  const actual = await vi.importActual("@/features/activities/types");
+  return {
+    ...actual,
+  };
+});
 
 // Sample test data
 const mockActivities: ActivityListItem[] = [
@@ -456,7 +441,7 @@ describe("ActivitiesTable sorting", () => {
 
   it("Scope column header has no sort behavior", () => {
     renderTable([makeActivity()]);
-    const scopeHeader = screen.queryByRole("columnheader", { name: /scope/i });
-    if (scopeHeader) expect(scopeHeader).not.toHaveAttribute("aria-sort");
+    const scopeHeader = screen.getByRole("columnheader", { name: /scope/i });
+    expect(scopeHeader).not.toHaveAttribute("aria-sort");
   });
 });
