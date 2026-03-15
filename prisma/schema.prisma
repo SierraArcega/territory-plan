@@ -590,7 +590,25 @@ model Activity {
   // Links activity to a Google Calendar event for two-way sync
   googleEventId String? @unique @map("google_event_id")
   // Tracks whether this activity was created manually or pulled from calendar
-  source        String  @default("manual") @db.VarChar(20) // manual, calendar_sync
+  source        String  @default("manual") @db.VarChar(30) // manual, calendar_sync
+
+  // Gmail dedup (parallel to existing googleEventId)
+  gmailMessageId      String?  @unique @map("gmail_message_id")
+
+  // Slack dedup
+  slackChannelId      String?  @map("slack_channel_id") @db.VarChar(50)
+  slackMessageTs      String?  @map("slack_message_ts")
+
+  // Service-specific metadata
+  integrationMeta     Json?    @map("integration_meta")
+
+  // Mixmax sequence enrichment
+  mixmaxSequenceName  String?  @map("mixmax_sequence_name") @db.VarChar(255)
+  mixmaxSequenceStep  Int?     @map("mixmax_sequence_step")
+  mixmaxSequenceTotal Int?     @map("mixmax_sequence_total")
+  mixmaxStatus        String?  @map("mixmax_status") @db.VarChar(30)
+  mixmaxOpenCount     Int?     @map("mixmax_open_count")
+  mixmaxClickCount    Int?     @map("mixmax_click_count")
 
   // ===== Outcome Tracking =====
   // Captures what resulted from the activity (set on completion)
@@ -612,6 +630,7 @@ model Activity {
   relations  ActivityRelation[] @relation("ActivityRelations")
   relatedTo  ActivityRelation[] @relation("RelatedToActivities")
 
+  @@unique([slackChannelId, slackMessageTs])
   @@index([createdByUserId])
   @@index([type])
   @@index([startDate])
@@ -744,8 +763,38 @@ model UserProfile {
   savedMapViews      MapView[]                    @relation("MapViewOwner")
   // Activity attendance
   activityAttendances ActivityAttendee[]
+  // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
+  integrations       UserIntegration[]
 
   @@map("user_profiles")
+}
+
+// ===== Service Integrations =====
+// Per-user OAuth connections for Gmail, Google Calendar, Slack, Mixmax
+// Tokens are encrypted at rest via AES-256-GCM (see src/features/integrations/lib/encryption.ts)
+
+model UserIntegration {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id") @db.Uuid
+  service        String    @db.VarChar(30) // "gmail", "google_calendar", "slack", "mixmax"
+  accountEmail   String?   @map("account_email") @db.VarChar(255)
+  accountName    String?   @map("account_name") @db.VarChar(255)
+  accessToken    String    @map("access_token") @db.Text // encrypted
+  refreshToken   String?   @map("refresh_token") @db.Text // encrypted
+  tokenExpiresAt DateTime? @map("token_expires_at")
+  scopes         String[]  @default([])
+  metadata       Json?     // service-specific (Slack workspace, Calendar companyDomain, etc.)
+  syncEnabled    Boolean   @default(true) @map("sync_enabled")
+  status         String    @default("connected") @db.VarChar(20)
+  lastSyncAt     DateTime? @map("last_sync_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, service])
+  @@index([userId])
+  @@map("user_integrations")
 }
 
 enum ServiceCategory {
