@@ -136,9 +136,9 @@ interface MultiSelectProps {
 ┌─────────────────────────────────┐
 │  [trigger button]               │  always visible, outside dropdown
 ├─────────────────────────────────┤
-│  🔍 Search…                     │  sticky, auto-focused on open
+│  🔍 Search…                     │  fixed above scroll area, auto-focused on open
 │  ─────────────────────────────  │
-│  ▣  Select all 50 states        │  sticky <div>; hidden when 0 search results
+│  ▣  Select all 50 states        │  fixed above scroll area; hidden when 0 search results
 │  ─────────────────────────────  │
 │  □  Alabama              AL     │  scrollable <ul role="listbox">
 │  ✓  Alaska               AK     │  cursor row = bg-[#EDE9F7]
@@ -360,7 +360,8 @@ function MultiSelect({
     setActiveIndex(-1);
   };
 
-  // Outside click
+  // Outside click — empty deps is intentional: useState setters are stable references
+  // so `close` never changes identity. If your linter flags this, wrap `close` in useCallback.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -369,7 +370,7 @@ function MultiSelect({
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll active row into view
   useEffect(() => {
@@ -412,9 +413,11 @@ function MultiSelect({
     const max = filtered.length; // indices 1…max
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      if (max === 0) return; // nothing to navigate when list is empty
       setActiveIndex((i) => (i < max ? i + 1 : i));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      if (max === 0) return;
       setActiveIndex((i) => (i <= 0 ? 0 : i - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -629,6 +632,23 @@ function MultiSelect({
     </div>
   );
 }
+
+{/* Usage */}
+<MultiSelect
+  id="service-types"
+  label="Service Types"
+  countLabel="types"
+  placeholder="All service types"
+  options={[
+    { value: "curriculum", label: "Curriculum" },
+    { value: "pd", label: "Professional Development" },
+    { value: "coaching", label: "Instructional Coaching" },
+    { value: "assessment", label: "Assessment" },
+    { value: "platform", label: "Platform License" },
+  ]}
+  selected={selectedServiceTypes}
+  onChange={setSelectedServiceTypes}
+/>
 ```
 
 ---
