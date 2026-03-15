@@ -110,14 +110,14 @@ export default function ActivityFormModal({
 
   // Pre-populate plans, states, and notes once the full activity fetch resolves
   useEffect(() => {
-    if (fullActivity && isEditing) {
+    if (fullActivity && isEditing && isOpen) {
       setSelectedPlanIds(fullActivity.plans.map((p) => p.planId));
       setSelectedStateFips(
         fullActivity.states.filter((s) => s.isExplicit).map((s) => s.fips)
       );
       setNotes(fullActivity.notes ?? "");
     }
-  }, [fullActivity, isEditing]);
+  }, [fullActivity, isEditing, isOpen]);
 
   // Close on escape key
   useEffect(() => {

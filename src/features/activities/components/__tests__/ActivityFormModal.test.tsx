@@ -38,7 +38,7 @@ import type { ActivityListItem } from "@/features/shared/types/api-types";
 
 const editingActivity: ActivityListItem = {
   id: "act-1",
-  type: "call",
+  type: "phone_call",
   category: "outreach",
   title: "Test Call",
   startDate: "2026-03-14T10:00:00Z",
@@ -56,7 +56,7 @@ const editingActivity: ActivityListItem = {
 
 const fullActivity = {
   id: "act-1",
-  type: "call",
+  type: "phone_call",
   category: "outreach",
   title: "Test Call",
   notes: "Existing notes",
@@ -90,7 +90,7 @@ function makeWrapper() {
 
 describe("ActivityFormModal — edit mode", () => {
   beforeEach(() => {
-    mockUseActivity.mockReturnValue({ data: null, isLoading: true } as ReturnType<typeof useActivity>);
+    mockUseActivity.mockReturnValue({ data: null, isLoading: true } as unknown as ReturnType<typeof useActivity>);
   });
 
   it("renders the Plans picker in edit mode", () => {
@@ -118,7 +118,7 @@ describe("ActivityFormModal — edit mode", () => {
   });
 
   it("pre-populates plans and explicit states from full activity fetch", async () => {
-    mockUseActivity.mockReturnValue({ data: fullActivity, isLoading: false } as ReturnType<typeof useActivity>);
+    mockUseActivity.mockReturnValue({ data: fullActivity, isLoading: false } as unknown as ReturnType<typeof useActivity>);
 
     render(
       <ActivityFormModal isOpen initialData={editingActivity} onClose={vi.fn()} />,
@@ -140,8 +140,8 @@ describe("ActivityFormModal — edit mode", () => {
 
   it("sends planIds and stateFips in the update call", async () => {
     const mockMutateAsync = vi.fn().mockResolvedValue({});
-    mockUseUpdateActivity.mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false } as ReturnType<typeof useUpdateActivity>);
-    mockUseActivity.mockReturnValue({ data: fullActivity, isLoading: false } as ReturnType<typeof useActivity>);
+    mockUseUpdateActivity.mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false } as unknown as ReturnType<typeof useUpdateActivity>);
+    mockUseActivity.mockReturnValue({ data: fullActivity, isLoading: false } as unknown as ReturnType<typeof useActivity>);
 
     render(
       <ActivityFormModal isOpen initialData={editingActivity} onClose={vi.fn()} />,
