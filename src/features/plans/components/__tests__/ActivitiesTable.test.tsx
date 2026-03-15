@@ -46,6 +46,7 @@ const mockActivities: ActivityListItem[] = [
     planCount: 2,
     districtCount: 5,
     stateAbbrevs: ["CA", "TX"],
+    assignedToUserId: null,
   },
   {
     id: "activity-2",
@@ -62,6 +63,7 @@ const mockActivities: ActivityListItem[] = [
     planCount: 1,
     districtCount: 12,
     stateAbbrevs: ["NY", "NJ", "PA"],
+    assignedToUserId: null,
   },
   {
     id: "activity-3",
@@ -78,6 +80,7 @@ const mockActivities: ActivityListItem[] = [
     planCount: 0,
     districtCount: 1,
     stateAbbrevs: ["FL"],
+    assignedToUserId: null,
   },
 ];
 
