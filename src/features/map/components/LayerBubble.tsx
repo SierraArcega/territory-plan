@@ -750,12 +750,16 @@ export default function LayerBubble() {
                         <label
                           key={s.abbrev}
                           ref={(el) => {
-                            if (i === activeIndex && el) {
+                            if (i === activeIndex - 1 && el) {
                               el.scrollIntoView({ block: "nearest" });
                             }
                           }}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // keep focus on search input
+                            setActiveIndex(i + 1);
+                          }}
                           className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer transition-colors ${
-                            i === activeIndex
+                            activeIndex === i + 1
                               ? "bg-plum/10"
                               : "hover:bg-gray-50"
                           }`}
