@@ -20,6 +20,16 @@ vi.mock("@/lib/prisma", () => ({
     },
     district: { findMany: vi.fn() },
     territoryPlanDistrict: { findMany: vi.fn() },
+    activityPlan: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
+    activityState: {
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+      createMany: vi.fn(),
+    },
   },
 }));
 
@@ -707,5 +717,83 @@ describe("DELETE /api/activities/[id]", () => {
     expect(mockPrisma.activity.delete).toHaveBeenCalledWith({
       where: { id: "activity-1" },
     });
+  });
+});
+
+describe("PATCH /api/activities/[id] plan/state sync", () => {
+  const existingActivity = {
+    id: "activity-1",
+    createdByUserId: "user-1",
+    assignedToUserId: null,
+    googleEventId: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue(existingActivity as never);
+    mockPrisma.activity.update.mockResolvedValue({
+      ...existingActivity,
+      type: "call",
+      title: "Test",
+      updatedAt: new Date(),
+    } as never);
+    mockPrisma.activityPlan.findMany.mockResolvedValue([]);
+    mockPrisma.activityPlan.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.activityPlan.createMany.mockResolvedValue({ count: 0 });
+    mockPrisma.activityState.findMany.mockResolvedValue([]);
+    mockPrisma.activityState.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.activityState.createMany.mockResolvedValue({ count: 0 });
+  });
+
+  it("syncs plan links when planIds provided", async () => {
+    mockPrisma.activityPlan.findMany.mockResolvedValue([{ planId: "plan-old" }] as never);
+
+    const req = makeRequest("http://localhost:3000/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Test", planIds: ["plan-new"] }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: "activity-1" }) });
+    expect(res.status).toBe(200);
+
+    expect(mockPrisma.activityPlan.deleteMany).toHaveBeenCalledWith({
+      where: { activityId: "activity-1", planId: { in: ["plan-old"] } },
+    });
+    expect(mockPrisma.activityPlan.createMany).toHaveBeenCalledWith({
+      data: [{ activityId: "activity-1", planId: "plan-new" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("syncs explicit state links when stateFips provided", async () => {
+    mockPrisma.activityState.findMany.mockResolvedValue([{ stateFips: "06" }] as never);
+
+    const req = makeRequest("http://localhost:3000/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Test", stateFips: ["08"] }),
+    });
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: "activity-1" }) });
+    expect(res.status).toBe(200);
+
+    expect(mockPrisma.activityState.deleteMany).toHaveBeenCalledWith({
+      where: { activityId: "activity-1", isExplicit: true, stateFips: { in: ["06"] } },
+    });
+    expect(mockPrisma.activityState.createMany).toHaveBeenCalledWith({
+      data: [{ activityId: "activity-1", stateFips: "08", isExplicit: true }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("skips plan sync when planIds not in body", async () => {
+    const req = makeRequest("http://localhost:3000/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Test" }),
+    });
+
+    await PATCH(req, { params: Promise.resolve({ id: "activity-1" }) });
+
+    expect(mockPrisma.activityPlan.findMany).not.toHaveBeenCalled();
   });
 });

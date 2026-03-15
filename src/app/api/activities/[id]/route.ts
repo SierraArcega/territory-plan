@@ -163,7 +163,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { type, title, notes, startDate, endDate, status, outcome, outcomeType, assignedToUserId } = body;
+    const { type, title, notes, startDate, endDate, status, outcome, outcomeType, assignedToUserId, planIds, stateFips } = body;
 
     // Validate type if provided
     if (type && !ALL_ACTIVITY_TYPES.includes(type)) {
@@ -224,6 +224,56 @@ export async function PATCH(
     // Push changes to Google Calendar if the activity has a linked event
     // Best-effort — doesn't block the response
     updateActivityOnCalendar(user.id, activity.id);
+
+    // Sync plan links if planIds was explicitly provided in the request body
+    if (planIds !== undefined) {
+      const currentPlans = await prisma.activityPlan.findMany({
+        where: { activityId: id },
+        select: { planId: true },
+      });
+      const currentPlanIdSet = new Set(currentPlans.map((p: { planId: string }) => p.planId));
+      const newPlanIdSet = new Set(planIds as string[]);
+
+      const toDelete = [...currentPlanIdSet].filter((pid) => !newPlanIdSet.has(pid));
+      const toAdd = [...newPlanIdSet].filter((pid) => !currentPlanIdSet.has(pid));
+
+      if (toDelete.length > 0) {
+        await prisma.activityPlan.deleteMany({
+          where: { activityId: id, planId: { in: toDelete } },
+        });
+      }
+      if (toAdd.length > 0) {
+        await prisma.activityPlan.createMany({
+          data: toAdd.map((planId: string) => ({ activityId: id, planId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    // Sync explicit state links if stateFips was explicitly provided in the request body
+    if (stateFips !== undefined) {
+      const currentStates = await prisma.activityState.findMany({
+        where: { activityId: id, isExplicit: true },
+        select: { stateFips: true },
+      });
+      const currentFipsSet = new Set(currentStates.map((s: { stateFips: string }) => s.stateFips));
+      const newFipsSet = new Set(stateFips as string[]);
+
+      const toDeleteFips = [...currentFipsSet].filter((f) => !newFipsSet.has(f));
+      const toAddFips = [...newFipsSet].filter((f) => !currentFipsSet.has(f));
+
+      if (toDeleteFips.length > 0) {
+        await prisma.activityState.deleteMany({
+          where: { activityId: id, isExplicit: true, stateFips: { in: toDeleteFips } },
+        });
+      }
+      if (toAddFips.length > 0) {
+        await prisma.activityState.createMany({
+          data: toAddFips.map((fips: string) => ({ activityId: id, stateFips: fips, isExplicit: true })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     return NextResponse.json({
       id: activity.id,
