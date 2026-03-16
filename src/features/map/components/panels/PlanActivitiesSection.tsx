@@ -172,7 +172,7 @@ function ActivityRow({
 
       {/* Title */}
       <span
-        className="flex-1 text-xs text-gray-700 font-medium truncate"
+        className="flex-1 text-xs text-gray-700 font-medium truncate group-hover:underline"
         title={activity.title}
       >
         {activity.title}

@@ -211,6 +211,8 @@ export default function ExploreOverlay() {
       openRightPanel({ type: "district_card", id: row.leaid as string });
     } else if (exploreEntity === "plans" && row.id) {
       openRightPanel({ type: "plan_card", id: row.id as string });
+    } else if (exploreEntity === "activities" && row.id) {
+      openRightPanel({ type: "activity_edit", id: row.id as string });
     }
   };
 
