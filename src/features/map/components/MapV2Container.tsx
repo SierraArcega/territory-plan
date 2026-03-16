@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
-import maplibregl from "maplibre-gl";
+import maplibregl, { setWorkerCount } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+// Use more workers for parallel tile decoding during fast panning
+setWorkerCount(4);
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
@@ -216,7 +219,7 @@ export default function MapV2Container({
       // Add state boundaries source
       map.current.addSource("states", {
         type: "geojson",
-        data: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
+        data: "/us-states.json",
       });
 
       // Add district tiles source (cache-bust via version param)
@@ -1075,13 +1078,6 @@ export default function MapV2Container({
     const suffix = tileUrlSuffix ?? "";
     const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${effectiveFy}${suffix}`;
     source.setTiles([newUrl]);
-
-    // Clear tile cache and force re-fetch
-    const sourceCache = (map.current.style as any)?._sourceCaches?.["districts"];
-    if (sourceCache?.clearTiles) {
-      sourceCache.clearTiles();
-    }
-    map.current.triggerRepaint();
   }, [selectedFiscalYear, fyOverride, tileUrlSuffix, mapReady]);
 
   // Toggle vendor layer visibility + update circle layer color

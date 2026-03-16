@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useMapV2Store, type ExploreFilter, type FiscalYear } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
 import { mapV2Ref } from "@/features/map/lib/ref";
@@ -171,12 +171,12 @@ export default function SearchBar() {
 
         {/* 6 domain filter buttons */}
         <div className="flex items-center gap-1">
-          <DomainButton label="Geography" domain="geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} filters={searchFilters} />
-          <DomainButton label="Fullmind" domain="fullmind" isOpen={openDropdown === "fullmind"} onClick={() => toggleDropdown("fullmind")} filters={searchFilters} />
-          <DomainButton label="Competitors" domain="competitors" isOpen={openDropdown === "competitors"} onClick={() => toggleDropdown("competitors")} filters={searchFilters} />
-          <DomainButton label="Finance" domain="finance" isOpen={openDropdown === "finance"} onClick={() => toggleDropdown("finance")} filters={searchFilters} />
-          <DomainButton label="Demographics" domain="demographics" isOpen={openDropdown === "demographics"} onClick={() => toggleDropdown("demographics")} filters={searchFilters} />
-          <DomainButton label="Academics" domain="academics" isOpen={openDropdown === "academics"} onClick={() => toggleDropdown("academics")} filters={searchFilters} />
+          <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
+          <DomainButton label="Fullmind" isOpen={openDropdown === "fullmind"} onClick={() => toggleDropdown("fullmind")} count={countByDomain(searchFilters, "fullmind")} />
+          <DomainButton label="Competitors" isOpen={openDropdown === "competitors"} onClick={() => toggleDropdown("competitors")} count={countByDomain(searchFilters, "competitors")} />
+          <DomainButton label="Finance" isOpen={openDropdown === "finance"} onClick={() => toggleDropdown("finance")} count={countByDomain(searchFilters, "finance")} />
+          <DomainButton label="Demographics" isOpen={openDropdown === "demographics"} onClick={() => toggleDropdown("demographics")} count={countByDomain(searchFilters, "demographics")} />
+          <DomainButton label="Academics" isOpen={openDropdown === "academics"} onClick={() => toggleDropdown("academics")} count={countByDomain(searchFilters, "academics")} />
         </div>
 
         {/* Clear filters */}
@@ -288,21 +288,17 @@ export default function SearchBar() {
   );
 }
 
-function DomainButton({
+const DomainButton = React.memo(function DomainButton({
   label,
-  domain,
   isOpen,
   onClick,
-  filters,
+  count,
 }: {
   label: string;
-  domain: string;
   isOpen: boolean;
   onClick: () => void;
-  filters: ExploreFilter[];
+  count: number;
 }) {
-  const count = countByDomain(filters, domain);
-
   return (
     <button
       onClick={onClick}
@@ -332,4 +328,4 @@ function DomainButton({
       </svg>
     </button>
   );
-}
+});
