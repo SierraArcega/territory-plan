@@ -119,56 +119,40 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      {/* Modal + navigation */}
+      {/* Modal + navigation — flex layout keeps arrows hugging the modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center">
-        {/* Return to Map — top left */}
-        <button
-          onClick={onClose}
-          className="absolute top-6 left-6 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 text-sm font-medium text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Return to Map
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Prev arrow */}
+          {onPrev ? (
+            <button
+              onClick={onPrev}
+              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              title="Previous district (←)"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          ) : <div className="w-10 shrink-0" />}
 
-        {/* Prev arrow */}
-        {onPrev && (
-          <button
-            onClick={onPrev}
-            className="absolute left-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors"
-            title="Previous district"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        )}
+          {/* Center column: return + modal + counter */}
+          <div className="flex flex-col items-start gap-2">
+            {/* Return to Map */}
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Return to Map
+            </button>
 
-        {/* Next arrow */}
-        {onNext && (
-          <button
-            onClick={onNext}
-            className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors"
-            title="Next district"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        )}
-
-        {/* Position counter — bottom center */}
-        {currentIndex != null && totalCount != null && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 text-xs font-medium text-[#6E6390]">
-            {currentIndex + 1} of {totalCount}
-          </div>
-        )}
-
-        <div
-          ref={modalRef}
-          className="bg-white rounded-2xl shadow-xl w-full max-w-[780px] mx-4 max-h-[85vh] flex overflow-hidden"
-        >
+            {/* Modal — fixed height so tabs don't resize it */}
+            <div
+              ref={modalRef}
+              className="bg-white rounded-2xl shadow-xl w-[1076px] h-[745px] flex overflow-hidden"
+            >
           {/* Left sidebar */}
           <div className="w-[260px] shrink-0 flex flex-col" style={{ background: "linear-gradient(180deg, #403770 0%, #544A78 100%)" }}>
             {isLoading ? (
@@ -191,49 +175,9 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   {district.numberOfSchools != null && ` · ${district.numberOfSchools} schools`}
                 </p>
 
-                <div className="w-full h-px bg-white/12 my-5" />
-
-                {/* Key stats */}
-                <div className="flex flex-col gap-1.5">
-                  <SidebarStat label="Enrollment" value={fmt(district.enrollment)} />
-                  <SidebarStat label="$/Pupil" value={fmtK(educationData?.expenditurePerPupil)} />
-                  <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
-                  <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
-                  <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
-                  {fullmindData?.salesExecutive && (
-                    <SidebarStat label="Owner" value={fullmindData.salesExecutive} small />
-                  )}
-                </div>
-
-                <div className="w-full h-px bg-white/12 my-5" />
-
-                {/* Signals */}
-                {signals.length > 0 && (
-                  <div className="flex flex-col gap-1.5 mt-auto">
-                    {signals.map((s) => {
-                      const t = Number(s.trend);
-                      const isUp = t > 0.5;
-                      const isDown = t < -0.5;
-                      return (
-                        <div
-                          key={s.label}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/8 text-[11px] font-semibold"
-                        >
-                          <span className={isUp ? "text-[#EDFFE3]" : isDown ? "text-[#F37167]" : "text-[#C4E7E6]"}>
-                            {isUp ? "▲" : isDown ? "▼" : "—"}
-                          </span>
-                          <span className="text-white/80">
-                            {s.label} {isUp ? "trending up" : isDown ? "declining" : "stable"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
                 {/* External links */}
                 {(district.websiteUrl || district.jobBoardUrl) && (
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-2 mt-3">
                     {district.websiteUrl && (
                       <a
                         href={district.websiteUrl}
@@ -262,6 +206,24 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                     )}
                   </div>
                 )}
+
+                <div className="w-full h-px bg-white/12 my-5" />
+
+                {/* Key stats */}
+                <div className="flex flex-col gap-1.5">
+                  <SidebarStat label="Enrollment" value={fmt(district.enrollment)} />
+                  <SidebarStat label="$/Pupil" value={fmtK(educationData?.expenditurePerPupil)} />
+                  <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
+                  <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
+                  <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
+                  {fullmindData?.salesExecutive && (
+                    <SidebarStat label="Owner" value={fullmindData.salesExecutive} small />
+                  )}
+                </div>
+
+                <div className="w-full h-px bg-white/12 my-5" />
+
+
               </div>
             ) : null}
           </div>
@@ -360,6 +322,29 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
               </div>
             </div>
           </div>
+            {/* end modal */}
+            </div>
+
+            {/* Position counter */}
+            {currentIndex != null && totalCount != null && (
+              <div className="self-center px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-medium text-[#6E6390] mt-1">
+                {currentIndex + 1} of {totalCount}
+              </div>
+            )}
+          </div>
+
+          {/* Next arrow */}
+          {onNext ? (
+            <button
+              onClick={onNext}
+              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              title="Next district (→)"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ) : <div className="w-10 shrink-0" />}
         </div>
       </div>
     </>
