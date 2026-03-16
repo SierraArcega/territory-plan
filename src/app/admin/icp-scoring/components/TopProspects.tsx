@@ -72,7 +72,10 @@ function ProspectCard({ d }: { d: District }) {
       {/* Top row: district name + action bar */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[#403770] truncate">{d.name}</p>
+          <div className="flex items-center gap-2">
+            <TierBadge tier={d.tier} />
+            <p className="text-sm font-semibold text-[#403770] truncate">{d.name}</p>
+          </div>
           <p className="text-xs text-[#8A80A8] truncate mt-0.5">{subtitle}</p>
         </div>
         <ClaimButton
@@ -85,10 +88,9 @@ function ProspectCard({ d }: { d: District }) {
 
       {/* Main row: donut + badges + pills */}
       <div className="flex items-center gap-4">
-        <div className="flex flex-col items-center gap-1 shrink-0">
+        <div className="shrink-0">
           <ScoreDonut fit={d.fit_score} value={d.value_score} readiness={d.readiness_score}
             state={d.state_score} composite={d.composite_score} />
-          <TierBadge tier={d.tier} />
         </div>
 
         <div className="flex-1 min-w-0">
