@@ -175,49 +175,9 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   {district.numberOfSchools != null && ` · ${district.numberOfSchools} schools`}
                 </p>
 
-                <div className="w-full h-px bg-white/12 my-5" />
-
-                {/* Key stats */}
-                <div className="flex flex-col gap-1.5">
-                  <SidebarStat label="Enrollment" value={fmt(district.enrollment)} />
-                  <SidebarStat label="$/Pupil" value={fmtK(educationData?.expenditurePerPupil)} />
-                  <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
-                  <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
-                  <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
-                  {fullmindData?.salesExecutive && (
-                    <SidebarStat label="Owner" value={fullmindData.salesExecutive} small />
-                  )}
-                </div>
-
-                <div className="w-full h-px bg-white/12 my-5" />
-
-                {/* Signals */}
-                {signals.length > 0 && (
-                  <div className="flex flex-col gap-1.5 mt-auto">
-                    {signals.map((s) => {
-                      const t = Number(s.trend);
-                      const isUp = t > 0.5;
-                      const isDown = t < -0.5;
-                      return (
-                        <div
-                          key={s.label}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/8 text-[11px] font-semibold"
-                        >
-                          <span className={isUp ? "text-[#EDFFE3]" : isDown ? "text-[#F37167]" : "text-[#C4E7E6]"}>
-                            {isUp ? "▲" : isDown ? "▼" : "—"}
-                          </span>
-                          <span className="text-white/80">
-                            {s.label} {isUp ? "trending up" : isDown ? "declining" : "stable"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
                 {/* External links */}
                 {(district.websiteUrl || district.jobBoardUrl) && (
-                  <div className="flex gap-2 mt-4">
+                  <div className="flex gap-2 mt-3">
                     {district.websiteUrl && (
                       <a
                         href={district.websiteUrl}
@@ -246,6 +206,24 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                     )}
                   </div>
                 )}
+
+                <div className="w-full h-px bg-white/12 my-5" />
+
+                {/* Key stats */}
+                <div className="flex flex-col gap-1.5">
+                  <SidebarStat label="Enrollment" value={fmt(district.enrollment)} />
+                  <SidebarStat label="$/Pupil" value={fmtK(educationData?.expenditurePerPupil)} />
+                  <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
+                  <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
+                  <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
+                  {fullmindData?.salesExecutive && (
+                    <SidebarStat label="Owner" value={fullmindData.salesExecutive} small />
+                  )}
+                </div>
+
+                <div className="w-full h-px bg-white/12 my-5" />
+
+
               </div>
             ) : null}
           </div>
