@@ -788,6 +788,10 @@ export interface GoalDashboard {
     invoiced: number;
     newDistricts: number;
   };
+  leaderboard: {
+    rank: number;
+    totalReps: number;
+  };
   plans: Array<{
     id: string;
     name: string;
