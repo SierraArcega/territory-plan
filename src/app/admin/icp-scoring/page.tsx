@@ -33,7 +33,7 @@ export default function IcpScoringPage() {
   }, [data]);
 
   return (
-    <div className="min-h-screen bg-off-white">
+    <div className="h-screen overflow-y-auto bg-off-white">
       {/* Sticky header */}
       <div className="bg-white border-b border-[#D4CFE2] sticky top-0 z-30 flex-shrink-0">
         <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
