@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type { District } from "../types";
 import {
   SectionCard,
-  Callout,
   TierBadge,
   fmtNum,
   SCORE_COLORS,
@@ -12,15 +11,14 @@ import {
 import ClaimButton from "./ClaimButton";
 
 /** SVG donut showing 4 sub-scores as arcs with composite in the center */
-function ScoreDonut({ fit, value, readiness, state, composite, size = 56 }: {
+function ScoreDonut({ fit, value, readiness, state, composite, size = 48 }: {
   fit: number; value: number; readiness: number; state: number; composite: number; size?: number;
 }) {
-  const strokeWidth = 5;
+  const strokeWidth = 4.5;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
-  // 4 arcs, each representing its sub-score proportion (out of 100)
   const segments = [
     { score: fit, color: SCORE_COLORS.fit },
     { score: value, color: SCORE_COLORS.value },
@@ -28,38 +26,25 @@ function ScoreDonut({ fit, value, readiness, state, composite, size = 56 }: {
     { score: state, color: SCORE_COLORS.state },
   ];
   const total = segments.reduce((s, seg) => s + seg.score, 0);
-
-  let offset = -circumference / 4; // start at 12 o'clock
+  let offset = -circumference / 4;
 
   return (
     <svg width={size} height={size} className="shrink-0">
-      {/* Background track */}
       <circle cx={center} cy={center} r={radius} fill="none" stroke="#EFEDF5" strokeWidth={strokeWidth} />
-      {/* Sub-score arcs */}
       {segments.map(({ score, color }, i) => {
         const segLen = total > 0 ? (score / total) * circumference : 0;
-        const gap = 2;
-        const arcLen = Math.max(0, segLen - gap);
+        const arcLen = Math.max(0, segLen - 2);
         const el = (
-          <circle
-            key={i}
-            cx={center}
-            cy={center}
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={strokeWidth}
+          <circle key={i} cx={center} cy={center} r={radius} fill="none"
+            stroke={color} strokeWidth={strokeWidth}
             strokeDasharray={`${arcLen} ${circumference - arcLen}`}
-            strokeDashoffset={-offset}
-            strokeLinecap="round"
-          />
+            strokeDashoffset={-offset} strokeLinecap="round" />
         );
         offset += segLen;
         return el;
       })}
-      {/* Center text */}
       <text x={center} y={center + 1} textAnchor="middle" dominantBaseline="central"
-        className="text-sm font-bold fill-[#544A78]" style={{ fontSize: size > 48 ? 16 : 13 }}>
+        className="font-bold fill-[#544A78]" style={{ fontSize: 13 }}>
         {composite}
       </text>
     </svg>
@@ -73,7 +58,6 @@ function ProspectCard({ d }: { d: District }) {
     : null;
   const subtitle = [cityState, enrollmentLabel].filter(Boolean).join(" · ");
 
-  // Fact pills
   const pills: string[] = [];
   if (d.frpl_rate != null) pills.push(`${d.frpl_rate.toFixed(0)}% FP`);
   if (d.enrollment != null) pills.push(`${fmtNum(d.enrollment, { compact: true })} enr`);
@@ -101,19 +85,12 @@ function ProspectCard({ d }: { d: District }) {
 
       {/* Main row: donut + badges + pills */}
       <div className="flex items-center gap-4">
-        {/* Donut with composite score */}
         <div className="flex flex-col items-center gap-1 shrink-0">
-          <ScoreDonut
-            fit={d.fit_score}
-            value={d.value_score}
-            readiness={d.readiness_score}
-            state={d.state_score}
-            composite={d.composite_score}
-          />
+          <ScoreDonut fit={d.fit_score} value={d.value_score} readiness={d.readiness_score}
+            state={d.state_score} composite={d.composite_score} />
           <TierBadge tier={d.tier} />
         </div>
 
-        {/* Badges + pills */}
         <div className="flex-1 min-w-0">
           {/* Status badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-2">
@@ -137,10 +114,8 @@ function ProspectCard({ d }: { d: District }) {
           {/* Fact pills */}
           <div className="flex flex-wrap gap-1.5">
             {pills.map((pill) => (
-              <span
-                key={pill}
-                className="bg-[#F7F5FA] text-[#6E6390] text-[10px] px-2 py-0.5 rounded-full border border-[#E2DEEC]"
-              >
+              <span key={pill}
+                className="bg-[#F7F5FA] text-[#6E6390] text-[10px] px-2 py-0.5 rounded-full border border-[#E2DEEC]">
                 {pill}
               </span>
             ))}
@@ -151,42 +126,154 @@ function ProspectCard({ d }: { d: District }) {
   );
 }
 
-export default function TopProspects({ data }: { data: District[] }) {
-  const [showCount, setShowCount] = useState(30);
+const PAGE_SIZE = 30;
 
-  const prospects = useMemo(
-    () =>
-      data
-        .filter((d) => !d.is_customer)
-        .sort((a, b) => b.composite_score - a.composite_score),
-    [data],
+export default function TopProspects({ data }: { data: District[] }) {
+  const [tierFilter, setTierFilter] = useState("t1_t2");
+  const [stateFilter, setStateFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  const availableStates = useMemo(
+    () => Array.from(new Set(data.map((d) => d.state).filter(Boolean))).sort(),
+    [data]
   );
+
+  const filtered = useMemo(() => {
+    let result = data;
+
+    // Tier filter
+    if (tierFilter === "t1_t2") {
+      result = result.filter((d) => d.tier === "Tier 1" || d.tier === "Tier 2");
+    } else if (tierFilter !== "all") {
+      result = result.filter((d) => d.tier === tierFilter);
+    }
+
+    // State filter
+    if (stateFilter !== "all") {
+      result = result.filter((d) => d.state === stateFilter);
+    }
+
+    // Status filter
+    if (statusFilter === "customer") {
+      result = result.filter((d) => d.is_customer);
+    } else if (statusFilter === "pipeline") {
+      result = result.filter((d) => d.has_open_pipeline && !d.is_customer);
+    } else if (statusFilter === "prospect") {
+      result = result.filter((d) => !d.is_customer && !d.has_open_pipeline);
+    }
+
+    // Search
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (d) => d.name.toLowerCase().includes(q) || d.state.toLowerCase().includes(q) || (d.city ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    return result.sort((a, b) => b.composite_score - a.composite_score);
+  }, [data, tierFilter, stateFilter, statusFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const hasActiveFilters = tierFilter !== "t1_t2" || stateFilter !== "all" || statusFilter !== "all" || search.trim() !== "";
+
+  const handleClearFilters = useCallback(() => {
+    setTierFilter("t1_t2");
+    setStateFilter("all");
+    setStatusFilter("all");
+    setSearch("");
+    setPage(1);
+  }, []);
+
+  const selectCls =
+    "flex-1 max-w-[150px] px-3 py-1.5 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg bg-white focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none";
 
   return (
     <SectionCard
-      title="Top Prospects"
-      description="Highest-scoring non-customer districts — your call list"
+      title="Top Districts"
+      description={`${filtered.length.toLocaleString()} districts matching filters`}
     >
-      <Callout accent="coral">
-        These are the highest-scoring districts that are <strong className="text-[#403770]">not yet customers</strong>. They match the ICP across all four dimensions — large, high-need, majority-minority suburban/city districts in states with favorable environments. The top prospects are concentrated in <strong className="text-[#403770]">NJ, SC, TX, GA, and IL</strong>. Many already purchase from competitors, signaling proven demand for virtual instruction.
-      </Callout>
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input
+          type="search"
+          placeholder="Search districts..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          className="flex-1 max-w-[200px] px-3 py-1.5 text-sm text-[#6E6390] placeholder:text-[#A69DC0] border border-[#C2BBD4] rounded-lg bg-white focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+        />
 
-      <div className="mt-4" />
+        <select value={tierFilter} onChange={(e) => { setTierFilter(e.target.value); setPage(1); }} className={selectCls}>
+          <option value="t1_t2">Tier 1 & 2</option>
+          <option value="all">All Tiers</option>
+          <option value="Tier 1">Tier 1 Only</option>
+          <option value="Tier 2">Tier 2 Only</option>
+          <option value="Tier 3">Tier 3</option>
+          <option value="Tier 4">Tier 4</option>
+        </select>
 
-      <div className="grid grid-cols-2 gap-4">
-        {prospects.slice(0, showCount).map((d) => (
-          <ProspectCard key={d.leaid} d={d} />
-        ))}
+        <select value={stateFilter} onChange={(e) => { setStateFilter(e.target.value); setPage(1); }} className={selectCls}>
+          <option value="all">All States</option>
+          {availableStates.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className={selectCls}>
+          <option value="all">All Statuses</option>
+          <option value="customer">Customer</option>
+          <option value="pipeline">Pipeline</option>
+          <option value="prospect">Prospect</option>
+        </select>
+
+        {hasActiveFilters && (
+          <button onClick={handleClearFilters} className="text-xs font-medium text-[#403770] hover:underline whitespace-nowrap">
+            Clear filters
+          </button>
+        )}
       </div>
 
-      {showCount < prospects.length && (
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={() => setShowCount((c) => c + 30)}
-            className="text-sm font-medium text-[#403770] border border-[#D4CFE2] rounded-lg px-4 py-2 hover:bg-[#EFEDF5] transition-colors duration-100"
-          >
-            Show more
-          </button>
+      {/* Cards grid */}
+      {paged.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {paged.map((d) => (
+            <ProspectCard key={d.leaid} d={d} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-12 text-[#8A80A8]">
+          <p className="text-sm font-medium">No districts match your filters</p>
+          <button onClick={handleClearFilters} className="text-xs text-[#403770] underline mt-2">Clear filters</button>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#E2DEEC]">
+          <span className="text-xs text-[#8A80A8]">
+            {((safePage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(safePage * PAGE_SIZE, filtered.length).toLocaleString()} of {filtered.length.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}
+              className="px-2 py-1 text-xs font-medium text-[#6E6390] border border-[#D4CFE2] rounded-lg hover:bg-[#EFEDF5] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Prev
+            </button>
+            <span className="text-xs text-[#6E6390] px-2">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}
+              className="px-2 py-1 text-xs font-medium text-[#6E6390] border border-[#D4CFE2] rounded-lg hover:bg-[#EFEDF5] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </SectionCard>
