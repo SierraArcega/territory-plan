@@ -14,7 +14,14 @@ TWO_PLACES = Decimal("0.01")
 def _to_decimal(val):
     if val is None:
         return Decimal("0")
-    return Decimal(str(val)).quantize(TWO_PLACES)
+    s = str(val).strip()
+    if not s:
+        return Decimal("0")
+    try:
+        return Decimal(s).quantize(TWO_PLACES)
+    except Exception:
+        logger.warning(f"Could not convert to Decimal: {val!r}, defaulting to 0")
+        return Decimal("0")
 
 
 def _educator_cost(session):

@@ -1,4 +1,5 @@
 """State normalization utilities — Python equivalent of src/lib/states.ts."""
+from __future__ import annotations
 
 STATE_NAME_TO_ABBREV: dict[str, str] = {
     "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR",
