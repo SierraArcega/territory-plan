@@ -61,12 +61,7 @@ export default function DistrictSearchCard({
   }, [showPlanDropdown]);
 
   const handleClick = () => {
-    selectDistrict(district.leaid);
-    // Fly to district on map
-    const map = mapV2Ref.current;
-    if (map) {
-      // We don't have centroid here, but the map will highlight it
-    }
+    onToggleSelect();
   };
 
   const handleAddToPlan = async (planId: string) => {
@@ -84,25 +79,13 @@ export default function DistrictSearchCard({
   return (
     <div
       className={`group relative px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-        isSelected ? "bg-coral/5 border-coral/40 ring-1 ring-coral/20" : "border-[#E2DEEC] hover:bg-[#EFEDF5] hover:border-[#D4CFE2]"
+        isSelected ? "bg-[#e8f1f5] border-[#6EA3BE]/30 ring-1 ring-[#6EA3BE]/20" : "border-[#E2DEEC] hover:bg-[#EFEDF5] hover:border-[#D4CFE2]"
       }`}
       onClick={handleClick}
       onMouseEnter={() => setHoveredLeaid(district.leaid)}
       onMouseLeave={() => setHoveredLeaid(null)}
     >
-      {/* Checkbox */}
-      <div className="absolute left-1 top-3">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={(e) => { e.stopPropagation(); onToggleSelect(); }}
-          className={`w-3.5 h-3.5 rounded border-[#C2BBD4] text-coral focus:ring-coral/30 cursor-pointer transition-opacity ${
-            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          }`}
-        />
-      </div>
-
-      <div className="ml-4">
+      <div>
         {/* Header: Name + Badge */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">

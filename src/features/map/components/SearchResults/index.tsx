@@ -5,8 +5,8 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/features/plans/lib/queries";
+import { useProfile } from "@/features/shared/lib/queries";
 import DistrictSearchCard from "./DistrictSearchCard";
-import SearchBulkBar from "./SearchBulkBar";
 
 interface SearchResultDistrict {
   leaid: string;
@@ -55,13 +55,17 @@ export default function SearchResults() {
   const setSearchResultLeaids = useMapV2Store((s) => s.setSearchResultLeaids);
 
   const { data: plans } = useTerritoryPlans();
+  const { data: profile } = useProfile();
   const addDistricts = useAddDistrictsToPlan();
   const searchResultLeaids = useMapV2Store((s) => s.searchResultLeaids);
+  const [showMyPlansOnly, setShowMyPlansOnly] = useState(true);
 
   const [districts, setDistricts] = useState<SearchResultDistrict[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [showAddAllDropdown, setShowAddAllDropdown] = useState(false);
+  const [planSearchQuery, setPlanSearchQuery] = useState("");
+  const [selectedPlanIds, setSelectedPlanIds] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
   const [showSaveSearch, setShowSaveSearch] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
@@ -191,13 +195,32 @@ export default function SearchResults() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showAddAllDropdown]);
 
-  const handleAddAllToPlan = async (planId: string) => {
-    if (searchResultLeaids.length === 0) return;
+  const togglePlanSelection = (planId: string) => {
+    setSelectedPlanIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(planId)) next.delete(planId);
+      else next.add(planId);
+      return next;
+    });
+  };
+
+  const handleAddToSelectedPlans = async () => {
+    if (selectedPlanIds.size === 0) return;
+    const leaidsToAdd = selectedDistrictLeaids.size > 0
+      ? [...selectedDistrictLeaids]
+      : searchResultLeaids;
+    if (leaidsToAdd.length === 0) return;
     try {
-      await addDistricts.mutateAsync({ planId, leaids: searchResultLeaids });
+      await Promise.all(
+        [...selectedPlanIds].map((planId) =>
+          addDistricts.mutateAsync({ planId, leaids: leaidsToAdd })
+        )
+      );
       setShowAddAllDropdown(false);
+      setSelectedPlanIds(new Set());
+      setPlanSearchQuery("");
     } catch (error) {
-      console.error("Failed to add districts to plan:", error);
+      console.error("Failed to add districts to plans:", error);
     }
   };
 
@@ -410,35 +433,109 @@ export default function SearchResults() {
 
           {/* Add to Plan */}
           <button
-            onClick={() => setShowAddAllDropdown(!showAddAllDropdown)}
+            onClick={() => { setShowAddAllDropdown(!showAddAllDropdown); if (showAddAllDropdown) { setPlanSearchQuery(""); setSelectedPlanIds(new Set()); } }}
             disabled={addDistricts.isPending}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-50"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            {addDistricts.isPending ? "Adding..." : `Add ${total > 25 ? "All " : ""}${total.toLocaleString()} to Plan`}
+            {addDistricts.isPending ? "Adding..." : selectedCount > 0
+              ? `Add ${selectedCount} Selected to Plan`
+              : `Add All ${total.toLocaleString()} to Plan`}
           </button>
 
-          {showAddAllDropdown && plans && (
-            <div className="absolute right-4 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-[#D4CFE2] overflow-hidden z-50">
-              <div className="px-3 py-2 border-b border-[#E2DEEC]">
-                <span className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">Choose a plan</span>
-              </div>
-              <div className="max-h-48 overflow-y-auto">
-                {plans.map((plan) => (
+          {showAddAllDropdown && plans && (() => {
+            const filteredPlans = plans
+              .filter((p) => p.name.toLowerCase().includes(planSearchQuery.toLowerCase()))
+              .filter((p) => !showMyPlansOnly || p.owner?.id === profile?.id);
+            return (
+            <div className="absolute right-12 top-full mt-1 w-64 bg-white rounded-xl shadow-lg border border-[#D4CFE2] overflow-hidden z-50">
+              {/* Search + filter */}
+              <div className="px-3 py-2 border-b border-[#E2DEEC] space-y-1.5">
+                <input
+                  type="text"
+                  value={planSearchQuery}
+                  onChange={(e) => setPlanSearchQuery(e.target.value)}
+                  placeholder="Search plans..."
+                  autoFocus
+                  className="w-full px-2 py-1 text-xs rounded border border-[#C2BBD4] bg-white focus:outline-none focus:ring-1 focus:ring-plum/30"
+                />
+                <div className="flex border-b border-[#E2DEEC] -mx-3 -mb-2">
                   <button
-                    key={plan.id}
-                    onClick={() => handleAddAllToPlan(plan.id)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#EFEDF5] text-[#544A78] transition-colors"
+                    onClick={() => setShowMyPlansOnly(true)}
+                    className={`flex-1 text-[10px] font-semibold py-1.5 text-center transition-colors ${
+                      showMyPlansOnly ? "text-plum border-b-2 border-plum" : "text-[#8A80A8] hover:text-[#544A78]"
+                    }`}
                   >
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
-                    <span className="truncate">{plan.name}</span>
+                    My Plans
                   </button>
-                ))}
+                  <button
+                    onClick={() => setShowMyPlansOnly(false)}
+                    className={`flex-1 text-[10px] font-semibold py-1.5 text-center transition-colors ${
+                      !showMyPlansOnly ? "text-plum border-b-2 border-plum" : "text-[#8A80A8] hover:text-[#544A78]"
+                    }`}
+                  >
+                    All Plans
+                  </button>
+                </div>
               </div>
+              {/* Plan list */}
+              <div className="max-h-48 overflow-y-auto">
+                {filteredPlans.map((plan) => {
+                    const isChecked = selectedPlanIds.has(plan.id);
+                    return (
+                      <button
+                        key={plan.id}
+                        onClick={() => togglePlanSelection(plan.id)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                          isChecked ? "bg-plum/5 text-plum" : "hover:bg-[#EFEDF5] text-[#544A78]"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          className="w-3.5 h-3.5 rounded border-[#C2BBD4] text-plum focus:ring-plum/30 pointer-events-none"
+                        />
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+                        <span className="truncate">{plan.name}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+              {/* Confirm button */}
+              {selectedPlanIds.size > 0 && (
+                <div className="px-3 py-2 border-t border-[#E2DEEC]">
+                  <button
+                    onClick={handleAddToSelectedPlans}
+                    disabled={addDistricts.isPending}
+                    className="w-full py-1.5 rounded-lg text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-50"
+                  >
+                    {addDistricts.isPending
+                      ? "Adding..."
+                      : `Add to ${selectedPlanIds.size} plan${selectedPlanIds.size > 1 ? "s" : ""}`}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Selection status */}
+      {selectedCount > 0 && (
+        <div className="shrink-0 px-4 py-1.5 border-b border-[#E2DEEC] bg-[#e8f1f5] flex items-center justify-between">
+          <span className="text-xs font-medium text-[#6EA3BE]">
+            {selectedCount} selected
+          </span>
+          <button
+            onClick={() => setDistrictSelection([])}
+            className="text-xs text-[#8A80A8] hover:text-[#6EA3BE] font-medium transition-colors"
+          >
+            Clear
+          </button>
         </div>
       )}
 
@@ -540,8 +637,6 @@ export default function SearchResults() {
         </div>
       )}
 
-      {/* Bulk action bar */}
-      <SearchBulkBar selectedCount={selectedCount} />
     </div>
   );
 }
