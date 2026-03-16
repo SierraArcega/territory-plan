@@ -2,9 +2,7 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
-import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
-import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
 import SearchBar from "./SearchBar";
@@ -80,12 +78,6 @@ export default function MapV2Shell() {
 
         {/* Explore data overlay (covers map when active) */}
         <ExploreOverlay />
-
-        {/* Multi-select action chip */}
-        <MultiSelectChip />
-
-        {/* Multi-select mode toggle */}
-        <SelectModePill />
 
         {/* Exit focus mode button */}
         {focusPlanId && (
