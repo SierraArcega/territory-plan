@@ -53,6 +53,17 @@ def test_compute_metrics_empty_sessions():
     assert m["average_take_rate"] is None
 
 
+def test_to_decimal_handles_empty_string():
+    """Regression: empty string in numeric field caused ConversionSyntax."""
+    from sync.compute import _to_decimal
+    assert _to_decimal("") == Decimal("0")
+    assert _to_decimal("  ") == Decimal("0")
+    assert _to_decimal("N/A") == Decimal("0")
+    assert _to_decimal(None) == Decimal("0")
+    assert _to_decimal(0) == Decimal("0.00")
+    assert _to_decimal(100.5) == Decimal("100.50")
+
+
 def test_build_opportunity_record():
     opp_source = {
         "id": "opp1",
@@ -86,3 +97,78 @@ def test_build_opportunity_record():
     assert record["district_nces_id"] == "0601234"
     assert record["district_lea_id"] == "0601234"
     assert record["sales_rep_name"] == "Jane"
+
+
+def test_build_opportunity_record_computes_service_types():
+    opp_source = {
+        "id": "opp1", "name": "Test Opp", "school_yr": "2025-26",
+        "contractType": "direct", "state": "CA",
+        "sales_rep": {"name": "Jane", "email": "jane@test.com"},
+        "stage": "3 - Proposal", "net_booking_amount": 5000.0,
+        "close_date": "2026-04-01", "created_at": "2026-01-15",
+        "invoices": [], "credit_memos": [],
+        "accounts": [{"id": "acc1", "type": "district", "name": "Test District"}],
+        "referring_contact_name": None, "contracting_through": None,
+        "funding_through": None, "payment_type": None,
+        "payment_terms": None, "lead_source": None,
+    }
+    district_mapping = {
+        "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "Test District", "type": "district"}
+    }
+    sessions = [
+        {"sessionPrice": 100, "educatorPrice": 60, "educatorApprovedPrice": None,
+         "startTime": "2026-01-01T10:00:00Z", "serviceType": "tutoring"},
+        {"sessionPrice": 200, "educatorPrice": 80, "educatorApprovedPrice": None,
+         "startTime": "2026-06-01T10:00:00Z", "serviceType": "virtualStaffing"},
+        {"sessionPrice": 150, "educatorPrice": 70, "educatorApprovedPrice": None,
+         "startTime": "2026-02-01T10:00:00Z", "serviceType": "tutoring"},
+    ]
+    record = build_opportunity_record(opp_source, sessions, district_mapping, now=NOW)
+    import json
+    assert json.loads(record["service_types"]) == ["tutoring", "virtualStaffing"]
+
+
+def test_build_opportunity_record_service_types_empty_sessions():
+    opp_source = {
+        "id": "opp2", "name": "Empty", "school_yr": "2025-26",
+        "contractType": None, "state": "CA",
+        "sales_rep": {}, "stage": "1 - Lead", "net_booking_amount": 0,
+        "close_date": None, "created_at": None,
+        "invoices": [], "credit_memos": [],
+        "accounts": [{"id": "acc1", "name": "D1"}],
+        "referring_contact_name": None, "contracting_through": None,
+        "funding_through": None, "payment_type": None,
+        "payment_terms": None, "lead_source": None,
+    }
+    district_mapping = {
+        "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "D1", "type": "district"}
+    }
+    record = build_opportunity_record(opp_source, [], district_mapping, now=NOW)
+    import json
+    assert json.loads(record["service_types"]) == []
+
+
+def test_build_opportunity_record_service_types_filters_nulls():
+    opp_source = {
+        "id": "opp3", "name": "Nulls", "school_yr": "2025-26",
+        "contractType": None, "state": "CA",
+        "sales_rep": {}, "stage": "1 - Lead", "net_booking_amount": 0,
+        "close_date": None, "created_at": None,
+        "invoices": [], "credit_memos": [],
+        "accounts": [{"id": "acc1", "name": "D1"}],
+        "referring_contact_name": None, "contracting_through": None,
+        "funding_through": None, "payment_type": None,
+        "payment_terms": None, "lead_source": None,
+    }
+    district_mapping = {
+        "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "D1", "type": "district"}
+    }
+    sessions = [
+        {"sessionPrice": 100, "educatorPrice": 60, "educatorApprovedPrice": None,
+         "startTime": "2026-01-01T10:00:00Z", "serviceType": None},
+        {"sessionPrice": 100, "educatorPrice": 60, "educatorApprovedPrice": None,
+         "startTime": "2026-01-01T10:00:00Z", "serviceType": "tutoring"},
+    ]
+    record = build_opportunity_record(opp_source, sessions, district_mapping, now=NOW)
+    import json
+    assert json.loads(record["service_types"]) == ["tutoring"]

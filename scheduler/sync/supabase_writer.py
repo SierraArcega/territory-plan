@@ -27,6 +27,7 @@ OPPORTUNITY_COLUMNS = [
     "completed_revenue", "completed_take",
     "scheduled_sessions", "scheduled_revenue", "scheduled_take",
     "total_revenue", "total_take", "average_take_rate",
+    "service_types",
     "synced_at",
 ]
 
@@ -58,6 +59,38 @@ def upsert_opportunities(conn, records):
 
     conn.commit()
     logger.info(f"Upserted {len(records)} opportunities")
+
+
+SESSION_COLUMNS = [
+    "id", "opportunity_id", "service_type",
+    "session_price", "educator_price", "educator_approved_price",
+    "start_time", "synced_at",
+]
+
+
+def upsert_sessions(conn, sessions_by_opp):
+    """Delete-and-replace sessions for each affected opportunity.
+
+    Runs all deletes and inserts in a single transaction so a crash
+    either leaves old sessions intact or has the complete new set.
+    """
+    if not sessions_by_opp:
+        return
+
+    placeholders = ", ".join(["%s"] * len(SESSION_COLUMNS))
+    insert_sql = f"INSERT INTO sessions ({', '.join(SESSION_COLUMNS)}) VALUES ({placeholders})"
+
+    total = 0
+    with conn.cursor() as cur:
+        for opp_id, sessions in sessions_by_opp.items():
+            cur.execute("DELETE FROM sessions WHERE opportunity_id = %s", (opp_id,))
+            for session in sessions:
+                values = [session.get(c) for c in SESSION_COLUMNS]
+                cur.execute(insert_sql, values)
+                total += 1
+
+    conn.commit()
+    logger.info(f"Upserted {total} sessions across {len(sessions_by_opp)} opportunities")
 
 
 def upsert_unmatched(conn, records):

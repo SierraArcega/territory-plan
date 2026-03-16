@@ -10,7 +10,9 @@ from sync.supabase_writer import (
     upsert_opportunities,
     upsert_unmatched,
     update_district_pipeline_aggregates,
+    upsert_sessions,
     STAGE_WEIGHTS,
+    OPPORTUNITY_COLUMNS,
 )
 
 
@@ -80,3 +82,55 @@ def test_update_district_pipeline_aggregates():
 
     update_district_pipeline_aggregates(mock_conn)
     assert mock_cursor.execute.call_count >= 2
+
+
+def test_upsert_sessions_deletes_then_inserts():
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    sessions_by_opp = {
+        "opp1": [
+            {
+                "id": "sess1",
+                "opportunity_id": "opp1",
+                "service_type": "tutoring",
+                "session_price": Decimal("100.00"),
+                "educator_price": Decimal("60.00"),
+                "educator_approved_price": None,
+                "start_time": "2026-01-01T10:00:00+00:00",
+                "synced_at": datetime(2026, 3, 16, tzinfo=timezone.utc),
+            },
+            {
+                "id": "sess2",
+                "opportunity_id": "opp1",
+                "service_type": "virtualStaffing",
+                "session_price": Decimal("200.00"),
+                "educator_price": Decimal("80.00"),
+                "educator_approved_price": Decimal("50.00"),
+                "start_time": "2026-06-01T10:00:00+00:00",
+                "synced_at": datetime(2026, 3, 16, tzinfo=timezone.utc),
+            },
+        ],
+    }
+
+    upsert_sessions(mock_conn, sessions_by_opp)
+
+    calls = mock_cursor.execute.call_args_list
+    delete_sql = calls[0][0][0]
+    assert "DELETE FROM sessions" in delete_sql
+    insert_sql = calls[1][0][0]
+    assert "INSERT INTO sessions" in insert_sql
+    assert mock_cursor.execute.call_count == 3
+    mock_conn.commit.assert_called_once()
+
+
+def test_upsert_sessions_empty_dict():
+    mock_conn = MagicMock()
+    upsert_sessions(mock_conn, {})
+    mock_conn.cursor.assert_not_called()
+
+
+def test_opportunity_columns_includes_service_types():
+    assert "service_types" in OPPORTUNITY_COLUMNS
