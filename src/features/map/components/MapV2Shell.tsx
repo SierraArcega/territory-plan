@@ -9,6 +9,8 @@ import MapSummaryBar from "./MapSummaryBar";
 import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
+import SearchBar from "./SearchBar";
+import SearchResults from "./SearchResults";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_IDS } from "@/features/map/lib/layers";
@@ -72,40 +74,49 @@ export default function MapV2Shell() {
   const showSummaryBar = !compareMode || compareView !== "changes";
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[#F8F7F4]">
-      {/* Full-viewport map (renders behind everything) */}
-      {compareMode ? <ComparisonMapShell /> : <MapV2Container />}
+    <div className="relative w-full h-full overflow-hidden bg-[#F8F7F4] flex flex-col">
+      {/* Search toolbar — docked to top, in document flow */}
+      <SearchBar />
 
-      {/* Floating panel overlay */}
-      <FloatingPanel />
+      {/* Map area — fills remaining space */}
+      <div className="flex-1 relative overflow-hidden min-h-0">
+        {/* Full-viewport map (renders behind everything) */}
+        {compareMode ? <ComparisonMapShell /> : <MapV2Container />}
 
-      {/* Explore data overlay (covers map when active) */}
-      <ExploreOverlay />
+        {/* Floating panel overlay */}
+        <FloatingPanel />
 
-      {/* Multi-select action chip */}
-      <MultiSelectChip />
+        {/* Explore data overlay (covers map when active) */}
+        <ExploreOverlay />
 
-      {/* Multi-select mode toggle */}
-      <SelectModePill />
+        {/* Multi-select action chip */}
+        <MultiSelectChip />
 
-      {/* Summary stats bar (hidden in changes view -- TransitionLegend replaces it) */}
-      {showSummaryBar && <MapSummaryBar />}
+        {/* Multi-select mode toggle */}
+        <SelectModePill />
 
-      {/* Exit focus mode button */}
-      {focusPlanId && (
-        <button
-          onClick={unfocusPlan}
-          className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm border border-gray-200/60 text-gray-600 text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-white hover:text-plum hover:border-plum/30 transition-colors"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0">
-            <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          Exit Focus
-        </button>
-      )}
+        {/* Summary stats bar (hidden in changes view -- TransitionLegend replaces it) */}
+        {showSummaryBar && <MapSummaryBar />}
 
-      {/* Layer control bubble */}
-      <LayerBubble />
+        {/* Exit focus mode button */}
+        {focusPlanId && (
+          <button
+            onClick={unfocusPlan}
+            className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm border border-gray-200/60 text-gray-600 text-xs font-medium px-2.5 py-1.5 rounded-lg shadow-sm hover:bg-white hover:text-plum hover:border-plum/30 transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0">
+              <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Exit Focus
+          </button>
+        )}
+
+        {/* Search results panel (right side) */}
+        <SearchResults />
+
+        {/* Layer controls (opened by gear icon in SearchBar) */}
+        <LayerBubble />
+      </div>
     </div>
   );
 }

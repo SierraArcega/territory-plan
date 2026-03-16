@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 // useCallback kept for handleSelectAll below
 import { useMapV2Store } from "@/features/map/lib/store";
+import { mapV2Ref } from "@/features/map/lib/ref";
 import DistrictSearchCard from "./DistrictSearchCard";
 import SearchBulkBar from "./SearchBulkBar";
 
@@ -26,6 +27,20 @@ interface SearchResultDistrict {
   territoryPlans: Array<{ plan: { id: string; name: string; color: string } }>;
 }
 
+/** Build a compact page number list with ellipsis, e.g. [1, 2, 3, "...", 10] */
+function getPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [];
+  pages.push(1);
+  if (current > 3) pages.push("...");
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i);
+  }
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
+}
+
 export default function SearchResults() {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const searchBounds = useMapV2Store((s) => s.searchBounds);
@@ -42,12 +57,12 @@ export default function SearchResults() {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [totalPages, setTotalPages] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Fetch results — reads from store snapshot to avoid stale closures
-  const fetchResults = useCallback(async (pageNum: number, append: boolean = false) => {
+  const fetchResults = useCallback(async (pageNum: number) => {
     // Read current state directly from store (not from closure)
     const state = useMapV2Store.getState();
     if (!state.isSearchActive) return;
@@ -70,7 +85,7 @@ export default function SearchResults() {
       params.set("sort", state.searchSort.column);
       params.set("order", state.searchSort.direction);
       params.set("page", String(pageNum));
-      params.set("limit", "50");
+      params.set("limit", "25");
 
       const res = await fetch(`/api/districts/search?${params}`, {
         signal: controller.signal,
@@ -80,18 +95,31 @@ export default function SearchResults() {
 
       const json = await res.json();
 
-      if (append) {
-        setDistricts((prev) => [...prev, ...json.data]);
-      } else {
-        setDistricts(json.data);
-      }
+      setDistricts(json.data);
       setTotal(json.pagination.total);
-      setHasMore(pageNum < json.pagination.totalPages);
+      setTotalPages(json.pagination.totalPages);
 
       // Update matching leaids + centroids for map highlighting
       // Always set both — use empty arrays as fallback to clear stale data when 0 results
       state.setSearchResultLeaids(json.matchingLeaids ?? []);
       state.setSearchResultCentroids(json.matchingCentroids ?? []);
+
+      // Fit map to matching centroids, padded for the 40% results panel on the right
+      const centroids = json.matchingCentroids as Array<{ lat: number; lng: number }> | undefined;
+      const map = mapV2Ref.current;
+      if (map && centroids && centroids.length > 0) {
+        const lngs = centroids.map((c) => c.lng);
+        const lats = centroids.map((c) => c.lat);
+        const sw: [number, number] = [Math.min(...lngs), Math.min(...lats)];
+        const ne: [number, number] = [Math.max(...lngs), Math.max(...lats)];
+        const container = map.getContainer();
+        const panelWidth = container.offsetWidth * 0.4;
+        map.fitBounds([sw, ne], {
+          padding: { top: 40, bottom: 40, left: 40, right: panelWidth + 40 },
+          maxZoom: 12,
+          duration: 1000,
+        });
+      }
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
         console.error("Search fetch failed:", error);
@@ -113,11 +141,11 @@ export default function SearchResults() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters, searchBounds, searchSort, isSearchActive]);
 
-  // Load more
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchResults(nextPage, true);
+  // Pagination
+  const goToPage = (p: number) => {
+    setPage(p);
+    fetchResults(p);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Sort options
@@ -144,9 +172,9 @@ export default function SearchResults() {
   const selectedCount = selectedDistrictLeaids.size;
 
   return (
-    <div className="absolute top-16 right-3 bottom-12 w-[300px] z-10 flex flex-col bg-white rounded-xl shadow-xl border border-[#D4CFE2]/60 overflow-hidden">
+    <div className="absolute top-0 right-0 bottom-0 w-[40%] z-10 flex flex-col bg-white border-l border-[#D4CFE2]/60 overflow-hidden">
       {/* Header */}
-      <div className="px-3 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
+      <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={handleSelectAll}
@@ -199,22 +227,19 @@ export default function SearchResults() {
         </div>
       </div>
 
-      {/* Results list */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      {/* Results grid — two columns with scroll */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
         {loading && districts.length === 0 ? (
-          // Skeleton loading
-          <div className="space-y-0">
+          // Skeleton loading — 2 column grid
+          <div className="grid grid-cols-2 gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="px-3 py-3 border-b border-[#E2DEEC] animate-pulse">
-                <div className="flex items-start gap-2">
-                  <div className="w-4 h-4 rounded bg-[#F7F5FA] shrink-0 mt-0.5" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3.5 bg-[#F7F5FA] rounded w-3/4" />
-                    <div className="h-2.5 bg-[#EFEDF5] rounded w-1/2" />
-                    <div className="flex gap-2">
-                      <div className="h-2.5 bg-[#EFEDF5] rounded w-16" />
-                      <div className="h-2.5 bg-[#EFEDF5] rounded w-12" />
-                    </div>
+              <div key={i} className="p-3 rounded-lg border border-[#E2DEEC] animate-pulse">
+                <div className="space-y-2">
+                  <div className="h-3.5 bg-[#F7F5FA] rounded w-3/4" />
+                  <div className="h-2.5 bg-[#EFEDF5] rounded w-1/2" />
+                  <div className="flex gap-2">
+                    <div className="h-2.5 bg-[#EFEDF5] rounded w-16" />
+                    <div className="h-2.5 bg-[#EFEDF5] rounded w-12" />
                   </div>
                 </div>
               </div>
@@ -229,7 +254,7 @@ export default function SearchResults() {
             <p className="text-xs text-[#A69DC0] mt-1">Try zooming out or adjusting filters.</p>
           </div>
         ) : (
-          <>
+          <div className="grid grid-cols-2 gap-3">
             {districts.map((d) => (
               <DistrictSearchCard
                 key={d.leaid}
@@ -239,27 +264,66 @@ export default function SearchResults() {
                 activeFilters={searchFilters}
               />
             ))}
-
-            {/* Load more */}
-            {hasMore && (
-              <button
-                onClick={handleLoadMore}
-                disabled={loading}
-                className="w-full py-3 text-xs font-medium text-plum hover:bg-plum/5 transition-colors disabled:opacity-50"
-              >
-                {loading ? "Loading..." : `Load more (${districts.length} of ${total})`}
-              </button>
-            )}
-          </>
+          </div>
         )}
 
-        {/* Loading indicator for appending */}
+        {/* Loading overlay for page transitions */}
         {loading && districts.length > 0 && (
-          <div className="py-3 flex justify-center">
+          <div className="py-4 flex justify-center">
             <div className="w-5 h-5 border-2 border-plum/20 border-t-plum rounded-full animate-spin" />
           </div>
         )}
       </div>
+
+      {/* Footer — always visible with result range; pagination controls when multi-page */}
+      {total > 0 && (
+        <div className="shrink-0 px-4 py-2 border-t border-[#E2DEEC] flex items-center justify-between">
+          {totalPages > 1 ? (
+            <>
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1 || loading}
+                className="px-2 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                Prev
+              </button>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers(page, totalPages).map((p, i) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${i}`} className="px-1 text-xs text-[#A69DC0]">...</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => goToPage(p as number)}
+                      disabled={loading}
+                      className={`min-w-[28px] h-7 rounded text-xs font-medium transition-colors ${
+                        p === page
+                          ? "bg-plum text-white"
+                          : "text-[#6E6390] hover:bg-[#EFEDF5]"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages || loading}
+                className="px-2 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                Next
+              </button>
+            </>
+          ) : (
+            <span className="w-full text-center text-xs text-[#A69DC0]">
+              Showing {total} district{total !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Bulk action bar */}
       <SearchBulkBar selectedCount={selectedCount} />

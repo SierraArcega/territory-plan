@@ -1,0 +1,191 @@
+"use client";
+
+import { useState, useRef, useEffect, useMemo } from "react";
+
+interface FilterMultiSelectProps {
+  label: string;
+  column: string;
+  options: Array<{ value: string; label: string }>;
+  onApply: (column: string, values: string[]) => void;
+}
+
+export default function FilterMultiSelect({ label, column, options, onApply }: FilterMultiSelectProps) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(-1); // -1=none, 0=selectAll, 1..N=options
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Filter options by search query
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+  }, [options, search]);
+
+  // Auto-focus search on mount
+  useEffect(() => {
+    requestAnimationFrame(() => searchRef.current?.focus());
+  }, []);
+
+  const toggle = (value: string) => {
+    const next = new Set(selected);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    setSelected(next);
+  };
+
+  const selectAll = () => {
+    const allFiltered = filtered.map((o) => o.value);
+    const allSelected = allFiltered.every((v) => selected.has(v));
+    const next = new Set(selected);
+    if (allSelected) {
+      for (const v of allFiltered) next.delete(v);
+    } else {
+      for (const v of allFiltered) next.add(v);
+    }
+    setSelected(next);
+  };
+
+  const removeAll = () => {
+    setSelected(new Set());
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, filtered.length)); // 0=selectAll, 1..N=items
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIndex === 0) {
+        selectAll();
+      } else if (activeIndex > 0 && filtered[activeIndex - 1]) {
+        toggle(filtered[activeIndex - 1].value);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      if (search) {
+        setSearch("");
+        setActiveIndex(-1);
+      }
+    }
+  };
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((o) => selected.has(o.value));
+  const someFilteredSelected = filtered.some((o) => selected.has(o.value)) && !allFilteredSelected;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-medium text-[#8A80A8]">{label}</label>
+        <div className="flex items-center gap-1.5">
+          {selected.size > 0 && (
+            <button
+              onClick={removeAll}
+              className="text-[10px] font-medium text-[#A69DC0] hover:text-[#6E6390] transition-colors"
+            >
+              Clear
+            </button>
+          )}
+          {selected.size > 0 && (
+            <button
+              onClick={() => { onApply(column, [...selected]); setSelected(new Set()); setSearch(""); }}
+              className="text-[10px] font-bold text-white bg-plum hover:bg-plum/90 px-2 py-0.5 rounded transition-colors"
+            >
+              Apply ({selected.size})
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search input */}
+      <div className="border border-[#D4CFE2] rounded-lg overflow-hidden">
+        <div className="px-2 pt-2 pb-1 border-b border-[#E2DEEC]">
+          <input
+            ref={searchRef}
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setActiveIndex(-1); }}
+            onKeyDown={handleKeyDown}
+            placeholder={`Search ${label.toLowerCase()}...`}
+            className="w-full text-xs px-1.5 py-1 rounded border border-[#D4CFE2] focus:outline-none focus:ring-1 focus:ring-plum/30 placeholder:text-[#A69DC0]"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="multiselect-listbox"
+            aria-activedescendant={
+              activeIndex === 0
+                ? "multiselect-select-all"
+                : activeIndex > 0 && filtered[activeIndex - 1]
+                ? `multiselect-option-${filtered[activeIndex - 1].value}`
+                : undefined
+            }
+          />
+        </div>
+
+        {/* Options list */}
+        <div ref={listRef} className="max-h-36 overflow-y-auto" role="listbox" id="multiselect-listbox">
+          {/* Select All / Remove All */}
+          <button
+            id="multiselect-select-all"
+            role="option"
+            aria-selected={allFilteredSelected}
+            onClick={selectAll}
+            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors border-b border-[#E2DEEC] ${
+              activeIndex === 0 ? "bg-plum/10" : "hover:bg-[#EFEDF5]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              ref={(el) => { if (el) el.indeterminate = someFilteredSelected; }}
+              onChange={selectAll}
+              className="w-3.5 h-3.5 rounded border-[#C2BBD4] text-plum focus:ring-plum/30 pointer-events-none"
+              tabIndex={-1}
+            />
+            <span className="text-xs font-medium text-[#6E6390]">
+              {allFilteredSelected ? "Deselect All" : "Select All"}
+              {search && ` (${filtered.length})`}
+            </span>
+          </button>
+
+          {/* Filtered options */}
+          {filtered.length === 0 && (
+            <div className="px-2.5 py-2 text-xs text-[#A69DC0] italic">
+              No matches for &ldquo;{search}&rdquo;
+            </div>
+          )}
+          {filtered.map((o, i) => (
+            <button
+              key={o.value}
+              id={`multiselect-option-${o.value}`}
+              role="option"
+              aria-selected={selected.has(o.value)}
+              ref={(el) => {
+                if (i === activeIndex - 1 && el) {
+                  el.scrollIntoView({ block: "nearest" });
+                }
+              }}
+              onClick={() => toggle(o.value)}
+              className={`w-full flex items-center gap-2 px-2.5 py-1 text-left cursor-pointer transition-colors ${
+                activeIndex === i + 1 ? "bg-plum/10" : "hover:bg-[#EFEDF5]"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selected.has(o.value)}
+                onChange={() => toggle(o.value)}
+                className="w-3.5 h-3.5 rounded border-[#C2BBD4] text-plum focus:ring-plum/30 pointer-events-none"
+                tabIndex={-1}
+              />
+              <span className={`text-xs ${selected.has(o.value) ? "text-[#544A78] font-medium" : "text-[#544A78]"}`}>
+                {o.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
