@@ -7,6 +7,7 @@ import { mapV2Ref } from "@/features/map/lib/ref";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/features/plans/lib/queries";
 import { useProfile } from "@/features/shared/lib/queries";
 import DistrictSearchCard from "./DistrictSearchCard";
+import DistrictExploreModal from "./DistrictExploreModal";
 
 interface SearchResultDistrict {
   leaid: string;
@@ -58,6 +59,8 @@ export default function SearchResults() {
   const { data: profile } = useProfile();
   const addDistricts = useAddDistrictsToPlan();
   const searchResultLeaids = useMapV2Store((s) => s.searchResultLeaids);
+  const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
+  const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
   const [showMyPlansOnly, setShowMyPlansOnly] = useState(true);
 
   const [districts, setDistricts] = useState<SearchResultDistrict[]>([]);
@@ -307,6 +310,20 @@ export default function SearchResults() {
       setDistrictSelection(allLeaids);
     }
   }, [districts, selectedDistrictLeaids, setDistrictSelection]);
+
+  // Explore modal navigation
+  const currentExploreIndex = exploreModalLeaid
+    ? districts.findIndex((d) => d.leaid === exploreModalLeaid)
+    : -1;
+  const canGoPrev = currentExploreIndex > 0;
+  const canGoNext = currentExploreIndex >= 0 && currentExploreIndex < districts.length - 1;
+
+  const handleExplorePrev = () => {
+    if (canGoPrev) setExploreModalLeaid(districts[currentExploreIndex - 1].leaid);
+  };
+  const handleExploreNext = () => {
+    if (canGoNext) setExploreModalLeaid(districts[currentExploreIndex + 1].leaid);
+  };
 
   if (!isSearchActive || !searchResultsVisible) return null;
 
@@ -573,6 +590,7 @@ export default function SearchResults() {
                 district={d}
                 isSelected={selectedDistrictLeaids.has(d.leaid)}
                 onToggleSelect={() => toggleDistrictSelection(d.leaid)}
+                onExplore={(leaid) => setExploreModalLeaid(leaid)}
                 activeFilters={searchFilters}
               />
             ))}
@@ -637,6 +655,17 @@ export default function SearchResults() {
         </div>
       )}
 
+      {/* Explore modal */}
+      {exploreModalLeaid && (
+        <DistrictExploreModal
+          leaid={exploreModalLeaid}
+          onClose={() => setExploreModalLeaid(null)}
+          onPrev={canGoPrev ? handleExplorePrev : undefined}
+          onNext={canGoNext ? handleExploreNext : undefined}
+          currentIndex={currentExploreIndex}
+          totalCount={districts.length}
+        />
+      )}
     </div>
   );
 }

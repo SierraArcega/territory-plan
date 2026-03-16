@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
-import DistrictExploreModal from "./DistrictExploreModal";
 
 interface DistrictCardData {
   leaid: string;
@@ -28,6 +26,7 @@ interface DistrictSearchCardProps {
   district: DistrictCardData;
   isSelected: boolean;
   onToggleSelect: () => void;
+  onExplore: (leaid: string) => void;
   activeFilters: ExploreFilter[];
 }
 
@@ -35,10 +34,10 @@ export default function DistrictSearchCard({
   district,
   isSelected,
   onToggleSelect,
+  onExplore,
   activeFilters,
 }: DistrictSearchCardProps) {
   const setHoveredLeaid = useMapV2Store((s) => s.setHoveredLeaid);
-  const [showExploreModal, setShowExploreModal] = useState(false);
 
   const handleClick = () => {
     onToggleSelect();
@@ -122,7 +121,7 @@ export default function DistrictSearchCard({
         {/* Explore button */}
         <div className="mt-2">
           <button
-            onClick={(e) => { e.stopPropagation(); setShowExploreModal(true); }}
+            onClick={(e) => { e.stopPropagation(); onExplore(district.leaid); }}
             className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-plum bg-plum/8 hover:bg-plum/15 transition-colors"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,14 +132,6 @@ export default function DistrictSearchCard({
           </button>
         </div>
       </div>
-
-      {/* District Explore Modal */}
-      {showExploreModal && (
-        <DistrictExploreModal
-          leaid={district.leaid}
-          onClose={() => setShowExploreModal(false)}
-        />
-      )}
     </div>
   );
 }

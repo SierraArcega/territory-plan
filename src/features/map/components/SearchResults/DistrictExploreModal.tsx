@@ -10,9 +10,13 @@ type Tab = "overview" | "financials" | "contacts" | "schools";
 interface DistrictExploreModalProps {
   leaid: string;
   onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  currentIndex?: number;
+  totalCount?: number;
 }
 
-export default function DistrictExploreModal({ leaid, onClose }: DistrictExploreModalProps) {
+export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, currentIndex, totalCount }: DistrictExploreModalProps) {
   const { data, isLoading } = useDistrictDetail(leaid);
   const { data: plans } = useTerritoryPlans();
   const addDistricts = useAddDistrictsToPlan();
@@ -21,14 +25,22 @@ export default function DistrictExploreModal({ leaid, onClose }: DistrictExplore
   const dropdownRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Escape to close
+  // Reset tab when navigating between districts
+  useEffect(() => {
+    setActiveTab("overview");
+    setShowPlanDropdown(false);
+  }, [leaid]);
+
+  // Keyboard: Escape to close, arrow keys to navigate
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && onPrev) onPrev();
+      if (e.key === "ArrowRight" && onNext) onNext();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext]);
 
   // Close plan dropdown on outside click
   useEffect(() => {
@@ -107,8 +119,52 @@ export default function DistrictExploreModal({ leaid, onClose }: DistrictExplore
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      {/* Modal */}
+      {/* Modal + navigation */}
       <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Return to Map — top left */}
+        <button
+          onClick={onClose}
+          className="absolute top-6 left-6 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 text-sm font-medium text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Return to Map
+        </button>
+
+        {/* Prev arrow */}
+        {onPrev && (
+          <button
+            onClick={onPrev}
+            className="absolute left-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors"
+            title="Previous district"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+
+        {/* Next arrow */}
+        {onNext && (
+          <button
+            onClick={onNext}
+            className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors"
+            title="Next district"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+
+        {/* Position counter — bottom center */}
+        {currentIndex != null && totalCount != null && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 text-xs font-medium text-[#6E6390]">
+            {currentIndex + 1} of {totalCount}
+          </div>
+        )}
+
         <div
           ref={modalRef}
           className="bg-white rounded-2xl shadow-xl w-full max-w-[780px] mx-4 max-h-[85vh] flex overflow-hidden"

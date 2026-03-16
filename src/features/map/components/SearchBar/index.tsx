@@ -114,10 +114,11 @@ export default function SearchBar() {
     setOpenDropdown((prev) => (prev === name ? null : name));
   }, []);
 
+  const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
   const activeFilterCount = searchFilters.length;
 
   return (
-    <div className="search-bar-root shrink-0 relative z-20 flex flex-col">
+    <div className={`search-bar-root shrink-0 relative z-20 flex flex-col transition-opacity duration-200 ${exploreModalLeaid ? "opacity-40 pointer-events-none" : ""}`}>
       {/* Main bar */}
       <div className="flex items-center gap-2 bg-[#F7F5FA] border-b border-[#D4CFE2] px-3 py-2">
         {/* Search input */}
