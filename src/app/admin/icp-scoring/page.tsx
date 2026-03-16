@@ -9,7 +9,6 @@ import ScoreDistribution from "./components/ScoreDistribution";
 import StateLandscape from "./components/StateLandscape";
 import WildCardSignals from "./components/WildCardSignals";
 import TopProspects from "./components/TopProspects";
-import DistrictExplorer from "./components/DistrictExplorer";
 import MethodologySummary from "./components/MethodologySummary";
 
 export default function IcpScoringPage() {
@@ -94,7 +93,6 @@ export default function IcpScoringPage() {
             <StateLandscape data={data} />
             <WildCardSignals data={data} />
             <TopProspects data={data} />
-            <DistrictExplorer data={data} />
           </div>
         )}
       </div>

@@ -253,6 +253,7 @@ interface MapV2State {
   searchResultsVisible: boolean;
   searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
   searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
+  exploreModalLeaid: string | null; // leaid of district currently shown in explore modal
 }
 
 interface MapV2Actions {
@@ -416,6 +417,7 @@ interface MapV2Actions {
   toggleSearchResults: () => void;
   setSearchResultLeaids: (leaids: string[]) => void;
   setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
+  setExploreModalLeaid: (leaid: string | null) => void;
 }
 
 let rippleId = 0;
@@ -581,6 +583,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   searchBounds: null,
   isSearchActive: false,
   searchResultsVisible: false,
+  exploreModalLeaid: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
 
@@ -1256,6 +1259,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({ searchFilterModes: { ...s.searchFilterModes, [domain]: mode } })),
   setSearchBounds: (bounds) => set({ searchBounds: bounds }),
   toggleSearchResults: () => set((s) => ({ searchResultsVisible: !s.searchResultsVisible })),
+  setExploreModalLeaid: (leaid) => set({ exploreModalLeaid: leaid }),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
   setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
 }));
