@@ -2,31 +2,14 @@
 
 import { useCallback } from "react";
 import { useDistrictScores } from "./hooks";
-import { SectionCard } from "./components/shared";
 import type { District } from "./types";
-
-// Placeholder components — replaced by real implementations in Tasks 3-9
-function HeroSection({ data }: { data: District[] }) {
-  return <SectionCard title="District Opportunity Score" description={`ICP scoring across ${data.length.toLocaleString()} districts`}><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
-function TierDistribution({ data }: { data: District[] }) {
-  return <SectionCard title="Tier Distribution"><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
-function ScoreDistribution({ data }: { data: District[] }) {
-  return <SectionCard title="Score Distribution"><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
-function StateLandscape({ data }: { data: District[] }) {
-  return <SectionCard title="State Landscape"><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
-function WildCardSignals({ data }: { data: District[] }) {
-  return <SectionCard title="Wild Card Signals"><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
-function TopProspects({ data }: { data: District[] }) {
-  return <SectionCard title="Top Prospects"><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
-function DistrictExplorer({ data }: { data: District[] }) {
-  return <SectionCard title="District Explorer"><p className="text-sm text-[#8A80A8]">Loading...</p></SectionCard>;
-}
+import HeroSection from "./components/HeroSection";
+import TierDistribution from "./components/TierDistribution";
+import ScoreDistribution from "./components/ScoreDistribution";
+import StateLandscape from "./components/StateLandscape";
+import WildCardSignals from "./components/WildCardSignals";
+import TopProspects from "./components/TopProspects";
+import DistrictExplorer from "./components/DistrictExplorer";
 
 export default function IcpScoringPage() {
   const { data, loading, error, retry } = useDistrictScores();
@@ -63,7 +46,7 @@ export default function IcpScoringPage() {
               onClick={handleExportCSV}
               className="px-4 py-2 text-sm font-medium bg-[#403770] text-white rounded-lg hover:bg-[#322a5a] transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
             >
-              Export CSV
+              Export All CSV
             </button>
           )}
         </div>
