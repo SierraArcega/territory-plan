@@ -1075,13 +1075,6 @@ export default function MapV2Container({
     const suffix = tileUrlSuffix ?? "";
     const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${effectiveFy}${suffix}`;
     source.setTiles([newUrl]);
-
-    // Clear tile cache and force re-fetch
-    const sourceCache = (map.current.style as any)?._sourceCaches?.["districts"];
-    if (sourceCache?.clearTiles) {
-      sourceCache.clearTiles();
-    }
-    map.current.triggerRepaint();
   }, [selectedFiscalYear, fyOverride, tileUrlSuffix, mapReady]);
 
   // Toggle vendor layer visibility + update circle layer color
