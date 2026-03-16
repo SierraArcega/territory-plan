@@ -8,8 +8,9 @@ interface Plan {
   id: string;
   name: string;
   color: string | null;
-  fiscalYear: string | null;
-  ownerUser?: { fullName: string | null } | null;
+  fiscalYear: number | null;
+  owner?: { fullName: string | null } | null;
+  districtLeaids?: string[];
 }
 
 interface ClaimButtonProps {
@@ -31,7 +32,7 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
   // Fetch all plans with their district leaids
   const { data: plansRaw } = useQuery({
     queryKey: ["territoryPlansWithDistricts"],
-    queryFn: () => fetchJson<Array<Plan & { districts?: Array<{ districtLeaid: string }> }>>(`${API_BASE}/territory-plans`),
+    queryFn: () => fetchJson<Plan[]>(`${API_BASE}/territory-plans`),
     staleTime: 60 * 1000,
   });
 
@@ -40,15 +41,15 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
 
   // Which plans already contain this district?
   const existingSet = new Set(
-    plans.filter((p) => p.districts?.some((d) => d.districtLeaid === leaid)).map((p) => p.id)
+    plans.filter((p) => p.districtLeaids?.includes(leaid)).map((p) => p.id)
   );
 
   // Is this district in any FY27 plan?
   const fy27Plan = plans.find(
-    (p) => p.fiscalYear === "FY27" && p.districts?.some((d) => d.districtLeaid === leaid)
+    (p) => p.fiscalYear === 2027 && p.districtLeaids?.includes(leaid)
   );
   const inAnyPlan = plans.some(
-    (p) => p.districts?.some((d) => d.districtLeaid === leaid)
+    (p) => p.districtLeaids?.includes(leaid)
   );
 
   // Add district to plan mutation
@@ -105,7 +106,7 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
 
   // In a FY27 plan — show plan owner info
   if (fy27Plan) {
-    const planOwner = fy27Plan.ownerUser?.fullName ?? owner;
+    const planOwner = fy27Plan.owner?.fullName ?? owner;
     return (
       <div className={`flex flex-col ${compact ? "gap-0" : "gap-0.5"}`}>
         <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-[#69B34A]`}>
