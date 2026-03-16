@@ -1,6 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { MetricType, FiscalYear } from "@/features/shared/lib/app-store";
+import type { FeatureCollection, Point } from "geojson";
 import type {
   Quantiles,
   CustomerDotsGeoJSON,
@@ -110,5 +111,58 @@ export function useFocusModeData(planId: string | null) {
     queryFn: () => fetchJson<FocusModeData>(`${API_BASE}/focus-mode/${planId}`),
     enabled: !!planId,
     staleTime: 2 * 60 * 1000,
+  });
+}
+
+// ============================================
+// School GeoJSON for viewport
+// ============================================
+
+const EMPTY_FC: FeatureCollection<Point> = { type: "FeatureCollection", features: [] };
+
+/** Quantize a coordinate to a grid so nearby viewports share cache keys. */
+function quantize(val: number, step: number): number {
+  return Math.round(val / step) * step;
+}
+
+/**
+ * Quantize bounds to a 0.5-degree grid. This means small pans reuse the
+ * cached response instead of triggering a new fetch. The over-fetch is
+ * minimal — at most 0.25 degrees of extra schools on each edge.
+ */
+function quantizeBounds(bounds: [number, number, number, number]): [number, number, number, number] {
+  const STEP = 0.5;
+  return [
+    quantize(bounds[0], STEP) - STEP, // west  — round down
+    quantize(bounds[1], STEP) - STEP, // south — round down
+    quantize(bounds[2], STEP) + STEP, // east  — round up
+    quantize(bounds[3], STEP) + STEP, // north — round up
+  ];
+}
+
+/**
+ * Fetches school GeoJSON for the current viewport bounds via TanStack Query.
+ * Bounds are quantized to a 0.5° grid so nearby viewports share cache hits.
+ * Uses keepPreviousData so school dots stay visible while the next fetch loads.
+ */
+export function useSchoolGeoJSON(
+  bounds: [number, number, number, number] | null,
+  enabled: boolean,
+) {
+  const qBounds = bounds ? quantizeBounds(bounds) : null;
+
+  return useQuery({
+    queryKey: ["schoolGeoJSON", qBounds],
+    queryFn: async () => {
+      if (!qBounds) return EMPTY_FC;
+      const boundsParam = qBounds.join(",");
+      const res = await fetch(`/api/schools/geojson?bounds=${boundsParam}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<FeatureCollection<Point>>;
+    },
+    enabled: enabled && qBounds !== null,
+    staleTime: 60 * 1000, // 1 minute — school data is static
+    gcTime: 5 * 60 * 1000, // keep in cache 5 minutes for back-panning
+    placeholderData: keepPreviousData,
   });
 }

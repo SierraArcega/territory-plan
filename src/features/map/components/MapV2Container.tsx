@@ -13,6 +13,7 @@ import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref, mapV2Refs, type MapRefKey } from "@/features/map/lib/ref";
 import { classifyTransition } from "@/features/map/lib/comparison";
+import { useSchoolGeoJSON } from "@/features/map/lib/queries";
 import MapV2Tooltip from "./MapV2Tooltip";
 
 export interface MapV2ContainerProps {
@@ -147,10 +148,12 @@ export default function MapV2Container({
 }: MapV2ContainerProps = {}) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const schoolFetchController = useRef<AbortController | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const isTouchDevice = useIsTouchDevice();
   const { data: profile } = useProfile();
+
+  // Viewport bounds for school query (updated on moveend)
+  const [schoolBounds, setSchoolBounds] = useState<[number, number, number, number] | null>(null);
 
   // Refs for hover optimization
   const lastHoveredLeaidRef = useRef<string | null>(null);
@@ -180,6 +183,22 @@ export default function MapV2Container({
   const pendingFitBounds = useMapV2Store((s) => s.pendingFitBounds);
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
   const focusLeaids = useMapV2Store((s) => s.focusLeaids);
+
+  // School GeoJSON — TanStack Query with quantized bounds for cache reuse
+  const schoolsEnabled = visibleSchoolTypes.size > 0 && mapReady;
+  const { data: schoolGeoJSON } = useSchoolGeoJSON(schoolBounds, schoolsEnabled);
+
+  // Push school data to map source whenever it changes
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (schoolGeoJSON) {
+      source.setData(schoolGeoJSON);
+    } else if (!schoolsEnabled) {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [schoolGeoJSON, schoolsEnabled, mapReady]);
 
   // Initialize map
   useEffect(() => {
@@ -616,47 +635,15 @@ export default function MapV2Container({
     useMapV2Store.getState().hideTooltip();
   }, []);
 
-  // Load school GeoJSON for current viewport
-  const loadSchoolsForViewport = useCallback(() => {
+  // Update school bounds from current viewport (triggers useSchoolGeoJSON re-fetch)
+  const updateSchoolBounds = useCallback(() => {
     if (!map.current || !mapReady) return;
-    if (useMapV2Store.getState().visibleSchoolTypes.size === 0) return;
     if (map.current.getZoom() < SCHOOL_MIN_ZOOM) {
-      // Clear schools when zoomed out
-      const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
-      if (source) {
-        source.setData({ type: "FeatureCollection", features: [] });
-      }
+      setSchoolBounds(null);
       return;
     }
-
-    // Abort previous in-flight request
-    if (schoolFetchController.current) {
-      schoolFetchController.current.abort();
-    }
-    schoolFetchController.current = new AbortController();
-
-    const bounds = map.current.getBounds();
-    const boundsParam = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
-
-    fetch(`/api/schools/geojson?bounds=${boundsParam}`, {
-      signal: schoolFetchController.current.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((geojson) => {
-        if (!map.current) return;
-        const source = map.current.getSource("schools") as maplibregl.GeoJSONSource | undefined;
-        if (source) {
-          source.setData(geojson);
-        }
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          console.error("Failed to load schools:", err);
-        }
-      });
+    const b = map.current.getBounds();
+    setSchoolBounds([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
   }, [mapReady]);
 
   // Handle district hover — actions via getState(), tooltip position via DOM ref
@@ -891,16 +878,13 @@ export default function MapV2Container({
     map.current.on("mouseleave", clearHover);
     map.current.on("movestart", clearHover);
 
-    // Load schools on viewport change (debounced) + update search bounds
-    let schoolDebounceTimer: ReturnType<typeof setTimeout>;
-    let searchBoundsTimer: ReturnType<typeof setTimeout>;
+    // Update school bounds + search bounds on viewport change (debounced)
+    let boundsDebounceTimer: ReturnType<typeof setTimeout>;
     const handleMoveEnd = () => {
-      clearTimeout(schoolDebounceTimer);
-      schoolDebounceTimer = setTimeout(loadSchoolsForViewport, 300);
+      clearTimeout(boundsDebounceTimer);
+      boundsDebounceTimer = setTimeout(() => {
+        updateSchoolBounds();
 
-      // Update search bounds for viewport-synced results
-      clearTimeout(searchBoundsTimer);
-      searchBoundsTimer = setTimeout(() => {
         const m = map.current;
         if (!m) return;
         const bounds = m.getBounds();
@@ -914,10 +898,8 @@ export default function MapV2Container({
     };
     map.current.on("moveend", handleMoveEnd);
 
-    // Initial load
-    loadSchoolsForViewport();
-
-    // Set initial search bounds
+    // Initial bounds
+    updateSchoolBounds();
     if (map.current) {
       const bounds = map.current.getBounds();
       useMapV2Store.getState().setSearchBounds([
@@ -935,10 +917,9 @@ export default function MapV2Container({
       m?.off("mouseleave", clearHover);
       m?.off("movestart", clearHover);
       m?.off("moveend", handleMoveEnd);
-      clearTimeout(schoolDebounceTimer);
-      clearTimeout(searchBoundsTimer);
+      clearTimeout(boundsDebounceTimer);
     };
-  }, [mapReady, handleDistrictHover, handleClick, clearHover, loadSchoolsForViewport]);
+  }, [mapReady, handleDistrictHover, handleClick, clearHover, updateSchoolBounds]);
 
   // Update selected district highlight
   useEffect(() => {
@@ -1279,9 +1260,9 @@ export default function MapV2Container({
         map.current.setFilter("schools-unclustered", ["any", ...conditions]);
       }
 
-      loadSchoolsForViewport();
+      updateSchoolBounds();
     }
-  }, [visibleSchoolTypes, mapReady, loadSchoolsForViewport]);
+  }, [visibleSchoolTypes, mapReady, updateSchoolBounds]);
 
   // Apply filter expression to all layers
   useEffect(() => {
