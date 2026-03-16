@@ -10,6 +10,7 @@ import StateLandscape from "./components/StateLandscape";
 import WildCardSignals from "./components/WildCardSignals";
 import TopProspects from "./components/TopProspects";
 import DistrictExplorer from "./components/DistrictExplorer";
+import MethodologySummary from "./components/MethodologySummary";
 
 export default function IcpScoringPage() {
   const { data, loading, error, retry } = useDistrictScores();
@@ -86,6 +87,7 @@ export default function IcpScoringPage() {
         {/* Report sections */}
         {!loading && !error && data.length > 0 && (
           <div className="flex flex-col gap-6">
+            <MethodologySummary />
             <HeroSection data={data} />
             <TierDistribution data={data} />
             <ScoreDistribution data={data} />
