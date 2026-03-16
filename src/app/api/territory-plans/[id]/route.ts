@@ -112,6 +112,9 @@ export async function GET(
       endDate: plan.endDate?.toISOString() ?? null,
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
+      districtCount: plan.districts.length,
+      districtLeaids: plan.districts.map((d) => d.districtLeaid),
+      schoolNcesIds: [],
       districts: plan.districts.map((pd) => {
         const curr = currentByDistrict.get(pd.districtLeaid);
         const prior = priorByDistrict.get(pd.districtLeaid);
@@ -255,6 +258,7 @@ export async function PUT(
         where: { id },
         include: {
           _count: { select: { districts: true } },
+          districts: { select: { districtLeaid: true } },
           ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
           states: { select: { state: { select: { fips: true, abbrev: true, name: true } } } },
           collaborators: { select: { user: { select: { id: true, fullName: true, avatarUrl: true } } } },
@@ -277,6 +281,8 @@ export async function PUT(
       createdAt: plan.createdAt.toISOString(),
       updatedAt: plan.updatedAt.toISOString(),
       districtCount: plan._count.districts,
+      districtLeaids: plan.districts.map((d) => d.districtLeaid),
+      schoolNcesIds: [],
       states: plan.states.map((ps) => ({ fips: ps.state.fips, abbrev: ps.state.abbrev, name: ps.state.name })),
       collaborators: plan.collaborators.map((pc) => ({ id: pc.user.id, fullName: pc.user.fullName, avatarUrl: pc.user.avatarUrl })),
     });

@@ -107,6 +107,8 @@ export async function GET() {
           createdAt: plan.createdAt.toISOString(),
           updatedAt: plan.updatedAt.toISOString(),
           districtCount: plan._count.districts,
+          districtLeaids: districtLeaIds,
+          schoolNcesIds: [],   // deferred — filter degrades gracefully via ?? [] guard
           totalEnrollment,
           stateCount: plan.states.length,
           states: plan.states.map((ps) => ({
@@ -241,6 +243,8 @@ export async function POST(request: NextRequest) {
         createdAt: plan.createdAt.toISOString(),
         updatedAt: plan.updatedAt.toISOString(),
         districtCount: 0,
+        districtLeaids: [],
+        schoolNcesIds: [],
         totalEnrollment: 0,
         stateCount: plan.states.length,
         states: plan.states.map((ps) => ({ fips: ps.state.fips, abbrev: ps.state.abbrev, name: ps.state.name })),
