@@ -12,6 +12,9 @@ interface AppShellProps {
   sidebarCollapsed: boolean;
   onSidebarCollapsedChange: (collapsed: boolean) => void;
 
+  // Whether the current user has admin role
+  isAdmin?: boolean;
+
   // Content to render in the main area
   children: React.ReactNode;
 }
@@ -37,6 +40,7 @@ export default function AppShell({
   onTabChange,
   sidebarCollapsed,
   onSidebarCollapsedChange,
+  isAdmin = false,
   children,
 }: AppShellProps) {
   return (
@@ -52,6 +56,7 @@ export default function AppShell({
           onTabChange={onTabChange}
           collapsed={sidebarCollapsed}
           onCollapsedChange={onSidebarCollapsedChange}
+          isAdmin={isAdmin}
         />
 
         {/* Right: Content area - fills remaining space */}
