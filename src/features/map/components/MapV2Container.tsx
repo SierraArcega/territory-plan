@@ -167,7 +167,6 @@ export default function MapV2Container({
   const fullmindEngagement = useMapV2Store((s) => s.fullmindEngagement);
   const competitorEngagement = useMapV2Store((s) => s.competitorEngagement);
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
-  const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
   const vendorOpacities = useMapV2Store((s) => s.vendorOpacities);
@@ -549,8 +548,8 @@ export default function MapV2Container({
     map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
-    const isMultiSelect = useMapV2Store.getState().multiSelectMode;
-    map.current.getCanvas().style.cursor = isMultiSelect ? "crosshair" : "";
+    // Multi-select is always-on — keep crosshair cursor
+    map.current.getCanvas().style.cursor = "crosshair";
     useMapV2Store.getState().hideTooltip();
   }, []);
 
@@ -629,7 +628,7 @@ export default function MapV2Container({
 
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
-          map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
+          map.current.getCanvas().style.cursor = "crosshair";
 
           // Build tooltip data, respecting tooltipPropertyMap for compare mode
           const props = feature.properties;
@@ -677,7 +676,7 @@ export default function MapV2Container({
           lastHoveredLeaidRef.current = null;
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
-          map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
+          map.current.getCanvas().style.cursor = "crosshair";
 
           useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
             type: "school",
@@ -699,7 +698,7 @@ export default function MapV2Container({
             const stateCode = STATE_NAME_TO_ABBREV[stateName];
             if (stateName) {
               map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
-              map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
+              map.current.getCanvas().style.cursor = "crosshair";
               useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
                 type: "state",
                 stateName,
@@ -761,14 +760,8 @@ export default function MapV2Container({
           return;
         }
 
-        // Multi-select mode or Shift+click toggles selection
-        if (store.multiSelectMode || e.originalEvent.shiftKey) {
-          store.toggleLeaidSelection(leaid);
-          return;
-        }
-
-        // Regular click selects district
-        store.selectDistrict(leaid);
+        // Multi-select is always-on — every click toggles selection
+        store.toggleLeaidSelection(leaid);
 
         // Zoom to district
         const bounds = districtFeatures[0].geometry;
@@ -890,15 +883,11 @@ export default function MapV2Container({
     }
   }, [focusLeaids, mapReady]);
 
-  // Change cursor in multi-select mode
+  // Multi-select is always-on — always show crosshair cursor
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    if (multiSelectMode) {
-      map.current.getCanvas().style.cursor = "crosshair";
-    } else {
-      map.current.getCanvas().style.cursor = "";
-    }
-  }, [multiSelectMode, mapReady]);
+    map.current.getCanvas().style.cursor = "crosshair";
+  }, [mapReady]);
 
   // Update tile source when fiscal year changes (or fyOverride / tileUrlSuffix)
   useEffect(() => {
@@ -1239,11 +1228,6 @@ export default function MapV2Container({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         const store = useMapV2Store.getState();
-        // Exit multi-select mode first
-        if (store.multiSelectMode) {
-          store.toggleMultiSelectMode();
-          return;
-        }
         if (store.panelState !== "BROWSE") {
           store.goBack();
         } else {

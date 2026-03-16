@@ -15,6 +15,7 @@ export const ALL_SCHOOL_TYPES: SchoolType[] = ["elementary", "middle", "high", "
 export type PanelState =
   | "BROWSE"
   | "DISTRICT"
+  | "MULTI_DISTRICT"
   | "STATE"
   | "PLAN_NEW"
   | "PLAN_VIEW"
@@ -26,7 +27,7 @@ export type PanelState =
   | "PLAN_PERF";
 
 // Icon bar navigation
-export type IconBarTab = "home" | "plans" | "explore" | "settings";
+export type IconBarTab = "selection" | "home" | "plans" | "explore" | "settings";
 
 // Plan workspace sections
 export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
@@ -148,9 +149,6 @@ interface MapV2State {
 
   // Multi-select (for Flow A: select -> plan)
   selectedLeaids: Set<string>;
-
-  // Multi-select mode (click-to-select without Shift)
-  multiSelectMode: boolean;
 
   // Search
   searchQuery: string;
@@ -287,8 +285,6 @@ interface MapV2Actions {
   toggleLeaidSelection: (leaid: string) => void;
   clearSelectedDistricts: () => void;
   createPlanFromSelection: () => void;
-
-  toggleMultiSelectMode: () => void;
 
   // Search
   setSearchQuery: (query: string) => void;
@@ -455,7 +451,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   filterOwner: null,
   filterPlanId: null,
   filterStates: [],
-  activeIconTab: "home",
+  activeIconTab: "selection" as IconBarTab,
   selectedLeaid: null,
   selectedStateCode: null,
   hoveredLeaid: null,
@@ -465,7 +461,6 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   detailPopout: null as { leaid: string } | null,
   planDistrictLeaids: new Set<string>(),
   selectedLeaids: new Set<string>(),
-  multiSelectMode: false,
   searchQuery: "",
   tooltip: initialTooltip,
   clickRipples: [],
@@ -570,8 +565,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       return {
         panelState: prev,
         panelHistory: history,
-        // Clear selection when going back to browse
-        ...(prev === "BROWSE"
+        // Clear selection when returning to browse or multi-district
+        ...(prev === "BROWSE" || prev === "MULTI_DISTRICT"
           ? { selectedLeaid: null, selectedStateCode: null }
           : {}),
       };
@@ -604,9 +599,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   setActiveIconTab: (tab) =>
     set((s) => ({
       activeIconTab: tab,
-      // Reset to browse when switching tabs
+      // Only reset to browse when switching to home; selection tab preserves panelState
       panelState: tab === "home" ? "BROWSE" : s.panelState,
-      panelHistory: [],
+      panelHistory: tab === "home" ? [] : s.panelHistory,
       isExploreActive: tab === "explore",
       // Clear filtered districts when leaving explore
       ...(tab !== "explore" ? { filteredDistrictLeaids: [] } : {}),
@@ -616,11 +611,15 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
 
   // Selection
   selectDistrict: (leaid) =>
-    set((s) => ({
-      selectedLeaid: leaid,
-      panelState: "DISTRICT",
-      panelHistory: [...s.panelHistory, s.panelState],
-    })),
+    set((s) => {
+      const topOfHistory = s.panelHistory[s.panelHistory.length - 1];
+      const shouldPush = topOfHistory !== s.panelState;
+      return {
+        selectedLeaid: leaid,
+        panelState: "DISTRICT",
+        panelHistory: shouldPush ? [...s.panelHistory, s.panelState] : s.panelHistory,
+      };
+    }),
 
   selectState: (stateCode) =>
     set((s) => ({
@@ -713,25 +712,25 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       if (next.has(leaid)) {
         next.delete(leaid);
       } else {
+        if (next.size >= 20) return s; // hard cap — no-op
         next.add(leaid);
       }
-      return { selectedLeaids: next };
+      const panelState =
+        next.size === 0 ? "BROWSE"
+        : s.panelState === "BROWSE" ? "MULTI_DISTRICT"
+        : s.panelState;
+      // When adding (next is larger than before), switch to selection tab
+      const activeIconTab = next.size > s.selectedLeaids.size ? "selection" : s.activeIconTab;
+      return { selectedLeaids: next, panelState, activeIconTab };
     }),
 
-  clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>() }),
+  clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>(), panelState: "BROWSE", panelHistory: [] }),
 
   createPlanFromSelection: () =>
     set((s) => ({
       panelState: "PLAN_NEW",
       panelHistory: [...s.panelHistory, s.panelState],
       panelMode: "full",
-    })),
-
-  toggleMultiSelectMode: () =>
-    set((s) => ({
-      multiSelectMode: !s.multiSelectMode,
-      // Clear selection when turning off
-      ...(!s.multiSelectMode ? {} : { selectedLeaids: new Set<string>() }),
     })),
 
   // Search
