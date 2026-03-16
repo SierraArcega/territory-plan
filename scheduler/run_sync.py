@@ -17,6 +17,7 @@ from sync.normalize import normalize_state
 from sync.supabase_writer import (
     get_connection,
     upsert_opportunities,
+    upsert_sessions,
     upsert_unmatched,
     remove_matched_from_unmatched,
     update_district_pipeline_aggregates,
@@ -52,7 +53,7 @@ def run_sync():
         logger.info("No new/updated opportunities, skipping cycle")
         set_last_synced_at(conn, now)
         conn.close()
-        return {"status": "success", "opps_synced": 0, "unmatched_count": None, "error": None}
+        return {"status": "success", "opps_synced": 0, "sessions_stored": 0, "unmatched_count": None, "error": None}
 
     # Phase 2a: Find opps with changed sessions (session changed but opp didn't)
     opp_ids = set(h["_source"]["id"] for h in opp_hits)
@@ -74,10 +75,11 @@ def run_sync():
     # Phase 2b: Fetch ALL sessions for affected opps (need full set for accurate metrics)
     session_hits = fetch_sessions(os_client, list(opp_ids))
 
-    # Group sessions by opportunity ID
+    # Group sessions by opportunity ID (preserve _id for storage)
     sessions_by_opp = defaultdict(list)
     for sh in session_hits:
         src = sh["_source"]
+        src["_id"] = sh["_id"]
         sessions_by_opp[src["opportunityId"]].append(src)
 
     # Phase 3: District mappings
@@ -132,6 +134,25 @@ def run_sync():
         if unmatched_records:
             upsert_unmatched(conn, unmatched_records)
 
+        # Build session records for storage
+        session_records_by_opp = {}
+        for opp_id, opp_sessions in sessions_by_opp.items():
+            session_records_by_opp[opp_id] = [
+                {
+                    "id": s["_id"],
+                    "opportunity_id": s["opportunityId"],
+                    "service_type": s.get("serviceType"),
+                    "session_price": s.get("sessionPrice"),
+                    "educator_price": s.get("educatorPrice"),
+                    "educator_approved_price": s.get("educatorApprovedPrice"),
+                    "start_time": s.get("startTime"),
+                    "synced_at": now,
+                }
+                for s in opp_sessions
+            ]
+        total_sessions = sum(len(v) for v in session_records_by_opp.values())
+        upsert_sessions(conn, session_records_by_opp)
+
         # Clean up: remove opps from unmatched that now have a district match
         newly_matched_ids = [
             r["id"] for r in matched_records if r.get("district_lea_id") is not None
@@ -144,11 +165,13 @@ def run_sync():
 
         logger.info(
             f"=== Sync complete: {len(matched_records)} opps, "
+            f"{total_sessions} sessions, "
             f"{len(unmatched_records)} unmatched ==="
         )
         return {
             "status": "success",
             "opps_synced": len(matched_records),
+            "sessions_stored": total_sessions,
             "unmatched_count": len(unmatched_records),
             "error": None,
         }
