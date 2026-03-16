@@ -82,6 +82,13 @@ export function AsyncMultiSelect({
     }
   }, [isOpen]);
 
+  // Cancel any pending debounce timer on unmount to avoid setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const runSearch = useCallback(
     async (q: string) => {
       if (q.length < 2) {

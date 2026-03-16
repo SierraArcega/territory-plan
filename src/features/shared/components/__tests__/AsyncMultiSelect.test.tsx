@@ -45,10 +45,11 @@ describe("AsyncMultiSelect — trigger label", () => {
     expect(screen.getByRole("button", { name: /Search districts…/i })).toBeInTheDocument();
   });
 
-  it("shows item label for 1 selected item (from label map)", () => {
+  it("shows value string for 1 selected item when label is not yet known", () => {
     setup({ selected: ["lea001"] });
-    const trigger = screen.getByRole("button");
-    expect(trigger).toBeInTheDocument();
+    // When a value is pre-selected but no label has been accumulated in the map yet,
+    // the trigger should fall back to displaying the raw value string
+    expect(screen.getByRole("button", { name: /lea001/i })).toBeInTheDocument();
   });
 
   it("shows count label for 4+ selected", () => {
