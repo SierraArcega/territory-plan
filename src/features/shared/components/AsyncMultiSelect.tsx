@@ -166,13 +166,13 @@ export function AsyncMultiSelect({
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="h-9 px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white text-[#403770] flex items-center gap-2 min-w-[120px]"
+        className="h-9 px-3 text-sm border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white text-[#403770] flex items-center gap-2 min-w-[120px]"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
         <span className="truncate flex-1 text-left">{triggerLabel}</span>
         <svg
-          className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 flex-shrink-0 text-[#A69DC0] transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -231,10 +231,10 @@ export function AsyncMultiSelect({
           >
             {isLoading ? (
               <li className="flex items-center justify-center py-4">
-                <div className="w-4 h-4 border-2 border-gray-200 border-t-[#403770] rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-[#E2DEEC] border-t-[#403770] rounded-full animate-spin" />
               </li>
             ) : isError ? (
-              <li className="px-3 py-2 text-sm text-red-500">Search failed — try again</li>
+              <li className="px-3 py-2 text-sm text-[#F37167]">Search failed — try again</li>
             ) : query.length < 2 ? (
               <li className="px-3 py-2 text-sm text-[#A69DC0] italic">Type to search…</li>
             ) : results.length === 0 ? (

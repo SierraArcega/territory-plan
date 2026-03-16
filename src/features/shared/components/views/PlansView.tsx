@@ -82,15 +82,15 @@ function formatDate(dateString: string | null): string {
 function getStatusBadge(status: string) {
   switch (status) {
     case "planning":
-      return { label: "Planning", className: "bg-gray-200 text-gray-700" };
+      return { label: "Planning", className: "bg-[#EFEDF5] text-[#6E6390]" };
     case "working":
       return { label: "Working", className: "bg-[#8AA891] text-white" };
     case "stale":
       return { label: "Stale", className: "bg-amber-200 text-amber-800" };
     case "archived":
-      return { label: "Archived", className: "bg-gray-400 text-white" };
+      return { label: "Archived", className: "bg-[#A69DC0] text-white" };
     default:
-      return { label: status, className: "bg-gray-200 text-gray-700" };
+      return { label: status, className: "bg-[#EFEDF5] text-[#6E6390]" };
   }
 }
 
@@ -289,6 +289,83 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     ]
   );
 
+  const filterToolbar = plans && plans.length > 0 ? (
+    <div className="flex flex-wrap items-start gap-3">
+      <MultiSelect
+        id="filter-status"
+        label="Status"
+        options={STATUS_FILTER_OPTIONS}
+        selected={selectedStatuses}
+        onChange={setSelectedStatuses}
+        placeholder="Status"
+        countLabel="statuses"
+        searchPlaceholder="Search statuses…"
+      />
+      <MultiSelect
+        id="filter-fy"
+        label="Fiscal Year"
+        options={fyOptions}
+        selected={selectedFiscalYears}
+        onChange={setSelectedFiscalYears}
+        placeholder="FY"
+        countLabel="years"
+        searchPlaceholder="Search years…"
+      />
+      <MultiSelect
+        id="filter-owner"
+        label="Owner"
+        options={ownerOptions}
+        selected={selectedOwnerIds}
+        onChange={setSelectedOwnerIds}
+        placeholder="Owner"
+        countLabel="owners"
+        searchPlaceholder="Search owners…"
+      />
+      <MultiSelect
+        id="filter-states"
+        label="States"
+        options={stateOptions}
+        selected={selectedStateFips}
+        onChange={setSelectedStateFips}
+        placeholder="States"
+        countLabel="states"
+        searchPlaceholder="Search states…"
+      />
+      <AsyncMultiSelect
+        id="filter-districts"
+        label="Districts"
+        selected={selectedDistrictLeaids}
+        onChange={setSelectedDistrictLeaids}
+        onSearch={searchDistricts}
+        placeholder="Districts…"
+        countLabel="districts"
+        searchPlaceholder="Search districts…"
+      />
+      <AsyncMultiSelect
+        id="filter-schools"
+        label="Schools"
+        selected={selectedSchoolLeaids}
+        onChange={setSelectedSchoolLeaids}
+        onSearch={searchSchools}
+        placeholder="Schools…"
+        countLabel="schools"
+        searchPlaceholder="Search schools…"
+      />
+      {anyFilterActive && (
+        <button
+          type="button"
+          onClick={clearAllFilters}
+          className="h-9 px-3 text-sm text-[#403770]/60 hover:text-[#403770] flex items-center gap-1 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </div>
+  ) : undefined;
+
   const handleUpdatePlan = async (data: PlanFormData) => {
     if (!planToEdit) return;
     await updatePlan.mutateAsync({
@@ -329,11 +406,11 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-[#D4CFE2] px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[#403770]">Territory Plans</h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#8A80A8]">
               Manage your territory plans and assigned districts
             </p>
           </div>
@@ -360,86 +437,6 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         </div>
       </header>
 
-      {/* Filter bar — shown whenever plans exist (even if all are filtered out) */}
-      {plans && plans.length > 0 && (
-        <div className="bg-white border-b border-gray-100 px-6 py-2">
-          <div className="max-w-6xl mx-auto flex flex-wrap items-start gap-3">
-            <MultiSelect
-              id="filter-status"
-              label="Status"
-              options={STATUS_FILTER_OPTIONS}
-              selected={selectedStatuses}
-              onChange={setSelectedStatuses}
-              placeholder="Status"
-              countLabel="statuses"
-              searchPlaceholder="Search statuses…"
-            />
-            <MultiSelect
-              id="filter-fy"
-              label="Fiscal Year"
-              options={fyOptions}
-              selected={selectedFiscalYears}
-              onChange={setSelectedFiscalYears}
-              placeholder="FY"
-              countLabel="years"
-              searchPlaceholder="Search years…"
-            />
-            <MultiSelect
-              id="filter-owner"
-              label="Owner"
-              options={ownerOptions}
-              selected={selectedOwnerIds}
-              onChange={setSelectedOwnerIds}
-              placeholder="Owner"
-              countLabel="owners"
-              searchPlaceholder="Search owners…"
-            />
-            <MultiSelect
-              id="filter-states"
-              label="States"
-              options={stateOptions}
-              selected={selectedStateFips}
-              onChange={setSelectedStateFips}
-              placeholder="States"
-              countLabel="states"
-              searchPlaceholder="Search states…"
-            />
-            <AsyncMultiSelect
-              id="filter-districts"
-              label="Districts"
-              selected={selectedDistrictLeaids}
-              onChange={setSelectedDistrictLeaids}
-              onSearch={searchDistricts}
-              placeholder="Districts…"
-              countLabel="districts"
-              searchPlaceholder="Search districts…"
-            />
-            <AsyncMultiSelect
-              id="filter-schools"
-              label="Schools"
-              selected={selectedSchoolLeaids}
-              onChange={setSelectedSchoolLeaids}
-              onSearch={searchSchools}
-              placeholder="Schools…"
-              countLabel="schools"
-              searchPlaceholder="Search schools…"
-            />
-            {anyFilterActive && (
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="h-9 px-3 text-sm text-[#403770]/60 hover:text-[#403770] flex items-center gap-1 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
         {isLoading ? (
@@ -465,18 +462,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             </div>
           </div>
         ) : filteredPlans.length > 0 || (plans && plans.length > 0) ? (
-          filteredPlans.length === 0 ? (
-            // Active filters produced no results — show filter-specific empty state
-            <div className="text-center py-16">
-              <p className="text-gray-500 font-medium">No plans match your filters.</p>
-              <button
-                onClick={clearAllFilters}
-                className="mt-3 text-sm text-[#403770] hover:underline"
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : view === "cards" ? (
+          view === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredPlans.map((plan) => (
                 <div
@@ -489,12 +475,17 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               ))}
             </div>
           ) : (
-            <PlansTable plans={filteredPlans} onSelectPlan={onSelectPlan} onEditPlan={setPlanToEdit} />
+            <PlansTable
+              plans={filteredPlans}
+              onSelectPlan={onSelectPlan}
+              onEditPlan={setPlanToEdit}
+              toolbar={filterToolbar}
+            />
           )
         ) : (
           <div className="text-center py-20">
             <svg
-              className="w-20 h-20 mx-auto text-gray-300 mb-6"
+              className="w-20 h-20 mx-auto text-[#C2BBD4] mb-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -506,10 +497,10 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
             </svg>
-            <h2 className="text-xl font-semibold text-gray-600 mb-2">
+            <h2 className="text-xl font-semibold text-[#6E6390] mb-2">
               No territory plans yet
             </h2>
-            <p className="text-gray-500 max-w-md mx-auto mb-6">
+            <p className="text-[#8A80A8] max-w-md mx-auto mb-6">
               Create your first territory plan to start organizing districts and planning your sales strategy.
             </p>
             <button
@@ -682,11 +673,11 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   if (error || !plan) {
     return (
       <div className="h-full overflow-auto bg-[#FFFCFA]">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-white border-b border-[#D4CFE2] px-6 py-4">
           <div className="max-w-6xl mx-auto">
             <button
               onClick={onBack}
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-[#403770] transition-colors"
+              className="inline-flex items-center gap-2 text-[#8A80A8] hover:text-[#403770] transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -701,7 +692,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p className="font-medium mb-1">Plan not found</p>
-            <p className="text-sm text-gray-500">{error?.message || "The requested plan could not be found."}</p>
+            <p className="text-sm text-[#8A80A8]">{error?.message || "The requested plan could not be found."}</p>
           </div>
         </div>
       </div>
@@ -717,12 +708,12 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
       {/* Compact header: back + title + badges | actions */}
-      <header className="bg-white border-b border-gray-200 px-6">
+      <header className="bg-white border-b border-[#D4CFE2] px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={onBack}
-              className="p-1 text-gray-400 hover:text-[#403770] transition-colors flex-shrink-0"
+              className="p-1 text-[#A69DC0] hover:text-[#403770] transition-colors flex-shrink-0"
               aria-label="Back to Plans"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -741,7 +732,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
               {statusBadge.label}
             </span>
             {/* Meta info inline */}
-            <span className="hidden md:flex items-center gap-2 text-[12px] text-gray-400 ml-2 flex-shrink-0">
+            <span className="hidden md:flex items-center gap-2 text-[12px] text-[#A69DC0] ml-2 flex-shrink-0">
               <span>{plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}</span>
               {plan.owner?.fullName && (
                 <>
@@ -863,15 +854,15 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
             <h3 className="text-lg font-semibold text-[#403770] mb-2">Delete Plan?</h3>
-            <p className="text-gray-600 text-sm mb-6">
+            <p className="text-[#6E6390] text-sm mb-6">
               Are you sure you want to delete &ldquo;{plan.name}&rdquo;? This will remove all district associations. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
               >
                 Cancel
               </button>

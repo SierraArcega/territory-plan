@@ -18,6 +18,7 @@ interface PlansTableProps {
   plans: TerritoryPlan[];
   onSelectPlan: (planId: string) => void;
   onEditPlan?: (plan: TerritoryPlan) => void;
+  toolbar?: React.ReactNode;
 }
 
 // Status options for the dropdown
@@ -34,13 +35,13 @@ function getStatusBadgeClass(status: string): string {
     case "working":
       return "bg-[#8AA891] text-white";
     case "planning":
-      return "bg-gray-200 text-gray-700";
+      return "bg-[#EFEDF5] text-[#6E6390]";
     case "stale":
       return "bg-amber-200 text-amber-800";
     case "archived":
-      return "bg-gray-400 text-white";
+      return "bg-[#A69DC0] text-white";
     default:
-      return "bg-gray-200 text-gray-700";
+      return "bg-[#EFEDF5] text-[#6E6390]";
   }
 }
 
@@ -113,16 +114,16 @@ function DeleteConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-lg font-semibold text-[#403770] mb-2">Delete Plan?</h3>
-        <p className="text-gray-600 text-sm mb-6">
+        <p className="text-[#6E6390] text-sm mb-6">
           Are you sure you want to delete &ldquo;{plan.name}&rdquo;? This will remove all
           district associations. This action cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
           >
             Cancel
           </button>
@@ -139,7 +140,7 @@ function DeleteConfirmModal({
   );
 }
 
-export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTableProps) {
+export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }: PlansTableProps) {
   const [planToDelete, setPlanToDelete] = useState<TerritoryPlan | null>(null);
 
   const updatePlan = useUpdateTerritoryPlan();
@@ -178,9 +179,9 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
   // Empty state
   if (plans.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+      <div className="text-center py-12 bg-white rounded-lg border border-[#D4CFE2]">
         <svg
-          className="w-16 h-16 mx-auto text-gray-300 mb-4"
+          className="w-16 h-16 mx-auto text-[#C2BBD4] mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -192,8 +193,8 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
             d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
           />
         </svg>
-        <h3 className="text-lg font-medium text-gray-600 mb-2">No plans yet</h3>
-        <p className="text-sm text-gray-500 max-w-sm mx-auto">
+        <h3 className="text-lg font-medium text-[#6E6390] mb-2">No plans yet</h3>
+        <p className="text-sm text-[#8A80A8] max-w-sm mx-auto">
           Create your first territory plan to get started.
         </p>
       </div>
@@ -204,13 +205,18 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
   const totalDistrictCount = plans.reduce((sum, plan) => sum + plan.districtCount, 0);
 
   return (
-    <div className="overflow-hidden border border-gray-200 rounded-lg bg-white">
-      <div className="overflow-x-auto">
-        <table className="w-full table-fixed divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex flex-col">
+      {toolbar && (
+        <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
+          {toolbar}
+        </div>
+      )}
+      <div className="overflow-auto flex-1 min-h-0">
+        <table className="w-full table-fixed divide-y divide-[#D4CFE2]">
+          <thead className="bg-[#F7F5FA] sticky top-0 z-10">
             <tr>
               <th
-                className="w-[28px] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                className="w-[28px] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]"
                 aria-label="Color"
               >
                 {/* Color dot column */}
@@ -222,7 +228,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
                 onSort={onSort}
                 className="w-[18%]"
               />
-              <th className="w-[22%] px-2 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[22%] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">
                 Description
               </th>
               <SortHeader
@@ -260,16 +266,16 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
                 onSort={onSort}
                 className="w-[44px] text-center"
               />
-              <th className="w-[56px] px-2 py-2 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <th className="w-[56px] px-2 py-2 text-right text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
+          <tbody className="bg-white divide-y divide-[#E2DEEC]">
             {sortedPlans.map((plan) => (
               <tr
                 key={plan.id}
-                className="hover:bg-gray-50 transition-colors"
+                className="hover:bg-[#EFEDF5] transition-colors"
               >
                 {/* Color dot */}
                 <td className="px-2 py-1.5">
@@ -298,13 +304,13 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
                     value={plan.description}
                     onSave={async (value) => handleFieldUpdate(plan.id, "description", value)}
                     placeholder="Add description..."
-                    className="text-xs text-gray-600 truncate"
+                    className="text-xs text-[#8A80A8] truncate"
                   />
                 </td>
 
                 {/* Owner (display only — owner is now a user object) */}
                 <td className="px-2 py-1">
-                  <span className="text-xs text-gray-600">
+                  <span className="text-xs text-[#8A80A8]">
                     {plan.owner?.fullName ?? "\u2014"}
                   </span>
                 </td>
@@ -329,7 +335,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
 
                 {/* Dates (editable date pickers) */}
                 <td className="px-2 py-1">
-                  <div className="flex items-center gap-0.5 text-xs text-gray-600">
+                  <div className="flex items-center gap-0.5 text-xs text-[#8A80A8]">
                     <InlineEditCell
                       type="date"
                       value={plan.startDate}
@@ -337,7 +343,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
                       placeholder="Start"
                       className="text-xs"
                     />
-                    <span className="text-gray-400">-</span>
+                    <span className="text-[#A69DC0]">-</span>
                     <InlineEditCell
                       type="date"
                       value={plan.endDate}
@@ -382,16 +388,16 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTab
               </tr>
             ))}
           </tbody>
-          <tfoot className="bg-gray-50 border-t border-gray-200" aria-label="footer">
+          <tfoot className="bg-[#F7F5FA] border-t border-[#E2DEEC]" aria-label="footer">
             <tr>
               <td className="px-2 py-2"></td>
               <td className="px-2 py-2" colSpan={6}>
-                <span className="text-xs font-semibold text-gray-700">
+                <span className="text-xs font-semibold text-[#6E6390]">
                   Total ({plans.length} plans)
                 </span>
               </td>
               <td className="px-2 py-2 text-center">
-                <span className="text-xs font-semibold text-gray-700">
+                <span className="text-xs font-semibold text-[#6E6390]">
                   {totalDistrictCount}
                 </span>
               </td>
