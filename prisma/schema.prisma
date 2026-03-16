@@ -255,6 +255,14 @@ model District {
   readProficiencyQuartileState      String? @map("read_proficiency_quartile_state") @db.VarChar(15)
   expenditurePpQuartileState        String? @map("expenditure_pp_quartile_state") @db.VarChar(15)
 
+  // ===== ICP Scoring =====
+  icpCompositeScore  Int?    @map("icp_composite_score")
+  icpFitScore        Int?    @map("icp_fit_score")
+  icpValueScore      Int?    @map("icp_value_score")
+  icpReadinessScore  Int?    @map("icp_readiness_score")
+  icpStateScore      Int?    @map("icp_state_score")
+  icpTier            String? @map("icp_tier") @db.VarChar(10)
+
   // ===== Relations =====
   state           State?                  @relation(fields: [stateFips], references: [fips])
   contacts        Contact[]
@@ -432,6 +440,12 @@ model State {
   avgEnrollment             Int?     @map("avg_enrollment")
   avgMathProficiency        Decimal? @map("avg_math_proficiency") @db.Decimal(5, 2)
   avgReadProficiency        Decimal? @map("avg_read_proficiency") @db.Decimal(5, 2)
+
+  // ===== ICP Scoring =====
+  icpAvgScore     Float? @map("icp_avg_score") @db.Real
+  icpT1Count      Int    @default(0) @map("icp_t1_count")
+  icpT2Count      Int    @default(0) @map("icp_t2_count")
+  icpChurnPenalty  Int    @default(0) @map("icp_churn_penalty")
 
   // ===== Territory Management =====
   territoryOwner String? @map("territory_owner") @db.VarChar(100)
