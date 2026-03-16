@@ -90,11 +90,15 @@ def upsert_sessions(conn, sessions_by_opp):
         opp_ids = [str(oid) for oid in sessions_by_opp.keys()]
         cur.execute("DELETE FROM sessions WHERE opportunity_id = ANY(%s::text[])", (opp_ids,))
 
-        # Flatten all sessions into a single values list for batch insert
+        # Flatten all sessions, deduplicating by id (first column)
+        seen_ids = set()
         all_values = []
         for opp_sessions in sessions_by_opp.values():
             for session in opp_sessions:
-                all_values.append(tuple(session.get(c) for c in SESSION_COLUMNS))
+                sid = session.get("id")
+                if sid not in seen_ids:
+                    seen_ids.add(sid)
+                    all_values.append(tuple(session.get(c) for c in SESSION_COLUMNS))
         total = len(all_values)
 
         if all_values:
