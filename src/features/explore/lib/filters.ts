@@ -160,59 +160,64 @@ export function buildWhereClause(
 ): Record<string, unknown> {
   const where: Record<string, unknown> = {};
 
+  // Group filters by prisma field to handle same-column merging
+  const byField = new Map<string, FilterDef[]>();
   for (const f of filters) {
     const prismaField = fieldMap ? fieldMap[f.column] : f.column;
-    if (!prismaField) continue; // skip unknown columns
+    if (!prismaField) continue;
+    if (!byField.has(prismaField)) byField.set(prismaField, []);
+    byField.get(prismaField)!.push(f);
+  }
 
-    switch (f.op) {
-      case "eq":
-        where[prismaField] = f.value;
-        break;
-      case "neq":
-        where[prismaField] = { not: f.value };
-        break;
-      case "in":
-        where[prismaField] = { in: f.value };
-        break;
-      case "contains":
-        where[prismaField] = {
-          contains: f.value as string,
-          mode: "insensitive",
-        };
-        break;
-      case "gt":
-        where[prismaField] = { gt: f.value };
-        break;
-      case "gte":
-        where[prismaField] = { gte: f.value };
-        break;
-      case "lt":
-        where[prismaField] = { lt: f.value };
-        break;
-      case "lte":
-        where[prismaField] = { lte: f.value };
-        break;
-      case "between": {
-        const [min, max] = f.value as [unknown, unknown];
-        where[prismaField] = { gte: min, lte: max };
-        break;
+  for (const [prismaField, fieldFilters] of byField) {
+    if (fieldFilters.length === 1) {
+      // Single filter — apply directly
+      const f = fieldFilters[0];
+      where[prismaField] = buildCondition(f);
+    } else {
+      // Multiple filters on same column — merge "in" values, AND others
+      const inFilters = fieldFilters.filter((f) => f.op === "in");
+      const otherFilters = fieldFilters.filter((f) => f.op !== "in");
+
+      if (inFilters.length > 0) {
+        // Merge all "in" values into a single array (OR within same column)
+        const mergedValues = inFilters.flatMap((f) =>
+          Array.isArray(f.value) ? f.value : [f.value]
+        );
+        where[prismaField] = { in: mergedValues };
       }
-      case "is_true":
-        where[prismaField] = true;
-        break;
-      case "is_false":
-        where[prismaField] = false;
-        break;
-      case "is_empty":
-        where[prismaField] = null;
-        break;
-      case "is_not_empty":
-        where[prismaField] = { not: null };
-        break;
+
+      // AND any non-"in" filters via the AND array
+      for (const f of otherFilters) {
+        if (!where.AND) where.AND = [];
+        (where.AND as unknown[]).push({ [prismaField]: buildCondition(f) });
+      }
     }
   }
 
   return where;
+}
+
+function buildCondition(f: FilterDef): unknown {
+  switch (f.op) {
+    case "eq": return f.value;
+    case "neq": return { not: f.value };
+    case "in": return { in: f.value };
+    case "contains": return { contains: f.value as string, mode: "insensitive" };
+    case "gt": return { gt: f.value };
+    case "gte": return { gte: f.value };
+    case "lt": return { lt: f.value };
+    case "lte": return { lte: f.value };
+    case "between": {
+      const [min, max] = f.value as [unknown, unknown];
+      return { gte: min, lte: max };
+    }
+    case "is_true": return true;
+    case "is_false": return false;
+    case "is_empty": return null;
+    case "is_not_empty": return { not: null };
+    default: return f.value;
+  }
 }
 
 // External column key → Prisma field name for plans

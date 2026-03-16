@@ -243,6 +243,16 @@ interface MapV2State {
     competitorEngagement: Record<string, string[]>;
   } | null;
   pendingFitBounds: [[number, number], [number, number]] | null;
+
+  // District Search (Zillow-style)
+  searchFilters: ExploreFilter[];
+  searchSort: { column: string; direction: "asc" | "desc" };
+  searchFilterModes: Record<string, "all" | "any">; // per-domain match mode
+  searchBounds: [number, number, number, number] | null; // [west, south, east, north]
+  isSearchActive: boolean;
+  searchResultsVisible: boolean;
+  searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
+  searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
 }
 
 interface MapV2Actions {
@@ -393,6 +403,19 @@ interface MapV2Actions {
   focusPlan: (planId: string, stateAbbrevs: string[], leaids: string[], bounds: [[number, number], [number, number]]) => void;
   unfocusPlan: () => void;
   clearPendingFitBounds: () => void;
+
+  // District Search (Zillow-style)
+  setSearchFilters: (filters: ExploreFilter[]) => void;
+  addSearchFilter: (filter: ExploreFilter) => void;
+  removeSearchFilter: (filterId: string) => void;
+  updateSearchFilter: (filterId: string, updates: Partial<ExploreFilter>) => void;
+  clearSearchFilters: () => void;
+  setSearchSort: (sort: { column: string; direction: "asc" | "desc" }) => void;
+  setSearchFilterMode: (domain: string, mode: "all" | "any") => void;
+  setSearchBounds: (bounds: [number, number, number, number] | null) => void;
+  toggleSearchResults: () => void;
+  setSearchResultLeaids: (leaids: string[]) => void;
+  setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
 }
 
 let rippleId = 0;
@@ -550,6 +573,16 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   focusLeaids: [],
   preFocusFilters: null,
   pendingFitBounds: null,
+
+  // District Search (Zillow-style)
+  searchFilters: [],
+  searchSort: { column: "enrollment", direction: "desc" as const },
+  searchFilterModes: {},
+  searchBounds: null,
+  isSearchActive: false,
+  searchResultsVisible: false,
+  searchResultLeaids: [],
+  searchResultCentroids: [],
 
   // Panel navigation
   setPanelState: (state) =>
@@ -1198,4 +1231,31 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     })),
 
   clearPendingFitBounds: () => set({ pendingFitBounds: null }),
+
+  // District Search (Zillow-style)
+  setSearchFilters: (filters) =>
+    set({ searchFilters: filters, isSearchActive: filters.length > 0, searchResultsVisible: filters.length > 0 }),
+  addSearchFilter: (filter) =>
+    set((s) => {
+      const next = [...s.searchFilters, filter];
+      return { searchFilters: next, isSearchActive: true, searchResultsVisible: true };
+    }),
+  removeSearchFilter: (filterId) =>
+    set((s) => {
+      const next = s.searchFilters.filter((f) => f.id !== filterId);
+      return { searchFilters: next, isSearchActive: next.length > 0, searchResultsVisible: next.length > 0 };
+    }),
+  updateSearchFilter: (filterId, updates) =>
+    set((s) => ({
+      searchFilters: s.searchFilters.map((f) => (f.id === filterId ? { ...f, ...updates } : f)),
+    })),
+  clearSearchFilters: () =>
+    set({ searchFilters: [], isSearchActive: false, searchResultsVisible: false, searchResultLeaids: [], searchResultCentroids: [] }),
+  setSearchSort: (sort) => set({ searchSort: sort }),
+  setSearchFilterMode: (domain: string, mode: "all" | "any") =>
+    set((s) => ({ searchFilterModes: { ...s.searchFilterModes, [domain]: mode } })),
+  setSearchBounds: (bounds) => set({ searchBounds: bounds }),
+  toggleSearchResults: () => set((s) => ({ searchResultsVisible: !s.searchResultsVisible })),
+  setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
+  setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
 }));

@@ -606,12 +606,12 @@ export default function LayerBubble() {
   }
 
   return (
-    <div ref={ref} className="absolute bottom-6 right-6 z-10">
+    <div ref={ref} className="absolute bottom-6 left-6 z-10">
       {/* Expanded popover */}
       {layerBubbleOpen && (
         <div
-          className="absolute bottom-full right-0 mb-2 w-[380px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-          style={{ transformOrigin: "bottom right" }}
+          className="absolute bottom-full left-0 mb-2 w-[380px] bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          style={{ transformOrigin: "bottom left" }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-3 pt-3 pb-2">
