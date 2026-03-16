@@ -156,6 +156,7 @@ export default function MapV2Container({
   const lastHoveredLeaidRef = useRef<string | null>(null);
   const lastHoverTimeRef = useRef(0);
   const tooltipElRef = useRef<HTMLDivElement>(null);
+  const searchResultSetRef = useRef<Set<string>>(new Set());
 
   // === Render-triggering state (granular selectors) ===
   const selectedLeaid = useMapV2Store((s) => s.selectedLeaid);
@@ -685,6 +686,12 @@ export default function MapV2Container({
         const feature = features[0];
         const leaid = feature.properties?.leaid;
 
+        // Skip hover on filtered-out districts when search is active
+        if (leaid && useMapV2Store.getState().isSearchActive && searchResultSetRef.current.size > 0 && !searchResultSetRef.current.has(leaid)) {
+          if (lastHoveredLeaidRef.current) clearHover();
+          return;
+        }
+
         if (leaid && leaid !== lastHoveredLeaidRef.current) {
           lastHoveredLeaidRef.current = leaid;
 
@@ -975,6 +982,12 @@ export default function MapV2Container({
   // Search result highlighting — outline matching districts + dim non-matching
   const searchResultLeaids = useMapV2Store((s) => s.searchResultLeaids);
   const isSearchActive = useMapV2Store((s) => s.isSearchActive);
+
+  // Keep a Set version of search results for O(1) hover lookups
+  useEffect(() => {
+    searchResultSetRef.current = new Set(searchResultLeaids);
+  }, [searchResultLeaids]);
+
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
