@@ -53,6 +53,17 @@ def test_compute_metrics_empty_sessions():
     assert m["average_take_rate"] is None
 
 
+def test_to_decimal_handles_empty_string():
+    """Regression: empty string in numeric field caused ConversionSyntax."""
+    from sync.compute import _to_decimal
+    assert _to_decimal("") == Decimal("0")
+    assert _to_decimal("  ") == Decimal("0")
+    assert _to_decimal("N/A") == Decimal("0")
+    assert _to_decimal(None) == Decimal("0")
+    assert _to_decimal(0) == Decimal("0.00")
+    assert _to_decimal(100.5) == Decimal("100.50")
+
+
 def test_build_opportunity_record():
     opp_source = {
         "id": "opp1",
