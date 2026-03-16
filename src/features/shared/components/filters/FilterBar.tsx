@@ -157,7 +157,8 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
           Fullmind
         </span>
 
-        {isMapTab && (
+        {/* Map-tab filters moved to SearchBar on the map — hide them here */}
+        {false && isMapTab && (
           <>
             <div className="h-6 border-l border-gray-200" />
 
@@ -400,8 +401,8 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
         )}
       </div>
 
-      {/* Active filter chips */}
-      {isMapTab && hasActiveFilters && (
+      {/* Active filter chips — hidden on map tab (SearchBar handles filters now) */}
+      {false && isMapTab && hasActiveFilters && (
         <div className="flex items-center gap-2 mt-1.5 text-xs">
           <span className="text-gray-400">Filters:</span>
           {filterStates.length > 0 && (

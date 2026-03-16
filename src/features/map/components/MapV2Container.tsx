@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useMapV2Store } from "@/features/map/lib/store";
@@ -167,7 +167,6 @@ export default function MapV2Container({
   const fullmindEngagement = useMapV2Store((s) => s.fullmindEngagement);
   const competitorEngagement = useMapV2Store((s) => s.competitorEngagement);
   const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
-  const multiSelectMode = useMapV2Store((s) => s.multiSelectMode);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const vendorPalettes = useMapV2Store((s) => s.vendorPalettes);
   const vendorOpacities = useMapV2Store((s) => s.vendorOpacities);
@@ -198,8 +197,8 @@ export default function MapV2Container({
           },
         ],
       },
-      center: [-98, 39],
-      zoom: 4.2,
+      bounds: US_BOUNDS,
+      fitBoundsOptions: { padding: 20 },
       minZoom: 2,
       maxZoom: 14,
     });
@@ -227,7 +226,7 @@ export default function MapV2Container({
         map.current.addSource("districts", {
           type: "vector",
           tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${initialFy}${suffix}`],
-          minzoom: 3.5,
+          minzoom: 2,
           maxzoom: 12,
         });
       }
@@ -302,7 +301,7 @@ export default function MapV2Container({
         "source-layer": "districts",
         paint: {
           "fill-color": "#E5E7EB",
-          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0.2, 5, 0.4],
+          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.15, 4, 0.3, 5, 0.4],
         },
       });
 
@@ -491,6 +490,65 @@ export default function MapV2Container({
         },
       });
 
+      // Search filter dim — heavy overlay on NON-matching districts to wash them out
+      map.current.addLayer({
+        id: "district-search-dim",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["!", ["in", ["get", "leaid"], ["literal", [""]]]],
+        paint: {
+          "fill-color": "#F8F7F4",
+          "fill-opacity": 0,  // starts invisible, activated by search
+        },
+      });
+
+      // Search filter match — coral fill tint on matching districts
+      map.current.addLayer({
+        id: "district-search-fill",
+        type: "fill",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["in", ["get", "leaid"], ["literal", [""]]],
+        paint: {
+          "fill-color": "#F37167",
+          "fill-opacity": 0,  // starts invisible
+        },
+      });
+
+      // Search filter match — bold coral outline on matching districts
+      map.current.addLayer({
+        id: "district-search-outline",
+        type: "line",
+        source: "districts",
+        "source-layer": "districts",
+        filter: ["in", ["get", "leaid"], ["literal", [""]]],
+        paint: {
+          "line-color": "#F37167",
+          "line-width": 2.5,
+          "line-opacity": 0,  // starts invisible
+        },
+      });
+
+      // Search result centroid dots — always visible at any zoom
+      map.current.addSource("search-centroids", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.current.addLayer({
+        id: "search-centroid-dots",
+        type: "circle",
+        source: "search-centroids",
+        paint: {
+          "circle-color": "#F37167",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 4, 6, 5, 8, 6, 10, 4],
+          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.9, 8, 0.7, 10, 0.3],
+          "circle-stroke-color": "#FFFFFF",
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 3, 1.5, 8, 1, 10, 0.5],
+        },
+      });
+
       // === SCHOOL LAYERS ===
 
       // GeoJSON source — no clustering, every school is its own dot
@@ -549,8 +607,8 @@ export default function MapV2Container({
     map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
     map.current.setFilter("state-hover", ["==", ["get", "name"], ""]);
-    const isMultiSelect = useMapV2Store.getState().multiSelectMode;
-    map.current.getCanvas().style.cursor = isMultiSelect ? "crosshair" : "";
+    // Multi-select is always-on — keep crosshair cursor
+    map.current.getCanvas().style.cursor = "crosshair";
     useMapV2Store.getState().hideTooltip();
   }, []);
 
@@ -629,7 +687,7 @@ export default function MapV2Container({
 
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
-          map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
+          map.current.getCanvas().style.cursor = "crosshair";
 
           // Build tooltip data, respecting tooltipPropertyMap for compare mode
           const props = feature.properties;
@@ -677,7 +735,7 @@ export default function MapV2Container({
           lastHoveredLeaidRef.current = null;
           map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
           map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
-          map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
+          map.current.getCanvas().style.cursor = "crosshair";
 
           useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
             type: "school",
@@ -699,7 +757,7 @@ export default function MapV2Container({
             const stateCode = STATE_NAME_TO_ABBREV[stateName];
             if (stateName) {
               map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
-              map.current.getCanvas().style.cursor = useMapV2Store.getState().multiSelectMode ? "crosshair" : "pointer";
+              map.current.getCanvas().style.cursor = "crosshair";
               useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
                 type: "state",
                 stateName,
@@ -761,14 +819,8 @@ export default function MapV2Container({
           return;
         }
 
-        // Multi-select mode or Shift+click toggles selection
-        if (store.multiSelectMode || e.originalEvent.shiftKey) {
-          store.toggleLeaidSelection(leaid);
-          return;
-        }
-
-        // Regular click selects district
-        store.selectDistrict(leaid);
+        // Multi-select is always-on — every click toggles selection
+        store.toggleLeaidSelection(leaid);
 
         // Zoom to district
         const bounds = districtFeatures[0].geometry;
@@ -829,16 +881,42 @@ export default function MapV2Container({
     map.current.on("mouseleave", clearHover);
     map.current.on("movestart", clearHover);
 
-    // Load schools on viewport change (debounced)
+    // Load schools on viewport change (debounced) + update search bounds
     let schoolDebounceTimer: ReturnType<typeof setTimeout>;
+    let searchBoundsTimer: ReturnType<typeof setTimeout>;
     const handleMoveEnd = () => {
       clearTimeout(schoolDebounceTimer);
       schoolDebounceTimer = setTimeout(loadSchoolsForViewport, 300);
+
+      // Update search bounds for viewport-synced results
+      clearTimeout(searchBoundsTimer);
+      searchBoundsTimer = setTimeout(() => {
+        const m = map.current;
+        if (!m) return;
+        const bounds = m.getBounds();
+        useMapV2Store.getState().setSearchBounds([
+          bounds.getWest(),
+          bounds.getSouth(),
+          bounds.getEast(),
+          bounds.getNorth(),
+        ]);
+      }, 300);
     };
     map.current.on("moveend", handleMoveEnd);
 
     // Initial load
     loadSchoolsForViewport();
+
+    // Set initial search bounds
+    if (map.current) {
+      const bounds = map.current.getBounds();
+      useMapV2Store.getState().setSearchBounds([
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ]);
+    }
 
     return () => {
       const m = map.current;
@@ -848,6 +926,7 @@ export default function MapV2Container({
       m?.off("movestart", clearHover);
       m?.off("moveend", handleMoveEnd);
       clearTimeout(schoolDebounceTimer);
+      clearTimeout(searchBoundsTimer);
     };
   }, [mapReady, handleDistrictHover, handleClick, clearHover, loadSchoolsForViewport]);
 
@@ -890,15 +969,101 @@ export default function MapV2Container({
     }
   }, [focusLeaids, mapReady]);
 
-  // Change cursor in multi-select mode
+  // Search result highlighting — outline matching districts + dim non-matching
+  const searchResultLeaids = useMapV2Store((s) => s.searchResultLeaids);
+  const isSearchActive = useMapV2Store((s) => s.isSearchActive);
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    if (multiSelectMode) {
-      map.current.getCanvas().style.cursor = "crosshair";
+
+    if (isSearchActive && searchResultLeaids.length > 0) {
+      const matchFilter: any = ["in", ["get", "leaid"], ["literal", searchResultLeaids]];
+      const noMatchFilter: any = ["!", matchFilter];
+
+      // Bold coral outline on matching districts — scales with zoom
+      if (map.current.getLayer("district-search-outline")) {
+        map.current.setFilter("district-search-outline", matchFilter);
+        map.current.setPaintProperty("district-search-outline", "line-opacity", 0.9);
+        map.current.setPaintProperty("district-search-outline", "line-width", [
+          "interpolate", ["linear"], ["zoom"],
+          4, 1.5,   // thin at country level
+          6, 2,     // medium at multi-state
+          8, 2.5,   // standard at state level
+          10, 3,    // bold at county level
+        ]);
+      }
+      // Coral tint fill on matching districts — stronger at low zoom where outlines are thin
+      if (map.current.getLayer("district-search-fill")) {
+        map.current.setFilter("district-search-fill", matchFilter);
+        map.current.setPaintProperty("district-search-fill", "fill-opacity", [
+          "interpolate", ["linear"], ["zoom"],
+          4, 0.35,   // strong fill at low zoom (outlines hard to see)
+          7, 0.25,   // moderate at state level
+          10, 0.12,  // subtle at close zoom (outlines do the work)
+        ]);
+      }
+      // Heavy dim on non-matching districts
+      if (map.current.getLayer("district-search-dim")) {
+        map.current.setFilter("district-search-dim", noMatchFilter);
+        map.current.setPaintProperty("district-search-dim", "fill-opacity", 0.8);
+      }
     } else {
-      map.current.getCanvas().style.cursor = "";
+      // Hide all search layers
+      const emptyFilter: any = ["in", ["get", "leaid"], ["literal", [""]]];
+      if (map.current.getLayer("district-search-outline")) {
+        map.current.setFilter("district-search-outline", emptyFilter);
+        map.current.setPaintProperty("district-search-outline", "line-opacity", 0);
+      }
+      if (map.current.getLayer("district-search-fill")) {
+        map.current.setFilter("district-search-fill", emptyFilter);
+        map.current.setPaintProperty("district-search-fill", "fill-opacity", 0);
+      }
+      if (map.current.getLayer("district-search-dim")) {
+        map.current.setPaintProperty("district-search-dim", "fill-opacity", 0);
+      }
     }
-  }, [multiSelectMode, mapReady]);
+  }, [searchResultLeaids, isSearchActive, mapReady]);
+
+  // Update search centroid dots — coral dots at district centers, visible at all zoom levels
+  const searchResultCentroids = useMapV2Store((s) => s.searchResultCentroids);
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource("search-centroids") as any;
+    if (!source) return;
+
+    if (isSearchActive && searchResultCentroids.length > 0) {
+      source.setData({
+        type: "FeatureCollection",
+        features: searchResultCentroids.map((c) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [c.lng, c.lat] },
+          properties: { leaid: c.leaid },
+        })),
+      });
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [searchResultCentroids, isSearchActive, mapReady]);
+
+  // Sync store hoveredLeaid → map hover highlight (for search card hover)
+  const storeHoveredLeaid = useMapV2Store((s) => s.hoveredLeaid);
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const filter: any = storeHoveredLeaid
+      ? ["==", ["get", "leaid"], storeHoveredLeaid]
+      : ["==", ["get", "leaid"], ""];
+    if (map.current.getLayer("district-hover-fill")) {
+      map.current.setFilter("district-hover-fill", filter);
+    }
+    if (map.current.getLayer("district-hover")) {
+      map.current.setFilter("district-hover", filter);
+    }
+  }, [storeHoveredLeaid, mapReady]);
+
+  // Multi-select is always-on — always show crosshair cursor
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    map.current.getCanvas().style.cursor = "crosshair";
+  }, [mapReady]);
 
   // Update tile source when fiscal year changes (or fyOverride / tileUrlSuffix)
   useEffect(() => {
@@ -1207,22 +1372,69 @@ export default function MapV2Container({
   }, [filterOwner, filterPlanId, filterStates, filterAccountTypes, fullmindEngagement, competitorEngagement, mapReady]);
 
   // Highlight filtered states with outline + subtle fill
+  // Responds to BOTH the layer filterStates AND search filter state selections
+  const searchFilters = useMapV2Store((s) => s.searchFilters);
+  const searchStateAbbrevs = useMemo(() => {
+    for (const f of searchFilters) {
+      if (f.column === "state" && f.op === "in" && Array.isArray(f.value)) {
+        return f.value as string[];
+      }
+    }
+    return [] as string[];
+  }, [searchFilters]);
+
+  // Combined state filter: merge layer filterStates + search state filters
+  const effectiveFilterStates = useMemo(() => {
+    const combined = new Set([...filterStates, ...searchStateAbbrevs]);
+    return [...combined];
+  }, [filterStates, searchStateAbbrevs]);
+
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
-    if (filterStates.length === 0) {
-      // No states selected — hide highlights
+    if (effectiveFilterStates.length === 0) {
+      // No states selected — hide state highlights, show all district outlines
       map.current.setFilter("state-filter-fill", ["==", ["get", "name"], ""]);
       map.current.setFilter("state-filter-outline", ["==", ["get", "name"], ""]);
+
+      // Restore district outlines and base fill for all districts
+      if (map.current.getLayer("district-base-boundary")) {
+        map.current.setPaintProperty("district-base-boundary", "line-opacity", [
+          "interpolate", ["linear"], ["zoom"], 3, 0, 5, 0.15, 8, 0.3, 12, 0.5,
+        ]);
+      }
+      if (map.current.getLayer("district-base-fill")) {
+        map.current.setPaintProperty("district-base-fill", "fill-opacity", 0.08);
+      }
     } else {
-      const stateNames = filterStates
+      const stateNames = effectiveFilterStates
         .map((abbrev) => ABBREV_TO_STATE_NAME[abbrev])
         .filter(Boolean);
       const nameFilter: any = ["in", ["get", "name"], ["literal", stateNames]];
       map.current.setFilter("state-filter-fill", nameFilter);
       map.current.setFilter("state-filter-outline", nameFilter);
+
+      // Only show district outlines for districts in selected states
+      if (map.current.getLayer("district-base-boundary")) {
+        map.current.setPaintProperty("district-base-boundary", "line-opacity", [
+          "case",
+          ["in", ["get", "state_abbrev"], ["literal", effectiveFilterStates]],
+          ["interpolate", ["linear"], ["zoom"], 5, 0.2, 8, 0.4, 12, 0.6],
+          0, // hide outlines for non-selected states
+        ]);
+      }
+
+      // Also dim the base fill for non-selected states
+      if (map.current.getLayer("district-base-fill")) {
+        map.current.setPaintProperty("district-base-fill", "fill-opacity", [
+          "case",
+          ["in", ["get", "state_abbrev"], ["literal", effectiveFilterStates]],
+          0.08,
+          0, // invisible for non-selected states
+        ]);
+      }
     }
-  }, [filterStates, mapReady]);
+  }, [effectiveFilterStates, mapReady]);
 
   // Focus Map — fly to bounds when a focus action queues one
   useEffect(() => {
@@ -1239,11 +1451,6 @@ export default function MapV2Container({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         const store = useMapV2Store.getState();
-        // Exit multi-select mode first
-        if (store.multiSelectMode) {
-          store.toggleMultiSelectMode();
-          return;
-        }
         if (store.panelState !== "BROWSE") {
           store.goBack();
         } else {

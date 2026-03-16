@@ -43,18 +43,7 @@ export default function FloatingPanel() {
     <>
       {/* Desktop/Tablet: Floating left panel */}
       <div className="hidden sm:block">
-        {panelMode === "hidden" ? (
-          <button
-            onClick={() => setPanelMode("full")}
-            className="absolute top-10 left-12 z-10 flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/60 hover:shadow-xl transition-all duration-150 group animate-in fade-in duration-200"
-            aria-label="Show panel"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-gray-400 group-hover:text-plum transition-colors">
-              <path d="M2 4H14M2 8H14M2 12H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <span className="text-sm font-medium text-gray-500 group-hover:text-plum transition-colors">Menu</span>
-          </button>
-        ) : (
+        {panelMode !== "hidden" && (
           <div
             className={`
               absolute top-10 left-12 z-10

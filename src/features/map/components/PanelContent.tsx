@@ -8,6 +8,7 @@ import PlanAddPanel from "./panels/PlanAddPanel";
 import PlansListPanel from "./panels/PlansListPanel";
 import HomePanel from "./panels/HomePanel";
 import AccountForm from "./panels/AccountForm";
+import SelectionListPanel from "./panels/SelectionListPanel";
 
 export default function PanelContent() {
   const panelState = useMapV2Store((s) => s.panelState);
@@ -28,9 +29,11 @@ export default function PanelContent() {
   if (panelState === "PLAN_VIEW") return <PanelContentWrapper><PlanWorkspace /></PanelContentWrapper>;
 
   if (panelState === "PLAN_ADD") return <PanelContentWrapper><PlanAddPanel /></PanelContentWrapper>;
+  if (panelState === "MULTI_DISTRICT") return <PanelContentWrapper><SelectionListPanel /></PanelContentWrapper>;
   if (panelState === "DISTRICT") return <PanelContentWrapper><DistrictDetailPanel /></PanelContentWrapper>;
 
   // Icon tab routing for BROWSE/STATE states
+  if (activeIconTab === "selection") return <PanelContentWrapper><SelectionListPanel /></PanelContentWrapper>;
   if (activeIconTab === "home") return <PanelContentWrapper><HomePanel /></PanelContentWrapper>;
   if (activeIconTab === "plans") return <PanelContentWrapper><PlansListPanel /></PanelContentWrapper>;
   // Default: home panel
