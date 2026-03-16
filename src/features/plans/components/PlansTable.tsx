@@ -17,6 +17,7 @@ import { SortHeader } from "@/features/shared/components/SortHeader";
 interface PlansTableProps {
   plans: TerritoryPlan[];
   onSelectPlan: (planId: string) => void;
+  onEditPlan?: (plan: TerritoryPlan) => void;
 }
 
 // Status options for the dropdown
@@ -138,7 +139,7 @@ function DeleteConfirmModal({
   );
 }
 
-export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
+export default function PlansTable({ plans, onSelectPlan, onEditPlan }: PlansTableProps) {
   const [planToDelete, setPlanToDelete] = useState<TerritoryPlan | null>(null);
 
   const updatePlan = useUpdateTerritoryPlan();
@@ -280,14 +281,14 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                   />
                 </td>
 
-                {/* Name (editable) */}
+                {/* Name (click to navigate) */}
                 <td className="px-2 py-1 truncate">
-                  <InlineEditCell
-                    type="text"
-                    value={plan.name}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "name", value)}
-                    className="text-sm font-medium text-[#403770] truncate"
-                  />
+                  <button
+                    onClick={() => onSelectPlan(plan.id)}
+                    className="text-sm font-medium text-[#403770] hover:underline truncate text-left"
+                  >
+                    {plan.name}
+                  </button>
                 </td>
 
                 {/* Description (editable, truncated) */}
@@ -360,13 +361,15 @@ export default function PlansTable({ plans, onSelectPlan }: PlansTableProps) {
                 {/* Actions */}
                 <td className="px-2 py-1.5 text-right">
                   <div className="flex items-center justify-end gap-1.5">
-                    <button
-                      onClick={() => onSelectPlan(plan.id)}
-                      className="text-xs text-[#403770] hover:text-[#F37167] transition-colors"
-                      aria-label="View plan"
-                    >
-                      View
-                    </button>
+                    {onEditPlan && (
+                      <button
+                        onClick={() => onEditPlan(plan)}
+                        className="text-xs text-[#403770] hover:text-[#F37167] transition-colors"
+                        aria-label="Edit plan"
+                      >
+                        View
+                      </button>
+                    )}
                     <button
                       onClick={() => setPlanToDelete(plan)}
                       className="text-xs text-red-500 hover:text-red-700 transition-colors"
