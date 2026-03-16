@@ -1,4 +1,4 @@
-"""Hourly scheduler with heartbeat monitoring."""
+"""Hourly scheduler with heartbeat monitoring and health alerts."""
 
 import json
 import os
@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from run_sync import run_sync
+from monitor import run_checks, run_daily_summary
 
 LOG_DIR = Path("/app/logs") if os.path.isdir("/app") else Path("logs")
 LOG_DIR.mkdir(exist_ok=True)
@@ -30,6 +31,7 @@ logger = logging.getLogger("scheduler")
 
 HEARTBEAT_FILE = LOG_DIR / "heartbeat"
 HEARTBEAT_INTERVAL = 300  # 5 minutes
+MONITOR_INTERVAL = 900  # 15 minutes
 
 
 def safe_sync():
@@ -128,6 +130,10 @@ def write_heartbeat():
 if __name__ == "__main__":
     logger.info("Starting opportunity sync scheduler")
 
+    slack_webhook = os.environ.get("SLACK_WEBHOOK_URL")
+    if not slack_webhook:
+        logger.warning("SLACK_WEBHOOK_URL not set — monitor alerts disabled")
+
     # Immediate first sync
     result = safe_sync()
     write_sync_state(LOG_DIR, result)
@@ -141,8 +147,9 @@ if __name__ == "__main__":
     # Schedule hourly
     schedule.every(1).hour.do(scheduled_sync)
 
-    # Run loop — heartbeat updates both the legacy file and sync_state.json
+    # Run loop — heartbeat, monitor checks, and daily summary
     last_heartbeat = 0
+    last_monitor = 0
     while True:
         schedule.run_pending()
         now = time.time()
@@ -150,4 +157,11 @@ if __name__ == "__main__":
             write_heartbeat()
             update_heartbeat_in_state(LOG_DIR)
             last_heartbeat = now
+        if slack_webhook and now - last_monitor >= MONITOR_INTERVAL:
+            try:
+                run_checks(LOG_DIR, slack_webhook)
+                run_daily_summary(LOG_DIR, slack_webhook)
+            except Exception as e:
+                logger.error(f"Monitor check failed: {e}")
+            last_monitor = now
         time.sleep(10)

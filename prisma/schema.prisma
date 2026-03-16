@@ -1107,6 +1107,7 @@ model Opportunity {
   totalRevenue       Decimal?  @map("total_revenue") @db.Decimal(15, 2)
   totalTake          Decimal?  @map("total_take") @db.Decimal(15, 2)
   averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
+  serviceTypes       Json      @default("[]") @map("service_types")
   syncedAt           DateTime? @map("synced_at") @db.Timestamptz
 
   @@index([schoolYr])
@@ -1115,6 +1116,25 @@ model Opportunity {
   @@index([stage])
   @@index([districtLeaId, schoolYr, stage])
   @@map("opportunities")
+}
+
+// ===== Sessions =====
+// Individual session records synced from OpenSearch.
+// Linked to opportunities by opportunity_id (no FK constraint).
+model Session {
+  id                    String    @id @db.Text
+  opportunityId         String    @map("opportunity_id") @db.Text
+  serviceType           String?   @map("service_type") @db.Text
+  sessionPrice          Decimal?  @map("session_price") @db.Decimal(15, 2)
+  educatorPrice         Decimal?  @map("educator_price") @db.Decimal(15, 2)
+  educatorApprovedPrice Decimal?  @map("educator_approved_price") @db.Decimal(15, 2)
+  startTime             DateTime? @map("start_time") @db.Timestamptz
+  syncedAt              DateTime? @map("synced_at") @db.Timestamptz
+
+  @@index([opportunityId])
+  @@index([opportunityId, serviceType])
+  @@index([startTime])
+  @@map("sessions")
 }
 
 // ===== Unmatched Opportunities =====
