@@ -151,7 +151,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
             {/* Modal — fixed height so tabs don't resize it */}
             <div
               ref={modalRef}
-              className="bg-white rounded-2xl shadow-xl w-[780px] h-[540px] flex overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-[1076px] h-[745px] flex overflow-hidden"
             >
           {/* Left sidebar */}
           <div className="w-[260px] shrink-0 flex flex-col" style={{ background: "linear-gradient(180deg, #403770 0%, #544A78 100%)" }}>
