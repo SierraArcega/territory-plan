@@ -37,6 +37,19 @@ export function formatPercent(
 }
 
 /**
+ * Format activity scope as a readable string.
+ * e.g. formatScope(3, ["CA", "TX"]) → "3 districts (CA, TX)"
+ * Used by activity rows and tables to summarise linked geography.
+ */
+export function formatScope(districtCount: number, stateAbbrevs: string[]): string {
+  if (districtCount === 0 && stateAbbrevs.length === 0) return "All districts";
+  if (districtCount === 0) return stateAbbrevs.join(", ");
+  const districtText = `${districtCount} district${districtCount !== 1 ? "s" : ""}`;
+  if (stateAbbrevs.length > 0) return `${districtText} (${stateAbbrevs.join(", ")})`;
+  return districtText;
+}
+
+/**
  * Format a number in compact form without currency symbol.
  * 14832 → "14.8K"   |   1200000 → "1.2M"   |   500 → "500"
  */

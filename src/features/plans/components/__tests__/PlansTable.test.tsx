@@ -338,3 +338,89 @@ describe("PlansTable", () => {
     });
   });
 });
+
+// Helper to build a minimal TerritoryPlan with overrides
+function makePlan(overrides: Partial<TerritoryPlan> = {}): TerritoryPlan {
+  return {
+    id: "p1",
+    name: "Default Plan",
+    description: null,
+    owner: null,
+    color: "#403770",
+    status: "planning",
+    fiscalYear: 2026,
+    startDate: null,
+    endDate: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    districtCount: 0,
+    totalEnrollment: 0,
+    stateCount: 0,
+    states: [],
+    collaborators: [],
+    taskCount: 0,
+    completedTaskCount: 0,
+    renewalRollup: 0,
+    expansionRollup: 0,
+    winbackRollup: 0,
+    newBusinessRollup: 0,
+    pipelineTotal: 0,
+    ...overrides,
+  };
+}
+
+function renderSort(plans: TerritoryPlan[]) {
+  return renderWithProviders(
+    <PlansTable plans={plans} onSelectPlan={vi.fn()} />
+  );
+}
+
+describe("PlansTable sorting", () => {
+  it("clicking Name header sorts plans by name ascending", () => {
+    const plans = [
+      makePlan({ id: "1", name: "Zeta Plan" }),
+      makePlan({ id: "2", name: "Alpha Plan" }),
+    ];
+    renderSort(plans);
+    fireEvent.click(screen.getByRole("columnheader", { name: /^name$/i }));
+    const rows = screen.getAllByRole("row").slice(1, 3);
+    expect(rows[0]).toHaveTextContent("Alpha Plan");
+    expect(rows[1]).toHaveTextContent("Zeta Plan");
+  });
+
+  it("clicking Name again sorts descending", () => {
+    const plans = [
+      makePlan({ id: "1", name: "Zeta Plan" }),
+      makePlan({ id: "2", name: "Alpha Plan" }),
+    ];
+    renderSort(plans);
+    const th = screen.getByRole("columnheader", { name: /^name$/i });
+    fireEvent.click(th);
+    fireEvent.click(th);
+    const rows = screen.getAllByRole("row").slice(1, 3);
+    expect(rows[0]).toHaveTextContent("Zeta Plan");
+    expect(rows[1]).toHaveTextContent("Alpha Plan");
+  });
+
+  it("third click restores original order", () => {
+    const plans = [
+      makePlan({ id: "1", name: "Zeta Plan" }),
+      makePlan({ id: "2", name: "Alpha Plan" }),
+    ];
+    renderSort(plans);
+    const th = screen.getByRole("columnheader", { name: /^name$/i });
+    fireEvent.click(th);
+    fireEvent.click(th);
+    fireEvent.click(th);
+    const rows = screen.getAllByRole("row").slice(1, 3);
+    expect(rows[0]).toHaveTextContent("Zeta Plan"); // original order
+    expect(rows[1]).toHaveTextContent("Alpha Plan");
+  });
+
+  it("Description column header has no sort (aria-sort is none)", () => {
+    renderSort([makePlan()]);
+    // Description is a plain <th> — no aria-sort attribute at all
+    const descriptionHeader = screen.getByRole("columnheader", { name: /description/i });
+    expect(descriptionHeader).not.toHaveAttribute("aria-sort");
+  });
+});

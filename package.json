@@ -39,6 +39,7 @@
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/maplibre-gl": "^1.13.2",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",

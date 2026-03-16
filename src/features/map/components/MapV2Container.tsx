@@ -789,7 +789,7 @@ export default function MapV2Container({
             }
             map.current.fitBounds(
               [[minLng, minLat], [maxLng, maxLat]],
-              { padding: { top: 50, bottom: 50, left: 380, right: 50 }, maxZoom: 11, duration: 800 }
+              { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
             );
           }
         }

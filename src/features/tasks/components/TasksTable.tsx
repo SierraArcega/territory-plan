@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import { TASK_STATUS_CONFIG, TASK_PRIORITY_CONFIG, type TaskStatus, type TaskPriority } from "@/features/tasks/types";
 import { useUpdateTask, type TaskItem } from "@/lib/api";
+import { useSortableTable, type SortComparator } from "@/features/shared/hooks/useSortableTable";
+import { SortHeader } from "@/features/shared/components/SortHeader";
 
 // Table/list view for tasks — sortable columns with inline status and priority dropdowns
 interface TasksTableProps {
@@ -10,57 +11,47 @@ interface TasksTableProps {
   onTaskClick: (task: TaskItem) => void;
 }
 
-type SortField = "title" | "status" | "priority" | "dueDate" | "createdAt";
-type SortDir = "asc" | "desc";
-
-// Priority sort order (urgent = highest)
-const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+// Workflow order maps — used by custom comparators so status/priority sort logically,
+// not alphabetically (e.g. "todo" before "in_progress" before "done")
 const STATUS_ORDER: Record<string, number> = { todo: 0, in_progress: 1, blocked: 2, done: 3 };
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+
+// Module-level constant so the reference is stable across renders (avoids useMemo churn)
+// Note: 'title' is not listed below because it's a non-nullable string field.
+// The useSortableTable hook's defaultCompare fallback handles it via localeCompare.
+const taskComparators: Record<string, SortComparator<TaskItem>> = {
+  status: (a, b, dir) => {
+    const r = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    return dir === "desc" ? -r : r;
+  },
+  priority: (a, b, dir) => {
+    const r = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
+    return dir === "desc" ? -r : r;
+  },
+  dueDate: (a, b, dir) => {
+    // Null due dates always sort last (matches previous Infinity sentinel behavior)
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    const r = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    return dir === "desc" ? -r : r;
+  },
+  createdAt: (a, b, dir) => {
+    // createdAt is typed as string (non-nullable), so no null check needed
+    const r = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    return dir === "desc" ? -r : r;
+  },
+};
 
 export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
-  const [sortField, setSortField] = useState<SortField>("createdAt");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const { sorted: sortedTasks, sortState, onSort } = useSortableTable({
+    data: tasks,
+    defaultField: "createdAt",
+    defaultDir: "desc",
+    comparators: taskComparators,
+  });
+
   const updateTask = useUpdateTask();
-
-  // Sort tasks
-  const sorted = useMemo(() => {
-    const copy = [...tasks];
-    copy.sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case "title":
-          cmp = a.title.localeCompare(b.title);
-          break;
-        case "status":
-          cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
-          break;
-        case "priority":
-          cmp = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9);
-          break;
-        case "dueDate": {
-          const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-          const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-          cmp = aDate - bDate;
-          break;
-        }
-        case "createdAt":
-          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          break;
-      }
-      return sortDir === "desc" ? -cmp : cmp;
-    });
-    return copy;
-  }, [tasks, sortField, sortDir]);
-
-  // Toggle sort on column click
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDir("asc");
-    }
-  };
 
   // Inline status change
   const handleStatusChange = (taskId: string, newStatus: string) => {
@@ -72,38 +63,23 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
     updateTask.mutate({ taskId, priority: newPriority as TaskPriority });
   };
 
-  // Sortable column header
-  const SortHeader = ({ field, label, className = "" }: { field: SortField; label: string; className?: string }) => (
-    <th
-      className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:text-[#403770] ${className}`}
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortField === field && (
-          <span className="text-[#F37167]">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>
-        )}
-      </div>
-    </th>
-  );
-
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       <table className="w-full">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            <SortHeader field="title" label="Title" className="w-[35%]" />
-            <SortHeader field="status" label="Status" />
-            <SortHeader field="priority" label="Priority" />
-            <SortHeader field="dueDate" label="Due Date" />
+            <SortHeader field="title" label="Title" sortState={sortState} onSort={onSort} className="w-[35%]" />
+            <SortHeader field="status" label="Status" sortState={sortState} onSort={onSort} />
+            <SortHeader field="priority" label="Priority" sortState={sortState} onSort={onSort} />
+            <SortHeader field="dueDate" label="Due Date" sortState={sortState} onSort={onSort} />
             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
               Linked
             </th>
-            <SortHeader field="createdAt" label="Created" />
+            <SortHeader field="createdAt" label="Created" sortState={sortState} onSort={onSort} />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {sorted.map((task) => {
+          {sortedTasks.map((task) => {
             const statusConfig = TASK_STATUS_CONFIG[task.status as TaskStatus];
             const priorityConfig = TASK_PRIORITY_CONFIG[task.priority as TaskPriority];
             const isOverdue = task.dueDate && new Date(task.dueDate.split("T")[0] + "T00:00:00") < new Date() && task.status !== "done";

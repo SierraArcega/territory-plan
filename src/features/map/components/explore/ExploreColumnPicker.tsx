@@ -8,7 +8,7 @@ import { activityColumns } from "./columns/activityColumns";
 import { taskColumns } from "./columns/taskColumns";
 import { contactColumns } from "./columns/contactColumns";
 import { planColumns } from "./columns/planColumns";
-import type { ColumnDef } from "./columns/districtColumns";
+import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
 const COLUMN_DEFS_BY_ENTITY: Record<ExploreEntity, ColumnDef[]> = {
   districts: districtColumns,
