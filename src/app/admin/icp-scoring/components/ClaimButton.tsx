@@ -132,15 +132,13 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
     );
   }
 
-  if (owner) {
-    return (
-      <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-[#8A80A8]`}>
-        Owned by {owner.split("@")[0]}
-      </span>
-    );
-  }
-
   return (
+    <div className={`flex flex-col ${compact ? "gap-0.5" : "gap-1"} items-end`}>
+      {owner && (
+        <span className={`${compact ? "text-[9px]" : "text-[10px]"} text-[#8A80A8]`}>
+          Owned by {owner.split("@")[0]}
+        </span>
+      )}
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
@@ -195,6 +193,7 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
           <p className="text-xs text-[#8A80A8]">No plans yet. Create a plan first from the Plans tab.</p>
         </div>
       )}
+    </div>
     </div>
   );
 }
