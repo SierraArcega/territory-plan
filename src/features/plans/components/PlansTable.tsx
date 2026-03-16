@@ -218,6 +218,9 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 onSort={onSort}
                 className="w-[12%]"
               />
+              <th className="w-[8%] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
+                State
+              </th>
               <SortHeader
                 field="fiscalYear"
                 label="FY"
@@ -288,6 +291,13 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                   </span>
                 </td>
 
+                {/* State abbreviations */}
+                <td className="px-2 py-1 truncate">
+                  <span className="text-xs text-[#6E6390]">
+                    {plan.states.map((s) => s.abbrev).join(", ") || "\u2014"}
+                  </span>
+                </td>
+
                 {/* FY Badge (display only) */}
                 <td className="px-1 py-1.5 text-center">
                   <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-[#403770] text-white">
@@ -349,7 +359,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
           <tfoot className="bg-[#F7F5FA] border-t border-[#E2DEEC]" aria-label="footer">
             <tr>
               <td className="px-2 py-2"></td>
-              <td className="px-2 py-2" colSpan={5}>
+              <td className="px-2 py-2" colSpan={6}>
                 <span className="text-xs font-semibold text-[#6E6390]">
                   Total ({plans.length} plans)
                 </span>
