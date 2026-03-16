@@ -8,6 +8,8 @@ interface Plan {
   id: string;
   name: string;
   color: string | null;
+  fiscalYear: string | null;
+  ownerUser?: { fullName: string | null } | null;
 }
 
 interface ClaimButtonProps {
@@ -26,28 +28,28 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // Fetch user's plans
-  const { data: plans } = useQuery({
-    queryKey: ["territoryPlans"],
-    queryFn: () => fetchJson<Plan[]>(`${API_BASE}/territory-plans`),
+  // Fetch all plans with their district leaids
+  const { data: plansRaw } = useQuery({
+    queryKey: ["territoryPlansWithDistricts"],
+    queryFn: () => fetchJson<Array<Plan & { districts?: Array<{ districtLeaid: string }> }>>(`${API_BASE}/territory-plans`),
     staleTime: 60 * 1000,
   });
 
-  // Check which plans already contain this district
-  const { data: existingPlanIds } = useQuery({
-    queryKey: ["districtPlans", leaid],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/territory-plans?districtLeaid=${leaid}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      // The API returns plans; extract IDs of plans that contain this district
-      return Array.isArray(data) ? data.map((p: Plan) => p.id) : [];
-    },
-    staleTime: 30 * 1000,
-    enabled: open, // Only fetch when dropdown is open
-  });
+  // Plans list (for dropdown)
+  const plans = plansRaw ?? [];
 
-  const existingSet = new Set(existingPlanIds ?? []);
+  // Which plans already contain this district?
+  const existingSet = new Set(
+    plans.filter((p) => p.districts?.some((d) => d.districtLeaid === leaid)).map((p) => p.id)
+  );
+
+  // Is this district in any FY27 plan?
+  const fy27Plan = plans.find(
+    (p) => p.fiscalYear === "FY27" && p.districts?.some((d) => d.districtLeaid === leaid)
+  );
+  const inAnyPlan = plans.some(
+    (p) => p.districts?.some((d) => d.districtLeaid === leaid)
+  );
 
   // Add district to plan mutation
   const addToPlan = useMutation({
@@ -64,8 +66,7 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
       const plan = plans?.find((p) => p.id === planId);
       setClaimedPlanName(plan?.name ?? "Plan");
       setOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["districtPlans", leaid] });
-      queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["territoryPlansWithDistricts"] });
     },
   });
 
@@ -93,12 +94,40 @@ export default function ClaimButton({ leaid, districtName, isCustomer, owner, co
     );
   }
 
-  // Customer or already owned — show status instead
+  // Customer — show status
   if (isCustomer) {
     return (
       <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-[#8A80A8]`}>
         Customer
       </span>
+    );
+  }
+
+  // In a FY27 plan — show plan owner info
+  if (fy27Plan) {
+    const planOwner = fy27Plan.ownerUser?.fullName ?? owner;
+    return (
+      <div className={`flex flex-col ${compact ? "gap-0" : "gap-0.5"}`}>
+        <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-[#69B34A]`}>
+          In FY27 plan
+        </span>
+        {planOwner && (
+          <span className={`${compact ? "text-[9px]" : "text-[10px]"} text-[#8A80A8]`}>
+            {fy27Plan.name} ({planOwner.split(" ")[0]})
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // In a non-FY27 plan or has an owner but not in FY27
+  if (inAnyPlan) {
+    return (
+      <div className={`flex flex-col ${compact ? "gap-0" : "gap-0.5"}`}>
+        <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-[#6EA3BE]`}>
+          In plan (not FY27)
+        </span>
+      </div>
     );
   }
 
