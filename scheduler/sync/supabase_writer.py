@@ -78,12 +78,14 @@ def upsert_sessions(conn, sessions_by_opp):
         return
 
     placeholders = ", ".join(["%s"] * len(SESSION_COLUMNS))
-    insert_sql = f"INSERT INTO sessions ({', '.join(SESSION_COLUMNS)}) VALUES ({placeholders})"
+    update_cols = [c for c in SESSION_COLUMNS if c != "id"]
+    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in update_cols)
+    insert_sql = f"INSERT INTO sessions ({', '.join(SESSION_COLUMNS)}) VALUES ({placeholders}) ON CONFLICT (id) DO UPDATE SET {update_set}"
 
     total = 0
     with conn.cursor() as cur:
         for opp_id, sessions in sessions_by_opp.items():
-            cur.execute("DELETE FROM sessions WHERE opportunity_id = %s", (opp_id,))
+            cur.execute("DELETE FROM sessions WHERE opportunity_id = %s", (str(opp_id),))
             for session in sessions:
                 values = [session.get(c) for c in SESSION_COLUMNS]
                 cur.execute(insert_sql, values)
