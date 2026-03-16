@@ -705,6 +705,7 @@ export interface SchoolDetail extends School {
 export interface SchoolListItem {
   ncessch: string;
   leaid: string;
+  districtName: string | null;
   schoolName: string;
   charter: number;
   schoolLevel: number | null;
