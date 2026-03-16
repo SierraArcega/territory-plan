@@ -273,7 +273,7 @@ export async function GET(req: NextRequest) {
   // Return all matching leaids + centroids for map highlighting
   // Fetch when we have any filters active (attribute or spatial)
   let matchingLeaids: string[] | undefined;
-  let matchingCentroids: Array<{ leaid: string; lat: number; lng: number }> | undefined;
+  let matchingCentroids: Array<{ leaid: string; lat: number; lng: number }> = [];
   const hasActiveFilters = scalarFilters.length > 0 || relationFilters.length > 0 || zipRadiusLeaids !== null;
   if (hasActiveFilters) {
     // For map dimming we want all matches regardless of viewport
