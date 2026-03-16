@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   useTerritoryPlans,
   useTerritoryPlan,
@@ -15,6 +15,7 @@ import {
   useDeleteActivity,
   type ActivityListItem,
   usePlanEngagement,
+  type TerritoryPlan,
 } from "@/lib/api";
 import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import { useMapStore } from "@/features/shared/lib/app-store";
@@ -25,6 +26,9 @@ import PlanTabs from "@/features/plans/components/PlanTabs";
 import PlanDistrictPanel from "@/features/plans/components/PlanDistrictPanel";
 import ViewToggle from "@/features/shared/components/ViewToggle";
 import PlansTable from "@/features/plans/components/PlansTable";
+import { MultiSelect } from "@/features/shared/components/MultiSelect";
+import type { MultiSelectOption } from "@/features/shared/components/MultiSelect";
+import { AsyncMultiSelect } from "@/features/shared/components/AsyncMultiSelect";
 
 // Helper to format dates nicely
 function formatDate(dateString: string | null): string {
@@ -111,9 +115,162 @@ interface PlansListViewProps {
 
 function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: PlansListViewProps) {
   const [view, setView] = useState<"cards" | "table">("table");
+  const [planToEdit, setPlanToEdit] = useState<TerritoryPlan | null>(null);
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const { data: engagementData } = usePlanEngagement();
   const createPlan = useCreateTerritoryPlan();
+  const updatePlan = useUpdateTerritoryPlan();
+
+  // --- Filter state ---
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
+  const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
+  const [selectedDistrictLeaids, setSelectedDistrictLeaids] = useState<string[]>([]);
+  const [selectedSchoolLeaids, setSelectedSchoolLeaids] = useState<string[]>([]);
+
+  const anyFilterActive = [
+    selectedStatuses,
+    selectedFiscalYears,
+    selectedOwnerIds,
+    selectedStateFips,
+    selectedDistrictLeaids,
+    selectedSchoolLeaids,
+  ].some((f) => f.length > 0);
+
+  // Derived options for simple filters — only show values that exist in loaded plans
+  const statusOptions: MultiSelectOption[] = [
+    { value: "planning", label: "Planning" },
+    { value: "working", label: "Working" },
+    { value: "stale", label: "Stale" },
+    { value: "archived", label: "Archived" },
+  ];
+
+  const fyOptions: MultiSelectOption[] = useMemo(
+    () =>
+      [...new Set((plans ?? []).map((p) => p.fiscalYear))]
+        .sort()
+        .map((year) => ({
+          value: String(year),
+          label: "FY" + String(year).slice(-2),
+        })),
+    [plans]
+  );
+
+  const ownerOptions: MultiSelectOption[] = useMemo(() => {
+    const seen = new Set<string>();
+    return (plans ?? [])
+      .flatMap((p) => (p.owner ? [p.owner] : []))
+      .filter((o) => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      })
+      .map((o) => ({ value: o.id, label: o.fullName ?? o.id }));
+  }, [plans]);
+
+  const stateOptions: MultiSelectOption[] = useMemo(() => {
+    const seen = new Set<string>();
+    return (plans ?? [])
+      .flatMap((p) => p.states)
+      .filter((s) => {
+        if (seen.has(s.fips)) return false;
+        seen.add(s.fips);
+        return true;
+      })
+      .map((s) => ({ value: s.fips, label: s.abbrev }));
+  }, [plans]);
+
+  // Async search handlers — transform raw API response to MultiSelectOption[]
+  const searchDistricts = useCallback(
+    async (query: string): Promise<MultiSelectOption[]> => {
+      const res = await fetch(
+        `/api/districts?search=${encodeURIComponent(query)}&limit=10`
+      );
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      return (data.districts ?? []).map(
+        (d: { leaid: string; name: string; stateAbbrev: string | null }) => ({
+          value: d.leaid,
+          label: d.stateAbbrev ? `${d.name} (${d.stateAbbrev})` : d.name,
+        })
+      );
+    },
+    []
+  );
+
+  const searchSchools = useCallback(
+    async (query: string): Promise<MultiSelectOption[]> => {
+      const res = await fetch(
+        `/api/schools?search=${encodeURIComponent(query)}&limit=10`
+      );
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      // Value is leaid (not ncessch) — the school filter reuses districtLeaids
+      // on the plan, meaning "plans containing the district this school belongs to".
+      return (data.schools ?? []).map(
+        (s: { ncessch: string; leaid: string; schoolName: string; stateAbbrev?: string | null }) => ({
+          value: s.leaid,
+          label: s.stateAbbrev
+            ? `${s.schoolName} (${s.stateAbbrev})`
+            : s.schoolName,
+        })
+      );
+    },
+    []
+  );
+
+  // filteredPlans — applies all six filters in sequence
+  const filteredPlans = useMemo(() => {
+    let result = plans ?? [];
+    if (selectedStatuses.length)
+      result = result.filter((p) => selectedStatuses.includes(p.status));
+    if (selectedFiscalYears.length)
+      result = result.filter((p) =>
+        selectedFiscalYears.includes(String(p.fiscalYear))
+      );
+    if (selectedOwnerIds.length)
+      result = result.filter(
+        (p) => p.owner && selectedOwnerIds.includes(p.owner.id)
+      );
+    if (selectedStateFips.length)
+      result = result.filter((p) =>
+        p.states.some((s) => selectedStateFips.includes(s.fips))
+      );
+    // District + school leaid filters are OR-combined: a plan passes if it
+    // contains any leaid from either filter set.
+    const allLeaidFilters = [...selectedDistrictLeaids, ...selectedSchoolLeaids];
+    if (allLeaidFilters.length)
+      result = result.filter((p) =>
+        (p.districtLeaids ?? []).some((id) => allLeaidFilters.includes(id))
+      );
+    return result;
+  }, [
+    plans,
+    selectedStatuses,
+    selectedFiscalYears,
+    selectedOwnerIds,
+    selectedStateFips,
+    selectedDistrictLeaids,
+    selectedSchoolLeaids,
+  ]);
+
+  const handleUpdatePlan = async (data: PlanFormData) => {
+    if (!planToEdit) return;
+    await updatePlan.mutateAsync({
+      id: planToEdit.id,
+      name: data.name,
+      description: data.description || undefined,
+      ownerId: data.ownerId ?? undefined,
+      color: data.color,
+      status: data.status,
+      fiscalYear: data.fiscalYear,
+      startDate: data.startDate || undefined,
+      endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
+    });
+  };
 
   // Build a map from planId → engagement data for quick lookup
   const engagementMap = new Map(
@@ -169,6 +326,93 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         </div>
       </header>
 
+      {/* Filter bar — shown whenever plans exist (even if all are filtered out) */}
+      {plans && plans.length > 0 && (
+        <div className="bg-white border-b border-gray-100 px-6 py-2">
+          <div className="max-w-6xl mx-auto flex flex-wrap items-start gap-3">
+            <MultiSelect
+              id="filter-status"
+              label="Status"
+              options={statusOptions}
+              selected={selectedStatuses}
+              onChange={setSelectedStatuses}
+              placeholder="Status"
+              countLabel="statuses"
+              searchPlaceholder="Search statuses…"
+            />
+            <MultiSelect
+              id="filter-fy"
+              label="Fiscal Year"
+              options={fyOptions}
+              selected={selectedFiscalYears}
+              onChange={setSelectedFiscalYears}
+              placeholder="FY"
+              countLabel="years"
+              searchPlaceholder="Search years…"
+            />
+            <MultiSelect
+              id="filter-owner"
+              label="Owner"
+              options={ownerOptions}
+              selected={selectedOwnerIds}
+              onChange={setSelectedOwnerIds}
+              placeholder="Owner"
+              countLabel="owners"
+              searchPlaceholder="Search owners…"
+            />
+            <MultiSelect
+              id="filter-states"
+              label="States"
+              options={stateOptions}
+              selected={selectedStateFips}
+              onChange={setSelectedStateFips}
+              placeholder="States"
+              countLabel="states"
+              searchPlaceholder="Search states…"
+            />
+            <AsyncMultiSelect
+              id="filter-districts"
+              label="Districts"
+              selected={selectedDistrictLeaids}
+              onChange={setSelectedDistrictLeaids}
+              onSearch={searchDistricts}
+              placeholder="Districts…"
+              countLabel="districts"
+              searchPlaceholder="Search districts…"
+            />
+            <AsyncMultiSelect
+              id="filter-schools"
+              label="Schools"
+              selected={selectedSchoolLeaids}
+              onChange={setSelectedSchoolLeaids}
+              onSearch={searchSchools}
+              placeholder="Schools…"
+              countLabel="schools"
+              searchPlaceholder="Search schools…"
+            />
+            {anyFilterActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStatuses([]);
+                  setSelectedFiscalYears([]);
+                  setSelectedOwnerIds([]);
+                  setSelectedStateFips([]);
+                  setSelectedDistrictLeaids([]);
+                  setSelectedSchoolLeaids([]);
+                }}
+                className="h-9 px-3 text-sm text-[#403770]/60 hover:text-[#403770] flex items-center gap-1 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
         {isLoading ? (
@@ -193,10 +437,28 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               <p className="text-sm">{error.message}</p>
             </div>
           </div>
-        ) : plans && plans.length > 0 ? (
-          view === "cards" ? (
+        ) : filteredPlans.length > 0 || (plans && plans.length > 0) ? (
+          filteredPlans.length === 0 ? (
+            // Active filters produced no results — show filter-specific empty state
+            <div className="text-center py-16">
+              <p className="text-gray-500 font-medium">No plans match your filters.</p>
+              <button
+                onClick={() => {
+                  setSelectedStatuses([]);
+                  setSelectedFiscalYears([]);
+                  setSelectedOwnerIds([]);
+                  setSelectedStateFips([]);
+                  setSelectedDistrictLeaids([]);
+                  setSelectedSchoolLeaids([]);
+                }}
+                className="mt-3 text-sm text-[#403770] hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : view === "cards" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {plans.map((plan) => (
+              {filteredPlans.map((plan) => (
                 <div
                   key={plan.id}
                   onClick={() => onSelectPlan(plan.id)}
@@ -207,7 +469,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               ))}
             </div>
           ) : (
-            <PlansTable plans={plans} onSelectPlan={onSelectPlan} />
+            <PlansTable plans={filteredPlans} onSelectPlan={onSelectPlan} onEditPlan={setPlanToEdit} />
           )
         ) : (
           <div className="text-center py-20">
@@ -254,6 +516,15 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreatePlan}
         title="Create Territory Plan"
+      />
+
+      {/* Edit Plan Modal */}
+      <PlanFormModal
+        isOpen={planToEdit !== null}
+        onClose={() => setPlanToEdit(null)}
+        onSubmit={handleUpdatePlan}
+        initialData={planToEdit ?? undefined}
+        title="Edit Territory Plan"
       />
     </div>
   );
