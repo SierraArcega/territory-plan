@@ -249,6 +249,7 @@ interface MapV2State {
   // District Search (Zillow-style)
   searchFilters: ExploreFilter[];
   searchSort: { column: string; direction: "asc" | "desc" };
+  searchFilterModes: Record<string, "all" | "any">; // per-domain match mode
   searchBounds: [number, number, number, number] | null; // [west, south, east, north]
   isSearchActive: boolean;
   searchResultsVisible: boolean;
@@ -414,6 +415,7 @@ interface MapV2Actions {
   updateSearchFilter: (filterId: string, updates: Partial<ExploreFilter>) => void;
   clearSearchFilters: () => void;
   setSearchSort: (sort: { column: string; direction: "asc" | "desc" }) => void;
+  setSearchFilterMode: (domain: string, mode: "all" | "any") => void;
   setSearchBounds: (bounds: [number, number, number, number] | null) => void;
   toggleSearchResults: () => void;
   setSearchResultLeaids: (leaids: string[]) => void;
@@ -580,6 +582,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   // District Search (Zillow-style)
   searchFilters: [],
   searchSort: { column: "enrollment", direction: "desc" as const },
+  searchFilterModes: {},
   searchBounds: null,
   isSearchActive: false,
   searchResultsVisible: false,
@@ -1250,6 +1253,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   clearSearchFilters: () =>
     set({ searchFilters: [], isSearchActive: false, searchResultsVisible: false, searchResultLeaids: [], searchResultCentroids: [] }),
   setSearchSort: (sort) => set({ searchSort: sort }),
+  setSearchFilterMode: (domain: string, mode: "all" | "any") =>
+    set((s) => ({ searchFilterModes: { ...s.searchFilterModes, [domain]: mode } })),
   setSearchBounds: (bounds) => set({ searchBounds: bounds }),
   toggleSearchResults: () => set((s) => ({ searchResultsVisible: !s.searchResultsVisible })),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),

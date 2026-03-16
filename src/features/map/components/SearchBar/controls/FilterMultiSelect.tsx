@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 interface FilterMultiSelectProps {
   label: string;
@@ -10,8 +11,22 @@ interface FilterMultiSelectProps {
 }
 
 export default function FilterMultiSelect({ label, column, options, onApply }: FilterMultiSelectProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Read existing filter values for this column from the store
+  const searchFilters = useMapV2Store((s) => s.searchFilters);
+  const removeSearchFilter = useMapV2Store((s) => s.removeSearchFilter);
+  const existingFilter = searchFilters.find((f) => f.column === column && f.op === "in");
+  const existingValues = existingFilter && Array.isArray(existingFilter.value)
+    ? (existingFilter.value as string[])
+    : [];
+
+  const [selected, setSelected] = useState<Set<string>>(new Set(existingValues));
   const [search, setSearch] = useState("");
+
+  // Sync selected state when existing filter changes externally (e.g. cleared from pills)
+  useEffect(() => {
+    setSelected(new Set(existingValues));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingFilter?.id]);
   const [activeIndex, setActiveIndex] = useState(-1); // -1=none, 0=selectAll, 1..N=options
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -81,9 +96,12 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
       <div className="flex items-center justify-between mb-1.5">
         <label className="text-xs font-medium text-[#8A80A8]">{label}</label>
         <div className="flex items-center gap-1.5">
-          {selected.size > 0 && (
+          {(selected.size > 0 || existingFilter) && (
             <button
-              onClick={removeAll}
+              onClick={() => {
+                removeAll();
+                if (existingFilter) removeSearchFilter(existingFilter.id);
+              }}
               className="text-[10px] font-medium text-[#A69DC0] hover:text-[#6E6390] transition-colors"
             >
               Clear
@@ -91,10 +109,15 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
           )}
           {selected.size > 0 && (
             <button
-              onClick={() => { onApply(column, [...selected]); setSelected(new Set()); setSearch(""); }}
+              onClick={() => {
+                // Remove existing filter for this column before applying new one
+                if (existingFilter) removeSearchFilter(existingFilter.id);
+                onApply(column, [...selected]);
+                setSearch("");
+              }}
               className="text-[10px] font-bold text-white bg-plum hover:bg-plum/90 px-2 py-0.5 rounded transition-colors"
             >
-              Apply ({selected.size})
+              {existingFilter ? "Update" : "Apply"} ({selected.size})
             </button>
           )}
         </div>
@@ -123,6 +146,29 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
             }
           />
         </div>
+
+        {/* Selected values pills */}
+        {selected.size > 0 && (
+          <div className="flex flex-wrap gap-1 px-2 py-1.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
+            {[...selected].map((val) => {
+              const opt = options.find((o) => o.value === val);
+              return (
+                <span
+                  key={val}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-plum/10 text-plum text-[10px] font-medium"
+                >
+                  {opt?.label?.split("(")[0]?.trim() || val}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggle(val); }}
+                    className="hover:text-plum/60 transition-colors"
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* Options list */}
         <div ref={listRef} className="max-h-36 overflow-y-auto" role="listbox" id="multiselect-listbox">

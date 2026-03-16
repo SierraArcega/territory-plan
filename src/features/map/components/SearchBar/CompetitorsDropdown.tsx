@@ -4,6 +4,7 @@ import { useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import ToggleChips from "./controls/ToggleChips";
 
+
 const COMPETITOR_VENDORS = [
   { id: "proximity", label: "Proximity Learning" },
   { id: "elevate", label: "Elevate K-12" },

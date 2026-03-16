@@ -7,6 +7,7 @@ import ToggleChips from "./controls/ToggleChips";
 import FilterSelect from "./controls/FilterSelect";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
 
+
 interface FullmindDropdownProps {
   onClose: () => void;
 }

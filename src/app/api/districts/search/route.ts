@@ -119,6 +119,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Build where clause from regular scalar filters
+  // All filters are AND'd across columns. Same-column "in" values are OR'd (merged).
   const filterWhere = buildWhereClause(scalarFilters, DISTRICT_FIELD_MAP);
 
   // Build relation-based where clauses (tags, plans, competitors)

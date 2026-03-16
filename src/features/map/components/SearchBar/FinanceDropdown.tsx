@@ -4,6 +4,7 @@ import { useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import RangeFilter from "./controls/RangeFilter";
 
+
 interface FinanceDropdownProps {
   onClose: () => void;
 }
