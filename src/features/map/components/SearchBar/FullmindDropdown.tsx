@@ -14,6 +14,8 @@ interface FullmindDropdownProps {
 
 export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
   const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const selectedFY = useMapV2Store((s) => s.selectedFiscalYear);
+  const fyLabel = selectedFY.toUpperCase().replace("FY", "FY");
   const ref = useRef<HTMLDivElement>(null);
 
   const [owners, setOwners] = useState<string[]>([]);
@@ -88,9 +90,9 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
           />
         )}
 
-        <RangeFilter label="FY26 Pipeline Value" column="fy26_open_pipeline_value" step={1000} onApply={(col, min, max) => addFilter(col, "between", [min, max])} />
-        <RangeFilter label="FY26 Bookings" column="fy26_closed_won_net_booking" step={1000} onApply={(col, min, max) => addFilter(col, "between", [min, max])} />
-        <RangeFilter label="FY26 Invoicing" column="fy26_net_invoicing" step={1000} onApply={(col, min, max) => addFilter(col, "between", [min, max])} />
+        <RangeFilter label={`${fyLabel} Pipeline Value`} column={`${selectedFY}_open_pipeline_value`} step={1000} onApply={(col, min, max) => addFilter(col, "between", [min, max])} />
+        <RangeFilter label={`${fyLabel} Bookings`} column={`${selectedFY}_closed_won_net_booking`} step={1000} onApply={(col, min, max) => addFilter(col, "between", [min, max])} />
+        <RangeFilter label={`${fyLabel} Invoicing`} column={`${selectedFY}_net_invoicing`} step={1000} onApply={(col, min, max) => addFilter(col, "between", [min, max])} />
 
         {plans.length > 0 && (
           <FilterMultiSelect

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
+import { useMapV2Store, type ExploreFilter, type FiscalYear } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
 import { mapV2Ref } from "@/features/map/lib/ref";
 import GeographyDropdown from "./GeographyDropdown";
@@ -55,6 +55,15 @@ function countByDomain(filters: ExploreFilter[], domain: string): number {
 export default function SearchBar() {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const toggleLayerBubble = useMapV2Store((s) => s.toggleLayerBubble);
+  const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
+  const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
+  const compareMode = useMapV2Store((s) => s.compareMode);
+  const compareFyA = useMapV2Store((s) => s.compareFyA);
+  const compareFyB = useMapV2Store((s) => s.compareFyB);
+  const enterCompareMode = useMapV2Store((s) => s.enterCompareMode);
+  const exitCompareMode = useMapV2Store((s) => s.exitCompareMode);
+  const setCompareFyA = useMapV2Store((s) => s.setCompareFyA);
+  const setCompareFyB = useMapV2Store((s) => s.setCompareFyB);
 
   // Location search state
   const [query, setQuery] = useState("");
@@ -182,6 +191,64 @@ export default function SearchBar() {
               Clear {activeFilterCount}
             </button>
           </>
+        )}
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-[#D4CFE2]" />
+
+        {/* Fiscal Year selector + Compare */}
+        {compareMode ? (
+          <div className="flex items-center gap-1.5">
+            <select
+              value={compareFyA}
+              onChange={(e) => setCompareFyA(e.target.value as FiscalYear)}
+              className="px-1.5 py-1 text-[10px] font-semibold rounded border border-[#D4CFE2] bg-white text-[#544A78] focus:outline-none focus:ring-1 focus:ring-plum/30"
+            >
+              {(["fy24", "fy25", "fy26", "fy27"] as const).map((fy) => (
+                <option key={fy} value={fy}>{fy.toUpperCase()}</option>
+              ))}
+            </select>
+            <span className="text-[10px] text-[#A69DC0] font-medium">vs</span>
+            <select
+              value={compareFyB}
+              onChange={(e) => setCompareFyB(e.target.value as FiscalYear)}
+              className="px-1.5 py-1 text-[10px] font-semibold rounded border border-[#D4CFE2] bg-white text-[#544A78] focus:outline-none focus:ring-1 focus:ring-plum/30"
+            >
+              {(["fy24", "fy25", "fy26", "fy27"] as const).map((fy) => (
+                <option key={fy} value={fy}>{fy.toUpperCase()}</option>
+              ))}
+            </select>
+            <button
+              onClick={exitCompareMode}
+              className="px-2 py-1 text-[10px] font-semibold text-coral hover:text-coral/80 transition-colors"
+            >
+              Exit
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center bg-white rounded-lg border border-[#D4CFE2] overflow-hidden">
+              {(["fy25", "fy26", "fy27"] as const).map((fy) => (
+                <button
+                  key={fy}
+                  onClick={() => setSelectedFiscalYear(fy)}
+                  className={`px-2 py-1 text-[10px] font-semibold transition-colors ${
+                    selectedFiscalYear === fy
+                      ? "bg-plum text-white"
+                      : "text-[#8A80A8] hover:text-[#544A78] hover:bg-[#EFEDF5]"
+                  }`}
+                >
+                  {fy.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={enterCompareMode}
+              className="px-2 py-1 text-[10px] font-semibold text-[#8A80A8] hover:text-plum bg-white rounded-lg border border-[#D4CFE2] hover:border-plum/30 transition-colors"
+            >
+              Compare
+            </button>
+          </div>
         )}
 
         {/* Divider */}
