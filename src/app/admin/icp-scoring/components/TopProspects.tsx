@@ -5,12 +5,66 @@ import type { District } from "../types";
 import {
   SectionCard,
   Callout,
-  ScoreBar,
   TierBadge,
   fmtNum,
-  SCORE_BAR_CLASSES,
+  SCORE_COLORS,
 } from "./shared";
 import ClaimButton from "./ClaimButton";
+
+/** SVG donut showing 4 sub-scores as arcs with composite in the center */
+function ScoreDonut({ fit, value, readiness, state, composite, size = 56 }: {
+  fit: number; value: number; readiness: number; state: number; composite: number; size?: number;
+}) {
+  const strokeWidth = 5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = size / 2;
+
+  // 4 arcs, each representing its sub-score proportion (out of 100)
+  const segments = [
+    { score: fit, color: SCORE_COLORS.fit },
+    { score: value, color: SCORE_COLORS.value },
+    { score: readiness, color: SCORE_COLORS.readiness },
+    { score: state, color: SCORE_COLORS.state },
+  ];
+  const total = segments.reduce((s, seg) => s + seg.score, 0);
+
+  let offset = -circumference / 4; // start at 12 o'clock
+
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      {/* Background track */}
+      <circle cx={center} cy={center} r={radius} fill="none" stroke="#EFEDF5" strokeWidth={strokeWidth} />
+      {/* Sub-score arcs */}
+      {segments.map(({ score, color }, i) => {
+        const segLen = total > 0 ? (score / total) * circumference : 0;
+        const gap = 2;
+        const arcLen = Math.max(0, segLen - gap);
+        const el = (
+          <circle
+            key={i}
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${arcLen} ${circumference - arcLen}`}
+            strokeDashoffset={-offset}
+            strokeLinecap="round"
+          />
+        );
+        offset += segLen;
+        return el;
+      })}
+      {/* Center text */}
+      <text x={center} y={center + 1} textAnchor="middle" dominantBaseline="central"
+        className="text-sm font-bold fill-[#544A78]" style={{ fontSize: size > 48 ? 16 : 13 }}>
+        {composite}
+      </text>
+    </svg>
+  );
+}
 
 function ProspectCard({ d }: { d: District }) {
   const cityState = [d.city, d.state].filter(Boolean).join(", ");
@@ -31,24 +85,11 @@ function ProspectCard({ d }: { d: District }) {
 
   return (
     <div className="bg-white rounded-lg border border-[#D4CFE2] p-4 hover:border-[#C2BBD4] transition-colors duration-100">
-      {/* Top row: status badges + claim action */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5">
-          {d.is_customer && (
-            <span className="text-[10px] font-semibold text-[#3d7a28] bg-[#F7FFF2] px-2 py-0.5 rounded-full border border-[#8AC670]">
-              Customer
-            </span>
-          )}
-          {d.fy26_fm_ek12_rev > 0 && (
-            <span className="text-[10px] font-semibold text-[#3d6f84] bg-[#e8f1f5] px-2 py-0.5 rounded-full border border-[#8bb5cb]">
-              FY26 {fmtNum(d.fy26_fm_ek12_rev, { dollar: true })}
-            </span>
-          )}
-          {!d.is_customer && d.fy26_fm_ek12_rev === 0 && d.lifetime_vendor_rev > 0 && (
-            <span className="text-[10px] font-medium text-[#8A80A8] bg-[#F7F5FA] px-2 py-0.5 rounded-full border border-[#E2DEEC]">
-              {fmtNum(d.lifetime_vendor_rev, { dollar: true })} lifetime
-            </span>
-          )}
+      {/* Top row: district name + action bar */}
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[#403770] truncate">{d.name}</p>
+          <p className="text-xs text-[#8A80A8] truncate mt-0.5">{subtitle}</p>
         </div>
         <ClaimButton
           leaid={d.leaid}
@@ -58,53 +99,54 @@ function ProspectCard({ d }: { d: District }) {
         />
       </div>
 
-      {/* Main row */}
-      <div className="flex items-start gap-4">
-        {/* Left: composite score + tier badge */}
-        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-          <span className="text-2xl font-bold text-[#544A78] tabular-nums leading-none">
-            {d.composite_score}
-          </span>
+      {/* Main row: donut + badges + pills */}
+      <div className="flex items-center gap-4">
+        {/* Donut with composite score */}
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <ScoreDonut
+            fit={d.fit_score}
+            value={d.value_score}
+            readiness={d.readiness_score}
+            state={d.state_score}
+            composite={d.composite_score}
+          />
           <TierBadge tier={d.tier} />
         </div>
 
-        {/* Center: name + subtitle */}
+        {/* Badges + pills */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[#403770] truncate">{d.name}</p>
-          <p className="text-xs text-[#8A80A8] truncate mt-0.5">{subtitle}</p>
-        </div>
+          {/* Status badges */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            {d.is_customer && (
+              <span className="text-[10px] font-semibold text-[#3d7a28] bg-[#F7FFF2] px-2 py-0.5 rounded-full border border-[#8AC670]">
+                Customer
+              </span>
+            )}
+            {d.fy26_fm_ek12_rev > 0 && (
+              <span className="text-[10px] font-semibold text-[#3d6f84] bg-[#e8f1f5] px-2 py-0.5 rounded-full border border-[#8bb5cb]">
+                FY26 {fmtNum(d.fy26_fm_ek12_rev, { dollar: true })}
+              </span>
+            )}
+            {!d.is_customer && d.fy26_fm_ek12_rev === 0 && d.lifetime_vendor_rev > 0 && (
+              <span className="text-[10px] font-medium text-[#8A80A8] bg-[#F7F5FA] px-2 py-0.5 rounded-full border border-[#E2DEEC]">
+                {fmtNum(d.lifetime_vendor_rev, { dollar: true })} lifetime
+              </span>
+            )}
+          </div>
 
-        {/* Right: score bars */}
-        <div className="flex flex-col gap-1 flex-shrink-0">
-          {(
-            [
-              { label: "Fit", score: d.fit_score, color: SCORE_BAR_CLASSES.fit },
-              { label: "Val", score: d.value_score, color: SCORE_BAR_CLASSES.value },
-              { label: "Rdy", score: d.readiness_score, color: SCORE_BAR_CLASSES.readiness },
-              { label: "StS", score: d.state_score, color: SCORE_BAR_CLASSES.state },
-            ] as const
-          ).map(({ label, score, color }) => (
-            <div key={label} className="flex items-center gap-2">
-              <span className="text-[10px] text-[#A69DC0] w-6 flex-shrink-0">{label}</span>
-              <ScoreBar value={score} color={color} />
-            </div>
-          ))}
+          {/* Fact pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {pills.map((pill) => (
+              <span
+                key={pill}
+                className="bg-[#F7F5FA] text-[#6E6390] text-[10px] px-2 py-0.5 rounded-full border border-[#E2DEEC]"
+              >
+                {pill}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-
-      {/* Fact pills row */}
-      {pills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {pills.map((pill) => (
-            <span
-              key={pill}
-              className="bg-[#F7F5FA] text-[#6E6390] text-xs px-2 py-0.5 rounded-full border border-[#E2DEEC]"
-            >
-              {pill}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
