@@ -17,7 +17,9 @@ interface CompetitorsDropdownProps {
 }
 
 export default function CompetitorsDropdown({ onClose }: CompetitorsDropdownProps) {
+  const searchFilters = useMapV2Store((s) => s.searchFilters);
   const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const removeSearchFilter = useMapV2Store((s) => s.removeSearchFilter);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,6 +36,9 @@ export default function CompetitorsDropdown({ onClose }: CompetitorsDropdownProp
     addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value });
   };
 
+  const getExistingFilter = (column: string) =>
+    searchFilters.find((f) => f.column === column && f.op === "is_not_empty");
+
   return (
     <div ref={ref} className="bg-white rounded-xl shadow-xl border border-[#D4CFE2] p-4 w-[340px] max-h-[calc(100vh-140px)] overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
       <div className="flex items-center justify-between mb-3">
@@ -49,21 +54,27 @@ export default function CompetitorsDropdown({ onClose }: CompetitorsDropdownProp
         <div>
           <label className="text-xs font-medium text-[#8A80A8] mb-1.5 block">Has Competitor</label>
           <div className="space-y-1.5">
-            {COMPETITOR_VENDORS.map((v) => (
-              <label key={v.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[#EFEDF5] transition-colors">
-                <input
-                  type="checkbox"
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      // Filter for districts that have this competitor (engagement != null/empty)
-                      addFilter(`competitor_${v.id}`, "is_not_empty", true);
-                    }
-                  }}
-                  className="w-4 h-4 rounded border-[#C2BBD4] text-plum focus:ring-plum/30"
-                />
-                <span className="text-sm text-[#544A78]">{v.label}</span>
-              </label>
-            ))}
+            {COMPETITOR_VENDORS.map((v) => {
+              const column = `competitor_${v.id}`;
+              const existing = getExistingFilter(column);
+              return (
+                <label key={v.id} className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${existing ? "bg-plum/5" : "hover:bg-[#EFEDF5]"}`}>
+                  <input
+                    type="checkbox"
+                    checked={!!existing}
+                    onChange={() => {
+                      if (existing) {
+                        removeSearchFilter(existing.id);
+                      } else {
+                        addFilter(column, "is_not_empty", true);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-[#C2BBD4] text-plum focus:ring-plum/30"
+                  />
+                  <span className="text-sm text-[#544A78]">{v.label}</span>
+                </label>
+              );
+            })}
           </div>
         </div>
 
