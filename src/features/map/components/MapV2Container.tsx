@@ -198,8 +198,8 @@ export default function MapV2Container({
           },
         ],
       },
-      center: [-98, 39],
-      zoom: 4.2,
+      bounds: US_BOUNDS,
+      fitBoundsOptions: { padding: 20 },
       minZoom: 2,
       maxZoom: 14,
     });

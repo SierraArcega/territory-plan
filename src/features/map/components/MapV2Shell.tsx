@@ -2,10 +2,8 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
-import FloatingPanel from "./FloatingPanel";
 import MultiSelectChip from "./MultiSelectChip";
 import LayerBubble from "./LayerBubble";
-import MapSummaryBar from "./MapSummaryBar";
 import SelectModePill from "./SelectModePill";
 import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
@@ -70,9 +68,6 @@ export default function MapV2Shell() {
     return unsub;
   }, []);
 
-  // In changes view, the TransitionLegend replaces the MapSummaryBar
-  const showSummaryBar = !compareMode || compareView !== "changes";
-
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#F8F7F4] flex flex-col">
       {/* Search toolbar — docked to top, in document flow */}
@@ -83,9 +78,6 @@ export default function MapV2Shell() {
         {/* Full-viewport map (renders behind everything) */}
         {compareMode ? <ComparisonMapShell /> : <MapV2Container />}
 
-        {/* Floating panel overlay */}
-        <FloatingPanel />
-
         {/* Explore data overlay (covers map when active) */}
         <ExploreOverlay />
 
@@ -94,9 +86,6 @@ export default function MapV2Shell() {
 
         {/* Multi-select mode toggle */}
         <SelectModePill />
-
-        {/* Summary stats bar (hidden in changes view -- TransitionLegend replaces it) */}
-        {showSummaryBar && <MapSummaryBar />}
 
         {/* Exit focus mode button */}
         {focusPlanId && (
