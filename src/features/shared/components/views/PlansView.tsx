@@ -30,6 +30,43 @@ import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import type { MultiSelectOption } from "@/features/shared/components/MultiSelect";
 import { AsyncMultiSelect } from "@/features/shared/components/AsyncMultiSelect";
 
+// Exported for unit testing — the filteredPlans useMemo delegates directly to this.
+export function applyPlanFilters(
+  plans: TerritoryPlan[],
+  {
+    statuses,
+    fiscalYears,
+    ownerIds,
+    stateFips,
+    districtLeaids,
+    schoolLeaids,
+  }: {
+    statuses: string[];
+    fiscalYears: string[];
+    ownerIds: string[];
+    stateFips: string[];
+    districtLeaids: string[];
+    schoolLeaids: string[];
+  }
+): TerritoryPlan[] {
+  let result = plans;
+  if (statuses.length)
+    result = result.filter((p) => statuses.includes(p.status));
+  if (fiscalYears.length)
+    result = result.filter((p) => fiscalYears.includes(String(p.fiscalYear)));
+  if (ownerIds.length)
+    result = result.filter((p) => p.owner && ownerIds.includes(p.owner.id));
+  if (stateFips.length)
+    result = result.filter((p) => p.states.some((s) => stateFips.includes(s.fips)));
+  // District + school leaid filters are OR-combined
+  const allLeaidFilters = [...districtLeaids, ...schoolLeaids];
+  if (allLeaidFilters.length)
+    result = result.filter((p) =>
+      (p.districtLeaids ?? []).some((id) => allLeaidFilters.includes(id))
+    );
+  return result;
+}
+
 // Helper to format dates nicely
 function formatDate(dateString: string | null): string {
   if (!dateString) return "";
@@ -103,6 +140,14 @@ export default function PlansView({ initialPlanId = null, onPlanChange }: PlansV
   );
 }
 
+// Status filter options are static — defined at module level to avoid reconstruction on every render.
+const STATUS_FILTER_OPTIONS: MultiSelectOption[] = [
+  { value: "planning", label: "Planning" },
+  { value: "working", label: "Working" },
+  { value: "stale", label: "Stale" },
+  { value: "archived", label: "Archived" },
+];
+
 // ============================================================================
 // Plans List View - Shows all plans in a grid
 // ============================================================================
@@ -138,14 +183,16 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     selectedSchoolLeaids,
   ].some((f) => f.length > 0);
 
-  // Derived options for simple filters — only show values that exist in loaded plans
-  const statusOptions: MultiSelectOption[] = [
-    { value: "planning", label: "Planning" },
-    { value: "working", label: "Working" },
-    { value: "stale", label: "Stale" },
-    { value: "archived", label: "Archived" },
-  ];
+  const clearAllFilters = useCallback(() => {
+    setSelectedStatuses([]);
+    setSelectedFiscalYears([]);
+    setSelectedOwnerIds([]);
+    setSelectedStateFips([]);
+    setSelectedDistrictLeaids([]);
+    setSelectedSchoolLeaids([]);
+  }, []);
 
+  // Derived options for simple filters — only show values that exist in loaded plans
   const fyOptions: MultiSelectOption[] = useMemo(
     () =>
       [...new Set((plans ?? []).map((p) => p.fiscalYear))]
@@ -209,7 +256,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
       // Value is leaid (not ncessch) — the school filter reuses districtLeaids
       // on the plan, meaning "plans containing the district this school belongs to".
       return (data.schools ?? []).map(
-        (s: { ncessch: string; leaid: string; schoolName: string; stateAbbrev?: string | null }) => ({
+        (s: { leaid: string; schoolName: string; stateAbbrev?: string | null }) => ({
           value: s.leaid,
           label: s.stateAbbrev
             ? `${s.schoolName} (${s.stateAbbrev})`
@@ -220,40 +267,27 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     []
   );
 
-  // filteredPlans — applies all six filters in sequence
-  const filteredPlans = useMemo(() => {
-    let result = plans ?? [];
-    if (selectedStatuses.length)
-      result = result.filter((p) => selectedStatuses.includes(p.status));
-    if (selectedFiscalYears.length)
-      result = result.filter((p) =>
-        selectedFiscalYears.includes(String(p.fiscalYear))
-      );
-    if (selectedOwnerIds.length)
-      result = result.filter(
-        (p) => p.owner && selectedOwnerIds.includes(p.owner.id)
-      );
-    if (selectedStateFips.length)
-      result = result.filter((p) =>
-        p.states.some((s) => selectedStateFips.includes(s.fips))
-      );
-    // District + school leaid filters are OR-combined: a plan passes if it
-    // contains any leaid from either filter set.
-    const allLeaidFilters = [...selectedDistrictLeaids, ...selectedSchoolLeaids];
-    if (allLeaidFilters.length)
-      result = result.filter((p) =>
-        (p.districtLeaids ?? []).some((id) => allLeaidFilters.includes(id))
-      );
-    return result;
-  }, [
-    plans,
-    selectedStatuses,
-    selectedFiscalYears,
-    selectedOwnerIds,
-    selectedStateFips,
-    selectedDistrictLeaids,
-    selectedSchoolLeaids,
-  ]);
+  // filteredPlans — delegates to applyPlanFilters (exported pure function)
+  const filteredPlans = useMemo(
+    () =>
+      applyPlanFilters(plans ?? [], {
+        statuses: selectedStatuses,
+        fiscalYears: selectedFiscalYears,
+        ownerIds: selectedOwnerIds,
+        stateFips: selectedStateFips,
+        districtLeaids: selectedDistrictLeaids,
+        schoolLeaids: selectedSchoolLeaids,
+      }),
+    [
+      plans,
+      selectedStatuses,
+      selectedFiscalYears,
+      selectedOwnerIds,
+      selectedStateFips,
+      selectedDistrictLeaids,
+      selectedSchoolLeaids,
+    ]
+  );
 
   const handleUpdatePlan = async (data: PlanFormData) => {
     if (!planToEdit) return;
@@ -333,7 +367,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             <MultiSelect
               id="filter-status"
               label="Status"
-              options={statusOptions}
+              options={STATUS_FILTER_OPTIONS}
               selected={selectedStatuses}
               onChange={setSelectedStatuses}
               placeholder="Status"
@@ -393,14 +427,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             {anyFilterActive && (
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedStatuses([]);
-                  setSelectedFiscalYears([]);
-                  setSelectedOwnerIds([]);
-                  setSelectedStateFips([]);
-                  setSelectedDistrictLeaids([]);
-                  setSelectedSchoolLeaids([]);
-                }}
+                onClick={clearAllFilters}
                 className="h-9 px-3 text-sm text-[#403770]/60 hover:text-[#403770] flex items-center gap-1 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -443,14 +470,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             <div className="text-center py-16">
               <p className="text-gray-500 font-medium">No plans match your filters.</p>
               <button
-                onClick={() => {
-                  setSelectedStatuses([]);
-                  setSelectedFiscalYears([]);
-                  setSelectedOwnerIds([]);
-                  setSelectedStateFips([]);
-                  setSelectedDistrictLeaids([]);
-                  setSelectedSchoolLeaids([]);
-                }}
+                onClick={clearAllFilters}
                 className="mt-3 text-sm text-[#403770] hover:underline"
               >
                 Clear filters
