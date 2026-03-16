@@ -6,7 +6,7 @@ import { formatCurrency } from "@/features/shared/lib/format";
 import { useMapStore } from "@/features/shared/lib/app-store";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import TaskFormModal from "@/features/tasks/components/TaskFormModal";
-import { Map, FileEdit, ListPlus, StickyNote, Plus } from "lucide-react";
+import { Map, FileEdit, ListPlus, Plus } from "lucide-react";
 
 // ============================================================================
 // Status badge
@@ -163,7 +163,7 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
         />
         <PlanActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
         <PlanActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
-        <PlanActionButton icon={StickyNote} label="Update Notes" />
+
       </div>
 
       <ActivityFormModal

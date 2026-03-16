@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   useTasks,
   useActivities,
@@ -13,6 +13,7 @@ import {
 import FeedSummaryCards from "./FeedSummaryCards";
 import FeedSection from "./FeedSection";
 import { TaskRow, OpportunityRow, ActivityRow, MeetingRow } from "./FeedRows";
+import OutcomeModal from "@/features/activities/components/OutcomeModal";
 import { CheckCircle2 } from "lucide-react";
 
 // ============================================================================
@@ -51,6 +52,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const { data: activitiesData } = useActivities({});
   const { data: calendarData } = useCalendarInbox("pending");
   const updateTask = useUpdateTask();
+  const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
 
   // ---- Overdue tasks ----
   const overdueTasks = useMemo(() => {
@@ -141,6 +143,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
                   ? `${activity.districtCount} district${activity.districtCount > 1 ? "s" : ""}`
                   : undefined
               }
+              onAddNextSteps={() => setOutcomeActivity(activity)}
             />
           ))}
         </FeedSection>
@@ -176,6 +179,14 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
             </p>
           </div>
         )}
+
+      {/* Outcome Modal */}
+      {outcomeActivity && (
+        <OutcomeModal
+          activity={outcomeActivity}
+          onClose={() => setOutcomeActivity(null)}
+        />
+      )}
     </div>
   );
 }
