@@ -69,7 +69,7 @@ export default function ProfileSidebar() {
   const jobTitle = profile?.jobTitle || "";
 
   return (
-    <aside className="w-[340px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
+    <aside className="w-[289px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
       <div className="px-6 pt-8">
         {/* ---- User Avatar + Info ---- */}
         <div className="flex flex-col items-center mb-6">

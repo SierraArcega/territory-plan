@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import type { TerritoryPlan } from "@/lib/api";
 import { formatCurrency } from "@/features/shared/lib/format";
 import { useMapStore } from "@/features/shared/lib/app-store";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
+import TaskFormModal from "@/features/tasks/components/TaskFormModal";
 import { Map, FileEdit, ListPlus, StickyNote, Plus } from "lucide-react";
 
 // ============================================================================
@@ -109,6 +112,8 @@ interface TerritoryPlanCardProps {
 
 export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
   const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   const revenueTarget =
     plan.renewalRollup + plan.expansionRollup + plan.winbackRollup + plan.newBusinessRollup;
@@ -133,7 +138,7 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
       </div>
 
       {/* Revenue metrics */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <RevenueStat label="Rev. Target" value={revenueTarget} />
         <RevenueStat label="Open Pipeline" value={openPipeline} />
         <RevenueStat label="Closed Won" value={closedWon} />
@@ -144,7 +149,7 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
       <RevenueProgress actual={revenue} target={revenueTarget} />
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#E2DEEC]">
+      <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-[#E2DEEC]">
         <PlanActionButton
           icon={Map}
           label="View on Map"
@@ -156,10 +161,21 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
             window.dispatchEvent(new PopStateEvent("popstate"));
           }}
         />
-        <PlanActionButton icon={FileEdit} label="Log Activity" />
-        <PlanActionButton icon={ListPlus} label="Create Task" />
+        <PlanActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
+        <PlanActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
         <PlanActionButton icon={StickyNote} label="Update Notes" />
       </div>
+
+      <ActivityFormModal
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        defaultPlanId={plan.id}
+      />
+      <TaskFormModal
+        isOpen={showTaskModal}
+        onClose={() => setShowTaskModal(false)}
+        defaultPlanId={plan.id}
+      />
     </div>
   );
 }
@@ -219,7 +235,7 @@ export function FYPlanGroup({
       </div>
 
       {/* Plan cards grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {plans.map((plan) => (
           <TerritoryPlanCard key={plan.id} plan={plan} />
         ))}
