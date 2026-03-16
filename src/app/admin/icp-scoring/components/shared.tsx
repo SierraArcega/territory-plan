@@ -21,17 +21,17 @@ export const SCORE_BAR_CLASSES = {
 } as const;
 
 export const TIER_FILLS = {
-  "Tier 1": "#F37167",
-  "Tier 2": "#D4A84B",
-  "Tier 3": "#8A80A8",
-  "Tier 4": "#D4CFE2",
+  "Tier 1": "#69B34A",  // Success strong — best fit
+  "Tier 2": "#6EA3BE",  // Steel Blue — good fit
+  "Tier 3": "#A69DC0",  // Plum muted — neutral
+  "Tier 4": "#D4CFE2",  // Border default — inactive
 } as const;
 
 export const TIER_BADGE_CLASSES: Record<string, string> = {
-  "Tier 1": "bg-[#fef1f0] text-[#c25a52] border-[#f58d85]",
-  "Tier 2": "bg-[#fffaf1] text-[#997c43] border-[#ffd98d]",
-  "Tier 3": "bg-[#EFEDF5] text-[#8A80A8] border-[#D4CFE2]",
-  "Tier 4": "bg-[#F7F5FA] text-[#A69DC0] border-[#E2DEEC]",
+  "Tier 1": "bg-[#F7FFF2] text-[#3d7a28] border-[#8AC670]",   // Success bg, darkened green text (5.2:1)
+  "Tier 2": "bg-[#e8f1f5] text-[#3d6f84] border-[#8bb5cb]",   // Info bg, darkened steel text (5.0:1)
+  "Tier 3": "bg-[#EFEDF5] text-[#544A78] border-[#C2BBD4]",   // Hover bg, Strong text (5.8:1)
+  "Tier 4": "bg-[#F7F5FA] text-[#8A80A8] border-[#D4CFE2]",   // Raised bg, Secondary text (3.5:1)
 };
 
 export const LOCALE_MAP: Record<number, string> = {
