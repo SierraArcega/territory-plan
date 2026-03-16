@@ -298,6 +298,8 @@ export interface TerritoryPlan {
   createdAt: string;
   updatedAt: string;
   districtCount: number;
+  districtLeaids: string[];         // LEAIDs of all districts in this plan
+  schoolNcesIds: string[];          // deferred — populated as empty array for now
   totalEnrollment: number;
   stateCount: number;
   states: PlanState[];
@@ -704,6 +706,7 @@ export interface SchoolDetail extends School {
 export interface SchoolListItem {
   ncessch: string;
   leaid: string;
+  districtName: string | null;
   schoolName: string;
   charter: number;
   schoolLevel: number | null;
