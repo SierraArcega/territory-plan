@@ -230,6 +230,39 @@ export async function getNewDistrictsCount(
   return rows[0]?.count ?? 0;
 }
 
+/**
+ * Get leaderboard rank for a rep by total take in a school year.
+ * Returns { rank, totalReps } — rank 1 = highest take.
+ */
+export async function getRepLeaderboardRank(
+  salesRepEmail: string,
+  schoolYr: string
+): Promise<{ rank: number; totalReps: number }> {
+  const rows = await safeQueryRaw(
+    prisma.$queryRaw<{ rank: number; total_reps: number }[]>`
+      WITH rep_totals AS (
+        SELECT sales_rep_email, SUM(total_take) AS take
+        FROM district_opportunity_actuals
+        WHERE school_yr = ${schoolYr}
+        GROUP BY sales_rep_email
+      ),
+      ranked AS (
+        SELECT sales_rep_email,
+               RANK() OVER (ORDER BY take DESC) AS rank,
+               COUNT(*) OVER () AS total_reps
+        FROM rep_totals
+      )
+      SELECT rank::int, total_reps::int
+      FROM ranked
+      WHERE sales_rep_email = ${salesRepEmail}
+    `,
+    []
+  );
+
+  if (rows.length === 0) return { rank: 0, totalReps: 0 };
+  return { rank: Number(rows[0].rank), totalReps: Number(rows[0].total_reps) };
+}
+
 export interface OpportunityDetail {
   id: string;
   name: string;

@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useProfile } from "@/lib/api";
 import { useCalendarConnection } from "@/features/calendar/lib/queries";
+import { useGoalDashboard } from "@/features/goals/lib/queries";
+import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
 import {
   Calendar,
   Clock,
@@ -129,6 +131,9 @@ export default function ProfileSidebar() {
           )}
         </div>
 
+        {/* ---- Fiscal Year Summary ---- */}
+        <FiscalYearSummary />
+
         {/* ---- Divider ---- */}
         <div className="h-px bg-[#E2DEEC]" />
 
@@ -145,6 +150,77 @@ export default function ProfileSidebar() {
         </div>
       </div>
     </aside>
+  );
+}
+
+// ============================================================================
+// FiscalYearSummary
+// ============================================================================
+
+const FISCAL_YEARS = [2025, 2026, 2027];
+
+function fmt(n: number) {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+function FiscalYearSummary() {
+  const defaultFY = getDefaultFiscalYear();
+  const [selectedFY, setSelectedFY] = useState(defaultFY);
+  const { data, isLoading } = useGoalDashboard(selectedFY);
+
+  const rank = data?.leaderboard?.rank ?? 0;
+  const totalReps = data?.leaderboard?.totalReps ?? 0;
+
+  const rows = [
+    { label: "Targeted", value: data?.planTotals?.totalTarget ?? 0 },
+    { label: "Pipeline", value: data?.actuals?.pipeline ?? 0 },
+    { label: "Revenue", value: data?.actuals?.revenue ?? 0 },
+    { label: "Take", value: data?.actuals?.take ?? 0 },
+  ];
+
+  return (
+    <div className="mb-6 mt-2">
+      {/* FY Tabs */}
+      <div className="flex gap-4 mb-3 border-b border-[#E2DEEC]">
+        {FISCAL_YEARS.map((fy) => (
+          <button
+            key={fy}
+            onClick={() => setSelectedFY(fy)}
+            className={`pb-1.5 text-[11px] font-semibold cursor-pointer transition-colors ${
+              selectedFY === fy
+                ? "text-plum border-b-2 border-plum"
+                : "text-[#8A80A8] hover:text-plum"
+            }`}
+          >
+            FY{fy.toString().slice(-2)}
+          </button>
+        ))}
+      </div>
+
+      {/* Leaderboard Rank */}
+      {!isLoading && rank > 0 && (
+        <div className="flex items-center gap-2 mb-3 px-2.5 py-1.5 rounded-lg bg-[#F7F5FA]">
+          <span className="text-base font-bold text-plum">#{rank}</span>
+          <span className="text-[11px] font-medium text-[#8A80A8]">of {totalReps} reps by take</span>
+        </div>
+      )}
+
+      {/* Summary Rows */}
+      <div className="flex flex-col gap-2">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-[#8A80A8]">{row.label}</span>
+            {isLoading ? (
+              <span className="inline-block w-14 h-3.5 bg-[#EFEDF5] rounded animate-pulse" />
+            ) : (
+              <span className="text-[13px] font-semibold text-plum">{fmt(row.value)}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
