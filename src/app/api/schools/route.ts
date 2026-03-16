@@ -71,6 +71,9 @@ export async function GET(request: NextRequest) {
         higrade: true,
         owner: true,
         schoolStatus: true,
+        district: {
+          select: { name: true },
+        },
       },
       take: limit,
       skip: offset,
@@ -81,6 +84,7 @@ export async function GET(request: NextRequest) {
       ncessch: s.ncessch,
       leaid: s.leaid,
       schoolName: s.schoolName,
+      districtName: s.district?.name ?? null,
       charter: s.charter,
       schoolLevel: s.schoolLevel,
       enrollment: s.enrollment,

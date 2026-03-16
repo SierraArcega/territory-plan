@@ -5,6 +5,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timezone
 import psycopg2
+from psycopg2.extras import execute_values
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ OPPORTUNITY_COLUMNS = [
     "completed_revenue", "completed_take",
     "scheduled_sessions", "scheduled_revenue", "scheduled_take",
     "total_revenue", "total_take", "average_take_rate",
+    "service_types",
     "synced_at",
 ]
 
@@ -58,6 +60,52 @@ def upsert_opportunities(conn, records):
 
     conn.commit()
     logger.info(f"Upserted {len(records)} opportunities")
+
+
+SESSION_COLUMNS = [
+    "id", "opportunity_id", "service_type",
+    "session_price", "educator_price", "educator_approved_price",
+    "start_time", "synced_at",
+]
+
+
+def upsert_sessions(conn, sessions_by_opp):
+    """Delete-and-replace sessions for each affected opportunity.
+
+    Uses execute_values for batch inserts (~100x faster than individual INSERTs
+    over a remote connection). Runs in a single transaction so a crash either
+    leaves old sessions intact or has the complete new set.
+    """
+    if not sessions_by_opp:
+        return
+
+    cols_str = ", ".join(SESSION_COLUMNS)
+    update_cols = [c for c in SESSION_COLUMNS if c != "id"]
+    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in update_cols)
+    insert_sql = f"INSERT INTO sessions ({cols_str}) VALUES %s ON CONFLICT (id) DO UPDATE SET {update_set}"
+
+    total = 0
+    with conn.cursor() as cur:
+        # Delete all sessions for affected opportunities in one query
+        opp_ids = [str(oid) for oid in sessions_by_opp.keys()]
+        cur.execute("DELETE FROM sessions WHERE opportunity_id = ANY(%s::text[])", (opp_ids,))
+
+        # Flatten all sessions, deduplicating by id (first column)
+        seen_ids = set()
+        all_values = []
+        for opp_sessions in sessions_by_opp.values():
+            for session in opp_sessions:
+                sid = session.get("id")
+                if sid not in seen_ids:
+                    seen_ids.add(sid)
+                    all_values.append(tuple(session.get(c) for c in SESSION_COLUMNS))
+        total = len(all_values)
+
+        if all_values:
+            execute_values(cur, insert_sql, all_values, page_size=1000)
+
+    conn.commit()
+    logger.info(f"Upserted {total} sessions across {len(sessions_by_opp)} opportunities")
 
 
 def upsert_unmatched(conn, records):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   useTerritoryPlans,
   useTerritoryPlan,
@@ -15,6 +15,7 @@ import {
   useDeleteActivity,
   type ActivityListItem,
   usePlanEngagement,
+  type TerritoryPlan,
 } from "@/lib/api";
 import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import { useMapStore } from "@/features/shared/lib/app-store";
@@ -25,31 +26,60 @@ import PlanTabs from "@/features/plans/components/PlanTabs";
 import PlanDistrictPanel from "@/features/plans/components/PlanDistrictPanel";
 import ViewToggle from "@/features/shared/components/ViewToggle";
 import PlansTable from "@/features/plans/components/PlansTable";
+import { MultiSelect } from "@/features/shared/components/MultiSelect";
+import type { MultiSelectOption } from "@/features/shared/components/MultiSelect";
+import { AsyncMultiSelect } from "@/features/shared/components/AsyncMultiSelect";
 
-// Helper to format dates nicely
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "";
-  const datePart = dateString.split("T")[0];
-  return new Date(datePart + "T00:00:00").toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+// Exported for unit testing — the filteredPlans useMemo delegates directly to this.
+export function applyPlanFilters(
+  plans: TerritoryPlan[],
+  {
+    statuses,
+    fiscalYears,
+    ownerIds,
+    stateFips,
+    districtLeaids,
+    schoolLeaids,
+  }: {
+    statuses: string[];
+    fiscalYears: string[];
+    ownerIds: string[];
+    stateFips: string[];
+    districtLeaids: string[];
+    schoolLeaids: string[];
+  }
+): TerritoryPlan[] {
+  let result = plans;
+  if (statuses.length)
+    result = result.filter((p) => statuses.includes(p.status));
+  if (fiscalYears.length)
+    result = result.filter((p) => fiscalYears.includes(String(p.fiscalYear)));
+  if (ownerIds.length)
+    result = result.filter((p) => p.owner && ownerIds.includes(p.owner.id));
+  if (stateFips.length)
+    result = result.filter((p) => p.states.some((s) => stateFips.includes(s.fips)));
+  // District + school leaid filters are OR-combined
+  const allLeaidFilters = [...districtLeaids, ...schoolLeaids];
+  if (allLeaidFilters.length)
+    result = result.filter((p) =>
+      (p.districtLeaids ?? []).some((id) => allLeaidFilters.includes(id))
+    );
+  return result;
 }
 
 // Status badge styling
 function getStatusBadge(status: string) {
   switch (status) {
     case "planning":
-      return { label: "Planning", className: "bg-gray-200 text-gray-700" };
+      return { label: "Planning", className: "bg-[#EFEDF5] text-[#6E6390]" };
     case "working":
       return { label: "Working", className: "bg-[#8AA891] text-white" };
     case "stale":
       return { label: "Stale", className: "bg-amber-200 text-amber-800" };
     case "archived":
-      return { label: "Archived", className: "bg-gray-400 text-white" };
+      return { label: "Archived", className: "bg-[#A69DC0] text-white" };
     default:
-      return { label: status, className: "bg-gray-200 text-gray-700" };
+      return { label: status, className: "bg-[#EFEDF5] text-[#6E6390]" };
   }
 }
 
@@ -99,6 +129,14 @@ export default function PlansView({ initialPlanId = null, onPlanChange }: PlansV
   );
 }
 
+// Status filter options are static — defined at module level to avoid reconstruction on every render.
+const STATUS_FILTER_OPTIONS: MultiSelectOption[] = [
+  { value: "planning", label: "Planning" },
+  { value: "working", label: "Working" },
+  { value: "stale", label: "Stale" },
+  { value: "archived", label: "Archived" },
+];
+
 // ============================================================================
 // Plans List View - Shows all plans in a grid
 // ============================================================================
@@ -111,9 +149,235 @@ interface PlansListViewProps {
 
 function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: PlansListViewProps) {
   const [view, setView] = useState<"cards" | "table">("table");
+  const [planToEdit, setPlanToEdit] = useState<TerritoryPlan | null>(null);
   const { data: plans, isLoading, error } = useTerritoryPlans();
   const { data: engagementData } = usePlanEngagement();
   const createPlan = useCreateTerritoryPlan();
+  const updatePlan = useUpdateTerritoryPlan();
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
+
+  const handleShowOnMap = useCallback((planId: string) => {
+    setCurrentPlanId(planId);
+    setActiveTab("map");
+  }, [setCurrentPlanId, setActiveTab]);
+
+  // --- Filter state ---
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
+  const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
+  const [selectedDistrictLeaids, setSelectedDistrictLeaids] = useState<string[]>([]);
+  const [selectedSchoolLeaids, setSelectedSchoolLeaids] = useState<string[]>([]);
+
+  const anyFilterActive = [
+    selectedStatuses,
+    selectedFiscalYears,
+    selectedOwnerIds,
+    selectedStateFips,
+    selectedDistrictLeaids,
+    selectedSchoolLeaids,
+  ].some((f) => f.length > 0);
+
+  const clearAllFilters = useCallback(() => {
+    setSelectedStatuses([]);
+    setSelectedFiscalYears([]);
+    setSelectedOwnerIds([]);
+    setSelectedStateFips([]);
+    setSelectedDistrictLeaids([]);
+    setSelectedSchoolLeaids([]);
+  }, []);
+
+  // Derived options for simple filters — only show values that exist in loaded plans
+  const fyOptions: MultiSelectOption[] = useMemo(
+    () =>
+      [...new Set((plans ?? []).map((p) => p.fiscalYear))]
+        .sort()
+        .map((year) => ({
+          value: String(year),
+          label: "FY" + String(year).slice(-2),
+        })),
+    [plans]
+  );
+
+  const ownerOptions: MultiSelectOption[] = useMemo(() => {
+    const seen = new Set<string>();
+    return (plans ?? [])
+      .flatMap((p) => (p.owner ? [p.owner] : []))
+      .filter((o) => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      })
+      .map((o) => ({ value: o.id, label: o.fullName ?? o.id }));
+  }, [plans]);
+
+  const stateOptions: MultiSelectOption[] = useMemo(() => {
+    const seen = new Set<string>();
+    return (plans ?? [])
+      .flatMap((p) => p.states)
+      .filter((s) => {
+        if (seen.has(s.fips)) return false;
+        seen.add(s.fips);
+        return true;
+      })
+      .map((s) => ({ value: s.fips, label: s.abbrev }));
+  }, [plans]);
+
+  // Async search handlers — transform raw API response to MultiSelectOption[]
+  const searchDistricts = useCallback(
+    async (query: string): Promise<MultiSelectOption[]> => {
+      const res = await fetch(
+        `/api/districts?search=${encodeURIComponent(query)}&limit=10`
+      );
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      return (data.districts ?? []).map(
+        (d: { leaid: string; name: string; stateAbbrev: string | null }) => ({
+          value: d.leaid,
+          label: d.stateAbbrev ? `${d.name} (${d.stateAbbrev})` : d.name,
+        })
+      );
+    },
+    []
+  );
+
+  const searchSchools = useCallback(
+    async (query: string): Promise<MultiSelectOption[]> => {
+      const res = await fetch(
+        `/api/schools?search=${encodeURIComponent(query)}&limit=10`
+      );
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      // Value is leaid (not ncessch) — the school filter reuses districtLeaids
+      // on the plan, meaning "plans containing the district this school belongs to".
+      return (data.schools ?? []).map(
+        (s: { leaid: string; schoolName: string; stateAbbrev?: string | null }) => ({
+          value: s.leaid,
+          label: s.stateAbbrev
+            ? `${s.schoolName} (${s.stateAbbrev})`
+            : s.schoolName,
+        })
+      );
+    },
+    []
+  );
+
+  // filteredPlans — delegates to applyPlanFilters (exported pure function)
+  const filteredPlans = useMemo(
+    () =>
+      applyPlanFilters(plans ?? [], {
+        statuses: selectedStatuses,
+        fiscalYears: selectedFiscalYears,
+        ownerIds: selectedOwnerIds,
+        stateFips: selectedStateFips,
+        districtLeaids: selectedDistrictLeaids,
+        schoolLeaids: selectedSchoolLeaids,
+      }),
+    [
+      plans,
+      selectedStatuses,
+      selectedFiscalYears,
+      selectedOwnerIds,
+      selectedStateFips,
+      selectedDistrictLeaids,
+      selectedSchoolLeaids,
+    ]
+  );
+
+  const filterToolbar = plans && plans.length > 0 ? (
+    <div className="flex flex-wrap items-start gap-3">
+      <MultiSelect
+        id="filter-status"
+        label="Status"
+        options={STATUS_FILTER_OPTIONS}
+        selected={selectedStatuses}
+        onChange={setSelectedStatuses}
+        placeholder="Status"
+        countLabel="statuses"
+        searchPlaceholder="Search statuses…"
+      />
+      <MultiSelect
+        id="filter-fy"
+        label="Fiscal Year"
+        options={fyOptions}
+        selected={selectedFiscalYears}
+        onChange={setSelectedFiscalYears}
+        placeholder="FY"
+        countLabel="years"
+        searchPlaceholder="Search years…"
+      />
+      <MultiSelect
+        id="filter-owner"
+        label="Owner"
+        options={ownerOptions}
+        selected={selectedOwnerIds}
+        onChange={setSelectedOwnerIds}
+        placeholder="Owner"
+        countLabel="owners"
+        searchPlaceholder="Search owners…"
+      />
+      <MultiSelect
+        id="filter-states"
+        label="States"
+        options={stateOptions}
+        selected={selectedStateFips}
+        onChange={setSelectedStateFips}
+        placeholder="States"
+        countLabel="states"
+        searchPlaceholder="Search states…"
+      />
+      <AsyncMultiSelect
+        id="filter-districts"
+        label="Districts"
+        selected={selectedDistrictLeaids}
+        onChange={setSelectedDistrictLeaids}
+        onSearch={searchDistricts}
+        placeholder="Districts…"
+        countLabel="districts"
+        searchPlaceholder="Search districts…"
+      />
+      <AsyncMultiSelect
+        id="filter-schools"
+        label="Schools"
+        selected={selectedSchoolLeaids}
+        onChange={setSelectedSchoolLeaids}
+        onSearch={searchSchools}
+        placeholder="Schools…"
+        countLabel="schools"
+        searchPlaceholder="Search schools…"
+      />
+      {anyFilterActive && (
+        <button
+          type="button"
+          onClick={clearAllFilters}
+          className="h-9 px-3 text-sm text-[#403770]/60 hover:text-[#403770] flex items-center gap-1 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </div>
+  ) : undefined;
+
+  const handleUpdatePlan = async (data: PlanFormData) => {
+    if (!planToEdit) return;
+    await updatePlan.mutateAsync({
+      id: planToEdit.id,
+      name: data.name,
+      description: data.description || undefined,
+      ownerId: data.ownerId ?? undefined,
+      color: data.color,
+      status: data.status,
+      fiscalYear: data.fiscalYear,
+      startDate: data.startDate || undefined,
+      endDate: data.endDate || undefined,
+      stateFips: data.stateFips,
+      collaboratorIds: data.collaboratorIds,
+    });
+  };
 
   // Build a map from planId → engagement data for quick lookup
   const engagementMap = new Map(
@@ -136,13 +400,13 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   };
 
   return (
-    <div className="h-full overflow-auto bg-[#FFFCFA]">
+    <div className="h-full flex flex-col bg-[#FFFCFA]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-[#D4CFE2] px-6 py-4 shrink-0">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[#403770]">Territory Plans</h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#8A80A8]">
               Manage your territory plans and assigned districts
             </p>
           </div>
@@ -170,7 +434,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-4 flex-1 min-h-0 w-full flex flex-col">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
@@ -193,10 +457,10 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               <p className="text-sm">{error.message}</p>
             </div>
           </div>
-        ) : plans && plans.length > 0 ? (
+        ) : filteredPlans.length > 0 || (plans && plans.length > 0) ? (
           view === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {plans.map((plan) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-auto">
+              {filteredPlans.map((plan) => (
                 <div
                   key={plan.id}
                   onClick={() => onSelectPlan(plan.id)}
@@ -207,12 +471,18 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               ))}
             </div>
           ) : (
-            <PlansTable plans={plans} onSelectPlan={onSelectPlan} />
+            <PlansTable
+              plans={filteredPlans}
+              onSelectPlan={onSelectPlan}
+              onEditPlan={setPlanToEdit}
+              onShowOnMap={handleShowOnMap}
+              toolbar={filterToolbar}
+            />
           )
         ) : (
           <div className="text-center py-20">
             <svg
-              className="w-20 h-20 mx-auto text-gray-300 mb-6"
+              className="w-20 h-20 mx-auto text-[#C2BBD4] mb-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -224,10 +494,10 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
             </svg>
-            <h2 className="text-xl font-semibold text-gray-600 mb-2">
+            <h2 className="text-xl font-semibold text-[#6E6390] mb-2">
               No territory plans yet
             </h2>
-            <p className="text-gray-500 max-w-md mx-auto mb-6">
+            <p className="text-[#8A80A8] max-w-md mx-auto mb-6">
               Create your first territory plan to start organizing districts and planning your sales strategy.
             </p>
             <button
@@ -254,6 +524,15 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreatePlan}
         title="Create Territory Plan"
+      />
+
+      {/* Edit Plan Modal */}
+      <PlanFormModal
+        isOpen={planToEdit !== null}
+        onClose={() => setPlanToEdit(null)}
+        onSubmit={handleUpdatePlan}
+        initialData={planToEdit ?? undefined}
+        title="Edit Territory Plan"
       />
     </div>
   );
@@ -391,11 +670,11 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   if (error || !plan) {
     return (
       <div className="h-full overflow-auto bg-[#FFFCFA]">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-white border-b border-[#D4CFE2] px-6 py-4">
           <div className="max-w-6xl mx-auto">
             <button
               onClick={onBack}
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-[#403770] transition-colors"
+              className="inline-flex items-center gap-2 text-[#8A80A8] hover:text-[#403770] transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -410,7 +689,7 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p className="font-medium mb-1">Plan not found</p>
-            <p className="text-sm text-gray-500">{error?.message || "The requested plan could not be found."}</p>
+            <p className="text-sm text-[#8A80A8]">{error?.message || "The requested plan could not be found."}</p>
           </div>
         </div>
       </div>
@@ -418,20 +697,16 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   }
 
   const statusBadge = getStatusBadge(plan.status);
-  const dateRange =
-    plan.startDate || plan.endDate
-      ? `${formatDate(plan.startDate)}${plan.startDate && plan.endDate ? " – " : ""}${formatDate(plan.endDate)}`
-      : null;
 
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
       {/* Compact header: back + title + badges | actions */}
-      <header className="bg-white border-b border-gray-200 px-6">
+      <header className="bg-white border-b border-[#D4CFE2] px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={onBack}
-              className="p-1 text-gray-400 hover:text-[#403770] transition-colors flex-shrink-0"
+              className="p-1 text-[#A69DC0] hover:text-[#403770] transition-colors flex-shrink-0"
               aria-label="Back to Plans"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -450,18 +725,12 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
               {statusBadge.label}
             </span>
             {/* Meta info inline */}
-            <span className="hidden md:flex items-center gap-2 text-[12px] text-gray-400 ml-2 flex-shrink-0">
+            <span className="hidden md:flex items-center gap-2 text-[12px] text-[#A69DC0] ml-2 flex-shrink-0">
               <span>{plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}</span>
               {plan.owner?.fullName && (
                 <>
                   <span>·</span>
                   <span>{plan.owner.fullName}</span>
-                </>
-              )}
-              {dateRange && (
-                <>
-                  <span>·</span>
-                  <span>{dateRange}</span>
                 </>
               )}
               {plan.description && (
@@ -572,15 +841,15 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
             <h3 className="text-lg font-semibold text-[#403770] mb-2">Delete Plan?</h3>
-            <p className="text-gray-600 text-sm mb-6">
+            <p className="text-[#6E6390] text-sm mb-6">
               Are you sure you want to delete &ldquo;{plan.name}&rdquo;? This will remove all district associations. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
               >
                 Cancel
               </button>

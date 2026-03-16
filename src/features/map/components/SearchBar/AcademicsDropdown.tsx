@@ -10,7 +10,9 @@ interface AcademicsDropdownProps {
 }
 
 export default function AcademicsDropdown({ onClose }: AcademicsDropdownProps) {
+  const searchFilters = useMapV2Store((s) => s.searchFilters);
   const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const updateSearchFilter = useMapV2Store((s) => s.updateSearchFilter);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,7 +26,12 @@ export default function AcademicsDropdown({ onClose }: AcademicsDropdownProps) {
   }, [onClose]);
 
   const handleApply = (column: string, min: number, max: number) => {
-    addSearchFilter({ id: crypto.randomUUID(), column, op: "between", value: [min, max] });
+    const existing = searchFilters.find((f) => f.column === column && f.op === "between");
+    if (existing) {
+      updateSearchFilter(existing.id, { value: [min, max] });
+    } else {
+      addSearchFilter({ id: crypto.randomUUID(), column, op: "between", value: [min, max] });
+    }
   };
 
   return (

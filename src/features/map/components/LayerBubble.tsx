@@ -605,8 +605,10 @@ export default function LayerBubble() {
     pillText += ` \u00b7 ${filterCount} filter${filterCount > 1 ? "s" : ""}`;
   }
 
+  const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
+
   return (
-    <div ref={ref} className="absolute bottom-6 left-6 z-10">
+    <div ref={ref} className={`absolute bottom-6 left-6 z-10 transition-opacity duration-200 ${exploreModalLeaid ? "opacity-40 pointer-events-none" : ""}`}>
       {/* Expanded popover */}
       {layerBubbleOpen && (
         <div

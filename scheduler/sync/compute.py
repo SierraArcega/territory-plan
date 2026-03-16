@@ -1,5 +1,6 @@
 """Financial metric computation for opportunities."""
 
+import json
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
@@ -14,7 +15,14 @@ TWO_PLACES = Decimal("0.01")
 def _to_decimal(val):
     if val is None:
         return Decimal("0")
-    return Decimal(str(val)).quantize(TWO_PLACES)
+    s = str(val).strip()
+    if not s:
+        return Decimal("0")
+    try:
+        return Decimal(s).quantize(TWO_PLACES)
+    except Exception:
+        logger.warning(f"Could not convert to Decimal: {val!r}, defaulting to 0")
+        return Decimal("0")
 
 
 def _educator_cost(session):
@@ -106,6 +114,10 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
             "district_lea_id": None,
         }
 
+    service_types = sorted(set(
+        s.get("serviceType") for s in sessions if s.get("serviceType")
+    ))
+
     return {
         "id": opp["id"],
         "name": opp.get("name"),
@@ -128,5 +140,6 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
         "credited": credited,
         **metrics,
         **district_account,
+        "service_types": json.dumps(service_types),
         "synced_at": now,
     }

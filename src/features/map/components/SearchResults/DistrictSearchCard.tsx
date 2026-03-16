@@ -1,9 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
-import { useTerritoryPlans, useAddDistrictsToPlan } from "@/lib/api";
-import { mapV2Ref } from "@/features/map/lib/ref";
 
 interface DistrictCardData {
   leaid: string;
@@ -29,6 +26,7 @@ interface DistrictSearchCardProps {
   district: DistrictCardData;
   isSelected: boolean;
   onToggleSelect: () => void;
+  onExplore: (leaid: string) => void;
   activeFilters: ExploreFilter[];
 }
 
@@ -36,41 +34,13 @@ export default function DistrictSearchCard({
   district,
   isSelected,
   onToggleSelect,
+  onExplore,
   activeFilters,
 }: DistrictSearchCardProps) {
-  const selectDistrict = useMapV2Store((s) => s.selectDistrict);
   const setHoveredLeaid = useMapV2Store((s) => s.setHoveredLeaid);
-  const [showPlanDropdown, setShowPlanDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const { data: plans } = useTerritoryPlans();
-  const addDistricts = useAddDistrictsToPlan();
-
-  const existingPlanIds = new Set(district.territoryPlans?.map((tp) => tp.plan.id) || []);
-
-  // Close plan dropdown on outside click
-  useEffect(() => {
-    if (!showPlanDropdown) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowPlanDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showPlanDropdown]);
 
   const handleClick = () => {
     onToggleSelect();
-  };
-
-  const handleAddToPlan = async (planId: string) => {
-    try {
-      await addDistricts.mutateAsync({ planId, leaids: district.leaid });
-      setShowPlanDropdown(false);
-    } catch (error) {
-      console.error("Failed to add district to plan:", error);
-    }
   };
 
   // Determine which adaptive metrics to show based on active filters
@@ -148,45 +118,18 @@ export default function DistrictSearchCard({
           </div>
         )}
 
-        {/* Add to Plan button */}
-        <div className="relative mt-2" ref={dropdownRef}>
+        {/* Explore button */}
+        <div className="mt-2">
           <button
-            onClick={(e) => { e.stopPropagation(); setShowPlanDropdown(!showPlanDropdown); }}
+            onClick={(e) => { e.stopPropagation(); onExplore(district.leaid); }}
             className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-plum bg-plum/8 hover:bg-plum/15 transition-colors"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            Add to Plan
+            Explore
           </button>
-
-          {showPlanDropdown && plans && (
-            <div className="absolute left-0 bottom-full mb-1 w-56 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
-              <div className="max-h-48 overflow-y-auto">
-                {plans.map((plan) => {
-                  const alreadyIn = existingPlanIds.has(plan.id);
-                  return (
-                    <button
-                      key={plan.id}
-                      onClick={(e) => { e.stopPropagation(); !alreadyIn && handleAddToPlan(plan.id); }}
-                      disabled={alreadyIn}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                        alreadyIn ? "bg-[#EFEDF5] text-[#A69DC0]" : "hover:bg-[#EFEDF5] text-[#544A78]"
-                      }`}
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
-                      <span className="truncate">{plan.name}</span>
-                      {alreadyIn && (
-                        <svg className="w-4 h-4 text-[#8AA891] ml-auto shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

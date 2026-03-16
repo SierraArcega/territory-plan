@@ -5,6 +5,7 @@ import {
   getRepActuals,
   getNewDistrictsCount,
   getPlanDistrictActuals,
+  getRepLeaderboardRank,
   fiscalYearToSchoolYear,
 } from "@/lib/opportunity-actuals";
 
@@ -95,9 +96,10 @@ export async function GET(
     const priorSchoolYr = fiscalYearToSchoolYear(fiscalYear - 1);
     const email = user.email ?? "";
 
-    const [repActuals, newDistrictsCount] = await Promise.all([
+    const [repActuals, newDistrictsCount, leaderboard] = await Promise.all([
       getRepActuals(email, schoolYr),
       getNewDistrictsCount(email, schoolYr, priorSchoolYr),
+      getRepLeaderboardRank(email, schoolYr),
     ]);
 
     // Build per-plan actuals
@@ -163,6 +165,7 @@ export async function GET(
         invoiced: repActuals.invoiced,
         newDistricts: newDistrictsCount,
       },
+      leaderboard,
       plans: plansWithActuals,
     });
   } catch (error) {
