@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import { useMapV2Store } from "@/features/map/lib/store";
 import type { VendorId } from "@/features/map/lib/layers";
@@ -160,6 +160,7 @@ export function useMapSummary() {
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    placeholderData: keepPreviousData,
   });
 
   // Check if any engagement sub-filter is active across any vendor
