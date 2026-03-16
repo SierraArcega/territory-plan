@@ -137,7 +137,7 @@ export default function ProfileSidebar() {
           <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
             Integrations
           </p>
-          <div className="mt-3 flex items-center gap-4">
+          <div className="mt-3 flex items-center gap-2.5">
             {INTEGRATIONS.map((integration, i) => (
               <IntegrationChip key={integration.name} integration={integration} alignRight={i >= 2} />
             ))}
@@ -181,8 +181,8 @@ function IntegrationChip({ integration, alignRight = false }: { integration: Int
           className="cursor-pointer"
           onClick={() => setOpen(!open)}
         >
-          <div className="w-10 h-10 rounded-full flex items-center justify-center ring-2 ring-[#69B34A] bg-[#F7FFF2] text-[#544A78]">
-            <Icon className="w-[18px] h-[18px]" />
+          <div className="w-7 h-7 rounded-full flex items-center justify-center ring-[1.5px] ring-[#69B34A] bg-[#F7FFF2] text-[#544A78]">
+            <Icon className="w-3.5 h-3.5" />
           </div>
         </button>
         {!open && tooltip}
@@ -199,8 +199,8 @@ function IntegrationChip({ integration, alignRight = false }: { integration: Int
       className="relative group cursor-pointer"
       onClick={() => {/* TODO: open integration setup */}}
     >
-      <div className="w-10 h-10 rounded-full flex items-center justify-center ring-2 ring-[#E2DEEC] bg-[#F7F5FA] text-[#8A80A8] opacity-50 group-hover:opacity-100 group-hover:ring-coral transition-all duration-100">
-        <Icon className="w-[18px] h-[18px]" />
+      <div className="w-7 h-7 rounded-full flex items-center justify-center ring-[1.5px] ring-[#E2DEEC] bg-[#F7F5FA] text-[#8A80A8] opacity-50 group-hover:opacity-100 group-hover:ring-coral transition-all duration-100">
+        <Icon className="w-3.5 h-3.5" />
       </div>
       {tooltip}
     </button>
