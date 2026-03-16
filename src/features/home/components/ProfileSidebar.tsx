@@ -184,7 +184,7 @@ export default function ProfileSidebar() {
         isOpen={showPlanModal}
         onClose={() => setShowPlanModal(false)}
         onSubmit={async (data: PlanFormData) => {
-          await createPlan.mutateAsync(data);
+          await createPlan.mutateAsync({ ...data, ownerId: data.ownerId ?? undefined });
           setShowPlanModal(false);
         }}
       />
