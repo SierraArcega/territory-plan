@@ -216,7 +216,7 @@ export default function MapV2Container({
       // Add state boundaries source
       map.current.addSource("states", {
         type: "geojson",
-        data: "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json",
+        data: "/us-states.json",
       });
 
       // Add district tiles source (cache-bust via version param)
