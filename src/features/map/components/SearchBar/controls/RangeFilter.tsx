@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 interface RangeFilterProps {
   label: string;
@@ -12,8 +13,22 @@ interface RangeFilterProps {
 }
 
 export default function RangeFilter({ label, column, min = 0, max = 999999, step = 1, onApply }: RangeFilterProps) {
-  const [minVal, setMinVal] = useState("");
-  const [maxVal, setMaxVal] = useState("");
+  // Read existing filter values for this column from the store
+  const searchFilters = useMapV2Store((s) => s.searchFilters);
+  const existingFilter = searchFilters.find((f) => f.column === column && f.op === "between");
+  const existingValues = existingFilter && Array.isArray(existingFilter.value)
+    ? (existingFilter.value as [number, number])
+    : [min, max];
+
+  const [minVal, setMinVal] = useState(existingValues[0] !== undefined ? String(existingValues[0]) : "");
+  const [maxVal, setMaxVal] = useState(existingValues[1] !== undefined ? String(existingValues[1]) : "");
+
+  // Sync when existing filter changes externally (e.g., cleared from pills)
+  useEffect(() => {
+    setMinVal(existingValues[0] !== undefined ? String(existingValues[0]) : "");
+    setMaxVal(existingValues[1] !== undefined ? String(existingValues[1]) : "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingFilter?.id]);
 
   const handleApply = () => {
     const lo = minVal ? Number(minVal) : min;
