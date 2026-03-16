@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import React from "react";
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import { AsyncMultiSelect } from "../AsyncMultiSelect";
 import type { MultiSelectOption } from "../MultiSelect";
@@ -119,24 +120,41 @@ describe("AsyncMultiSelect — selection and label persistence", () => {
 
   it("persists chip label after results are cleared by a new search", async () => {
     vi.useFakeTimers();
-    const { onSearch } = setup({ selected: [] });
-    onSearch.mockResolvedValue(RESULTS);
+    const onSearch = vi.fn().mockResolvedValue(RESULTS);
+    const onChange = vi.fn();
 
-    // Open and select lea001
+    // Stateful wrapper so we can simulate the parent re-rendering with updated selection
+    function Wrapper() {
+      const [selected, setSelected] = React.useState<string[]>([]);
+      return (
+        <AsyncMultiSelect
+          id="test-async"
+          label="Districts"
+          selected={selected}
+          onChange={(vals) => { onChange(vals); setSelected(vals); }}
+          onSearch={onSearch}
+          placeholder="Search districts…"
+          countLabel="districts"
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    // Open and select lea001 by triggering search and clicking result
     fireEvent.click(screen.getByRole("button"));
     await triggerSearch("Li");
     expect(screen.getByText("Lincoln USD (CA)")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Lincoln USD (CA)"));
 
-    // Now do a second search that returns nothing — labelMap should still hold the label
+    // Now change the search to something that returns no results —
+    // async act flushes the debounce timer and the resolved/rejected promise together
     onSearch.mockResolvedValue([]);
-    await triggerSearch("zz");
+    await triggerSearch("zzz");
+    expect(onSearch).toHaveBeenCalledWith("zzz");
 
-    // The chip "Lincoln USD (CA)" should still be visible because onChange was called
-    // with ["lea001"] and the parent re-renders with that selection, but since this
-    // is a controlled component test, we verify the labelMap stored the label by
-    // checking onChange was called correctly and the label was mapped.
-    expect(onSearch).toHaveBeenCalledWith("zz");
+    // The chip for "Lincoln USD (CA)" must still be visible (labelMap preserved it)
+    expect(screen.getByText("Lincoln USD (CA)")).toBeInTheDocument();
     vi.useRealTimers();
   });
 });
@@ -162,5 +180,35 @@ describe("AsyncMultiSelect — close behaviour", () => {
     expect(screen.getByRole("textbox")).toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("clears query on first Escape when query is active, closes on second Escape", async () => {
+    vi.useFakeTimers();
+    const onSearch = vi.fn().mockResolvedValue(RESULTS);
+    render(
+      <AsyncMultiSelect
+        id="test-async"
+        label="Districts"
+        selected={[]}
+        onChange={vi.fn()}
+        onSearch={onSearch}
+        placeholder="Search districts…"
+      />
+    );
+
+    // Open and type a query
+    fireEvent.click(screen.getByRole("button"));
+    await triggerSearch("Li");
+    expect(screen.getByText("Lincoln USD (CA)")).toBeInTheDocument();
+
+    // First Escape: should clear query but keep dropdown open
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+    expect(screen.getByRole("textbox")).toBeInTheDocument(); // still open
+    expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(""); // query cleared
+
+    // Second Escape: should close dropdown
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
