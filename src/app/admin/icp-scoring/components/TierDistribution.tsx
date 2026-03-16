@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { District } from "../types";
-import { SectionCard, fmtNum, TIER_FILLS } from "./shared";
+import { SectionCard, Callout, fmtNum, TIER_FILLS } from "./shared";
 
 const TIER_NAMES = ["Tier 1", "Tier 2", "Tier 3", "Tier 4"] as const;
 
@@ -30,6 +30,12 @@ export default function TierDistribution({ data }: { data: District[] }) {
       title="Tier Distribution"
       description="How the 17,910 districts break into opportunity tiers"
     >
+      <Callout accent="coral">
+        <strong className="text-[#403770]">Tier 1 is small but dominant</strong> — just {tiers[0].pct.toFixed(1)}% of districts contain {fmtNum(tiers[0].revenue, { dollar: true })} in vendor revenue ({data.length > 0 ? ((tiers[0].revenue / data.reduce((s, d) => s + d.lifetime_vendor_rev, 0)) * 100).toFixed(0) : 0}% of total). Only {tiers[0].customers} of {tiers[0].count} Tier 1 districts are current customers — <strong className="text-[#403770]">{tiers[0].prospects} are untouched prospects</strong>. Tier 2 provides the volume play with {fmtNum(tiers[1].count)} districts averaging {fmtNum(tiers[1].avgEnrollment)} enrollment.
+      </Callout>
+
+      <div className="mt-4" />
+
       {/* Stacked bar */}
       <div className="h-8 rounded-lg overflow-hidden flex w-full">
         {tiers.map((tier) => (

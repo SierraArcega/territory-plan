@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { District } from "../types";
-import { SectionCard, fmtNum, SortArrow, TIER_FILLS } from "./shared";
+import { SectionCard, Callout, fmtNum, SortArrow, TIER_FILLS } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -222,6 +222,12 @@ export default function StateLandscape({ data }: { data: District[] }) {
       title="State Landscape"
       description="Geographic opportunity — where to focus sales effort"
     >
+      <Callout accent="steel">
+        <strong className="text-[#403770]">State structure matters more than state demographics.</strong> States with consolidated districts (median enrollment &gt;1,500) have 6-7x the penetration of fragmented states. SC leads at 34% penetration — proof of what dedicated territory coverage achieves. The biggest untapped TAM is in <strong className="text-[#403770]">CA</strong> (49 Tier 1 districts, 2.1% penetration), <strong className="text-[#403770]">TX</strong> (38 T1, 8.9%), and <strong className="text-[#403770]">NJ</strong> (47 T1, 21.4%). Only 2 of 50+ states have an assigned territory owner.
+      </Callout>
+
+      <div className="mt-4" />
+
       <div className="overflow-hidden border border-[#D4CFE2] rounded-lg">
         <table className="w-full border-collapse text-left">
           <thead className="bg-[#F7F5FA]">

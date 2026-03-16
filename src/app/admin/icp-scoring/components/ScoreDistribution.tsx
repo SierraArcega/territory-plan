@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { SectionCard, fmtNum } from "./shared";
+import { SectionCard, Callout, fmtNum } from "./shared";
 import type { District } from "../types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -117,6 +117,12 @@ export default function ScoreDistribution({ data }: ScoreDistributionProps) {
       title="Score Distribution"
       description="How composite scores are distributed across all districts"
     >
+      <Callout>
+        The distribution is <strong className="text-[#403770]">heavily right-skewed</strong> — most districts score between 20-45, with a long tail of high-scorers. The coral bars (60+) represent Tier 1 candidates: large, high-need, majority-minority suburban/city districts. The sub-score averages below show that <strong className="text-[#403770]">Fit and Value differentiate the top from the bottom</strong> more than Readiness or State scores.
+      </Callout>
+
+      <div className="mt-4" />
+
       {/* ── Histogram ── */}
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={buckets}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { StatCard, fmtNum } from "./shared";
+import { StatCard, Callout, fmtNum } from "./shared";
 import type { District } from "../types";
 
 // ─── Methodology Config ──────────────────────────────────────────────────────
@@ -74,6 +74,10 @@ export default function HeroSection({ data }: HeroSectionProps) {
             A composite scoring system that ranks districts by fit, revenue potential, purchase
             readiness, and state environment.
           </p>
+
+          <Callout accent="plum">
+            Based on analysis of <strong className="text-[#403770]">1,087 existing customers</strong> across all vendors (Fullmind, Elevate K12, Proximity Learning, TBT, Educere) vs 17,887 non-customers. The strongest predictor is district size (3.3x lift), followed by majority-minority status (1.23x) and suburban/city locale. Each district receives scores across four dimensions that combine into a weighted composite.
+          </Callout>
 
           {/* Methodology Blocks */}
           <div className="mt-6 flex flex-col gap-4">

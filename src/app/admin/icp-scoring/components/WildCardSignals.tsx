@@ -11,7 +11,7 @@ import {
   Cell,
 } from "recharts";
 import type { District } from "../types";
-import { SectionCard, fmtNum } from "./shared";
+import { SectionCard, Callout, fmtNum } from "./shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -242,6 +242,12 @@ export default function WildCardSignals({ data }: { data: District[] }) {
       title="Wild Card Signals"
       description="Non-obvious behavioral patterns that predict purchasing"
     >
+      <Callout>
+        Beyond demographics, <strong className="text-[#403770]">behavioral signals are the strongest purchase predictors</strong>. Districts already outsourcing instruction (charter tuition, private SPED placements) buy at 4.5x the baseline rate. Districts buying from 2+ virtual instruction vendors spend 7.3x more. And slightly declining enrollment (0-5%) is the sweet spot — districts that are &quot;worried but not desperate.&quot; These factors are included in the Readiness sub-score.
+      </Callout>
+
+      <div className="mt-4" />
+
       <div className="grid grid-cols-3 gap-6">
         {/* Card 1: Outsourcing Behavior */}
         <div className="bg-[#F7F5FA] rounded-lg border border-[#E2DEEC] p-4">

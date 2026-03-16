@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { District } from "../types";
 import {
   SectionCard,
+  Callout,
   ScoreBar,
   TierBadge,
   fmtNum,
@@ -96,6 +97,12 @@ export default function TopProspects({ data }: { data: District[] }) {
       title="Top Prospects"
       description="Highest-scoring non-customer districts — your call list"
     >
+      <Callout accent="coral">
+        These are the highest-scoring districts that are <strong className="text-[#403770]">not yet customers</strong>. They match the ICP across all four dimensions — large, high-need, majority-minority suburban/city districts in states with favorable environments. The top prospects are concentrated in <strong className="text-[#403770]">NJ, SC, TX, GA, and IL</strong>. Many already purchase from competitors, signaling proven demand for virtual instruction.
+      </Callout>
+
+      <div className="mt-4" />
+
       <div className="grid grid-cols-2 gap-4">
         {prospects.slice(0, showCount).map((d) => (
           <ProspectCard key={d.leaid} d={d} />

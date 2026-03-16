@@ -138,6 +138,15 @@ export function ChartTooltip({ active, payload, label, valueLabel }: {
   );
 }
 
+export function Callout({ children, accent = "plum" }: { children: ReactNode; accent?: "plum" | "coral" | "steel" }) {
+  const borderColor = accent === "coral" ? "border-l-[#F37167]" : accent === "steel" ? "border-l-[#6EA3BE]" : "border-l-[#403770]";
+  return (
+    <div className={`border-l-[3px] ${borderColor} bg-[#F7F5FA] rounded-r-lg px-4 py-3 text-sm text-[#6E6390] leading-relaxed`}>
+      {children}
+    </div>
+  );
+}
+
 export function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-[#F7F5FA] rounded-lg px-3 py-2 border border-[#E2DEEC]">
