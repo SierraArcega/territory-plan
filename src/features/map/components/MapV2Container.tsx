@@ -227,7 +227,7 @@ export default function MapV2Container({
         map.current.addSource("districts", {
           type: "vector",
           tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${initialFy}${suffix}`],
-          minzoom: 3.5,
+          minzoom: 2,
           maxzoom: 12,
         });
       }
@@ -302,7 +302,7 @@ export default function MapV2Container({
         "source-layer": "districts",
         paint: {
           "fill-color": "#E5E7EB",
-          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0.2, 5, 0.4],
+          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.15, 4, 0.3, 5, 0.4],
         },
       });
 
