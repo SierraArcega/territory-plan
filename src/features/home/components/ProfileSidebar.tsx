@@ -5,6 +5,10 @@ import { useProfile } from "@/lib/api";
 import { useCalendarConnection } from "@/features/calendar/lib/queries";
 import { useGoalDashboard } from "@/features/goals/lib/queries";
 import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
+import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
+import { useCreateTerritoryPlan } from "@/lib/api";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
+import TaskFormModal from "@/features/tasks/components/TaskFormModal";
 import {
   Calendar,
   Clock,
@@ -15,6 +19,10 @@ import {
   Phone,
   MapPin,
   Check,
+  Map,
+  FileEdit,
+  ListPlus,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +63,10 @@ function relativeTime(date: string | null): string {
 
 export default function ProfileSidebar() {
   const { data: profile, isLoading } = useProfile();
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const createPlan = useCreateTerritoryPlan();
 
   const initials = profile?.fullName
     ? profile.fullName
@@ -100,35 +112,19 @@ export default function ProfileSidebar() {
             </p>
           )}
 
-          {/* ---- Contact Details ---- */}
-          {!isLoading && (profile?.email || profile?.phone || profile?.location) && (
-            <div className="mt-4 self-stretch flex flex-col gap-1.5 text-[#A69DC0]">
-              {profile?.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 shrink-0" />
-                  <span className="text-xs font-medium text-[#8A80A8]">{profile.email}</span>
-                </div>
-              )}
-              {profile?.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 shrink-0" />
-                  <span className="text-xs font-medium text-[#8A80A8]">{profile.phone}</span>
-                </div>
-              )}
-              {profile?.location && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" />
-                  <span className="text-xs font-medium text-[#8A80A8]">{profile.location}</span>
-                </div>
-              )}
-              {profile?.lastLoginAt && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span className="text-xs font-medium text-[#8A80A8]">{relativeTime(profile.lastLoginAt)}</span>
-                </div>
-              )}
+          {/* ---- Quick Actions ---- */}
+          <div className="mt-4 self-stretch">
+            <div className="grid grid-cols-2 gap-2">
+              <QuickActionButton icon={Map} label="Create Plan" onClick={() => setShowPlanModal(true)} />
+              <QuickActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
+              <QuickActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
+              <QuickActionButton
+                icon={ExternalLink}
+                label="Create Opp"
+                onClick={() => window.open("https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26", "_blank")}
+              />
             </div>
-          )}
+          </div>
         </div>
 
         {/* ---- Fiscal Year Summary ---- */}
@@ -138,7 +134,7 @@ export default function ProfileSidebar() {
         <div className="h-px bg-[#E2DEEC]" />
 
         {/* ---- Integrations ---- */}
-        <div className="mt-6 pb-32">
+        <div className="mt-6">
           <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
             Integrations
           </p>
@@ -148,8 +144,83 @@ export default function ProfileSidebar() {
             ))}
           </div>
         </div>
+
+        {/* ---- Divider ---- */}
+        <div className="h-px bg-[#E2DEEC] mt-6" />
+
+        {/* ---- Contact Details ---- */}
+        {!isLoading && (profile?.email || profile?.phone || profile?.location) && (
+          <div className="mt-6 pb-8 flex flex-col gap-1.5 text-[#A69DC0]">
+            {profile?.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-medium text-[#8A80A8]">{profile.email}</span>
+              </div>
+            )}
+            {profile?.phone && (
+              <div className="flex items-center gap-2">
+                <Phone className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-medium text-[#8A80A8]">{profile.phone}</span>
+              </div>
+            )}
+            {profile?.location && (
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-medium text-[#8A80A8]">{profile.location}</span>
+              </div>
+            )}
+            {profile?.lastLoginAt && (
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-xs font-medium text-[#8A80A8]">{relativeTime(profile.lastLoginAt)}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Modals */}
+      <PlanFormModal
+        isOpen={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        onSubmit={async (data: PlanFormData) => {
+          await createPlan.mutateAsync(data);
+          setShowPlanModal(false);
+        }}
+      />
+      <ActivityFormModal
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+      />
+      <TaskFormModal
+        isOpen={showTaskModal}
+        onClose={() => setShowTaskModal(false)}
+      />
     </aside>
+  );
+}
+
+// ============================================================================
+// QuickActionButton
+// ============================================================================
+
+function QuickActionButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Map;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#544A78] bg-[#F7F5FA] rounded-lg hover:bg-[#EFEDF5] transition-colors cursor-pointer"
+    >
+      <Icon className="w-3.5 h-3.5 text-[#8A80A8]" />
+      {label}
+    </button>
   );
 }
 
