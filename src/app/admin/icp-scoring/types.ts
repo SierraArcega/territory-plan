@@ -34,6 +34,7 @@ export interface District {
   state_score: number;
   composite_score: number;
   tier: string;
+  fy26_fm_ek12_rev: number;
   fit_details: string;
   value_details: string;
   readiness_details: string;

@@ -31,6 +31,33 @@ function ProspectCard({ d }: { d: District }) {
 
   return (
     <div className="bg-white rounded-lg border border-[#D4CFE2] p-4 hover:border-[#C2BBD4] transition-colors duration-100">
+      {/* Top row: status badges + claim action */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          {d.is_customer && (
+            <span className="text-[10px] font-semibold text-[#3d7a28] bg-[#F7FFF2] px-2 py-0.5 rounded-full border border-[#8AC670]">
+              Customer
+            </span>
+          )}
+          {d.fy26_fm_ek12_rev > 0 && (
+            <span className="text-[10px] font-semibold text-[#3d6f84] bg-[#e8f1f5] px-2 py-0.5 rounded-full border border-[#8bb5cb]">
+              FY26 {fmtNum(d.fy26_fm_ek12_rev, { dollar: true })}
+            </span>
+          )}
+          {!d.is_customer && d.fy26_fm_ek12_rev === 0 && d.lifetime_vendor_rev > 0 && (
+            <span className="text-[10px] font-medium text-[#8A80A8] bg-[#F7F5FA] px-2 py-0.5 rounded-full border border-[#E2DEEC]">
+              {fmtNum(d.lifetime_vendor_rev, { dollar: true })} lifetime
+            </span>
+          )}
+        </div>
+        <ClaimButton
+          leaid={d.leaid}
+          districtName={d.name}
+          isCustomer={d.is_customer}
+          owner={d.owner}
+        />
+      </div>
+
       {/* Main row */}
       <div className="flex items-start gap-4">
         {/* Left: composite score + tier badge */}
@@ -65,9 +92,9 @@ function ProspectCard({ d }: { d: District }) {
         </div>
       </div>
 
-      {/* Fact pills + claim action */}
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex flex-wrap gap-1.5">
+      {/* Fact pills row */}
+      {pills.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
           {pills.map((pill) => (
             <span
               key={pill}
@@ -77,13 +104,7 @@ function ProspectCard({ d }: { d: District }) {
             </span>
           ))}
         </div>
-        <ClaimButton
-          leaid={d.leaid}
-          districtName={d.name}
-          isCustomer={d.is_customer}
-          owner={d.owner}
-        />
-      </div>
+      )}
     </div>
   );
 }
