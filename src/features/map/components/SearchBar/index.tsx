@@ -111,11 +111,11 @@ export default function SearchBar() {
   return (
     <div className="search-bar-root shrink-0 relative z-20 flex flex-col">
       {/* Main bar */}
-      <div className="flex items-center gap-1.5 bg-white border-b border-[#D4CFE2]/60 px-3 py-2">
+      <div className="flex items-center gap-2 bg-[#F7F5FA] border-b border-[#D4CFE2] px-3 py-2">
         {/* Search input */}
-        <div className="relative flex-1 min-w-[160px] max-w-[280px]">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-[#A69DC0] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="relative flex-1 min-w-[160px] max-w-[300px]">
+          <div className="flex items-center gap-2 bg-white rounded-lg border border-[#C2BBD4] px-2.5 py-1.5 focus-within:border-plum focus-within:ring-2 focus-within:ring-plum/15 transition-all">
+            <svg className="w-4 h-4 text-plum/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -125,7 +125,7 @@ export default function SearchBar() {
               onChange={(e) => handleQueryChange(e.target.value)}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               placeholder="Search districts, cities, ZIP..."
-              className="w-full bg-transparent text-sm text-[#544A78] placeholder:text-[#A69DC0] focus:outline-none"
+              className="w-full bg-transparent text-sm text-[#544A78] placeholder:text-[#8A80A8] focus:outline-none"
             />
             {query && (
               <button
@@ -159,10 +159,10 @@ export default function SearchBar() {
         </div>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-[#E2DEEC]" />
+        <div className="w-px h-6 bg-[#D4CFE2]" />
 
-        {/* 5 domain filter buttons */}
-        <div className="flex items-center gap-0.5">
+        {/* 6 domain filter buttons */}
+        <div className="flex items-center gap-1">
           <DomainButton label="Geography" domain="geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} filters={searchFilters} />
           <DomainButton label="Fullmind" domain="fullmind" isOpen={openDropdown === "fullmind"} onClick={() => toggleDropdown("fullmind")} filters={searchFilters} />
           <DomainButton label="Competitors" domain="competitors" isOpen={openDropdown === "competitors"} onClick={() => toggleDropdown("competitors")} filters={searchFilters} />
@@ -174,10 +174,10 @@ export default function SearchBar() {
         {/* Clear filters */}
         {activeFilterCount > 0 && (
           <>
-            <div className="w-px h-6 bg-[#E2DEEC]" />
+            <div className="w-px h-6 bg-[#D4CFE2]" />
             <button
               onClick={() => useMapV2Store.getState().clearSearchFilters()}
-              className="text-xs text-coral hover:text-coral/80 font-medium whitespace-nowrap"
+              className="text-xs text-coral hover:text-coral/80 font-semibold whitespace-nowrap"
             >
               Clear {activeFilterCount}
             </button>
@@ -185,12 +185,12 @@ export default function SearchBar() {
         )}
 
         {/* Divider */}
-        <div className="w-px h-6 bg-[#E2DEEC]" />
+        <div className="w-px h-6 bg-[#D4CFE2]" />
 
         {/* Gear icon for Layers */}
         <button
           onClick={() => { setOpenDropdown(null); toggleLayerBubble(); }}
-          className="p-1.5 rounded-lg text-[#8A80A8] hover:bg-[#EFEDF5] hover:text-plum transition-colors"
+          className="p-1.5 rounded-lg text-plum/50 hover:bg-white hover:text-plum transition-colors"
           title="Map Layers"
         >
           <Settings className="w-4 h-4" />
@@ -199,7 +199,7 @@ export default function SearchBar() {
 
       {/* Active filter pills — in flow, part of toolbar */}
       {searchFilters.length > 0 && (
-        <div className="bg-white border-b border-[#D4CFE2]/60 px-3 py-1.5">
+        <div className="bg-white border-b border-[#D4CFE2] px-3 py-1.5">
           <FilterPills />
         </div>
       )}
@@ -237,15 +237,19 @@ function DomainButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
         isOpen
-          ? "bg-plum/10 text-plum"
-          : "text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#544A78]"
+          ? "bg-plum text-white shadow-sm"
+          : count > 0
+            ? "bg-white text-plum border border-plum/20 shadow-sm hover:bg-plum/5"
+            : "text-[#544A78] hover:bg-white hover:shadow-sm"
       }`}
     >
       {label}
       {count > 0 && (
-        <span className="rounded-full bg-coral text-white text-[9px] font-bold flex items-center justify-center leading-none min-w-[16px] h-4 px-1">
+        <span className={`rounded-full text-[9px] font-bold flex items-center justify-center leading-none min-w-[16px] h-4 px-1 ${
+          isOpen ? "bg-white/25 text-white" : "bg-coral text-white"
+        }`}>
           {count}
         </span>
       )}

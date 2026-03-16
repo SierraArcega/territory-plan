@@ -60,6 +60,7 @@ export default function SearchResults() {
   const [totalPages, setTotalPages] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const shouldFitBoundsRef = useRef(false);
 
   // Fetch results — reads from store snapshot to avoid stale closures
   const fetchResults = useCallback(async (pageNum: number) => {
@@ -104,21 +105,24 @@ export default function SearchResults() {
       state.setSearchResultLeaids(json.matchingLeaids ?? []);
       state.setSearchResultCentroids(json.matchingCentroids ?? []);
 
-      // Fit map to matching centroids, padded for the 40% results panel on the right
-      const centroids = json.matchingCentroids as Array<{ lat: number; lng: number }> | undefined;
-      const map = mapV2Ref.current;
-      if (map && centroids && centroids.length > 0) {
-        const lngs = centroids.map((c) => c.lng);
-        const lats = centroids.map((c) => c.lat);
-        const sw: [number, number] = [Math.min(...lngs), Math.min(...lats)];
-        const ne: [number, number] = [Math.max(...lngs), Math.max(...lats)];
-        const container = map.getContainer();
-        const panelWidth = container.offsetWidth * 0.4;
-        map.fitBounds([sw, ne], {
-          padding: { top: 40, bottom: 40, left: 40, right: panelWidth + 40 },
-          maxZoom: 12,
-          duration: 1000,
-        });
+      // Fit map to matching centroids only when filters change (not on pan/zoom)
+      if (shouldFitBoundsRef.current) {
+        shouldFitBoundsRef.current = false;
+        const centroids = json.matchingCentroids as Array<{ lat: number; lng: number }> | undefined;
+        const map = mapV2Ref.current;
+        if (map && centroids && centroids.length > 0) {
+          const lngs = centroids.map((c) => c.lng);
+          const lats = centroids.map((c) => c.lat);
+          const sw: [number, number] = [Math.min(...lngs), Math.min(...lats)];
+          const ne: [number, number] = [Math.max(...lngs), Math.max(...lats)];
+          const container = map.getContainer();
+          const panelWidth = container.offsetWidth * 0.4;
+          map.fitBounds([sw, ne], {
+            padding: { top: 40, bottom: 40, left: 40, right: panelWidth + 40 },
+            maxZoom: 12,
+            duration: 1000,
+          });
+        }
       }
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
@@ -129,17 +133,26 @@ export default function SearchResults() {
     }
   }, []);
 
-  // Re-fetch when filters, bounds, or sort change
+  // Re-fetch when filters change — also fit map to results
   useEffect(() => {
     if (!isSearchActive) {
       setDistricts([]);
       setTotal(0);
       return;
     }
+    shouldFitBoundsRef.current = true;
     setPage(1);
     fetchResults(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchFilters, searchBounds, searchSort, isSearchActive]);
+  }, [searchFilters, searchSort, isSearchActive]);
+
+  // Re-fetch when bounds change (pan/zoom) — no fitBounds to avoid loop
+  useEffect(() => {
+    if (!isSearchActive || !searchBounds) return;
+    setPage(1);
+    fetchResults(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchBounds]);
 
   // Pagination
   const goToPage = (p: number) => {
