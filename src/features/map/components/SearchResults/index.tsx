@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react";
 // useCallback kept for handleSelectAll below
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
+import { useTerritoryPlans, useAddDistrictsToPlan } from "@/features/plans/lib/queries";
 import DistrictSearchCard from "./DistrictSearchCard";
 import SearchBulkBar from "./SearchBulkBar";
 
@@ -53,9 +54,18 @@ export default function SearchResults() {
   const setDistrictSelection = useMapV2Store((s) => s.setDistrictSelection);
   const setSearchResultLeaids = useMapV2Store((s) => s.setSearchResultLeaids);
 
+  const { data: plans } = useTerritoryPlans();
+  const addDistricts = useAddDistrictsToPlan();
+  const searchResultLeaids = useMapV2Store((s) => s.searchResultLeaids);
+
   const [districts, setDistricts] = useState<SearchResultDistrict[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
+  const [showAddAllDropdown, setShowAddAllDropdown] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [showSaveSearch, setShowSaveSearch] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState("");
+  const addAllRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -169,6 +179,101 @@ export default function SearchResults() {
     { column: "fy26_open_pipeline_value", label: "Pipeline Value" },
   ];
 
+  // Close add-all dropdown on outside click
+  useEffect(() => {
+    if (!showAddAllDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (addAllRef.current && !addAllRef.current.contains(e.target as Node)) {
+        setShowAddAllDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showAddAllDropdown]);
+
+  const handleAddAllToPlan = async (planId: string) => {
+    if (searchResultLeaids.length === 0) return;
+    try {
+      await addDistricts.mutateAsync({ planId, leaids: searchResultLeaids });
+      setShowAddAllDropdown(false);
+    } catch (error) {
+      console.error("Failed to add districts to plan:", error);
+    }
+  };
+
+  // Export all matching districts as CSV
+  const handleExportCsv = useCallback(async () => {
+    const state = useMapV2Store.getState();
+    if (!state.isSearchActive) return;
+    setExporting(true);
+
+    try {
+      // Fetch all results (no pagination limit)
+      const params = new URLSearchParams();
+      if (state.searchBounds) params.set("bounds", state.searchBounds.join(","));
+      if (state.searchFilters.length > 0) params.set("filters", JSON.stringify(state.searchFilters));
+      params.set("sort", state.searchSort.column);
+      params.set("order", state.searchSort.direction);
+      params.set("page", "1");
+      params.set("limit", "10000");
+
+      const res = await fetch(`/api/districts/search?${params}`);
+      if (!res.ok) throw new Error("Export failed");
+      const json = await res.json();
+      const rows = json.data as SearchResultDistrict[];
+
+      // Build CSV
+      const headers = ["LEAID", "Name", "State", "County", "Enrollment", "Customer", "Owner", "ELL %", "SWD %", "Poverty %", "Median Income", "$/Pupil", "FY26 Pipeline", "FY26 Bookings", "Plans"];
+      const csvRows = rows.map((d) => [
+        d.leaid,
+        `"${(d.name || "").replace(/"/g, '""')}"`,
+        d.stateAbbrev,
+        d.countyName || "",
+        d.enrollment ?? "",
+        d.isCustomer ? "Yes" : "No",
+        d.owner || "",
+        d.ellPct != null ? `${Number(d.ellPct).toFixed(1)}%` : "",
+        d.swdPct != null ? `${Number(d.swdPct).toFixed(1)}%` : "",
+        d.childrenPovertyPercent != null ? `${Number(d.childrenPovertyPercent).toFixed(1)}%` : "",
+        d.medianHouseholdIncome ?? "",
+        d.expenditurePerPupil ?? "",
+        d.fy26OpenPipeline ?? "",
+        d.fy26ClosedWonNetBooking ?? "",
+        `"${(d.territoryPlans || []).map((tp) => tp.plan.name).join(", ")}"`,
+      ].join(","));
+
+      const csv = [headers.join(","), ...csvRows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `district-search-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export failed:", error);
+    } finally {
+      setExporting(false);
+    }
+  }, []);
+
+  // Save current search filters as a named preset
+  const handleSaveSearch = () => {
+    if (!saveSearchName.trim()) return;
+    const state = useMapV2Store.getState();
+    const saved = JSON.parse(localStorage.getItem("savedSearches") || "[]");
+    saved.push({
+      id: crypto.randomUUID(),
+      name: saveSearchName.trim(),
+      filters: state.searchFilters,
+      sort: state.searchSort,
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem("savedSearches", JSON.stringify(saved));
+    setSaveSearchName("");
+    setShowSaveSearch(false);
+  };
+
   // Select all visible
   const handleSelectAll = useCallback(() => {
     const allLeaids = districts.map((d) => d.leaid);
@@ -185,7 +290,10 @@ export default function SearchResults() {
   const selectedCount = selectedDistrictLeaids.size;
 
   return (
-    <div className="absolute top-0 right-0 bottom-0 w-[40%] z-10 flex flex-col bg-white border-l border-[#D4CFE2]/60 overflow-hidden">
+    <div
+      className="absolute top-0 right-0 bottom-0 w-[40%] z-10 flex flex-col bg-white border-l border-[#D4CFE2]/60 overflow-hidden"
+      onMouseEnter={() => useMapV2Store.getState().hideTooltip()}
+    >
       {/* Header */}
       <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -239,6 +347,100 @@ export default function SearchResults() {
           </button>
         </div>
       </div>
+
+      {/* Actions bar */}
+      {total > 0 && (
+        <div ref={addAllRef} className="relative px-4 py-2 border-b border-[#E2DEEC] bg-[#F7F5FA] shrink-0 flex items-center gap-2">
+          {/* Save Search */}
+          {showSaveSearch ? (
+            <div className="flex items-center gap-1.5 flex-1">
+              <input
+                type="text"
+                value={saveSearchName}
+                onChange={(e) => setSaveSearchName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveSearch()}
+                placeholder="Search name..."
+                autoFocus
+                className="flex-1 px-2 py-1 text-xs rounded border border-[#C2BBD4] bg-white focus:outline-none focus:ring-1 focus:ring-plum/30"
+              />
+              <button
+                onClick={handleSaveSearch}
+                disabled={!saveSearchName.trim()}
+                className="px-2 py-1 rounded text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-40"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setShowSaveSearch(false); setSaveSearchName(""); }}
+                className="text-[#A69DC0] hover:text-[#6E6390]"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSaveSearch(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] hover:border-plum/30 hover:text-plum transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+              Save Search
+            </button>
+          )}
+
+          {/* Export CSV */}
+          {!showSaveSearch && (
+            <button
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] hover:border-plum/30 hover:text-plum transition-colors disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {exporting ? "Exporting..." : "Export CSV"}
+            </button>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Add to Plan */}
+          <button
+            onClick={() => setShowAddAllDropdown(!showAddAllDropdown)}
+            disabled={addDistricts.isPending}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-50"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {addDistricts.isPending ? "Adding..." : `Add ${total > 25 ? "All " : ""}${total.toLocaleString()} to Plan`}
+          </button>
+
+          {showAddAllDropdown && plans && (
+            <div className="absolute right-4 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-[#D4CFE2] overflow-hidden z-50">
+              <div className="px-3 py-2 border-b border-[#E2DEEC]">
+                <span className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">Choose a plan</span>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {plans.map((plan) => (
+                  <button
+                    key={plan.id}
+                    onClick={() => handleAddAllToPlan(plan.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[#EFEDF5] text-[#544A78] transition-colors"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+                    <span className="truncate">{plan.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Results grid — two columns with scroll */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
