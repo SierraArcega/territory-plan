@@ -12,6 +12,7 @@ import {
   LOCALE_MAP,
   SCORE_COLORS,
 } from "./shared";
+import ClaimButton from "./ClaimButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -153,7 +154,15 @@ function StatusBadge({ d }: { d: District }) {
       </span>
     );
   }
-  return <span className="text-[#A69DC0]">—</span>;
+  return (
+    <ClaimButton
+      leaid={d.leaid}
+      districtName={d.name}
+      isCustomer={d.is_customer}
+      owner={d.owner}
+      compact
+    />
+  );
 }
 
 interface DetailColumnProps {
@@ -521,7 +530,7 @@ export default function DistrictExplorer({ data }: { data: District[] }) {
                     <ColHeader label="FRPL%" colKey="frpl_rate" width="65px" align="right" {...colHeaderProps} />
                     <ColHeader label="Abs%" colKey="chronic_absenteeism" width="65px" align="right" {...colHeaderProps} />
                     <ColHeader label="Vendor$" colKey="lifetime_vendor_rev" width="90px" align="right" {...colHeaderProps} />
-                    <ColHeader label="Status" colKey="is_customer" width="80px" {...colHeaderProps} />
+                    <ColHeader label="Status" colKey="is_customer" width="130px" {...colHeaderProps} />
                   </tr>
                 </thead>
                 <tbody>

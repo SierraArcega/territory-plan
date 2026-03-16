@@ -10,6 +10,7 @@ import {
   fmtNum,
   SCORE_BAR_CLASSES,
 } from "./shared";
+import ClaimButton from "./ClaimButton";
 
 function ProspectCard({ d }: { d: District }) {
   const cityState = [d.city, d.state].filter(Boolean).join(", ");
@@ -64,9 +65,9 @@ function ProspectCard({ d }: { d: District }) {
         </div>
       </div>
 
-      {/* Fact pills row */}
-      {pills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
+      {/* Fact pills + claim action */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="flex flex-wrap gap-1.5">
           {pills.map((pill) => (
             <span
               key={pill}
@@ -76,7 +77,13 @@ function ProspectCard({ d }: { d: District }) {
             </span>
           ))}
         </div>
-      )}
+        <ClaimButton
+          leaid={d.leaid}
+          districtName={d.name}
+          isCustomer={d.is_customer}
+          owner={d.owner}
+        />
+      </div>
     </div>
   );
 }
