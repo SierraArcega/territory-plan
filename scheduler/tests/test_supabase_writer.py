@@ -115,15 +115,18 @@ def test_upsert_sessions_deletes_then_inserts():
         ],
     }
 
-    upsert_sessions(mock_conn, sessions_by_opp)
+    with patch("sync.supabase_writer.execute_values") as mock_exec_values:
+        upsert_sessions(mock_conn, sessions_by_opp)
 
-    calls = mock_cursor.execute.call_args_list
-    delete_sql = calls[0][0][0]
-    assert "DELETE FROM sessions" in delete_sql
-    insert_sql = calls[1][0][0]
-    assert "INSERT INTO sessions" in insert_sql
-    assert mock_cursor.execute.call_count == 3
-    mock_conn.commit.assert_called_once()
+        # Should have one DELETE call (batch delete by ANY)
+        delete_sql = mock_cursor.execute.call_args[0][0]
+        assert "DELETE FROM sessions" in delete_sql
+        mock_cursor.execute.assert_called_once()
+        # Should have one execute_values call with 2 rows
+        mock_exec_values.assert_called_once()
+        args = mock_exec_values.call_args
+        assert len(args[0][2]) == 2  # 2 session tuples
+        mock_conn.commit.assert_called_once()
 
 
 def test_upsert_sessions_empty_dict():
