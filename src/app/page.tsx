@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMapStore, TabId } from "@/features/shared/lib/app-store";
 import AppShell from "@/features/shared/components/layout/AppShell";
+import { useProfile } from "@/features/shared/lib/queries";
 import dynamic from "next/dynamic";
 import PlansView from "@/features/shared/components/views/PlansView";
 import ActivitiesView from "@/features/shared/components/views/ActivitiesView";
@@ -11,6 +12,7 @@ import TasksView from "@/features/shared/components/views/TasksView";
 import HomeView from "@/features/shared/components/views/HomeView";
 import ProfileView from "@/features/shared/components/views/ProfileView";
 import TeamProgressView from "@/features/progress/components/TeamProgressView";
+import AdminDashboard from "@/features/admin/components/AdminDashboard";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
 const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
@@ -26,7 +28,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "progress", "profile"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "progress", "profile", "admin"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -77,6 +79,10 @@ function HomeContent() {
     sidebarCollapsed,
     setSidebarCollapsed,
   } = useMapStore();
+
+  // Check if the current user is an admin
+  const { data: profile } = useProfile();
+  const isAdmin = profile?.role === "admin";
 
   // Track the selected plan ID for PlansView (from URL)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -188,6 +194,14 @@ function HomeContent() {
         return <HomeView />;
       case "profile":
         return <ProfileView />;
+      case "admin":
+        return (
+          <div className="h-full overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-6 py-8">
+              <AdminDashboard />
+            </div>
+          </div>
+        );
       default:
         return <HomeView />;
     }
@@ -205,6 +219,7 @@ function HomeContent() {
       }}
       sidebarCollapsed={sidebarCollapsed}
       onSidebarCollapsedChange={setSidebarCollapsed}
+      isAdmin={isAdmin}
     >
       {renderContent()}
     </AppShell>

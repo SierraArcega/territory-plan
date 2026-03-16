@@ -637,6 +637,15 @@ model ActivityState {
   @@map("activity_states")
 }
 
+// ===== User Roles =====
+enum UserRole {
+  admin
+  manager
+  rep
+
+  @@map("user_role")
+}
+
 // ===== User Profile & Goals =====
 // User profile - synced from Supabase Auth on login
 // Stores user preferences and tracks whether they've completed the initial setup wizard
@@ -646,6 +655,7 @@ model UserProfile {
   fullName          String?   @map("full_name") @db.VarChar(255)
   avatarUrl         String?   @map("avatar_url") @db.VarChar(500)
   jobTitle          String?   @map("job_title") @db.VarChar(255)
+  role              UserRole  @default(rep)
   location          String?   @db.VarChar(255)
   locationLat       Decimal?  @map("location_lat") @db.Decimal(10, 7)
   locationLng       Decimal?  @map("location_lng") @db.Decimal(10, 7)

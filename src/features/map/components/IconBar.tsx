@@ -5,6 +5,7 @@ import { useMapV2Store, type IconBarTab } from "@/features/map/lib/store";
 import { useProfile } from "@/lib/api";
 
 const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
+  { id: "selection", icon: "selection", label: "Selection" },
   { id: "home", icon: "home", label: "Home" },
   { id: "plans", icon: "plans", label: "Plans" },
   { id: "explore", icon: "explore", label: "Explore" },
@@ -44,6 +45,18 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
   const color = active ? "#403770" : "#9CA3AF";
 
   switch (type) {
+    case "selection":
+      return (
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="5.5" cy="13" r="3.5" stroke={color} strokeWidth="1.5"/>
+          <circle cx="14.5" cy="13" r="3.5" stroke={color} strokeWidth="1.5"/>
+          <path d="M9 13H11" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M2 7.5L4 13" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M18 7.5L16 13" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M4 9H8" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M12 9H16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      );
     case "plans":
       return (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -108,7 +121,6 @@ export default function IconBar() {
   const activeIconTab = useMapV2Store((s) => s.activeIconTab);
   const setActiveIconTab = useMapV2Store((s) => s.setActiveIconTab);
   const startNewPlan = useMapV2Store((s) => s.startNewPlan);
-  const collapsePanel = useMapV2Store((s) => s.collapsePanel);
   const { data: profile } = useProfile();
 
   const initials = profile
@@ -117,27 +129,6 @@ export default function IconBar() {
 
   return (
     <div className="flex flex-col items-center py-3 gap-1 w-[56px] border-r border-gray-200/60">
-      {/* Collapse / hide chevron */}
-      <button
-        onClick={collapsePanel}
-        className="w-9 h-5 rounded-md flex items-center justify-center text-gray-300 hover:text-plum hover:bg-gray-100 transition-all mb-1 group relative"
-        title="Minimize panel"
-        aria-label="Minimize panel"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M8.5 3.5L5 7L8.5 10.5"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-          Hide panel
-        </span>
-      </button>
-
       {tabs.map((tab) => {
         const isHome = tab.id === "home";
         const isActive = activeIconTab === tab.id;

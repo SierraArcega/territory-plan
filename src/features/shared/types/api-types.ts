@@ -399,6 +399,7 @@ export interface UserProfile {
   fullName: string | null;
   avatarUrl: string | null;
   jobTitle: string | null;
+  role: "admin" | "manager" | "rep";
   location: string | null;
   locationLat: number | null;
   locationLng: number | null;

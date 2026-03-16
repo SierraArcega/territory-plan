@@ -18,11 +18,19 @@ import SignalCard from "./signals/SignalCard";
 export default function DistrictDetailPanel() {
   const selectedLeaid = useMapV2Store((s) => s.selectedLeaid);
   const goBack = useMapV2Store((s) => s.goBack);
+  const panelHistory = useMapV2Store((s) => s.panelHistory);
+  const selectedLeaids = useMapV2Store((s) => s.selectedLeaids);
 
   const { data, isLoading, error } = useDistrictDetail(selectedLeaid);
 
   const district = data?.district;
   const contacts = data?.contacts || [];
+
+  // Show context-aware back label when navigating from a multi-district selection
+  const backOrigin = panelHistory[panelHistory.length - 1];
+  const backLabel = backOrigin === "MULTI_DISTRICT"
+    ? `← Back to ${selectedLeaids.size} selected`
+    : "District";
 
   return (
     <div className="flex flex-col h-full">
@@ -44,7 +52,7 @@ export default function DistrictDetailPanel() {
           </svg>
         </button>
         <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-          District
+          {backLabel}
         </span>
       </div>
 
