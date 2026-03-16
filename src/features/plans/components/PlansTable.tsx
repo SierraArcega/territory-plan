@@ -18,6 +18,7 @@ interface PlansTableProps {
   plans: TerritoryPlan[];
   onSelectPlan: (planId: string) => void;
   onEditPlan?: (plan: TerritoryPlan) => void;
+  onShowOnMap?: (planId: string) => void;
   toolbar?: React.ReactNode;
 }
 
@@ -50,20 +51,6 @@ function formatStatusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-// Format date for display as MM/DD/YYYY
-// Extracts the YYYY-MM-DD portion first so it works with both
-// bare date strings ("2026-02-05") and full ISO strings ("2026-02-05T00:00:00.000Z").
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "";
-  const datePart = dateString.split("T")[0];
-  const date = new Date(datePart + "T00:00:00");
-  return date.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-  });
-}
-
 // Sort order for plan statuses — used by the custom status comparator
 const PLAN_STATUS_ORDER: Record<string, number> = {
   planning: 0,
@@ -86,13 +73,6 @@ const planComparators: Record<string, SortComparator<TerritoryPlan>> = {
   },
   status: (a, b, dir) => {
     const r = (PLAN_STATUS_ORDER[a.status] ?? 9) - (PLAN_STATUS_ORDER[b.status] ?? 9);
-    return dir === "desc" ? -r : r;
-  },
-  startDate: (a, b, dir) => {
-    if (!a.startDate && !b.startDate) return 0;
-    if (!a.startDate) return 1;
-    if (!b.startDate) return -1;
-    const r = new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
     return dir === "desc" ? -r : r;
   },
 };
@@ -140,7 +120,7 @@ function DeleteConfirmModal({
   );
 }
 
-export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }: PlansTableProps) {
+export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMap, toolbar }: PlansTableProps) {
   const [planToDelete, setPlanToDelete] = useState<TerritoryPlan | null>(null);
 
   const updatePlan = useUpdateTerritoryPlan();
@@ -205,7 +185,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }:
   const totalDistrictCount = plans.reduce((sum, plan) => sum + plan.districtCount, 0);
 
   return (
-    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex flex-col">
+    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex flex-col flex-1 min-h-0">
       {toolbar && (
         <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
           {toolbar}
@@ -251,13 +231,6 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }:
                 sortState={sortState}
                 onSort={onSort}
                 className="w-[10%]"
-              />
-              <SortHeader
-                field="startDate"
-                label="Dates"
-                sortState={sortState}
-                onSort={onSort}
-                className="w-[16%]"
               />
               <SortHeader
                 field="districtCount"
@@ -333,27 +306,6 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }:
                   />
                 </td>
 
-                {/* Dates (editable date pickers) */}
-                <td className="px-2 py-1">
-                  <div className="flex items-center gap-0.5 text-xs text-[#8A80A8]">
-                    <InlineEditCell
-                      type="date"
-                      value={plan.startDate}
-                      onSave={async (value) => handleFieldUpdate(plan.id, "startDate", value)}
-                      placeholder="Start"
-                      className="text-xs"
-                    />
-                    <span className="text-[#A69DC0]">-</span>
-                    <InlineEditCell
-                      type="date"
-                      value={plan.endDate}
-                      onSave={async (value) => handleFieldUpdate(plan.id, "endDate", value)}
-                      placeholder="End"
-                      className="text-xs"
-                    />
-                  </div>
-                </td>
-
                 {/* Districts (clickable to navigate) */}
                 <td className="px-2 py-1.5 text-center">
                   <button
@@ -366,22 +318,28 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }:
 
                 {/* Actions */}
                 <td className="px-2 py-1.5 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    {onEditPlan && (
+                  <div className="flex items-center justify-end gap-2">
+                    {onShowOnMap && (
                       <button
-                        onClick={() => onEditPlan(plan)}
-                        className="text-xs text-[#403770] hover:text-[#F37167] transition-colors"
-                        aria-label="Edit plan"
+                        onClick={() => onShowOnMap(plan.id)}
+                        className="text-[#8A80A8] hover:text-[#403770] transition-colors"
+                        aria-label="Show plan on map"
+                        title="Show on map"
                       >
-                        View
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                          <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                        </svg>
                       </button>
                     )}
                     <button
                       onClick={() => setPlanToDelete(plan)}
-                      className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                      className="text-[#8A80A8] hover:text-[#F37167] transition-colors"
                       aria-label="Delete plan"
+                      title="Delete"
                     >
-                      Delete
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                      </svg>
                     </button>
                   </div>
                 </td>
@@ -391,7 +349,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, toolbar }:
           <tfoot className="bg-[#F7F5FA] border-t border-[#E2DEEC]" aria-label="footer">
             <tr>
               <td className="px-2 py-2"></td>
-              <td className="px-2 py-2" colSpan={6}>
+              <td className="px-2 py-2" colSpan={5}>
                 <span className="text-xs font-semibold text-[#6E6390]">
                   Total ({plans.length} plans)
                 </span>

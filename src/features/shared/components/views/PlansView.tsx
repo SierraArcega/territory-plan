@@ -67,17 +67,6 @@ export function applyPlanFilters(
   return result;
 }
 
-// Helper to format dates nicely
-function formatDate(dateString: string | null): string {
-  if (!dateString) return "";
-  const datePart = dateString.split("T")[0];
-  return new Date(datePart + "T00:00:00").toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 // Status badge styling
 function getStatusBadge(status: string) {
   switch (status) {
@@ -165,6 +154,13 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const { data: engagementData } = usePlanEngagement();
   const createPlan = useCreateTerritoryPlan();
   const updatePlan = useUpdateTerritoryPlan();
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
+
+  const handleShowOnMap = useCallback((planId: string) => {
+    setCurrentPlanId(planId);
+    setActiveTab("map");
+  }, [setCurrentPlanId, setActiveTab]);
 
   // --- Filter state ---
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -404,9 +400,9 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   };
 
   return (
-    <div className="h-full overflow-auto bg-[#FFFCFA]">
+    <div className="h-full flex flex-col bg-[#FFFCFA]">
       {/* Header */}
-      <header className="bg-white border-b border-[#D4CFE2] px-6 py-4">
+      <header className="bg-white border-b border-[#D4CFE2] px-6 py-4 shrink-0">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-[#403770]">Territory Plans</h1>
@@ -438,7 +434,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
       </header>
 
       {/* Content */}
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-4 flex-1 min-h-0 w-full flex flex-col">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
@@ -463,7 +459,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
           </div>
         ) : filteredPlans.length > 0 || (plans && plans.length > 0) ? (
           view === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-auto">
               {filteredPlans.map((plan) => (
                 <div
                   key={plan.id}
@@ -479,6 +475,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               plans={filteredPlans}
               onSelectPlan={onSelectPlan}
               onEditPlan={setPlanToEdit}
+              onShowOnMap={handleShowOnMap}
               toolbar={filterToolbar}
             />
           )
@@ -700,10 +697,6 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   }
 
   const statusBadge = getStatusBadge(plan.status);
-  const dateRange =
-    plan.startDate || plan.endDate
-      ? `${formatDate(plan.startDate)}${plan.startDate && plan.endDate ? " – " : ""}${formatDate(plan.endDate)}`
-      : null;
 
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
@@ -738,12 +731,6 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
                 <>
                   <span>·</span>
                   <span>{plan.owner.fullName}</span>
-                </>
-              )}
-              {dateRange && (
-                <>
-                  <span>·</span>
-                  <span>{dateRange}</span>
                 </>
               )}
               {plan.description && (
