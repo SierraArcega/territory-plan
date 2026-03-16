@@ -28,7 +28,7 @@ export default function AcademicsDropdown({ onClose }: AcademicsDropdownProps) {
   };
 
   return (
-    <div ref={ref} className="bg-white rounded-xl shadow-xl border border-[#D4CFE2] p-4 w-[340px] animate-in fade-in slide-in-from-top-1 duration-150">
+    <div ref={ref} className="bg-white rounded-xl shadow-xl border border-[#D4CFE2] p-4 w-[340px] max-h-[calc(100vh-140px)] overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[#544A78]">Academics</h3>
         <button onClick={onClose} className="text-[#A69DC0] hover:text-[#6E6390]">

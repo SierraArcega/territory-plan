@@ -35,7 +35,7 @@ export default function CompetitorsDropdown({ onClose }: CompetitorsDropdownProp
   };
 
   return (
-    <div ref={ref} className="bg-white rounded-xl shadow-xl border border-[#D4CFE2] p-4 w-[340px] animate-in fade-in slide-in-from-top-1 duration-150">
+    <div ref={ref} className="bg-white rounded-xl shadow-xl border border-[#D4CFE2] p-4 w-[340px] max-h-[calc(100vh-140px)] overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[#544A78]">Competitors</h3>
         <button onClick={onClose} className="text-[#A69DC0] hover:text-[#6E6390]">
@@ -76,9 +76,6 @@ export default function CompetitorsDropdown({ onClose }: CompetitorsDropdownProp
           onSelect={(opt) => addFilter(opt.column, opt.op, opt.value)}
         />
 
-        <p className="text-[10px] text-[#A69DC0] italic">
-          More competitor filters (spend ranges, engagement levels) coming soon.
-        </p>
       </div>
     </div>
   );
