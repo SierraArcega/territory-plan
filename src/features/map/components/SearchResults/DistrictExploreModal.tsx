@@ -187,19 +187,33 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
               className="bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden"
             >
           {/* Left sidebar */}
-          <div className="w-[260px] shrink-0 flex flex-col" style={{ background: "linear-gradient(180deg, #403770 0%, #544A78 100%)" }}>
+          <div className="w-[260px] shrink-0 flex flex-col" style={{ background: "linear-gradient(180deg, #F7F5FA 0%, #EFEDF5 100%)" }}>
             {isLoading ? (
               <SidebarSkeleton />
             ) : district ? (
-              <div className="flex flex-col h-full p-5 text-white">
-                {/* Badge */}
-                <span className="self-start px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/15 text-white/90 mb-4">
-                  {fullmindData?.isCustomer ? "Customer" : "Prospect"}
-                </span>
+              <div className="flex flex-col h-full p-5">
+                {/* Tags */}
+                {tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                        style={{ backgroundColor: `${tag.color}15`, color: tag.color, borderColor: `${tag.color}30` }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="self-start px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#403770]/10 text-[#403770] mb-4">
+                    {fullmindData?.isCustomer ? "Customer" : "Prospect"}
+                  </span>
+                )}
 
                 {/* Name */}
-                <h2 className="text-xl font-bold leading-tight mb-1.5">{district.name}</h2>
-                <p className="text-xs text-white/60 font-medium leading-relaxed">
+                <h2 className="text-xl font-bold leading-tight mb-1.5 text-[#403770]">{district.name}</h2>
+                <p className="text-xs text-[#8A80A8] font-medium leading-relaxed">
                   {district.stateAbbrev}
                   {district.countyName && ` · ${district.countyName}`}
                   {district.lograde && district.higrade && (
@@ -216,7 +230,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                         href={district.websiteUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#403770]/10 text-[#6E6390] hover:bg-[#403770]/15 hover:text-[#403770] transition-colors"
                         title="Visit Website"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +243,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                         href={district.jobBoardUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors"
+                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#403770]/10 text-[#6E6390] hover:bg-[#403770]/15 hover:text-[#403770] transition-colors"
                         title="View Job Board"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,7 +254,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   </div>
                 )}
 
-                <div className="w-full h-px bg-white/12 my-5" />
+                <div className="w-full h-px bg-[#E2DEEC] my-5" />
 
                 {/* Key stats */}
                 <div className="flex flex-col gap-1.5">
@@ -254,7 +268,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   )}
                 </div>
 
-                <div className="w-full h-px bg-white/12 my-5" />
+                <div className="w-full h-px bg-[#E2DEEC] my-5" />
 
 
               </div>
@@ -264,8 +278,8 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
           {/* Right content */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Tab header */}
-            <div className="flex items-center justify-between px-6 py-3 border-b border-[#E2DEEC]">
-              <div className="flex gap-1 overflow-x-auto">
+            <div className="flex items-center justify-between px-6">
+              <div className="flex gap-0 overflow-x-auto border-b border-[#E2DEEC]">
                 {([
                   { key: "fullmind", label: "Fullmind" },
                   { key: "competitors", label: "Competitors" },
@@ -278,10 +292,10 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   <button
                     key={key}
                     onClick={() => setActiveTab(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                    className={`px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
                       activeTab === key
-                        ? "bg-[#403770] text-white"
-                        : "text-[#8A80A8] hover:bg-[#EFEDF5] hover:text-[#544A78]"
+                        ? "text-[#403770] border-[#403770]"
+                        : "text-[#A69DC0] hover:text-[#544A78] border-transparent"
                     }`}
                   >
                     {label}
@@ -291,7 +305,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-[#A69DC0] hover:text-[#403770] hover:bg-[#EFEDF5] transition-colors"
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-[#C2BBD4] hover:text-[#403770] hover:bg-[#EFEDF5] transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -336,7 +350,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#E2DEEC]">
+            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#E2DEEC] bg-[#F7F5FA]">
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowPlanDropdown(!showPlanDropdown)}
@@ -411,8 +425,8 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
 function SidebarStat({ label, value, small }: { label: string; value: string; small?: boolean }) {
   return (
     <div className="flex justify-between items-baseline py-1.5">
-      <span className="text-[11px] font-medium text-white/55">{label}</span>
-      <span className={`font-bold text-white ${small ? "text-xs" : "text-sm"}`}>{value}</span>
+      <span className="text-[11px] font-medium text-[#A69DC0]">{label}</span>
+      <span className={`font-bold text-[#403770] ${small ? "text-xs" : "text-sm"}`}>{value}</span>
     </div>
   );
 }
@@ -510,26 +524,8 @@ function FullmindTab({
         </div>
       )}
 
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div className="mb-6">
-          <SectionLabel>Tags</SectionLabel>
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag.id}
-                className="px-2.5 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Empty state */}
-      {!fullmindData && activities.length === 0 && tags.length === 0 && memberPlans.length === 0 && (
+      {!fullmindData && activities.length === 0 && memberPlans.length === 0 && (
         <div className="text-center py-12">
           <p className="text-sm text-[#A69DC0]">No Fullmind data for this district.</p>
         </div>
@@ -953,7 +949,7 @@ function SchoolsTab({ district }: { district: { numberOfSchools: number | null; 
 // ─── Shared atoms ────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#A69DC0] mb-2.5">
+    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] mb-3">
       {children}
     </h3>
   );
@@ -961,7 +957,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function DataRow({ label, value, sub, last }: { label: string; value: string; sub?: string; last?: boolean }) {
   return (
-    <div className={`flex justify-between items-center py-2.5 ${last ? "" : "border-b border-[#E2DEEC]"}`}>
+    <div className={`flex justify-between items-center py-2.5 ${last ? "" : "border-b border-[#EFEDF5]"}`}>
       <span className="text-sm text-[#6E6390] font-medium">{label}</span>
       <span className="text-sm font-semibold text-[#403770]">
         {value}
@@ -975,14 +971,14 @@ function DataRow({ label, value, sub, last }: { label: string; value: string; su
 function SidebarSkeleton() {
   return (
     <div className="p-5 space-y-4">
-      <div className="h-4 w-16 bg-white/10 rounded-full animate-pulse" />
-      <div className="h-5 w-3/4 bg-white/10 rounded animate-pulse" />
-      <div className="h-3 w-1/2 bg-white/10 rounded animate-pulse" />
-      <div className="h-px bg-white/10 my-4" />
+      <div className="h-4 w-16 bg-[#E2DEEC] rounded-full animate-pulse" />
+      <div className="h-5 w-3/4 bg-[#E2DEEC] rounded animate-pulse" />
+      <div className="h-3 w-1/2 bg-[#E2DEEC] rounded animate-pulse" />
+      <div className="h-px bg-[#E2DEEC] my-4" />
       {[0, 1, 2, 3, 4].map((i) => (
         <div key={i} className="flex justify-between">
-          <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
-          <div className="h-3 w-12 bg-white/10 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-[#E2DEEC] rounded animate-pulse" />
+          <div className="h-3 w-12 bg-[#E2DEEC] rounded animate-pulse" />
         </div>
       ))}
     </div>
