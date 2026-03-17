@@ -292,7 +292,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   <button
                     key={key}
                     onClick={() => setActiveTab(key)}
-                    className={`px-4 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
+                    className={`shrink-0 px-3 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
                       activeTab === key
                         ? "text-[#403770] border-[#403770]"
                         : "text-[#A69DC0] hover:text-[#544A78] border-transparent"
