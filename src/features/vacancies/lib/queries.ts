@@ -4,7 +4,7 @@ import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 // ---------- Types ----------
 
 export interface Vacancy {
-  id: number;
+  id: string;
   leaid: string;
   title: string;
   schoolName: string | null;
@@ -53,7 +53,7 @@ export function useVacancies(leaid: string | null) {
     queryKey: ["vacancies", leaid],
     queryFn: () =>
       fetchJson<VacanciesResponse>(
-        `${API_BASE}/vacancies?leaid=${encodeURIComponent(leaid!)}`
+        `${API_BASE}/districts/${encodeURIComponent(leaid!)}/vacancies`
       ),
     enabled: !!leaid,
     staleTime: 5 * 60 * 1000, // 5 minutes — vacancy data doesn't change rapidly

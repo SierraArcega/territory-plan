@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,11 @@ export async function GET(
   { params }: { params: Promise<{ leaid: string }> }
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { leaid } = await params;
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get("status") || "open";

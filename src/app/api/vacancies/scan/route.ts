@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 import { enqueueScan } from "@/features/vacancies/lib/scan-queue";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,11 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { leaid } = body as { leaid?: string };
 
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
       data: {
         leaid,
         status: "pending",
-        triggeredBy: "api",
+        triggeredBy: user.email ?? user.id,
       },
     });
 

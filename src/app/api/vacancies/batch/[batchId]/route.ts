@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -7,22 +8,17 @@ export const dynamic = "force-dynamic";
  * GET /api/vacancies/batch/[batchId]
  *
  * Poll the progress of a bulk vacancy scan batch.
- *
- * Response: {
- *   batchId: string,
- *   total: number,
- *   completed: number,
- *   failed: number,
- *   pending: number,
- *   vacanciesFound: number,
- *   fullmindRelevant: number
- * }
  */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ batchId: string }> }
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { batchId } = await params;
 
     // Query all scans with this batchId

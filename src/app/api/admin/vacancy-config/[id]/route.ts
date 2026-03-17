@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getAdminUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
     const { id } = await params;
     const configId = parseInt(id, 10);
 
@@ -120,6 +126,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
     const { id } = await params;
     const configId = parseInt(id, 10);
 

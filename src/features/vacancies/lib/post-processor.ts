@@ -2,9 +2,6 @@ import prisma from "@/lib/prisma";
 import type { RawVacancy } from "./parsers/types";
 import { filterExcludedRoles } from "./role-filter";
 import { categorize } from "./categorizer";
-import { flagRelevance } from "./relevance-flagger";
-import { matchSchool } from "./school-matcher";
-import { matchContact } from "./contact-matcher";
 import { generateFingerprint } from "./fingerprint";
 
 interface ProcessResult {
@@ -24,53 +21,143 @@ function parseDatePosted(dateStr: string | undefined): Date | null {
 /** Minimum open vacancy count before we allow auto-closing on a zero-result scan */
 const PARTIAL_SCRAPE_THRESHOLD = 3;
 
+// ----- School matching helpers (inline to avoid N+1) -----
+
+const COMMON_SUFFIXES = [
+  "school", "elementary", "middle", "high", "es", "ms", "hs", "academy", "center",
+];
+
+function normalizeSchoolName(name: string): string {
+  let normalized = name.toLowerCase().trim();
+  for (const suffix of COMMON_SUFFIXES) {
+    normalized = normalized.replace(new RegExp(`\\b${suffix}\\b`, "gi"), "");
+  }
+  return normalized.replace(/\s+/g, " ").trim();
+}
+
+function bigrams(str: string): Set<string> {
+  const result = new Set<string>();
+  for (let i = 0; i < str.length - 1; i++) {
+    result.add(str.substring(i, i + 2));
+  }
+  return result;
+}
+
+function diceCoefficient(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bigramsA = bigrams(a);
+  const bigramsB = bigrams(b);
+  let intersection = 0;
+  for (const bg of bigramsA) {
+    if (bigramsB.has(bg)) intersection++;
+  }
+  return (2 * intersection) / (bigramsA.size + bigramsB.size);
+}
+
+const DICE_THRESHOLD = 0.8;
+
 /**
  * Main post-processing pipeline for scraped vacancies.
  *
- * Steps:
- * 1. Filter excluded roles
- * 2. For each remaining vacancy: categorize, flag relevance, match school/contact, fingerprint
- * 3. Upsert vacancies (insert new, update existing, reopen closed)
- * 4. Mark stale vacancies as closed (with partial-scrape safety check)
+ * Pre-loads all lookup data (keyword configs, schools, contacts) once,
+ * then processes each vacancy without additional DB queries.
  */
 export async function processVacancies(
   leaid: string,
   scanId: string,
   rawVacancies: RawVacancy[]
 ): Promise<ProcessResult> {
-  // Step 1: Filter excluded roles
-  const filtered = await filterExcludedRoles(rawVacancies);
+  // Pre-load all lookup data in parallel (fixes N+1 queries)
+  const [relevanceConfigs, schools, contacts, filtered] = await Promise.all([
+    prisma.vacancyKeywordConfig.findMany({
+      where: { type: "relevance" },
+      select: { label: true, keywords: true, serviceLine: true },
+    }),
+    prisma.school.findMany({
+      where: { leaid },
+      select: { ncessch: true, schoolName: true },
+    }),
+    prisma.contact.findMany({
+      where: { leaid, email: { not: null } },
+      select: { id: true, email: true },
+    }),
+    filterExcludedRoles(rawVacancies),
+  ]);
 
-  // Step 2: Process each vacancy
+  // Build contact email lookup map
+  const contactsByEmail = new Map<string, number>();
+  for (const c of contacts) {
+    if (c.email) {
+      contactsByEmail.set(c.email.toLowerCase().trim(), c.id);
+    }
+  }
+
+  // Pre-normalize school names for matching
+  const normalizedSchools = schools.map((s) => ({
+    ncessch: s.ncessch,
+    normalized: normalizeSchoolName(s.schoolName),
+  }));
+
   const now = new Date();
   const processedFingerprints: string[] = [];
   let fullmindRelevantCount = 0;
 
   for (const raw of filtered) {
     const category = categorize(raw.title);
-    const relevance = await flagRelevance({
-      title: raw.title,
-      rawText: raw.rawText,
-    });
 
-    const schoolNcessch = raw.schoolName
-      ? await matchSchool(raw.schoolName, leaid)
-      : null;
+    // Inline relevance flagging (uses pre-loaded configs)
+    let fullmindRelevant = false;
+    let relevanceReason: string | null = null;
+    const textToSearch = [raw.title, raw.rawText ?? ""].join(" ").toLowerCase();
+    for (const config of relevanceConfigs) {
+      for (const keyword of config.keywords) {
+        if (textToSearch.includes(keyword.toLowerCase())) {
+          fullmindRelevant = true;
+          relevanceReason = config.serviceLine
+            ? `${config.label} (${config.serviceLine})`
+            : config.label;
+          break;
+        }
+      }
+      if (fullmindRelevant) break;
+    }
 
+    // Inline school matching (uses pre-loaded schools)
+    let schoolNcessch: string | null = null;
+    if (raw.schoolName && normalizedSchools.length > 0) {
+      const normalizedInput = normalizeSchoolName(raw.schoolName);
+      // Exact match first
+      const exact = normalizedSchools.find((s) => s.normalized === normalizedInput);
+      if (exact) {
+        schoolNcessch = exact.ncessch;
+      } else {
+        // Fuzzy match
+        let bestScore = 0;
+        for (const s of normalizedSchools) {
+          const score = diceCoefficient(s.normalized, normalizedInput);
+          if (score > bestScore) {
+            bestScore = score;
+            schoolNcessch = s.ncessch;
+          }
+        }
+        if (bestScore < DICE_THRESHOLD) schoolNcessch = null;
+      }
+    }
+
+    // Inline contact matching (uses pre-loaded contacts)
     const contactId = raw.hiringEmail
-      ? await matchContact(raw.hiringEmail, leaid)
+      ? contactsByEmail.get(raw.hiringEmail.toLowerCase().trim()) ?? null
       : null;
 
     const fingerprint = generateFingerprint(leaid, raw.title, raw.schoolName);
     processedFingerprints.push(fingerprint);
 
-    if (relevance.fullmindRelevant) {
-      fullmindRelevantCount++;
-    }
+    if (fullmindRelevant) fullmindRelevantCount++;
 
     const datePosted = parseDatePosted(raw.datePosted);
 
-    // Step 3: Upsert vacancy
+    // Upsert vacancy
     await prisma.vacancy.upsert({
       where: { fingerprint },
       create: {
@@ -87,8 +174,8 @@ export async function processVacancies(
         contactId,
         startDate: raw.startDate ?? null,
         datePosted,
-        fullmindRelevant: relevance.fullmindRelevant,
-        relevanceReason: relevance.relevanceReason,
+        fullmindRelevant,
+        relevanceReason,
         sourceUrl: raw.sourceUrl ?? null,
         rawText: raw.rawText ?? null,
         firstSeenAt: now,
@@ -107,15 +194,15 @@ export async function processVacancies(
         contactId,
         startDate: raw.startDate ?? null,
         datePosted,
-        fullmindRelevant: relevance.fullmindRelevant,
-        relevanceReason: relevance.relevanceReason,
+        fullmindRelevant,
+        relevanceReason,
         sourceUrl: raw.sourceUrl ?? null,
         rawText: raw.rawText ?? null,
       },
     });
   }
 
-  // Step 4: Mark closed - find open vacancies for this leaid NOT in current scan
+  // Mark closed — find open vacancies for this leaid NOT in current scan
   if (processedFingerprints.length > 0) {
     await prisma.vacancy.updateMany({
       where: {

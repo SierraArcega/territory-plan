@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -7,20 +8,17 @@ export const dynamic = "force-dynamic";
  * GET /api/vacancies/scan/[scanId]
  *
  * Poll the status of a single vacancy scan.
- *
- * Response: {
- *   scanId: string,
- *   status: string,
- *   vacancyCount: number | null,
- *   fullmindRelevantCount: number | null,
- *   completedAt: string | null
- * }
  */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ scanId: string }> }
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { scanId } = await params;
 
     const scan = await prisma.vacancyScan.findUnique({
