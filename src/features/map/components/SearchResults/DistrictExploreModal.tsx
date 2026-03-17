@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/lib/api";
 import { useActivities } from "@/features/activities/lib/queries";
 import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrollmentDemographics, District, Tag, TerritoryPlan, ActivityListItem } from "@/features/shared/types/api-types";
+import VacancyList from "@/features/vacancies/components/VacancyList";
 
 interface CompetitorSpendRecord {
   competitor: string;
@@ -20,7 +21,7 @@ interface CompetitorSpendResponse {
   totalAllCompetitors: number;
 }
 
-type Tab = "fullmind" | "competitors" | "finance" | "demographics" | "academics" | "contacts" | "schools";
+type Tab = "fullmind" | "competitors" | "finance" | "demographics" | "academics" | "contacts" | "schools" | "vacancies";
 
 interface DistrictExploreModalProps {
   leaid: string;
@@ -82,6 +83,18 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
     },
     staleTime: 10 * 60 * 1000,
   });
+
+  // Vacancy count for tab badge
+  const { data: vacancyData } = useQuery<{ summary: { totalOpen: number }; vacancies: unknown[] }>({
+    queryKey: ["vacancies", leaid],
+    queryFn: async () => {
+      const res = await fetch(`/api/districts/${leaid}/vacancies`);
+      if (!res.ok) throw new Error("Failed to fetch vacancies");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const vacancyCount = vacancyData?.summary.totalOpen ?? 0;
 
   const district = data?.district;
   const fullmindData = data?.fullmindData;
@@ -288,6 +301,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   { key: "academics", label: "Academics" },
                   { key: "contacts", label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ""}` },
                   { key: "schools", label: "Schools" },
+                  { key: "vacancies", label: `Vacancies${vacancyCount > 0 ? ` (${vacancyCount})` : ""}` },
                 ] as { key: Tab; label: string }[]).map(({ key, label }) => (
                   <button
                     key={key}
@@ -346,6 +360,8 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                 <ContactsTab contacts={contacts} />
               ) : activeTab === "schools" ? (
                 <SchoolsTab district={district} />
+              ) : activeTab === "vacancies" ? (
+                <VacancyList leaid={leaid} />
               ) : null}
             </div>
 
