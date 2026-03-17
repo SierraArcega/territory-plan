@@ -3,24 +3,30 @@ import type { RawVacancy } from "./types";
 const USER_AGENT = "TerritoryPlanBuilder/1.0 (vacancy-scanner)";
 
 /**
- * Parse job listings from an AppliTrack job board page.
+ * Parse job listings from an AppliTrack job board.
  *
- * AppliTrack listing pages (e.g. `https://www.applitrack.com/districtname/onlineapp/default.aspx?all=1`)
- * contain an HTML table with rows for each posting. Each row typically includes:
- * title, category, location (school), posting date, and a link to the detail page.
+ * AppliTrack's landing page (default.aspx) only shows categories — the actual
+ * job listings are at `jobpostings/Output.asp?all=1`. Each listing is in a
+ * table with class="title" containing the job title, JobID, location, date
+ * posted, and position type.
  */
 export async function parseApplitrack(url: string): Promise<RawVacancy[]> {
-  // Ensure we're requesting the "all listings" view
-  const listingUrl = ensureAllListings(url);
-  const html = await fetchPage(listingUrl);
-  return extractListings(html, listingUrl);
+  const listingsUrl = buildListingsUrl(url);
+  const html = await fetchPage(listingsUrl);
+  return extractListings(html, listingsUrl);
 }
 
-function ensureAllListings(url: string): string {
+/**
+ * Convert any AppliTrack URL into the Output.asp listings URL.
+ * e.g. https://www.applitrack.com/bryantschools/onlineapp/
+ *   -> https://www.applitrack.com/bryantschools/onlineapp/jobpostings/Output.asp?all=1
+ */
+function buildListingsUrl(url: string): string {
   const parsed = new URL(url);
-  if (!parsed.searchParams.has("all")) {
-    parsed.searchParams.set("all", "1");
-  }
+  // Strip to the base onlineapp path
+  const basePath = parsed.pathname.replace(/\/(default\.aspx|jobpostings\/.*)?$/i, "");
+  parsed.pathname = `${basePath}/jobpostings/Output.asp`;
+  parsed.search = "?all=1";
   return parsed.toString();
 }
 
@@ -38,79 +44,120 @@ async function fetchPage(url: string): Promise<string> {
 }
 
 /**
- * Extract vacancy listings from AppliTrack HTML.
+ * Extract vacancy listings from AppliTrack Output.asp HTML.
  *
- * AppliTrack tables use <tr> rows inside the main listing table.
- * Each row contains <td> cells with: position title (often a link),
- * category, location/school, and date posted.
+ * Each listing block looks like:
+ *   <table class='title'>...<a>Job Title</a>...</table>
+ *   <li>Date Posted: 3/17/2026</li>
+ *   <li>Location: Hill Farm Elementary School</li>
+ *   <li>Position Type: Academic Support/K-5 Building Learning Specialist</li>
+ *
+ * We split on the horizontal rule/divider between listings and parse each block.
  */
 function extractListings(html: string, baseUrl: string): RawVacancy[] {
   const vacancies: RawVacancy[] = [];
 
-  // AppliTrack uses table rows for job listings.
-  // Match rows that contain job data — they typically have multiple <td> cells
-  // and a link to the job detail page.
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let rowMatch: RegExpExecArray | null;
+  // Split HTML into listing blocks — each separated by <hr> or divider pattern
+  // Each block contains one job posting
+  const blocks = html.split(/<hr[^>]*>/i);
 
-  while ((rowMatch = rowRegex.exec(html)) !== null) {
-    const rowHtml = rowMatch[1];
-
-    // Extract all table cell contents
-    const cells = extractCells(rowHtml);
-    if (cells.length < 2) continue;
-
-    // Look for a link to a detail page (indicates this is a job row, not a header)
-    const linkMatch = rowHtml.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkMatch) continue;
-
-    const title = stripHtml(linkMatch[2]).trim();
-    if (!title || isHeaderRow(title)) continue;
-
-    // Build the detail URL
-    let sourceUrl: string | undefined;
-    try {
-      sourceUrl = new URL(linkMatch[1], baseUrl).toString();
-    } catch {
-      sourceUrl = linkMatch[1];
+  for (const block of blocks) {
+    const vacancy = parseBlock(block, baseUrl);
+    if (vacancy) {
+      vacancies.push(vacancy);
     }
-
-    // Heuristic: cells typically are [title, category, location, date]
-    // but order varies. We use the link text as title and try to identify the date.
-    const vacancy: RawVacancy = { title, sourceUrl };
-
-    // Try to find a date in the cells (MM/DD/YYYY or similar pattern)
-    for (const cell of cells) {
-      const dateMatch = cell.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
-      if (dateMatch) {
-        vacancy.datePosted = dateMatch[1];
-        break;
-      }
-    }
-
-    // Try to find a school/location — usually a cell that isn't the title or date
-    const nonTitleCells = cells
-      .map((c) => stripHtml(c).trim())
-      .filter((c) => c && c !== title && !c.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/));
-    if (nonTitleCells.length > 0) {
-      // The last non-title, non-date cell is often the school/location
-      vacancy.schoolName = nonTitleCells[nonTitleCells.length - 1] || undefined;
-    }
-
-    vacancies.push(vacancy);
   }
 
   return vacancies;
 }
 
-function extractCells(rowHtml: string): string[] {
-  const cells: string[] = [];
-  const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-  let cellMatch: RegExpExecArray | null;
-  while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-    cells.push(cellMatch[1]);
+function parseBlock(block: string, baseUrl: string): RawVacancy | null {
+  // Extract job title from the title table/link
+  const titleMatch = block.match(
+    /<(?:table|div)[^>]*class=['"]?title['"]?[^>]*>[\s\S]*?<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i
+  );
+
+  if (!titleMatch) {
+    // Fallback: look for any prominent link with a job-like title
+    const linkMatch = block.match(/<a[^>]+href=["']([^"']+)["'][^>]*class=['"]?title['"]?[^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkMatch) return null;
+    // Use the fallback match
+    return parseBlockWithTitle(block, stripHtml(linkMatch[2]).trim(), linkMatch[1], baseUrl);
   }
-  return cells;
+
+  const title = stripHtml(titleMatch[2]).trim();
+  if (!title || title.length < 3) return null;
+
+  return parseBlockWithTitle(block, title, titleMatch[1], baseUrl);
+}
+
+function parseBlockWithTitle(
+  block: string,
+  title: string,
+  href: string,
+  baseUrl: string
+): RawVacancy | null {
+  // Build source URL
+  let sourceUrl: string | undefined;
+  try {
+    sourceUrl = new URL(href, baseUrl).toString();
+  } catch {
+    sourceUrl = href;
+  }
+
+  const vacancy: RawVacancy = { title, sourceUrl };
+
+  // Extract structured fields from <li> elements
+  const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let liMatch: RegExpExecArray | null;
+
+  while ((liMatch = liRegex.exec(block)) !== null) {
+    const content = stripHtml(liMatch[1]).trim();
+
+    // Date Posted: M/D/YYYY
+    const dateMatch = content.match(/date\s*posted\s*:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+    if (dateMatch) {
+      vacancy.datePosted = dateMatch[1];
+      continue;
+    }
+
+    // Location: School Name
+    const locationMatch = content.match(/location\s*:\s*(.+)/i);
+    if (locationMatch) {
+      const location = locationMatch[1].trim();
+      if (location && location.toLowerCase() !== "to be determined") {
+        vacancy.schoolName = location;
+      }
+      continue;
+    }
+
+    // Start Date: ...
+    const startMatch = content.match(/(?:start|begin)\s*date\s*:\s*(.+)/i);
+    if (startMatch) {
+      vacancy.startDate = startMatch[1].trim();
+      continue;
+    }
+
+    // Contact info — email
+    const emailMatch = content.match(/[\w.-]+@[\w.-]+\.\w+/);
+    if (emailMatch) {
+      vacancy.hiringEmail = emailMatch[0];
+      // Try to extract name before the email
+      const nameMatch = content.match(/contact\s*:\s*([^,\n]+)/i);
+      if (nameMatch) {
+        vacancy.hiringManager = nameMatch[1].trim();
+      }
+      continue;
+    }
+  }
+
+  // Also check for Additional Information block as rawText
+  const additionalMatch = block.match(/Additional\s*Information[\s\S]*?<(?:div|td)[^>]*>([\s\S]*?)(?:<\/(?:div|td)>|<hr)/i);
+  if (additionalMatch) {
+    vacancy.rawText = stripHtml(additionalMatch[1]).trim().slice(0, 2000);
+  }
+
+  return vacancy;
 }
 
 function stripHtml(html: string): string {
@@ -124,18 +171,4 @@ function stripHtml(html: string): string {
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function isHeaderRow(text: string): boolean {
-  const lc = text.toLowerCase();
-  return (
-    lc === "position" ||
-    lc === "title" ||
-    lc === "job title" ||
-    lc === "category" ||
-    lc === "location" ||
-    lc === "date posted" ||
-    lc === "date" ||
-    lc === "school"
-  );
 }
