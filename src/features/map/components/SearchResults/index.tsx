@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 // useCallback kept for handleSelectAll below
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
@@ -655,8 +656,8 @@ export default function SearchResults() {
         </div>
       )}
 
-      {/* Explore modal */}
-      {exploreModalLeaid && (
+      {/* Explore modal — rendered via portal into document.body to escape stacking context */}
+      {exploreModalLeaid && createPortal(
         <DistrictExploreModal
           leaid={exploreModalLeaid}
           onClose={() => setExploreModalLeaid(null)}
@@ -664,7 +665,8 @@ export default function SearchResults() {
           onNext={canGoNext ? handleExploreNext : undefined}
           currentIndex={currentExploreIndex}
           totalCount={districts.length}
-        />
+        />,
+        document.body
       )}
     </div>
   );
