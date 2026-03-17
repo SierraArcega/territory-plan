@@ -26,6 +26,16 @@ jobBoardPlatform String? @map("job_board_platform") @db.VarChar(50)
 
 Auto-detected from `jobBoardUrl`. Values: `"applitrack"`, `"olas"`, `"schoolspring"`, `"talentEd"`, `"unknown"`, `null`.
 
+### Required additions to existing models
+
+The new tables reference existing models. Add reverse relations:
+
+**District model:** add `vacancyScans VacancyScan[]` and `vacancies Vacancy[]`
+
+**School model:** add `vacancies Vacancy[]`
+
+**Contact model:** add `vacancies Vacancy[]`
+
 ### New table: `VacancyScan`
 
 Tracks each scan run for audit and progress reporting.
@@ -44,7 +54,8 @@ model VacancyScan {
   triggeredBy           String    @map("triggered_by") @db.VarChar(100)
   batchId               String?   @map("batch_id") @db.VarChar(50)
 
-  district District @relation(fields: [leaid], references: [leaid])
+  district  District  @relation(fields: [leaid], references: [leaid])
+  vacancies Vacancy[]
 
   @@index([leaid])
   @@index([batchId])
@@ -59,11 +70,11 @@ Individual job postings with fingerprint-based dedup.
 
 ```prisma
 model Vacancy {
-  id               Int       @id @default(autoincrement())
+  id               String    @id @default(cuid())
   leaid            String    @db.VarChar(7)
-  scanId           String    @map("scan_id")
+  scanId           String    @map("scan_id") @db.VarChar(30)
   fingerprint      String    @db.VarChar(255) // hash of leaid + title + schoolName
-  status           String    @default("open") @db.VarChar(10) // open, closed
+  status           String    @default("open") @db.VarChar(10) // open, closed, expired
   title            String    @db.VarChar(500)
   category         String?   @db.VarChar(50) // SPED, ELL, General Ed, Admin, etc.
   schoolNcessch    String?   @map("school_ncessch") @db.VarChar(12)
@@ -80,6 +91,7 @@ model Vacancy {
   firstSeenAt      DateTime  @default(now()) @map("first_seen_at")
   lastSeenAt       DateTime  @default(now()) @map("last_seen_at")
   createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   district District  @relation(fields: [leaid], references: [leaid])
   scan     VacancyScan @relation(fields: [scanId], references: [id])
@@ -213,14 +225,22 @@ Parsers fetch the listing page HTML and extract structured data using known DOM 
 
 For unknown/self-hosted sites:
 
-1. Fetch page HTML via headless browser (Browserbase, Puppeteer, or Playwright)
+1. Fetch page HTML via Playwright (runs locally / on Railway — not serverless-compatible, but we deploy on Railway)
 2. Strip to text content (remove scripts, styles, nav)
 3. Send to Claude API with structured output schema matching `RawVacancy[]`
 4. Parse response
 
-Claude prompt includes: the `RawVacancy` schema, instructions to extract all job listings, and context that this is a school district job board.
+**Dependencies:**
+- `@anthropic-ai/sdk` — Claude API client
+- `playwright` — headless browser for JS-rendered pages
 
-Estimated cost: ~$0.02–0.10 per district depending on page size.
+**Claude API details:**
+- Model: `claude-sonnet-4-6` (best cost/quality for structured extraction)
+- Structured output via `tool_use` — define a tool with `RawVacancy[]` schema, Claude populates it
+- Max tokens: 4096 (sufficient for even large job boards)
+- Estimated cost: ~$0.02–0.10 per district depending on page size
+
+**Prompt includes:** the `RawVacancy` schema, instructions to extract all job listings, context that this is a school district job board, and instruction to ignore non-teaching/non-administrative roles.
 
 ### Post-Processor
 
@@ -233,9 +253,11 @@ Runs the same logic regardless of source:
 5. **Contact matching:** If `hiringEmail` is present, exact-match against contacts for that `leaid`. Set `contactId` if matched. No name matching — too many false positives.
 6. **Fingerprint:** Generate from `leaid + normalize(title) + normalize(schoolName)`. Used as unique key for upsert.
 7. **Upsert:** Insert new vacancies, update `lastSeenAt` on existing ones.
-8. **Mark closed:** Any previously-open vacancies for this district that were NOT seen in this scan get status set to `"closed"`.
+8. **Mark closed:** Any previously-open vacancies for this district that were NOT seen in this scan get status set to `"closed"`. **Safety check:** if the scan found zero vacancies but the district previously had many (>3), mark the scan as `partial` instead of auto-closing — this likely indicates a scrape failure rather than all positions being filled. The `VacancyScan.status` will be set to `"completed_partial"` and existing vacancies left untouched.
 
 ## API Design
+
+All endpoints require authenticated user session (same auth pattern as existing API routes). The `triggeredBy` field on VacancyScan is populated from the session user.
 
 ### `POST /api/vacancies/scan`
 
@@ -245,7 +267,7 @@ Trigger scan for a single district.
 
 **Response:** `{ scanId: string, status: "pending" }`
 
-Creates a `VacancyScan` row and enqueues the job. Returns immediately.
+Creates a `VacancyScan` row and enqueues the job. Returns immediately. Returns 400 if the district has no `jobBoardUrl`.
 
 ### `POST /api/vacancies/scan-bulk`
 
@@ -253,9 +275,9 @@ Trigger scan for all districts in a territory plan.
 
 **Request:** `{ territoryPlanId: string }`
 
-**Response:** `{ batchId: string, totalDistricts: number, scansCreated: number }`
+**Response:** `{ batchId: string, totalDistricts: number, scansCreated: number, skipped: number }`
 
-Creates a `VacancyScan` row for each district in the plan that has a `jobBoardUrl`. Returns a `batchId` for progress tracking.
+Creates a `VacancyScan` row for each district in the plan that has a `jobBoardUrl`. Returns a `batchId` for progress tracking. `skipped` reports districts without a `jobBoardUrl`.
 
 ### `GET /api/vacancies/scan/[scanId]`
 
@@ -286,11 +308,44 @@ Get current vacancies for a district.
 
 **Query params:** `?status=open` (default), `?status=all`
 
-**Response:** Array of vacancies with linked school/contact data, plus summary stats.
+**Response:**
+```json
+{
+  "summary": {
+    "totalOpen": 12,
+    "fullmindRelevant": 5,
+    "byCategory": { "SPED": 3, "ELL": 2, "General Ed": 5, "Admin": 2 },
+    "lastScannedAt": "2026-03-15T..."
+  },
+  "vacancies": [
+    {
+      "id": "...",
+      "title": "Special Education Teacher",
+      "category": "SPED",
+      "status": "open",
+      "schoolName": "Lincoln Elementary",
+      "school": { "ncessch": "...", "name": "Lincoln Elementary School" },
+      "hiringManager": "Jane Doe",
+      "hiringEmail": "jdoe@district.edu",
+      "contact": { "id": 42, "name": "Jane Doe" },
+      "startDate": "2026-08-15",
+      "datePosted": "2026-02-28T...",
+      "daysOpen": 17,
+      "fullmindRelevant": true,
+      "relevanceReason": "SPED staffing",
+      "sourceUrl": "https://..."
+    }
+  ]
+}
+```
 
 ## Background Processing
 
-The vacancy scanner runs as a TypeScript background worker within the Next.js application.
+The vacancy scanner runs as a TypeScript background worker within the Next.js application. Since the app deploys on Railway (not serverless Vercel), we can run long-lived processes.
+
+### Execution model
+
+The API route creates `VacancyScan` rows and kicks off processing using `p-queue` in the same process. The queue persists in memory for the lifetime of the server. If the server restarts mid-batch, a startup recovery check finds `running` scans older than 10 minutes and marks them `failed` (they can be retried manually).
 
 ### Single scan flow
 
@@ -307,6 +362,11 @@ The vacancy scanner runs as a TypeScript background worker within the Next.js ap
 3. Worker processes with concurrency limit (5 concurrent scans) using `p-queue`
 4. Frontend polls `GET /api/vacancies/batch/[batchId]` for progress
 5. Each district completes independently
+
+### Timeouts
+
+- Per-district scan timeout: 60 seconds (covers page load + Claude API call)
+- Stale scan recovery: on server startup, mark any `running` scans older than 10 minutes as `failed`
 
 ### Concurrency and rate limiting
 
@@ -345,7 +405,7 @@ Normalization: lowercase, trim, collapse whitespace.
 - **New fingerprint:** Insert vacancy, set `firstSeenAt` and `lastSeenAt` to now
 - **Existing fingerprint (open):** Update `lastSeenAt`, update `scanId` to latest scan, update any changed fields (startDate, hiringManager, etc.)
 - **Existing fingerprint (closed):** Reopen — set status back to `"open"`, update `lastSeenAt`
-- **Not seen in scan:** Mark as `"closed"` — vacancy no longer appears on job board
+- **Not seen in scan:** Mark as `"closed"` — vacancy no longer appears on job board (subject to partial-scrape safety check described in post-processor step 8)
 
 ## UI Surfaces
 
@@ -381,9 +441,23 @@ Same data as district panel, adapted to modal layout. Summary + list.
 ### Environment Variables
 
 ```
-CLAUDE_API_KEY=...           # For Claude fallback scraping
-BROWSERBASE_API_KEY=...      # For headless browser (Claude fallback path)
+ANTHROPIC_API_KEY=...        # For Claude fallback scraping (@anthropic-ai/sdk)
 ```
+
+### Dependencies (new)
+
+```
+@anthropic-ai/sdk            # Claude API for fallback scraping
+playwright                   # Headless browser for JS-rendered job boards
+p-queue                      # Concurrency-limited async queue
+dice-coefficient             # String similarity for school name matching (or implement inline)
+```
+
+### Vacancy categories (closed set)
+
+Used for `Vacancy.category` and UI grouping:
+
+`SPED` | `ELL` | `General Ed` | `Admin` | `Specialist` | `Counseling` | `Related Services` | `Other`
 
 ### Admin-Configurable
 
