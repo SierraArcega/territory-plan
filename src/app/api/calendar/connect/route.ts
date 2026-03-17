@@ -16,9 +16,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Build the redirect URI from the current request origin
-    // This works in both local dev (localhost:3000) and production (territory-plan.vercel.app)
-    const { origin } = new URL(request.url);
+    // Use NEXT_PUBLIC_SITE_URL for production so the redirect URI always matches
+    // what's registered in Google Cloud Console. Falls back to request origin for local dev.
+    const origin =
+      process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
     const redirectUri = `${origin}/api/calendar/callback`;
 
     // Generate a random state token for CSRF protection

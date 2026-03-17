@@ -11,7 +11,10 @@ import prisma from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const url = new URL(request.url);
+  const searchParams = url.searchParams;
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL || url.origin;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
