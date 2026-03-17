@@ -231,9 +231,13 @@ export async function GET(req: NextRequest) {
     zipRadiusLeaids = result.map((r) => r.leaid);
   }
 
-  // Viewport bounding box (only used when no ZIP radius is active)
+  // Viewport bounding box — only used when no ZIP radius AND no attribute filters
+  // are active. When attribute filters narrow the result set, we show ALL matching
+  // districts regardless of viewport (many districts lack geometry and would be
+  // silently excluded by a bounds query).
+  const hasAttributeFilters = scalarFilters.length > 0 || relationFilters.length > 0;
   let boundsLeaids: string[] | null = null;
-  if (!zipRadius && bounds) {
+  if (!zipRadius && bounds && !hasAttributeFilters) {
     const [west, south, east, north] = bounds;
     const result = await prisma.$queryRaw<{ leaid: string }[]>`
       SELECT leaid FROM districts

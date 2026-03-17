@@ -7,6 +7,8 @@ const COLUMN_LABELS: Record<string, string> = {
   state: "State",
   urbanicity: "Urbanicity",
   _zipRadius: "ZIP Radius",
+  charterSchoolCount: "Charter Schools",
+  titleISchoolCount: "Title I Schools",
   // Fullmind
   isCustomer: "Customer",
   hasOpenPipeline: "Pipeline",
@@ -62,6 +64,11 @@ function formatMoney(v: number): string {
 }
 
 function formatFilterValue(f: ExploreFilter): string {
+  // "Has charter/title I schools" shows as "Yes" instead of ">= 1"
+  if (f.op === "gte" && f.value === 1 && (f.column === "charterSchoolCount" || f.column === "titleISchoolCount")) {
+    return "Yes";
+  }
+
   if (f.op === "is_true") return "Yes";
   if (f.op === "is_false") return "No";
   if (f.op === "is_empty") return "Empty";

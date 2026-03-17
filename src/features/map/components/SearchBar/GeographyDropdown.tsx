@@ -148,6 +148,16 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
           ]}
           onSelect={(opt) => addSearchFilter({ id: crypto.randomUUID(), column: opt.column, op: opt.op as any, value: opt.value })}
         />
+
+        {/* District Type */}
+        <ToggleChips
+          label="District Type"
+          options={[
+            { label: "Has Charter Schools", column: "charterSchoolCount", op: "gte", value: 1 },
+            { label: "Has Title I Schools", column: "titleISchoolCount", op: "gte", value: 1 },
+          ]}
+          onSelect={(opt) => addSearchFilter({ id: crypto.randomUUID(), column: opt.column, op: opt.op as any, value: opt.value })}
+        />
       </div>
     </div>
   );

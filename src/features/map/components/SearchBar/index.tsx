@@ -15,7 +15,7 @@ import FilterPills from "./FilterPills";
 // Domain classification for badge counts
 const DOMAIN_COLUMNS: Record<string, Set<string>> = {
   geography: new Set([
-    "state", "urbanicity", "_zipRadius",
+    "state", "urbanicity", "_zipRadius", "charterSchoolCount", "titleISchoolCount",
   ]),
   fullmind: new Set([
     "isCustomer", "hasOpenPipeline", "salesExecutive", "owner",
