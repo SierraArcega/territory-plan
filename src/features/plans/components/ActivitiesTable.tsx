@@ -248,14 +248,14 @@ export default function ActivitiesTable({
                     <span>{typeIcon}</span>
                   </td>
 
-                  {/* Title (editable) */}
+                  {/* Title — click to open full editor */}
                   <td className="px-2 py-1 truncate">
-                    <InlineEditCell
-                      type="text"
-                      value={activity.title}
-                      onSave={async (value) => handleFieldUpdate(activity.id, "title", value)}
-                      className="text-sm font-medium text-[#403770] truncate"
-                    />
+                    <button
+                      onClick={() => onEdit(activity)}
+                      className="text-sm font-medium text-[#403770] truncate text-left w-full hover:underline cursor-pointer"
+                    >
+                      {activity.title}
+                    </button>
                   </td>
 
                   {/* Type (editable select) */}
@@ -331,16 +331,6 @@ export default function ActivitiesTable({
                   {/* Actions — appear on hover */}
                   <td className="px-3 py-1.5">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                      <button
-                        onClick={() => onEdit(activity)}
-                        className="p-1.5 text-gray-400 hover:text-[#403770] rounded-md hover:bg-gray-100 transition-colors"
-                        aria-label="Edit activity"
-                        title="Edit"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
                       <button
                         onClick={() => setActivityToDelete(activity)}
                         className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
