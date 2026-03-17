@@ -151,8 +151,9 @@ model District {
 
   // ===== External Links =====
   // Source: District links CSV via ETL
-  websiteUrl  String? @map("website_url") @db.VarChar(255)
-  jobBoardUrl String? @map("job_board_url") @db.VarChar(1000)
+  websiteUrl       String? @map("website_url") @db.VarChar(255)
+  jobBoardUrl      String? @map("job_board_url") @db.VarChar(1000)
+  jobBoardPlatform String? @map("job_board_platform") @db.VarChar(50)
 
   // ===== User Edits =====
   // Source: App users (shared across team)
@@ -275,6 +276,8 @@ model District {
   schools         School[]
   dataHistory     DistrictDataHistory[]
   gradeEnrollment DistrictGradeEnrollment[]
+  vacancyScans    VacancyScan[]
+  vacancies       Vacancy[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -373,6 +376,7 @@ model Contact {
   activityLinks  ActivityContact[]
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
+  vacancies      Vacancy[]
 
   @@index([leaid])
   @@map("contacts")
@@ -970,6 +974,7 @@ model School {
   enrollmentHistory SchoolEnrollmentHistory[]
   schoolTags        SchoolTag[]
   schoolContacts    SchoolContact[]
+  vacancies         Vacancy[]
 
   @@index([leaid])
   @@index([charter])
@@ -1158,4 +1163,80 @@ model UnmatchedOpportunity {
   @@index([resolved])
   @@index([schoolYr])
   @@map("unmatched_opportunities")
+}
+
+// ===== Vacancy Scanner =====
+// Tracks job board scan runs for audit and progress reporting
+model VacancyScan {
+  id                    String    @id @default(cuid())
+  leaid                 String    @db.VarChar(7)
+  status                String    @db.VarChar(20) // pending, running, completed, completed_partial, failed
+  platform              String?   @db.VarChar(50)
+  vacancyCount          Int?      @map("vacancy_count")
+  fullmindRelevantCount Int?      @map("fullmind_relevant_count")
+  startedAt             DateTime  @default(now()) @map("started_at")
+  completedAt           DateTime? @map("completed_at")
+  errorMessage          String?   @map("error_message") @db.Text
+  triggeredBy           String    @map("triggered_by") @db.VarChar(100)
+  batchId               String?   @map("batch_id") @db.VarChar(50)
+
+  district  District  @relation(fields: [leaid], references: [leaid])
+  vacancies Vacancy[]
+
+  @@index([leaid])
+  @@index([batchId])
+  @@index([status])
+  @@map("vacancy_scans")
+}
+
+// Individual job postings scraped from district job boards
+model Vacancy {
+  id               String    @id @default(cuid())
+  leaid            String    @db.VarChar(7)
+  scanId           String    @map("scan_id") @db.VarChar(30)
+  fingerprint      String    @db.VarChar(255)
+  status           String    @default("open") @db.VarChar(10) // open, closed, expired
+  title            String    @db.VarChar(500)
+  category         String?   @db.VarChar(50) // SPED, ELL, General Ed, Admin, Specialist, Counseling, Related Services, Other
+  schoolNcessch    String?   @map("school_ncessch") @db.VarChar(12)
+  schoolName       String?   @map("school_name") @db.VarChar(255)
+  hiringManager    String?   @map("hiring_manager") @db.VarChar(255)
+  hiringEmail      String?   @map("hiring_email") @db.VarChar(255)
+  contactId        Int?      @map("contact_id")
+  startDate        String?   @map("start_date") @db.VarChar(50)
+  datePosted       DateTime? @map("date_posted")
+  fullmindRelevant Boolean   @default(false) @map("fullmind_relevant")
+  relevanceReason  String?   @map("relevance_reason") @db.VarChar(255)
+  sourceUrl        String?   @map("source_url") @db.VarChar(1000)
+  rawText          String?   @map("raw_text") @db.Text
+  firstSeenAt      DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt       DateTime  @default(now()) @map("last_seen_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  district District  @relation(fields: [leaid], references: [leaid])
+  scan     VacancyScan @relation(fields: [scanId], references: [id])
+  school   School?   @relation(fields: [schoolNcessch], references: [ncessch])
+  contact  Contact?  @relation(fields: [contactId], references: [id])
+
+  @@unique([fingerprint])
+  @@index([leaid])
+  @@index([scanId])
+  @@index([status])
+  @@index([fullmindRelevant])
+  @@map("vacancies")
+}
+
+// Admin-configurable keywords for vacancy relevance flagging and role exclusion
+model VacancyKeywordConfig {
+  id          Int      @id @default(autoincrement())
+  type        String   @db.VarChar(20) // relevance, exclusion
+  label       String   @db.VarChar(100)
+  keywords    String[]
+  serviceLine String?  @map("service_line") @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@map("vacancy_keyword_config")
 }
