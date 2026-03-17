@@ -24,6 +24,7 @@ import PlanFormModal, { type PlanFormData } from "@/features/plans/components/Pl
 import ActivityFormModal from "@/features/plans/components/ActivityFormModal";
 import PlanTabs from "@/features/plans/components/PlanTabs";
 import PlanDistrictPanel from "@/features/plans/components/PlanDistrictPanel";
+import BulkScanButton from "@/features/vacancies/components/BulkScanButton";
 import ViewToggle from "@/features/shared/components/ViewToggle";
 import PlansTable from "@/features/plans/components/PlansTable";
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
@@ -776,15 +777,18 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
             </svg>
             Add Districts from Map
           </button>
-          <button
-            onClick={() => setShowActivityModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New Activity
-          </button>
+          <div className="flex items-center gap-2">
+            <BulkScanButton territoryPlanId={planId} />
+            <button
+              onClick={() => setShowActivityModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Activity
+            </button>
+          </div>
         </div>
 
         <PlanTabs
