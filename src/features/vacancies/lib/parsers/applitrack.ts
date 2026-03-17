@@ -72,90 +72,76 @@ function extractListings(html: string, baseUrl: string): RawVacancy[] {
 }
 
 function parseBlock(block: string, baseUrl: string): RawVacancy | null {
-  // Extract job title from the title table/link
-  const titleMatch = block.match(
-    /<(?:table|div)[^>]*class=['"]?title['"]?[^>]*>[\s\S]*?<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i
+  // AppliTrack HTML uses backslash-escaped quotes: class=\'title\'
+  // Normalize them before parsing
+  const normalized = block.replace(/\\'/g, "'").replace(/\\"/g, '"');
+
+  // Extract job title from the title table — the title text is in a <td>
+  // Structure: <table class='title'><tr><td>Job Title Here</td><td>...JobID...</td></tr></table>
+  const titleTableMatch = normalized.match(
+    /<table[^>]*class=['"]?title['"]?[^>]*>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/i
   );
 
-  if (!titleMatch) {
-    // Fallback: look for any prominent link with a job-like title
-    const linkMatch = block.match(/<a[^>]+href=["']([^"']+)["'][^>]*class=['"]?title['"]?[^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkMatch) return null;
-    // Use the fallback match
-    return parseBlockWithTitle(block, stripHtml(linkMatch[2]).trim(), linkMatch[1], baseUrl);
-  }
+  if (!titleTableMatch) return null;
 
-  const title = stripHtml(titleMatch[2]).trim();
+  let title = stripHtml(titleTableMatch[1]).trim();
+  // Clean up JavaScript artifacts that sometimes leak into titles
+  title = title.replace(/['"]\);?\s*document\.write\s*\(['"].*/i, "").trim();
   if (!title || title.length < 3) return null;
 
-  return parseBlockWithTitle(block, title, titleMatch[1], baseUrl);
+  // Extract JobID for building the source URL
+  const jobIdMatch = normalized.match(/JobID:\s*(\d+)/);
+  const sourceUrl = jobIdMatch
+    ? `${baseUrl.replace(/Output\.asp.*/, '')}view.asp?JobID=${jobIdMatch[1]}`
+    : undefined;
+
+  return parseBlockWithTitle(normalized, title, sourceUrl, baseUrl);
 }
 
 function parseBlockWithTitle(
   block: string,
   title: string,
-  href: string,
-  baseUrl: string
+  sourceUrl: string | undefined,
+  _baseUrl: string
 ): RawVacancy | null {
-  // Build source URL
-  let sourceUrl: string | undefined;
-  try {
-    sourceUrl = new URL(href, baseUrl).toString();
-  } catch {
-    sourceUrl = href;
-  }
-
   const vacancy: RawVacancy = { title, sourceUrl };
 
-  // Extract structured fields from <li> elements
-  const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
-  let liMatch: RegExpExecArray | null;
+  // The full block text for field extraction
+  const blockText = stripHtml(block);
 
-  while ((liMatch = liRegex.exec(block)) !== null) {
-    const content = stripHtml(liMatch[1]).trim();
+  // Date Posted: M/D/YYYY
+  const dateMatch = blockText.match(/Date\s*Posted\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  if (dateMatch) {
+    vacancy.datePosted = dateMatch[1];
+  }
 
-    // Date Posted: M/D/YYYY
-    const dateMatch = content.match(/date\s*posted\s*:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
-    if (dateMatch) {
-      vacancy.datePosted = dateMatch[1];
-      continue;
-    }
-
-    // Location: School Name
-    const locationMatch = content.match(/location\s*:\s*(.+)/i);
-    if (locationMatch) {
-      const location = locationMatch[1].trim();
-      if (location && location.toLowerCase() !== "to be determined") {
-        vacancy.schoolName = location;
-      }
-      continue;
-    }
-
-    // Start Date: ...
-    const startMatch = content.match(/(?:start|begin)\s*date\s*:\s*(.+)/i);
-    if (startMatch) {
-      vacancy.startDate = startMatch[1].trim();
-      continue;
-    }
-
-    // Contact info — email
-    const emailMatch = content.match(/[\w.-]+@[\w.-]+\.\w+/);
-    if (emailMatch) {
-      vacancy.hiringEmail = emailMatch[0];
-      // Try to extract name before the email
-      const nameMatch = content.match(/contact\s*:\s*([^,\n]+)/i);
-      if (nameMatch) {
-        vacancy.hiringManager = nameMatch[1].trim();
-      }
-      continue;
+  // Location: School Name — extract from <span class='normal'> after Location label
+  const locationMatch = block.match(/Location:?<\/span>[\s\S]*?class=.?normal.?[^>]*>([\s\S]*?)<\//i);
+  if (locationMatch) {
+    const location = stripHtml(locationMatch[1]).trim();
+    if (location && location.toLowerCase() !== "to be determined" && !location.match(/viewing all/i) && !location.includes("/")) {
+      vacancy.schoolName = location;
     }
   }
 
-  // Also check for Additional Information block as rawText
-  const additionalMatch = block.match(/Additional\s*Information[\s\S]*?<(?:div|td)[^>]*>([\s\S]*?)(?:<\/(?:div|td)>|<hr)/i);
-  if (additionalMatch) {
-    vacancy.rawText = stripHtml(additionalMatch[1]).trim().slice(0, 2000);
+  // Start Date
+  const startMatch = blockText.match(/(?:Start|Begin)\s*Date\s*:?\s*(.+?)(?:\s{2,}|\n|$)/i);
+  if (startMatch) {
+    vacancy.startDate = startMatch[1].trim();
   }
+
+  // Contact info — email
+  const emailMatch = blockText.match(/[\w.-]+@[\w.-]+\.\w+/);
+  if (emailMatch) {
+    vacancy.hiringEmail = emailMatch[0];
+    const nameMatch = blockText.match(/[Cc]ontact\s*:?\s*([^,\n]+)/);
+    if (nameMatch) {
+      vacancy.hiringManager = nameMatch[1].trim();
+    }
+  }
+
+  // Store the full block as rawText for relevance matching
+  vacancy.rawText = blockText.slice(0, 2000);
 
   return vacancy;
 }
