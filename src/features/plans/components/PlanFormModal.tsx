@@ -82,7 +82,10 @@ export default function PlanFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showStateDropdown, setShowStateDropdown] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [stateActiveIndex, setStateActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const stateSearchRef = useRef<HTMLInputElement>(null);
   const { data: users } = useUsers();
   const { data: allStates } = useStates();
 
@@ -290,7 +293,7 @@ export default function PlanFormModal({
                     return (
                       <span
                         key={fips}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#403770]/10 text-[#403770] rounded-full text-xs font-medium"
                       >
                         {state?.abbrev || fips}
                         <button
@@ -308,34 +311,204 @@ export default function PlanFormModal({
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setShowStateDropdown(!showStateDropdown)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent text-gray-500 text-left"
+                  aria-haspopup="listbox"
+                  aria-expanded={showStateDropdown}
+                  onClick={() => {
+                    const next = !showStateDropdown;
+                    setShowStateDropdown(next);
+                    if (next) {
+                      setStateSearch("");
+                      setStateActiveIndex(-1);
+                      requestAnimationFrame(() => stateSearchRef.current?.focus());
+                    }
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent text-left"
                 >
-                  {formData.stateFips.length === 0 ? "Select states..." : `${formData.stateFips.length} selected`}
+                  <span className={formData.stateFips.length === 0 ? "text-gray-400" : "text-gray-700"}>
+                    {formData.stateFips.length === 0
+                      ? "Select states..."
+                      : formData.stateFips.length <= 3
+                        ? formData.stateFips
+                            .map((fips) => allStates?.find((s) => s.fips === fips)?.abbrev || fips)
+                            .sort()
+                            .join(", ")
+                        : `${formData.stateFips.length} states`}
+                  </span>
+                  <svg
+                    width="10" height="10" viewBox="0 0 10 10" fill="none"
+                    className={`text-gray-400 shrink-0 ml-1 transition-transform duration-150 ${showStateDropdown ? "rotate-180" : ""}`}
+                  >
+                    <path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
-                {showStateDropdown && (
-                  <div className="absolute z-10 mt-1 w-full max-h-36 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
-                    {allStates?.map((state) => (
-                      <label
-                        key={state.fips}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 cursor-pointer hover:bg-gray-50"
-                      >
+
+                {showStateDropdown && (() => {
+                  const q = stateSearch.toLowerCase();
+                  const filtered = q
+                    ? (allStates ?? []).filter(
+                        (s) => s.name.toLowerCase().includes(q) || s.abbrev.toLowerCase().includes(q)
+                      )
+                    : (allStates ?? []);
+
+                  const filteredFips = filtered.map((s) => s.fips);
+                  const filteredSelected = filteredFips.filter((fips) => formData.stateFips.includes(fips));
+                  const anyFilteredSelected = filteredSelected.length > 0;
+                  const selectAllState: "true" | "false" | "mixed" =
+                    filteredSelected.length === 0
+                      ? "false"
+                      : filteredSelected.length === filteredFips.length
+                      ? "true"
+                      : "mixed";
+                  const selectAllLabel = anyFilteredSelected
+                    ? "Deselect all"
+                    : q
+                    ? `Select ${filteredFips.length} results`
+                    : `Select all ${allStates?.length ?? 0}`;
+
+                  const applySelectAll = () => {
+                    if (anyFilteredSelected) {
+                      const filteredSet = new Set(filteredFips);
+                      setFormData({ ...formData, stateFips: formData.stateFips.filter((f) => !filteredSet.has(f)) });
+                    } else {
+                      const existing = new Set(formData.stateFips);
+                      setFormData({ ...formData, stateFips: [...formData.stateFips, ...filteredFips.filter((f) => !existing.has(f))] });
+                    }
+                  };
+
+                  const toggleFips = (fips: string) => {
+                    const newFips = formData.stateFips.includes(fips)
+                      ? formData.stateFips.filter((f) => f !== fips)
+                      : [...formData.stateFips, fips];
+                    setFormData({ ...formData, stateFips: newFips });
+                  };
+
+                  return (
+                    <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                      {/* Search input */}
+                      <div className="px-2 pt-2 pb-1 border-b border-gray-100">
                         <input
-                          type="checkbox"
-                          checked={formData.stateFips.includes(state.fips)}
+                          ref={stateSearchRef}
+                          type="text"
+                          value={stateSearch}
                           onChange={(e) => {
-                            const newFips = e.target.checked
-                              ? [...formData.stateFips, state.fips]
-                              : formData.stateFips.filter((f) => f !== state.fips);
-                            setFormData({ ...formData, stateFips: newFips });
+                            setStateSearch(e.target.value);
+                            setStateActiveIndex(-1);
                           }}
-                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]/20"
+                          onKeyDown={(e) => {
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              if (filtered.length === 0) return;
+                              setStateActiveIndex((h) => Math.min(h + 1, filtered.length));
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              if (filtered.length === 0) return;
+                              setStateActiveIndex((h) => (h <= 0 ? 0 : h - 1));
+                            } else if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (stateActiveIndex === 0) {
+                                applySelectAll();
+                              } else if (stateActiveIndex > 0 && filtered[stateActiveIndex - 1]) {
+                                toggleFips(filtered[stateActiveIndex - 1].fips);
+                              }
+                            } else if (e.key === "Escape") {
+                              e.preventDefault();
+                              if (stateSearch) {
+                                setStateSearch("");
+                                setStateActiveIndex(-1);
+                              } else {
+                                setShowStateDropdown(false);
+                              }
+                            }
+                          }}
+                          placeholder="Search states..."
+                          className="w-full text-sm bg-gray-50 border border-gray-200 rounded-md px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770]/30 placeholder:text-gray-400"
                         />
-                        {state.abbrev} — {state.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
+                      </div>
+
+                      {/* Options list */}
+                      <div role="listbox" aria-multiselectable="true" aria-label="States" className="max-h-48 overflow-y-auto">
+                        {/* Select All row */}
+                        {filtered.length > 0 && (
+                          <div
+                            role="checkbox"
+                            aria-checked={selectAllState}
+                            aria-label={selectAllLabel}
+                            tabIndex={-1}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setStateActiveIndex(0);
+                              applySelectAll();
+                            }}
+                            className={`flex items-center gap-2 px-2.5 py-1.5 text-sm font-medium text-gray-700 border-b border-gray-100 cursor-pointer select-none transition-colors ${
+                              stateActiveIndex === 0 ? "bg-[#403770]/10" : "bg-gray-50/50 hover:bg-gray-50"
+                            }`}
+                          >
+                            <div
+                              aria-hidden="true"
+                              className={
+                                selectAllState === "false"
+                                  ? "w-4 h-4 rounded border border-gray-300 bg-white flex-shrink-0"
+                                  : "w-4 h-4 rounded border border-[#403770] bg-[#403770] flex items-center justify-center flex-shrink-0"
+                              }
+                            >
+                              {selectAllState === "mixed" && (
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                  <rect x="3" y="7.5" width="10" height="1" rx="0.5" fill="white" />
+                                </svg>
+                              )}
+                              {selectAllState === "true" && (
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                  <path d="M3 8L6.5 11.5L13 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </div>
+                            <span>{selectAllLabel}</span>
+                          </div>
+                        )}
+
+                        {/* No results */}
+                        {filtered.length === 0 && (
+                          <div className="px-2.5 py-2 text-xs text-gray-400 italic">
+                            No states match &ldquo;{stateSearch}&rdquo;
+                          </div>
+                        )}
+
+                        {/* State rows */}
+                        {filtered.map((s, i) => (
+                          <label
+                            key={s.fips}
+                            role="option"
+                            aria-selected={formData.stateFips.includes(s.fips)}
+                            ref={(el) => {
+                              if (i === stateActiveIndex - 1 && el) {
+                                el.scrollIntoView({ block: "nearest" });
+                              }
+                            }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setStateActiveIndex(i + 1);
+                              toggleFips(s.fips);
+                            }}
+                            className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer transition-colors ${
+                              stateActiveIndex === i + 1 ? "bg-[#403770]/10" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formData.stateFips.includes(s.fips)}
+                              onChange={() => {}}
+                              tabIndex={-1}
+                              aria-hidden="true"
+                              className="w-4 h-4 rounded border-gray-300 text-[#403770] focus:ring-[#403770]/30"
+                            />
+                            <span className="text-sm text-gray-700">{s.name}</span>
+                            <span className="text-xs text-gray-400 ml-auto">{s.abbrev}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
