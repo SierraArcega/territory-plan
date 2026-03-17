@@ -30,7 +30,11 @@ export async function createClient() {
   )
 }
 
-export async function getUser() {
+/**
+ * Returns the real authenticated user from Supabase, ignoring impersonation.
+ * Use this for admin checks and impersonation endpoints.
+ */
+export async function getRealUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
 
@@ -42,11 +46,49 @@ export async function getUser() {
 }
 
 /**
+ * Returns the effective user — impersonated user if an admin has an active
+ * impersonation session, otherwise the real authenticated user.
+ */
+export async function getUser() {
+  const realUser = await getRealUser()
+  if (!realUser) return null
+
+  const cookieStore = await cookies()
+  const impersonateUid = cookieStore.get('impersonate_uid')?.value
+
+  if (!impersonateUid) return realUser
+
+  // Verify the real user is an admin
+  try {
+    const { default: prisma } = await import('@/lib/prisma')
+    const adminProfile = await prisma.userProfile.findUnique({
+      where: { id: realUser.id },
+      select: { role: true },
+    })
+
+    if (!adminProfile || adminProfile.role !== 'admin') return realUser
+
+    // Verify the target user exists
+    const targetProfile = await prisma.userProfile.findUnique({
+      where: { id: impersonateUid },
+      select: { id: true },
+    })
+
+    if (!targetProfile) return realUser
+
+    // Return a synthetic user object with the impersonated user's ID
+    return { ...realUser, id: impersonateUid }
+  } catch {
+    return realUser
+  }
+}
+
+/**
  * Returns the authenticated user AND their profile if they have the admin role.
- * Returns null if not authenticated or not an admin.
+ * Uses getRealUser() to bypass impersonation — admin checks always use real identity.
  */
 export async function getAdminUser() {
-  const user = await getUser()
+  const user = await getRealUser()
   if (!user) return null
 
   try {
@@ -60,8 +102,6 @@ export async function getAdminUser() {
 
     return { user, profile }
   } catch {
-    // If the role column doesn't exist yet (migration not applied),
-    // the query will fail — treat as non-admin gracefully.
     return null
   }
 }

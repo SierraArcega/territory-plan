@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAdminUsers, type AdminUser } from "@/features/admin/hooks/useAdminUsers";
 import InviteUserModal from "./InviteUserModal";
 import EditUserModal from "./EditUserModal";
@@ -24,6 +25,8 @@ export default function UsersTab() {
   const [page, setPage] = useState(1);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [impersonating, setImpersonating] = useState<string | null>(null);
+  const router = useRouter();
 
   const pageSize = 20;
 
@@ -47,6 +50,23 @@ export default function UsersTab() {
   const totalPages = Math.ceil(total / pageSize);
   const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, total);
+
+  const handleImpersonate = useCallback(async (userId: string) => {
+    setImpersonating(userId);
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        router.push("/");
+        router.refresh();
+      }
+    } finally {
+      setImpersonating(null);
+    }
+  }, [router]);
 
   const handlePrev = useCallback(() => {
     setPage((p) => Math.max(1, p - 1));
@@ -207,28 +227,39 @@ export default function UsersTab() {
                     />
                   </td>
 
-                  {/* Actions (hover-reveal) */}
+                  {/* Actions */}
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setEditingUser(user)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-[#A69DC0] hover:text-[#403770] transition-all"
-                      aria-label={`Edit ${user.fullName || user.email}`}
-                    >
-                      {/* Pencil icon */}
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    <div className="flex items-center justify-end gap-1">
+                      {user.role !== "admin" && (
+                        <button
+                          onClick={() => handleImpersonate(user.id)}
+                          disabled={impersonating === user.id}
+                          className="text-xs text-[#8A80A8] hover:text-[#E8735A] hover:bg-[#E8735A]/10 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                          aria-label={`Login as ${user.fullName || user.email}`}
+                        >
+                          {impersonating === user.id ? "Switching..." : "Login as"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setEditingUser(user)}
+                        className="p-1.5 text-[#A69DC0] hover:text-[#403770] transition-colors"
+                        aria-label={`Edit ${user.fullName || user.email}`}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
