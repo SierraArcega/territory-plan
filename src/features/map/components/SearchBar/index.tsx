@@ -114,15 +114,10 @@ export default function SearchBar() {
     setOpenDropdown((prev) => (prev === name ? null : name));
   }, []);
 
-  const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
   const activeFilterCount = searchFilters.length;
 
   return (
     <div className="search-bar-root shrink-0 relative z-20 flex flex-col">
-      {/* Dimming overlay when explore modal is open */}
-      {exploreModalLeaid && (
-        <div className="absolute inset-0 z-30 bg-black/40 pointer-events-auto cursor-default" />
-      )}
       {/* Main bar */}
       <div className="flex items-center gap-2 bg-[#F7F5FA] border-b border-[#D4CFE2] px-3 py-2">
         {/* Search input */}
