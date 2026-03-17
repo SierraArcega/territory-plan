@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") as ActivityCategory | null;
     const planId = searchParams.get("planId");
+    const districtLeaid = searchParams.get("districtLeaid");
     const stateAbbrev = searchParams.get("stateAbbrev");
     const needsPlanAssociation = searchParams.get("needsPlanAssociation") === "true";
     const hasUnlinkedDistricts = searchParams.get("hasUnlinkedDistricts") === "true";
@@ -43,6 +44,11 @@ export async function GET(request: NextRequest) {
     // Filter by plan
     if (planId) {
       where.plans = { some: { planId } };
+    }
+
+    // Filter by district
+    if (districtLeaid) {
+      where.districts = { some: { districtLeaid } };
     }
 
     // Filter by state
