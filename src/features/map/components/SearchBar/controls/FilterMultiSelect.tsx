@@ -42,11 +42,20 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
     requestAnimationFrame(() => searchRef.current?.focus());
   }, []);
 
+  // Apply the current selection to the store immediately — remove the existing filter
+  // for this column (if any) then add a new one if the selection is non-empty.
+  const applyNow = (next: Set<string>) => {
+    const current = useMapV2Store.getState().searchFilters.find((f) => f.column === column);
+    if (current) removeSearchFilter(current.id);
+    if (next.size > 0) onApply(column, [...next]);
+  };
+
   const toggle = (value: string) => {
     const next = new Set(selected);
     if (next.has(value)) next.delete(value);
     else next.add(value);
     setSelected(next);
+    applyNow(next);
   };
 
   const selectAll = () => {
@@ -59,10 +68,12 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
       for (const v of allFiltered) next.add(v);
     }
     setSelected(next);
+    applyNow(next);
   };
 
   const removeAll = () => {
     setSelected(new Set());
+    applyNow(new Set());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -95,32 +106,14 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <label className="text-xs font-medium text-[#8A80A8]">{label}</label>
-        <div className="flex items-center gap-1.5">
-          {(selected.size > 0 || existingFilter) && (
-            <button
-              onClick={() => {
-                removeAll();
-                if (existingFilter) removeSearchFilter(existingFilter.id);
-              }}
-              className="text-[10px] font-medium text-[#A69DC0] hover:text-[#6E6390] transition-colors"
-            >
-              Clear
-            </button>
-          )}
-          {selected.size > 0 && (
-            <button
-              onClick={() => {
-                // Remove existing filter for this column before applying new one
-                if (existingFilter) removeSearchFilter(existingFilter.id);
-                onApply(column, [...selected]);
-                setSearch("");
-              }}
-              className="text-[10px] font-bold text-white bg-plum hover:bg-plum/90 px-2 py-0.5 rounded transition-colors"
-            >
-              {existingFilter ? "Update" : "Apply"} ({selected.size})
-            </button>
-          )}
-        </div>
+        {(selected.size > 0 || existingFilter) && (
+          <button
+            onClick={removeAll}
+            className="text-[10px] font-medium text-[#A69DC0] hover:text-[#6E6390] transition-colors"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {/* Search input */}
