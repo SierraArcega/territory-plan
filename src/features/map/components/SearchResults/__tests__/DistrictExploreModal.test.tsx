@@ -12,19 +12,29 @@ vi.mock("@/lib/api", () => ({
 }));
 
 describe("DistrictExploreModal — responsive sizing", () => {
-  it("modal panel uses max-w-[1076px] instead of fixed w-[1076px]", () => {
+  it("modal panel uses responsive width (calc + max-w) instead of fixed w-[1076px]", () => {
     const { container } = render(
       <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
     );
+    // Old fixed class must be gone
     expect(container.querySelector(".w-\\[1076px\\]")).toBeNull();
+    // New responsive classes must be present
     expect(container.querySelector(".max-w-\\[1076px\\]")).not.toBeNull();
+    // Verify the calc-based width class is present (catches regressions that remove both)
+    const modalPanel = container.querySelector(".max-w-\\[1076px\\]");
+    expect(modalPanel?.className).toContain("w-[calc(100vw-104px)]");
   });
 
-  it("modal panel uses max-h-[745px] instead of fixed h-[745px]", () => {
+  it("modal panel uses responsive height (calc + max-h) instead of fixed h-[745px]", () => {
     const { container } = render(
       <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
     );
+    // Old fixed class must be gone
     expect(container.querySelector(".h-\\[745px\\]")).toBeNull();
+    // New responsive classes must be present
     expect(container.querySelector(".max-h-\\[745px\\]")).not.toBeNull();
+    // Verify the calc-based height class is present
+    const modalPanel = container.querySelector(".max-h-\\[745px\\]");
+    expect(modalPanel?.className).toContain("h-[calc(100vh-80px)]");
   });
 });
