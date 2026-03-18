@@ -726,6 +726,7 @@ model UserProfile {
   locationLng       Decimal?  @map("location_lng") @db.Decimal(10, 7)
   phone             String?   @db.VarChar(50)
   slackUrl          String?   @map("slack_url") @db.VarChar(500)
+  bookingLink       String?   @map("booking_link") @db.VarChar(500)
   bio               String?   @db.Text
   hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
   createdAt         DateTime  @default(now()) @map("created_at")

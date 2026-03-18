@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useProfile, useLogout } from "@/lib/api";
+import { useProfile, useLogout, useUpdateProfile } from "@/lib/api";
 import { useCalendarConnection } from "@/features/calendar/lib/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import CalendarSyncSettings from "@/features/calendar/components/CalendarSyncSettings";
 
 type ProfileTab = "account" | "calendar-sync";
@@ -34,6 +35,75 @@ export default function ProfileView() {
 
   const { data: profile, isLoading } = useProfile();
   const logoutMutation = useLogout();
+  const updateProfile = useUpdateProfile();
+  const queryClient = useQueryClient();
+
+  // Avatar upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  // Form field state
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [savedFields, setSavedFields] = useState<Record<string, boolean>>({});
+
+  // Initialize form values from profile when it loads
+  const getFieldValue = (field: string, profileValue: string | null) => {
+    if (field in formValues) return formValues[field];
+    return profileValue ?? "";
+  };
+
+  const handleFieldBlur = useCallback(
+    (field: string, value: string, originalValue: string | null) => {
+      const trimmed = value.trim();
+      const original = originalValue ?? "";
+      if (trimmed === original) return;
+
+      updateProfile.mutate(
+        { [field]: trimmed || undefined },
+        {
+          onSuccess: () => {
+            setSavedFields((prev) => ({ ...prev, [field]: true }));
+            setTimeout(() => {
+              setSavedFields((prev) => ({ ...prev, [field]: false }));
+            }, 1500);
+          },
+        }
+      );
+    },
+    [updateProfile]
+  );
+
+  const handleAvatarUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setAvatarUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/profile/avatar", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Upload failed");
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+      } catch (error) {
+        console.error("Avatar upload failed:", error);
+      } finally {
+        setAvatarUploading(false);
+        // Reset file input so the same file can be re-selected
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [queryClient]
+  );
 
   // Prefetch calendar connection so Calendar Sync tab loads instantly
   useCalendarConnection();
@@ -133,30 +203,153 @@ export default function ProfileView() {
         >
           {activeTab === "account" && (
             <div className="space-y-6">
-              {/* Profile Card */}
+              {/* Avatar Section */}
               <div className="bg-white rounded-xl border border-[#D4CFE2] p-6">
                 <div className="flex items-center gap-6">
-                  <div className="h-20 w-20 rounded-full overflow-hidden flex items-center justify-center bg-[#403770] text-white text-2xl font-medium flex-shrink-0">
-                    {profile.avatarUrl ? (
-                      <img
-                        src={profile.avatarUrl}
-                        alt={displayName}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span>{initials}</span>
-                    )}
+                  <div className="relative flex-shrink-0">
+                    <div className="h-20 w-20 rounded-full overflow-hidden flex items-center justify-center bg-[#403770] text-white text-2xl font-medium">
+                      {avatarUploading ? (
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-white border-t-transparent" />
+                      ) : profile.avatarUrl ? (
+                        <img
+                          src={profile.avatarUrl}
+                          alt={displayName}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span>{initials}</span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h2 className="text-xl font-semibold text-[#403770] truncate">
                       {displayName}
                     </h2>
-                    <p className="text-[#8A80A8] truncate">{profile.email}</p>
-                    {profile.fullName && (
-                      <p className="text-sm text-[#A69DC0] mt-1">
-                        Signed in with Google
-                      </p>
-                    )}
+                    <p className="text-sm text-[#8A80A8] truncate">{profile.email}</p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={avatarUploading}
+                      className="mt-2 text-sm font-medium text-[#F37167] hover:text-[#e0584e] transition-colors disabled:opacity-50"
+                    >
+                      {avatarUploading ? "Uploading..." : "Upload photo"}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Fields Card */}
+              <div className="bg-white rounded-xl border border-[#D4CFE2] p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-sm font-semibold text-[#403770]">Profile Information</h3>
+                  {Object.values(savedFields).some(Boolean) && (
+                    <span className="text-xs text-[#69B34A] font-medium animate-fade-in">
+                      Saved
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={getFieldValue("fullName", profile.fullName)}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, fullName: e.target.value }))
+                      }
+                      onBlur={(e) =>
+                        handleFieldBlur("fullName", e.target.value, profile.fullName)
+                      }
+                      placeholder="Your full name"
+                      className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Job Title */}
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      Job Title
+                    </label>
+                    <input
+                      type="text"
+                      value={getFieldValue("jobTitle", profile.jobTitle)}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, jobTitle: e.target.value }))
+                      }
+                      onBlur={(e) =>
+                        handleFieldBlur("jobTitle", e.target.value, profile.jobTitle)
+                      }
+                      placeholder="e.g. Account Executive"
+                      className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Location */}
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={getFieldValue("location", profile.location)}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, location: e.target.value }))
+                      }
+                      onBlur={(e) =>
+                        handleFieldBlur("location", e.target.value, profile.location)
+                      }
+                      placeholder="e.g. Austin, TX"
+                      className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="text"
+                      value={getFieldValue("phone", profile.phone)}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, phone: e.target.value }))
+                      }
+                      onBlur={(e) =>
+                        handleFieldBlur("phone", e.target.value, profile.phone)
+                      }
+                      placeholder="(555) 123-4567"
+                      className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Calendar Booking Link */}
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      Calendar Booking Link
+                    </label>
+                    <input
+                      type="text"
+                      value={getFieldValue("bookingLink", profile.bookingLink)}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, bookingLink: e.target.value }))
+                      }
+                      onBlur={(e) =>
+                        handleFieldBlur("bookingLink", e.target.value, profile.bookingLink)
+                      }
+                      placeholder="https://calendly.com/..."
+                      className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    />
                   </div>
                 </div>
               </div>

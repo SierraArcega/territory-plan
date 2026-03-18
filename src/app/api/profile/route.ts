@@ -168,6 +168,7 @@ export async function GET() {
       phone: profile.phone,
       slackUrl: profile.slackUrl,
       bio: profile.bio,
+      bookingLink: profile.bookingLink,
       hasCompletedSetup: profile.hasCompletedSetup,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
@@ -196,7 +197,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fullName, hasCompletedSetup, jobTitle, location, locationLat, locationLng, phone, slackUrl, bio } = body;
+    const { fullName, hasCompletedSetup, jobTitle, location, locationLat, locationLng, phone, slackUrl, bio, bookingLink, avatarUrl } = body;
 
     // Build update data - only include fields that were provided
     const updateData: {
@@ -209,6 +210,8 @@ export async function PUT(request: NextRequest) {
       phone?: string | null;
       slackUrl?: string | null;
       bio?: string | null;
+      bookingLink?: string | null;
+      avatarUrl?: string | null;
     } = {};
 
     if (fullName !== undefined) {
@@ -237,6 +240,12 @@ export async function PUT(request: NextRequest) {
     }
     if (bio !== undefined) {
       updateData.bio = bio?.trim() || null;
+    }
+    if (bookingLink !== undefined) {
+      updateData.bookingLink = bookingLink?.trim() || null;
+    }
+    if (avatarUrl !== undefined) {
+      updateData.avatarUrl = avatarUrl?.trim() || null;
     }
 
     // Update the profile
@@ -289,6 +298,7 @@ export async function PUT(request: NextRequest) {
       phone: profile.phone,
       slackUrl: profile.slackUrl,
       bio: profile.bio,
+      bookingLink: profile.bookingLink,
       hasCompletedSetup: profile.hasCompletedSetup,
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),

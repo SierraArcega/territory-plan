@@ -408,6 +408,7 @@ export interface UserProfile {
   phone: string | null;
   slackUrl: string | null;
   bio: string | null;
+  bookingLink: string | null;
   hasCompletedSetup: boolean;
   createdAt: string;
   updatedAt: string;
