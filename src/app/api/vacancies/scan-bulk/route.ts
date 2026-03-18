@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { runScan } from "@/features/vacancies/lib/scan-runner";
 
 export const dynamic = "force-dynamic";
-
-// Allow up to 300s for bulk scans (runs districts sequentially)
-export const maxDuration = 300;
 
 /**
  * POST /api/vacancies/scan-bulk
@@ -89,11 +85,6 @@ export async function POST(request: NextRequest) {
         })
       )
     );
-
-    // Run all scans inline (sequentially to avoid overwhelming the DB/API)
-    for (const scan of scans) {
-      await runScan(scan.id);
-    }
 
     return NextResponse.json({
       batchId,

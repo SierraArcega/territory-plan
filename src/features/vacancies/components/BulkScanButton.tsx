@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useBulkScan, useBatchProgress } from "@/features/vacancies/lib/queries";
-import type { BatchProgress } from "@/features/vacancies/lib/queries";
+import { useBulkScan } from "@/features/vacancies/lib/queries";
 
 interface BulkScanButtonProps {
   territoryPlanId: string;
@@ -13,35 +12,16 @@ type ScanState = "idle" | "scanning" | "complete" | "error";
 
 export default function BulkScanButton({ territoryPlanId }: BulkScanButtonProps) {
   const [scanState, setScanState] = useState<ScanState>("idle");
-  const [batchId, setBatchId] = useState<string | null>(null);
   const [completeSummary, setCompleteSummary] = useState<{
     vacanciesFound: number;
     fullmindRelevant: number;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState({ completed: 0, total: 0 });
+  const abortRef = useRef(false);
 
   const queryClient = useQueryClient();
   const bulkScan = useBulkScan();
-  const { data: batchProgress } = useBatchProgress(
-    scanState === "scanning" ? batchId : null
-  );
-
-  // Watch for batch completion
-  useEffect(() => {
-    if (!batchProgress || scanState !== "scanning") return;
-
-    if (batchProgress.pending === 0) {
-      setScanState("complete");
-      setCompleteSummary({
-        vacanciesFound: batchProgress.vacanciesFound,
-        fullmindRelevant: batchProgress.fullmindRelevant,
-      });
-      setBatchId(null);
-      // Invalidate vacancy queries so tables/tabs refresh
-      queryClient.invalidateQueries({ queryKey: ["planVacancies"] });
-      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
-    }
-  }, [batchProgress, scanState]);
 
   // Auto-dismiss complete state after 5 seconds
   useEffect(() => {
@@ -57,23 +37,61 @@ export default function BulkScanButton({ territoryPlanId }: BulkScanButtonProps)
     setScanState("scanning");
     setErrorMessage(null);
     setCompleteSummary(null);
+    abortRef.current = false;
 
     try {
       const result = await bulkScan.mutateAsync(territoryPlanId);
       if (result.scansCreated === 0) {
-        // No districts with job board URLs — show complete immediately
         setScanState("complete");
         setCompleteSummary({ vacanciesFound: 0, fullmindRelevant: 0 });
         return;
       }
-      setBatchId(result.batchId);
+
+      setProgress({ completed: 0, total: result.scansCreated });
+
+      // Drive scans one at a time via scan-next
+      let completed = 0;
+      let done = false;
+      while (!done && !abortRef.current) {
+        const res = await fetch("/api/vacancies/scan-next", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchId: result.batchId }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Scan request failed");
+        }
+
+        const next = await res.json();
+        done = next.done;
+        if (!done) {
+          completed++;
+          setProgress({ completed, total: result.scansCreated });
+        }
+      }
+
+      // Fetch final batch stats
+      const batchRes = await fetch(
+        `/api/vacancies/batch/${encodeURIComponent(result.batchId)}`
+      );
+      const batchData = batchRes.ok ? await batchRes.json() : null;
+
+      setScanState("complete");
+      setCompleteSummary({
+        vacanciesFound: batchData?.vacanciesFound ?? 0,
+        fullmindRelevant: batchData?.fullmindRelevant ?? 0,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["planVacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
     } catch (err) {
       setScanState("error");
       setErrorMessage(
         err instanceof Error ? err.message : "Scan failed. Please try again."
       );
     }
-  }, [territoryPlanId, bulkScan]);
+  }, [territoryPlanId, bulkScan, queryClient]);
 
   const handleRetry = useCallback(() => {
     setErrorMessage(null);
@@ -107,9 +125,7 @@ export default function BulkScanButton({ territoryPlanId }: BulkScanButtonProps)
 
   // --- Scanning ---
   if (scanState === "scanning") {
-    const progress = batchProgress as BatchProgress | undefined;
-    const completed = progress ? progress.completed + progress.failed : 0;
-    const total = progress?.total ?? 0;
+    const { completed, total } = progress;
     const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return (
