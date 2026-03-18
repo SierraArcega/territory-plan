@@ -408,6 +408,7 @@ export interface UserProfile {
   phone: string | null;
   slackUrl: string | null;
   bio: string | null;
+  bookingLink: string | null;
   hasCompletedSetup: boolean;
   createdAt: string;
   updatedAt: string;
@@ -874,6 +875,10 @@ export interface CalendarConnection {
   syncEnabled: boolean;
   lastSyncAt: string | null;
   status: "connected" | "disconnected" | "error";
+  syncDirection: "one_way" | "two_way";
+  syncedActivityTypes: string[];
+  reminderMinutes: number;
+  secondReminderMinutes: number | null;
   createdAt: string;
 }
 

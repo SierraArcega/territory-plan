@@ -50,6 +50,27 @@ export function useUpdateCalendarSettings() {
   });
 }
 
+// Update sync configuration (direction, activity types, reminders)
+export function useUpdateCalendarSyncConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      syncDirection?: "one_way" | "two_way";
+      syncedActivityTypes?: string[];
+      reminderMinutes?: number;
+      secondReminderMinutes?: number | null;
+    }) =>
+      fetchJson<{ connection: CalendarConnection }>(
+        `${API_BASE}/calendar/status`,
+        { method: "PATCH", body: JSON.stringify(data) }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+    },
+  });
+}
+
 // --- Calendar Sync Hooks ---
 
 // Trigger a calendar sync — pulls events from Google Calendar and stages them

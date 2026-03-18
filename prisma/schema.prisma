@@ -726,6 +726,7 @@ model UserProfile {
   locationLng       Decimal?  @map("location_lng") @db.Decimal(10, 7)
   phone             String?   @db.VarChar(50)
   slackUrl          String?   @map("slack_url") @db.VarChar(500)
+  bookingLink       String?   @map("booking_link") @db.VarChar(500)
   bio               String?   @db.Text
   hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -916,6 +917,10 @@ model CalendarConnection {
   syncEnabled        Boolean   @default(true) @map("sync_enabled")
   lastSyncAt         DateTime? @map("last_sync_at")
   status             String    @default("connected") @db.VarChar(20) // connected, disconnected, error
+  syncDirection          String   @default("two_way") @map("sync_direction") @db.VarChar(20) // one_way (app→cal) or two_way
+  syncedActivityTypes    String[] @default([]) @map("synced_activity_types") // empty = all types synced
+  reminderMinutes        Int      @default(15) @map("reminder_minutes") // 0 = none
+  secondReminderMinutes  Int?     @map("second_reminder_minutes")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

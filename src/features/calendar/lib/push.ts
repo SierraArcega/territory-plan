@@ -18,6 +18,9 @@ import {
 async function getCalendarAccess(userId: string): Promise<{
   accessToken: string;
   connectionId: string;
+  syncedActivityTypes: string[];
+  reminderMinutes: number;
+  secondReminderMinutes: number | null;
 } | null> {
   const connection = await prisma.calendarConnection.findUnique({
     where: { userId },
@@ -57,7 +60,25 @@ async function getCalendarAccess(userId: string): Promise<{
   return {
     accessToken: tokenResult.accessToken,
     connectionId: connection.id,
+    syncedActivityTypes: connection.syncedActivityTypes,
+    reminderMinutes: connection.reminderMinutes,
+    secondReminderMinutes: connection.secondReminderMinutes,
   };
+}
+
+// Build reminder overrides from user config
+function buildReminders(access: {
+  reminderMinutes: number;
+  secondReminderMinutes: number | null;
+}): { minutes: number }[] | undefined {
+  const reminders: { minutes: number }[] = [];
+  if (access.reminderMinutes > 0) {
+    reminders.push({ minutes: access.reminderMinutes });
+  }
+  if (access.secondReminderMinutes && access.secondReminderMinutes > 0) {
+    reminders.push({ minutes: access.secondReminderMinutes });
+  }
+  return reminders.length > 0 ? reminders : undefined;
 }
 
 // Push a newly created activity to Google Calendar
@@ -75,6 +96,7 @@ export async function pushActivityToCalendar(
       where: { id: activityId },
       select: {
         id: true,
+        type: true,
         title: true,
         notes: true,
         startDate: true,
@@ -100,18 +122,26 @@ export async function pushActivityToCalendar(
     // Don't push if it already has a Google event ID (already synced)
     if (activity.googleEventId) return;
 
+    // Check activity type against syncedActivityTypes filter
+    // Empty array = all types allowed, non-empty = only those types
+    if (access.syncedActivityTypes.length > 0 && !access.syncedActivityTypes.includes(activity.type)) {
+      return;
+    }
+
     // Collect attendee emails from linked contacts
     const attendeeEmails = activity.contacts
       .map((c) => c.contact.email)
       .filter((email): email is string => !!email);
 
-    // Create the Google Calendar event
+    // Create the Google Calendar event with reminder overrides
+    const reminders = buildReminders(access);
     const googleEventId = await createCalendarEvent(access.accessToken, {
       title: activity.title,
       description: activity.notes || undefined,
       startTime: activity.startDate,
       endTime: activity.endDate || activity.startDate, // Same time if no end date
       attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
+      reminders,
     });
 
     // Store the Google event ID on the activity for future syncs
@@ -137,6 +167,7 @@ export async function updateActivityOnCalendar(
     const activity = await prisma.activity.findUnique({
       where: { id: activityId },
       select: {
+        type: true,
         title: true,
         notes: true,
         startDate: true,
@@ -155,16 +186,23 @@ export async function updateActivityOnCalendar(
     // Only update if the activity has a linked Google event
     if (!activity || !activity.googleEventId) return;
 
+    // Check activity type against syncedActivityTypes filter
+    if (access.syncedActivityTypes.length > 0 && !access.syncedActivityTypes.includes(activity.type)) {
+      return;
+    }
+
     const attendeeEmails = activity.contacts
       .map((c) => c.contact.email)
       .filter((email): email is string => !!email);
 
+    const reminders = buildReminders(access);
     await updateCalendarEvent(access.accessToken, activity.googleEventId, {
       title: activity.title,
       description: activity.notes || undefined,
       startTime: activity.startDate || undefined,
       endTime: activity.endDate || activity.startDate || undefined,
       attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : undefined,
+      reminders,
     });
   } catch (error) {
     console.error(`[Calendar Push] Failed to update activity ${activityId}:`, error);

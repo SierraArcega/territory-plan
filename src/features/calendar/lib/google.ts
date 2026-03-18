@@ -198,6 +198,16 @@ export function filterExternalAttendees(
 
 // Create a new Google Calendar event from an activity
 // Used when a rep creates an activity in the app and wants it on their calendar
+// Check if a date is midnight UTC (i.e. a date-only value with no meaningful time)
+function isDateOnly(date: Date): boolean {
+  return date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0;
+}
+
+// Format a Date as YYYY-MM-DD for Google Calendar all-day events
+function toDateString(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
 export async function createCalendarEvent(
   accessToken: string,
   event: {
@@ -207,20 +217,38 @@ export async function createCalendarEvent(
     endTime: Date;
     location?: string;
     attendeeEmails?: string[];
+    reminders?: { minutes: number }[];
   }
 ): Promise<string> {
   oauth2Client.setCredentials({ access_token: accessToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  // Use all-day event format when the activity has no specific time
+  const allDay = isDateOnly(event.startTime) && (event.startTime.getTime() === event.endTime.getTime() || isDateOnly(event.endTime));
+  const start = allDay
+    ? { date: toDateString(event.startTime) }
+    : { dateTime: event.startTime.toISOString() };
+  const end = allDay
+    ? { date: event.startTime.getTime() === event.endTime.getTime()
+        ? toDateString(new Date(event.endTime.getTime() + 86400000)) // next day for single-day
+        : toDateString(event.endTime) }
+    : { dateTime: event.endTime.toISOString() };
 
   const response = await calendar.events.insert({
     calendarId: "primary",
     requestBody: {
       summary: event.title,
       description: event.description,
-      start: { dateTime: event.startTime.toISOString() },
-      end: { dateTime: event.endTime.toISOString() },
+      start,
+      end,
       location: event.location,
       attendees: event.attendeeEmails?.map((email) => ({ email })),
+      reminders: event.reminders
+        ? {
+            useDefault: false,
+            overrides: event.reminders.map((r) => ({ method: "popup" as const, minutes: r.minutes })),
+          }
+        : undefined,
     },
   });
 
@@ -238,6 +266,7 @@ export async function updateCalendarEvent(
     endTime?: Date;
     location?: string;
     attendeeEmails?: string[];
+    reminders?: { minutes: number }[];
   }
 ): Promise<void> {
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -246,11 +275,27 @@ export async function updateCalendarEvent(
   const requestBody: Record<string, unknown> = {};
   if (updates.title) requestBody.summary = updates.title;
   if (updates.description !== undefined) requestBody.description = updates.description;
-  if (updates.startTime) requestBody.start = { dateTime: updates.startTime.toISOString() };
-  if (updates.endTime) requestBody.end = { dateTime: updates.endTime.toISOString() };
+  if (updates.startTime) {
+    const allDay = isDateOnly(updates.startTime) && (!updates.endTime || updates.startTime.getTime() === updates.endTime.getTime() || isDateOnly(updates.endTime));
+    requestBody.start = allDay ? { date: toDateString(updates.startTime) } : { dateTime: updates.startTime.toISOString() };
+  }
+  if (updates.endTime) {
+    const allDay = isDateOnly(updates.endTime) && updates.startTime && isDateOnly(updates.startTime);
+    if (allDay && updates.startTime && updates.startTime.getTime() === updates.endTime.getTime()) {
+      requestBody.end = { date: toDateString(new Date(updates.endTime.getTime() + 86400000)) };
+    } else {
+      requestBody.end = allDay ? { date: toDateString(updates.endTime) } : { dateTime: updates.endTime.toISOString() };
+    }
+  }
   if (updates.location !== undefined) requestBody.location = updates.location;
   if (updates.attendeeEmails) {
     requestBody.attendees = updates.attendeeEmails.map((email) => ({ email }));
+  }
+  if (updates.reminders) {
+    requestBody.reminders = {
+      useDefault: false,
+      overrides: updates.reminders.map((r) => ({ method: "popup", minutes: r.minutes })),
+    };
   }
 
   await calendar.events.patch({
