@@ -242,6 +242,10 @@ export async function POST(request: NextRequest) {
       districtLeaids = [],
       contactIds = [],
       stateFips = [], // explicit states
+      metadata = null,
+      attendeeUserIds = [],
+      expenses = [],
+      districts: districtDetails = [], // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
     // Validate required fields
@@ -278,6 +282,12 @@ export async function POST(request: NextRequest) {
       districts.forEach((d) => derivedStates.add(d.stateFips));
     }
 
+    // Build district create entries — merge districtLeaids with districtDetails (which may have visit dates)
+    const districtDetailsMap = new Map(
+      districtDetails.map((d: { leaid: string; visitDate?: string; visitEndDate?: string }) => [d.leaid, d])
+    );
+    const allDistrictLeaids = [...new Set([...districtLeaids, ...districtDetails.map((d: { leaid: string }) => d.leaid)])];
+
     // Create activity with all relations
     const activity = await prisma.activity.create({
       data: {
@@ -287,15 +297,21 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         status,
+        metadata: metadata || undefined,
         createdByUserId: user.id,
         plans: {
           create: planIds.map((planId: string) => ({ planId })),
         },
         districts: {
-          create: districtLeaids.map((leaid: string) => ({
-            districtLeaid: leaid,
-            warningDismissed: false,
-          })),
+          create: allDistrictLeaids.map((leaid: string) => {
+            const detail = districtDetailsMap.get(leaid) as { visitDate?: string; visitEndDate?: string } | undefined;
+            return {
+              districtLeaid: leaid,
+              warningDismissed: false,
+              visitDate: detail?.visitDate ? new Date(detail.visitDate) : null,
+              visitEndDate: detail?.visitEndDate ? new Date(detail.visitEndDate) : null,
+            };
+          }),
         },
         contacts: {
           create: contactIds.map((contactId: number) => ({ contactId })),
@@ -316,6 +332,15 @@ export async function POST(request: NextRequest) {
               })),
           ],
         },
+        expenses: {
+          create: expenses.map((e: { description: string; amount: number }) => ({
+            description: e.description,
+            amount: e.amount,
+          })),
+        },
+        attendees: {
+          create: attendeeUserIds.map((userId: string) => ({ userId })),
+        },
       },
       include: {
         plans: {
@@ -331,6 +356,10 @@ export async function POST(request: NextRequest) {
         },
         states: {
           include: { state: { select: { fips: true, abbrev: true, name: true } } },
+        },
+        expenses: true,
+        attendees: {
+          include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
         },
       },
     });
@@ -349,6 +378,7 @@ export async function POST(request: NextRequest) {
       startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
+      metadata: activity.metadata,
       createdByUserId: activity.createdByUserId,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
@@ -365,6 +395,8 @@ export async function POST(request: NextRequest) {
         stateAbbrev: d.district.stateAbbrev,
         warningDismissed: d.warningDismissed,
         isInPlan: false, // Will be computed on fetch
+        visitDate: d.visitDate?.toISOString() ?? null,
+        visitEndDate: d.visitEndDate?.toISOString() ?? null,
       })),
       contacts: activity.contacts.map((c) => ({
         id: c.contact.id,
@@ -376,6 +408,16 @@ export async function POST(request: NextRequest) {
         abbrev: s.state.abbrev,
         name: s.state.name,
         isExplicit: s.isExplicit,
+      })),
+      expenses: activity.expenses.map((e) => ({
+        id: e.id,
+        description: e.description,
+        amount: Number(e.amount),
+      })),
+      attendees: activity.attendees.map((a) => ({
+        userId: a.user.id,
+        fullName: a.user.fullName,
+        avatarUrl: a.user.avatarUrl,
       })),
     });
   } catch (error) {

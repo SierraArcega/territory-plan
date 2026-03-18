@@ -100,7 +100,15 @@ export const CATEGORY_DESCRIPTIONS: Record<ActivityCategory, string> = {
 };
 
 // Activity status types and config
-export const VALID_ACTIVITY_STATUSES = ["planned", "completed", "cancelled"] as const;
+export const VALID_ACTIVITY_STATUSES = [
+  "planned",
+  "requested",
+  "planning",
+  "in_progress",
+  "wrapping_up",
+  "completed",
+  "cancelled",
+] as const;
 export type ActivityStatus = (typeof VALID_ACTIVITY_STATUSES)[number];
 
 export const ACTIVITY_STATUS_CONFIG: Record<
@@ -108,9 +116,54 @@ export const ACTIVITY_STATUS_CONFIG: Record<
   { label: string; color: string; bgColor: string }
 > = {
   planned: { label: "Planned", color: "#6EA3BE", bgColor: "#EEF5F8" },
+  requested: { label: "Requested", color: "#D4A574", bgColor: "#FDF6F0" },
+  planning: { label: "Planning", color: "#A78BCA", bgColor: "#F5F0FA" },
+  in_progress: { label: "In Progress", color: "#6EA3BE", bgColor: "#EEF5F8" },
+  wrapping_up: { label: "Wrapping Up", color: "#B8A96E", bgColor: "#FAF8F0" },
   completed: { label: "Completed", color: "#8AA891", bgColor: "#EFF5F0" },
   cancelled: { label: "Cancelled", color: "#9CA3AF", bgColor: "#F3F4F6" },
 };
+
+// Type-specific status lists — Conference uses extended lifecycle, all others use default
+const DEFAULT_STATUSES: ActivityStatus[] = ["planned", "completed", "cancelled"];
+const CONFERENCE_STATUSES: ActivityStatus[] = [
+  "requested",
+  "planning",
+  "in_progress",
+  "wrapping_up",
+  "completed",
+  "cancelled",
+];
+
+export const ACTIVITY_TYPE_STATUSES: Partial<Record<ActivityType, ActivityStatus[]>> = {
+  conference: CONFERENCE_STATUSES,
+};
+
+export function getStatusesForType(type: ActivityType): ActivityStatus[] {
+  return ACTIVITY_TYPE_STATUSES[type] ?? DEFAULT_STATUSES;
+}
+
+// ===== Metadata Interfaces (stored as JSON in activity.metadata) =====
+
+export interface ConferenceMetadata {
+  websiteUrl?: string;
+  timezone?: string;
+  address?: string;
+  addressLat?: number;
+  addressLng?: number;
+}
+
+export interface SocialEventMetadata {
+  time?: string; // HH:mm format
+  address?: string;
+  addressLat?: number;
+  addressLng?: number;
+  inviteUrl?: string;
+  googleCalendarUrl?: string;
+}
+
+// Road Trip uses no metadata — districts (with visit dates), attendees, and expenses cover it
+export type ActivityMetadata = ConferenceMetadata | SocialEventMetadata | null;
 
 // Default type for each category (used when creating from category tab)
 export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> = {

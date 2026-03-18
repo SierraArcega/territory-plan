@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useCreateActivity, useTerritoryPlans, useStates } from "@/lib/api";
 import {
   type ActivityCategory,
@@ -12,9 +12,13 @@ import {
   CATEGORY_LABELS,
   CATEGORY_ICONS,
   CATEGORY_DESCRIPTIONS,
-  VALID_ACTIVITY_STATUSES,
   DEFAULT_TYPE_FOR_CATEGORY,
+  ACTIVITY_STATUS_CONFIG,
+  getCategoryForType,
+  getStatusesForType,
 } from "@/features/activities/types";
+import EventTypeFields from "./event-fields/EventTypeFields";
+import { MultiSelect } from "@/features/shared/components/MultiSelect";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -55,6 +59,14 @@ export default function ActivityFormModal({
   );
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
 
+  // Type-specific state
+  const [metadata, setMetadata] = useState<Record<string, unknown>>({});
+  const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
+  const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);
+  const [districtStops, setDistrictStops] = useState<
+    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; visitEndDate: string }[]
+  >([]);
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -82,6 +94,10 @@ export default function ActivityFormModal({
       setStatus("planned");
       setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
       setSelectedStateFips([]);
+      setMetadata({});
+      setAttendeeUserIds([]);
+      setExpenses([]);
+      setDistrictStops([]);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
@@ -115,6 +131,9 @@ export default function ActivityFormModal({
 
   const handleTypeSelect = (activityType: ActivityType) => {
     setType(activityType);
+    // Set appropriate default status for the type
+    const typeStatuses = getStatusesForType(activityType);
+    setStatus(typeStatuses[0]);
     setStep("form");
   };
 
@@ -137,6 +156,10 @@ export default function ActivityFormModal({
     e.preventDefault();
     if (!title.trim()) return;
 
+    // Determine if this is an event category type
+    const isEvent = getCategoryForType(type) === "events";
+    const hasMetadata = isEvent && Object.keys(metadata).length > 0;
+
     try {
       await createActivity.mutateAsync({
         type,
@@ -147,6 +170,16 @@ export default function ActivityFormModal({
         status,
         planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
         stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
+        metadata: hasMetadata ? metadata : undefined,
+        attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
+        expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
+        districts: districtStops.length > 0
+          ? districtStops.map((s) => ({
+              leaid: s.leaid,
+              visitDate: s.visitDate || undefined,
+              visitEndDate: s.visitEndDate || undefined,
+            }))
+          : undefined,
       });
       onClose();
     } catch (error) {
@@ -154,21 +187,15 @@ export default function ActivityFormModal({
     }
   };
 
-  const togglePlan = (planId: string) => {
-    setSelectedPlanIds((prev) =>
-      prev.includes(planId)
-        ? prev.filter((id) => id !== planId)
-        : [...prev, planId]
-    );
-  };
+  const planOptions = useMemo(
+    () => (plans ?? []).map((p) => ({ value: p.id, label: p.name })),
+    [plans]
+  );
 
-  const toggleState = (fips: string) => {
-    setSelectedStateFips((prev) =>
-      prev.includes(fips)
-        ? prev.filter((f) => f !== fips)
-        : [...prev, fips]
-    );
-  };
+  const stateOptions = useMemo(
+    () => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })),
+    [states]
+  );
 
   if (!isOpen) return null;
 
@@ -330,34 +357,16 @@ export default function ActivityFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Link to Plans
                 </label>
-                <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                  {plans && plans.length > 0 ? (
-                    plans.map((plan) => (
-                      <label
-                        key={plan.id}
-                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedPlanIds.includes(plan.id)}
-                          onChange={() => togglePlan(plan.id)}
-                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                        />
-                        <span
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: plan.color }}
-                        />
-                        <span className="text-sm text-gray-700 truncate">
-                          {plan.name}
-                        </span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="px-3 py-2 text-sm text-gray-500">
-                      No plans yet
-                    </p>
-                  )}
-                </div>
+                <MultiSelect
+                  id="activity-plans"
+                  label="Plans"
+                  options={planOptions}
+                  selected={selectedPlanIds}
+                  onChange={setSelectedPlanIds}
+                  placeholder="Select plans..."
+                  countLabel="plans"
+                  searchPlaceholder="Search plans..."
+                />
                 {selectedPlanIds.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600">
                     Activities without plans will be flagged for follow-up
@@ -370,31 +379,32 @@ export default function ActivityFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   States
                 </label>
-                <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                  {states && states.length > 0 ? (
-                    states.map((state) => (
-                      <label
-                        key={state.fips}
-                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedStateFips.includes(state.fips)}
-                          onChange={() => toggleState(state.fips)}
-                          className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {state.name} ({state.abbrev})
-                        </span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="px-3 py-2 text-sm text-gray-500">
-                      Loading states...
-                    </p>
-                  )}
-                </div>
+                <MultiSelect
+                  id="activity-states"
+                  label="States"
+                  options={stateOptions}
+                  selected={selectedStateFips}
+                  onChange={setSelectedStateFips}
+                  placeholder="Select states..."
+                  countLabel="states"
+                  searchPlaceholder="Search states..."
+                />
               </div>
+
+              {/* Event-type-specific fields */}
+              {getCategoryForType(type) === "events" && (
+                <EventTypeFields
+                  type={type}
+                  metadata={metadata}
+                  onMetadataChange={setMetadata}
+                  attendeeUserIds={attendeeUserIds}
+                  onAttendeeChange={setAttendeeUserIds}
+                  expenses={expenses}
+                  onExpensesChange={setExpenses}
+                  districtStops={districtStops}
+                  onDistrictStopsChange={setDistrictStops}
+                />
+              )}
 
               {/* Notes */}
               <div>
@@ -410,13 +420,13 @@ export default function ActivityFormModal({
                 />
               </div>
 
-              {/* Status */}
+              {/* Status — type-aware */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Status
                 </label>
-                <div className="flex gap-4">
-                  {VALID_ACTIVITY_STATUSES.map((s) => (
+                <div className="flex flex-wrap gap-3">
+                  {getStatusesForType(type).map((s) => (
                     <label
                       key={s}
                       className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"
@@ -429,7 +439,7 @@ export default function ActivityFormModal({
                         onChange={(e) => setStatus(e.target.value as ActivityStatus)}
                         className="text-[#403770] focus:ring-[#403770]"
                       />
-                      <span className="capitalize">{s}</span>
+                      <span>{ACTIVITY_STATUS_CONFIG[s].label}</span>
                     </label>
                   ))}
                 </div>
