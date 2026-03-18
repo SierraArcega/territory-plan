@@ -84,10 +84,16 @@ export async function runScan(scanId: string): Promise<void> {
     let rawVacancies: RawVacancy[];
     const isServerless = !!process.env.VERCEL;
 
-    if (parser) {
+    // Unknown platforms fall back to Playwright locally or Claude on Vercel.
+    // All known parsers (applitrack, olas, schoolspring) use plain fetch — no Playwright.
+    const needsPlaywright = !parser;
+
+    if (parser && !(isServerless && needsPlaywright)) {
+      // Use dedicated parser (works for applitrack, olas on all envs;
+      // schoolspring only locally where Playwright is available)
       rawVacancies = await parser(scan.district.jobBoardUrl);
     } else if (isServerless) {
-      // Serverless (Vercel): Playwright is not available — go straight to Claude
+      // Serverless (Vercel): Playwright is not available — use Claude
       if (process.env.ANTHROPIC_API_KEY) {
         console.log(`[scan-runner] Serverless env, using Claude fallback for "${platform}"...`);
         rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
