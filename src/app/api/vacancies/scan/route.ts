@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { enqueueScan } from "@/features/vacancies/lib/scan-queue";
+import { runScan } from "@/features/vacancies/lib/scan-runner";
 
 export const dynamic = "force-dynamic";
+
+// Allow up to 60s for the scan to complete on Vercel
+export const maxDuration = 60;
 
 /**
  * POST /api/vacancies/scan
  *
  * Trigger a vacancy scan for a single district.
+ * Runs the scan inline (awaited) so it completes before the response is sent,
+ * which is required for Vercel serverless where background work is killed.
  *
  * Request body: { leaid: string }
- * Response: { scanId: string, status: "pending" }
+ * Response: { scanId: string, status: "completed" | "failed", ... }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -59,12 +64,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Enqueue the scan job
-    await enqueueScan(scan.id);
+    // Run the scan inline — await it so it completes before the response
+    await runScan(scan.id);
+
+    // Fetch final status to return
+    const result = await prisma.vacancyScan.findUnique({
+      where: { id: scan.id },
+      select: {
+        id: true,
+        status: true,
+        vacancyCount: true,
+        fullmindRelevantCount: true,
+        errorMessage: true,
+      },
+    });
 
     return NextResponse.json({
       scanId: scan.id,
-      status: "pending",
+      status: result?.status ?? "completed",
+      vacancyCount: result?.vacancyCount ?? 0,
+      fullmindRelevantCount: result?.fullmindRelevantCount ?? 0,
+      errorMessage: result?.errorMessage ?? null,
     });
   } catch (error) {
     console.error("Error triggering vacancy scan:", error);

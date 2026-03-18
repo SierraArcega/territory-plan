@@ -33,14 +33,15 @@ export async function parseWithClaude(url: string): Promise<RawVacancy[]> {
   let text = htmlToText(html);
 
   // If content is too short, the page is likely JS-rendered — use Playwright
-  if (!text || text.length < MIN_CONTENT_LENGTH) {
+  // (skip on Vercel where Playwright is not available)
+  if ((!text || text.length < MIN_CONTENT_LENGTH) && !process.env.VERCEL) {
     console.log(`[claude-fallback] Plain fetch returned minimal content for ${url}, trying Playwright...`);
     html = await fetchPageWithPlaywright(url);
     text = htmlToText(html);
   }
 
   if (!text || text.length < 50) {
-    console.log(`[claude-fallback] No content found for ${url} even with Playwright`);
+    console.log(`[claude-fallback] No usable content found for ${url}`);
     return [];
   }
 

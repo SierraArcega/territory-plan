@@ -82,11 +82,21 @@ export async function runScan(scanId: string): Promise<void> {
     // Step 4: Get parser and run it
     const parser = getParser(platform);
     let rawVacancies: RawVacancy[];
+    const isServerless = !!process.env.VERCEL;
 
     if (parser) {
       rawVacancies = await parser(scan.district.jobBoardUrl);
+    } else if (isServerless) {
+      // Serverless (Vercel): Playwright is not available — go straight to Claude
+      if (process.env.ANTHROPIC_API_KEY) {
+        console.log(`[scan-runner] Serverless env, using Claude fallback for "${platform}"...`);
+        rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+      } else {
+        console.log(`[scan-runner] Serverless env, no ANTHROPIC_API_KEY — cannot parse "${platform}"`);
+        rawVacancies = [];
+      }
     } else {
-      // Unknown platform — try Playwright first (free, no API cost),
+      // Local / self-hosted: try Playwright first (free, no API cost),
       // fall back to Claude if Playwright finds nothing
       console.log(`[scan-runner] No parser for platform "${platform}", trying Playwright...`);
       rawVacancies = await parseWithPlaywright(scan.district.jobBoardUrl);
