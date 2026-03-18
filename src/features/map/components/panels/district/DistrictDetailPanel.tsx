@@ -12,6 +12,7 @@ import PurchasingHistoryCard from "./PurchasingHistoryCard";
 import CompetitorSpendCard from "./CompetitorSpendCard";
 import FullmindCard from "./FullmindCard";
 import DistrictDetailsCard from "./DistrictDetailsCard";
+import VacanciesCard from "@/features/vacancies/components/VacanciesCard";
 import ContactsList from "@/features/districts/components/ContactsList";
 import SignalCard from "./signals/SignalCard";
 
@@ -98,6 +99,8 @@ export default function DistrictDetailPanel() {
                 educationData={data.educationData}
                 trends={data.trends}
               />
+
+              <VacanciesCard leaid={selectedLeaid!} />
 
               <StudentPopulationsCard
                 district={data.district}
