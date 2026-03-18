@@ -12,13 +12,13 @@ export default function SyncDirectionCard({ value }: SyncDirectionCardProps) {
   const [showSaved, setShowSaved] = useState(false);
   const mutation = useUpdateCalendarSyncConfig();
 
-  // Sync with prop when it changes (e.g., after refetch)
   useEffect(() => {
     setDirection(value);
   }, [value]);
 
   const handleChange = useCallback(
     (newDirection: "one_way" | "two_way") => {
+      if (newDirection === direction) return;
       setDirection(newDirection);
       mutation.mutate(
         { syncDirection: newDirection },
@@ -30,7 +30,7 @@ export default function SyncDirectionCard({ value }: SyncDirectionCardProps) {
         }
       );
     },
-    [mutation]
+    [mutation, direction]
   );
 
   const options = [
@@ -57,35 +57,43 @@ export default function SyncDirectionCard({ value }: SyncDirectionCardProps) {
         )}
       </div>
 
-      <div className="space-y-3">
-        {options.map((option) => (
-          <label
-            key={option.value}
-            className="flex items-start gap-3 cursor-pointer group"
-          >
-            <div className="mt-0.5 flex-shrink-0">
-              <div
-                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                  direction === option.value
-                    ? "border-[#403770]"
-                    : "border-[#C2BBD4] group-hover:border-[#8A80A8]"
-                }`}
-              >
-                {direction === option.value && (
-                  <div className="w-2 h-2 rounded-full bg-[#403770]" />
-                )}
-              </div>
-            </div>
-            <div
-              className="flex-1"
-              onClick={() => handleChange(option.value)}
+      <fieldset>
+        <legend className="sr-only">Sync Direction</legend>
+        <div className="space-y-3">
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className="flex items-start gap-3 cursor-pointer group"
             >
-              <p className="text-sm font-medium text-[#403770]">{option.label}</p>
-              <p className="text-xs text-[#8A80A8] mt-0.5">{option.description}</p>
-            </div>
-          </label>
-        ))}
-      </div>
+              <div className="mt-0.5 flex-shrink-0 relative">
+                <input
+                  type="radio"
+                  name="sync-direction"
+                  value={option.value}
+                  checked={direction === option.value}
+                  onChange={() => handleChange(option.value)}
+                  className="sr-only peer"
+                />
+                <div
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#F37167] peer-focus-visible:ring-offset-1 ${
+                    direction === option.value
+                      ? "border-[#403770]"
+                      : "border-[#C2BBD4] group-hover:border-[#8A80A8]"
+                  }`}
+                >
+                  {direction === option.value && (
+                    <div className="w-2 h-2 rounded-full bg-[#403770]" />
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[#403770]">{option.label}</p>
+                <p className="text-xs text-[#8A80A8] mt-0.5">{option.description}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {mutation.isError && (
         <p className="text-xs text-[#F37167] mt-3">

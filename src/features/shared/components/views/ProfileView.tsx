@@ -51,7 +51,7 @@ export default function ProfileView() {
   if (!profile) {
     return (
       <div className="h-full bg-[#FFFCFA] flex items-center justify-center">
-        <div className="text-center text-red-500">
+        <div className="text-center text-[#F37167]">
           <p>Unable to load profile</p>
         </div>
       </div>
@@ -64,10 +64,10 @@ export default function ProfileView() {
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+      <header className="bg-white border-b border-[#D4CFE2] px-6 py-4">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-2xl font-bold text-[#403770]">Profile</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-[#8A80A8] mt-0.5">
             Manage your account settings
           </p>
         </div>
@@ -76,7 +76,7 @@ export default function ProfileView() {
       {/* Content */}
       <main className="max-w-2xl mx-auto px-6 py-8">
         {/* Profile Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-[#D4CFE2] p-6 mb-6">
           <div className="flex items-center gap-6">
             {/* Large Avatar */}
             <div className="h-20 w-20 rounded-full overflow-hidden flex items-center justify-center bg-[#403770] text-white text-2xl font-medium flex-shrink-0">
@@ -96,9 +96,9 @@ export default function ProfileView() {
               <h2 className="text-xl font-semibold text-[#403770] truncate">
                 {displayName}
               </h2>
-              <p className="text-gray-500 truncate">{profile.email}</p>
+              <p className="text-[#8A80A8] truncate">{profile.email}</p>
               {profile.fullName && (
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-[#A69DC0] mt-1">
                   Signed in with Google
                 </p>
               )}
@@ -111,11 +111,11 @@ export default function ProfileView() {
           {/* Settings Button */}
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="w-full flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 hover:border-[#403770] transition-colors"
+            className="w-full flex items-center justify-between bg-white rounded-lg border border-[#D4CFE2] px-4 py-3 hover:border-[#403770] transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 bg-[#F7F5FA] rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-[#6E6390]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -132,10 +132,10 @@ export default function ProfileView() {
               </div>
               <div className="text-left">
                 <p className="font-medium text-[#403770]">Settings</p>
-                <p className="text-sm text-gray-500">App preferences and configuration</p>
+                <p className="text-sm text-[#8A80A8]">App preferences and configuration</p>
               </div>
             </div>
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-[#A69DC0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -144,7 +144,7 @@ export default function ProfileView() {
           <button
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
-            className="w-full flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-3 hover:border-red-300 hover:bg-red-50 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-between bg-white rounded-lg border border-[#D4CFE2] px-4 py-3 hover:border-red-300 hover:bg-red-50 transition-colors disabled:opacity-50"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
@@ -161,7 +161,7 @@ export default function ProfileView() {
                 <p className="font-medium text-red-600">
                   {logoutMutation.isPending ? "Signing out..." : "Sign Out"}
                 </p>
-                <p className="text-sm text-gray-500">Sign out of your account</p>
+                <p className="text-sm text-[#8A80A8]">Sign out of your account</p>
               </div>
             </div>
           </button>
@@ -170,9 +170,9 @@ export default function ProfileView() {
 
       {/* Settings Modal (Shell) */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSettingsModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50" aria-hidden="true" onClick={() => setShowSettingsModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
             {/* Header */}
             <div className="px-6 py-4 border-b border-[#E2DEEC] flex items-center justify-between">
               <h2 className="text-lg font-semibold text-[#403770]">Settings</h2>

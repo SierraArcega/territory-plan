@@ -88,7 +88,7 @@ export default function RemindersCard({
           <select
             value={primary}
             onChange={(e) => handlePrimaryChange(Number(e.target.value))}
-            className="w-full px-3 py-2 text-sm text-[#403770] bg-white border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] transition-colors appearance-none"
+            className="w-full px-3 py-2 text-sm text-[#403770] bg-white border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-2 focus:ring-[#F37167] focus:border-transparent transition-colors appearance-none"
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238A80A8' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 6.646a.5.5 0 0 1 .708 0L8 9.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E")`,
               backgroundRepeat: "no-repeat",
@@ -115,7 +115,7 @@ export default function RemindersCard({
               const val = Number(e.target.value);
               handleSecondaryChange(val === 0 ? null : val);
             }}
-            className="w-full px-3 py-2 text-sm text-[#403770] bg-white border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] transition-colors appearance-none"
+            className="w-full px-3 py-2 text-sm text-[#403770] bg-white border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-2 focus:ring-[#F37167] focus:border-transparent transition-colors appearance-none"
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238A80A8' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 6.646a.5.5 0 0 1 .708 0L8 9.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E")`,
               backgroundRepeat: "no-repeat",

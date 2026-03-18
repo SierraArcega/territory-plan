@@ -135,9 +135,9 @@ export async function PATCH(request: Request) {
 
     // Second reminder validation
     if (secondReminderMinutes !== undefined) {
-      if (secondReminderMinutes !== null && !VALID_REMINDER_MINUTES.includes(secondReminderMinutes)) {
+      if (secondReminderMinutes !== null && (secondReminderMinutes === 0 || !VALID_REMINDER_MINUTES.includes(secondReminderMinutes))) {
         return NextResponse.json(
-          { error: "secondReminderMinutes must be null or one of: 5, 10, 15, 30, 60, 1440" },
+          { error: "secondReminderMinutes must be null or one of: 5, 10, 15, 30, 60, 1440 (0 is not allowed)" },
           { status: 400 }
         );
       }
@@ -168,7 +168,12 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json({ connection: updated });
+    return NextResponse.json({
+      connection: {
+        ...updated,
+        lastSyncAt: updated.lastSyncAt?.toISOString() || null,
+      },
+    });
   } catch (error) {
     console.error("Calendar status update error:", error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useUpdateCalendarSyncConfig } from "@/features/calendar/lib/queries";
 import {
   ACTIVITY_CATEGORIES,
@@ -17,34 +17,42 @@ interface ActivityTypeFiltersCardProps {
 }
 
 export default function ActivityTypeFiltersCard({ value }: ActivityTypeFiltersCardProps) {
-  // Empty array = all types synced. Convert to full set for display.
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(value.length === 0 ? ALL_ACTIVITY_TYPES : value)
   );
   const [showSaved, setShowSaved] = useState(false);
   const mutation = useUpdateCalendarSyncConfig();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setSelected(new Set(value.length === 0 ? ALL_ACTIVITY_TYPES : value));
   }, [value]);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
   const save = useCallback(
     (newSelected: Set<string>) => {
-      // If all are selected, send empty array (opt-out model)
       const payload =
         newSelected.size === ALL_ACTIVITY_TYPES.length
           ? []
           : Array.from(newSelected);
 
-      mutation.mutate(
-        { syncedActivityTypes: payload },
-        {
-          onSuccess: () => {
-            setShowSaved(true);
-            setTimeout(() => setShowSaved(false), 1500);
-          },
-        }
-      );
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+        mutation.mutate(
+          { syncedActivityTypes: payload },
+          {
+            onSuccess: () => {
+              setShowSaved(true);
+              setTimeout(() => setShowSaved(false), 1500);
+            },
+          }
+        );
+      }, 400);
     },
     [mutation]
   );
@@ -101,43 +109,43 @@ export default function ActivityTypeFiltersCard({ value }: ActivityTypeFiltersCa
           const someSelected = types.some((t) => selected.has(t)) && !allSelected;
 
           return (
-            <div key={category}>
-              {/* Category header with select-all */}
-              <label className="flex items-center gap-2 cursor-pointer mb-2">
-                <div className="relative flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected;
-                    }}
-                    onChange={() => toggleCategory(category)}
-                    className="sr-only peer"
-                  />
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                    allSelected
-                      ? "bg-[#403770] border-[#403770]"
-                      : someSelected
-                        ? "bg-[#403770]/50 border-[#403770]/50"
-                        : "border-[#C2BBD4] hover:border-[#8A80A8]"
-                  }`}>
-                    {(allSelected || someSelected) && (
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        {allSelected ? (
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        ) : (
-                          <path strokeLinecap="round" strokeWidth={3} d="M6 12h12" />
-                        )}
-                      </svg>
-                    )}
+            <fieldset key={category}>
+              <legend className="flex items-center gap-2 cursor-pointer mb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="relative flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected;
+                      }}
+                      onChange={() => toggleCategory(category)}
+                      className="sr-only peer"
+                    />
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#F37167] peer-focus-visible:ring-offset-1 peer-focus-visible:rounded-sm ${
+                      allSelected
+                        ? "bg-[#403770] border-[#403770]"
+                        : someSelected
+                          ? "bg-[#403770]/50 border-[#403770]/50"
+                          : "border-[#C2BBD4] hover:border-[#8A80A8]"
+                    }`}>
+                      {(allSelected || someSelected) && (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {allSelected ? (
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          ) : (
+                            <path strokeLinecap="round" strokeWidth={3} d="M6 12h12" />
+                          )}
+                        </svg>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs font-semibold text-[#6E6390] uppercase tracking-wide">
-                  {CATEGORY_LABELS[category]}
-                </span>
-              </label>
+                  <span className="text-xs font-semibold text-[#6E6390] uppercase tracking-wide">
+                    {CATEGORY_LABELS[category]}
+                  </span>
+                </label>
+              </legend>
 
-              {/* Individual type checkboxes */}
               <div className="ml-6 space-y-1.5">
                 {types.map((type) => (
                   <label
@@ -149,9 +157,9 @@ export default function ActivityTypeFiltersCard({ value }: ActivityTypeFiltersCa
                         type="checkbox"
                         checked={selected.has(type)}
                         onChange={() => toggleType(type)}
-                        className="sr-only"
+                        className="sr-only peer"
                       />
-                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#F37167] peer-focus-visible:ring-offset-1 peer-focus-visible:rounded-sm ${
                         selected.has(type)
                           ? "bg-[#403770] border-[#403770]"
                           : "border-[#C2BBD4] group-hover:border-[#8A80A8]"
@@ -169,7 +177,7 @@ export default function ActivityTypeFiltersCard({ value }: ActivityTypeFiltersCa
                   </label>
                 ))}
               </div>
-            </div>
+            </fieldset>
           );
         })}
       </div>
