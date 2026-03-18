@@ -110,12 +110,16 @@ export default function VacancyList({ leaid }: VacancyListProps) {
   });
 
   // Trigger scan mutation
-  const scanMutation = useMutation<ScanResponse, Error, string>({
-    mutationFn: async (scanLeaid: string) => {
+  const scanMutation = useMutation<
+    ScanResponse,
+    Error,
+    { leaid: string; jobBoardUrl?: string }
+  >({
+    mutationFn: async ({ leaid: scanLeaid, jobBoardUrl }) => {
       const res = await fetch("/api/vacancies/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leaid: scanLeaid }),
+        body: JSON.stringify({ leaid: scanLeaid, jobBoardUrl }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -200,17 +204,21 @@ export default function VacancyList({ leaid }: VacancyListProps) {
 
   // ─── Empty state ────────────────────────────────────────────────
   if (!data || data.vacancies.length === 0) {
+    const hasJobBoardUrl = !!data?.summary.lastScannedAt;
     return (
       <div className="space-y-3">
         <p className="text-sm text-gray-400">
-          {data?.summary.lastScannedAt
+          {hasJobBoardUrl
             ? "No vacancies found"
             : "No job board URL configured or never scanned"}
         </p>
         <ScanButton
           isScanning={isScanning}
           scanError={scanMutation.error?.message ?? null}
-          onScan={() => scanMutation.mutate(leaid)}
+          showUrlInput={!hasJobBoardUrl}
+          onScan={(jobBoardUrl) =>
+            scanMutation.mutate({ leaid, jobBoardUrl })
+          }
         />
       </div>
     );
@@ -262,7 +270,7 @@ export default function VacancyList({ leaid }: VacancyListProps) {
       <ScanButton
         isScanning={isScanning}
         scanError={scanMutation.error?.message ?? null}
-        onScan={() => scanMutation.mutate(leaid)}
+        onScan={() => scanMutation.mutate({ leaid })}
       />
     </div>
   );
@@ -348,17 +356,30 @@ function VacancyRow({ vacancy }: { vacancy: VacancyRecord }) {
 function ScanButton({
   isScanning,
   scanError,
+  showUrlInput,
   onScan,
 }: {
   isScanning: boolean;
   scanError: string | null;
-  onScan: () => void;
+  showUrlInput?: boolean;
+  onScan: (jobBoardUrl?: string) => void;
 }) {
+  const [urlValue, setUrlValue] = useState("");
+
   return (
-    <div className="pt-1">
+    <div className="pt-1 space-y-2">
+      {showUrlInput && (
+        <input
+          type="url"
+          placeholder="Paste job board URL…"
+          value={urlValue}
+          onChange={(e) => setUrlValue(e.target.value)}
+          className="w-full px-3 py-1.5 text-sm text-[#403770] placeholder:text-gray-400 border border-gray-200 rounded-lg bg-white focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+        />
+      )}
       <button
-        onClick={onScan}
-        disabled={isScanning}
+        onClick={() => onScan(showUrlInput ? urlValue || undefined : undefined)}
+        disabled={isScanning || (showUrlInput && !urlValue.trim())}
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#403770]/10 text-[#403770] hover:bg-[#403770]/15 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isScanning ? (

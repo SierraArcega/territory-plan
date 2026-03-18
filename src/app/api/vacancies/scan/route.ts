@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { leaid } = body as { leaid?: string };
+    const { leaid, jobBoardUrl } = body as {
+      leaid?: string;
+      jobBoardUrl?: string;
+    };
 
     if (!leaid || typeof leaid !== "string") {
       return NextResponse.json(
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate district exists and has a job board URL
+    // Validate district exists
     const district = await prisma.district.findUnique({
       where: { leaid },
       select: { leaid: true, name: true, jobBoardUrl: true },
@@ -46,6 +49,15 @@ export async function POST(request: NextRequest) {
         { error: "District not found" },
         { status: 404 }
       );
+    }
+
+    // If a job board URL was provided, save it to the district
+    if (jobBoardUrl && typeof jobBoardUrl === "string") {
+      await prisma.district.update({
+        where: { leaid },
+        data: { jobBoardUrl },
+      });
+      district.jobBoardUrl = jobBoardUrl;
     }
 
     if (!district.jobBoardUrl) {
