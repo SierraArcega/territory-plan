@@ -21,17 +21,63 @@ interface SchoolSpringResponse {
 }
 
 /**
- * Parse job listings from a SchoolSpring job board using their public JSON API.
+ * Resolve the SchoolSpring hostname from a URL.
  *
- * SchoolSpring URLs look like: https://{subdomain}.schoolspring.com/
- * The API scopes results by domainName query param (full hostname).
+ * If the URL is already on *.schoolspring.com, returns the hostname directly.
+ * Otherwise (e.g. *.tedk12.com), follows the redirect to discover the
+ * actual SchoolSpring subdomain used by the API's domainName parameter.
  */
-export async function parseSchoolSpring(url: string): Promise<RawVacancy[]> {
+async function resolveSchoolSpringHostname(url: string): Promise<string | null> {
   let hostname: string;
   try {
     hostname = new URL(url).hostname.toLowerCase();
   } catch {
-    console.error(`[schoolspring] Invalid URL: ${url}`);
+    return null;
+  }
+
+  // Already a SchoolSpring domain — use directly
+  if (hostname.endsWith(".schoolspring.com")) {
+    return hostname;
+  }
+
+  // For alias domains (e.g. tedk12.com), follow the redirect to get the
+  // actual *.schoolspring.com hostname that the API requires.
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "manual",
+      headers: { "User-Agent": "TerritoryPlanBuilder/1.0 (vacancy-scanner)" },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    const location = res.headers.get("location");
+    if (location) {
+      const redirectHostname = new URL(location).hostname.toLowerCase();
+      if (redirectHostname.endsWith(".schoolspring.com")) {
+        console.log(`[schoolspring] Resolved ${hostname} → ${redirectHostname}`);
+        return redirectHostname;
+      }
+    }
+  } catch (err) {
+    console.error(`[schoolspring] Failed to resolve redirect for ${url}:`, err);
+  }
+
+  // Fallback: can't determine the SchoolSpring subdomain
+  console.error(`[schoolspring] Could not resolve SchoolSpring hostname from ${url}`);
+  return null;
+}
+
+/**
+ * Parse job listings from a SchoolSpring job board using their public JSON API.
+ *
+ * SchoolSpring URLs look like: https://{subdomain}.schoolspring.com/
+ * Alias domains (e.g. *.tedk12.com) are resolved via redirect.
+ * The API scopes results by domainName query param (full hostname).
+ */
+export async function parseSchoolSpring(url: string): Promise<RawVacancy[]> {
+  const hostname = await resolveSchoolSpringHostname(url);
+  if (!hostname) {
+    console.error(`[schoolspring] Invalid or unresolvable URL: ${url}`);
     return [];
   }
 

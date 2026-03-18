@@ -13,8 +13,9 @@ export function detectPlatform(url: string): string {
   if (hostname.endsWith(".applitrack.com")) return "applitrack";
   if (hostname.endsWith(".olasjobs.org")) return "olas";
   if (hostname.endsWith(".schoolspring.com")) return "schoolspring";
-  // TalentEd is a JS-rendered SPA — falls through to Playwright fallback
-  // if (hostname.endsWith(".talented.com")) return "talentEd";
+  // TalentEd K12 (tedk12.com) was acquired by SchoolSpring — these domains
+  // now redirect to *.schoolspring.com, so route them to the same parser.
+  if (hostname.endsWith(".tedk12.com")) return "schoolspring";
 
   return "unknown";
 }
