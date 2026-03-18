@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useBulkScan, useBatchProgress } from "@/features/vacancies/lib/queries";
 import type { BatchProgress } from "@/features/vacancies/lib/queries";
 
@@ -19,6 +20,7 @@ export default function BulkScanButton({ territoryPlanId }: BulkScanButtonProps)
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const bulkScan = useBulkScan();
   const { data: batchProgress } = useBatchProgress(
     scanState === "scanning" ? batchId : null
@@ -35,6 +37,9 @@ export default function BulkScanButton({ territoryPlanId }: BulkScanButtonProps)
         fullmindRelevant: batchProgress.fullmindRelevant,
       });
       setBatchId(null);
+      // Invalidate vacancy queries so tables/tabs refresh
+      queryClient.invalidateQueries({ queryKey: ["planVacancies"] });
+      queryClient.invalidateQueries({ queryKey: ["vacancies"] });
     }
   }, [batchProgress, scanState]);
 
