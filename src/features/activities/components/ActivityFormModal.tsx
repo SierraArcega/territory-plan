@@ -21,6 +21,8 @@ import EventTypeFields from "./event-fields/EventTypeFields";
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import CalendarPicker from "./event-fields/CalendarPicker";
 import TaskLineItems, { type TaskDraft } from "./event-fields/TaskLineItems";
+import AttendeeSelect from "./event-fields/AttendeeSelect";
+import ExpenseLineItems from "./event-fields/ExpenseLineItems";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -396,22 +398,26 @@ export default function ActivityFormModal({
                     type={type}
                     metadata={metadata}
                     onMetadataChange={setMetadata}
-                    attendeeUserIds={attendeeUserIds}
-                    onAttendeeChange={setAttendeeUserIds}
-                    expenses={expenses}
-                    onExpensesChange={setExpenses}
                     districtStops={districtStops}
                     onDistrictStopsChange={setDistrictStops}
                   />
                 </div>
               )}
 
-              {/* ── Section 3: Organization ── */}
+              {/* ── Section 3: People & Organization ── */}
               <div className="space-y-4">
-                <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Organization</p>
+                <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">People & Organization</p>
 
-                {/* Plans & States side-by-side */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Attendees, Plans, States — responsive grid */}
+                <div className={`grid gap-3 ${isEventCategory ? "grid-cols-3" : "grid-cols-2"}`}>
+                  {isEventCategory && (
+                    <div>
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                        Attendees
+                      </label>
+                      <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-[#8A80A8] mb-1">
                       Plans
@@ -458,15 +464,18 @@ export default function ActivityFormModal({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add any notes or details..."
-                    rows={3}
+                    rows={2}
                     className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent resize-none"
                   />
                 </div>
               </div>
 
-              {/* ── Section 4: Tasks ── */}
+              {/* ── Section 4: Budget & Tasks ── */}
               <div className="space-y-4">
-                <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Tasks</p>
+                <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Budget & Tasks</p>
+                {isEventCategory && (type === "conference" || type === "road_trip") && (
+                  <ExpenseLineItems expenses={expenses} onChange={setExpenses} />
+                )}
                 <TaskLineItems tasks={taskDrafts} onChange={setTaskDrafts} />
               </div>
             </div>

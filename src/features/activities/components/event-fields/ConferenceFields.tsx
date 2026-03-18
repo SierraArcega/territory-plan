@@ -2,8 +2,6 @@
 
 import type { ConferenceMetadata } from "@/features/activities/types";
 import AddressInput from "./AddressInput";
-import AttendeeSelect from "./AttendeeSelect";
-import ExpenseLineItems from "./ExpenseLineItems";
 
 const TIMEZONES = [
   "America/New_York",
@@ -26,19 +24,11 @@ const TIMEZONE_LABELS: Record<string, string> = {
 interface ConferenceFieldsProps {
   metadata: ConferenceMetadata;
   onMetadataChange: (metadata: ConferenceMetadata) => void;
-  attendeeUserIds: string[];
-  onAttendeeChange: (userIds: string[]) => void;
-  expenses: { description: string; amount: number }[];
-  onExpensesChange: (expenses: { description: string; amount: number }[]) => void;
 }
 
 export default function ConferenceFields({
   metadata,
   onMetadataChange,
-  attendeeUserIds,
-  onAttendeeChange,
-  expenses,
-  onExpensesChange,
 }: ConferenceFieldsProps) {
   return (
     <div className="space-y-4">
@@ -92,10 +82,6 @@ export default function ConferenceFields({
           }
         />
       </div>
-
-      {/* Attendees & Expenses */}
-      <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={onAttendeeChange} />
-      <ExpenseLineItems expenses={expenses} onChange={onExpensesChange} />
     </div>
   );
 }

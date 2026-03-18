@@ -22,20 +22,15 @@ export default function AttendeeSelect({ selectedUserIds, onChange }: AttendeeSe
   );
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Fullmind Attendees
-      </label>
-      <MultiSelect
-        id="activity-attendees"
-        label="Fullmind Attendees"
-        options={options}
-        selected={selectedUserIds}
-        onChange={onChange}
-        placeholder="Select attendees..."
-        countLabel="attendees"
-        searchPlaceholder="Search team members..."
-      />
-    </div>
+    <MultiSelect
+      id="activity-attendees"
+      label="Attendees"
+      options={options}
+      selected={selectedUserIds}
+      onChange={onChange}
+      placeholder="Select..."
+      countLabel="attendees"
+      searchPlaceholder="Search team members..."
+    />
   );
 }

@@ -2,20 +2,15 @@
 
 import type { SocialEventMetadata } from "@/features/activities/types";
 import AddressInput from "./AddressInput";
-import AttendeeSelect from "./AttendeeSelect";
 
 interface DinnerFieldsProps {
   metadata: SocialEventMetadata;
   onMetadataChange: (metadata: SocialEventMetadata) => void;
-  attendeeUserIds: string[];
-  onAttendeeChange: (userIds: string[]) => void;
 }
 
 export default function DinnerFields({
   metadata,
   onMetadataChange,
-  attendeeUserIds,
-  onAttendeeChange,
 }: DinnerFieldsProps) {
   return (
     <div className="space-y-4">
@@ -77,9 +72,6 @@ export default function DinnerFields({
           />
         </div>
       </div>
-
-      {/* Attendees */}
-      <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={onAttendeeChange} />
     </div>
   );
 }

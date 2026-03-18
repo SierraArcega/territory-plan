@@ -17,10 +17,6 @@ interface EventTypeFieldsProps {
   type: ActivityType;
   metadata: Record<string, unknown>;
   onMetadataChange: (metadata: Record<string, unknown>) => void;
-  attendeeUserIds: string[];
-  onAttendeeChange: (userIds: string[]) => void;
-  expenses: { description: string; amount: number }[];
-  onExpensesChange: (expenses: { description: string; amount: number }[]) => void;
   districtStops: DistrictStop[];
   onDistrictStopsChange: (stops: DistrictStop[]) => void;
 }
@@ -29,10 +25,6 @@ export default function EventTypeFields({
   type,
   metadata,
   onMetadataChange,
-  attendeeUserIds,
-  onAttendeeChange,
-  expenses,
-  onExpensesChange,
   districtStops,
   onDistrictStopsChange,
 }: EventTypeFieldsProps) {
@@ -42,10 +34,6 @@ export default function EventTypeFields({
         <ConferenceFields
           metadata={metadata as ConferenceMetadata}
           onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
-          attendeeUserIds={attendeeUserIds}
-          onAttendeeChange={onAttendeeChange}
-          expenses={expenses}
-          onExpensesChange={onExpensesChange}
         />
       );
 
@@ -54,10 +42,6 @@ export default function EventTypeFields({
         <RoadTripFields
           districtStops={districtStops}
           onDistrictStopsChange={onDistrictStopsChange}
-          attendeeUserIds={attendeeUserIds}
-          onAttendeeChange={onAttendeeChange}
-          expenses={expenses}
-          onExpensesChange={onExpensesChange}
         />
       );
 
@@ -69,8 +53,6 @@ export default function EventTypeFields({
         <DinnerFields
           metadata={metadata as SocialEventMetadata}
           onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
-          attendeeUserIds={attendeeUserIds}
-          onAttendeeChange={onAttendeeChange}
         />
       );
 
