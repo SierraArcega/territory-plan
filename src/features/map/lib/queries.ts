@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { MetricType, FiscalYear } from "@/features/shared/lib/app-store";
-import type { FeatureCollection, Point } from "geojson";
+import type { FeatureCollection, Point, Geometry } from "geojson";
 import type {
   Quantiles,
   CustomerDotsGeoJSON,
@@ -9,6 +9,13 @@ import type {
   StateDistrictsResponse,
   FocusModeData,
 } from "@/features/shared/types/api-types";
+import type {
+  ContactLayerFilter,
+  VacancyLayerFilter,
+  ActivityLayerFilter,
+  PlanLayerFilter,
+  DateRange,
+} from "@/features/map/lib/store";
 
 // Quantiles for legend
 export function useQuantiles(metric: MetricType, year: FiscalYear) {
@@ -163,6 +170,143 @@ export function useSchoolGeoJSON(
     enabled: enabled && qBounds !== null,
     staleTime: 60 * 1000, // 1 minute — school data is static
     gcTime: 5 * 60 * 1000, // keep in cache 5 minutes for back-panning
+    placeholderData: keepPreviousData,
+  });
+}
+
+// ============================================
+// Map Overlay GeoJSON Hooks
+// ============================================
+
+const EMPTY_POINT_FC: FeatureCollection<Point> = { type: "FeatureCollection", features: [] };
+const EMPTY_GEOM_FC: FeatureCollection<Geometry> = { type: "FeatureCollection", features: [] };
+
+/** Build URL search params from filter object, omitting null/undefined values. */
+function buildOverlayParams(
+  bounds: [number, number, number, number] | null,
+  filters: Record<string, string | number | null | undefined>,
+  dateRange?: DateRange,
+): string {
+  const params = new URLSearchParams();
+  if (bounds) {
+    params.set("bounds", bounds.join(","));
+  }
+  for (const [key, value] of Object.entries(filters)) {
+    if (value != null && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+  if (dateRange?.start) params.set("dateStart", dateRange.start);
+  if (dateRange?.end) params.set("dateEnd", dateRange.end);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+/**
+ * Fetches contact GeoJSON for the current viewport.
+ * Returns GeoJSON FeatureCollection with Point geometry and contact properties.
+ */
+export function useMapContacts(
+  bounds: [number, number, number, number] | null,
+  filters: ContactLayerFilter,
+  enabled: boolean,
+) {
+  const qBounds = bounds ? quantizeBounds(bounds) : null;
+  const queryString = buildOverlayParams(qBounds, {
+    seniorityLevel: filters.seniorityLevel,
+    persona: filters.persona,
+  });
+
+  return useQuery({
+    queryKey: ["mapContacts", qBounds, filters],
+    queryFn: () =>
+      fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/contacts${queryString}`),
+    enabled: enabled && qBounds !== null,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Fetches vacancy GeoJSON for the current viewport.
+ * Returns GeoJSON FeatureCollection with Point geometry and vacancy properties.
+ */
+export function useMapVacancies(
+  bounds: [number, number, number, number] | null,
+  filters: VacancyLayerFilter,
+  dateRange: DateRange,
+  enabled: boolean,
+) {
+  const qBounds = bounds ? quantizeBounds(bounds) : null;
+  const queryString = buildOverlayParams(
+    qBounds,
+    { category: filters.category, status: filters.status },
+    dateRange,
+  );
+
+  return useQuery({
+    queryKey: ["mapVacancies", qBounds, filters, dateRange],
+    queryFn: () =>
+      fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/vacancies${queryString}`),
+    enabled: enabled && qBounds !== null,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Fetches activity GeoJSON for the current viewport.
+ * Auth-scoped to the current user.
+ * Returns GeoJSON FeatureCollection with Point geometry and activity properties.
+ */
+export function useMapActivities(
+  bounds: [number, number, number, number] | null,
+  filters: ActivityLayerFilter,
+  dateRange: DateRange,
+  enabled: boolean,
+) {
+  const qBounds = bounds ? quantizeBounds(bounds) : null;
+  const queryString = buildOverlayParams(
+    qBounds,
+    { type: filters.type, status: filters.status },
+    dateRange,
+  );
+
+  return useQuery({
+    queryKey: ["mapActivities", qBounds, filters, dateRange],
+    queryFn: () =>
+      fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/activities${queryString}`),
+    enabled: enabled && qBounds !== null,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Fetches plan district polygon GeoJSON.
+ * Not bounds-limited — plans are loaded globally since there are relatively few.
+ * Returns GeoJSON FeatureCollection with Polygon/MultiPolygon geometry.
+ */
+export function useMapPlans(
+  filters: PlanLayerFilter,
+  enabled: boolean,
+) {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.fiscalYear) params.set("fiscalYear", String(filters.fiscalYear));
+  const qs = params.toString();
+  const queryString = qs ? `?${qs}` : "";
+
+  return useQuery({
+    queryKey: ["mapPlans", filters],
+    queryFn: () =>
+      fetchJson<FeatureCollection<Geometry>>(`${API_BASE}/map/plans${queryString}`),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   });
 }

@@ -7,6 +7,8 @@ import ActivityForm from "./right-panels/ActivityForm";
 import PlanEditForm from "./right-panels/PlanEditForm";
 import DistrictCard from "./right-panels/DistrictCard";
 import PlanCard from "./right-panels/PlanCard";
+import VacancyDetail from "./right-panels/VacancyDetail";
+import VacancyForm from "./right-panels/VacancyForm";
 
 export default function RightPanel() {
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
@@ -57,6 +59,8 @@ export default function RightPanel() {
               {rightPanelContent.type === "activity_form" && "New Activity"}
               {rightPanelContent.type === "activity_edit" && "Edit Activity"}
               {rightPanelContent.type === "plan_edit" && "Edit Plan"}
+              {rightPanelContent.type === "vacancy_detail" && "Vacancy"}
+              {rightPanelContent.type === "vacancy_form" && "Edit Vacancy"}
             </span>
             <button
               onClick={closeRightPanel}
@@ -88,6 +92,12 @@ export default function RightPanel() {
             )}
             {rightPanelContent.type === "plan_edit" && (
               <PlanEditForm />
+            )}
+            {rightPanelContent.type === "vacancy_detail" && rightPanelContent.id && (
+              <VacancyDetail vacancyId={rightPanelContent.id} />
+            )}
+            {rightPanelContent.type === "vacancy_form" && rightPanelContent.id && (
+              <VacancyForm vacancyId={rightPanelContent.id} />
             )}
           </div>
         </>

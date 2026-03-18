@@ -13,7 +13,18 @@ import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref, mapV2Refs, type MapRefKey } from "@/features/map/lib/ref";
 import { classifyTransition } from "@/features/map/lib/comparison";
-import { useSchoolGeoJSON } from "@/features/map/lib/queries";
+import { useSchoolGeoJSON, useMapContacts, useMapVacancies, useMapActivities, useMapPlans } from "@/features/map/lib/queries";
+import {
+  CONTACTS_SOURCE, VACANCIES_SOURCE, ACTIVITIES_SOURCE, PLANS_SOURCE,
+  CONTACTS_POINT_LAYER, VACANCIES_POINT_LAYER, ACTIVITIES_POINT_LAYER,
+  CONTACTS_CLUSTER_LAYER, VACANCIES_CLUSTER_LAYER, ACTIVITIES_CLUSTER_LAYER,
+  PLANS_FILL_LAYER, PLANS_OUTLINE_LAYER,
+  ALL_OVERLAY_POINT_LAYERS, ALL_OVERLAY_CLUSTER_LAYERS,
+  createClusteredSource, createGeoJSONSource,
+  getContactLayers, getVacancyLayers, getActivityLayers, getPlanLayers,
+  layerIdToOverlayType, overlayTypeToPanel,
+} from "@/features/map/lib/pin-layers";
+import type { RightPanelContent } from "@/features/map/lib/store";
 import MapV2Tooltip from "./MapV2Tooltip";
 
 export interface MapV2ContainerProps {
@@ -184,9 +195,36 @@ export default function MapV2Container({
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
   const focusLeaids = useMapV2Store((s) => s.focusLeaids);
 
+  // Overlay layer state
+  const activeLayers = useMapV2Store((s) => s.activeLayers);
+  const layerFilters = useMapV2Store((s) => s.layerFilters);
+  const dateRange = useMapV2Store((s) => s.dateRange);
+  const mapBounds = useMapV2Store((s) => s.mapBounds);
+
   // School GeoJSON — TanStack Query with quantized bounds for cache reuse
   const schoolsEnabled = visibleSchoolTypes.size > 0 && mapReady;
   const { data: schoolGeoJSON } = useSchoolGeoJSON(schoolBounds, schoolsEnabled);
+
+  // Overlay GeoJSON — TanStack Query, conditionally fetched when layer is active
+  const contactsEnabled = activeLayers.has("contacts") && mapReady;
+  const { data: contactsGeoJSON, isLoading: contactsLoading } = useMapContacts(
+    mapBounds, layerFilters.contacts, contactsEnabled,
+  );
+
+  const vacanciesEnabled = activeLayers.has("vacancies") && mapReady;
+  const { data: vacanciesGeoJSON, isLoading: vacanciesLoading } = useMapVacancies(
+    mapBounds, layerFilters.vacancies, dateRange, vacanciesEnabled,
+  );
+
+  const activitiesEnabled = activeLayers.has("activities") && mapReady;
+  const { data: activitiesGeoJSON, isLoading: activitiesLoading } = useMapActivities(
+    mapBounds, layerFilters.activities, dateRange, activitiesEnabled,
+  );
+
+  const plansEnabled = activeLayers.has("plans") && mapReady;
+  const { data: plansGeoJSON, isLoading: plansLoading } = useMapPlans(
+    layerFilters.plans, plansEnabled,
+  );
 
   // Push school data to map source whenever it changes
   useEffect(() => {
@@ -199,6 +237,75 @@ export default function MapV2Container({
       source.setData({ type: "FeatureCollection", features: [] });
     }
   }, [schoolGeoJSON, schoolsEnabled, mapReady]);
+
+  // Push overlay contacts data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(CONTACTS_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (contactsGeoJSON && contactsEnabled) {
+      source.setData(contactsGeoJSON);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [contactsGeoJSON, contactsEnabled, mapReady]);
+
+  // Push overlay vacancies data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(VACANCIES_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (vacanciesGeoJSON && vacanciesEnabled) {
+      source.setData(vacanciesGeoJSON);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [vacanciesGeoJSON, vacanciesEnabled, mapReady]);
+
+  // Push overlay activities data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(ACTIVITIES_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (activitiesGeoJSON && activitiesEnabled) {
+      source.setData(activitiesGeoJSON);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [activitiesGeoJSON, activitiesEnabled, mapReady]);
+
+  // Push overlay plans data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(PLANS_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (plansGeoJSON && plansEnabled) {
+      source.setData(plansGeoJSON);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [plansGeoJSON, plansEnabled, mapReady]);
+
+  // Toggle overlay layer visibility based on activeLayers
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const layerGroups: Record<string, string[]> = {
+      contacts: [CONTACTS_CLUSTER_LAYER, "overlay-contacts-cluster-count", CONTACTS_POINT_LAYER],
+      vacancies: [VACANCIES_CLUSTER_LAYER, "overlay-vacancies-cluster-count", VACANCIES_POINT_LAYER],
+      activities: [ACTIVITIES_CLUSTER_LAYER, "overlay-activities-cluster-count", ACTIVITIES_POINT_LAYER],
+      plans: [PLANS_FILL_LAYER, PLANS_OUTLINE_LAYER],
+    };
+
+    for (const [layerType, layerIds] of Object.entries(layerGroups)) {
+      const isActive = activeLayers.has(layerType as "contacts" | "vacancies" | "activities" | "plans");
+      for (const layerId of layerIds) {
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", isActive ? "visible" : "none");
+        }
+      }
+    }
+  }, [activeLayers, mapReady]);
 
   // Initialize map
   useEffect(() => {
@@ -612,6 +719,32 @@ export default function MapV2Container({
         minzoom: SCHOOL_MIN_ZOOM,
       });
 
+      // === OVERLAY LAYERS (map planning overlays) ===
+
+      // Plan polygon source + layers (rendered below pin layers)
+      map.current.addSource(PLANS_SOURCE, createGeoJSONSource());
+      for (const layer of getPlanLayers()) {
+        map.current.addLayer(layer);
+      }
+
+      // Contacts pin source + layers
+      map.current.addSource(CONTACTS_SOURCE, createClusteredSource());
+      for (const layer of getContactLayers()) {
+        map.current.addLayer(layer);
+      }
+
+      // Vacancies pin source + layers
+      map.current.addSource(VACANCIES_SOURCE, createClusteredSource());
+      for (const layer of getVacancyLayers()) {
+        map.current.addLayer(layer);
+      }
+
+      // Activities pin source + layers
+      map.current.addSource(ACTIVITIES_SOURCE, createClusteredSource());
+      for (const layer of getActivityLayers()) {
+        map.current.addLayer(layer);
+      }
+
       setMapReady(true);
     });
 
@@ -720,6 +853,39 @@ export default function MapV2Container({
           }
         }
       } else {
+        // Check for overlay pin hover
+        const overlayPointLayers = ALL_OVERLAY_POINT_LAYERS.filter(
+          (id) => map.current!.getLayer(id)
+        );
+        const overlayFeatures = overlayPointLayers.length > 0
+          ? map.current.queryRenderedFeatures(e.point, { layers: [...overlayPointLayers] })
+          : [];
+
+        if (overlayFeatures.length > 0) {
+          const feature = overlayFeatures[0];
+          const overlayType = layerIdToOverlayType(feature.layer.id);
+          const props = feature.properties;
+          lastHoveredLeaidRef.current = null;
+          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
+          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+          map.current.getCanvas().style.cursor = "pointer";
+
+          const typeLabels: Record<string, string> = {
+            contacts: "Contact",
+            vacancies: "Vacancy",
+            activities: "Activity",
+          };
+          const typeLabel = overlayType ? typeLabels[overlayType] ?? "" : "";
+          const name = props?.name || props?.title || "Unknown";
+
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+            type: "district", // Reuse the district tooltip type for overlays
+            name: `${typeLabel}: ${name}`,
+            leaid: props?.leaid,
+          });
+          return;
+        }
+
         // Check for school hover
         const schoolFeatures = map.current.getLayer("schools-unclustered")
           ? map.current.queryRenderedFeatures(e.point, {
@@ -776,6 +942,74 @@ export default function MapV2Container({
   const handleClick = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
+
+      // Check overlay pin clicks first (highest z-order)
+      const overlayPointLayers = ALL_OVERLAY_POINT_LAYERS.filter(
+        (id) => map.current!.getLayer(id)
+      );
+      if (overlayPointLayers.length > 0) {
+        const overlayFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: [...overlayPointLayers],
+        });
+        if (overlayFeatures.length > 0) {
+          const feature = overlayFeatures[0];
+          const overlayType = layerIdToOverlayType(feature.layer.id);
+          const featureId = feature.properties?.id;
+          if (overlayType && featureId) {
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "coral");
+            const panelType = overlayTypeToPanel(overlayType) as RightPanelContent["type"];
+            store.openRightPanel({ type: panelType, id: String(featureId) });
+          }
+          return;
+        }
+      }
+
+      // Check overlay cluster clicks — zoom into the cluster
+      const overlayClusterLayers = ALL_OVERLAY_CLUSTER_LAYERS.filter(
+        (id) => map.current!.getLayer(id)
+      );
+      if (overlayClusterLayers.length > 0) {
+        const clusterFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: [...overlayClusterLayers],
+        });
+        if (clusterFeatures.length > 0) {
+          const feature = clusterFeatures[0];
+          const clusterId = feature.properties?.cluster_id;
+          const sourceId = feature.source;
+          if (clusterId !== undefined && sourceId) {
+            const source = map.current.getSource(sourceId) as maplibregl.GeoJSONSource;
+            source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              if (!map.current) return;
+              const geom = feature.geometry;
+              if (geom.type === "Point") {
+                map.current.easeTo({
+                  center: geom.coordinates as [number, number],
+                  zoom: zoom + 1,
+                  duration: 500,
+                });
+              }
+            });
+          }
+          return;
+        }
+      }
+
+      // Check plan polygon click
+      if (map.current.getLayer(PLANS_FILL_LAYER)) {
+        const planFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: [PLANS_FILL_LAYER],
+        });
+        if (planFeatures.length > 0) {
+          const planId = planFeatures[0].properties?.planId;
+          if (planId) {
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "plum");
+            store.openRightPanel({ type: "plan_card", id: planId });
+            return;
+          }
+        }
+      }
 
       // Check for individual school click — select parent district
       const schoolFeatures = map.current.getLayer("schools-unclustered")
@@ -888,12 +1122,15 @@ export default function MapV2Container({
         const m = map.current;
         if (!m) return;
         const bounds = m.getBounds();
-        useMapV2Store.getState().setSearchBounds([
+        const boundsArray: [number, number, number, number] = [
           bounds.getWest(),
           bounds.getSouth(),
           bounds.getEast(),
           bounds.getNorth(),
-        ]);
+        ];
+        const store = useMapV2Store.getState();
+        store.setSearchBounds(boundsArray);
+        store.setMapBounds(boundsArray);
       }, 300);
     };
     map.current.on("moveend", handleMoveEnd);
@@ -902,12 +1139,15 @@ export default function MapV2Container({
     updateSchoolBounds();
     if (map.current) {
       const bounds = map.current.getBounds();
-      useMapV2Store.getState().setSearchBounds([
+      const boundsArray: [number, number, number, number] = [
         bounds.getWest(),
         bounds.getSouth(),
         bounds.getEast(),
         bounds.getNorth(),
-      ]);
+      ];
+      const store = useMapV2Store.getState();
+      store.setSearchBounds(boundsArray);
+      store.setMapBounds(boundsArray);
     }
 
     return () => {

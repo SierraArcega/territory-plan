@@ -7,6 +7,46 @@ import type { TransitionBucket } from "@/features/map/lib/comparison";
 export type FiscalYear = "fy24" | "fy25" | "fy26" | "fy27";
 export type CompareView = "side_by_side" | "changes";
 
+// Overlay layer types for map planning overlays
+export type OverlayLayerType = "districts" | "contacts" | "vacancies" | "plans" | "activities";
+
+// Date range presets
+export type DatePreset = "7d" | "30d" | "90d" | "ytd" | "all";
+
+// Per-layer filter state
+export interface ContactLayerFilter {
+  seniorityLevel?: string | null;
+  persona?: string | null;
+}
+
+export interface VacancyLayerFilter {
+  category?: string | null;
+  status?: string | null;
+}
+
+export interface PlanLayerFilter {
+  status?: string | null;
+  fiscalYear?: number | null;
+}
+
+export interface ActivityLayerFilter {
+  type?: string | null;
+  status?: string | null;
+}
+
+export interface LayerFilters {
+  contacts: ContactLayerFilter;
+  vacancies: VacancyLayerFilter;
+  plans: PlanLayerFilter;
+  activities: ActivityLayerFilter;
+}
+
+export interface DateRange {
+  start: string | null;
+  end: string | null;
+  preset: DatePreset | null;
+}
+
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
 export const ALL_SCHOOL_TYPES: SchoolType[] = ["elementary", "middle", "high", "charter"];
@@ -86,7 +126,7 @@ export interface MapViewState {
 }
 
 export interface RightPanelContent {
-  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form" | "plan_card";
+  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form" | "plan_card" | "vacancy_detail" | "vacancy_form";
   id?: string;
 }
 
@@ -254,6 +294,13 @@ interface MapV2State {
   searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
   searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
   exploreModalLeaid: string | null; // leaid of district currently shown in explore modal
+
+  // Overlay layers (map planning overlays)
+  activeLayers: Set<OverlayLayerType>;
+  layerFilters: LayerFilters;
+  dateRange: DateRange;
+  layerDrawerOpen: boolean;
+  mapBounds: [number, number, number, number] | null; // [west, south, east, north]
 }
 
 interface MapV2Actions {
@@ -418,6 +465,14 @@ interface MapV2Actions {
   setSearchResultLeaids: (leaids: string[]) => void;
   setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
   setExploreModalLeaid: (leaid: string | null) => void;
+
+  // Overlay layers (map planning overlays)
+  toggleLayer: (layer: OverlayLayerType) => void;
+  setLayerFilter: <K extends keyof LayerFilters>(layer: K, filter: Partial<LayerFilters[K]>) => void;
+  setDateRange: (range: Partial<DateRange>) => void;
+  setLayerDrawerOpen: (open: boolean) => void;
+  toggleLayerDrawer: () => void;
+  setMapBounds: (bounds: [number, number, number, number] | null) => void;
 }
 
 let rippleId = 0;
@@ -586,6 +641,18 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   exploreModalLeaid: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
+
+  // Overlay layers (map planning overlays)
+  activeLayers: new Set<OverlayLayerType>(["districts"]),
+  layerFilters: {
+    contacts: {},
+    vacancies: {},
+    plans: {},
+    activities: {},
+  },
+  dateRange: { start: null, end: null, preset: null },
+  layerDrawerOpen: false,
+  mapBounds: null,
 
   // Panel navigation
   setPanelState: (state) =>
@@ -1262,4 +1329,34 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   setExploreModalLeaid: (leaid) => set({ exploreModalLeaid: leaid }),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
   setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
+
+  // Overlay layers (map planning overlays)
+  toggleLayer: (layer) =>
+    set((s) => {
+      const next = new Set(s.activeLayers);
+      if (next.has(layer)) {
+        next.delete(layer);
+      } else {
+        next.add(layer);
+      }
+      return { activeLayers: next };
+    }),
+
+  setLayerFilter: (layer, filter) =>
+    set((s) => ({
+      layerFilters: {
+        ...s.layerFilters,
+        [layer]: { ...s.layerFilters[layer], ...filter },
+      },
+    })),
+
+  setDateRange: (range) =>
+    set((s) => ({
+      dateRange: { ...s.dateRange, ...range },
+    })),
+
+  setLayerDrawerOpen: (open) => set({ layerDrawerOpen: open }),
+  toggleLayerDrawer: () => set((s) => ({ layerDrawerOpen: !s.layerDrawerOpen })),
+
+  setMapBounds: (bounds) => set({ mapBounds: bounds }),
 }));
