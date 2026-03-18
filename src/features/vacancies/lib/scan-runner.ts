@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { detectPlatform } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
+import { parseWithPlaywright } from "./parsers/playwright-fallback";
 import { parseWithClaude } from "./parsers/claude-fallback";
 import type { RawVacancy } from "./parsers/types";
 
@@ -78,15 +79,22 @@ export async function runScan(scanId: string): Promise<void> {
       data: { platform },
     });
 
-    // Step 4: Get parser and run it (Claude fallback for unknown platforms)
+    // Step 4: Get parser and run it
     const parser = getParser(platform);
     let rawVacancies: RawVacancy[];
 
     if (parser) {
       rawVacancies = await parser(scan.district.jobBoardUrl);
     } else {
-      // Unknown platform — use Claude to extract vacancies
-      rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+      // Unknown platform — try Playwright first (free, no API cost),
+      // fall back to Claude if Playwright finds nothing
+      console.log(`[scan-runner] No parser for platform "${platform}", trying Playwright...`);
+      rawVacancies = await parseWithPlaywright(scan.district.jobBoardUrl);
+
+      if (rawVacancies.length === 0 && process.env.ANTHROPIC_API_KEY) {
+        console.log(`[scan-runner] Playwright found nothing, trying Claude fallback...`);
+        rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+      }
     }
 
     // Check if aborted
