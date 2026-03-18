@@ -446,6 +446,15 @@ export interface ActivityStateLink {
   isExplicit: boolean;
 }
 
+export interface ActivityRelationLink {
+  activityId: string;
+  title: string;
+  type: ActivityType;
+  startDate: string | null;
+  status: string;
+  relationType: string;
+}
+
 export interface ActivityExpenseItem {
   id: string;
   description: string;
@@ -483,6 +492,7 @@ export interface Activity {
   states: ActivityStateLink[];
   expenses: ActivityExpenseItem[];
   attendees: ActivityAttendeeItem[];
+  relatedActivities: ActivityRelationLink[];
 }
 
 export interface ActivityListItem {

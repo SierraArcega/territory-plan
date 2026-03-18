@@ -39,6 +39,12 @@ export async function GET(
         attendees: {
           include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
         },
+        relations: {
+          include: { relatedActivity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
+        },
+        relatedTo: {
+          include: { activity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
+        },
       },
     });
 
@@ -133,6 +139,24 @@ export async function GET(
         fullName: a.user.fullName,
         avatarUrl: a.user.avatarUrl,
       })),
+      relatedActivities: [
+        ...activity.relations.map((r) => ({
+          activityId: r.relatedActivity.id,
+          title: r.relatedActivity.title,
+          type: r.relatedActivity.type,
+          startDate: r.relatedActivity.startDate?.toISOString() ?? null,
+          status: r.relatedActivity.status,
+          relationType: r.relationType,
+        })),
+        ...activity.relatedTo.map((r) => ({
+          activityId: r.activity.id,
+          title: r.activity.title,
+          type: r.activity.type,
+          startDate: r.activity.startDate?.toISOString() ?? null,
+          status: r.activity.status,
+          relationType: r.relationType,
+        })),
+      ],
     });
   } catch (error) {
     console.error("Error fetching activity:", error);

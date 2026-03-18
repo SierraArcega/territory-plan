@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const unscheduled = searchParams.get("unscheduled") === "true";
+    const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -35,6 +36,11 @@ export async function GET(request: NextRequest) {
     const where: Prisma.ActivityWhereInput = {
       createdByUserId: user.id,
     };
+
+    // Search by title
+    if (search) {
+      where.title = { contains: search, mode: "insensitive" };
+    }
 
     // Filter by category (maps to types)
     if (category && ACTIVITY_CATEGORIES[category]) {
@@ -245,7 +251,8 @@ export async function POST(request: NextRequest) {
       metadata = null,
       attendeeUserIds = [],
       expenses = [],
-      districts: districtDetails = [], // [{leaid, visitDate?, visitEndDate?}]
+      districts: districtDetails = [],
+      relatedActivityIds = [], // [{activityId, relationType}] // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
     // Validate required fields
@@ -341,6 +348,12 @@ export async function POST(request: NextRequest) {
         attendees: {
           create: attendeeUserIds.map((userId: string) => ({ userId })),
         },
+        relations: {
+          create: relatedActivityIds.map((r: { activityId: string; relationType?: string }) => ({
+            relatedActivityId: r.activityId,
+            relationType: r.relationType || "related",
+          })),
+        },
       },
       include: {
         plans: {
@@ -360,6 +373,12 @@ export async function POST(request: NextRequest) {
         expenses: true,
         attendees: {
           include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
+        },
+        relations: {
+          include: { relatedActivity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
+        },
+        relatedTo: {
+          include: { activity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
         },
       },
     });
@@ -419,6 +438,24 @@ export async function POST(request: NextRequest) {
         fullName: a.user.fullName,
         avatarUrl: a.user.avatarUrl,
       })),
+      relatedActivities: [
+        ...activity.relations.map((r) => ({
+          activityId: r.relatedActivity.id,
+          title: r.relatedActivity.title,
+          type: r.relatedActivity.type as ActivityType,
+          startDate: r.relatedActivity.startDate?.toISOString() ?? null,
+          status: r.relatedActivity.status,
+          relationType: r.relationType,
+        })),
+        ...activity.relatedTo.map((r) => ({
+          activityId: r.activity.id,
+          title: r.activity.title,
+          type: r.activity.type as ActivityType,
+          startDate: r.activity.startDate?.toISOString() ?? null,
+          status: r.activity.status,
+          relationType: r.relationType,
+        })),
+      ],
     });
   } catch (error) {
     console.error("Error creating activity:", error);

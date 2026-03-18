@@ -2,6 +2,7 @@
 
 import type { ConferenceMetadata } from "@/features/activities/types";
 import AddressInput from "./AddressInput";
+import CustomSelect from "./CustomSelect";
 
 const TIMEZONES = [
   "America/New_York",
@@ -46,29 +47,19 @@ export default function ConferenceFields({
             className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-[#8A80A8] mb-1">
-            Timezone
-          </label>
-          <select
-            value={metadata.timezone || ""}
-            onChange={(e) => onMetadataChange({ ...metadata, timezone: e.target.value || undefined })}
-            className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white"
-          >
-            <option value="">Select...</option>
-            {TIMEZONES.map((tz) => (
-              <option key={tz} value={tz}>
-                {TIMEZONE_LABELS[tz] || tz}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CustomSelect
+          label="Timezone"
+          value={metadata.timezone || ""}
+          onChange={(val) => onMetadataChange({ ...metadata, timezone: val || undefined })}
+          placeholder="Select..."
+          options={TIMEZONES.map((tz) => ({ value: tz, label: TIMEZONE_LABELS[tz] || tz }))}
+        />
       </div>
 
       {/* Address */}
       <div>
         <label className="block text-xs font-medium text-[#8A80A8] mb-1">
-          Venue / Address
+          Location
         </label>
         <AddressInput
           value={metadata.address || ""}

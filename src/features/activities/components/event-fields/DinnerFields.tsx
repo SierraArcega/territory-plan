@@ -29,7 +29,7 @@ export default function DinnerFields({
         </div>
         <div>
           <label className="block text-xs font-medium text-[#8A80A8] mb-1">
-            Location / Address
+            Location
           </label>
           <AddressInput
             value={metadata.address || ""}

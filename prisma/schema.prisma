@@ -606,9 +606,11 @@ model Activity {
   districts ActivityDistrict[]
   contacts  ActivityContact[]
   states    ActivityState[]
-  taskLinks TaskActivity[]
-  expenses  ActivityExpense[]
-  attendees ActivityAttendee[]
+  taskLinks  TaskActivity[]
+  expenses   ActivityExpense[]
+  attendees  ActivityAttendee[]
+  relations  ActivityRelation[] @relation("ActivityRelations")
+  relatedTo  ActivityRelation[] @relation("RelatedToActivities")
 
   @@index([createdByUserId])
   @@index([type])
@@ -683,6 +685,21 @@ model ActivityAttendee {
 
   @@id([activityId, userId])
   @@map("activity_attendees")
+}
+
+model ActivityRelation {
+  id                String   @id @default(uuid())
+  activityId        String   @map("activity_id")
+  relatedActivityId String   @map("related_activity_id")
+  relationType      String   @default("related") @db.VarChar(30) // related, follow_up, part_of, preceded_by
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  activity        Activity @relation("ActivityRelations", fields: [activityId], references: [id], onDelete: Cascade)
+  relatedActivity Activity @relation("RelatedToActivities", fields: [relatedActivityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, relatedActivityId])
+  @@index([relatedActivityId])
+  @@map("activity_relations")
 }
 
 // ===== User Roles =====
