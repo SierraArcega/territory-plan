@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile, useLogout } from "@/lib/api";
+import { useCalendarConnection } from "@/features/calendar/lib/queries";
 import CalendarSyncSettings from "@/features/calendar/components/CalendarSyncSettings";
 
 // Generate initials from a name (e.g., "John Smith" -> "JS")
@@ -28,6 +29,9 @@ export default function ProfileView() {
 
   const { data: profile, isLoading } = useProfile();
   const logoutMutation = useLogout();
+
+  // Prefetch calendar connection so settings modal opens instantly
+  useCalendarConnection();
 
   // Auto-open settings modal when redirected back from calendar OAuth
   useEffect(() => {
