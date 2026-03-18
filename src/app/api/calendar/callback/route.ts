@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     if (returnTo === "settings") {
       console.log("[calendar-callback] → SUCCESS, redirecting to settings");
       return NextResponse.redirect(
-        `${origin}/?tab=profile&openSettings=true&calendarConnected=true`
+        `${origin}/?tab=profile&section=calendar-sync&calendarConnected=true`
       );
     }
 
