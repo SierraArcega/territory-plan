@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import { useMapV2Store } from "@/features/map/lib/store";
-import type { MapVacancyProperties } from "@/features/shared/types/api-types";
 
 interface VacancyDetailData {
   id: string;
@@ -73,14 +72,7 @@ export default function VacancyDetail({ vacancyId }: VacancyDetailProps) {
 
   // Fetch vacancy detail via the existing district vacancy endpoint
   // For now we look up the vacancy from the map features — the right panel receives
-  // props from the clicked feature's properties, so we can render directly.
-  // If a dedicated /api/vacancies/:id endpoint exists, we'd use it here.
-  // For v1, we pass-through the feature properties.
-
-  const days = daysOpen(null); // Will be calculated from the properties passed in
-
-  // Since VacancyDetail is opened from pin click, the store should have the data
-  // For a proper detail view, let's try to fetch from district vacancies
+  // Fetch vacancy detail — relies on a /api/vacancies/:id endpoint
   const { data, isLoading } = useQuery({
     queryKey: ["vacancyDetail", vacancyId],
     queryFn: async () => {

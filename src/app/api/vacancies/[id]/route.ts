@@ -31,14 +31,15 @@ export async function GET(
             leaid: true,
             name: true,
             stateAbbrev: true,
-            city: true,
+            cityLocation: true,
           },
         },
         school: {
           select: {
             ncessch: true,
-            name: true,
-            gradeRange: true,
+            schoolName: true,
+            lograde: true,
+            higrade: true,
           },
         },
       },
@@ -51,7 +52,14 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(vacancy);
+    // Flatten district/school data for the frontend
+    const { district, school, ...rest } = vacancy;
+    return NextResponse.json({
+      ...rest,
+      leaid: rest.leaid,
+      districtName: district?.name ?? null,
+      schoolName: school?.schoolName ?? null,
+    });
   } catch (error) {
     console.error("Error fetching vacancy:", error);
     return NextResponse.json(

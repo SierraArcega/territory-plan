@@ -178,9 +178,6 @@ export function useSchoolGeoJSON(
 // Map Overlay GeoJSON Hooks
 // ============================================
 
-const EMPTY_POINT_FC: FeatureCollection<Point> = { type: "FeatureCollection", features: [] };
-const EMPTY_GEOM_FC: FeatureCollection<Geometry> = { type: "FeatureCollection", features: [] };
-
 /** Build URL search params from filter object, omitting null/undefined values. */
 function buildOverlayParams(
   bounds: [number, number, number, number] | null,
@@ -268,10 +265,15 @@ export function useMapActivities(
   enabled: boolean,
 ) {
   const qBounds = bounds ? quantizeBounds(bounds) : null;
+  // Activities API uses startDate/endDate (not dateStart/dateEnd like vacancies)
   const queryString = buildOverlayParams(
     qBounds,
-    { type: filters.type, status: filters.status },
-    dateRange,
+    {
+      type: filters.type,
+      status: filters.status,
+      startDate: dateRange?.start,
+      endDate: dateRange?.end,
+    },
   );
 
   return useQuery({

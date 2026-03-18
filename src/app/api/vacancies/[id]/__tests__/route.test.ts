@@ -49,12 +49,13 @@ function makeVacancyRow(overrides: Record<string, unknown> = {}) {
       leaid: "1234567",
       name: "Test District",
       stateAbbrev: "CA",
-      city: "Sacramento",
+      cityLocation: "Sacramento",
     },
     school: {
       ncessch: "123456700001",
-      name: "Test Elementary",
-      gradeRange: "K-5",
+      schoolName: "Test Elementary",
+      lograde: "KG",
+      higrade: "05",
     },
     ...overrides,
   };
@@ -82,8 +83,8 @@ describe("GET /api/vacancies/[id]", () => {
     expect(res.status).toBe(200);
     expect(data.id).toBe("vac-1");
     expect(data.title).toBe("SPED Teacher");
-    expect(data.district.name).toBe("Test District");
-    expect(data.school.name).toBe("Test Elementary");
+    expect(data.districtName).toBe("Test District");
+    expect(data.schoolName).toBe("Test Elementary");
   });
 
   it("returns 404 when vacancy not found", async () => {
