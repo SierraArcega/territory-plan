@@ -19,6 +19,7 @@ import {
 } from "@/features/activities/types";
 import EventTypeFields from "./event-fields/EventTypeFields";
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
+import CalendarPicker from "./event-fields/CalendarPicker";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -59,6 +60,8 @@ export default function ActivityFormModal({
   );
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
 
+  const [error, setError] = useState<string | null>(null);
+
   // Type-specific state
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
@@ -98,6 +101,7 @@ export default function ActivityFormModal({
       setAttendeeUserIds([]);
       setExpenses([]);
       setDistrictStops([]);
+      setError(null);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
@@ -160,6 +164,7 @@ export default function ActivityFormModal({
     const isEvent = getCategoryForType(type) === "events";
     const hasMetadata = isEvent && Object.keys(metadata).length > 0;
 
+    setError(null);
     try {
       await createActivity.mutateAsync({
         type,
@@ -182,8 +187,10 @@ export default function ActivityFormModal({
           : undefined,
       });
       onClose();
-    } catch (error) {
-      console.error("Failed to create activity:", error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create activity";
+      setError(message);
+      console.error("Failed to create activity:", err);
     }
   };
 
@@ -314,43 +321,14 @@ export default function ActivityFormModal({
               </div>
 
               {/* Dates */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                  />
-                  {isMultiDay && (
-                    <>
-                      <span className="text-gray-400">→</span>
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        min={startDate}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                      />
-                    </>
-                  )}
-                </div>
-                <label className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                  <input
-                    type="checkbox"
-                    checked={isMultiDay}
-                    onChange={(e) => {
-                      setIsMultiDay(e.target.checked);
-                      if (!e.target.checked) setEndDate("");
-                    }}
-                    className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                  />
-                  Multi-day event
-                </label>
-              </div>
+              <CalendarPicker
+                startDate={startDate}
+                endDate={endDate}
+                isMultiDay={isMultiDay}
+                onStartDateChange={setStartDate}
+                onEndDateChange={setEndDate}
+                onMultiDayChange={setIsMultiDay}
+              />
 
               {/* Plans selector */}
               <div>
@@ -445,6 +423,13 @@ export default function ActivityFormModal({
                 </div>
               </div>
             </div>
+
+            {/* Error */}
+            {error && (
+              <div className="mx-6 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                {error}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
