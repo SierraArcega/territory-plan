@@ -18,6 +18,9 @@ export async function parseWithPlaywright(url: string): Promise<RawVacancy[]> {
     // Wait for JS rendering
     await page.waitForTimeout(3000);
 
+    // Click "Load More" / "Show More" buttons until all listings are visible
+    await loadAllResults(page);
+
     const html = await page.content();
     const text = await page.evaluate(() => document.body.innerText);
 
@@ -115,6 +118,58 @@ function extractFromText(text: string, _baseUrl: string): RawVacancy[] {
   }
 
   return vacancies;
+}
+
+/**
+ * Repeatedly click "Load More" / "Show More" buttons until all results are visible.
+ * Handles common patterns: buttons, links, infinite scroll triggers.
+ * Gives up after 10 clicks or if no new content appears.
+ */
+async function loadAllResults(page: import("playwright").Page): Promise<void> {
+  const loadMoreSelectors = [
+    'button:has-text("Load More")',
+    'button:has-text("Show More")',
+    'button:has-text("View More")',
+    'button:has-text("See More")',
+    'a:has-text("Load More")',
+    'a:has-text("Show More")',
+    'a:has-text("View More")',
+    '[class*="load-more"]',
+    '[class*="loadMore"]',
+    '[class*="show-more"]',
+    '[class*="showMore"]',
+  ];
+
+  const maxClicks = 10;
+  let clicks = 0;
+
+  while (clicks < maxClicks) {
+    let clicked = false;
+
+    for (const selector of loadMoreSelectors) {
+      try {
+        const btn = page.locator(selector).first();
+        if (await btn.isVisible({ timeout: 1000 })) {
+          const contentBefore = await page.evaluate(() => document.body.innerText.length);
+          await btn.click();
+          // Wait for new content to load
+          await page.waitForTimeout(2000);
+          const contentAfter = await page.evaluate(() => document.body.innerText.length);
+
+          if (contentAfter > contentBefore) {
+            clicked = true;
+            clicks++;
+            console.log(`[playwright-fallback] Clicked "${selector}" (${clicks}/${maxClicks}), content grew ${contentBefore} → ${contentAfter}`);
+            break;
+          }
+        }
+      } catch {
+        // Selector not found or not clickable, try next
+      }
+    }
+
+    if (!clicked) break; // No more "Load More" buttons found
+  }
 }
 
 const JOB_KEYWORDS = [
