@@ -8,11 +8,14 @@ const ANTHROPIC_VERSION = "2023-06-01";
 /** Maximum characters of page text to send to Claude (to stay within context limits) */
 const MAX_TEXT_LENGTH = 80_000;
 
+/** Minimum content length to consider a page as having real content (not a JS shell) */
+const MIN_CONTENT_LENGTH = 200;
+
 /**
  * Fallback parser that uses Claude to extract job vacancies from unknown
  * or self-hosted school district job board pages.
  *
- * 1. Fetches the page HTML
+ * 1. Fetches the page — tries plain fetch first, falls back to Playwright for JS-rendered sites
  * 2. Strips it to text content
  * 3. Sends the text to Claude with a tool_use schema matching RawVacancy[]
  * 4. Returns the extracted vacancies
@@ -25,10 +28,19 @@ export async function parseWithClaude(url: string): Promise<RawVacancy[]> {
     );
   }
 
-  const html = await fetchPage(url);
-  const text = htmlToText(html);
+  // Try plain fetch first (fast path for server-rendered pages)
+  let html = await fetchPageSimple(url);
+  let text = htmlToText(html);
+
+  // If content is too short, the page is likely JS-rendered — use Playwright
+  if (!text || text.length < MIN_CONTENT_LENGTH) {
+    console.log(`[claude-fallback] Plain fetch returned minimal content for ${url}, trying Playwright...`);
+    html = await fetchPageWithPlaywright(url);
+    text = htmlToText(html);
+  }
 
   if (!text || text.length < 50) {
+    console.log(`[claude-fallback] No content found for ${url} even with Playwright`);
     return [];
   }
 
@@ -38,10 +50,11 @@ export async function parseWithClaude(url: string): Promise<RawVacancy[]> {
   return callClaude(apiKey, truncatedText, url);
 }
 
-async function fetchPage(url: string): Promise<string> {
+/** Fast path: plain fetch for server-rendered pages */
+async function fetchPageSimple(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: { "User-Agent": USER_AGENT },
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) {
@@ -51,6 +64,24 @@ async function fetchPage(url: string): Promise<string> {
   }
 
   return res.text();
+}
+
+/** Slow path: Playwright headless browser for JS-rendered pages */
+async function fetchPageWithPlaywright(url: string): Promise<string> {
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({
+      userAgent: USER_AGENT,
+    });
+    await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+    // Wait a bit for any remaining JS rendering
+    await page.waitForTimeout(2000);
+    const html = await page.content();
+    return html;
+  } finally {
+    await browser.close();
+  }
 }
 
 /**
