@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useProfile,
   useTerritoryPlans,
@@ -37,7 +37,7 @@ export default function PlansTab({ onBadgeCountChange }: PlansTabProps) {
   );
 
   // Report badge count
-  useMemo(() => {
+  useEffect(() => {
     onBadgeCountChange?.(myPlans.length);
   }, [myPlans.length, onBadgeCountChange]);
 
