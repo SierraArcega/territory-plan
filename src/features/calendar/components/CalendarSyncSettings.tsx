@@ -60,7 +60,7 @@ export default function CalendarSyncSettings() {
               </p>
             </div>
             <button
-              onClick={() => { window.location.href = "/api/calendar/connect"; }}
+              onClick={() => { window.location.href = "/api/calendar/connect?returnTo=settings"; }}
               className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-[#403770] bg-white rounded-lg hover:bg-white/90 transition-colors"
             >
               Connect

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile, useLogout } from "@/lib/api";
 import CalendarSyncSettings from "@/features/calendar/components/CalendarSyncSettings";
 
@@ -23,10 +23,18 @@ function getInitials(name: string | null, email: string): string {
  */
 export default function ProfileView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const { data: profile, isLoading } = useProfile();
   const logoutMutation = useLogout();
+
+  // Auto-open settings modal when redirected back from calendar OAuth
+  useEffect(() => {
+    if (searchParams.get("openSettings") === "true") {
+      setShowSettingsModal(true);
+    }
+  }, [searchParams]);
 
   const handleLogout = async () => {
     try {

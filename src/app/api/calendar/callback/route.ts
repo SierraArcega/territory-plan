@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify the state token matches the user who started the flow (CSRF protection)
+    let returnTo = "";
     if (state) {
       try {
         const stateData = JSON.parse(
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
             `${origin}/?calendarError=state_mismatch`
           );
         }
+        returnTo = stateData.returnTo || "";
       } catch {
         // State parsing failed — proceed anyway since we have auth from Supabase session
         console.warn("Calendar callback: could not parse state token");
@@ -105,7 +107,14 @@ export async function GET(request: NextRequest) {
       console.error("Auto-sync after connection failed:", syncErr);
     }
 
-    // Redirect back to the app with a success indicator
+    // Redirect back to where the user started the flow
+    if (returnTo === "settings") {
+      console.log("[calendar-callback] → SUCCESS, redirecting to settings");
+      return NextResponse.redirect(
+        `${origin}/?tab=profile&openSettings=true&calendarConnected=true`
+      );
+    }
+
     console.log("[calendar-callback] → SUCCESS, redirecting to activities");
     return NextResponse.redirect(
       `${origin}/?tab=activities&calendarConnected=true`

@@ -22,12 +22,16 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
     const redirectUri = `${origin}/api/calendar/callback`;
 
+    // Capture optional returnTo param so the callback can redirect back to the right page
+    const returnTo = new URL(request.url).searchParams.get("returnTo") || "";
+
     // Generate a random state token for CSRF protection
     // We include the user ID so the callback can verify the right user is completing the flow
     const state = Buffer.from(
       JSON.stringify({
         userId: user.id,
         nonce: crypto.randomBytes(16).toString("hex"),
+        returnTo,
       })
     ).toString("base64url");
 
