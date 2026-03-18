@@ -27,12 +27,12 @@ describe("detectPlatform", () => {
       expect(detectPlatform("https://jobs.schoolspring.com/listings/456")).toBe("schoolspring");
     });
 
-    it("detects talented.com", () => {
-      expect(detectPlatform("https://district.talented.com/jobs")).toBe("talentEd");
+    it("detects tedk12.com as schoolspring (TalentEd K12 redirects to SchoolSpring)", () => {
+      expect(detectPlatform("https://roswellnm.tedk12.com/hire/index.aspx")).toBe("schoolspring");
     });
 
-    it("detects subdomain.talented.com", () => {
-      expect(detectPlatform("https://hr.talented.com/posting/789")).toBe("talentEd");
+    it("detects subdomain.tedk12.com as schoolspring", () => {
+      expect(detectPlatform("https://springfield.tedk12.com/hire/")).toBe("schoolspring");
     });
   });
 
