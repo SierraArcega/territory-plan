@@ -291,11 +291,18 @@ function VacancyRow({ vacancy }: { vacancy: VacancyRecord }) {
             vacancy.title
           )}
         </span>
-        {vacancy.fullmindRelevant && (
-          <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-[#F37167]/15 text-[#9b4840]">
-            Relevant
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {vacancy.category && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-[#403770]/10 text-[#403770]">
+              {vacancy.category}
+            </span>
+          )}
+          {vacancy.fullmindRelevant && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-[#F37167]/15 text-[#9b4840]">
+              Relevant
+            </span>
+          )}
+        </div>
       </div>
 
       {displaySchool && (
