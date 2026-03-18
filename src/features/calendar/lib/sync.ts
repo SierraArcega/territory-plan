@@ -200,6 +200,11 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     return result;
   }
 
+  // One-way = app→calendar only (push). Skip pull sync entirely.
+  if (connection.syncDirection === "one_way") {
+    return result;
+  }
+
   // Refresh the access token if it's expired
   const tokenResult = await getValidAccessToken({
     accessToken: connection.accessToken,

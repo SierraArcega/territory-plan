@@ -4,6 +4,10 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
+import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
+
+const VALID_SYNC_DIRECTIONS = ["one_way", "two_way"] as const;
+const VALID_REMINDER_MINUTES = [0, 5, 10, 15, 30, 60, 1440] as const;
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +27,10 @@ export async function GET() {
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
+        syncDirection: true,
+        syncedActivityTypes: true,
+        reminderMinutes: true,
+        secondReminderMinutes: true,
         createdAt: true,
       },
     });
@@ -48,6 +56,10 @@ export async function GET() {
         syncEnabled: connection.syncEnabled,
         lastSyncAt: connection.lastSyncAt?.toISOString() || null,
         status: connection.status,
+        syncDirection: connection.syncDirection,
+        syncedActivityTypes: connection.syncedActivityTypes,
+        reminderMinutes: connection.reminderMinutes,
+        secondReminderMinutes: connection.secondReminderMinutes,
         createdAt: connection.createdAt.toISOString(),
       },
       pendingCount,
@@ -71,7 +83,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { syncEnabled, companyDomain } = body;
+    const { syncEnabled, companyDomain, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
 
     const connection = await prisma.calendarConnection.findUnique({
       where: { userId: user.id },
@@ -88,6 +100,56 @@ export async function PATCH(request: Request) {
     if (typeof syncEnabled === "boolean") updateData.syncEnabled = syncEnabled;
     if (typeof companyDomain === "string") updateData.companyDomain = companyDomain;
 
+    // Sync direction validation
+    if (syncDirection !== undefined) {
+      if (!VALID_SYNC_DIRECTIONS.includes(syncDirection)) {
+        return NextResponse.json(
+          { error: "syncDirection must be 'one_way' or 'two_way'" },
+          { status: 400 }
+        );
+      }
+      updateData.syncDirection = syncDirection;
+    }
+
+    // Synced activity types validation
+    if (syncedActivityTypes !== undefined) {
+      if (!Array.isArray(syncedActivityTypes) || !syncedActivityTypes.every((t: unknown) => typeof t === "string" && ALL_ACTIVITY_TYPES.includes(t as never))) {
+        return NextResponse.json(
+          { error: "syncedActivityTypes must be an array of valid activity types" },
+          { status: 400 }
+        );
+      }
+      updateData.syncedActivityTypes = syncedActivityTypes;
+    }
+
+    // Reminder minutes validation
+    if (reminderMinutes !== undefined) {
+      if (!VALID_REMINDER_MINUTES.includes(reminderMinutes)) {
+        return NextResponse.json(
+          { error: "reminderMinutes must be one of: 0, 5, 10, 15, 30, 60, 1440" },
+          { status: 400 }
+        );
+      }
+      updateData.reminderMinutes = reminderMinutes;
+    }
+
+    // Second reminder validation
+    if (secondReminderMinutes !== undefined) {
+      if (secondReminderMinutes !== null && !VALID_REMINDER_MINUTES.includes(secondReminderMinutes)) {
+        return NextResponse.json(
+          { error: "secondReminderMinutes must be null or one of: 5, 10, 15, 30, 60, 1440" },
+          { status: 400 }
+        );
+      }
+      if (secondReminderMinutes !== null && secondReminderMinutes === (updateData.reminderMinutes ?? connection.reminderMinutes)) {
+        return NextResponse.json(
+          { error: "secondReminderMinutes must differ from reminderMinutes" },
+          { status: 400 }
+        );
+      }
+      updateData.secondReminderMinutes = secondReminderMinutes;
+    }
+
     const updated = await prisma.calendarConnection.update({
       where: { userId: user.id },
       data: updateData,
@@ -98,6 +160,11 @@ export async function PATCH(request: Request) {
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
+        syncDirection: true,
+        syncedActivityTypes: true,
+        reminderMinutes: true,
+        secondReminderMinutes: true,
+        createdAt: true,
       },
     });
 

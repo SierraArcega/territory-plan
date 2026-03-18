@@ -207,6 +207,7 @@ export async function createCalendarEvent(
     endTime: Date;
     location?: string;
     attendeeEmails?: string[];
+    reminders?: { minutes: number }[];
   }
 ): Promise<string> {
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -221,6 +222,12 @@ export async function createCalendarEvent(
       end: { dateTime: event.endTime.toISOString() },
       location: event.location,
       attendees: event.attendeeEmails?.map((email) => ({ email })),
+      reminders: event.reminders
+        ? {
+            useDefault: false,
+            overrides: event.reminders.map((r) => ({ method: "popup" as const, minutes: r.minutes })),
+          }
+        : undefined,
     },
   });
 
@@ -238,6 +245,7 @@ export async function updateCalendarEvent(
     endTime?: Date;
     location?: string;
     attendeeEmails?: string[];
+    reminders?: { minutes: number }[];
   }
 ): Promise<void> {
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -251,6 +259,12 @@ export async function updateCalendarEvent(
   if (updates.location !== undefined) requestBody.location = updates.location;
   if (updates.attendeeEmails) {
     requestBody.attendees = updates.attendeeEmails.map((email) => ({ email }));
+  }
+  if (updates.reminders) {
+    requestBody.reminders = {
+      useDefault: false,
+      overrides: updates.reminders.map((r) => ({ method: "popup", minutes: r.minutes })),
+    };
   }
 
   await calendar.events.patch({

@@ -874,6 +874,10 @@ export interface CalendarConnection {
   syncEnabled: boolean;
   lastSyncAt: string | null;
   status: "connected" | "disconnected" | "error";
+  syncDirection: "one_way" | "two_way";
+  syncedActivityTypes: string[];
+  reminderMinutes: number;
+  secondReminderMinutes: number | null;
   createdAt: string;
 }
 
