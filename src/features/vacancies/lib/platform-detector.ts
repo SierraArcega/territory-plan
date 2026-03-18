@@ -12,8 +12,8 @@ export function detectPlatform(url: string): string {
 
   if (hostname.endsWith(".applitrack.com")) return "applitrack";
   if (hostname.endsWith(".olasjobs.org")) return "olas";
-  // SchoolSpring and TalentEd are JS-rendered SPAs — no parser yet, use Claude fallback
-  // if (hostname.endsWith(".schoolspring.com")) return "schoolspring";
+  if (hostname.endsWith(".schoolspring.com")) return "schoolspring";
+  // TalentEd is a JS-rendered SPA — falls through to Playwright fallback
   // if (hostname.endsWith(".talented.com")) return "talentEd";
 
   return "unknown";

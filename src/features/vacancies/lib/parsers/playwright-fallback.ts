@@ -131,6 +131,7 @@ async function loadAllResults(page: import("playwright").Page): Promise<void> {
     'button:has-text("Show More")',
     'button:has-text("View More")',
     'button:has-text("See More")',
+    'button:has-text("More Jobs")',
     'a:has-text("Load More")',
     'a:has-text("Show More")',
     'a:has-text("View More")',

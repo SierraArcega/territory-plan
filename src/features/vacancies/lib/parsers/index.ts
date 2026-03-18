@@ -1,14 +1,14 @@
 import type { RawVacancy } from "./types";
 import { parseApplitrack } from "./applitrack";
 import { parseOlas } from "./olas";
+import { parseSchoolSpring } from "./schoolspring";
 
 type ParserFn = (url: string) => Promise<RawVacancy[]>;
 
 const parserMap: Record<string, ParserFn> = {
   applitrack: parseApplitrack,
   olas: parseOlas,
-  // SchoolSpring is a JS-rendered SPA — plain fetch returns an empty shell.
-  // Falls through to Claude fallback. Will need Playwright for proper support.
+  schoolspring: parseSchoolSpring,
 };
 
 /**

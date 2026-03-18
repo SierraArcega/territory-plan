@@ -1,184 +1,131 @@
 import type { RawVacancy } from "./types";
 
-const USER_AGENT = "TerritoryPlanBuilder/1.0 (vacancy-scanner)";
-
 /**
- * Parse job listings from a SchoolSpring job board page.
+ * SchoolSpring parser using Playwright.
  *
- * SchoolSpring pages list positions with titles, schools, dates,
- * and links to detail pages. Layouts vary between table-based and
- * card/div-based formats.
+ * SchoolSpring is a Vue SPA that renders job listings as cards:
+ *   <div class="card">
+ *     <div class="card-body">
+ *       <div class="card-title h5">Job Title</div>
+ *       <p class="card-text">District Name</p>
+ *       <p class="card-text">City, State</p>
+ *       <p class="card-text">Date Posted</p>
+ *     </div>
+ *   </div>
+ *
+ * Pagination is via a "More Jobs" button that loads additional cards.
+ * Detail pages exist but require dismissing an overlay dialog to access.
  */
 export async function parseSchoolSpring(url: string): Promise<RawVacancy[]> {
-  const html = await fetchPage(url);
-  return extractListings(html, url);
-}
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ headless: true });
 
-async function fetchPage(url: string): Promise<string> {
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT },
-    signal: AbortSignal.timeout(30_000),
-  });
+  try {
+    const page = await browser.newPage({
+      userAgent: "TerritoryPlanBuilder/1.0 (vacancy-scanner)",
+    });
+    await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+    await page.waitForTimeout(3000);
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch SchoolSpring page: ${res.status} ${res.statusText}`);
-  }
-
-  return res.text();
-}
-
-/**
- * Extract listings from SchoolSpring HTML.
- * Tries table extraction first, then card-based extraction.
- */
-function extractListings(html: string, baseUrl: string): RawVacancy[] {
-  const tableResults = extractFromTable(html, baseUrl);
-  if (tableResults.length > 0) return tableResults;
-
-  return extractFromCards(html, baseUrl);
-}
-
-function extractFromTable(html: string, baseUrl: string): RawVacancy[] {
-  const vacancies: RawVacancy[] = [];
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let rowMatch: RegExpExecArray | null;
-
-  while ((rowMatch = rowRegex.exec(html)) !== null) {
-    const rowHtml = rowMatch[1];
-    const cells = extractCells(rowHtml);
-    if (cells.length < 2) continue;
-
-    const linkMatch = rowHtml.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkMatch) continue;
-
-    const title = stripHtml(linkMatch[2]).trim();
-    if (!title || isHeaderText(title)) continue;
-
-    let sourceUrl: string | undefined;
+    // Dismiss any overlay dialogs
     try {
-      sourceUrl = new URL(linkMatch[1], baseUrl).toString();
+      const overlay = page.locator(".pds-overlay").first();
+      if (await overlay.isVisible({ timeout: 1000 })) {
+        await page.evaluate(() => {
+          document.querySelectorAll(".pds-overlay, pds-dialog").forEach(el => {
+            (el as HTMLElement).style.display = "none";
+          });
+        });
+      }
     } catch {
-      sourceUrl = linkMatch[1];
+      // No overlay
     }
 
-    const vacancy: RawVacancy = { title, sourceUrl };
-
-    const cleanCells = cells
-      .map((c) => stripHtml(c).trim())
-      .filter((c) => c.length > 0);
-
-    // Look for date patterns
-    for (const cell of cleanCells) {
-      const dateMatch = cell.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
-      if (dateMatch) {
-        vacancy.datePosted = dateMatch[1];
+    // Click "More Jobs" until all listings are loaded
+    let clicks = 0;
+    while (clicks < 15) {
+      try {
+        const moreBtn = page.locator('button:has-text("More Jobs")').first();
+        if (await moreBtn.isVisible({ timeout: 2000 })) {
+          const countBefore = await page.locator(".card-div").count();
+          await moreBtn.click({ force: true });
+          await page.waitForTimeout(2000);
+          const countAfter = await page.locator(".card-div").count();
+          clicks++;
+          console.log(`[schoolspring] Clicked More Jobs (${clicks}), cards: ${countBefore} → ${countAfter}`);
+          if (countAfter <= countBefore) break; // No new cards loaded
+        } else {
+          break;
+        }
+      } catch {
         break;
       }
     }
 
-    // Look for school/location
-    const otherCells = cleanCells.filter(
-      (c) => c !== title && !c.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)
-    );
-    if (otherCells.length > 0) {
-      vacancy.schoolName = otherCells[0] || undefined;
-    }
+    // Extract job listings from card elements
+    const vacancies = await page.evaluate(() => {
+      const cards = document.querySelectorAll("#joblist-div .card, .card-div .card");
+      const results: Array<{
+        title: string;
+        texts: string[];
+      }> = [];
 
-    vacancies.push(vacancy);
-  }
+      cards.forEach(card => {
+        const titleEl = card.querySelector(".card-title");
+        if (!titleEl) return;
 
-  return vacancies;
-}
+        const title = titleEl.textContent?.trim();
+        if (!title || title.length < 5) return;
 
-/**
- * Extract listings from card/div-based SchoolSpring layouts.
- * SchoolSpring uses various class names for job cards.
- */
-function extractFromCards(html: string, baseUrl: string): RawVacancy[] {
-  const vacancies: RawVacancy[] = [];
+        // Get all card-text paragraphs
+        const textEls = card.querySelectorAll(".card-text");
+        const texts = Array.from(textEls).map(el => el.textContent?.trim() ?? "");
 
-  // Match job card containers
-  const cardRegex =
-    /<(?:div|article|section|li)[^>]*class="[^"]*(?:job|posting|listing|vacancy|result|search-result)[^"]*"[^>]*>([\s\S]*?)<\/(?:div|article|section|li)>/gi;
-  let cardMatch: RegExpExecArray | null;
+        results.push({ title, texts });
+      });
 
-  while ((cardMatch = cardRegex.exec(html)) !== null) {
-    const cardHtml = cardMatch[1];
+      return results;
+    });
 
-    // Title is usually in a heading or link
-    const headingMatch = cardHtml.match(
-      /<(?:h[1-6]|a)[^>]*>([\s\S]*?)<\/(?:h[1-6]|a)>/i
-    );
-    if (!headingMatch) continue;
+    console.log(`[schoolspring] Extracted ${vacancies.length} cards from page`);
 
-    const title = stripHtml(headingMatch[1]).trim();
-    if (!title) continue;
+    // Convert to RawVacancy format
+    return vacancies.map(card => {
+      const vacancy: RawVacancy = {
+        title: card.title,
+        sourceUrl: url,
+      };
 
-    const vacancy: RawVacancy = { title };
+      // Parse card-text fields: typically [district, location, date]
+      for (const text of card.texts) {
+        if (!text) continue;
 
-    // Try to get the detail URL
-    const linkMatch = cardHtml.match(/<a[^>]+href=["']([^"']+)["']/i);
-    if (linkMatch) {
-      try {
-        vacancy.sourceUrl = new URL(linkMatch[1], baseUrl).toString();
-      } catch {
-        vacancy.sourceUrl = linkMatch[1];
+        // Date patterns
+        if (/^(today|yesterday|\d+ days? ago|\d+ weeks? ago|\d+ months? ago)$/i.test(text)) {
+          vacancy.datePosted = text;
+          continue;
+        }
+        if (/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(text)) {
+          vacancy.datePosted = text;
+          continue;
+        }
+        if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(text)) {
+          vacancy.datePosted = text;
+          continue;
+        }
+
+        // Location: "City, State" pattern
+        if (/^[A-Z][a-z]+(?:\s[A-Z][a-z]+)*,\s*[A-Z][a-z]+/.test(text)) {
+          // This is the city/state line, not the school name
+          continue;
+        }
+
+        // District name (usually first card-text) — skip, we already have the district
       }
-    }
 
-    // Try to extract date
-    const dateMatch = cardHtml.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
-    if (dateMatch) {
-      vacancy.datePosted = dateMatch[1];
-    }
-
-    // Try to extract school name
-    const schoolMatch = cardHtml.match(
-      /(?:school|location|building|organization|employer)\s*:?\s*<[^>]*>?\s*([^<]+)/i
-    );
-    if (schoolMatch) {
-      vacancy.schoolName = stripHtml(schoolMatch[1]).trim() || undefined;
-    }
-
-    vacancies.push(vacancy);
+      return vacancy;
+    });
+  } finally {
+    await browser.close();
   }
-
-  return vacancies;
-}
-
-function extractCells(rowHtml: string): string[] {
-  const cells: string[] = [];
-  const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-  let cellMatch: RegExpExecArray | null;
-  while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-    cells.push(cellMatch[1]);
-  }
-  return cells;
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function isHeaderText(text: string): boolean {
-  const lc = text.toLowerCase();
-  return (
-    lc === "position" ||
-    lc === "title" ||
-    lc === "job title" ||
-    lc === "category" ||
-    lc === "location" ||
-    lc === "date" ||
-    lc === "date posted" ||
-    lc === "school"
-  );
 }
