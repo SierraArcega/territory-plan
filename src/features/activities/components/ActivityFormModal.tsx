@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useCreateActivity, useTerritoryPlans, useStates } from "@/lib/api";
+import { useCreateActivity, useTerritoryPlans, useStates, useCreateTask } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -20,6 +20,7 @@ import {
 import EventTypeFields from "./event-fields/EventTypeFields";
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import CalendarPicker from "./event-fields/CalendarPicker";
+import TaskLineItems, { type TaskDraft } from "./event-fields/TaskLineItems";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export default function ActivityFormModal({
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
+  const createTask = useCreateTask();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
 
@@ -69,16 +71,15 @@ export default function ActivityFormModal({
   const [districtStops, setDistrictStops] = useState<
     { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; visitEndDate: string }[]
   >([]);
+  const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       if (defaultCategory) {
-        // Skip category picker if a default is provided
         setSelectedCategory(defaultCategory);
         const types = ACTIVITY_CATEGORIES[defaultCategory];
         if (types.length === 1) {
-          // Single-type category — skip type picker too
           setType(types[0] as ActivityType);
           setStep("form");
         } else {
@@ -101,6 +102,7 @@ export default function ActivityFormModal({
       setAttendeeUserIds([]);
       setExpenses([]);
       setDistrictStops([]);
+      setTaskDrafts([]);
       setError(null);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
@@ -116,7 +118,6 @@ export default function ActivityFormModal({
     }
   }, [isOpen, onClose]);
 
-  // Close on backdrop click
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -125,7 +126,6 @@ export default function ActivityFormModal({
     setSelectedCategory(category);
     const types = ACTIVITY_CATEGORIES[category];
     if (types.length === 1) {
-      // Single-type category (e.g., gift_drop, campaigns) — go straight to form
       setType(types[0] as ActivityType);
       setStep("form");
     } else {
@@ -135,7 +135,6 @@ export default function ActivityFormModal({
 
   const handleTypeSelect = (activityType: ActivityType) => {
     setType(activityType);
-    // Set appropriate default status for the type
     const typeStatuses = getStatusesForType(activityType);
     setStatus(typeStatuses[0]);
     setStep("form");
@@ -160,13 +159,12 @@ export default function ActivityFormModal({
     e.preventDefault();
     if (!title.trim()) return;
 
-    // Determine if this is an event category type
     const isEvent = getCategoryForType(type) === "events";
     const hasMetadata = isEvent && Object.keys(metadata).length > 0;
 
     setError(null);
     try {
-      await createActivity.mutateAsync({
+      const activity = await createActivity.mutateAsync({
         type,
         title: title.trim(),
         startDate: startDate || undefined,
@@ -186,6 +184,23 @@ export default function ActivityFormModal({
             }))
           : undefined,
       });
+
+      // Create linked tasks (best-effort — activity is already saved)
+      const validTasks = taskDrafts.filter((t) => t.title.trim());
+      if (validTasks.length > 0 && activity?.id) {
+        await Promise.all(
+          validTasks.map((t) =>
+            createTask.mutateAsync({
+              title: t.title.trim(),
+              priority: t.priority,
+              dueDate: t.dueDate || undefined,
+              activityIds: [activity.id],
+              planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+            })
+          )
+        );
+      }
+
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create activity";
@@ -204,24 +219,26 @@ export default function ActivityFormModal({
     [states]
   );
 
+  const isEventCategory = getCategoryForType(type) === "events";
+
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2DEEC]">
           <div className="flex items-center gap-3">
             {step !== "pick-category" && (
               <button
                 onClick={handleBack}
-                className="p-1 text-gray-400 hover:text-[#403770] rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-1 text-[#A69DC0] hover:text-[#403770] rounded-lg hover:bg-[#EFEDF5] transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -241,7 +258,7 @@ export default function ActivityFormModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1.5 text-[#A69DC0] hover:text-[#403770] rounded-lg hover:bg-[#EFEDF5] transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -252,13 +269,13 @@ export default function ActivityFormModal({
         {/* Step 1: Category Picker */}
         {step === "pick-category" && (
           <div className="px-6 py-5">
-            <p className="text-sm text-gray-500 mb-4">What kind of activity are you creating?</p>
+            <p className="text-sm text-[#8A80A8] mb-4">What kind of activity are you creating?</p>
             <div className="grid grid-cols-2 gap-3">
               {(Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[]).map((category) => (
                 <button
                   key={category}
                   onClick={() => handleCategorySelect(category)}
-                  className="group flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-gray-200 hover:border-[#403770] hover:bg-[#FAFAFE] transition-all text-center"
+                  className="group flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA] transition-all text-center"
                 >
                   <span className="text-3xl group-hover:scale-110 transition-transform">
                     {CATEGORY_ICONS[category]}
@@ -266,7 +283,7 @@ export default function ActivityFormModal({
                   <span className="text-sm font-semibold text-[#403770]">
                     {CATEGORY_LABELS[category]}
                   </span>
-                  <span className="text-xs text-gray-400 leading-tight">
+                  <span className="text-xs text-[#A69DC0] leading-tight">
                     {CATEGORY_DESCRIPTIONS[category]}
                   </span>
                 </button>
@@ -275,17 +292,17 @@ export default function ActivityFormModal({
           </div>
         )}
 
-        {/* Step 2: Type Picker (within selected category) */}
+        {/* Step 2: Type Picker */}
         {step === "pick-type" && selectedCategory && (
           <div className="px-6 py-5">
-            <p className="text-sm text-gray-500 mb-4">What type of {CATEGORY_LABELS[selectedCategory].toLowerCase()}?</p>
+            <p className="text-sm text-[#8A80A8] mb-4">What type of {CATEGORY_LABELS[selectedCategory].toLowerCase()}?</p>
             <div className="grid grid-cols-2 gap-3">
               {(ACTIVITY_CATEGORIES[selectedCategory] as readonly ActivityType[]).map(
                 (activityType) => (
                   <button
                     key={activityType}
                     onClick={() => handleTypeSelect(activityType)}
-                    className="group flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 hover:border-[#403770] hover:bg-[#FAFAFE] transition-all text-center"
+                    className="group flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA] transition-all text-center"
                   >
                     <span className="text-2xl group-hover:scale-110 transition-transform">
                       {ACTIVITY_TYPE_ICONS[activityType]}
@@ -303,148 +320,181 @@ export default function ActivityFormModal({
         {/* Step 3: Form */}
         {step === "form" && (
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-            <div className="px-6 py-4 space-y-5">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., SC Education Conference"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                  required
-                  autoFocus
+            <div className="px-6 py-5 space-y-6">
+
+              {/* ── Section 1: Essentials ── */}
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                    Title <span className="text-[#F37167]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., SC Education Conference"
+                    className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                {/* Date */}
+                <CalendarPicker
+                  startDate={startDate}
+                  endDate={endDate}
+                  isMultiDay={isMultiDay}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onMultiDayChange={setIsMultiDay}
                 />
+
+                {/* Status — chip selector */}
+                <div>
+                  <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                    Status
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getStatusesForType(type).map((s) => {
+                      const config = ACTIVITY_STATUS_CONFIG[s];
+                      const isSelected = status === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setStatus(s)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                            isSelected
+                              ? "ring-1 ring-offset-1"
+                              : "border border-[#D4CFE2] text-[#8A80A8] bg-white hover:border-[#403770] hover:text-[#403770]"
+                          }`}
+                          style={
+                            isSelected
+                              ? {
+                                  backgroundColor: `${config.color}18`,
+                                  color: config.color,
+                                  // @ts-expect-error -- CSS custom property for ring color
+                                  "--tw-ring-color": config.color,
+                                }
+                              : undefined
+                          }
+                        >
+                          {config.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
-              {/* Dates */}
-              <CalendarPicker
-                startDate={startDate}
-                endDate={endDate}
-                isMultiDay={isMultiDay}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-                onMultiDayChange={setIsMultiDay}
-              />
-
-              {/* Plans selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Link to Plans
-                </label>
-                <MultiSelect
-                  id="activity-plans"
-                  label="Plans"
-                  options={planOptions}
-                  selected={selectedPlanIds}
-                  onChange={setSelectedPlanIds}
-                  placeholder="Select plans..."
-                  countLabel="plans"
-                  searchPlaceholder="Search plans..."
-                />
-                {selectedPlanIds.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    Activities without plans will be flagged for follow-up
-                  </p>
-                )}
-              </div>
-
-              {/* States selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  States
-                </label>
-                <MultiSelect
-                  id="activity-states"
-                  label="States"
-                  options={stateOptions}
-                  selected={selectedStateFips}
-                  onChange={setSelectedStateFips}
-                  placeholder="Select states..."
-                  countLabel="states"
-                  searchPlaceholder="Search states..."
-                />
-              </div>
-
-              {/* Event-type-specific fields */}
-              {getCategoryForType(type) === "events" && (
-                <EventTypeFields
-                  type={type}
-                  metadata={metadata}
-                  onMetadataChange={setMetadata}
-                  attendeeUserIds={attendeeUserIds}
-                  onAttendeeChange={setAttendeeUserIds}
-                  expenses={expenses}
-                  onExpensesChange={setExpenses}
-                  districtStops={districtStops}
-                  onDistrictStopsChange={setDistrictStops}
-                />
+              {/* ── Section 2: Details (type-specific) ── */}
+              {isEventCategory && (
+                <div className="space-y-4">
+                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
+                  <EventTypeFields
+                    type={type}
+                    metadata={metadata}
+                    onMetadataChange={setMetadata}
+                    attendeeUserIds={attendeeUserIds}
+                    onAttendeeChange={setAttendeeUserIds}
+                    expenses={expenses}
+                    onExpensesChange={setExpenses}
+                    districtStops={districtStops}
+                    onDistrictStopsChange={setDistrictStops}
+                  />
+                </div>
               )}
 
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any notes or details..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent resize-none"
-                />
+              {/* ── Section 3: Organization ── */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Organization</p>
+
+                {/* Plans & States side-by-side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      Plans
+                    </label>
+                    <MultiSelect
+                      id="activity-plans"
+                      label="Plans"
+                      options={planOptions}
+                      selected={selectedPlanIds}
+                      onChange={setSelectedPlanIds}
+                      placeholder="Select..."
+                      countLabel="plans"
+                      searchPlaceholder="Search plans..."
+                    />
+                    {selectedPlanIds.length === 0 && (
+                      <p className="mt-1 text-xs text-[#F37167]">
+                        No plan linked
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                      States
+                    </label>
+                    <MultiSelect
+                      id="activity-states"
+                      label="States"
+                      options={stateOptions}
+                      selected={selectedStateFips}
+                      onChange={setSelectedStateFips}
+                      placeholder="Select..."
+                      countLabel="states"
+                      searchPlaceholder="Search states..."
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any notes or details..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent resize-none"
+                  />
+                </div>
               </div>
 
-              {/* Status — type-aware */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {getStatusesForType(type).map((s) => (
-                    <label
-                      key={s}
-                      className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"
-                    >
-                      <input
-                        type="radio"
-                        name="status"
-                        value={s}
-                        checked={status === s}
-                        onChange={(e) => setStatus(e.target.value as ActivityStatus)}
-                        className="text-[#403770] focus:ring-[#403770]"
-                      />
-                      <span>{ACTIVITY_STATUS_CONFIG[s].label}</span>
-                    </label>
-                  ))}
-                </div>
+              {/* ── Section 4: Tasks ── */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Tasks</p>
+                <TaskLineItems tasks={taskDrafts} onChange={setTaskDrafts} />
               </div>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="mx-6 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div className="mx-6 mb-2 p-3 bg-[#fef1f0] border border-[#f58d85] rounded-lg text-sm text-[#F37167]">
                 {error}
               </div>
             )}
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E2DEEC]">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!title.trim() || createActivity.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
+                {createActivity.isPending && (
+                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                )}
                 {createActivity.isPending ? "Creating..." : "Create Activity"}
               </button>
             </div>

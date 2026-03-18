@@ -28,7 +28,7 @@ export default function ExpenseLineItems({ expenses, onChange }: ExpenseLineItem
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-xs font-medium text-[#8A80A8] mb-1">
         Expenses
       </label>
       <div className="space-y-2">
@@ -39,10 +39,10 @@ export default function ExpenseLineItems({ expenses, onChange }: ExpenseLineItem
               value={expense.description}
               onChange={(e) => updateRow(i, "description", e.target.value)}
               placeholder="Description"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+              className="flex-1 px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
             />
             <div className="relative w-28">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A69DC0] text-sm">$</span>
               <input
                 type="number"
                 value={expense.amount || ""}
@@ -50,13 +50,13 @@ export default function ExpenseLineItems({ expenses, onChange }: ExpenseLineItem
                 placeholder="0.00"
                 step="0.01"
                 min="0"
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+                className="w-full pl-7 pr-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
               />
             </div>
             <button
               type="button"
               onClick={() => removeRow(i)}
-              className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+              className="p-1.5 text-[#A69DC0] hover:text-[#F37167] rounded-lg hover:bg-[#fef1f0] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -68,7 +68,7 @@ export default function ExpenseLineItems({ expenses, onChange }: ExpenseLineItem
       <button
         type="button"
         onClick={addRow}
-        className="mt-2 text-sm text-[#403770] hover:text-[#322a5a] font-medium"
+        className="mt-2 text-xs text-[#403770] hover:text-[#322a5a] font-medium"
       >
         + Add expense
       </button>

@@ -32,7 +32,7 @@ export default function AddressInput({ value, onChange, placeholder = "Search fo
 
   const handleInputChange = (val: string) => {
     setQuery(val);
-    onChange(val); // update parent immediately (without geocode)
+    onChange(val);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (val.trim().length < 3) {
@@ -63,16 +63,16 @@ export default function AddressInput({ value, onChange, placeholder = "Search fo
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
+        className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
       />
       {showDropdown && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-30 mt-1 w-full bg-white border border-[#D4CFE2]/60 rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {suggestions.map((s, i) => (
             <button
               key={i}
               type="button"
               onClick={() => handleSelect(s)}
-              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              className="w-full text-left px-3 py-2 text-sm text-[#403770] hover:bg-[#F7F5FA] border-b border-[#E2DEEC] last:border-b-0 transition-colors"
             >
               {s.displayName}
             </button>

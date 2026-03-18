@@ -41,43 +41,43 @@ export default function ConferenceFields({
   onExpensesChange,
 }: ConferenceFieldsProps) {
   return (
-    <div className="space-y-5">
-      {/* Website URL */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Conference Website
-        </label>
-        <input
-          type="url"
-          value={metadata.websiteUrl || ""}
-          onChange={(e) => onMetadataChange({ ...metadata, websiteUrl: e.target.value || undefined })}
-          placeholder="https://..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-        />
-      </div>
-
-      {/* Timezone */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Timezone
-        </label>
-        <select
-          value={metadata.timezone || ""}
-          onChange={(e) => onMetadataChange({ ...metadata, timezone: e.target.value || undefined })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent bg-white"
-        >
-          <option value="">Select timezone...</option>
-          {TIMEZONES.map((tz) => (
-            <option key={tz} value={tz}>
-              {TIMEZONE_LABELS[tz] || tz}
-            </option>
-          ))}
-        </select>
+    <div className="space-y-4">
+      {/* Website & Timezone side-by-side */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+            Website
+          </label>
+          <input
+            type="url"
+            value={metadata.websiteUrl || ""}
+            onChange={(e) => onMetadataChange({ ...metadata, websiteUrl: e.target.value || undefined })}
+            placeholder="https://..."
+            className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+            Timezone
+          </label>
+          <select
+            value={metadata.timezone || ""}
+            onChange={(e) => onMetadataChange({ ...metadata, timezone: e.target.value || undefined })}
+            className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white"
+          >
+            <option value="">Select...</option>
+            {TIMEZONES.map((tz) => (
+              <option key={tz} value={tz}>
+                {TIMEZONE_LABELS[tz] || tz}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Address */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-xs font-medium text-[#8A80A8] mb-1">
           Venue / Address
         </label>
         <AddressInput
@@ -93,10 +93,8 @@ export default function ConferenceFields({
         />
       </div>
 
-      {/* Attendees */}
+      {/* Attendees & Expenses */}
       <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={onAttendeeChange} />
-
-      {/* Expenses */}
       <ExpenseLineItems expenses={expenses} onChange={onExpensesChange} />
     </div>
   );

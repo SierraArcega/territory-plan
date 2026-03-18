@@ -154,7 +154,7 @@ export default function CalendarPicker({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Date</label>
 
       {/* Trigger field */}
       <button
@@ -162,15 +162,15 @@ export default function CalendarPicker({
         onClick={() => setIsOpen((v) => !v)}
         className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm transition-colors bg-white ${
           isOpen
-            ? "border-[#403770] ring-2 ring-[#403770]"
-            : "border-gray-300 hover:border-gray-400"
+            ? "border-transparent ring-2 ring-[#F37167]"
+            : "border-[#C2BBD4]"
         }`}
       >
-        <span className={startDate ? "text-gray-800" : "text-gray-400"}>
+        <span className={startDate ? "text-[#403770]" : "text-[#A69DC0]"}>
           {triggerLabel}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-[#A69DC0] transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -181,7 +181,7 @@ export default function CalendarPicker({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3">
+        <div className="absolute z-20 mt-1 w-full bg-white border border-[#D4CFE2]/60 rounded-xl shadow-lg p-3">
           {/* Date pills when multi-day */}
           {isMultiDay && (
             <div className="flex items-center gap-2 mb-3">
@@ -191,19 +191,19 @@ export default function CalendarPicker({
                 className={`px-3 py-1 rounded-lg text-xs border transition-colors ${
                   selecting === "start"
                     ? "border-[#403770] bg-[#F7F5FA] text-[#403770] font-medium"
-                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    : "border-[#D4CFE2] text-[#6E6390] hover:border-[#C2BBD4]"
                 }`}
               >
                 {formatDisplay(startDate)}
               </button>
-              <span className="text-gray-400 text-xs">→</span>
+              <span className="text-[#A69DC0] text-xs">→</span>
               <button
                 type="button"
                 onClick={() => setSelecting("end")}
                 className={`px-3 py-1 rounded-lg text-xs border transition-colors ${
                   selecting === "end"
                     ? "border-[#403770] bg-[#F7F5FA] text-[#403770] font-medium"
-                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    : "border-[#D4CFE2] text-[#6E6390] hover:border-[#C2BBD4]"
                 }`}
               >
                 {formatDisplay(endDate)}
@@ -220,14 +220,14 @@ export default function CalendarPicker({
               <button
                 type="button"
                 onClick={goToToday}
-                className="text-xs text-gray-500 hover:text-[#403770] px-2 py-1 rounded hover:bg-gray-50 transition-colors"
+                className="text-xs text-[#8A80A8] hover:text-[#403770] px-2 py-1 rounded hover:bg-[#F7F5FA] transition-colors"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={prevMonth}
-                className="p-1 text-gray-400 hover:text-[#403770] rounded hover:bg-gray-50 transition-colors"
+                className="p-1 text-[#A69DC0] hover:text-[#403770] rounded hover:bg-[#F7F5FA] transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -236,7 +236,7 @@ export default function CalendarPicker({
               <button
                 type="button"
                 onClick={nextMonth}
-                className="p-1 text-gray-400 hover:text-[#403770] rounded hover:bg-gray-50 transition-colors"
+                className="p-1 text-[#A69DC0] hover:text-[#403770] rounded hover:bg-[#F7F5FA] transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -248,7 +248,7 @@ export default function CalendarPicker({
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-1">
             {DAYS.map((d) => (
-              <div key={d} className="text-center text-[11px] font-medium text-gray-400 py-1">
+              <div key={d} className="text-center text-[11px] font-medium text-[#A69DC0] py-1">
                 {d}
               </div>
             ))}
@@ -271,13 +271,13 @@ export default function CalendarPicker({
                   onClick={() => handleDayClick(dateStr)}
                   className={`
                     relative h-8 text-sm transition-colors
-                    ${!cell.isCurrentMonth ? "text-gray-300" : "text-gray-700"}
+                    ${!cell.isCurrentMonth ? "text-[#C2BBD4]" : "text-[#544A78]"}
                     ${isToday && !isSelected ? "font-bold text-[#403770]" : ""}
                     ${isSelected ? "bg-[#403770] text-white font-medium rounded-lg z-10" : ""}
                     ${inRange ? "bg-[#EDE9F7]" : ""}
                     ${rangeStart ? "rounded-l-lg" : ""}
                     ${rangeEnd ? "rounded-r-lg" : ""}
-                    ${!isSelected && cell.isCurrentMonth ? "hover:bg-gray-100 rounded-lg" : ""}
+                    ${!isSelected && cell.isCurrentMonth ? "hover:bg-[#EFEDF5] rounded-lg" : ""}
                   `}
                 >
                   {cell.day}
@@ -287,9 +287,9 @@ export default function CalendarPicker({
           </div>
 
           {/* End date toggle */}
-          <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="mt-3 pt-3 border-t border-[#E2DEEC]">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Multi-day?</span>
+              <span className="text-sm text-[#6E6390]">Multi-day?</span>
               <button
                 type="button"
                 onClick={() => {
@@ -298,13 +298,13 @@ export default function CalendarPicker({
                   if (!next) { onEndDateChange(""); setSelecting("start"); }
                   else setSelecting("end");
                 }}
-                className={`relative w-9 h-5 rounded-full transition-colors ${
-                  isMultiDay ? "bg-[#403770]" : "bg-gray-300"
+                className={`relative w-8 h-[18px] rounded-full transition-colors ${
+                  isMultiDay ? "bg-[#403770]" : "bg-[#C2BBD4]"
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                    isMultiDay ? "translate-x-4" : ""
+                  className={`absolute left-[2px] top-[2px] w-[14px] h-[14px] bg-white rounded-full shadow transition-transform ${
+                    isMultiDay ? "translate-x-[14px]" : ""
                   }`}
                 />
               </button>
