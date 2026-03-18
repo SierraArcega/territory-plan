@@ -89,10 +89,10 @@ function parseBlock(block: string, baseUrl: string): RawVacancy | null {
   title = title.replace(/['"]\);?\s*document\.write\s*\(['"].*/i, "").trim();
   if (!title || title.length < 3) return null;
 
-  // Extract JobID for building the source URL
+  // Extract JobID for building the source URL — link directly to the listing on Output.asp
   const jobIdMatch = normalized.match(/JobID:\s*(\d+)/);
   const sourceUrl = jobIdMatch
-    ? `${baseUrl.replace(/Output\.asp.*/, '')}view.asp?JobID=${jobIdMatch[1]}`
+    ? `${baseUrl}#p${jobIdMatch[1]}_h`
     : undefined;
 
   return parseBlockWithTitle(normalized, title, sourceUrl, baseUrl);
