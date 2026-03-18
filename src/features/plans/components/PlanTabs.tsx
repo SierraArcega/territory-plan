@@ -17,8 +17,10 @@ import ActivityCard from "./ActivityCard";
 import ContactsTable from "./ContactsTable";
 import ContactCard from "./ContactCard";
 import TaskList from "@/features/tasks/components/TaskList";
+import VacanciesTable from "@/features/vacancies/components/VacanciesTable";
+import { usePlanVacancies } from "@/features/vacancies/lib/queries";
 
-type TabId = "districts" | "activities" | "contacts" | "tasks";
+type TabId = "districts" | "activities" | "contacts" | "tasks" | "vacancies";
 
 interface Tab {
   id: TabId;
@@ -122,6 +124,33 @@ const CONTACT_FILTERS: FilterConfig[] = [
   },
 ];
 
+const VACANCY_FILTERS: FilterConfig[] = [
+  {
+    id: "category",
+    label: "Category",
+    type: "select",
+    options: [
+      { value: "SPED", label: "SPED" },
+      { value: "ELL", label: "ELL" },
+      { value: "General Ed", label: "General Ed" },
+      { value: "Admin", label: "Admin" },
+      { value: "Specialist", label: "Specialist" },
+      { value: "Counseling", label: "Counseling" },
+      { value: "Related Services", label: "Related Services" },
+      { value: "Other", label: "Other" },
+    ],
+  },
+  {
+    id: "fullmindRelevant",
+    label: "Relevant",
+    type: "select",
+    options: [
+      { value: "yes", label: "Yes" },
+      { value: "no", label: "No" },
+    ],
+  },
+];
+
 // Sort options per tab
 const DISTRICT_SORT_OPTIONS = [
   { value: "name", label: "Name" },
@@ -147,6 +176,13 @@ const CONTACT_SORT_OPTIONS = [
   { value: "seniority", label: "Seniority" },
 ];
 
+const VACANCY_SORT_OPTIONS = [
+  { value: "title", label: "Title" },
+  { value: "districtName", label: "District" },
+  { value: "datePosted", label: "Date Posted" },
+  { value: "category", label: "Category" },
+];
+
 // Group options per tab
 const DISTRICT_GROUP_OPTIONS = [
   { value: "none", label: "No Grouping" },
@@ -165,6 +201,13 @@ const CONTACT_GROUP_OPTIONS = [
   { value: "persona", label: "By Department" },
   { value: "seniority", label: "By Seniority" },
   { value: "district", label: "By District" },
+];
+
+const VACANCY_GROUP_OPTIONS = [
+  { value: "none", label: "No Grouping" },
+  { value: "category", label: "By Category" },
+  { value: "district", label: "By District" },
+  { value: "fullmindRelevant", label: "By Relevance" },
 ];
 
 // localStorage key for saved views
@@ -192,6 +235,7 @@ export default function PlanTabs({
     activities: "table",
     contacts: "table",
     tasks: "table",
+    vacancies: "table",
   });
 
   // Filter state per tab
@@ -200,6 +244,7 @@ export default function PlanTabs({
     activities: {},
     contacts: {},
     tasks: {},
+    vacancies: {},
   });
 
   // Search state per tab
@@ -208,6 +253,7 @@ export default function PlanTabs({
     activities: "",
     contacts: "",
     tasks: "",
+    vacancies: "",
   });
 
   // Sort state per tab
@@ -216,6 +262,7 @@ export default function PlanTabs({
     activities: { field: "startDate", direction: "desc" },
     contacts: { field: "name", direction: "asc" },
     tasks: { field: "createdAt", direction: "desc" },
+    vacancies: { field: "datePosted", direction: "desc" },
   });
 
   // Group state per tab
@@ -224,10 +271,14 @@ export default function PlanTabs({
     activities: "none",
     contacts: "none",
     tasks: "none",
+    vacancies: "none",
   });
 
   // Fetch task count for the tab badge
   const { data: tasksData } = useTasks({ planId });
+
+  // Fetch vacancies for the plan
+  const { data: vacanciesData } = usePlanVacancies(planId);
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -288,6 +339,16 @@ export default function PlanTabs({
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7l2 2 4-4M14 7h6M4 17l2 2 4-4M14 17h6" />
+        </svg>
+      ),
+    },
+    {
+      id: "vacancies",
+      label: "Vacancies",
+      count: vacanciesData?.summary.total || 0,
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
     },
@@ -472,6 +533,57 @@ export default function PlanTabs({
     return result;
   }, [contacts, searchTerms.contacts, filters.contacts, sortConfigs.contacts]);
 
+  const getFilteredVacancies = useCallback(() => {
+    const allVacancies = vacanciesData?.vacancies || [];
+    let result = [...allVacancies];
+    const search = searchTerms.vacancies.toLowerCase();
+    const filterState = filters.vacancies;
+    const sort = sortConfigs.vacancies;
+
+    // Search
+    if (search) {
+      result = result.filter(v =>
+        v.title.toLowerCase().includes(search) ||
+        v.districtName.toLowerCase().includes(search) ||
+        (v.schoolName?.toLowerCase().includes(search)) ||
+        (v.hiringManager?.toLowerCase().includes(search)) ||
+        (v.category?.toLowerCase().includes(search))
+      );
+    }
+
+    // Filters
+    if (filterState.category) {
+      result = result.filter(v => v.category === filterState.category);
+    }
+    if (filterState.fullmindRelevant === "yes") {
+      result = result.filter(v => v.fullmindRelevant);
+    } else if (filterState.fullmindRelevant === "no") {
+      result = result.filter(v => !v.fullmindRelevant);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sort.field) {
+        case "title":
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case "districtName":
+          comparison = a.districtName.localeCompare(b.districtName);
+          break;
+        case "datePosted":
+          comparison = (a.datePosted ? new Date(a.datePosted).getTime() : 0) - (b.datePosted ? new Date(b.datePosted).getTime() : 0);
+          break;
+        case "category":
+          comparison = (a.category || "").localeCompare(b.category || "");
+          break;
+      }
+      return sort.direction === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [vacanciesData?.vacancies, searchTerms.vacancies, filters.vacancies, sortConfigs.vacancies]);
+
   // Group data - generic function to group items by a key
   function groupData<T>(
     data: T[],
@@ -546,6 +658,12 @@ export default function PlanTabs({
           filters: [],
           sortOptions: [],
           groupOptions: [],
+        };
+      case "vacancies":
+        return {
+          filters: VACANCY_FILTERS,
+          sortOptions: VACANCY_SORT_OPTIONS,
+          groupOptions: VACANCY_GROUP_OPTIONS,
         };
     }
   };
@@ -745,6 +863,45 @@ export default function PlanTabs({
           </div>
         );
       }
+
+      case "vacancies": {
+        const filtered = getFilteredVacancies();
+        const grouped = groupData(filtered, groupBy, (v) => {
+          if (groupBy === "category") return v.category || "Other";
+          if (groupBy === "district") return v.districtName;
+          if (groupBy === "fullmindRelevant") return v.fullmindRelevant ? "Fullmind Relevant" : "Not Relevant";
+          return "all";
+        });
+
+        if (view === "table" && groupBy === "none") {
+          return (
+            <VacanciesTable
+              vacancies={filtered}
+              onDistrictClick={onDistrictClick}
+            />
+          );
+        }
+
+        return (
+          <div className="space-y-6">
+            {Array.from(grouped.entries()).map(([group, items]) => (
+              <div key={group}>
+                {groupBy !== "none" && (
+                  <h3 className="text-sm font-semibold text-[#403770] mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#F37167]" />
+                    {group}
+                    <span className="text-gray-400 font-normal">({items.length})</span>
+                  </h3>
+                )}
+                <VacanciesTable
+                  vacancies={items}
+                  onDistrictClick={onDistrictClick}
+                />
+              </div>
+            ))}
+          </div>
+        );
+      }
     }
   };
 
@@ -793,8 +950,8 @@ export default function PlanTabs({
           })}
         </nav>
 
-        {/* View Toggle — hidden on Tasks tab which has its own UI */}
-        {activeTab !== "tasks" && (
+        {/* View Toggle — hidden on Tasks and Vacancies tabs (table-only) */}
+        {activeTab !== "tasks" && activeTab !== "vacancies" && (
           <div className="pb-3">
             <ViewToggle
               view={views[activeTab]}

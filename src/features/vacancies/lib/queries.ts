@@ -23,6 +23,37 @@ interface VacanciesResponse {
   vacancies: Vacancy[];
 }
 
+/** Shape returned by the plan-level vacancies endpoint */
+export interface PlanVacancyItem {
+  id: string;
+  title: string;
+  category: string | null;
+  status: string;
+  districtName: string;
+  districtLeaid: string;
+  schoolName: string | null;
+  hiringManager: string | null;
+  hiringEmail: string | null;
+  startDate: string | null;
+  datePosted: string | null;
+  daysOpen: number | null;
+  fullmindRelevant: boolean;
+  relevanceReason: string | null;
+  sourceUrl: string | null;
+}
+
+export interface PlanVacanciesSummary {
+  total: number;
+  fullmindRelevant: number;
+  byCategory: Record<string, number>;
+  byDistrict: Record<string, number>;
+}
+
+export interface PlanVacanciesResponse {
+  vacancies: PlanVacancyItem[];
+  summary: PlanVacanciesSummary;
+}
+
 interface ScanDistrictResponse {
   scanId: string;
   status: "pending";
@@ -85,6 +116,19 @@ export function useBulkScan() {
         method: "POST",
         body: JSON.stringify({ territoryPlanId }),
       }),
+  });
+}
+
+/** Fetch all vacancies across districts in a territory plan */
+export function usePlanVacancies(planId: string | null) {
+  return useQuery({
+    queryKey: ["planVacancies", planId],
+    queryFn: () =>
+      fetchJson<PlanVacanciesResponse>(
+        `${API_BASE}/territory-plans/${encodeURIComponent(planId!)}/vacancies`
+      ),
+    enabled: !!planId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
