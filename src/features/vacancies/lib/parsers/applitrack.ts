@@ -52,16 +52,24 @@ async function fetchPage(url: string): Promise<string> {
  *   <li>Location: Hill Farm Elementary School</li>
  *   <li>Position Type: Academic Support/K-5 Building Learning Specialist</li>
  *
- * We split on the horizontal rule/divider between listings and parse each block.
+ * We split on <table class='title'> since every listing starts with one.
+ * Some instances also use <hr> between listings, but the title table is
+ * the only consistent marker across AppliTrack variations.
  */
 function extractListings(html: string, baseUrl: string): RawVacancy[] {
   const vacancies: RawVacancy[] = [];
 
-  // Split HTML into listing blocks — each separated by <hr> or divider pattern
-  // Each block contains one job posting
-  const blocks = html.split(/<hr[^>]*>/i);
+  // Normalize escaped quotes so our regex works consistently
+  const normalized = html.replace(/\\'/g, "'").replace(/\\"/g, '"');
 
-  for (const block of blocks) {
+  // Split on <table class='title'> — each occurrence starts a new listing.
+  // We keep the delimiter with the block that follows it.
+  const parts = normalized.split(/(?=<table[^>]*class=['"]?title['"]?)/i);
+
+  for (const block of parts) {
+    // Skip blocks that don't contain a title table (e.g., page header)
+    if (!/<table[^>]*class=['"]?title['"]?/i.test(block)) continue;
+
     const vacancy = parseBlock(block, baseUrl);
     if (vacancy) {
       vacancies.push(vacancy);
@@ -72,13 +80,9 @@ function extractListings(html: string, baseUrl: string): RawVacancy[] {
 }
 
 function parseBlock(block: string, baseUrl: string): RawVacancy | null {
-  // AppliTrack HTML uses backslash-escaped quotes: class=\'title\'
-  // Normalize them before parsing
-  const normalized = block.replace(/\\'/g, "'").replace(/\\"/g, '"');
-
   // Extract job title from the title table — the title text is in a <td>
   // Structure: <table class='title'><tr><td>Job Title Here</td><td>...JobID...</td></tr></table>
-  const titleTableMatch = normalized.match(
+  const titleTableMatch = block.match(
     /<table[^>]*class=['"]?title['"]?[^>]*>[\s\S]*?<td[^>]*>([\s\S]*?)<\/td>/i
   );
 
@@ -92,7 +96,7 @@ function parseBlock(block: string, baseUrl: string): RawVacancy | null {
   // Link back to the district's main job board page
   const sourceUrl = baseUrl.replace(/\/jobpostings\/Output\.asp.*$/i, "/");
 
-  return parseBlockWithTitle(normalized, title, sourceUrl, baseUrl);
+  return parseBlockWithTitle(block, title, sourceUrl, baseUrl);
 }
 
 function parseBlockWithTitle(
