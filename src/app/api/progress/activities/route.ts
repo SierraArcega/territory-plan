@@ -75,10 +75,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Count by category
-    const byCategory = { events: 0, outreach: 0, meetings: 0 };
+    const byCategory: Record<string, number> = { events: 0, campaigns: 0, meetings: 0, gift_drop: 0 };
     for (const a of currentActivities) {
       const cat = getCategoryForType(a.type as ActivityType);
-      byCategory[cat]++;
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
     }
 
     // Count by source

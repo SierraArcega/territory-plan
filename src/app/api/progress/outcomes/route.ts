@@ -82,13 +82,11 @@ export async function GET(request: NextRequest) {
     // Build sales funnel from activity types
     const funnel = {
       discoveryCallsCompleted: 0,
-      demosCompleted: 0,
       proposalsReviewed: 0,
       positiveOutcomes: 0,
     };
     for (const a of activities) {
       if (a.type === "discovery_call") funnel.discoveryCallsCompleted++;
-      if (a.type === "demo") funnel.demosCompleted++;
       if (a.type === "proposal_review") funnel.proposalsReviewed++;
       if (a.outcomeType === "positive_progress") funnel.positiveOutcomes++;
     }

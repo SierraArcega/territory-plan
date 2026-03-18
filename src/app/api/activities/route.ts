@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const unscheduled = searchParams.get("unscheduled") === "true";
+    const search = searchParams.get("search");
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -35,6 +36,11 @@ export async function GET(request: NextRequest) {
     const where: Prisma.ActivityWhereInput = {
       createdByUserId: user.id,
     };
+
+    // Search by title
+    if (search) {
+      where.title = { contains: search, mode: "insensitive" };
+    }
 
     // Filter by category (maps to types)
     if (category && ACTIVITY_CATEGORIES[category]) {
@@ -242,6 +248,11 @@ export async function POST(request: NextRequest) {
       districtLeaids = [],
       contactIds = [],
       stateFips = [], // explicit states
+      metadata = null,
+      attendeeUserIds = [],
+      expenses = [],
+      districts: districtDetails = [],
+      relatedActivityIds = [], // [{activityId, relationType}] // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
     // Validate required fields
@@ -278,6 +289,12 @@ export async function POST(request: NextRequest) {
       districts.forEach((d) => derivedStates.add(d.stateFips));
     }
 
+    // Build district create entries — merge districtLeaids with districtDetails (which may have visit dates)
+    const districtDetailsMap = new Map(
+      districtDetails.map((d: { leaid: string; visitDate?: string; visitEndDate?: string }) => [d.leaid, d])
+    );
+    const allDistrictLeaids = [...new Set([...districtLeaids, ...districtDetails.map((d: { leaid: string }) => d.leaid)])];
+
     // Create activity with all relations
     const activity = await prisma.activity.create({
       data: {
@@ -287,15 +304,21 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         status,
+        metadata: metadata || undefined,
         createdByUserId: user.id,
         plans: {
           create: planIds.map((planId: string) => ({ planId })),
         },
         districts: {
-          create: districtLeaids.map((leaid: string) => ({
-            districtLeaid: leaid,
-            warningDismissed: false,
-          })),
+          create: allDistrictLeaids.map((leaid: string) => {
+            const detail = districtDetailsMap.get(leaid) as { visitDate?: string; visitEndDate?: string } | undefined;
+            return {
+              districtLeaid: leaid,
+              warningDismissed: false,
+              visitDate: detail?.visitDate ? new Date(detail.visitDate) : null,
+              visitEndDate: detail?.visitEndDate ? new Date(detail.visitEndDate) : null,
+            };
+          }),
         },
         contacts: {
           create: contactIds.map((contactId: number) => ({ contactId })),
@@ -316,6 +339,21 @@ export async function POST(request: NextRequest) {
               })),
           ],
         },
+        expenses: {
+          create: expenses.map((e: { description: string; amount: number }) => ({
+            description: e.description,
+            amount: e.amount,
+          })),
+        },
+        attendees: {
+          create: attendeeUserIds.map((userId: string) => ({ userId })),
+        },
+        relations: {
+          create: relatedActivityIds.map((r: { activityId: string; relationType?: string }) => ({
+            relatedActivityId: r.activityId,
+            relationType: r.relationType || "related",
+          })),
+        },
       },
       include: {
         plans: {
@@ -331,6 +369,16 @@ export async function POST(request: NextRequest) {
         },
         states: {
           include: { state: { select: { fips: true, abbrev: true, name: true } } },
+        },
+        expenses: true,
+        attendees: {
+          include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
+        },
+        relations: {
+          include: { relatedActivity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
+        },
+        relatedTo: {
+          include: { activity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
         },
       },
     });
@@ -349,6 +397,7 @@ export async function POST(request: NextRequest) {
       startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
+      metadata: activity.metadata,
       createdByUserId: activity.createdByUserId,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
@@ -365,6 +414,8 @@ export async function POST(request: NextRequest) {
         stateAbbrev: d.district.stateAbbrev,
         warningDismissed: d.warningDismissed,
         isInPlan: false, // Will be computed on fetch
+        visitDate: d.visitDate?.toISOString() ?? null,
+        visitEndDate: d.visitEndDate?.toISOString() ?? null,
       })),
       contacts: activity.contacts.map((c) => ({
         id: c.contact.id,
@@ -377,11 +428,40 @@ export async function POST(request: NextRequest) {
         name: s.state.name,
         isExplicit: s.isExplicit,
       })),
+      expenses: activity.expenses.map((e) => ({
+        id: e.id,
+        description: e.description,
+        amount: Number(e.amount),
+      })),
+      attendees: activity.attendees.map((a) => ({
+        userId: a.user.id,
+        fullName: a.user.fullName,
+        avatarUrl: a.user.avatarUrl,
+      })),
+      relatedActivities: [
+        ...activity.relations.map((r) => ({
+          activityId: r.relatedActivity.id,
+          title: r.relatedActivity.title,
+          type: r.relatedActivity.type as ActivityType,
+          startDate: r.relatedActivity.startDate?.toISOString() ?? null,
+          status: r.relatedActivity.status,
+          relationType: r.relationType,
+        })),
+        ...activity.relatedTo.map((r) => ({
+          activityId: r.activity.id,
+          title: r.activity.title,
+          type: r.activity.type as ActivityType,
+          startDate: r.activity.startDate?.toISOString() ?? null,
+          status: r.activity.status,
+          relationType: r.relationType,
+        })),
+      ],
     });
   } catch (error) {
     console.error("Error creating activity:", error);
+    const detail = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Failed to create activity" },
+      { error: `Failed to create activity: ${detail}` },
       { status: 500 }
     );
   }

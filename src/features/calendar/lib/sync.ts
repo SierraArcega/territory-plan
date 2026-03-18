@@ -53,23 +53,25 @@ function detectActivityType(
   const lower = title.toLowerCase();
 
   // Keyword-based detection takes priority over attendee count
-  if (lower.includes("demo") || lower.includes("demonstration")) return "demo";
   if (lower.includes("proposal")) return "proposal_review";
+  if (lower.includes("renewal")) return "renewal_conversation";
   if (
     lower.includes("check-in") ||
     lower.includes("check in") ||
-    lower.includes("checkin")
+    lower.includes("checkin") ||
+    lower.includes("program")
   )
-    return "customer_check_in";
+    return "program_check_in";
   if (lower.includes("discovery") || lower.includes("intro")) return "discovery_call";
   if (lower.includes("conference") || lower.includes("summit")) return "conference";
-  if (lower.includes("trade show") || lower.includes("tradeshow")) return "trade_show";
-  if (lower.includes("school visit") || lower.includes("site visit")) return "school_visit_day";
+  if (lower.includes("school visit") || lower.includes("site visit")) return "school_site_visit";
+  if (lower.includes("dinner")) return "dinner";
+  if (lower.includes("happy hour")) return "happy_hour";
 
   // Fall back to attendee count heuristic
   if (externalAttendeeCount === 1) return "discovery_call";
-  if (externalAttendeeCount <= 3) return "customer_check_in";
-  return "demo"; // 4+ external attendees → likely a demo or group meeting
+  if (externalAttendeeCount <= 3) return "program_check_in";
+  return "discovery_call"; // 4+ external attendees → likely a group meeting
 }
 
 // ===== Smart Matching =====
@@ -397,7 +399,7 @@ export async function confirmCalendarEvent(
   }
 
   // Determine final values — use overrides if provided, otherwise use suggestions
-  const activityType = overrides?.activityType || calEvent.suggestedActivityType || "customer_check_in";
+  const activityType = overrides?.activityType || calEvent.suggestedActivityType || "program_check_in";
   const title = overrides?.title || calEvent.title;
   const planIds = overrides?.planIds || (calEvent.suggestedPlanId ? [calEvent.suggestedPlanId] : []);
   const districtLeaids = overrides?.districtLeaids || (calEvent.suggestedDistrictId ? [calEvent.suggestedDistrictId] : []);

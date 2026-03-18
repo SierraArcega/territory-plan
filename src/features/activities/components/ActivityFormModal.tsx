@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useCreateActivity, useTerritoryPlans, useStates } from "@/lib/api";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useCreateActivity, useTerritoryPlans, useStates, useCreateTask } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -10,9 +10,22 @@ import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPE_ICONS,
   CATEGORY_LABELS,
-  VALID_ACTIVITY_STATUSES,
+  CATEGORY_ICONS,
+  CATEGORY_DESCRIPTIONS,
   DEFAULT_TYPE_FOR_CATEGORY,
+  ACTIVITY_STATUS_CONFIG,
+  getCategoryForType,
+  getStatusesForType,
 } from "@/features/activities/types";
+import EventTypeFields from "./event-fields/EventTypeFields";
+import { MultiSelect } from "@/features/shared/components/MultiSelect";
+import CalendarPicker from "./event-fields/CalendarPicker";
+import { type TaskDraft } from "./event-fields/TaskLineItems";
+import AttendeeSelect from "./event-fields/AttendeeSelect";
+import ActivityFormTabs from "./ActivityFormTabs";
+import StatusSelect from "./event-fields/StatusSelect";
+import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
+import ActivityViewPanel from "./ActivityViewPanel";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -20,6 +33,8 @@ interface ActivityFormModalProps {
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
 }
+
+type ModalStep = "pick-category" | "pick-type" | "form";
 
 export default function ActivityFormModal({
   isOpen,
@@ -29,32 +44,58 @@ export default function ActivityFormModal({
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
+  const createTask = useCreateTask();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
 
+  // Step management
+  const [step, setStep] = useState<ModalStep>("pick-category");
+  const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null);
+
   // Form state
-  const [type, setType] = useState<ActivityType>(
-    defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference"
-  );
+  const [type, setType] = useState<ActivityType>("conference");
   const [title, setTitle] = useState("");
-  const [startDate, setStartDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState("");
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<ActivityStatus>("planned");
-  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>(
-    defaultPlanId ? [defaultPlanId] : []
-  );
+  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>(defaultPlanId ? [defaultPlanId] : []);
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  // Type-specific state
+  const [metadata, setMetadata] = useState<Record<string, unknown>>({});
+  const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
+  const [districtStops, setDistrictStops] = useState<
+    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; visitEndDate: string }[]
+  >([]);
+
+  // Tab state (lifted so submit can access)
+  const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
+  const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);
+  const [relatedActivities, setRelatedActivities] = useState<RelationDraft[]>([]);
+
+  // Navigation stack for viewing related activities
+  const [viewStack, setViewStack] = useState<{ id: string; title: string }[]>([]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setType(
-        defaultCategory ? DEFAULT_TYPE_FOR_CATEGORY[defaultCategory] : "conference"
-      );
+      if (defaultCategory) {
+        setSelectedCategory(defaultCategory);
+        const types = ACTIVITY_CATEGORIES[defaultCategory];
+        if (types.length === 1) {
+          setType(types[0] as ActivityType);
+          setStep("form");
+        } else {
+          setStep("pick-type");
+        }
+      } else {
+        setStep("pick-category");
+        setSelectedCategory(null);
+      }
+      setType("conference");
       setTitle("");
       setStartDate(new Date().toISOString().split("T")[0]);
       setEndDate("");
@@ -63,10 +104,17 @@ export default function ActivityFormModal({
       setStatus("planned");
       setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
       setSelectedStateFips([]);
+      setMetadata({});
+      setAttendeeUserIds([]);
+      setDistrictStops([]);
+      setTaskDrafts([]);
+      setExpenses([]);
+      setRelatedActivities([]);
+      setViewStack([]);
+      setError(null);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
-  // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -77,17 +125,52 @@ export default function ActivityFormModal({
     }
   }, [isOpen, onClose]);
 
-  // Close on backdrop click
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
+  };
+
+  const handleCategorySelect = (category: ActivityCategory) => {
+    setSelectedCategory(category);
+    const types = ACTIVITY_CATEGORIES[category];
+    if (types.length === 1) {
+      setType(types[0] as ActivityType);
+      setStep("form");
+    } else {
+      setStep("pick-type");
+    }
+  };
+
+  const handleTypeSelect = (activityType: ActivityType) => {
+    setType(activityType);
+    setStatus(getStatusesForType(activityType)[0]);
+    setStep("form");
+  };
+
+  const handleBack = () => {
+    if (step === "form" && selectedCategory) {
+      const types = ACTIVITY_CATEGORIES[selectedCategory];
+      if (types.length === 1) {
+        setStep("pick-category");
+        setSelectedCategory(null);
+      } else {
+        setStep("pick-type");
+      }
+    } else if (step === "pick-type") {
+      setStep("pick-category");
+      setSelectedCategory(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const isEvent = getCategoryForType(type) === "events";
+    const hasMetadata = isEvent && Object.keys(metadata).length > 0;
+
+    setError(null);
     try {
-      await createActivity.mutateAsync({
+      const activity = await createActivity.mutateAsync({
         type,
         title: title.trim(),
         startDate: startDate || undefined,
@@ -96,46 +179,143 @@ export default function ActivityFormModal({
         status,
         planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
         stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
+        metadata: hasMetadata ? metadata : undefined,
+        attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
+        expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
+        districts: districtStops.length > 0
+          ? districtStops.map((s) => ({
+              leaid: s.leaid,
+              visitDate: s.visitDate || undefined,
+              visitEndDate: s.visitEndDate || undefined,
+            }))
+          : undefined,
+        relatedActivityIds: relatedActivities.length > 0
+          ? relatedActivities.map((r) => ({ activityId: r.activityId, relationType: r.relationType }))
+          : undefined,
       });
+
+      // Create linked tasks
+      const validTasks = taskDrafts.filter((t) => t.title.trim());
+      if (validTasks.length > 0 && activity?.id) {
+        await Promise.all(
+          validTasks.map((t) =>
+            createTask.mutateAsync({
+              title: t.title.trim(),
+              priority: t.priority,
+              dueDate: t.dueDate || undefined,
+              activityIds: [activity.id],
+              planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+            })
+          )
+        );
+      }
+
       onClose();
-    } catch (error) {
-      console.error("Failed to create activity:", error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create activity";
+      setError(message);
+      console.error("Failed to create activity:", err);
     }
   };
 
-  const togglePlan = (planId: string) => {
-    setSelectedPlanIds((prev) =>
-      prev.includes(planId)
-        ? prev.filter((id) => id !== planId)
-        : [...prev, planId]
-    );
+  const handleViewActivity = (activityId: string, activityTitle: string) => {
+    setViewStack((prev) => [...prev, { id: activityId, title: activityTitle }]);
   };
 
-  const toggleState = (fips: string) => {
-    setSelectedStateFips((prev) =>
-      prev.includes(fips)
-        ? prev.filter((f) => f !== fips)
-        : [...prev, fips]
-    );
+  const handleBreadcrumbNav = (index: number) => {
+    // index -1 = back to create form, 0+ = specific view in stack
+    setViewStack((prev) => prev.slice(0, index + 1));
   };
+
+  const isViewing = viewStack.length > 0;
+  const currentView = isViewing ? viewStack[viewStack.length - 1] : null;
+
+  const planOptions = useMemo(() => (plans ?? []).map((p) => ({ value: p.id, label: p.name })), [plans]);
+  const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
+  const isEventCategory = getCategoryForType(type) === "events";
+  const showExpenses = isEventCategory && (type === "conference" || type === "road_trip");
 
   if (!isOpen) return null;
 
+  // Picker steps use a narrower modal
+  const isPickerStep = step === "pick-category" || step === "pick-type";
+
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
       onClick={handleBackdropClick}
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col"
+        className={`bg-white rounded-2xl shadow-xl w-full max-h-[85vh] overflow-hidden flex flex-col transition-all ${
+          isPickerStep ? "max-w-xl" : "max-w-4xl"
+        }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-[#403770]">New Activity</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2DEEC]">
+          <div className="flex items-center gap-3 min-w-0">
+            {(step !== "pick-category" || isViewing) && (
+              <button
+                onClick={() => {
+                  if (isViewing) {
+                    setViewStack((prev) => prev.slice(0, -1));
+                  } else {
+                    handleBack();
+                  }
+                }}
+                className="p-1 text-[#A69DC0] hover:text-[#403770] rounded-lg hover:bg-[#EFEDF5] transition-colors flex-shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+
+            {/* Breadcrumbs when viewing related activities */}
+            {isViewing ? (
+              <div className="flex items-center gap-1.5 min-w-0 text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleBreadcrumbNav(-1)}
+                  className="text-[#8A80A8] hover:text-[#403770] truncate max-w-[150px] transition-colors"
+                >
+                  New {ACTIVITY_TYPE_LABELS[type]}
+                </button>
+                {viewStack.map((item, i) => (
+                  <span key={item.id} className="flex items-center gap-1.5 min-w-0">
+                    <svg className="w-3 h-3 text-[#C2BBD4] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    {i === viewStack.length - 1 ? (
+                      <span className="font-semibold text-[#403770] truncate max-w-[200px]">{item.title}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleBreadcrumbNav(i)}
+                        className="text-[#8A80A8] hover:text-[#403770] truncate max-w-[150px] transition-colors"
+                      >
+                        {item.title}
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <h2 className="text-lg font-semibold text-[#403770]">
+                {step === "pick-category" && "New Activity"}
+                {step === "pick-type" && selectedCategory && CATEGORY_LABELS[selectedCategory]}
+                {step === "form" && (
+                  <span className="flex items-center gap-2">
+                    <span>{ACTIVITY_TYPE_ICONS[type]}</span>
+                    <span>New {ACTIVITY_TYPE_LABELS[type]}</span>
+                  </span>
+                )}
+              </h2>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1.5 text-[#A69DC0] hover:text-[#403770] rounded-lg hover:bg-[#EFEDF5] transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -143,216 +323,183 @@ export default function ActivityFormModal({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="px-6 py-4 space-y-5">
-            {/* Type selector - grouped by category */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Activity Type
-              </label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as ActivityType)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-              >
-                {(Object.entries(ACTIVITY_CATEGORIES) as [ActivityCategory, readonly ActivityType[]][]).map(
-                  ([category, types]) => (
-                    <optgroup key={category} label={CATEGORY_LABELS[category]}>
-                      {types.map((t) => (
-                        <option key={t} value={t}>
-                          {ACTIVITY_TYPE_ICONS[t]} {ACTIVITY_TYPE_LABELS[t]}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )
-                )}
-              </select>
+        {/* Step 1: Category Picker */}
+        {step === "pick-category" && (
+          <div className="px-6 py-5">
+            <p className="text-sm text-[#8A80A8] mb-4">What kind of activity are you creating?</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[]).map((category) => (
+                <button
+                  key={category}
+                  onClick={() => handleCategorySelect(category)}
+                  className="group flex flex-col items-center gap-2 p-5 rounded-xl border-2 border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA] transition-all text-center"
+                >
+                  <span className="text-3xl group-hover:scale-110 transition-transform">{CATEGORY_ICONS[category]}</span>
+                  <span className="text-sm font-semibold text-[#403770]">{CATEGORY_LABELS[category]}</span>
+                  <span className="text-xs text-[#A69DC0] leading-tight">{CATEGORY_DESCRIPTIONS[category]}</span>
+                </button>
+              ))}
             </div>
+          </div>
+        )}
 
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., SC Education Conference"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                required
-              />
+        {/* Step 2: Type Picker */}
+        {step === "pick-type" && selectedCategory && (
+          <div className="px-6 py-5">
+            <p className="text-sm text-[#8A80A8] mb-4">What type of {CATEGORY_LABELS[selectedCategory].toLowerCase()}?</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(ACTIVITY_CATEGORIES[selectedCategory] as readonly ActivityType[]).map((activityType) => (
+                <button
+                  key={activityType}
+                  onClick={() => handleTypeSelect(activityType)}
+                  className="group flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA] transition-all text-center"
+                >
+                  <span className="text-2xl group-hover:scale-110 transition-transform">{ACTIVITY_TYPE_ICONS[activityType]}</span>
+                  <span className="text-sm font-medium text-[#403770]">{ACTIVITY_TYPE_LABELS[activityType]}</span>
+                </button>
+              ))}
             </div>
+          </div>
+        )}
 
-            {/* Dates */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                />
-                {isMultiDay && (
-                  <>
-                    <span className="text-gray-400">→</span>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      min={startDate}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent"
-                    />
-                  </>
-                )}
-              </div>
-              <label className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={isMultiDay}
-                  onChange={(e) => {
-                    setIsMultiDay(e.target.checked);
-                    if (!e.target.checked) setEndDate("");
-                  }}
-                  className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                />
-                Multi-day event
-              </label>
-            </div>
+        {/* View mode — viewing a related activity */}
+        {isViewing && currentView && (
+          <ActivityViewPanel
+            activityId={currentView.id}
+            onViewRelated={handleViewActivity}
+          />
+        )}
 
-            {/* Plans selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Link to Plans
-              </label>
-              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                {plans && plans.length > 0 ? (
-                  plans.map((plan) => (
-                    <label
-                      key={plan.id}
-                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedPlanIds.includes(plan.id)}
-                        onChange={() => togglePlan(plan.id)}
-                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                      />
-                      <span
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: plan.color }}
-                      />
-                      <span className="text-sm text-gray-700 truncate">
-                        {plan.name}
-                      </span>
-                    </label>
-                  ))
-                ) : (
-                  <p className="px-3 py-2 text-sm text-gray-500">
-                    No plans yet
-                  </p>
-                )}
-              </div>
-              {selectedPlanIds.length === 0 && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Activities without plans will be flagged for follow-up
-                </p>
-              )}
-            </div>
-
-            {/* States selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                States
-              </label>
-              <div className="border border-gray-300 rounded-lg max-h-32 overflow-y-auto">
-                {states && states.length > 0 ? (
-                  states.map((state) => (
-                    <label
-                      key={state.fips}
-                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedStateFips.includes(state.fips)}
-                        onChange={() => toggleState(state.fips)}
-                        className="rounded border-gray-300 text-[#403770] focus:ring-[#403770]"
-                      />
-                      <span className="text-sm text-gray-700">
-                        {state.name} ({state.abbrev})
-                      </span>
-                    </label>
-                  ))
-                ) : (
-                  <p className="px-3 py-2 text-sm text-gray-500">
-                    Loading states...
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any notes or details..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#403770] focus:border-transparent resize-none"
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <div className="flex gap-4">
-                {VALID_ACTIVITY_STATUSES.map((s) => (
-                  <label
-                    key={s}
-                    className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="status"
-                      value={s}
-                      checked={status === s}
-                      onChange={(e) => setStatus(e.target.value as ActivityStatus)}
-                      className="text-[#403770] focus:ring-[#403770]"
-                    />
-                    <span className="capitalize">{s}</span>
+        {/* Step 3: Two-panel form */}
+        {step === "form" && !isViewing && (
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex flex-1 overflow-hidden">
+              {/* ── Left Panel: Event Info ── */}
+              <div className="w-1/2 overflow-y-auto p-5 space-y-5">
+                {/* Title */}
+                <div>
+                  <label className="block text-xs font-medium text-[#8A80A8] mb-1">
+                    Title <span className="text-[#F37167]">*</span>
                   </label>
-                ))}
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., SC Education Conference"
+                    className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                {/* Date + Status side by side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <CalendarPicker
+                    startDate={startDate}
+                    endDate={endDate}
+                    isMultiDay={isMultiDay}
+                    onStartDateChange={setStartDate}
+                    onEndDateChange={setEndDate}
+                    onMultiDayChange={setIsMultiDay}
+                  />
+                  <StatusSelect
+                    status={status}
+                    onChange={setStatus}
+                    statuses={getStatusesForType(type)}
+                  />
+                </div>
+
+                {/* Type-specific details */}
+                {isEventCategory && (
+                  <div className="space-y-4">
+                    <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
+                    <EventTypeFields
+                      type={type}
+                      metadata={metadata}
+                      onMetadataChange={setMetadata}
+                      districtStops={districtStops}
+                      onDistrictStopsChange={setDistrictStops}
+                    />
+                  </div>
+                )}
+
+                {/* People & Organization */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">People & Organization</p>
+                  {isEventCategory && (
+                    <div>
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Attendees</label>
+                      <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="min-w-0">
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
+                      <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
+                      {selectedPlanIds.length === 0 && <p className="mt-1 text-xs text-[#F37167]">No plan linked</p>}
+                    </div>
+                    <div className="min-w-0">
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
+                      <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Notes</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Add any notes or details..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Right Panel: Tabs ── */}
+              <div className="w-1/2 border-l border-[#E2DEEC] flex flex-col">
+                <ActivityFormTabs
+                  taskDrafts={taskDrafts}
+                  onTaskDraftsChange={setTaskDrafts}
+                  expenses={expenses}
+                  onExpensesChange={setExpenses}
+                  relatedActivities={relatedActivities}
+                  onRelatedActivitiesChange={setRelatedActivities}
+                  showExpenses={showExpenses}
+                  onViewActivity={handleViewActivity}
+                />
               </div>
             </div>
-          </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!title.trim() || createActivity.isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {createActivity.isPending ? "Creating..." : "Create Activity"}
-            </button>
-          </div>
-        </form>
+            {/* Error */}
+            {error && (
+              <div className="mx-5 mb-2 p-3 bg-[#fef1f0] border border-[#f58d85] rounded-lg text-sm text-[#F37167]">
+                {error}
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E2DEEC]">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!title.trim() || createActivity.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {createActivity.isPending && (
+                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                )}
+                {createActivity.isPending ? "Creating..." : "Create Activity"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

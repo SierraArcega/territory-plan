@@ -62,6 +62,11 @@ export function useCreateActivity() {
       districtLeaids?: string[];
       contactIds?: number[];
       stateFips?: string[];
+      metadata?: Record<string, unknown> | null;
+      attendeeUserIds?: string[];
+      expenses?: { description: string; amount: number }[];
+      districts?: { leaid: string; visitDate?: string; visitEndDate?: string }[];
+      relatedActivityIds?: { activityId: string; relationType: string }[];
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities`, {
         method: "POST",
@@ -91,6 +96,10 @@ export function useUpdateActivity() {
       notes?: string | null;
       outcome?: string | null;
       outcomeType?: string | null;
+      metadata?: Record<string, unknown> | null;
+      attendeeUserIds?: string[];
+      expenses?: { description: string; amount: number }[];
+      districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null }[];
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",

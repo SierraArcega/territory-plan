@@ -429,6 +429,8 @@ export interface ActivityDistrictLink {
   stateAbbrev: string | null;
   warningDismissed: boolean;
   isInPlan: boolean;
+  visitDate: string | null;
+  visitEndDate: string | null;
 }
 
 export interface ActivityContactLink {
@@ -442,6 +444,27 @@ export interface ActivityStateLink {
   abbrev: string;
   name: string;
   isExplicit: boolean;
+}
+
+export interface ActivityRelationLink {
+  activityId: string;
+  title: string;
+  type: ActivityType;
+  startDate: string | null;
+  status: string;
+  relationType: string;
+}
+
+export interface ActivityExpenseItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
+export interface ActivityAttendeeItem {
+  userId: string;
+  fullName: string | null;
+  avatarUrl: string | null;
 }
 
 export interface Activity {
@@ -460,12 +483,16 @@ export interface Activity {
   source: "manual" | "calendar_sync";
   outcome: string | null;
   outcomeType: string | null;
+  metadata: Record<string, unknown> | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
   plans: ActivityPlanLink[];
   districts: ActivityDistrictLink[];
   contacts: ActivityContactLink[];
   states: ActivityStateLink[];
+  expenses: ActivityExpenseItem[];
+  attendees: ActivityAttendeeItem[];
+  relatedActivities: ActivityRelationLink[];
 }
 
 export interface ActivityListItem {
@@ -955,7 +982,7 @@ export type ProgressPeriod = "month" | "quarter" | "fiscal_year";
 export interface ActivityMetrics {
   period: { start: string; end: string };
   totalActivities: number;
-  byCategory: { events: number; outreach: number; meetings: number };
+  byCategory: Record<string, number>;
   bySource: { manual: number; calendar_sync: number };
   byStatus: { planned: number; completed: number; cancelled: number };
   byPlan: Array<{ planId: string; planName: string; planColor: string; count: number }>;

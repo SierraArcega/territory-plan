@@ -1,6 +1,6 @@
 // Outcome type definitions — category-specific outcomes for activity completion
 // When a rep marks an activity as completed, they can tag what resulted from it.
-// Outcomes are grouped by activity category (meetings, outreach, events) since
+// Outcomes are grouped by activity category (meetings, campaigns, events, gift_drop) since
 // different activity types produce different kinds of results.
 
 import type { ActivityCategory } from "./types";
@@ -12,14 +12,17 @@ export type OutcomeType =
   | "neutral"
   | "negative"
   | "follow_up_needed"
-  // Outreach outcomes
+  // Campaign outcomes
   | "response_received"
   | "meeting_booked"
   | "no_response"
   // Event outcomes
   | "contacts_made"
   | "meetings_scheduled"
-  | "pipeline_generated";
+  | "pipeline_generated"
+  // Gift Drop outcomes
+  | "delivered"
+  | "thank_you_received";
 
 // Configuration for each outcome type: label, icon, colors, and whether it triggers auto-task
 export interface OutcomeConfig {
@@ -63,7 +66,7 @@ export const OUTCOME_CONFIGS: Record<OutcomeType, OutcomeConfig> = {
     autoTask: "follow_up",
   },
 
-  // Outreach outcomes
+  // Campaign outcomes
   response_received: {
     label: "Got Reply",
     description: "Received a response",
@@ -109,13 +112,31 @@ export const OUTCOME_CONFIGS: Record<OutcomeType, OutcomeConfig> = {
     color: "#F37167",
     bgColor: "#FEF2F1",
   },
+
+  // Gift Drop outcomes
+  delivered: {
+    label: "Delivered",
+    description: "Gift was successfully delivered",
+    icon: "📦",
+    color: "#8AA891",
+    bgColor: "#EFF5F0",
+  },
+  thank_you_received: {
+    label: "Thank You Received",
+    description: "Got a thank-you response — creates a follow-up task",
+    icon: "💌",
+    color: "#403770",
+    bgColor: "#EEEAF5",
+    autoTask: "follow_up",
+  },
 };
 
 // Which outcomes are available for each activity category
 export const OUTCOMES_BY_CATEGORY: Record<ActivityCategory, OutcomeType[]> = {
   meetings: ["positive_progress", "neutral", "negative", "follow_up_needed"],
-  outreach: ["response_received", "meeting_booked", "no_response"],
+  campaigns: ["response_received", "meeting_booked", "no_response"],
   events: ["contacts_made", "meetings_scheduled", "pipeline_generated"],
+  gift_drop: ["delivered", "thank_you_received"],
 };
 
 // Get the outcome config for a given type, with a fallback for unknown types

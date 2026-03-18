@@ -35,6 +35,16 @@ export async function GET(
         states: {
           include: { state: { select: { fips: true, abbrev: true, name: true } } },
         },
+        expenses: true,
+        attendees: {
+          include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
+        },
+        relations: {
+          include: { relatedActivity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
+        },
+        relatedTo: {
+          include: { activity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
+        },
       },
     });
 
@@ -73,6 +83,8 @@ export async function GET(
         stateAbbrev: d.district.stateAbbrev,
         warningDismissed: d.warningDismissed,
         isInPlan,
+        visitDate: d.visitDate?.toISOString() ?? null,
+        visitEndDate: d.visitEndDate?.toISOString() ?? null,
       };
     });
 
@@ -90,6 +102,7 @@ export async function GET(
       startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
+      metadata: activity.metadata,
       googleEventId: activity.googleEventId,
       source: activity.source || "manual",
       outcome: activity.outcome,
@@ -116,6 +129,34 @@ export async function GET(
         name: s.state.name,
         isExplicit: s.isExplicit,
       })),
+      expenses: activity.expenses.map((e) => ({
+        id: e.id,
+        description: e.description,
+        amount: Number(e.amount),
+      })),
+      attendees: activity.attendees.map((a) => ({
+        userId: a.user.id,
+        fullName: a.user.fullName,
+        avatarUrl: a.user.avatarUrl,
+      })),
+      relatedActivities: [
+        ...activity.relations.map((r) => ({
+          activityId: r.relatedActivity.id,
+          title: r.relatedActivity.title,
+          type: r.relatedActivity.type,
+          startDate: r.relatedActivity.startDate?.toISOString() ?? null,
+          status: r.relatedActivity.status,
+          relationType: r.relationType,
+        })),
+        ...activity.relatedTo.map((r) => ({
+          activityId: r.activity.id,
+          title: r.activity.title,
+          type: r.activity.type,
+          startDate: r.activity.startDate?.toISOString() ?? null,
+          status: r.activity.status,
+          relationType: r.relationType,
+        })),
+      ],
     });
   } catch (error) {
     console.error("Error fetching activity:", error);
@@ -153,7 +194,11 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { type, title, notes, startDate, endDate, status, outcome, outcomeType } = body;
+    const {
+      type, title, notes, startDate, endDate, status, outcome, outcomeType,
+      metadata, attendeeUserIds, expenses,
+      districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
+    } = body;
 
     // Validate type if provided
     if (type && !ALL_ACTIVITY_TYPES.includes(type)) {
@@ -207,8 +252,46 @@ export async function PATCH(
         ...(status && { status }),
         ...(outcome !== undefined && { outcome: outcome?.trim() || null }),
         ...(outcomeType !== undefined && { outcomeType: outcomeType || null }),
+        ...(metadata !== undefined && { metadata: metadata }),
       },
     });
+
+    // Update attendees if provided (replace all)
+    if (attendeeUserIds !== undefined) {
+      await prisma.activityAttendee.deleteMany({ where: { activityId: id } });
+      if (attendeeUserIds.length > 0) {
+        await prisma.activityAttendee.createMany({
+          data: attendeeUserIds.map((userId: string) => ({ activityId: id, userId })),
+        });
+      }
+    }
+
+    // Update expenses if provided (replace all)
+    if (expenses !== undefined) {
+      await prisma.activityExpense.deleteMany({ where: { activityId: id } });
+      if (expenses.length > 0) {
+        await prisma.activityExpense.createMany({
+          data: expenses.map((e: { description: string; amount: number }) => ({
+            activityId: id,
+            description: e.description,
+            amount: e.amount,
+          })),
+        });
+      }
+    }
+
+    // Update district visit dates if provided
+    if (districtUpdates !== undefined) {
+      for (const du of districtUpdates as { leaid: string; visitDate?: string | null; visitEndDate?: string | null }[]) {
+        await prisma.activityDistrict.updateMany({
+          where: { activityId: id, districtLeaid: du.leaid },
+          data: {
+            visitDate: du.visitDate ? new Date(du.visitDate) : null,
+            visitEndDate: du.visitEndDate ? new Date(du.visitEndDate) : null,
+          },
+        });
+      }
+    }
 
     // Push changes to Google Calendar if the activity has a linked event
     // Best-effort — doesn't block the response

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 export interface MultiSelectOption {
   value: string;
@@ -62,9 +63,12 @@ export function MultiSelect({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const optionRefs = useRef<(HTMLLIElement | null)[]>([]);
   const selectAllRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, maxHeight: 240 });
 
   const filtered = useMemo(() => {
     if (!query.trim()) return options;
@@ -74,16 +78,34 @@ export function MultiSelect({
 
   const triState = getTriState(filtered, selected);
 
-  // Close on outside click
+  // Close on outside click (check both container and portaled dropdown)
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  // Position the dropdown relative to the trigger, capped to viewport
+  useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const maxHeight = Math.min(240, window.innerHeight - rect.bottom - 16);
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 200),
+        maxHeight: Math.max(maxHeight, 120),
+      });
+    }
   }, [isOpen]);
 
   // Auto-focus search on open and reset state
@@ -180,6 +202,7 @@ export function MultiSelect({
     <div ref={containerRef} className="relative">
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setIsOpen((v) => !v)}
         disabled={disabled}
@@ -231,9 +254,13 @@ export function MultiSelect({
         </div>
       )}
 
-      {/* Dropdown panel */}
-      {isOpen && (
-        <div className="absolute z-10 mt-1 w-full min-w-[200px] bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden">
+      {/* Dropdown panel — portaled to body to escape overflow clipping */}
+      {isOpen && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-50 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden flex flex-col"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, maxHeight: dropdownPos.maxHeight }}
+        >
           {/* Search input — always auto-focused, no focus ring needed */}
           <input
             ref={searchRef}
@@ -306,7 +333,7 @@ export function MultiSelect({
             role="listbox"
             aria-multiselectable="true"
             aria-label={label}
-            className="max-h-60 overflow-y-auto"
+            className="flex-1 overflow-y-auto"
           >
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-sm text-[#A69DC0] italic">No results</li>
@@ -356,7 +383,8 @@ export function MultiSelect({
               })
             )}
           </ul>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
