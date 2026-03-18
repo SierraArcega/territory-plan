@@ -1,9 +1,22 @@
 // Activity type definitions and category mappings
 
 export const ACTIVITY_CATEGORIES = {
-  events: ["conference", "road_trip", "trade_show", "school_visit_day"],
-  outreach: ["email_campaign", "phone_call", "linkedin_message"],
-  meetings: ["discovery_call", "demo", "proposal_review", "customer_check_in"],
+  events: [
+    "conference",
+    "road_trip",
+    "dinner",
+    "happy_hour",
+    "school_site_visit",
+    "fun_and_games",
+  ],
+  campaigns: ["mixmax_campaign"],
+  meetings: [
+    "discovery_call",
+    "program_check_in",
+    "proposal_review",
+    "renewal_conversation",
+  ],
+  gift_drop: ["gift_drop"],
 } as const;
 
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
@@ -27,17 +40,19 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   // Events
   conference: "Conference",
   road_trip: "Road Trip",
-  trade_show: "Trade Show",
-  school_visit_day: "School Visit Day",
-  // Outreach
-  email_campaign: "Email Campaign",
-  phone_call: "Phone Call",
-  linkedin_message: "LinkedIn Message",
+  dinner: "Dinner",
+  happy_hour: "Happy Hour",
+  school_site_visit: "School Site Visit",
+  fun_and_games: "Fun + Games",
+  // Campaigns
+  mixmax_campaign: "Mixmax Campaign",
   // Meetings
   discovery_call: "Discovery Call",
-  demo: "Demo",
+  program_check_in: "Program Check-In",
   proposal_review: "Proposal Review",
-  customer_check_in: "Customer Check-In",
+  renewal_conversation: "Renewal Conversation",
+  // Gift Drop
+  gift_drop: "Gift Drop",
 };
 
 // Icons for each activity type (emoji for simplicity)
@@ -45,24 +60,43 @@ export const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
   // Events
   conference: "🎤",
   road_trip: "🚗",
-  trade_show: "🎪",
-  school_visit_day: "🏫",
-  // Outreach
-  email_campaign: "📧",
-  phone_call: "📞",
-  linkedin_message: "💼",
+  dinner: "🍽️",
+  happy_hour: "🍻",
+  school_site_visit: "🏫",
+  fun_and_games: "🎯",
+  // Campaigns
+  mixmax_campaign: "📧",
   // Meetings
   discovery_call: "🔍",
-  demo: "🖥️",
-  proposal_review: "📋",
-  customer_check_in: "🤝",
+  program_check_in: "📋",
+  proposal_review: "📝",
+  renewal_conversation: "🔄",
+  // Gift Drop
+  gift_drop: "🎁",
 };
 
 // Category display labels
 export const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   events: "Events",
-  outreach: "Outreach",
+  campaigns: "Campaigns",
   meetings: "Meetings",
+  gift_drop: "Gift Drop",
+};
+
+// Category icons (used in the category picker tiles)
+export const CATEGORY_ICONS: Record<ActivityCategory, string> = {
+  events: "🎤",
+  campaigns: "📧",
+  meetings: "🤝",
+  gift_drop: "🎁",
+};
+
+// Category descriptions (shown under the tile label)
+export const CATEGORY_DESCRIPTIONS: Record<ActivityCategory, string> = {
+  events: "Conferences, road trips, dinners, happy hours",
+  campaigns: "Email sequences and outreach campaigns",
+  meetings: "Calls, check-ins, reviews, and conversations",
+  gift_drop: "Send gifts to contacts and champions",
 };
 
 // Activity status types and config
@@ -81,6 +115,7 @@ export const ACTIVITY_STATUS_CONFIG: Record<
 // Default type for each category (used when creating from category tab)
 export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> = {
   events: "conference",
-  outreach: "email_campaign",
+  campaigns: "mixmax_campaign",
   meetings: "discovery_call",
+  gift_drop: "gift_drop",
 };

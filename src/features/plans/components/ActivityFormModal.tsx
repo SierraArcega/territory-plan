@@ -73,7 +73,7 @@ export default function ActivityFormModal({
 }: ActivityFormModalProps) {
   // Form state - updated for new Activity system with date range
   const [formData, setFormData] = useState<ActivityFormData>({
-    type: "email_campaign",
+    type: "mixmax_campaign",
     title: "",
     startDate: new Date().toISOString().split("T")[0],
     endDate: null,
@@ -105,7 +105,7 @@ export default function ActivityFormModal({
         setShowEndDate(!!hasEndDate);
       } else {
         setFormData({
-          type: "email_campaign",
+          type: "mixmax_campaign",
           title: "",
           startDate: new Date().toISOString().split("T")[0],
           endDate: null,

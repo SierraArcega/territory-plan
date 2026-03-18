@@ -258,7 +258,7 @@ export default function CalendarEventCard({
       <OutcomeModal
         activity={{
           id: createdActivityId,
-          type: event.suggestedActivityType || "customer_check_in",
+          type: event.suggestedActivityType || "program_check_in",
           title: event.title,
         }}
         sourceContext={{

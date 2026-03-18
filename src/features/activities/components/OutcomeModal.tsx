@@ -49,7 +49,7 @@ export default function OutcomeModal({
   const [showFollowUpActivity, setShowFollowUpActivity] = useState(false);
   const [fuActivityTitle, setFuActivityTitle] = useState(`Follow-up: ${activity.title}`);
   const [fuActivityType, setFuActivityType] = useState<ActivityType>(
-    (activity.type as ActivityType) || "customer_check_in"
+    (activity.type as ActivityType) || "program_check_in"
   );
   const [fuActivityDate, setFuActivityDate] = useState(() => {
     const d = new Date();

@@ -166,7 +166,7 @@ describe("GET /api/activities", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           type: {
-            in: ["discovery_call", "demo", "proposal_review", "customer_check_in"],
+            in: ["discovery_call", "program_check_in", "proposal_review", "renewal_conversation"],
           },
         }),
       })
@@ -311,7 +311,7 @@ describe("POST /api/activities", () => {
 
     const createdActivity = {
       id: "new-activity-1",
-      type: "demo",
+      type: "discovery_call",
       title: "Product Demo",
       notes: null,
       startDate: new Date("2026-04-01T14:00:00Z"),
@@ -347,7 +347,7 @@ describe("POST /api/activities", () => {
     const req = makeRequest("/api/activities", {
       method: "POST",
       body: JSON.stringify({
-        type: "demo",
+        type: "discovery_call",
         title: "Product Demo",
         startDate: "2026-04-01T14:00:00Z",
         endDate: "2026-04-01T15:00:00Z",
@@ -360,7 +360,7 @@ describe("POST /api/activities", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.id).toBe("new-activity-1");
-    expect(body.type).toBe("demo");
+    expect(body.type).toBe("discovery_call");
     expect(body.category).toBe("meetings");
     expect(body.title).toBe("Product Demo");
     expect(body.plans).toHaveLength(1);
@@ -375,7 +375,7 @@ describe("POST /api/activities", () => {
     expect(mockPrisma.activity.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          type: "demo",
+          type: "discovery_call",
           title: "Product Demo",
           createdByUserId: "user-1",
           plans: { create: [{ planId: "plan-1" }] },
@@ -589,7 +589,7 @@ describe("PATCH /api/activities/[id]", () => {
 
     const updatedActivity = {
       id: "activity-1",
-      type: "demo",
+      type: "discovery_call",
       title: "Updated Demo",
       updatedAt: new Date("2026-02-23T12:00:00Z"),
     };
@@ -598,7 +598,7 @@ describe("PATCH /api/activities/[id]", () => {
     const req = makeRequest("/api/activities/activity-1", {
       method: "PATCH",
       body: JSON.stringify({
-        type: "demo",
+        type: "discovery_call",
         title: "Updated Demo",
         status: "completed",
       }),
@@ -610,7 +610,7 @@ describe("PATCH /api/activities/[id]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.id).toBe("activity-1");
-    expect(body.type).toBe("demo");
+    expect(body.type).toBe("discovery_call");
     expect(body.title).toBe("Updated Demo");
     expect(body.updatedAt).toBeDefined();
 
@@ -619,7 +619,7 @@ describe("PATCH /api/activities/[id]", () => {
       expect.objectContaining({
         where: { id: "activity-1" },
         data: expect.objectContaining({
-          type: "demo",
+          type: "discovery_call",
           title: "Updated Demo",
           status: "completed",
         }),

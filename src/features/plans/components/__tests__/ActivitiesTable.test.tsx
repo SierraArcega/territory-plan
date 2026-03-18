@@ -48,8 +48,8 @@ const mockActivities: ActivityListItem[] = [
   },
   {
     id: "activity-2",
-    type: "email_campaign" as const,
-    category: "outreach" as const,
+    type: "mixmax_campaign" as const,
+    category: "campaigns" as const,
     title: "Q1 Outreach Campaign",
     startDate: "2026-02-01",
     endDate: "2026-02-01",
@@ -139,7 +139,7 @@ describe("ActivitiesTable", () => {
 
       // Check type labels
       expect(screen.getByText("Conference")).toBeInTheDocument();
-      expect(screen.getByText("Email Campaign")).toBeInTheDocument();
+      expect(screen.getByText("Mixmax Campaign")).toBeInTheDocument();
       expect(screen.getByText("Discovery Call")).toBeInTheDocument();
 
       // Check status badges

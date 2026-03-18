@@ -19,8 +19,9 @@ const PERIOD_LABELS: Record<ProgressPeriod, string> = {
 // Category icons and labels for the top stats row
 const CATEGORY_DISPLAY = [
   { key: "meetings" as const, label: "Meetings", icon: "🤝" },
-  { key: "outreach" as const, label: "Outreach", icon: "📧" },
+  { key: "campaigns" as const, label: "Campaigns", icon: "📧" },
   { key: "events" as const, label: "Events", icon: "🎤" },
+  { key: "gift_drop" as const, label: "Gift Drop", icon: "🎁" },
 ];
 
 // Small trend arrow component
