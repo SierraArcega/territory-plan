@@ -128,10 +128,11 @@ function parseBlockWithTitle(
   }
 
   // Contact info — email
-  const emailMatch = blockText.match(/[\w.-]+@[\w.-]+\.\w+/);
+  const emailMatch = blockText.match(/[\w.-]+@[\w.-]+\.\w{2,}/);
   if (emailMatch) {
     vacancy.hiringEmail = emailMatch[0];
-    const nameMatch = blockText.match(/[Cc]ontact\s*:?\s*([^,\n]+)/);
+    // Extract contact name — look for "Contact: Name" pattern, limit to reasonable length
+    const nameMatch = blockText.match(/[Cc]ontact\s*:?\s*([A-Z][a-z]+ [A-Z][a-z]+)/);
     if (nameMatch) {
       vacancy.hiringManager = nameMatch[1].trim();
     }
@@ -139,6 +140,14 @@ function parseBlockWithTitle(
 
   // Store the full block as rawText for relevance matching
   vacancy.rawText = blockText.slice(0, 2000);
+
+  // Truncate fields to DB column limits
+  if (vacancy.title && vacancy.title.length > 500) vacancy.title = vacancy.title.slice(0, 500);
+  if (vacancy.schoolName && vacancy.schoolName.length > 255) vacancy.schoolName = vacancy.schoolName.slice(0, 255);
+  if (vacancy.hiringManager && vacancy.hiringManager.length > 255) vacancy.hiringManager = vacancy.hiringManager.slice(0, 255);
+  if (vacancy.hiringEmail && vacancy.hiringEmail.length > 255) vacancy.hiringEmail = vacancy.hiringEmail.slice(0, 255);
+  if (vacancy.startDate && vacancy.startDate.length > 50) vacancy.startDate = vacancy.startDate.slice(0, 50);
+  if (vacancy.sourceUrl && vacancy.sourceUrl.length > 1000) vacancy.sourceUrl = vacancy.sourceUrl.slice(0, 1000);
 
   return vacancy;
 }
