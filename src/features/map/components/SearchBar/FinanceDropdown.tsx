@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import RangeFilter from "./controls/RangeFilter";
+import RangeFilter, { formatCompact } from "./controls/RangeFilter";
 
 
 interface FinanceDropdownProps {
@@ -46,14 +46,14 @@ export default function FinanceDropdown({ onClose }: FinanceDropdownProps) {
       </div>
 
       <div className="space-y-3">
-        <RangeFilter label="Expenditure / Pupil" column="expenditurePerPupil" step={500} onApply={handleApply} />
-        <RangeFilter label="Total Revenue" column="totalRevenue" step={100000} onApply={handleApply} />
-        <RangeFilter label="Federal Revenue" column="federalRevenue" step={50000} onApply={handleApply} />
-        <RangeFilter label="State Revenue" column="stateRevenue" step={100000} onApply={handleApply} />
-        <RangeFilter label="Local Revenue" column="localRevenue" step={100000} onApply={handleApply} />
-        <RangeFilter label="Tech Spending" column="techSpending" step={10000} onApply={handleApply} />
-        <RangeFilter label="Title I Revenue" column="titleIRevenue" step={50000} onApply={handleApply} />
-        <RangeFilter label="ESSER Funding" column="esserFundingTotal" step={50000} onApply={handleApply} />
+        <RangeFilter label="Expenditure / Pupil" column="expenditurePerPupil" min={0} max={50000} step={500} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="Total Revenue" column="totalRevenue" min={0} max={2000000000} step={10000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="Federal Revenue" column="federalRevenue" min={0} max={500000000} step={5000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="State Revenue" column="stateRevenue" min={0} max={1000000000} step={10000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="Local Revenue" column="localRevenue" min={0} max={1000000000} step={10000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="Tech Spending" column="techSpending" min={0} max={50000000} step={500000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="Title I Revenue" column="titleIRevenue" min={0} max={50000000} step={500000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
+        <RangeFilter label="ESSER Funding" column="esserFundingTotal" min={0} max={100000000} step={1000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
       </div>
     </div>
   );
