@@ -14,6 +14,7 @@ import {
   useMapPlans,
 } from "@/features/map/lib/queries";
 import type { LayerType } from "@/features/map/lib/layers";
+import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import DistrictSearchCard from "./DistrictSearchCard";
 import DistrictExploreModal from "./DistrictExploreModal";
 import ResultsTabStrip from "./ResultsTabStrip";
@@ -95,28 +96,57 @@ export default function SearchResults() {
   const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
   const [showMyPlansOnly, setShowMyPlansOnly] = useState(true);
 
+  // Extract geographic state filters from searchFilters to apply to overlay layers
+  const geoStates = useMemo(() => {
+    const stateFilter = searchFilters.find((f) => f.column === "state");
+    if (!stateFilter) return undefined;
+    if (stateFilter.op === "in" && Array.isArray(stateFilter.value)) {
+      return stateFilter.value as string[];
+    }
+    if (stateFilter.op === "eq" && typeof stateFilter.value === "string") {
+      return [stateFilter.value];
+    }
+    return undefined;
+  }, [searchFilters]);
+
   // Overlay query hooks — enabled when layer is active
   const contactsQuery = useMapContacts(
     mapBounds,
     layerFilters.contacts,
     activeLayers.has("contacts"),
+    geoStates,
   );
   const vacanciesQuery = useMapVacancies(
     mapBounds,
     layerFilters.vacancies,
     dateRange.vacancies,
     activeLayers.has("vacancies"),
+    geoStates,
   );
   const activitiesQuery = useMapActivities(
     mapBounds,
     layerFilters.activities,
     dateRange.activities,
     activeLayers.has("activities"),
+    geoStates,
   );
   const plansQuery = useMapPlans(
     layerFilters.plans,
     activeLayers.has("plans"),
   );
+
+  // Cross-filter — single source of truth
+  const {
+    overlayDerivedLeaids,
+    filteredContacts,
+    filteredVacancies,
+    filteredActivities,
+  } = useCrossFilter({
+    plansGeoJSON: plansQuery.data,
+    contactsGeoJSON: contactsQuery.data,
+    vacanciesGeoJSON: vacanciesQuery.data,
+    activitiesGeoJSON: activitiesQuery.data,
+  });
 
   const [districts, setDistricts] = useState<SearchResultDistrict[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,10 +165,10 @@ export default function SearchResults() {
   const shouldFitBoundsRef = useRef(false);
 
   // Fetch results — reads from store snapshot to avoid stale closures
-  const fetchResults = useCallback(async (pageNum: number) => {
+  const fetchResults = useCallback(async (pageNum: number, leaidOverride?: string[]) => {
     // Read current state directly from store (not from closure)
     const state = useMapV2Store.getState();
-    if (!state.isSearchActive) return;
+    if (!state.isSearchActive && !leaidOverride?.length) return;
 
     // Abort previous request
     abortRef.current?.abort();
@@ -149,11 +179,14 @@ export default function SearchResults() {
 
     try {
       const params = new URLSearchParams();
-      if (state.searchBounds) {
+      if (!leaidOverride && state.searchBounds) {
         params.set("bounds", state.searchBounds.join(","));
       }
       if (state.searchFilters.length > 0) {
         params.set("filters", JSON.stringify(state.searchFilters));
+      }
+      if (leaidOverride?.length) {
+        params.set("leaids", leaidOverride.join(","));
       }
       params.set("sort", state.searchSort.column);
       params.set("order", state.searchSort.direction);
@@ -172,10 +205,12 @@ export default function SearchResults() {
       setTotal(json.pagination.total);
       setTotalPages(json.pagination.totalPages);
 
-      // Update matching leaids + centroids for map highlighting
-      // Always set both — use empty arrays as fallback to clear stale data when 0 results
-      state.setSearchResultLeaids(json.matchingLeaids ?? []);
-      state.setSearchResultCentroids(json.matchingCentroids ?? []);
+      // Only update search result leaids for actual searches — not overlay-derived fetches.
+      // Writing these during overlay mode creates a feedback loop via overlayLeaidSet.
+      if (!leaidOverride) {
+        state.setSearchResultLeaids(json.matchingLeaids ?? []);
+        state.setSearchResultCentroids(json.matchingCentroids ?? []);
+      }
 
       // Fit map to matching centroids only when filters change (not on pan/zoom)
       if (shouldFitBoundsRef.current) {
@@ -208,6 +243,8 @@ export default function SearchResults() {
   // Re-fetch when filters change — also fit map to results
   useEffect(() => {
     if (!isSearchActive) {
+      // If overlay layers produce leaids, those are handled separately
+      if (overlayDerivedLeaids) return;
       setDistricts([]);
       setTotal(0);
       return;
@@ -217,6 +254,21 @@ export default function SearchResults() {
     fetchResults(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters, searchSort, isSearchActive]);
+
+  // Fetch districts from overlay-derived leaids (when no explicit search is active)
+  useEffect(() => {
+    if (isSearchActive) return;
+    if (!overlayDerivedLeaids) {
+      // Overlay filters were removed — clear district results
+      setDistricts([]);
+      setTotal(0);
+      setTotalPages(0);
+      return;
+    }
+    setPage(1);
+    fetchResults(1, [...overlayDerivedLeaids]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayDerivedLeaids, isSearchActive]);
 
   // Re-fetch when bounds change (pan/zoom) — no fitBounds to avoid loop
   useEffect(() => {
@@ -393,19 +445,20 @@ export default function SearchResults() {
       }
       counts.plans = planIds.size;
     }
-    if (activeLayers.has("contacts") && contactsQuery.data) {
-      counts.contacts = contactsQuery.data.features.length;
+    if (activeLayers.has("contacts") && filteredContacts) {
+      counts.contacts = filteredContacts.features.length;
     }
-    if (activeLayers.has("vacancies") && vacanciesQuery.data) {
-      counts.vacancies = vacanciesQuery.data.features.length;
+    if (activeLayers.has("vacancies") && filteredVacancies) {
+      counts.vacancies = filteredVacancies.features.length;
     }
-    if (activeLayers.has("activities") && activitiesQuery.data) {
-      counts.activities = activitiesQuery.data.features.length;
+    if (activeLayers.has("activities") && filteredActivities) {
+      counts.activities = filteredActivities.features.length;
     }
     return counts;
-  }, [total, activeLayers, plansQuery.data, contactsQuery.data, vacanciesQuery.data, activitiesQuery.data]);
+  }, [total, activeLayers, plansQuery.data, filteredContacts, filteredVacancies, filteredActivities]);
 
   const showingOverlayTab = activeResultsTab !== "districts";
+  const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null;
 
   const selectedCount = selectedDistrictLeaids.size;
 
@@ -439,8 +492,8 @@ export default function SearchResults() {
       {/* Tab strip — always visible with all entity tabs */}
       <ResultsTabStrip counts={tabCounts} onCollapse={toggleSearchResults} />
 
-      {/* Districts header — only shown when districts tab is active and search is running */}
-      {!showingOverlayTab && isSearchActive && (
+      {/* Districts header — only shown when districts tab is active and results exist */}
+      {!showingOverlayTab && hasDistrictResults && (
         <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <button
@@ -487,10 +540,10 @@ export default function SearchResults() {
       )}
 
       {/* Actions bar — districts tab only */}
-      {!showingOverlayTab && isSearchActive && total > 0 && (
+      {!showingOverlayTab && hasDistrictResults && total > 0 && (
         <div ref={addAllRef} className="relative px-4 py-2 border-b border-[#E2DEEC] bg-[#F7F5FA] shrink-0 flex items-center gap-2">
-          {/* Save Search */}
-          {showSaveSearch ? (
+          {/* Save Search — only during explicit searches */}
+          {isSearchActive && (showSaveSearch ? (
             <div className="flex items-center gap-1.5 flex-1">
               <input
                 type="text"
@@ -527,10 +580,10 @@ export default function SearchResults() {
               </svg>
               Save Search
             </button>
-          )}
+          ))}
 
-          {/* Export CSV */}
-          {!showSaveSearch && (
+          {/* Export CSV — only during explicit searches */}
+          {isSearchActive && !showSaveSearch && (
             <button
               onClick={handleExportCsv}
               disabled={exporting}
@@ -640,7 +693,7 @@ export default function SearchResults() {
       )}
 
       {/* Selection status — districts tab only */}
-      {!showingOverlayTab && isSearchActive && selectedCount > 0 && (
+      {!showingOverlayTab && hasDistrictResults && selectedCount > 0 && (
         <div className="shrink-0 px-4 py-1.5 border-b border-[#E2DEEC] bg-[#e8f1f5] flex items-center justify-between">
           <span className="text-xs font-medium text-[#6EA3BE]">
             {selectedCount} selected
@@ -662,22 +715,22 @@ export default function SearchResults() {
       )}
       {showingOverlayTab && activeResultsTab === "contacts" && (
         activeLayers.has("contacts")
-          ? <ContactsTab data={contactsQuery.data} isLoading={contactsQuery.isLoading} />
+          ? <ContactsTab data={filteredContacts} isLoading={contactsQuery.isLoading} />
           : <LayerOffPrompt layer="Contacts" />
       )}
       {showingOverlayTab && activeResultsTab === "vacancies" && (
         activeLayers.has("vacancies")
-          ? <VacanciesTab data={vacanciesQuery.data} isLoading={vacanciesQuery.isLoading} />
+          ? <VacanciesTab data={filteredVacancies} isLoading={vacanciesQuery.isLoading} />
           : <LayerOffPrompt layer="Vacancies" />
       )}
       {showingOverlayTab && activeResultsTab === "activities" && (
         activeLayers.has("activities")
-          ? <ActivitiesTab data={activitiesQuery.data} isLoading={activitiesQuery.isLoading} />
+          ? <ActivitiesTab data={filteredActivities} isLoading={activitiesQuery.isLoading} />
           : <LayerOffPrompt layer="Activities" />
       )}
 
       {/* Districts — empty state when no search */}
-      {!showingOverlayTab && !isSearchActive && (
+      {!showingOverlayTab && !hasDistrictResults && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <svg className="w-12 h-12 text-[#D4CFE2] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -688,7 +741,7 @@ export default function SearchResults() {
       )}
 
       {/* Districts results grid — two columns with scroll */}
-      {!showingOverlayTab && isSearchActive && (
+      {!showingOverlayTab && hasDistrictResults && (
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
           {loading && districts.length === 0 ? (
             // Skeleton loading — 2 column grid
@@ -739,7 +792,7 @@ export default function SearchResults() {
       )}
 
       {/* Footer — districts tab only, pagination controls when multi-page */}
-      {!showingOverlayTab && isSearchActive && total > 0 && (
+      {!showingOverlayTab && hasDistrictResults && total > 0 && (
         <div className="shrink-0 px-4 py-2 border-t border-[#E2DEEC] flex items-center justify-between">
           {totalPages > 1 ? (
             <>
