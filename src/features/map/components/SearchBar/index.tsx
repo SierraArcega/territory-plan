@@ -4,6 +4,21 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useMapV2Store, type ExploreFilter, type FiscalYear, type ContactLayerFilter, type VacancyLayerFilter, type ActivityLayerFilter, type PlanLayerFilter, type DateRange, type OverlayLayerType } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
 import { mapV2Ref } from "@/features/map/lib/ref";
+import type { LayerType } from "@/features/map/lib/layers";
+import {
+  isPlansFiltered,
+  isContactsFiltered,
+  isVacanciesFiltered,
+  isActivitiesFiltered,
+} from "@/features/map/lib/filter-utils";
+
+interface DistrictSuggestion {
+  leaid: string;
+  name: string;
+  stateAbbrev: string | null;
+  cityLocation?: string | null;
+  stateLocation?: string | null;
+}
 import GeographyDropdown from "./GeographyDropdown";
 import DistrictsDropdown from "./DistrictsDropdown";
 import ContactsDropdown from "./ContactsDropdown";
@@ -49,6 +64,8 @@ function countPlanFilters(f: PlanLayerFilter): number {
   if (f.status?.length) n++;
   if (f.fiscalYear != null) n++;
   if (f.ownerScope === "all") n++;
+  if (f.planIds?.length) n++;
+  if (f.ownerIds?.length) n++;
   return n;
 }
 
@@ -113,9 +130,12 @@ export default function SearchBar() {
   const vacancyDateRange = useMapV2Store((s) => s.dateRange.vacancies);
   const activityDateRange = useMapV2Store((s) => s.dateRange.activities);
 
+  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
+
   // Location search state
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
+  const [districtSuggestions, setDistrictSuggestions] = useState<DistrictSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -128,20 +148,46 @@ export default function SearchBar() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim() || value.length < 2) {
       setSuggestions([]);
+      setDistrictSuggestions([]);
       setShowSuggestions(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
-      const results = await searchLocations(value);
-      setSuggestions(results);
-      setShowSuggestions(results.length > 0);
+      const [locationResults, districtResults] = await Promise.all([
+        searchLocations(value),
+        fetch(`/api/districts?search=${encodeURIComponent(value)}&limit=5`)
+          .then((r) => r.ok ? r.json() : { districts: [] })
+          .then((data: { districts: DistrictSuggestion[] }) => (data.districts || []).slice(0, 5))
+          .catch(() => [] as DistrictSuggestion[]),
+      ]);
+      setSuggestions(locationResults);
+      setDistrictSuggestions(districtResults);
+      setShowSuggestions(districtResults.length > 0 || locationResults.length > 0);
     }, 350);
   }, []);
+
+  const handleSelectDistrict = useCallback(async (district: DistrictSuggestion) => {
+    setQuery("");
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setDistrictSuggestions([]);
+    openRightPanel({ type: "district_card", id: district.leaid });
+
+    // Fly to district location using city + state
+    const city = district.cityLocation || district.name.replace(/\s*(School District|Community School District|Unified School District|Independent School District|Public Schools|Public School District|City School District|County School District|County Schools|Schools|SD)$/i, "");
+    const locationQuery = `${city}, ${district.stateLocation || district.stateAbbrev || ""}`;
+    const results = await searchLocations(locationQuery);
+    const map = mapV2Ref.current;
+    if (map && results.length > 0) {
+      map.flyTo({ center: [results[0].lng, results[0].lat], zoom: 9, duration: 1200 });
+    }
+  }, [openRightPanel]);
 
   const handleSelectLocation = useCallback((suggestion: GeocodeSuggestion) => {
     setQuery(suggestion.displayName.split(",")[0]);
     setShowSuggestions(false);
     setSuggestions([]);
+    setDistrictSuggestions([]);
     const map = mapV2Ref.current;
     if (map) {
       map.flyTo({ center: [suggestion.lng, suggestion.lat], zoom: 10, duration: 1500 });
@@ -163,14 +209,21 @@ export default function SearchBar() {
     setOpenDropdown((prev) => (prev === name ? null : name));
   }, []);
 
-  /** Handle chevron click on an entity layer button: if layer is off, turn it on and open dropdown */
+  /** Handle chevron click on an entity layer button: if layer is off, turn it on and open dropdown.
+   *  Also opens the results panel on the corresponding tab when the dropdown is being opened. */
   const handleEntityChevronClick = useCallback((layerName: string, layerType: OverlayLayerType) => {
     const store = useMapV2Store.getState();
     if (!store.activeLayers.has(layerType)) {
       toggleLayer(layerType);
     }
-    toggleDropdown(layerName);
-  }, [toggleLayer, toggleDropdown]);
+    setOpenDropdown((prev) => {
+      const isOpening = prev !== layerName;
+      if (isOpening) {
+        useMapV2Store.getState().openResultsPanel(layerType as LayerType);
+      }
+      return isOpening ? layerName : null;
+    });
+  }, [toggleLayer]);
 
   const activeFilterCount = searchFilters.length;
 
@@ -205,21 +258,58 @@ export default function SearchBar() {
             )}
           </div>
 
-          {/* Location suggestions dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-lg border border-[#D4CFE2] overflow-hidden z-50">
-              {suggestions.map((s, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelectLocation(s)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#EFEDF5] transition-colors border-b border-[#E2DEEC] last:border-0"
-                >
-                  <span className="text-[#544A78]">{s.displayName.split(",")[0]}</span>
-                  <span className="text-[#A69DC0] text-xs ml-1">
-                    {s.displayName.split(",").slice(1).join(",").trim()}
-                  </span>
-                </button>
-              ))}
+          {/* Search suggestions dropdown */}
+          {showSuggestions && (districtSuggestions.length > 0 || suggestions.length > 0) && (
+            <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
+              {districtSuggestions.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
+                    Districts
+                  </div>
+                  {districtSuggestions.map((d) => (
+                    <button
+                      key={d.leaid}
+                      onClick={() => handleSelectDistrict(d)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#EFEDF5] transition-colors border-b border-[#E2DEEC] last:border-0 flex items-center gap-2"
+                    >
+                      <svg className="w-3.5 h-3.5 text-plum/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span>
+                        <span className="text-[#544A78]">{d.name}</span>
+                        {d.stateAbbrev && (
+                          <span className="text-[#A69DC0] text-xs ml-1">{d.stateAbbrev}</span>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {suggestions.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
+                    Locations
+                  </div>
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSelectLocation(s)}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#EFEDF5] transition-colors border-b border-[#E2DEEC] last:border-0 flex items-center gap-2"
+                    >
+                      <svg className="w-3.5 h-3.5 text-plum/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span>
+                        <span className="text-[#544A78]">{s.displayName.split(",")[0]}</span>
+                        <span className="text-[#A69DC0] text-xs ml-1">
+                          {s.displayName.split(",").slice(1).join(",").trim()}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -242,7 +332,7 @@ export default function SearchBar() {
             active={true}
             isOpen={openDropdown === "districts"}
             onToggle={() => {/* Districts are always visible */}}
-            onChevronClick={() => toggleDropdown("districts")}
+            onChevronClick={() => handleEntityChevronClick("districts", "districts")}
             count={countByDomain(searchFilters, "fullmind") + countByDomain(searchFilters, "competitors") + countByDomain(searchFilters, "finance") + countByDomain(searchFilters, "demographics") + countByDomain(searchFilters, "academics")}
           />
           <EntityLayerButton
