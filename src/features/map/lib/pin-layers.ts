@@ -32,11 +32,12 @@ export const ACTIVITIES_POINT_LAYER = "overlay-activities-point";
 export const PLANS_FILL_LAYER = "overlay-plans-fill";
 export const PLANS_OUTLINE_LAYER = "overlay-plans-outline";
 
-// All overlay layer IDs (for click/hover queries)
+// All overlay layer IDs in hit-test priority order (highest priority first).
+// Activities render topmost, then vacancies, then contacts.
 export const ALL_OVERLAY_POINT_LAYERS = [
-  CONTACTS_POINT_LAYER,
-  VACANCIES_POINT_LAYER,
   ACTIVITIES_POINT_LAYER,
+  VACANCIES_POINT_LAYER,
+  CONTACTS_POINT_LAYER,
 ] as const;
 
 export const ALL_OVERLAY_CLUSTER_LAYERS = [
@@ -235,29 +236,30 @@ export function getActivityLayers(): LayerSpecification[] {
 
 /**
  * Get MapLibre layer specs for plan district polygon overlay.
- * Fill uses plan color from properties with 30% opacity + solid border.
+ * Very subtle fill (0.08 opacity) so district choropleth shows through,
+ * with a prominent outline (2.5px, 0.9 opacity) for clear plan boundaries.
  */
 export function getPlanLayers(): LayerSpecification[] {
   return [
-    // Semi-transparent fill using plan color
+    // Very subtle fill — just enough to hint at plan coverage without obscuring choropleth
     {
       id: PLANS_FILL_LAYER,
       type: "fill",
       source: PLANS_SOURCE,
       paint: {
-        "fill-color": ["coalesce", ["get", "planColor"], "#403770"],
-        "fill-opacity": 0.25,
+        "fill-color": ["coalesce", ["get", "planColor"], "#7B6BA4"],
+        "fill-opacity": 0.08,
       },
     } satisfies LayerSpecification,
-    // Solid border using plan color
+    // Prominent outline for clear plan boundaries
     {
       id: PLANS_OUTLINE_LAYER,
       type: "line",
       source: PLANS_SOURCE,
       paint: {
-        "line-color": ["coalesce", ["get", "planColor"], "#403770"],
-        "line-width": 2,
-        "line-opacity": 0.8,
+        "line-color": ["coalesce", ["get", "planColor"], "#7B6BA4"],
+        "line-width": 2.5,
+        "line-opacity": 0.9,
       },
     } satisfies LayerSpecification,
   ];

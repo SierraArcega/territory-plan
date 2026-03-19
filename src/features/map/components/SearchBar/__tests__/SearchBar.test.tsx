@@ -6,7 +6,6 @@ vi.mock("@/features/map/lib/store", () => ({
   useMapV2Store: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
       searchFilters: [],
-      toggleLayerBubble: vi.fn(),
       selectedFiscalYear: "fy26",
       setSelectedFiscalYear: vi.fn(),
       compareMode: false,

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
+import type { VendorId, SignalId, LocaleId, LayerType, ColorDimension } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import type { TransitionBucket } from "@/features/map/lib/comparison";
@@ -15,23 +15,29 @@ export type DatePreset = "7d" | "30d" | "90d" | "ytd" | "all";
 
 // Per-layer filter state
 export interface ContactLayerFilter {
-  seniorityLevel?: string | null;
-  persona?: string | null;
+  seniorityLevel?: string[] | null;
+  persona?: string[] | null;
+  primaryOnly?: boolean;
 }
 
 export interface VacancyLayerFilter {
-  category?: string | null;
-  status?: string | null;
+  category?: string[] | null;
+  status?: string[] | null;
+  fullmindRelevant?: boolean;
+  minDaysOpen?: number | null;
+  maxDaysOpen?: number | null;
 }
 
 export interface PlanLayerFilter {
-  status?: string | null;
+  status?: string[] | null;
   fiscalYear?: number | null;
+  ownerScope?: "mine" | "all";
 }
 
 export interface ActivityLayerFilter {
-  type?: string | null;
-  status?: string | null;
+  type?: string[] | null;
+  status?: string[] | null;
+  outcome?: string[] | null;
 }
 
 export interface LayerFilters {
@@ -202,9 +208,6 @@ interface MapV2State {
   // Panel visibility
   panelMode: "full" | "hidden";
 
-  // Layer bubble
-  layerBubbleOpen: boolean;
-
   // Schools layer — which school types are visible
   visibleSchoolTypes: Set<SchoolType>;
 
@@ -298,9 +301,15 @@ interface MapV2State {
   // Overlay layers (map planning overlays)
   activeLayers: Set<OverlayLayerType>;
   layerFilters: LayerFilters;
-  dateRange: DateRange;
-  layerDrawerOpen: boolean;
+  dateRange: Record<"vacancies" | "activities", DateRange>;
   mapBounds: [number, number, number, number] | null; // [west, south, east, north]
+
+  // Unified layer control
+  colorBy: ColorDimension;
+  activeResultsTab: LayerType;
+
+  // Geography filters
+  geographyFilters: { states: string[]; zipRadius: { zip: string; radius: number } | null };
 }
 
 interface MapV2Actions {
@@ -359,10 +368,6 @@ interface MapV2Actions {
   // Panel visibility
   setPanelMode: (mode: "full" | "hidden") => void;
   collapsePanel: () => void; // full↔hidden
-
-  // Layer bubble
-  setLayerBubbleOpen: (open: boolean) => void;
-  toggleLayerBubble: () => void;
 
   // Schools layer
   toggleSchoolType: (type: SchoolType) => void;
@@ -469,10 +474,16 @@ interface MapV2Actions {
   // Overlay layers (map planning overlays)
   toggleLayer: (layer: OverlayLayerType) => void;
   setLayerFilter: <K extends keyof LayerFilters>(layer: K, filter: Partial<LayerFilters[K]>) => void;
-  setDateRange: (range: Partial<DateRange>) => void;
-  setLayerDrawerOpen: (open: boolean) => void;
-  toggleLayerDrawer: () => void;
+  setDateRange: (layer: "vacancies" | "activities", range: Partial<DateRange>) => void;
   setMapBounds: (bounds: [number, number, number, number] | null) => void;
+
+  // Unified layer control
+  setColorBy: (dimension: ColorDimension) => void;
+  setActiveResultsTab: (tab: LayerType) => void;
+
+  // Geography filters
+  setGeographyStates: (states: string[]) => void;
+  setGeographyZipRadius: (zipRadius: { zip: string; radius: number } | null) => void;
 }
 
 let rippleId = 0;
@@ -545,7 +556,6 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   tooltip: initialTooltip,
   clickRipples: [],
   panelMode: "full",
-  layerBubbleOpen: false,
   visibleSchoolTypes: new Set<SchoolType>(),
   activeSignal: null,
   visibleLocales: new Set<LocaleId>(),
@@ -650,9 +660,18 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     plans: {},
     activities: {},
   },
-  dateRange: { start: null, end: null, preset: null },
-  layerDrawerOpen: false,
+  dateRange: {
+    vacancies: { start: null, end: null, preset: null },
+    activities: { start: null, end: null, preset: null },
+  },
   mapBounds: null,
+
+  // Unified layer control
+  colorBy: "engagement" as ColorDimension,
+  activeResultsTab: "districts" as LayerType,
+
+  // Geography filters
+  geographyFilters: { states: [] as string[], zipRadius: null as { zip: string; radius: number } | null },
 
   // Panel navigation
   setPanelState: (state) =>
@@ -869,10 +888,6 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({
       panelMode: s.panelMode === "full" ? "hidden" : "full",
     })),
-
-  // Layer bubble
-  setLayerBubbleOpen: (open) => set({ layerBubbleOpen: open }),
-  toggleLayerBubble: () => set((s) => ({ layerBubbleOpen: !s.layerBubbleOpen })),
 
   // Schools layer
   toggleSchoolType: (type) =>
@@ -1335,6 +1350,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => {
       const next = new Set(s.activeLayers);
       if (next.has(layer)) {
+        // Districts cannot be removed
+        if (layer === "districts") return s;
         next.delete(layer);
       } else {
         next.add(layer);
@@ -1350,13 +1367,21 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       },
     })),
 
-  setDateRange: (range) =>
+  setDateRange: (layer, range) =>
     set((s) => ({
-      dateRange: { ...s.dateRange, ...range },
+      dateRange: {
+        ...s.dateRange,
+        [layer]: { ...s.dateRange[layer], ...range },
+      },
     })),
 
-  setLayerDrawerOpen: (open) => set({ layerDrawerOpen: open }),
-  toggleLayerDrawer: () => set((s) => ({ layerDrawerOpen: !s.layerDrawerOpen })),
-
   setMapBounds: (bounds) => set({ mapBounds: bounds }),
+
+  // Unified layer control
+  setColorBy: (dimension) => set({ colorBy: dimension }),
+  setActiveResultsTab: (tab) => set({ activeResultsTab: tab }),
+
+  // Geography filters
+  setGeographyStates: (states) => set((s) => ({ geographyFilters: { ...s.geographyFilters, states } })),
+  setGeographyZipRadius: (zipRadius) => set((s) => ({ geographyFilters: { ...s.geographyFilters, zipRadius } })),
 }));

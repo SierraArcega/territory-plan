@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
-import ToggleChips from "./controls/ToggleChips";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
 
 
@@ -137,27 +136,6 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
           />
         )}
 
-        {/* Urbanicity */}
-        <ToggleChips
-          label="Urbanicity"
-          options={[
-            { label: "City", column: "urbanicity", op: "in", value: ["11", "12", "13"] },
-            { label: "Suburb", column: "urbanicity", op: "in", value: ["21", "22", "23"] },
-            { label: "Town", column: "urbanicity", op: "in", value: ["31", "32", "33"] },
-            { label: "Rural", column: "urbanicity", op: "in", value: ["41", "42", "43"] },
-          ]}
-          onSelect={(opt) => addSearchFilter({ id: crypto.randomUUID(), column: opt.column, op: opt.op as any, value: opt.value })}
-        />
-
-        {/* District Type */}
-        <ToggleChips
-          label="District Type"
-          options={[
-            { label: "Has Charter Schools", column: "charterSchoolCount", op: "gte", value: 1 },
-            { label: "Has Title I Schools", column: "titleISchoolCount", op: "gte", value: 1 },
-          ]}
-          onSelect={(opt) => addSearchFilter({ id: crypto.randomUUID(), column: opt.column, op: opt.op as any, value: opt.value })}
-        />
       </div>
     </div>
   );

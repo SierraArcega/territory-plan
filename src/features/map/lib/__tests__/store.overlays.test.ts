@@ -11,8 +11,10 @@ beforeEach(() => {
       plans: {},
       activities: {},
     },
-    dateRange: { start: null, end: null, preset: null },
-    layerDrawerOpen: false,
+    dateRange: {
+      vacancies: { start: null, end: null, preset: null },
+      activities: { start: null, end: null, preset: null },
+    },
   });
 });
 
@@ -24,10 +26,10 @@ describe("toggleLayer", () => {
     expect(s.activeLayers.has("districts")).toBe(true);
   });
 
-  it("removes a layer that is already active", () => {
+  it("cannot remove districts layer", () => {
     useMapV2Store.getState().toggleLayer("districts");
     const s = useMapV2Store.getState();
-    expect(s.activeLayers.has("districts")).toBe(false);
+    expect(s.activeLayers.has("districts")).toBe(true);
   });
 
   it("can toggle multiple layers independently", () => {
@@ -91,47 +93,73 @@ describe("setLayerFilter", () => {
 });
 
 describe("setDateRange", () => {
-  it("sets start and end date", () => {
-    useMapV2Store.getState().setDateRange({ start: "2026-01-01", end: "2026-03-18" });
+  it("sets start and end date for vacancies", () => {
+    useMapV2Store.getState().setDateRange("vacancies", { start: "2026-01-01", end: "2026-03-18" });
     const s = useMapV2Store.getState();
-    expect(s.dateRange.start).toBe("2026-01-01");
-    expect(s.dateRange.end).toBe("2026-03-18");
+    expect(s.dateRange.vacancies.start).toBe("2026-01-01");
+    expect(s.dateRange.vacancies.end).toBe("2026-03-18");
   });
 
-  it("sets a preset", () => {
-    useMapV2Store.getState().setDateRange({ preset: "30d" });
+  it("sets a preset for activities", () => {
+    useMapV2Store.getState().setDateRange("activities", { preset: "30d" });
     const s = useMapV2Store.getState();
-    expect(s.dateRange.preset).toBe("30d");
+    expect(s.dateRange.activities.preset).toBe("30d");
   });
 
-  it("merges partial date range updates", () => {
-    useMapV2Store.getState().setDateRange({ start: "2026-01-01" });
-    useMapV2Store.getState().setDateRange({ end: "2026-03-18" });
+  it("merges partial date range updates per layer", () => {
+    useMapV2Store.getState().setDateRange("vacancies", { start: "2026-01-01" });
+    useMapV2Store.getState().setDateRange("vacancies", { end: "2026-03-18" });
     const s = useMapV2Store.getState();
-    expect(s.dateRange.start).toBe("2026-01-01");
-    expect(s.dateRange.end).toBe("2026-03-18");
-    expect(s.dateRange.preset).toBeNull();
+    expect(s.dateRange.vacancies.start).toBe("2026-01-01");
+    expect(s.dateRange.vacancies.end).toBe("2026-03-18");
+    expect(s.dateRange.vacancies.preset).toBeNull();
   });
 
   it("can reset date range by setting all to null", () => {
-    useMapV2Store.getState().setDateRange({ start: "2026-01-01", end: "2026-03-18", preset: "30d" });
-    useMapV2Store.getState().setDateRange({ start: null, end: null, preset: null });
+    useMapV2Store.getState().setDateRange("activities", { start: "2026-01-01", end: "2026-03-18", preset: "30d" });
+    useMapV2Store.getState().setDateRange("activities", { start: null, end: null, preset: null });
     const s = useMapV2Store.getState();
-    expect(s.dateRange.start).toBeNull();
-    expect(s.dateRange.end).toBeNull();
-    expect(s.dateRange.preset).toBeNull();
+    expect(s.dateRange.activities.start).toBeNull();
+    expect(s.dateRange.activities.end).toBeNull();
+    expect(s.dateRange.activities.preset).toBeNull();
+  });
+
+  it("does not affect other layer date range", () => {
+    useMapV2Store.getState().setDateRange("vacancies", { start: "2026-01-01" });
+    const s = useMapV2Store.getState();
+    expect(s.dateRange.vacancies.start).toBe("2026-01-01");
+    expect(s.dateRange.activities.start).toBeNull();
   });
 });
 
-describe("toggleLayerDrawer", () => {
-  it("opens drawer when closed", () => {
-    useMapV2Store.getState().toggleLayerDrawer();
-    expect(useMapV2Store.getState().layerDrawerOpen).toBe(true);
+describe("geographyFilters", () => {
+  it("defaults to empty states and null zipRadius", () => {
+    const s = useMapV2Store.getState();
+    expect(s.geographyFilters.states).toEqual([]);
+    expect(s.geographyFilters.zipRadius).toBeNull();
   });
 
-  it("closes drawer when open", () => {
-    useMapV2Store.getState().toggleLayerDrawer();
-    useMapV2Store.getState().toggleLayerDrawer();
-    expect(useMapV2Store.getState().layerDrawerOpen).toBe(false);
+  it("sets geography states", () => {
+    useMapV2Store.getState().setGeographyStates(["CA", "TX"]);
+    expect(useMapV2Store.getState().geographyFilters.states).toEqual(["CA", "TX"]);
+  });
+
+  it("sets geography zip radius", () => {
+    useMapV2Store.getState().setGeographyZipRadius({ zip: "90210", radius: 25 });
+    expect(useMapV2Store.getState().geographyFilters.zipRadius).toEqual({ zip: "90210", radius: 25 });
+  });
+
+  it("clears geography zip radius", () => {
+    useMapV2Store.getState().setGeographyZipRadius({ zip: "90210", radius: 25 });
+    useMapV2Store.getState().setGeographyZipRadius(null);
+    expect(useMapV2Store.getState().geographyFilters.zipRadius).toBeNull();
+  });
+
+  it("setting states does not affect zipRadius", () => {
+    useMapV2Store.getState().setGeographyZipRadius({ zip: "90210", radius: 25 });
+    useMapV2Store.getState().setGeographyStates(["NY"]);
+    const s = useMapV2Store.getState();
+    expect(s.geographyFilters.states).toEqual(["NY"]);
+    expect(s.geographyFilters.zipRadius).toEqual({ zip: "90210", radius: 25 });
   });
 });

@@ -2,6 +2,26 @@ import type { ExpressionSpecification, CircleLayerSpecification } from "maplibre
 import type { VendorPalette, SignalPalette } from "@/features/map/lib/palettes";
 
 // ============================================
+// Unified layer types
+// ============================================
+
+export type LayerType = "districts" | "plans" | "contacts" | "vacancies" | "activities";
+
+export type ColorDimension = "engagement" | "enrollment" | "ell" | "swd" | "expenditure" | "locale";
+
+/** Render order for map layers (bottom → top) */
+export const LAYER_ORDER: LayerType[] = ["districts", "plans", "contacts", "vacancies", "activities"];
+
+/** Brand color per layer type */
+export const LAYER_COLORS: Record<LayerType, string> = {
+  districts:  "#403770", // Plum
+  plans:      "#7B6BA4", // Light Plum
+  contacts:   "#F37167", // Coral
+  vacancies:  "#FFCF70", // Golden
+  activities: "#6EA3BE", // Steel Blue
+};
+
+// ============================================
 // Vendor definitions
 // ============================================
 

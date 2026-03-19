@@ -8,6 +8,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 setWorkerCount(4);
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression } from "@/features/map/lib/layers";
+import type { SignalId } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
@@ -201,6 +202,9 @@ export default function MapV2Container({
   const dateRange = useMapV2Store((s) => s.dateRange);
   const mapBounds = useMapV2Store((s) => s.mapBounds);
 
+  // Color By dimension — controls which choropleth visualization is active
+  const colorBy = useMapV2Store((s) => s.colorBy);
+
   // School GeoJSON — TanStack Query with quantized bounds for cache reuse
   const schoolsEnabled = visibleSchoolTypes.size > 0 && mapReady;
   const { data: schoolGeoJSON } = useSchoolGeoJSON(schoolBounds, schoolsEnabled);
@@ -306,6 +310,80 @@ export default function MapV2Container({
       }
     }
   }, [activeLayers, mapReady]);
+
+  // Color By switching — toggle between vendor/signal/locale fill layers
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const isSignalDimension = (dim: string): dim is SignalId =>
+      dim === "enrollment" || dim === "ell" || dim === "swd" || dim === "expenditure";
+
+    if (colorBy === "engagement") {
+      // Show active vendor fill layers (existing default behavior)
+      for (const vendorId of VENDOR_IDS) {
+        const layerId = `district-${vendorId}-fill`;
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(
+            layerId,
+            "visibility",
+            activeVendors.has(vendorId) ? "visible" : "none",
+          );
+        }
+      }
+      // Hide signal and locale layers
+      if (map.current.getLayer("district-signal-fill")) {
+        map.current.setLayoutProperty("district-signal-fill", "visibility", "none");
+      }
+      if (map.current.getLayer("district-locale-fill")) {
+        map.current.setLayoutProperty("district-locale-fill", "visibility", "none");
+      }
+    } else if (isSignalDimension(colorBy)) {
+      // Hide all vendor fill layers
+      for (const vendorId of VENDOR_IDS) {
+        const layerId = `district-${vendorId}-fill`;
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+      // Hide locale layer
+      if (map.current.getLayer("district-locale-fill")) {
+        map.current.setLayoutProperty("district-locale-fill", "visibility", "none");
+      }
+      // Show signal fill layer with the appropriate expression
+      if (map.current.getLayer("district-signal-fill")) {
+        map.current.setLayoutProperty("district-signal-fill", "visibility", "visible");
+        map.current.setPaintProperty(
+          "district-signal-fill",
+          "fill-color",
+          buildSignalFillExpressionFromCategories(colorBy, categoryColors) as any,
+        );
+        map.current.setPaintProperty(
+          "district-signal-fill",
+          "fill-opacity",
+          buildCategoryOpacityExpression(colorBy, categoryOpacities) as any,
+        );
+        // Update filter to match the signal's tile property
+        const config = SIGNAL_CONFIGS[colorBy];
+        map.current.setFilter("district-signal-fill", ["has", config.tileProperty]);
+      }
+    } else if (colorBy === "locale") {
+      // Hide all vendor fill layers
+      for (const vendorId of VENDOR_IDS) {
+        const layerId = `district-${vendorId}-fill`;
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+      // Hide signal layer
+      if (map.current.getLayer("district-signal-fill")) {
+        map.current.setLayoutProperty("district-signal-fill", "visibility", "none");
+      }
+      // Show locale fill layer
+      if (map.current.getLayer("district-locale-fill")) {
+        map.current.setLayoutProperty("district-locale-fill", "visibility", "visible");
+      }
+    }
+  }, [colorBy, activeVendors, categoryColors, categoryOpacities, mapReady]);
 
   // Initialize map
   useEffect(() => {
@@ -779,7 +857,9 @@ export default function MapV2Container({
     setSchoolBounds([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
   }, [mapReady]);
 
-  // Handle district hover — actions via getState(), tooltip position via DOM ref
+  // Handle hover with priority-based hit testing.
+  // Priority order: overlay pins > plans > schools > districts > states.
+  // When cursor is over a pin, suppress district hover highlight.
   const handleDistrictHover = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
@@ -795,79 +875,27 @@ export default function MapV2Container({
       // When no tooltip is showing, throttle to reduce queryRenderedFeatures calls.
       if (throttled && !useMapV2Store.getState().tooltip.visible) return;
 
-      // Query only the base fill layer — same source-layer, same properties, 1 layer vs 5
-      const features = map.current.getLayer("district-base-fill")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["district-base-fill"],
-          })
-        : [];
+      // Helper: suppress district hover highlight when a higher-priority layer matches
+      const suppressDistrictHover = () => {
+        lastHoveredLeaidRef.current = null;
+        map.current!.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
+        map.current!.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+      };
 
-      if (features.length > 0) {
-        const feature = features[0];
-        const leaid = feature.properties?.leaid;
+      // Helper: query a single layer if it exists
+      const queryLayer = (layerId: string) => {
+        if (!map.current!.getLayer(layerId)) return [];
+        return map.current!.queryRenderedFeatures(e.point, { layers: [layerId] });
+      };
 
-        // Skip hover on filtered-out districts when search is active
-        if (leaid && useMapV2Store.getState().isSearchActive && searchResultSetRef.current.size > 0 && !searchResultSetRef.current.has(leaid)) {
-          if (lastHoveredLeaidRef.current) clearHover();
-          return;
-        }
-
-        if (leaid && leaid !== lastHoveredLeaidRef.current) {
-          lastHoveredLeaidRef.current = leaid;
-
-          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
-          map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
-          map.current.getCanvas().style.cursor = "crosshair";
-
-          // Build tooltip data, respecting tooltipPropertyMap for compare mode
-          const props = feature.properties;
-          const tooltipData: import("@/features/map/lib/store").V2TooltipData = {
-            type: "district",
-            leaid,
-            name: props?.name || "Unknown",
-            stateAbbrev: props?.state_abbrev,
-            enrollment: props?.enrollment,
-            salesExecutive: props?.sales_executive,
-          };
-
-          if (tooltipPropertyMap) {
-            // Compare / changes mode: read _a / _b properties
-            const catPropA = tooltipPropertyMap["fullmind_category_a"] || "fullmind_category_a";
-            const catPropB = tooltipPropertyMap["fullmind_category_b"] || "fullmind_category_b";
-            tooltipData.customerCategoryA = props?.[catPropA] || undefined;
-            tooltipData.customerCategoryB = props?.[catPropB] || undefined;
-            tooltipData.transitionBucket = classifyTransition(
-              tooltipData.customerCategoryA ?? null,
-              tooltipData.customerCategoryB ?? null,
-            );
-          } else {
-            tooltipData.customerCategory = props?.fullmind_category;
-          }
-
-          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, tooltipData);
-        } else if (leaid === lastHoveredLeaidRef.current) {
-          // Same district — update tooltip position directly via DOM, no store write
-          if (tooltipElRef.current) {
-            tooltipElRef.current.style.left = `${e.point.x + 12}px`;
-            tooltipElRef.current.style.top = `${e.point.y - 8}px`;
-          }
-        }
-      } else {
-        // Check for overlay pin hover
-        const overlayPointLayers = ALL_OVERLAY_POINT_LAYERS.filter(
-          (id) => map.current!.getLayer(id)
-        );
-        const overlayFeatures = overlayPointLayers.length > 0
-          ? map.current.queryRenderedFeatures(e.point, { layers: [...overlayPointLayers] })
-          : [];
-
-        if (overlayFeatures.length > 0) {
-          const feature = overlayFeatures[0];
+      // --- Priority 1-3: Overlay pin layers (activities > vacancies > contacts) ---
+      for (const pointLayerId of ALL_OVERLAY_POINT_LAYERS) {
+        const features = queryLayer(pointLayerId);
+        if (features.length > 0) {
+          const feature = features[0];
           const overlayType = layerIdToOverlayType(feature.layer.id);
           const props = feature.properties;
-          lastHoveredLeaidRef.current = null;
-          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
-          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+          suppressDistrictHover();
           map.current.getCanvas().style.cursor = "pointer";
 
           const typeLabels: Record<string, string> = {
@@ -885,19 +913,31 @@ export default function MapV2Container({
           });
           return;
         }
+      }
 
-        // Check for school hover
-        const schoolFeatures = map.current.getLayer("schools-unclustered")
-          ? map.current.queryRenderedFeatures(e.point, {
-              layers: ["schools-unclustered"],
-            })
-          : [];
+      // --- Priority 4: Plan polygon ---
+      {
+        const planFeatures = queryLayer(PLANS_FILL_LAYER);
+        if (planFeatures.length > 0) {
+          const props = planFeatures[0].properties;
+          suppressDistrictHover();
+          map.current.getCanvas().style.cursor = "pointer";
 
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+            type: "district",
+            name: `Plan: ${props?.planName || "Untitled"}`,
+            leaid: props?.leaid,
+          });
+          return;
+        }
+      }
+
+      // --- Priority 5: School pins ---
+      {
+        const schoolFeatures = queryLayer("schools-unclustered");
         if (schoolFeatures.length > 0) {
           const props = schoolFeatures[0].properties;
-          lastHoveredLeaidRef.current = null;
-          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
-          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+          suppressDistrictHover();
           map.current.getCanvas().style.cursor = "crosshair";
 
           useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
@@ -909,55 +949,127 @@ export default function MapV2Container({
             lograde: props?.lograde,
             higrade: props?.higrade,
           });
-        } else if (map.current.getZoom() < 6) {
-          // Check state hover at low zoom
-          const stateFeatures = map.current.queryRenderedFeatures(e.point, {
-            layers: ["state-fill"],
-          });
-
-          if (stateFeatures.length > 0) {
-            const stateName = stateFeatures[0].properties?.name;
-            const stateCode = STATE_NAME_TO_ABBREV[stateName];
-            if (stateName) {
-              map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
-              map.current.getCanvas().style.cursor = "crosshair";
-              useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
-                type: "state",
-                stateName,
-                stateCode,
-              });
-            }
-          } else {
-            clearHover();
-          }
-        } else {
-          clearHover();
+          return;
         }
       }
+
+      // --- Priority 6: District base fill ---
+      {
+        const features = queryLayer("district-base-fill");
+        if (features.length > 0) {
+          const feature = features[0];
+          const leaid = feature.properties?.leaid;
+
+          // Skip hover on filtered-out districts when search is active
+          if (leaid && useMapV2Store.getState().isSearchActive && searchResultSetRef.current.size > 0 && !searchResultSetRef.current.has(leaid)) {
+            if (lastHoveredLeaidRef.current) clearHover();
+            return;
+          }
+
+          if (leaid && leaid !== lastHoveredLeaidRef.current) {
+            lastHoveredLeaidRef.current = leaid;
+
+            map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
+            map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
+            map.current.getCanvas().style.cursor = "crosshair";
+
+            // Build tooltip data, respecting tooltipPropertyMap for compare mode
+            const props = feature.properties;
+            const tooltipData: import("@/features/map/lib/store").V2TooltipData = {
+              type: "district",
+              leaid,
+              name: props?.name || "Unknown",
+              stateAbbrev: props?.state_abbrev,
+              enrollment: props?.enrollment,
+              salesExecutive: props?.sales_executive,
+            };
+
+            if (tooltipPropertyMap) {
+              // Compare / changes mode: read _a / _b properties
+              const catPropA = tooltipPropertyMap["fullmind_category_a"] || "fullmind_category_a";
+              const catPropB = tooltipPropertyMap["fullmind_category_b"] || "fullmind_category_b";
+              tooltipData.customerCategoryA = props?.[catPropA] || undefined;
+              tooltipData.customerCategoryB = props?.[catPropB] || undefined;
+              tooltipData.transitionBucket = classifyTransition(
+                tooltipData.customerCategoryA ?? null,
+                tooltipData.customerCategoryB ?? null,
+              );
+            } else {
+              tooltipData.customerCategory = props?.fullmind_category;
+            }
+
+            useMapV2Store.getState().showTooltip(e.point.x, e.point.y, tooltipData);
+          } else if (leaid === lastHoveredLeaidRef.current) {
+            // Same district — update tooltip position directly via DOM, no store write
+            if (tooltipElRef.current) {
+              tooltipElRef.current.style.left = `${e.point.x + 12}px`;
+              tooltipElRef.current.style.top = `${e.point.y - 8}px`;
+            }
+          }
+          return;
+        }
+      }
+
+      // --- Priority 7: State fill (low zoom only) ---
+      if (map.current.getZoom() < 6) {
+        const stateFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: ["state-fill"],
+        });
+
+        if (stateFeatures.length > 0) {
+          const stateName = stateFeatures[0].properties?.name;
+          const stateCode = STATE_NAME_TO_ABBREV[stateName];
+          if (stateName) {
+            map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
+            map.current.getCanvas().style.cursor = "crosshair";
+            useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+              type: "state",
+              stateName,
+              stateCode,
+            });
+            return;
+          }
+        }
+      }
+
+      // Nothing matched — clear hover
+      clearHover();
     },
     [mapReady, clearHover]
   );
 
-  // Handle map click — all store access via getState()
+  // Handle map click with priority-based hit testing.
+  // Priority order (first match wins):
+  //   1. overlay-activities-point   → setActiveResultsTab("activities")
+  //   2. overlay-vacancies-point    → setActiveResultsTab("vacancies")
+  //   3. overlay-contacts-point     → setActiveResultsTab("contacts")
+  //   4. overlay-plans-fill         → setActiveResultsTab("plans")
+  //   5. schools-unclustered        → existing behavior
+  //   6. district-base-fill         → existing behavior
+  //   7. state-fill                 → existing behavior
+  // Overlay cluster clicks are also handled (zoom into cluster).
   const handleClick = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
 
-      // Check overlay pin clicks first (highest z-order)
-      const overlayPointLayers = ALL_OVERLAY_POINT_LAYERS.filter(
-        (id) => map.current!.getLayer(id)
-      );
-      if (overlayPointLayers.length > 0) {
-        const overlayFeatures = map.current.queryRenderedFeatures(e.point, {
-          layers: [...overlayPointLayers],
-        });
-        if (overlayFeatures.length > 0) {
-          const feature = overlayFeatures[0];
+      // Helper: query a single layer if it exists
+      const queryLayer = (layerId: string) => {
+        if (!map.current!.getLayer(layerId)) return [];
+        return map.current!.queryRenderedFeatures(e.point, { layers: [layerId] });
+      };
+
+      // --- Priority 1-3: Overlay pin layers in hit-test priority order ---
+      for (const pointLayerId of ALL_OVERLAY_POINT_LAYERS) {
+        const features = queryLayer(pointLayerId);
+        if (features.length > 0) {
+          const feature = features[0];
           const overlayType = layerIdToOverlayType(feature.layer.id);
           const featureId = feature.properties?.id;
           if (overlayType && featureId) {
             const store = useMapV2Store.getState();
             store.addClickRipple(e.point.x, e.point.y, "coral");
+            // Switch results panel to the clicked entity's tab
+            store.setActiveResultsTab(overlayType);
             const panelType = overlayTypeToPanel(overlayType) as RightPanelContent["type"];
             store.openRightPanel({ type: panelType, id: String(featureId) });
           }
@@ -965,7 +1077,7 @@ export default function MapV2Container({
         }
       }
 
-      // Check overlay cluster clicks — zoom into the cluster
+      // --- Overlay cluster clicks — zoom into the cluster ---
       const overlayClusterLayers = ALL_OVERLAY_CLUSTER_LAYERS.filter(
         (id) => map.current!.getLayer(id)
       );
@@ -995,91 +1107,84 @@ export default function MapV2Container({
         }
       }
 
-      // Check plan polygon click
-      if (map.current.getLayer(PLANS_FILL_LAYER)) {
-        const planFeatures = map.current.queryRenderedFeatures(e.point, {
-          layers: [PLANS_FILL_LAYER],
-        });
+      // --- Priority 4: Plan polygon click ---
+      {
+        const planFeatures = queryLayer(PLANS_FILL_LAYER);
         if (planFeatures.length > 0) {
           const planId = planFeatures[0].properties?.planId;
           if (planId) {
             const store = useMapV2Store.getState();
             store.addClickRipple(e.point.x, e.point.y, "plum");
+            store.setActiveResultsTab("plans");
             store.openRightPanel({ type: "plan_card", id: planId });
             return;
           }
         }
       }
 
-      // Check for individual school click — select parent district
-      const schoolFeatures = map.current.getLayer("schools-unclustered")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["schools-unclustered"],
-          })
-        : [];
-
-      if (schoolFeatures.length > 0) {
-        const leaid = schoolFeatures[0].properties?.leaid;
-        if (leaid) {
-          const store = useMapV2Store.getState();
-          store.addClickRipple(e.point.x, e.point.y, "coral");
-          store.selectDistrict(leaid);
-        }
-        return;
-      }
-
-      // Check for district click — query base fill only (same source-layer, same properties)
-      const districtFeatures = map.current.getLayer("district-base-fill")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["district-base-fill"],
-          })
-        : [];
-
-      if (districtFeatures.length > 0) {
-        const leaid = districtFeatures[0].properties?.leaid;
-        if (!leaid) return;
-
-        const store = useMapV2Store.getState();
-
-        // Visual feedback
-        store.addClickRipple(e.point.x, e.point.y, "plum");
-
-        // In PLAN_ADD mode, shift+click or regular click adds to plan
-        if (store.panelState === "PLAN_ADD") {
-          store.addDistrictToPlan(leaid);
+      // --- Priority 5: School pins ---
+      {
+        const schoolFeatures = queryLayer("schools-unclustered");
+        if (schoolFeatures.length > 0) {
+          const leaid = schoolFeatures[0].properties?.leaid;
+          if (leaid) {
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "coral");
+            store.selectDistrict(leaid);
+          }
           return;
         }
-
-        // Multi-select is always-on — every click toggles selection
-        store.toggleLeaidSelection(leaid);
-
-        // Zoom to district
-        const bounds = districtFeatures[0].geometry;
-        if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
-          // Compute a rough bounding box from coordinates
-          const coords = bounds.type === "Polygon"
-            ? bounds.coordinates[0]
-            : bounds.coordinates.flat(1)[0] || [];
-
-          if (coords && Array.isArray(coords) && coords.length > 0) {
-            let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-            for (const c of coords) {
-              const coord = c as [number, number];
-              if (coord[0] < minLng) minLng = coord[0];
-              if (coord[0] > maxLng) maxLng = coord[0];
-              if (coord[1] < minLat) minLat = coord[1];
-              if (coord[1] > maxLat) maxLat = coord[1];
-            }
-            map.current.fitBounds(
-              [[minLng, minLat], [maxLng, maxLat]],
-              { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
-            );
-          }
-        }
-        return;
       }
 
-      // Check for state click at low zoom
+      // --- Priority 6: District base fill ---
+      {
+        const districtFeatures = queryLayer("district-base-fill");
+        if (districtFeatures.length > 0) {
+          const leaid = districtFeatures[0].properties?.leaid;
+          if (!leaid) return;
+
+          const store = useMapV2Store.getState();
+
+          // Visual feedback
+          store.addClickRipple(e.point.x, e.point.y, "plum");
+
+          // In PLAN_ADD mode, shift+click or regular click adds to plan
+          if (store.panelState === "PLAN_ADD") {
+            store.addDistrictToPlan(leaid);
+            return;
+          }
+
+          // Multi-select is always-on — every click toggles selection
+          store.toggleLeaidSelection(leaid);
+
+          // Zoom to district
+          const bounds = districtFeatures[0].geometry;
+          if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
+            // Compute a rough bounding box from coordinates
+            const coords = bounds.type === "Polygon"
+              ? bounds.coordinates[0]
+              : bounds.coordinates.flat(1)[0] || [];
+
+            if (coords && Array.isArray(coords) && coords.length > 0) {
+              let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+              for (const c of coords) {
+                const coord = c as [number, number];
+                if (coord[0] < minLng) minLng = coord[0];
+                if (coord[0] > maxLng) maxLng = coord[0];
+                if (coord[1] < minLat) minLat = coord[1];
+                if (coord[1] > maxLat) maxLat = coord[1];
+              }
+              map.current.fitBounds(
+                [[minLng, minLat], [maxLng, maxLat]],
+                { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
+              );
+            }
+          }
+          return;
+        }
+      }
+
+      // --- Priority 7: State fill (low zoom only) ---
       if (map.current.getZoom() < 6) {
         const stateFeatures = map.current.queryRenderedFeatures(e.point, {
           layers: ["state-fill"],

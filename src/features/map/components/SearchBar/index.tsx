@@ -1,16 +1,56 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useMapV2Store, type ExploreFilter, type FiscalYear } from "@/features/map/lib/store";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useMapV2Store, type ExploreFilter, type FiscalYear, type ContactLayerFilter, type VacancyLayerFilter, type ActivityLayerFilter, type PlanLayerFilter, type DateRange, type OverlayLayerType } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
 import { mapV2Ref } from "@/features/map/lib/ref";
 import GeographyDropdown from "./GeographyDropdown";
-import FullmindDropdown from "./FullmindDropdown";
-import CompetitorsDropdown from "./CompetitorsDropdown";
-import FinanceDropdown from "./FinanceDropdown";
-import DemographicsDropdown from "./DemographicsDropdown";
-import AcademicsDropdown from "./AcademicsDropdown";
+import DistrictsDropdown from "./DistrictsDropdown";
+import ContactsDropdown from "./ContactsDropdown";
+import VacanciesDropdown from "./VacanciesDropdown";
+import ActivitiesDropdown from "./ActivitiesDropdown";
+import PlansDropdown from "./PlansDropdown";
 import FilterPills from "./FilterPills";
+
+/** Count active filters for a contacts layer filter */
+function countContactFilters(f: ContactLayerFilter): number {
+  let n = 0;
+  if (f.seniorityLevel?.length) n++;
+  if (f.persona?.length) n++;
+  if (f.primaryOnly) n++;
+  return n;
+}
+
+/** Count active filters for a vacancies layer filter */
+function countVacancyFilters(f: VacancyLayerFilter, dr: DateRange): number {
+  let n = 0;
+  if (f.category?.length) n++;
+  if (f.status?.length) n++;
+  if (f.fullmindRelevant) n++;
+  if (f.minDaysOpen != null && f.minDaysOpen > 0) n++;
+  if (f.maxDaysOpen != null && f.maxDaysOpen < 365) n++;
+  if (dr.preset || dr.start || dr.end) n++;
+  return n;
+}
+
+/** Count active filters for an activities layer filter */
+function countActivityFilters(f: ActivityLayerFilter, dr: DateRange): number {
+  let n = 0;
+  if (f.type?.length) n++;
+  if (f.status?.length) n++;
+  if (f.outcome?.length) n++;
+  if (dr.preset || dr.start || dr.end) n++;
+  return n;
+}
+
+/** Count active filters for a plans layer filter */
+function countPlanFilters(f: PlanLayerFilter): number {
+  let n = 0;
+  if (f.status?.length) n++;
+  if (f.fiscalYear != null) n++;
+  if (f.ownerScope === "all") n++;
+  return n;
+}
 
 // Domain classification for badge counts
 const DOMAIN_COLUMNS: Record<string, Set<string>> = {
@@ -53,7 +93,6 @@ function countByDomain(filters: ExploreFilter[], domain: string): number {
 
 export default function SearchBar() {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
-  const toggleLayerBubble = useMapV2Store((s) => s.toggleLayerBubble);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
   const compareMode = useMapV2Store((s) => s.compareMode);
@@ -63,6 +102,16 @@ export default function SearchBar() {
   const exitCompareMode = useMapV2Store((s) => s.exitCompareMode);
   const setCompareFyA = useMapV2Store((s) => s.setCompareFyA);
   const setCompareFyB = useMapV2Store((s) => s.setCompareFyB);
+
+  // Overlay layers
+  const activeLayers = useMapV2Store((s) => s.activeLayers);
+  const toggleLayer = useMapV2Store((s) => s.toggleLayer);
+  const contactFilters = useMapV2Store((s) => s.layerFilters.contacts);
+  const vacancyFilters = useMapV2Store((s) => s.layerFilters.vacancies);
+  const activityFilters = useMapV2Store((s) => s.layerFilters.activities);
+  const planFilters = useMapV2Store((s) => s.layerFilters.plans);
+  const vacancyDateRange = useMapV2Store((s) => s.dateRange.vacancies);
+  const activityDateRange = useMapV2Store((s) => s.dateRange.activities);
 
   // Location search state
   const [query, setQuery] = useState("");
@@ -113,6 +162,15 @@ export default function SearchBar() {
   const toggleDropdown = useCallback((name: string) => {
     setOpenDropdown((prev) => (prev === name ? null : name));
   }, []);
+
+  /** Handle chevron click on an entity layer button: if layer is off, turn it on and open dropdown */
+  const handleEntityChevronClick = useCallback((layerName: string, layerType: OverlayLayerType) => {
+    const store = useMapV2Store.getState();
+    if (!store.activeLayers.has(layerType)) {
+      toggleLayer(layerType);
+    }
+    toggleDropdown(layerName);
+  }, [toggleLayer, toggleDropdown]);
 
   const activeFilterCount = searchFilters.length;
 
@@ -169,14 +227,60 @@ export default function SearchBar() {
         {/* Divider */}
         <div className="w-px h-6 bg-[#D4CFE2]" />
 
-        {/* 6 domain filter buttons */}
+        {/* Geography — always active, opens GeographyDropdown */}
+        <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
+
+        {/* Divider */}
+        <div className="w-px h-6 bg-[#D4CFE2]" />
+
+        {/* Entity layer toggle + filter buttons — always visible */}
         <div className="flex items-center gap-1">
-          <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
-          <DomainButton label="Fullmind" isOpen={openDropdown === "fullmind"} onClick={() => toggleDropdown("fullmind")} count={countByDomain(searchFilters, "fullmind")} />
-          <DomainButton label="Competitors" isOpen={openDropdown === "competitors"} onClick={() => toggleDropdown("competitors")} count={countByDomain(searchFilters, "competitors")} />
-          <DomainButton label="Finance" isOpen={openDropdown === "finance"} onClick={() => toggleDropdown("finance")} count={countByDomain(searchFilters, "finance")} />
-          <DomainButton label="Demographics" isOpen={openDropdown === "demographics"} onClick={() => toggleDropdown("demographics")} count={countByDomain(searchFilters, "demographics")} />
-          <DomainButton label="Academics" isOpen={openDropdown === "academics"} onClick={() => toggleDropdown("academics")} count={countByDomain(searchFilters, "academics")} />
+          {/* Districts — always active, not toggleable */}
+          <EntityLayerButton
+            label="Districts"
+            color="#403770"
+            active={true}
+            isOpen={openDropdown === "districts"}
+            onToggle={() => {/* Districts are always visible */}}
+            onChevronClick={() => toggleDropdown("districts")}
+            count={countByDomain(searchFilters, "fullmind") + countByDomain(searchFilters, "competitors") + countByDomain(searchFilters, "finance") + countByDomain(searchFilters, "demographics") + countByDomain(searchFilters, "academics")}
+          />
+          <EntityLayerButton
+            label="Contacts"
+            color="#F37167"
+            active={activeLayers.has("contacts")}
+            isOpen={openDropdown === "contacts"}
+            onToggle={() => toggleLayer("contacts")}
+            onChevronClick={() => handleEntityChevronClick("contacts", "contacts")}
+            count={activeLayers.has("contacts") ? countContactFilters(contactFilters) : 0}
+          />
+          <EntityLayerButton
+            label="Vacancies"
+            color="#FFCF70"
+            active={activeLayers.has("vacancies")}
+            isOpen={openDropdown === "vacancies"}
+            onToggle={() => toggleLayer("vacancies")}
+            onChevronClick={() => handleEntityChevronClick("vacancies", "vacancies")}
+            count={activeLayers.has("vacancies") ? countVacancyFilters(vacancyFilters, vacancyDateRange) : 0}
+          />
+          <EntityLayerButton
+            label="Activities"
+            color="#6EA3BE"
+            active={activeLayers.has("activities")}
+            isOpen={openDropdown === "activities"}
+            onToggle={() => toggleLayer("activities")}
+            onChevronClick={() => handleEntityChevronClick("activities", "activities")}
+            count={activeLayers.has("activities") ? countActivityFilters(activityFilters, activityDateRange) : 0}
+          />
+          <EntityLayerButton
+            label="Plans"
+            color="#7B6BA4"
+            active={activeLayers.has("plans")}
+            isOpen={openDropdown === "plans"}
+            onToggle={() => toggleLayer("plans")}
+            onChevronClick={() => handleEntityChevronClick("plans", "plans")}
+            count={activeLayers.has("plans") ? countPlanFilters(planFilters) : 0}
+          />
         </div>
 
         {/* Clear filters */}
@@ -250,20 +354,6 @@ export default function SearchBar() {
           </div>
         )}
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-[#D4CFE2]" />
-
-        {/* Gear icon for Layers */}
-        <button
-          onClick={() => { setOpenDropdown(null); toggleLayerBubble(); }}
-          className="p-1.5 rounded-lg text-plum/50 hover:bg-white hover:text-plum transition-colors"
-          title="Map Layers"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </button>
       </div>
 
       {/* Active filter pills — in flow, part of toolbar */}
@@ -277,11 +367,11 @@ export default function SearchBar() {
       {openDropdown && (
         <div className="absolute top-full left-0 z-50 px-3 pt-2">
           {openDropdown === "geography" && <GeographyDropdown onClose={() => setOpenDropdown(null)} />}
-          {openDropdown === "fullmind" && <FullmindDropdown onClose={() => setOpenDropdown(null)} />}
-          {openDropdown === "competitors" && <CompetitorsDropdown onClose={() => setOpenDropdown(null)} />}
-          {openDropdown === "finance" && <FinanceDropdown onClose={() => setOpenDropdown(null)} />}
-          {openDropdown === "demographics" && <DemographicsDropdown onClose={() => setOpenDropdown(null)} />}
-          {openDropdown === "academics" && <AcademicsDropdown onClose={() => setOpenDropdown(null)} />}
+          {openDropdown === "districts" && <DistrictsDropdown onClose={() => setOpenDropdown(null)} />}
+          {openDropdown === "contacts" && <ContactsDropdown onClose={() => setOpenDropdown(null)} />}
+          {openDropdown === "vacancies" && <VacanciesDropdown onClose={() => setOpenDropdown(null)} />}
+          {openDropdown === "activities" && <ActivitiesDropdown onClose={() => setOpenDropdown(null)} />}
+          {openDropdown === "plans" && <PlansDropdown onClose={() => setOpenDropdown(null)} />}
         </div>
       )}
     </div>
@@ -327,5 +417,86 @@ const DomainButton = React.memo(function DomainButton({
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
       </svg>
     </button>
+  );
+});
+
+/** Entity layer toggle + filter button with split click targets:
+ *  - Clicking the dot/label toggles the layer on/off
+ *  - Clicking the chevron opens the filter dropdown (and activates layer if inactive)
+ */
+const EntityLayerButton = React.memo(function EntityLayerButton({
+  label,
+  color,
+  active,
+  isOpen,
+  onToggle,
+  onChevronClick,
+  count,
+}: {
+  label: string;
+  color: string;
+  active: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onChevronClick: () => void;
+  count: number;
+}) {
+  return (
+    <div
+      className={`flex items-center rounded-lg text-xs font-semibold transition-colors ${
+        isOpen
+          ? "bg-white shadow-sm"
+          : active
+            ? "hover:bg-white hover:shadow-sm"
+            : "hover:bg-white/60"
+      }`}
+      style={{
+        borderWidth: "1px",
+        borderStyle: "solid",
+        borderColor: isOpen ? `${color}60` : active && count > 0 ? `${color}40` : "transparent",
+      }}
+    >
+      {/* Dot + label — toggles layer on/off */}
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-l-lg transition-colors hover:bg-[#EFEDF5]/60"
+        style={{ color: active ? undefined : "#8A80A8" }}
+      >
+        <span
+          className="w-2 h-2 rounded-full shrink-0 transition-opacity duration-150"
+          style={{
+            backgroundColor: color,
+            opacity: active ? 1 : 0.4,
+          }}
+        />
+        <span style={{ color: active ? "#544A78" : "#8A80A8" }}>
+          {label}
+        </span>
+        {active && count > 0 && (
+          <span
+            className="rounded-full text-[9px] font-bold flex items-center justify-center leading-none min-w-[16px] h-4 px-1 text-white"
+            style={{ backgroundColor: color }}
+          >
+            {count}
+          </span>
+        )}
+      </button>
+
+      {/* Chevron — opens filter dropdown */}
+      <button
+        onClick={onChevronClick}
+        className="flex items-center justify-center px-1.5 py-1.5 rounded-r-lg transition-colors hover:bg-[#EFEDF5]/80"
+        style={{ color: active ? "#544A78" : "#8A80A8" }}
+      >
+        <svg
+          className={`w-2.5 h-2.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    </div>
   );
 });

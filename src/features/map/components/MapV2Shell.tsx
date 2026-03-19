@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
-import LayerBubble from "./LayerBubble";
-import LayerDrawer from "./LayerDrawer";
 import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
 import SearchBar from "./SearchBar";
 import SearchResults from "./SearchResults";
 import RightPanel from "./RightPanel";
+import StylesBubble from "./StylesBubble";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
 import { useMapV2Store } from "@/features/map/lib/store";
-import type { OverlayLayerType } from "@/features/map/lib/store";
 import { VENDOR_IDS } from "@/features/map/lib/layers";
-import { useMapContacts, useMapVacancies, useMapActivities, useMapPlans } from "@/features/map/lib/queries";
 
 // Dynamic import for MapLibre (no SSR)
 const MapV2Container = dynamic(() => import("./MapV2Container"), {
@@ -30,36 +27,11 @@ const MapV2Container = dynamic(() => import("./MapV2Container"), {
 
 export default function MapV2Shell() {
   const compareMode = useMapV2Store((s) => s.compareMode);
-  const compareView = useMapV2Store((s) => s.compareView);
   const focusPlanId = useMapV2Store((s) => s.focusPlanId);
   const unfocusPlan = useMapV2Store((s) => s.unfocusPlan);
 
-  // Overlay layer state for feature counts
   const activeLayers = useMapV2Store((s) => s.activeLayers);
-  const layerFilters = useMapV2Store((s) => s.layerFilters);
-  const dateRange = useMapV2Store((s) => s.dateRange);
-  const mapBounds = useMapV2Store((s) => s.mapBounds);
   const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
-
-  // Query data to get feature counts for the drawer
-  const contactsQuery = useMapContacts(mapBounds, layerFilters.contacts, activeLayers.has("contacts"));
-  const vacanciesQuery = useMapVacancies(mapBounds, layerFilters.vacancies, dateRange, activeLayers.has("vacancies"));
-  const activitiesQuery = useMapActivities(mapBounds, layerFilters.activities, dateRange, activeLayers.has("activities"));
-  const plansQuery = useMapPlans(layerFilters.plans, activeLayers.has("plans"));
-
-  const featureCounts = useMemo<Partial<Record<OverlayLayerType, number>>>(() => ({
-    contacts: contactsQuery.data?.features.length,
-    vacancies: vacanciesQuery.data?.features.length,
-    activities: activitiesQuery.data?.features.length,
-    plans: plansQuery.data?.features.length,
-  }), [contactsQuery.data, vacanciesQuery.data, activitiesQuery.data, plansQuery.data]);
-
-  const layerLoading = useMemo<Partial<Record<OverlayLayerType, boolean>>>(() => ({
-    contacts: contactsQuery.isLoading,
-    vacancies: vacanciesQuery.isLoading,
-    activities: activitiesQuery.isLoading,
-    plans: plansQuery.isLoading,
-  }), [contactsQuery.isLoading, vacanciesQuery.isLoading, activitiesQuery.isLoading, plansQuery.isLoading]);
 
   // Determine if any overlay is active (for right panel rendering outside plan workspace)
   const anyOverlayActive = activeLayers.has("contacts") ||
@@ -113,6 +85,9 @@ export default function MapV2Shell() {
         {/* Full-viewport map (renders behind everything) */}
         {compareMode ? <ComparisonMapShell /> : <MapV2Container />}
 
+        {/* District styles bubble (bottom-left) */}
+        <StylesBubble />
+
         {/* Explore data overlay (covers map when active) */}
         <ExploreOverlay />
 
@@ -129,14 +104,8 @@ export default function MapV2Shell() {
           </button>
         )}
 
-        {/* Layer drawer (left side overlay controls) */}
-        <LayerDrawer featureCounts={featureCounts} layerLoading={layerLoading} />
-
         {/* Search results panel (right side) */}
         <SearchResults />
-
-        {/* Layer controls (opened by gear icon in SearchBar) */}
-        <LayerBubble />
 
         {/* Right panel for overlay entity detail/edit (when clicked from map pins) */}
         {anyOverlayActive && rightPanelContent && (
