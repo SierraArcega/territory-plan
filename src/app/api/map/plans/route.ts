@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
  *   - status: filter by plan status (planning, working, stale, archived)
  *   - fiscalYear: filter by fiscal year (e.g., 2026)
  *   - planId: optional single-plan mode — return districts for one plan only
+ *   - planIds: comma-separated list of plan IDs to include
+ *   - ownerIds: comma-separated list of owner user IDs to filter by
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +23,24 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const fiscalYear = searchParams.get("fiscalYear");
     const planId = searchParams.get("planId");
+    const planIds = searchParams.get("planIds");
+    const ownerIds = searchParams.get("ownerIds");
 
     const conditions: string[] = [];
     const params: (string | number)[] = [];
 
     if (status) {
-      params.push(status);
-      conditions.push(`tp.status = $${params.length}`);
+      const statuses = status.split(",").filter(Boolean);
+      if (statuses.length === 1) {
+        params.push(statuses[0]);
+        conditions.push(`tp.status = $${params.length}`);
+      } else if (statuses.length > 1) {
+        const placeholders = statuses.map((s) => {
+          params.push(s);
+          return `$${params.length}`;
+        });
+        conditions.push(`tp.status IN (${placeholders.join(",")})`);
+      }
     }
 
     if (fiscalYear) {
@@ -45,6 +58,28 @@ export async function GET(request: NextRequest) {
     if (planId) {
       params.push(planId);
       conditions.push(`tp.id = $${params.length}`);
+    }
+
+    if (planIds) {
+      const ids = planIds.split(",").filter(Boolean);
+      if (ids.length > 0) {
+        const placeholders = ids.map((id, i) => {
+          params.push(id);
+          return `$${params.length}`;
+        });
+        conditions.push(`tp.id IN (${placeholders.join(",")})`);
+      }
+    }
+
+    if (ownerIds) {
+      const ids = ownerIds.split(",").filter(Boolean);
+      if (ids.length > 0) {
+        const placeholders = ids.map((id, i) => {
+          params.push(id);
+          return `$${params.length}`;
+        });
+        conditions.push(`tp.owner_id IN (${placeholders.join(",")})`);
+      }
     }
 
     const whereClause =

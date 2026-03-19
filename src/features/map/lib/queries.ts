@@ -207,15 +207,17 @@ export function useMapContacts(
   bounds: [number, number, number, number] | null,
   filters: ContactLayerFilter,
   enabled: boolean,
+  geoStates?: string[],
 ) {
   const qBounds = bounds ? quantizeBounds(bounds) : null;
   const queryString = buildOverlayParams(qBounds, {
     seniorityLevel: filters.seniorityLevel,
     persona: filters.persona,
+    states: geoStates?.length ? geoStates.join(",") : undefined,
   });
 
   return useQuery({
-    queryKey: ["mapContacts", qBounds, filters],
+    queryKey: ["mapContacts", qBounds, filters, geoStates],
     queryFn: () =>
       fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/contacts${queryString}`),
     enabled: enabled && qBounds !== null,
@@ -234,16 +236,17 @@ export function useMapVacancies(
   filters: VacancyLayerFilter,
   dateRange: DateRange,
   enabled: boolean,
+  geoStates?: string[],
 ) {
   const qBounds = bounds ? quantizeBounds(bounds) : null;
   const queryString = buildOverlayParams(
     qBounds,
-    { category: filters.category, status: filters.status },
+    { category: filters.category, status: filters.status, states: geoStates?.length ? geoStates.join(",") : undefined },
     dateRange,
   );
 
   return useQuery({
-    queryKey: ["mapVacancies", qBounds, filters, dateRange],
+    queryKey: ["mapVacancies", qBounds, filters, dateRange, geoStates],
     queryFn: () =>
       fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/vacancies${queryString}`),
     enabled: enabled && qBounds !== null,
@@ -263,6 +266,7 @@ export function useMapActivities(
   filters: ActivityLayerFilter,
   dateRange: DateRange,
   enabled: boolean,
+  geoStates?: string[],
 ) {
   const qBounds = bounds ? quantizeBounds(bounds) : null;
   // Activities API uses startDate/endDate (not dateStart/dateEnd like vacancies)
@@ -273,11 +277,12 @@ export function useMapActivities(
       status: filters.status,
       startDate: dateRange?.start,
       endDate: dateRange?.end,
+      states: geoStates?.length ? geoStates.join(",") : undefined,
     },
   );
 
   return useQuery({
-    queryKey: ["mapActivities", qBounds, filters, dateRange],
+    queryKey: ["mapActivities", qBounds, filters, dateRange, geoStates],
     queryFn: () =>
       fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/activities${queryString}`),
     enabled: enabled && qBounds !== null,
@@ -297,8 +302,10 @@ export function useMapPlans(
   enabled: boolean,
 ) {
   const params = new URLSearchParams();
-  if (filters.status) params.set("status", filters.status);
+  if (filters.status?.length) params.set("status", filters.status.join(","));
   if (filters.fiscalYear) params.set("fiscalYear", String(filters.fiscalYear));
+  if (filters.planIds?.length) params.set("planIds", filters.planIds.join(","));
+  if (filters.ownerIds?.length) params.set("ownerIds", filters.ownerIds.join(","));
   const qs = params.toString();
   const queryString = qs ? `?${qs}` : "";
 

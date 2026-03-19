@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
 
     const seniorityLevel = searchParams.get("seniorityLevel");
     const persona = searchParams.get("persona");
+    const states = searchParams.get("states"); // comma-separated state abbreviations
 
     // Build parameterized query
     const conditions: string[] = [
@@ -55,6 +56,14 @@ export async function GET(request: NextRequest) {
     if (persona) {
       params.push(persona);
       conditions.push(`c.persona = $${params.length}`);
+    }
+
+    if (states) {
+      const stateList = states.split(",").map((s) => s.trim()).filter(Boolean);
+      if (stateList.length > 0) {
+        params.push(stateList.join(","));
+        conditions.push(`d.state_abbrev = ANY(string_to_array($${params.length}, ','))`);
+      }
     }
 
     const client = await pool.connect();

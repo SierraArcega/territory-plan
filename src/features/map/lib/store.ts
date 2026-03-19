@@ -650,7 +650,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   searchFilterModes: {},
   searchBounds: null,
   isSearchActive: false,
-  searchResultsVisible: true,
+  searchResultsVisible: false,
   exploreModalLeaid: null,
   searchResultLeaids: [],
   searchResultCentroids: [],

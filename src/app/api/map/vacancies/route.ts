@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const dateStart = searchParams.get("dateStart");
     const dateEnd = searchParams.get("dateEnd");
+    const states = searchParams.get("states"); // comma-separated state abbreviations
 
     // Use COALESCE to prefer school lat/lng, fall back to district centroid
     const conditions: string[] = [
@@ -71,6 +72,14 @@ export async function GET(request: NextRequest) {
     if (dateEnd) {
       params.push(dateEnd);
       conditions.push(`v.date_posted <= $${params.length}::timestamp`);
+    }
+
+    if (states) {
+      const stateList = states.split(",").map((s) => s.trim()).filter(Boolean);
+      if (stateList.length > 0) {
+        params.push(stateList.join(","));
+        conditions.push(`d.state_abbrev = ANY(string_to_array($${params.length}, ','))`);
+      }
     }
 
     const client = await pool.connect();

@@ -88,6 +88,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Optional leaid whitelist (e.g., from plan filter producing specific leaids)
+  const leaidsParam = url.searchParams.get("leaids");
+  const leaidWhitelist: string[] | null = leaidsParam ? leaidsParam.split(",").filter(Boolean) : null;
+
   // Sort
   const sortCol = url.searchParams.get("sort") ?? "enrollment";
   const sortDir = (url.searchParams.get("order") ?? "desc") as "asc" | "desc";
@@ -253,7 +257,9 @@ export async function GET(req: NextRequest) {
   if (filterWhere.AND && relationWhere.AND) {
     where.AND = [...(filterWhere.AND as unknown[]), ...(relationWhere.AND as unknown[])];
   }
-  if (zipRadiusLeaids !== null) {
+  if (leaidWhitelist !== null) {
+    where.leaid = { in: leaidWhitelist };
+  } else if (zipRadiusLeaids !== null) {
     where.leaid = { in: zipRadiusLeaids };
   } else if (boundsLeaids !== null) {
     where.leaid = { in: boundsLeaids };

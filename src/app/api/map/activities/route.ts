@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const states = searchParams.get("states"); // comma-separated state abbreviations
 
     const conditions: string[] = [
       "d.centroid IS NOT NULL",
@@ -76,6 +77,14 @@ export async function GET(request: NextRequest) {
     if (endDate) {
       params.push(endDate);
       conditions.push(`a.end_date <= $${params.length}::timestamp`);
+    }
+
+    if (states) {
+      const stateList = states.split(",").map((s) => s.trim()).filter(Boolean);
+      if (stateList.length > 0) {
+        params.push(stateList.join(","));
+        conditions.push(`d.state_abbrev = ANY(string_to_array($${params.length}, ','))`);
+      }
     }
 
     const client = await pool.connect();

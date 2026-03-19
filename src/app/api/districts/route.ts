@@ -137,6 +137,8 @@ export async function GET(request: NextRequest) {
         fy27OpenPipeline: true,
         fy27OpenPipelineWeighted: true,
         accountType: true,
+        cityLocation: true,
+        stateLocation: true,
       },
       take: limit,
       skip: offset,
@@ -155,6 +157,8 @@ export async function GET(request: NextRequest) {
         isCustomer: d.isCustomer || false,
         hasOpenPipeline: d.hasOpenPipeline || false,
         accountType: d.accountType || "district",
+        cityLocation: d.cityLocation,
+        stateLocation: d.stateLocation,
         metricValue,
       };
     });
