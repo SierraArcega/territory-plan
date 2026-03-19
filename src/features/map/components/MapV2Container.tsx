@@ -15,6 +15,7 @@ import { useProfile } from "@/lib/api";
 import { mapV2Ref, mapV2Refs, type MapRefKey } from "@/features/map/lib/ref";
 import { classifyTransition } from "@/features/map/lib/comparison";
 import { useSchoolGeoJSON, useMapContacts, useMapVacancies, useMapActivities, useMapPlans } from "@/features/map/lib/queries";
+import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import {
   CONTACTS_SOURCE, VACANCIES_SOURCE, ACTIVITIES_SOURCE, PLANS_SOURCE,
   CONTACTS_POINT_LAYER, VACANCIES_POINT_LAYER, ACTIVITIES_POINT_LAYER,
@@ -209,20 +210,34 @@ export default function MapV2Container({
   const schoolsEnabled = visibleSchoolTypes.size > 0 && mapReady;
   const { data: schoolGeoJSON } = useSchoolGeoJSON(schoolBounds, schoolsEnabled);
 
+  // Extract geographic state filters from searchFilters for overlay layer filtering
+  const searchFiltersForGeo = useMapV2Store((s) => s.searchFilters);
+  const geoStates = useMemo(() => {
+    const stateFilter = searchFiltersForGeo.find((f) => f.column === "state");
+    if (!stateFilter) return undefined;
+    if (stateFilter.op === "in" && Array.isArray(stateFilter.value)) {
+      return stateFilter.value as string[];
+    }
+    if (stateFilter.op === "eq" && typeof stateFilter.value === "string") {
+      return [stateFilter.value];
+    }
+    return undefined;
+  }, [searchFiltersForGeo]);
+
   // Overlay GeoJSON — TanStack Query, conditionally fetched when layer is active
   const contactsEnabled = activeLayers.has("contacts") && mapReady;
   const { data: contactsGeoJSON, isLoading: contactsLoading } = useMapContacts(
-    mapBounds, layerFilters.contacts, contactsEnabled,
+    mapBounds, layerFilters.contacts, contactsEnabled, geoStates,
   );
 
   const vacanciesEnabled = activeLayers.has("vacancies") && mapReady;
   const { data: vacanciesGeoJSON, isLoading: vacanciesLoading } = useMapVacancies(
-    mapBounds, layerFilters.vacancies, dateRange, vacanciesEnabled,
+    mapBounds, layerFilters.vacancies, dateRange, vacanciesEnabled, geoStates,
   );
 
   const activitiesEnabled = activeLayers.has("activities") && mapReady;
   const { data: activitiesGeoJSON, isLoading: activitiesLoading } = useMapActivities(
-    mapBounds, layerFilters.activities, dateRange, activitiesEnabled,
+    mapBounds, layerFilters.activities, dateRange, activitiesEnabled, geoStates,
   );
 
   const plansEnabled = activeLayers.has("plans") && mapReady;
@@ -242,41 +257,52 @@ export default function MapV2Container({
     }
   }, [schoolGeoJSON, schoolsEnabled, mapReady]);
 
+  // Cross-filter: constrains overlay rendering by plan focus, plan filters, and search results
+  const { filterOverlayGeoJSON } = useCrossFilter({
+    plansGeoJSON,
+    contactsGeoJSON,
+    vacanciesGeoJSON,
+    activitiesGeoJSON,
+  });
+
   // Push overlay contacts data to map source
   useEffect(() => {
     if (!map.current || !mapReady) return;
     const source = map.current.getSource(CONTACTS_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
-    if (contactsGeoJSON && contactsEnabled) {
-      source.setData(contactsGeoJSON);
+    const filtered = filterOverlayGeoJSON(contactsGeoJSON);
+    if (filtered && contactsEnabled) {
+      source.setData(filtered);
     } else {
       source.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [contactsGeoJSON, contactsEnabled, mapReady]);
+  }, [contactsGeoJSON, contactsEnabled, mapReady, filterOverlayGeoJSON]);
 
   // Push overlay vacancies data to map source
   useEffect(() => {
     if (!map.current || !mapReady) return;
     const source = map.current.getSource(VACANCIES_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
-    if (vacanciesGeoJSON && vacanciesEnabled) {
-      source.setData(vacanciesGeoJSON);
+    const filtered = filterOverlayGeoJSON(vacanciesGeoJSON);
+    if (filtered && vacanciesEnabled) {
+      source.setData(filtered);
     } else {
       source.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [vacanciesGeoJSON, vacanciesEnabled, mapReady]);
+  }, [vacanciesGeoJSON, vacanciesEnabled, mapReady, filterOverlayGeoJSON]);
 
   // Push overlay activities data to map source
   useEffect(() => {
     if (!map.current || !mapReady) return;
     const source = map.current.getSource(ACTIVITIES_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
-    if (activitiesGeoJSON && activitiesEnabled) {
-      source.setData(activitiesGeoJSON);
+    const filtered = filterOverlayGeoJSON(activitiesGeoJSON);
+    if (filtered && activitiesEnabled) {
+      source.setData(filtered);
     } else {
       source.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [activitiesGeoJSON, activitiesEnabled, mapReady]);
+  }, [activitiesGeoJSON, activitiesEnabled, mapReady, filterOverlayGeoJSON]);
 
   // Push overlay plans data to map source
   useEffect(() => {
