@@ -492,6 +492,15 @@ export default function SearchResults() {
       {/* Tab strip — always visible with all entity tabs */}
       <ResultsTabStrip counts={tabCounts} onCollapse={toggleSearchResults} />
 
+      {/* Cross-filter source indicator */}
+      {!showingOverlayTab && !isSearchActive && overlayDerivedLeaids && (
+        <div className="shrink-0 px-4 py-1.5 border-b border-[#E2DEEC] bg-[#F7F5FA] flex items-center justify-between">
+          <span className="text-xs text-[#8A80A8]">
+            Showing districts from filtered overlays
+          </span>
+        </div>
+      )}
+
       {/* Districts header — only shown when districts tab is active and results exist */}
       {!showingOverlayTab && hasDistrictResults && (
         <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
