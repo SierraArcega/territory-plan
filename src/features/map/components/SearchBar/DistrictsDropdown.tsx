@@ -14,7 +14,7 @@ const SECTION_COLUMNS: Record<string, Set<string>> = {
   fullmind: new Set([
     "isCustomer", "hasOpenPipeline", "salesExecutive", "owner",
     "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "fy26_net_invoicing",
-    "planNames", "tags",
+    "tags",
   ]),
   competitors: new Set([
     "competitor_proximity", "competitor_elevate", "competitor_tbt", "competitor_educere",
@@ -81,17 +81,12 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
 
   // Fullmind data
   const [owners, setOwners] = useState<string[]>([]);
-  const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     fetch("/api/sales-executives")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setOwners(data.map?.((d: any) => d.name || d) || []))
-      .catch(() => {});
-    fetch("/api/territory-plans")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setPlans(Array.isArray(data) ? data : []))
       .catch(() => {});
     fetch("/api/tags")
       .then((r) => (r.ok ? r.json() : []))
@@ -202,7 +197,7 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
               {isOpen && (
                 <div className="px-4 pb-3 pt-1 space-y-3">
                   {key === "attributes" && <DistrictAttributesContent addFilter={addFilter} />}
-                  {key === "fullmind" && <FullmindContent addFilter={addFilter} handleRangeApply={handleRangeApply} fyLabel={fyLabel} selectedFY={selectedFY} owners={owners} plans={plans} tags={tags} />}
+                  {key === "fullmind" && <FullmindContent addFilter={addFilter} handleRangeApply={handleRangeApply} fyLabel={fyLabel} selectedFY={selectedFY} owners={owners} tags={tags} />}
                   {key === "competitors" && <CompetitorsContent addFilter={addFilter} getExistingFilter={getExistingFilter} removeSearchFilter={removeSearchFilter} />}
                   {key === "finance" && <FinanceContent handleRangeApply={handleRangeApply} />}
                   {key === "demographics" && <DemographicsContent handleRangeApply={handleRangeApply} />}
@@ -251,7 +246,6 @@ function FullmindContent({
   fyLabel,
   selectedFY,
   owners,
-  plans,
   tags,
 }: {
   addFilter: (column: string, op: string, value: any) => void;
@@ -259,7 +253,6 @@ function FullmindContent({
   fyLabel: string;
   selectedFY: string;
   owners: string[];
-  plans: Array<{ id: string; name: string }>;
   tags: Array<{ id: string; name: string }>;
 }) {
   return (
@@ -294,15 +287,6 @@ function FullmindContent({
       <RangeFilter label={`${fyLabel} Pipeline Value`} column={`${selectedFY}_open_pipeline_value`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
       <RangeFilter label={`${fyLabel} Bookings`} column={`${selectedFY}_closed_won_net_booking`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
       <RangeFilter label={`${fyLabel} Invoicing`} column={`${selectedFY}_net_invoicing`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-
-      {plans.length > 0 && (
-        <FilterMultiSelect
-          label="Plan Membership"
-          column="planNames"
-          options={plans.map((p) => ({ value: p.name, label: p.name }))}
-          onApply={(col, vals) => addFilter(col, "eq", vals)}
-        />
-      )}
 
       {tags.length > 0 && (
         <FilterMultiSelect
