@@ -32,6 +32,8 @@ export interface PlanLayerFilter {
   status?: string[] | null;
   fiscalYear?: number | null;
   ownerScope?: "mine" | "all";
+  planIds?: string[] | null;
+  ownerIds?: string[] | null;
 }
 
 export interface ActivityLayerFilter {
@@ -480,6 +482,7 @@ interface MapV2Actions {
   // Unified layer control
   setColorBy: (dimension: ColorDimension) => void;
   setActiveResultsTab: (tab: LayerType) => void;
+  openResultsPanel: (tab: LayerType) => void;
 
   // Geography filters
   setGeographyStates: (states: string[]) => void;
@@ -647,7 +650,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   searchFilterModes: {},
   searchBounds: null,
   isSearchActive: false,
-  searchResultsVisible: false,
+  searchResultsVisible: true,
   exploreModalLeaid: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
@@ -1380,6 +1383,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   // Unified layer control
   setColorBy: (dimension) => set({ colorBy: dimension }),
   setActiveResultsTab: (tab) => set({ activeResultsTab: tab }),
+  openResultsPanel: (tab) => set({ searchResultsVisible: true, activeResultsTab: tab }),
 
   // Geography filters
   setGeographyStates: (states) => set((s) => ({ geographyFilters: { ...s.geographyFilters, states } })),

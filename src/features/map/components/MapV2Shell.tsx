@@ -6,7 +6,6 @@ import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
 import SearchBar from "./SearchBar";
 import SearchResults from "./SearchResults";
-import RightPanel from "./RightPanel";
 import StylesBubble from "./StylesBubble";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
 import { useMapV2Store } from "@/features/map/lib/store";
@@ -30,14 +29,6 @@ export default function MapV2Shell() {
   const focusPlanId = useMapV2Store((s) => s.focusPlanId);
   const unfocusPlan = useMapV2Store((s) => s.unfocusPlan);
 
-  const activeLayers = useMapV2Store((s) => s.activeLayers);
-  const rightPanelContent = useMapV2Store((s) => s.rightPanelContent);
-
-  // Determine if any overlay is active (for right panel rendering outside plan workspace)
-  const anyOverlayActive = activeLayers.has("contacts") ||
-    activeLayers.has("vacancies") ||
-    activeLayers.has("plans") ||
-    activeLayers.has("activities");
 
   // Load saved palette preferences on mount
   useEffect(() => {
@@ -104,15 +95,8 @@ export default function MapV2Shell() {
           </button>
         )}
 
-        {/* Search results panel (right side) */}
+        {/* Search results panel (right side, always present) */}
         <SearchResults />
-
-        {/* Right panel for overlay entity detail/edit (when clicked from map pins) */}
-        {anyOverlayActive && rightPanelContent && (
-          <div className="absolute top-0 right-0 bottom-0 z-20">
-            <RightPanel />
-          </div>
-        )}
       </div>
     </div>
   );

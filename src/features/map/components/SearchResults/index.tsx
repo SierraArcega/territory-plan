@@ -56,6 +56,19 @@ function getPageNumbers(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
+function LayerOffPrompt({ layer }: { layer: string }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+      <svg className="w-12 h-12 text-[#D4CFE2] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+      <p className="text-sm font-medium text-[#8A80A8]">{layer} layer is off</p>
+      <p className="text-xs text-[#A69DC0] mt-1">Enable the {layer} layer in the toolbar to see data here</p>
+    </div>
+  );
+}
+
 export default function SearchResults() {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const searchBounds = useMapV2Store((s) => s.searchBounds);
@@ -394,20 +407,40 @@ export default function SearchResults() {
 
   const showingOverlayTab = activeResultsTab !== "districts";
 
-  if (!isSearchActive || !searchResultsVisible) return null;
-
   const selectedCount = selectedDistrictLeaids.size;
 
   return (
     <div
-      className="absolute top-0 right-0 bottom-0 w-[40%] z-10 flex flex-col bg-white border-l border-[#D4CFE2]/60 overflow-hidden"
+      className={`absolute top-0 right-0 bottom-0 z-10 flex flex-col border-l border-[#D4CFE2]/60 transition-[width] duration-200 ease-in-out ${
+        searchResultsVisible ? "w-[40%] bg-white overflow-hidden" : "w-0 overflow-visible"
+      }`}
       onMouseEnter={() => useMapV2Store.getState().hideTooltip()}
     >
-      {/* Tab strip — shown when overlay layers are active */}
-      <ResultsTabStrip counts={tabCounts} />
+      {/* Collapsed — floating tab on the right edge */}
+      {!searchResultsVisible && (
+        <button
+          onClick={toggleSearchResults}
+          className="absolute top-3 -left-10 flex items-center gap-1.5 pl-2.5 pr-2.5 py-2 rounded-l-xl bg-plum shadow-lg hover:bg-plum/90 transition-colors"
+          aria-label="Open results panel"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#544A78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" stroke="white" />
+          </svg>
+          {total > 0 && (
+            <span className="text-[10px] font-bold text-plum bg-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+              {total > 999 ? `${(total / 1000).toFixed(0)}k` : total}
+            </span>
+          )}
+        </button>
+      )}
 
-      {/* Districts header — only shown when districts tab is active */}
-      {!showingOverlayTab && (
+      {searchResultsVisible && (
+        <>
+      {/* Tab strip — always visible with all entity tabs */}
+      <ResultsTabStrip counts={tabCounts} onCollapse={toggleSearchResults} />
+
+      {/* Districts header — only shown when districts tab is active and search is running */}
+      {!showingOverlayTab && isSearchActive && (
         <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <button
@@ -449,21 +482,12 @@ export default function SearchResults() {
               </svg>
             </button>
 
-            {/* Close */}
-            <button
-              onClick={toggleSearchResults}
-              className="ml-1 text-[#A69DC0] hover:text-[#6E6390]"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
         </div>
       )}
 
       {/* Actions bar — districts tab only */}
-      {!showingOverlayTab && total > 0 && (
+      {!showingOverlayTab && isSearchActive && total > 0 && (
         <div ref={addAllRef} className="relative px-4 py-2 border-b border-[#E2DEEC] bg-[#F7F5FA] shrink-0 flex items-center gap-2">
           {/* Save Search */}
           {showSaveSearch ? (
@@ -616,7 +640,7 @@ export default function SearchResults() {
       )}
 
       {/* Selection status — districts tab only */}
-      {!showingOverlayTab && selectedCount > 0 && (
+      {!showingOverlayTab && isSearchActive && selectedCount > 0 && (
         <div className="shrink-0 px-4 py-1.5 border-b border-[#E2DEEC] bg-[#e8f1f5] flex items-center justify-between">
           <span className="text-xs font-medium text-[#6EA3BE]">
             {selectedCount} selected
@@ -632,20 +656,39 @@ export default function SearchResults() {
 
       {/* Overlay tab content */}
       {showingOverlayTab && activeResultsTab === "plans" && (
-        <PlansTab data={plansQuery.data} isLoading={plansQuery.isLoading} />
+        activeLayers.has("plans")
+          ? <PlansTab data={plansQuery.data} isLoading={plansQuery.isLoading} />
+          : <LayerOffPrompt layer="Plans" />
       )}
       {showingOverlayTab && activeResultsTab === "contacts" && (
-        <ContactsTab data={contactsQuery.data} isLoading={contactsQuery.isLoading} />
+        activeLayers.has("contacts")
+          ? <ContactsTab data={contactsQuery.data} isLoading={contactsQuery.isLoading} />
+          : <LayerOffPrompt layer="Contacts" />
       )}
       {showingOverlayTab && activeResultsTab === "vacancies" && (
-        <VacanciesTab data={vacanciesQuery.data} isLoading={vacanciesQuery.isLoading} />
+        activeLayers.has("vacancies")
+          ? <VacanciesTab data={vacanciesQuery.data} isLoading={vacanciesQuery.isLoading} />
+          : <LayerOffPrompt layer="Vacancies" />
       )}
       {showingOverlayTab && activeResultsTab === "activities" && (
-        <ActivitiesTab data={activitiesQuery.data} isLoading={activitiesQuery.isLoading} />
+        activeLayers.has("activities")
+          ? <ActivitiesTab data={activitiesQuery.data} isLoading={activitiesQuery.isLoading} />
+          : <LayerOffPrompt layer="Activities" />
+      )}
+
+      {/* Districts — empty state when no search */}
+      {!showingOverlayTab && !isSearchActive && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <svg className="w-12 h-12 text-[#D4CFE2] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p className="text-sm font-medium text-[#8A80A8]">No active search</p>
+          <p className="text-xs text-[#A69DC0] mt-1">Use the filters above to search districts</p>
+        </div>
       )}
 
       {/* Districts results grid — two columns with scroll */}
-      {!showingOverlayTab && (
+      {!showingOverlayTab && isSearchActive && (
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
           {loading && districts.length === 0 ? (
             // Skeleton loading — 2 column grid
@@ -696,7 +739,7 @@ export default function SearchResults() {
       )}
 
       {/* Footer — districts tab only, pagination controls when multi-page */}
-      {!showingOverlayTab && total > 0 && (
+      {!showingOverlayTab && isSearchActive && total > 0 && (
         <div className="shrink-0 px-4 py-2 border-t border-[#E2DEEC] flex items-center justify-between">
           {totalPages > 1 ? (
             <>
@@ -746,6 +789,7 @@ export default function SearchResults() {
       )}
 
       {/* Explore modal — rendered via portal into document.body to escape stacking context */}
+      {/* Explore modal — rendered via portal into document.body to escape stacking context */}
       {exploreModalLeaid && createPortal(
         <DistrictExploreModal
           leaid={exploreModalLeaid}
@@ -756,6 +800,8 @@ export default function SearchResults() {
           totalCount={districts.length}
         />,
         document.body
+      )}
+      </>
       )}
     </div>
   );

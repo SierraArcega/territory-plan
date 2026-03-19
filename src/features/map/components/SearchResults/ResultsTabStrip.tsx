@@ -13,22 +13,17 @@ const LAYER_LABELS: Record<LayerType, string> = {
 
 interface ResultsTabStripProps {
   counts: Partial<Record<LayerType, number>>;
+  onCollapse: () => void;
 }
 
-export default function ResultsTabStrip({ counts }: ResultsTabStripProps) {
-  const activeLayers = useMapV2Store((s) => s.activeLayers);
+export default function ResultsTabStrip({ counts, onCollapse }: ResultsTabStripProps) {
   const activeResultsTab = useMapV2Store((s) => s.activeResultsTab);
   const setActiveResultsTab = useMapV2Store((s) => s.setActiveResultsTab);
 
-  const visibleTabs = LAYER_ORDER.filter((layer) => activeLayers.has(layer));
-
-  // Only render the strip when there are overlay tabs beyond districts
-  if (visibleTabs.length <= 1) return null;
-
   return (
-    <div className="shrink-0 border-b border-[#E2DEEC] overflow-x-auto">
-      <div className="flex gap-0">
-        {visibleTabs.map((layer) => {
+    <div className="shrink-0 border-b border-[#E2DEEC] flex items-center">
+      <div className="flex gap-0 flex-1 overflow-x-auto">
+        {LAYER_ORDER.map((layer) => {
           const isActive = activeResultsTab === layer;
           const color = LAYER_COLORS[layer];
           const count = counts[layer];
@@ -44,7 +39,7 @@ export default function ResultsTabStrip({ counts }: ResultsTabStripProps) {
               }}
             >
               {LAYER_LABELS[layer]}
-              {count != null && (
+              {count != null && count > 0 && (
                 <span
                   className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold"
                   style={{
@@ -67,6 +62,17 @@ export default function ResultsTabStrip({ counts }: ResultsTabStripProps) {
           );
         })}
       </div>
+
+      {/* Collapse button */}
+      <button
+        onClick={onCollapse}
+        className="shrink-0 w-8 h-8 flex items-center justify-center text-[#A69DC0] hover:text-[#6E6390] hover:bg-[#F7F5FA] rounded-lg transition-colors mr-1"
+        aria-label="Collapse panel"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
     </div>
   );
 }

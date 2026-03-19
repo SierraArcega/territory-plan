@@ -415,7 +415,7 @@ export default function MapV2Container({
 
     // Only add nav control to the primary map (or when not in side-by-side)
     if (refKey === "primary") {
-      map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+      map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
     }
 
     map.current.on("load", () => {
