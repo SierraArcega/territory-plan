@@ -166,11 +166,6 @@ async function main() {
     console.log(`  Districts: ${districts.length}`);
     console.log(`  Total open vacancies across all districts: ${existingCount}`);
 
-    if (existingCount === 0) {
-      console.log("  No vacancies to clean up — skipping.");
-      continue;
-    }
-
     // 4. Delete all open vacancies for these districts
     if (!dryRun) {
       const deleted = await prisma.vacancy.deleteMany({
@@ -268,19 +263,12 @@ async function main() {
       });
 
       let instanceTotal = 0;
-      const CONCURRENCY = 5;
       const entries = [...buckets.entries()];
 
-      for (let i = 0; i < entries.length; i += CONCURRENCY) {
-        const batch = entries.slice(i, i + CONCURRENCY);
-        const results = await Promise.all(
-          batch.map(([leaid, bucket]) =>
-            processVacancies(leaid, scan.id, bucket.jobs, platform, bucket.districtName)
-          )
-        );
-        for (const r of results) {
-          instanceTotal += r.vacancyCount;
-        }
+      // Process sequentially to avoid exhausting the DB connection pool
+      for (const [leaid, bucket] of entries) {
+        const result = await processVacancies(leaid, scan.id, bucket.jobs, platform, bucket.districtName);
+        instanceTotal += result.vacancyCount;
       }
 
       await prisma.vacancyScan.update({
