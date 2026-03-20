@@ -48,6 +48,17 @@ Follow these stages in order. Do not skip or reorder.
 
 **Goal:** Understand what we're building, what exists, and what we need.
 
+**Context bootstrapping:**
+
+Read `docs/architecture.md` before starting discovery. This gives you:
+- The feature map (so you know what exists and where things live)
+- Key patterns (data fetching, state management, shared components)
+- Key metrics (so you understand the business domain)
+- Cross-feature dependencies (so you know what your feature touches)
+
+This replaces blind exploration — start from the map, then drill into
+specifics for the feature being built.
+
 **1a. Requirements gathering:**
 
 Ask the user 3-6 clarifying questions, one at a time via `AskUserQuestion`:
@@ -256,6 +267,41 @@ npm run build
 ```
 
 Both must succeed.
+
+**8b-1/2. Context documentation:**
+
+After implementation is verified (tests pass, build clean), check whether
+the changes require updates to context documentation:
+
+**Check `docs/architecture.md`:**
+- New feature directory created? -> Add to the Feature Directory Map table
+- New shared component created? -> Add to the Shared Components section
+- New cross-feature dependency introduced? -> Update Cross-Feature Dependencies
+- New metrics or financial fields added? -> Update Key Metrics section
+
+**Check `Documentation/.md Files/TECHSTACK.md`:**
+- New API routes added? -> Add to the API Route Structure section
+- New database tables/models? -> Update the Database Schema Overview tree
+- New external integration? -> Add to the relevant technology table
+- New environment variables required? -> Add to the Environment Variables section
+
+**Check `CLAUDE.md`:**
+- Usually no changes needed — it references architecture.md and TECHSTACK.md
+  for details. Only update if a new skill was created or a core convention changed.
+
+**Check `docs/prompting-guide.md`:**
+- New major feature that users would want to prompt about? -> Add an entry
+  to the Key Terms table mapping user language to the new feature
+
+**How to check:** Diff the worktree branch against main to see what was
+created. Grep the diff for:
+- New directories under `src/features/`
+- New files under `src/app/api/`
+- New models in `prisma/schema.prisma`
+- New exports from `src/features/shared/`
+
+Only update docs that are affected. Don't touch docs for unrelated sections.
+Commit context doc updates as a separate commit from the feature code.
 
 **8c. Slack notification (if configured):**
 
