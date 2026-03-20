@@ -284,8 +284,8 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                   />
                 </td>
 
-                {/* Owner (display only — owner is now a user object) */}
-                <td className="px-2 py-1">
+                {/* Owner */}
+                <td className="px-2 py-1 cursor-pointer">
                   <span className="text-xs text-[#8A80A8]">
                     {plan.owner?.fullName ?? "\u2014"}
                   </span>
