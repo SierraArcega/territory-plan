@@ -15,7 +15,8 @@ import DayNavigator from "./DayNavigator";
 import FeedControls from "./FeedControls";
 import { TaskRow, ActivityRow, MeetingRow } from "./FeedRows";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
-import { Rocket, UserPlus } from "lucide-react";
+import { Rocket, Users } from "lucide-react";
+import Link from "next/link";
 
 // ============================================================================
 // Helpers
@@ -349,29 +350,29 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
 
       {/* True empty state — CTA */}
       {isTrulyEmpty && (
-        <div className="bg-white rounded-lg border border-[#D4CFE2] py-16 text-center">
-          <Rocket className="w-10 h-10 mx-auto text-[#403770] mb-3" />
-          <p className="text-sm font-semibold text-[#403770]">
+        <div className="bg-white rounded-lg border border-[#D4CFE2] flex flex-col items-center justify-center gap-3 py-10">
+          <Rocket className="w-10 h-10 text-[#C2BBD4]" strokeWidth={1.5} />
+          <p className="text-sm font-semibold text-[#6E6390]">
             You&apos;re all set — what&apos;s next?
           </p>
-          <p className="text-xs text-[#8A80A8] mt-1 mb-6">
+          <p className="text-xs text-[#A69DC0] text-center max-w-[280px]">
             Start planning your next move
           </p>
           <div className="flex items-center justify-center gap-3">
-            <a
+            <Link
               href="/?tab=plans"
-              className="inline-flex items-center gap-2 bg-[#403770] text-white rounded-lg px-4 py-2 text-xs font-semibold hover:bg-[#332C5C] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
             >
-              <Rocket className="w-3.5 h-3.5" />
+              <Rocket className="w-4 h-4" />
               Create a Plan
-            </a>
-            <a
-              href="/?tab=feed"
-              className="inline-flex items-center gap-2 border border-[#D4CFE2] text-[#403770] rounded-lg px-4 py-2 text-xs font-semibold hover:bg-[#F7F5FA] transition-colors"
+            </Link>
+            <Link
+              href="/?tab=activities"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border border-[#403770] text-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              <Users className="w-4 h-4" />
               Add Contacts
-            </a>
+            </Link>
           </div>
         </div>
       )}

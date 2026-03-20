@@ -22,28 +22,26 @@ export default function FeedControls({
   return (
     <div className="flex items-center justify-between">
       {/* Left: completed toggle */}
-      <button
-        onClick={onToggleCompleted}
-        className="flex items-center gap-2 group"
-        type="button"
-      >
-        {/* Toggle track */}
-        <span
-          className={`relative w-8 h-[18px] rounded-full transition-colors ${
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showCompleted}
+          onClick={onToggleCompleted}
+          className={`relative inline-flex items-center w-8 h-[18px] rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:ring-offset-1 ${
             showCompleted ? "bg-[#403770]" : "bg-[#C2BBD4]"
           }`}
         >
-          {/* Toggle thumb */}
           <span
-            className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
-              showCompleted ? "left-[16px]" : "left-[2px]"
+            className={`absolute left-[2px] top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-transform ${
+              showCompleted ? "translate-x-[14px]" : "translate-x-0"
             }`}
           />
-        </span>
-        <span className="text-xs font-medium text-[#6E6390]">
+        </button>
+        <span className="text-sm font-medium text-[#8A80A8]">
           Show Completed
         </span>
-      </button>
+      </div>
 
       {/* Right: page size dropdown */}
       <div className="flex items-center gap-2">

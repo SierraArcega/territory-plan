@@ -37,7 +37,7 @@ export default function DayNavigator({
       <button
         onClick={onPrev}
         disabled={!hasPrev}
-        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none ${
           hasPrev
             ? "text-[#403770] hover:bg-[#F7F5FA]"
             : "text-[#A69DC0] cursor-not-allowed opacity-50"
@@ -54,7 +54,7 @@ export default function DayNavigator({
       <button
         onClick={onNext}
         disabled={!hasNext}
-        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none ${
           hasNext
             ? "text-[#403770] hover:bg-[#F7F5FA]"
             : "text-[#A69DC0] cursor-not-allowed opacity-50"
