@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("endDate");
     const unscheduled = searchParams.get("unscheduled") === "true";
     const search = searchParams.get("search");
+    const source = searchParams.get("source");
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -69,6 +70,11 @@ export async function GET(request: NextRequest) {
     // Filter by status
     if (status) {
       where.status = status;
+    }
+
+    // Filter by source
+    if (source) {
+      where.source = source;
     }
 
     // Filter for unscheduled activities (no startDate)

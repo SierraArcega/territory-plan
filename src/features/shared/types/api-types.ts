@@ -481,7 +481,7 @@ export interface Activity {
   createdAt: string;
   updatedAt: string;
   googleEventId: string | null;
-  source: "manual" | "calendar_sync";
+  source: "manual" | "calendar_sync" | "gmail_sync" | "slack_sync";
   outcome: string | null;
   outcomeType: string | null;
   metadata: Record<string, unknown> | null;
@@ -504,13 +504,19 @@ export interface ActivityListItem {
   startDate: string | null;
   endDate: string | null;
   status: ActivityStatus;
-  source: "manual" | "calendar_sync";
+  source: "manual" | "calendar_sync" | "gmail_sync" | "slack_sync";
   outcomeType: string | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
   planCount: number;
   districtCount: number;
   stateAbbrevs: string[];
+  // Mixmax enrichment fields (populated by Mixmax sync)
+  mixmaxSequenceName?: string | null;
+  mixmaxSequenceStep?: number | null;
+  mixmaxSequenceTotalSteps?: number | null;
+  mixmaxOpenCount?: number | null;
+  mixmaxClickCount?: number | null;
 }
 
 export interface ActivitiesResponse {
@@ -530,6 +536,7 @@ export interface ActivitiesParams {
   unscheduled?: boolean;
   needsPlanAssociation?: boolean;
   hasUnlinkedDistricts?: boolean;
+  source?: string;
   limit?: number;
   offset?: number;
 }

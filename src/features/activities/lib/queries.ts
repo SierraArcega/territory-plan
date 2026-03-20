@@ -23,6 +23,7 @@ export function useActivities(params: ActivitiesParams = {}) {
     searchParams.set("needsPlanAssociation", params.needsPlanAssociation.toString());
   if (params.hasUnlinkedDistricts !== undefined)
     searchParams.set("hasUnlinkedDistricts", params.hasUnlinkedDistricts.toString());
+  if (params.source) searchParams.set("source", params.source);
   if (params.limit) searchParams.set("limit", params.limit.toString());
   if (params.offset) searchParams.set("offset", params.offset.toString());
 
@@ -177,6 +178,15 @@ export function useLinkActivityDistricts() {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["activity", variables.activityId] });
     },
+  });
+}
+
+// Fetch unlinked activities (synced but not matched to any district)
+export function useUnlinkedActivities() {
+  return useQuery<{ activities: any[]; count: number }>({
+    queryKey: ["activities", "unlinked"],
+    queryFn: () => fetchJson("/api/activities/unlinked"),
+    staleTime: 2 * 60_000,
   });
 }
 

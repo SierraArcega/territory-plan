@@ -40,11 +40,11 @@ model District {
   // ===== Account Type =====
   // Distinguishes traditional districts from other entity types (CMO, ESA, etc.)
   // Defaults to 'district' for all existing rows
-  accountType        String   @default("district") @map("account_type") @db.VarChar(20)
+  accountType String @default("district") @map("account_type") @db.VarChar(20)
 
   // ===== Point Location (managed outside Prisma) =====
   // Geocoded lat/lng for map pin — used when polygon geometry is null
-  pointLocation Unsupported("geometry(Point, 4326)")?  @map("point_location")
+  pointLocation Unsupported("geometry(Point, 4326)")? @map("point_location")
 
   // ===== Fullmind CRM Data =====
   // Source: Fullmind CSV import via ETL
@@ -98,17 +98,17 @@ model District {
 
   // ===== Title I Aggregates =====
   // Source: Computed from schools table + Urban Institute finance endpoint
-  titleISchoolCount      Int?     @map("title_i_school_count")
-  titleISchoolwideCount  Int?     @map("title_i_schoolwide_count")
-  totalSchoolCount       Int?     @map("total_school_count")
-  frplTotalCount         Int?     @map("frpl_total_count")
-  frplRate               Decimal? @map("frpl_rate") @db.Decimal(5, 2)
-  titleIRevenue          Decimal? @map("title_i_revenue") @db.Decimal(15, 2)
+  titleISchoolCount     Int?     @map("title_i_school_count")
+  titleISchoolwideCount Int?     @map("title_i_schoolwide_count")
+  totalSchoolCount      Int?     @map("total_school_count")
+  frplTotalCount        Int?     @map("frpl_total_count")
+  frplRate              Decimal? @map("frpl_rate") @db.Decimal(5, 2)
+  titleIRevenue         Decimal? @map("title_i_revenue") @db.Decimal(15, 2)
 
   // ===== Graduation Data =====
   // Source: Urban Institute API (graduation endpoint)
-  graduationRateTotal  Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
-  graduationDataYear   Int?     @map("graduation_data_year")
+  graduationRateTotal Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
+  graduationDataYear  Int?     @map("graduation_data_year")
 
   // ===== Staffing & Salaries =====
   // Source: Urban Institute API (staff endpoint)
@@ -185,15 +185,15 @@ model District {
 
   // ===== ESSER / COVID Relief Funding =====
   // Source: Urban Institute API (finance endpoint) - federal COVID relief
-  esserFundingTotal    Decimal? @map("esser_funding_total") @db.Decimal(15, 2)
-  esserSpendingTotal   Decimal? @map("esser_spending_total") @db.Decimal(15, 2)
+  esserFundingTotal        Decimal? @map("esser_funding_total") @db.Decimal(15, 2)
+  esserSpendingTotal       Decimal? @map("esser_spending_total") @db.Decimal(15, 2)
   esserSpendingInstruction Decimal? @map("esser_spending_instruction") @db.Decimal(15, 2)
 
   // ===== Assessment Data =====
   // Source: Urban Institute API (EdFacts assessments endpoint)
-  mathProficiencyPct  Decimal? @map("math_proficiency_pct") @db.Decimal(5, 2)
-  readProficiencyPct  Decimal? @map("read_proficiency_pct") @db.Decimal(5, 2)
-  assessmentDataYear  Int?     @map("assessment_data_year")
+  mathProficiencyPct Decimal? @map("math_proficiency_pct") @db.Decimal(5, 2)
+  readProficiencyPct Decimal? @map("read_proficiency_pct") @db.Decimal(5, 2)
+  assessmentDataYear Int?     @map("assessment_data_year")
 
   // ===== Technology & Capital Spending =====
   // Source: Urban Institute API (finance endpoint)
@@ -203,58 +203,58 @@ model District {
 
   // ===== Outsourcing Signals =====
   // Source: Urban Institute API (finance endpoint) - districts paying external providers
-  paymentsToCharterSchools  Decimal? @map("payments_to_charter_schools") @db.Decimal(15, 2)
-  paymentsToPrivateSchools  Decimal? @map("payments_to_private_schools") @db.Decimal(15, 2)
+  paymentsToCharterSchools Decimal? @map("payments_to_charter_schools") @db.Decimal(15, 2)
+  paymentsToPrivateSchools Decimal? @map("payments_to_private_schools") @db.Decimal(15, 2)
 
   // ===== Trend Signals (computed after historical backfill) =====
-  enrollmentTrend3yr       Decimal? @map("enrollment_trend_3yr") @db.Decimal(8, 2)
-  staffingTrend3yr         Decimal? @map("staffing_trend_3yr") @db.Decimal(8, 2)
-  vacancyPressureSignal    Decimal? @map("vacancy_pressure_signal") @db.Decimal(8, 2)
+  enrollmentTrend3yr    Decimal? @map("enrollment_trend_3yr") @db.Decimal(8, 2)
+  staffingTrend3yr      Decimal? @map("staffing_trend_3yr") @db.Decimal(8, 2)
+  vacancyPressureSignal Decimal? @map("vacancy_pressure_signal") @db.Decimal(8, 2)
 
   // ===== Derived Percentages (computed post-ETL) =====
-  swdPct   Decimal? @map("swd_pct") @db.Decimal(5, 2)
-  ellPct   Decimal? @map("ell_pct") @db.Decimal(5, 2)
+  swdPct Decimal? @map("swd_pct") @db.Decimal(5, 2)
+  ellPct Decimal? @map("ell_pct") @db.Decimal(5, 2)
 
   // ===== 3-Year Trends (computed from district_data_history) =====
-  swdTrend3yr                  Decimal? @map("swd_trend_3yr") @db.Decimal(8, 2)
-  ellTrend3yr                  Decimal? @map("ell_trend_3yr") @db.Decimal(8, 2)
-  absenteeismTrend3yr          Decimal? @map("absenteeism_trend_3yr") @db.Decimal(8, 2)
-  graduationTrend3yr           Decimal? @map("graduation_trend_3yr") @db.Decimal(8, 2)
-  studentTeacherRatioTrend3yr  Decimal? @map("student_teacher_ratio_trend_3yr") @db.Decimal(8, 2)
-  mathProficiencyTrend3yr      Decimal? @map("math_proficiency_trend_3yr") @db.Decimal(8, 2)
-  readProficiencyTrend3yr      Decimal? @map("read_proficiency_trend_3yr") @db.Decimal(8, 2)
-  expenditurePpTrend3yr        Decimal? @map("expenditure_pp_trend_3yr") @db.Decimal(8, 2)
+  swdTrend3yr                 Decimal? @map("swd_trend_3yr") @db.Decimal(8, 2)
+  ellTrend3yr                 Decimal? @map("ell_trend_3yr") @db.Decimal(8, 2)
+  absenteeismTrend3yr         Decimal? @map("absenteeism_trend_3yr") @db.Decimal(8, 2)
+  graduationTrend3yr          Decimal? @map("graduation_trend_3yr") @db.Decimal(8, 2)
+  studentTeacherRatioTrend3yr Decimal? @map("student_teacher_ratio_trend_3yr") @db.Decimal(8, 2)
+  mathProficiencyTrend3yr     Decimal? @map("math_proficiency_trend_3yr") @db.Decimal(8, 2)
+  readProficiencyTrend3yr     Decimal? @map("read_proficiency_trend_3yr") @db.Decimal(8, 2)
+  expenditurePpTrend3yr       Decimal? @map("expenditure_pp_trend_3yr") @db.Decimal(8, 2)
 
   // ===== State Comparison Deltas (district value minus state avg) =====
-  absenteeismVsState           Decimal? @map("absenteeism_vs_state") @db.Decimal(8, 2)
-  graduationVsState            Decimal? @map("graduation_vs_state") @db.Decimal(8, 2)
-  studentTeacherRatioVsState   Decimal? @map("student_teacher_ratio_vs_state") @db.Decimal(8, 2)
-  swdPctVsState                Decimal? @map("swd_pct_vs_state") @db.Decimal(8, 2)
-  ellPctVsState                Decimal? @map("ell_pct_vs_state") @db.Decimal(8, 2)
-  mathProficiencyVsState       Decimal? @map("math_proficiency_vs_state") @db.Decimal(8, 2)
-  readProficiencyVsState       Decimal? @map("read_proficiency_vs_state") @db.Decimal(8, 2)
-  expenditurePpVsState         Decimal? @map("expenditure_pp_vs_state") @db.Decimal(8, 2)
+  absenteeismVsState         Decimal? @map("absenteeism_vs_state") @db.Decimal(8, 2)
+  graduationVsState          Decimal? @map("graduation_vs_state") @db.Decimal(8, 2)
+  studentTeacherRatioVsState Decimal? @map("student_teacher_ratio_vs_state") @db.Decimal(8, 2)
+  swdPctVsState              Decimal? @map("swd_pct_vs_state") @db.Decimal(8, 2)
+  ellPctVsState              Decimal? @map("ell_pct_vs_state") @db.Decimal(8, 2)
+  mathProficiencyVsState     Decimal? @map("math_proficiency_vs_state") @db.Decimal(8, 2)
+  readProficiencyVsState     Decimal? @map("read_proficiency_vs_state") @db.Decimal(8, 2)
+  expenditurePpVsState       Decimal? @map("expenditure_pp_vs_state") @db.Decimal(8, 2)
 
   // ===== National Comparison Deltas (district value minus national avg) =====
-  absenteeismVsNational          Decimal? @map("absenteeism_vs_national") @db.Decimal(8, 2)
-  graduationVsNational           Decimal? @map("graduation_vs_national") @db.Decimal(8, 2)
-  studentTeacherRatioVsNational  Decimal? @map("student_teacher_ratio_vs_national") @db.Decimal(8, 2)
-  swdPctVsNational               Decimal? @map("swd_pct_vs_national") @db.Decimal(8, 2)
-  ellPctVsNational               Decimal? @map("ell_pct_vs_national") @db.Decimal(8, 2)
-  mathProficiencyVsNational      Decimal? @map("math_proficiency_vs_national") @db.Decimal(8, 2)
-  readProficiencyVsNational      Decimal? @map("read_proficiency_vs_national") @db.Decimal(8, 2)
-  expenditurePpVsNational        Decimal? @map("expenditure_pp_vs_national") @db.Decimal(8, 2)
+  absenteeismVsNational         Decimal? @map("absenteeism_vs_national") @db.Decimal(8, 2)
+  graduationVsNational          Decimal? @map("graduation_vs_national") @db.Decimal(8, 2)
+  studentTeacherRatioVsNational Decimal? @map("student_teacher_ratio_vs_national") @db.Decimal(8, 2)
+  swdPctVsNational              Decimal? @map("swd_pct_vs_national") @db.Decimal(8, 2)
+  ellPctVsNational              Decimal? @map("ell_pct_vs_national") @db.Decimal(8, 2)
+  mathProficiencyVsNational     Decimal? @map("math_proficiency_vs_national") @db.Decimal(8, 2)
+  readProficiencyVsNational     Decimal? @map("read_proficiency_vs_national") @db.Decimal(8, 2)
+  expenditurePpVsNational       Decimal? @map("expenditure_pp_vs_national") @db.Decimal(8, 2)
 
   // ===== Within-State Quartile Flags =====
   // Values: well_above, above, below, well_below (4-tier by quartile rank)
-  absenteeismQuartileState          String? @map("absenteeism_quartile_state") @db.VarChar(15)
-  graduationQuartileState           String? @map("graduation_quartile_state") @db.VarChar(15)
-  studentTeacherRatioQuartileState  String? @map("student_teacher_ratio_quartile_state") @db.VarChar(15)
-  swdPctQuartileState               String? @map("swd_pct_quartile_state") @db.VarChar(15)
-  ellPctQuartileState               String? @map("ell_pct_quartile_state") @db.VarChar(15)
-  mathProficiencyQuartileState      String? @map("math_proficiency_quartile_state") @db.VarChar(15)
-  readProficiencyQuartileState      String? @map("read_proficiency_quartile_state") @db.VarChar(15)
-  expenditurePpQuartileState        String? @map("expenditure_pp_quartile_state") @db.VarChar(15)
+  absenteeismQuartileState         String? @map("absenteeism_quartile_state") @db.VarChar(15)
+  graduationQuartileState          String? @map("graduation_quartile_state") @db.VarChar(15)
+  studentTeacherRatioQuartileState String? @map("student_teacher_ratio_quartile_state") @db.VarChar(15)
+  swdPctQuartileState              String? @map("swd_pct_quartile_state") @db.VarChar(15)
+  ellPctQuartileState              String? @map("ell_pct_quartile_state") @db.VarChar(15)
+  mathProficiencyQuartileState     String? @map("math_proficiency_quartile_state") @db.VarChar(15)
+  readProficiencyQuartileState     String? @map("read_proficiency_quartile_state") @db.VarChar(15)
+  expenditurePpQuartileState       String? @map("expenditure_pp_quartile_state") @db.VarChar(15)
 
   // ===== ICP Scoring =====
   icpCompositeScore  Int?    @map("icp_composite_score")
@@ -265,10 +265,10 @@ model District {
   icpTier            String? @map("icp_tier") @db.VarChar(10)
 
   // ===== Relations =====
-  state           State?                  @relation(fields: [stateFips], references: [fips])
-  contacts        Contact[]
-  districtTags    DistrictTag[]
-  territoryPlans  TerritoryPlanDistrict[]
+  state            State?                    @relation(fields: [stateFips], references: [fips])
+  contacts         Contact[]
+  districtTags     DistrictTag[]
+  territoryPlans   TerritoryPlanDistrict[]
   competitorSpend  CompetitorSpend[]
   vendorFinancials VendorFinancials[]
   activityLinks   ActivityDistrict[]
@@ -434,9 +434,9 @@ model State {
   totalPipelineValue Decimal? @map("total_pipeline_value") @db.Decimal(15, 2)
 
   // Education averages (weighted by enrollment where appropriate)
-  avgExpenditurePerPupil Decimal? @map("avg_expenditure_per_pupil") @db.Decimal(12, 2)
-  avgGraduationRate      Decimal? @map("avg_graduation_rate") @db.Decimal(5, 2)
-  avgPovertyRate         Decimal? @map("avg_poverty_rate") @db.Decimal(5, 2)
+  avgExpenditurePerPupil    Decimal? @map("avg_expenditure_per_pupil") @db.Decimal(12, 2)
+  avgGraduationRate         Decimal? @map("avg_graduation_rate") @db.Decimal(5, 2)
+  avgPovertyRate            Decimal? @map("avg_poverty_rate") @db.Decimal(5, 2)
   avgChronicAbsenteeismRate Decimal? @map("avg_chronic_absenteeism_rate") @db.Decimal(5, 2)
   avgStudentTeacherRatio    Decimal? @map("avg_student_teacher_ratio") @db.Decimal(8, 2)
   avgSwdPct                 Decimal? @map("avg_swd_pct") @db.Decimal(5, 2)
@@ -506,12 +506,12 @@ model TerritoryPlan {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Denormalized rollup columns (synced when districts/targets change)
-  districtCount     Int      @default(0) @map("district_count")
-  stateCount        Int      @default(0) @map("state_count")
-  renewalRollup     Decimal  @default(0) @map("renewal_rollup") @db.Decimal(15, 2)
-  expansionRollup   Decimal  @default(0) @map("expansion_rollup") @db.Decimal(15, 2)
-  winbackRollup     Decimal  @default(0) @map("winback_rollup") @db.Decimal(15, 2)
-  newBusinessRollup Decimal  @default(0) @map("new_business_rollup") @db.Decimal(15, 2)
+  districtCount     Int     @default(0) @map("district_count")
+  stateCount        Int     @default(0) @map("state_count")
+  renewalRollup     Decimal @default(0) @map("renewal_rollup") @db.Decimal(15, 2)
+  expansionRollup   Decimal @default(0) @map("expansion_rollup") @db.Decimal(15, 2)
+  winbackRollup     Decimal @default(0) @map("winback_rollup") @db.Decimal(15, 2)
+  newBusinessRollup Decimal @default(0) @map("new_business_rollup") @db.Decimal(15, 2)
 
   // Relations
   ownerUser     UserProfile?                @relation("PlanOwner", fields: [ownerId], references: [id])
@@ -537,7 +537,7 @@ model TerritoryPlanDistrict {
   winbackTarget     Decimal? @map("winback_target") @db.Decimal(15, 2)
   expansionTarget   Decimal? @map("expansion_target") @db.Decimal(15, 2)
   newBusinessTarget Decimal? @map("new_business_target") @db.Decimal(15, 2)
-  notes          String?
+  notes             String?
 
   // Relations
   district       District                       @relation(fields: [districtLeaid], references: [leaid])
@@ -590,7 +590,25 @@ model Activity {
   // Links activity to a Google Calendar event for two-way sync
   googleEventId String? @unique @map("google_event_id")
   // Tracks whether this activity was created manually or pulled from calendar
-  source        String  @default("manual") @db.VarChar(20) // manual, calendar_sync
+  source        String  @default("manual") @db.VarChar(30) // manual, calendar_sync
+
+  // Gmail dedup (parallel to existing googleEventId)
+  gmailMessageId String? @unique @map("gmail_message_id")
+
+  // Slack dedup
+  slackChannelId String? @map("slack_channel_id") @db.VarChar(50)
+  slackMessageTs String? @map("slack_message_ts")
+
+  // Service-specific metadata
+  integrationMeta Json? @map("integration_meta")
+
+  // Mixmax sequence enrichment
+  mixmaxSequenceName  String? @map("mixmax_sequence_name") @db.VarChar(255)
+  mixmaxSequenceStep  Int?    @map("mixmax_sequence_step")
+  mixmaxSequenceTotal Int?    @map("mixmax_sequence_total")
+  mixmaxStatus        String? @map("mixmax_status") @db.VarChar(30)
+  mixmaxOpenCount     Int?    @map("mixmax_open_count")
+  mixmaxClickCount    Int?    @map("mixmax_click_count")
 
   // ===== Outcome Tracking =====
   // Captures what resulted from the activity (set on completion)
@@ -612,6 +630,7 @@ model Activity {
   relations  ActivityRelation[] @relation("ActivityRelations")
   relatedTo  ActivityRelation[] @relation("RelatedToActivities")
 
+  @@unique([slackChannelId, slackMessageTs])
   @@index([createdByUserId])
   @@index([type])
   @@index([startDate])
@@ -734,18 +753,46 @@ model UserProfile {
   lastLoginAt       DateTime? @map("last_login_at")
 
   // Relation to user's fiscal year goals
-  goals              UserGoal[]
-  // Relation to Google Calendar connection (one per user)
-  calendarConnection CalendarConnection?
+  goals           UserGoal[]
   // Territory plan ownership and collaboration
-  ownedPlans         TerritoryPlan[]              @relation("PlanOwner")
-  collaboratingOn    TerritoryPlanCollaborator[]   @relation("PlanCollaborator")
+  ownedPlans      TerritoryPlan[]             @relation("PlanOwner")
+  collaboratingOn TerritoryPlanCollaborator[] @relation("PlanCollaborator")
   // Saved map view snapshots
   savedMapViews      MapView[]                    @relation("MapViewOwner")
   // Activity attendance
   activityAttendances ActivityAttendee[]
+  // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
+  integrations    UserIntegration[]
 
   @@map("user_profiles")
+}
+
+// ===== Service Integrations =====
+// Per-user OAuth connections for Gmail, Google Calendar, Slack, Mixmax
+// Tokens are encrypted at rest via AES-256-GCM (see src/features/integrations/lib/encryption.ts)
+
+model UserIntegration {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id") @db.Uuid
+  service        String    @db.VarChar(30) // "gmail", "google_calendar", "slack", "mixmax"
+  accountEmail   String?   @map("account_email") @db.VarChar(255)
+  accountName    String?   @map("account_name") @db.VarChar(255)
+  accessToken    String    @map("access_token") @db.Text // encrypted
+  refreshToken   String?   @map("refresh_token") @db.Text // encrypted
+  tokenExpiresAt DateTime? @map("token_expires_at")
+  scopes         String[]  @default([])
+  metadata       Json? // service-specific (Slack workspace, Calendar companyDomain, etc.)
+  syncEnabled    Boolean   @default(true) @map("sync_enabled")
+  status         String    @default("connected") @db.VarChar(20)
+  lastSyncAt     DateTime? @map("last_sync_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, service])
+  @@index([userId])
+  @@map("user_integrations")
 }
 
 enum ServiceCategory {
@@ -786,16 +833,16 @@ model TerritoryPlanDistrictService {
 // ===== Map Views =====
 // Named map state snapshots — captures filter, vendor, palette, and signal configuration
 model MapView {
-  id          String      @id @default(uuid())
-  name        String      @db.VarChar(200)
-  description String?     @db.Text
-  ownerId     String      @map("owner_id") @db.Uuid
-  isShared    Boolean     @default(false) @map("is_shared")
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(200)
+  description String?  @db.Text
+  ownerId     String   @map("owner_id") @db.Uuid
+  isShared    Boolean  @default(false) @map("is_shared")
   state       Json
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  owner       UserProfile @relation("MapViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner UserProfile @relation("MapViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId])
   @@map("map_views")
@@ -934,11 +981,11 @@ model CalendarConnection {
 // ===== Calendar Event Staging =====
 // Incoming Google Calendar events land here for rep review before becoming Activities
 // Smart matching suggests district/contact/plan associations based on attendee emails
+// Calendar OAuth tokens are now stored in UserIntegration (service = "google_calendar")
 
 model CalendarEvent {
   id                    String   @id @default(uuid())
   userId                String   @map("user_id") @db.Uuid
-  connectionId          String   @map("connection_id")
   googleEventId         String   @map("google_event_id")
   title                 String   @db.VarChar(500)
   description           String?
@@ -957,10 +1004,7 @@ model CalendarEvent {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-
-  @@unique([connectionId, googleEventId])
+  @@unique([userId, googleEventId])
   @@index([userId, status])
   @@index([activityId])
   @@map("calendar_events")
@@ -971,39 +1015,39 @@ model CalendarEvent {
 // Source: Urban Institute Education Data API (school-level CCD endpoints)
 
 model School {
-  ncessch          String    @id @db.VarChar(12) // NCES 12-char school ID
-  leaid            String    @db.VarChar(7) // Parent district
-  schoolName       String    @map("school_name") @db.VarChar(255)
-  charter          Int       @default(0) // 0=traditional, 1=charter
-  schoolLevel      Int?      @map("school_level") // 1=Primary, 2=Middle, 3=High, 4=Other
-  schoolType       Int?      @map("school_type")
-  lograde          String?   @db.VarChar(10)
-  higrade          String?   @db.VarChar(10)
-  schoolStatus     Int?      @map("school_status") // 1=Open, 2=Closed, etc.
-  latitude         Decimal?  @db.Decimal(10, 7)
-  longitude        Decimal?  @db.Decimal(10, 7)
-  streetAddress    String?   @map("street_address") @db.VarChar(255)
-  city             String?   @db.VarChar(100)
-  stateAbbrev      String?   @map("state_abbrev") @db.VarChar(2)
-  zip              String?   @db.VarChar(10)
-  countyName       String?   @map("county_name") @db.VarChar(100)
-  phone            String?   @db.VarChar(20)
-  urbanCentricLocale Int?    @map("urban_centric_locale")
-  enrollment       Int?
-  directoryDataYear Int?     @map("directory_data_year")
+  ncessch            String   @id @db.VarChar(12) // NCES 12-char school ID
+  leaid              String   @db.VarChar(7) // Parent district
+  schoolName         String   @map("school_name") @db.VarChar(255)
+  charter            Int      @default(0) // 0=traditional, 1=charter
+  schoolLevel        Int?     @map("school_level") // 1=Primary, 2=Middle, 3=High, 4=Other
+  schoolType         Int?     @map("school_type")
+  lograde            String?  @db.VarChar(10)
+  higrade            String?  @db.VarChar(10)
+  schoolStatus       Int?     @map("school_status") // 1=Open, 2=Closed, etc.
+  latitude           Decimal? @db.Decimal(10, 7)
+  longitude          Decimal? @db.Decimal(10, 7)
+  streetAddress      String?  @map("street_address") @db.VarChar(255)
+  city               String?  @db.VarChar(100)
+  stateAbbrev        String?  @map("state_abbrev") @db.VarChar(2)
+  zip                String?  @db.VarChar(10)
+  countyName         String?  @map("county_name") @db.VarChar(100)
+  phone              String?  @db.VarChar(20)
+  urbanCentricLocale Int?     @map("urban_centric_locale")
+  enrollment         Int?
+  directoryDataYear  Int?     @map("directory_data_year")
 
   // ===== Title I Data =====
   // Source: Urban Institute API (CCD directory endpoint)
-  titleIStatus       Int?  @map("title_i_status")
-  titleIEligible     Int?  @map("title_i_eligible")
-  titleISchoolwide   Int?  @map("title_i_schoolwide")
-  titleIDataYear     Int?  @map("title_i_data_year")
+  titleIStatus     Int? @map("title_i_status")
+  titleIEligible   Int? @map("title_i_eligible")
+  titleISchoolwide Int? @map("title_i_schoolwide")
+  titleIDataYear   Int? @map("title_i_data_year")
 
   // ===== Free/Reduced Price Lunch =====
   // Source: Urban Institute API (CCD directory endpoint)
-  freeLunch          Int?  @map("free_lunch")
-  reducedPriceLunch  Int?  @map("reduced_price_lunch")
-  frplTotal          Int?  @map("frpl_total")
+  freeLunch         Int? @map("free_lunch")
+  reducedPriceLunch Int? @map("reduced_price_lunch")
+  frplTotal         Int? @map("frpl_total")
 
   // ===== Demographics =====
   // Source: Urban Institute API (CCD enrollment/race endpoint, grade-99 totals)
@@ -1038,9 +1082,9 @@ model School {
 }
 
 model SchoolEnrollmentHistory {
-  id        Int    @id @default(autoincrement())
-  ncessch   String @db.VarChar(12)
-  year      Int
+  id         Int    @id @default(autoincrement())
+  ncessch    String @db.VarChar(12)
+  year       Int
   enrollment Int?
 
   school School @relation(fields: [ncessch], references: [ncessch], onDelete: Cascade)
@@ -1074,33 +1118,33 @@ model SchoolContact {
 // Tracks year-over-year changes for trend analysis (staffing pressure, budget changes, etc.)
 // One row per (leaid, year, source) — enables multi-year comparisons
 model DistrictDataHistory {
-  id        Int      @id @default(autoincrement())
-  leaid     String   @db.VarChar(7)
-  year      Int
-  source    String   @db.VarChar(30) // ccd_directory, ccd_finance, saipe, edfacts_grad, edfacts_assess
+  id     Int    @id @default(autoincrement())
+  leaid  String @db.VarChar(7)
+  year   Int
+  source String @db.VarChar(30) // ccd_directory, ccd_finance, saipe, edfacts_grad, edfacts_assess
 
   // Enrollment & Staffing (for vacancy pressure analysis)
-  enrollment      Int?
-  teachersFte     Decimal? @map("teachers_fte") @db.Decimal(10, 2)
-  staffTotalFte   Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
-  specEdStudents  Int?     @map("spec_ed_students")
-  ellStudents     Int?     @map("ell_students")
+  enrollment             Int?
+  teachersFte            Decimal? @map("teachers_fte") @db.Decimal(10, 2)
+  staffTotalFte          Decimal? @map("staff_total_fte") @db.Decimal(10, 2)
+  specEdStudents         Int?     @map("spec_ed_students")
+  ellStudents            Int?     @map("ell_students")
   chronicAbsenteeismRate Decimal? @map("chronic_absenteeism_rate") @db.Decimal(5, 2)
 
   // Finance (for budget capacity analysis)
-  totalRevenue      Decimal? @map("total_revenue") @db.Decimal(15, 2)
-  totalExpenditure  Decimal? @map("total_expenditure") @db.Decimal(15, 2)
-  expenditurePp     Decimal? @map("expenditure_pp") @db.Decimal(12, 2)
-  federalRevenue    Decimal? @map("federal_revenue") @db.Decimal(15, 2)
-  stateRevenue      Decimal? @map("state_revenue") @db.Decimal(15, 2)
-  localRevenue      Decimal? @map("local_revenue") @db.Decimal(15, 2)
-  spedExpenditure   Decimal? @map("sped_expenditure") @db.Decimal(15, 2)
+  totalRevenue     Decimal? @map("total_revenue") @db.Decimal(15, 2)
+  totalExpenditure Decimal? @map("total_expenditure") @db.Decimal(15, 2)
+  expenditurePp    Decimal? @map("expenditure_pp") @db.Decimal(12, 2)
+  federalRevenue   Decimal? @map("federal_revenue") @db.Decimal(15, 2)
+  stateRevenue     Decimal? @map("state_revenue") @db.Decimal(15, 2)
+  localRevenue     Decimal? @map("local_revenue") @db.Decimal(15, 2)
+  spedExpenditure  Decimal? @map("sped_expenditure") @db.Decimal(15, 2)
 
   // Outcomes
-  povertyPct       Decimal? @map("poverty_pct") @db.Decimal(5, 2)
-  graduationRate   Decimal? @map("graduation_rate") @db.Decimal(5, 2)
-  mathProficiency  Decimal? @map("math_proficiency") @db.Decimal(5, 2)
-  readProficiency  Decimal? @map("read_proficiency") @db.Decimal(5, 2)
+  povertyPct      Decimal? @map("poverty_pct") @db.Decimal(5, 2)
+  graduationRate  Decimal? @map("graduation_rate") @db.Decimal(5, 2)
+  mathProficiency Decimal? @map("math_proficiency") @db.Decimal(5, 2)
+  readProficiency Decimal? @map("read_proficiency") @db.Decimal(5, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
 
