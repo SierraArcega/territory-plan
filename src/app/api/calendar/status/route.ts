@@ -18,12 +18,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const integration = await prisma.userIntegration.findUnique({
-      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+    const connection = await prisma.calendarConnection.findUnique({
+      where: { userId: user.id },
       select: {
         id: true,
-        accountEmail: true,
-        metadata: true,
+        googleAccountEmail: true,
+        companyDomain: true,
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
@@ -35,11 +35,9 @@ export async function GET() {
       },
     });
 
-    if (!integration) {
+    if (!connection) {
       return NextResponse.json({ connected: false, connection: null });
     }
-
-    const metadata = (integration.metadata as Record<string, unknown>) || {};
 
     // Also get the count of pending calendar events for badge display
     const pendingCount = await prisma.calendarEvent.count({
@@ -87,11 +85,11 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { syncEnabled, companyDomain, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
 
-    const integration = await prisma.userIntegration.findUnique({
-      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+    const existing = await prisma.calendarConnection.findUnique({
+      where: { userId: user.id },
     });
 
-    if (!integration) {
+    if (!existing) {
       return NextResponse.json(
         { error: "No calendar connection found" },
         { status: 404 }
@@ -100,11 +98,7 @@ export async function PATCH(request: Request) {
 
     const updateData: Record<string, unknown> = {};
     if (typeof syncEnabled === "boolean") updateData.syncEnabled = syncEnabled;
-    if (typeof companyDomain === "string") {
-      // Merge companyDomain into existing metadata
-      const existingMetadata = (integration.metadata as Record<string, unknown>) || {};
-      updateData.metadata = { ...existingMetadata, companyDomain };
-    }
+    if (typeof companyDomain === "string") updateData.companyDomain = companyDomain;
 
     // Sync direction validation
     if (syncDirection !== undefined) {
@@ -147,7 +141,7 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      if (secondReminderMinutes !== null && secondReminderMinutes === (updateData.reminderMinutes ?? connection.reminderMinutes)) {
+      if (secondReminderMinutes !== null && secondReminderMinutes === (updateData.reminderMinutes ?? existing.reminderMinutes)) {
         return NextResponse.json(
           { error: "secondReminderMinutes must differ from reminderMinutes" },
           { status: 400 }
@@ -161,8 +155,8 @@ export async function PATCH(request: Request) {
       data: updateData,
       select: {
         id: true,
-        accountEmail: true,
-        metadata: true,
+        googleAccountEmail: true,
+        companyDomain: true,
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
