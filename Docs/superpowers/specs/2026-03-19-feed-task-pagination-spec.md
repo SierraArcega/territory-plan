@@ -66,7 +66,7 @@ Layout (top to bottom):
 
 - **Loading:** Existing React Query loading state — show skeleton/spinner in task list area while `useTasks` loads
 - **Empty day (impossible):** Navigation arrows skip empty days, so user never lands on one
-- **Empty (all complete):** Show "All caught up!" only when `allIncompleteTasks.length === 0` across all dates (not just the selected day)
+- **Empty (all complete):** When genuinely zero incomplete tasks across all dates, show a CTA encouraging the user to create a new plan or add contacts (not "All caught up!")
 - **No due date tasks:** Tasks with `dueDate === null` should appear in a "No Due Date" bucket accessible via day navigation (after all dated days)
 - **Error:** Existing React Query error handling
 
