@@ -41,6 +41,22 @@ export function isStatewideBoard(platform: string, url?: string): boolean {
 }
 
 /**
+ * Async version of isStatewideBoard that guarantees the shared AppliTrack
+ * instance cache is loaded before checking. Use this in async contexts
+ * (scan-runner, cron route) for reliable detection.
+ */
+export async function isStatewideBoardAsync(platform: string, url?: string): Promise<boolean> {
+  if (platform === "olas" || platform === "schoolspring") return true;
+
+  if (platform === "applitrack" && url) {
+    await loadSharedAppliTrackInstances();
+    return isSharedAppliTrack(url);
+  }
+
+  return false;
+}
+
+/**
  * Extract the AppliTrack instance name from a URL.
  * AppliTrack URLs look like: https://www.applitrack.com/{instance}/onlineapp/...
  */
