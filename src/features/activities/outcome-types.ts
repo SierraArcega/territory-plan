@@ -20,6 +20,8 @@ export type OutcomeType =
   | "contacts_made"
   | "meetings_scheduled"
   | "pipeline_generated"
+  // Thought Leadership outcomes
+  | "attendees_engaged"
   // Gift Drop outcomes
   | "delivered"
   | "thank_you_received";
@@ -113,6 +115,15 @@ export const OUTCOME_CONFIGS: Record<OutcomeType, OutcomeConfig> = {
     bgColor: "#FEF2F1",
   },
 
+  // Thought Leadership outcomes
+  attendees_engaged: {
+    label: "Attendees Engaged",
+    description: "Engaged attendees during the session",
+    icon: "👥",
+    color: "#403770",
+    bgColor: "#EEEAF5",
+  },
+
   // Gift Drop outcomes
   delivered: {
     label: "Delivered",
@@ -137,6 +148,7 @@ export const OUTCOMES_BY_CATEGORY: Record<ActivityCategory, OutcomeType[]> = {
   campaigns: ["response_received", "meeting_booked", "no_response"],
   events: ["contacts_made", "meetings_scheduled", "pipeline_generated"],
   gift_drop: ["delivered", "thank_you_received"],
+  thought_leadership: ["contacts_made", "meetings_scheduled", "pipeline_generated", "attendees_engaged"],
 };
 
 // Get the outcome config for a given type, with a fallback for unknown types
