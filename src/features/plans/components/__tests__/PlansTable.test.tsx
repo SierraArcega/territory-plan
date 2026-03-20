@@ -325,6 +325,38 @@ describe("PlansTable", () => {
     });
   });
 
+  describe("cursor styling", () => {
+    it("shows pointer cursor on the plan name button", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
+      );
+
+      const nameButton = screen.getByText("West Region Q1").closest("button");
+      expect(nameButton).toHaveClass("cursor-pointer");
+    });
+
+    it("shows pointer cursor on district count buttons", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
+      );
+
+      const districtButton = screen.getByText("15").closest("button");
+      expect(districtButton).toHaveClass("cursor-pointer");
+    });
+
+    it("shows pointer cursor on action buttons", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} onShowOnMap={vi.fn()} />
+      );
+
+      const mapButton = screen.getAllByLabelText("Show plan on map")[0];
+      expect(mapButton).toHaveClass("cursor-pointer");
+
+      const deleteButton = screen.getAllByLabelText("Delete plan")[0];
+      expect(deleteButton).toHaveClass("cursor-pointer");
+    });
+  });
+
   describe("hover effects", () => {
     it("has hover styling on rows", () => {
       renderWithProviders(
