@@ -157,11 +157,19 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const updatePlan = useUpdateTerritoryPlan();
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
+  const setPlanHighlight = useMapStore((s) => s.setPlanHighlight);
 
   const handleShowOnMap = useCallback((planId: string) => {
+    const plan = plans?.find((p) => p.id === planId);
+    if (!plan || plan.districtCount === 0) return;
+
     setCurrentPlanId(planId);
+    setPlanHighlight({
+      districtLeaids: plan.districtLeaids ?? [],
+      planName: plan.name,
+    });
     setActiveTab("map");
-  }, [setCurrentPlanId, setActiveTab]);
+  }, [plans, setCurrentPlanId, setPlanHighlight, setActiveTab]);
 
   // --- Filter state ---
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);

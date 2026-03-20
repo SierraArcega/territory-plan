@@ -10,6 +10,8 @@ import SearchResults from "./SearchResults";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_IDS } from "@/features/map/lib/layers";
+import { useMapStore } from "@/features/shared/lib/app-store";
+import PlanHighlightBanner from "./PlanHighlightBanner";
 
 // Dynamic import for MapLibre (no SSR)
 const MapV2Container = dynamic(() => import("./MapV2Container"), {
@@ -29,6 +31,8 @@ export default function MapV2Shell() {
   const compareView = useMapV2Store((s) => s.compareView);
   const focusPlanId = useMapV2Store((s) => s.focusPlanId);
   const unfocusPlan = useMapV2Store((s) => s.unfocusPlan);
+  const planHighlight = useMapStore((s) => s.planHighlight);
+  const setPlanHighlight = useMapStore((s) => s.setPlanHighlight);
 
   // Load saved palette preferences on mount
   useEffect(() => {
@@ -78,6 +82,15 @@ export default function MapV2Shell() {
 
         {/* Explore data overlay (covers map when active) */}
         <ExploreOverlay />
+
+        {/* Plan highlight banner (shown when navigating from Plans tab) */}
+        {planHighlight && (
+          <PlanHighlightBanner
+            planName={planHighlight.planName}
+            districtCount={planHighlight.districtLeaids.length}
+            onClear={() => setPlanHighlight(null)}
+          />
+        )}
 
         {/* Exit focus mode button */}
         {focusPlanId && (
