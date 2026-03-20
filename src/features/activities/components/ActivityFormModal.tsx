@@ -250,7 +250,8 @@ export default function ActivityFormModal({
 
   const planOptions = useMemo(() => (plans ?? []).map((p) => ({ value: p.id, label: p.name })), [plans]);
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
-  const isEventCategory = getCategoryForType(type) === "events";
+  const typeCategory = getCategoryForType(type);
+  const isEventCategory = typeCategory === "events" || typeCategory === "thought_leadership";
   const showExpenses = isEventCategory && (type === "conference" || type === "road_trip");
 
   if (!isOpen) return null;
