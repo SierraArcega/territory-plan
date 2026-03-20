@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import { useMapStore } from "@/features/shared/lib/app-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import PlanCard from "@/features/plans/components/PlanCard";
 import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 import ActivityFormModal from "@/features/plans/components/ActivityFormModal";
@@ -158,6 +159,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
   const setPlanHighlight = useMapStore((s) => s.setPlanHighlight);
+  const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
 
   const handleShowOnMap = useCallback((planId: string) => {
     const plan = plans?.find((p) => p.id === planId);
@@ -168,8 +170,15 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
       districtLeaids: plan.districtLeaids ?? [],
       planName: plan.name,
     });
+    // Set the Plan Membership filter on the map to show this plan's districts
+    addSearchFilter({
+      id: crypto.randomUUID(),
+      column: "planNames",
+      op: "eq",
+      value: [plan.name],
+    });
     setActiveTab("map");
-  }, [plans, setCurrentPlanId, setPlanHighlight, setActiveTab]);
+  }, [plans, setCurrentPlanId, setPlanHighlight, addSearchFilter, setActiveTab]);
 
   // --- Filter state ---
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
