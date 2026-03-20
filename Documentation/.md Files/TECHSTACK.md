@@ -10,6 +10,8 @@ A comprehensive reference for the technologies, frameworks, and architecture pat
 | **React** | 19.2.3 | UI component library |
 | **TypeScript** | 5.x | Type-safe JavaScript |
 
+> For project structure and codebase navigation, see `docs/architecture.md`.
+
 ## Styling
 
 | Technology | Version | Purpose |
@@ -35,16 +37,6 @@ A comprehensive reference for the technologies, frameworks, and architecture pat
 |------------|---------|---------|
 | **Zustand** | 5.0.10 | Lightweight global state (map state, filters, UI) |
 | **TanStack Query** | 5.90.20 | Server state, caching, data fetching |
-
-### Store Structure (`src/lib/store.ts`)
-
-- `selectedLeaid` — Currently selected district
-- `hoveredLeaid` — District under cursor
-- `metricType` / `fiscalYear` — Choropleth configuration
-- `filters` — State, status, sales executive, search query
-- `tooltip` / `clickRipples` — UI feedback state
-- `multiSelectMode` / `selectedLeaids` — Batch operations
-- `similarDistrictLeaids` — "Find Similar" feature results
 
 ## Database
 
@@ -205,57 +197,6 @@ Used for:
 - SAIPE poverty estimates
 
 See `Docs/education-data-api.md` for full reference.
-
-## Project Structure
-
-```
-territory-plan/
-├── src/
-│   ├── app/
-│   │   ├── api/           — API routes
-│   │   ├── plans/         — Plans pages
-│   │   ├── page.tsx       — Main map page
-│   │   ├── layout.tsx     — Root layout
-│   │   ├── globals.css    — Global styles + brand
-│   │   └── providers.tsx  — TanStack Query provider
-│   ├── components/
-│   │   ├── map/           — MapContainer, Legend, Controls, Tooltip
-│   │   ├── panel/         — SidePanel, district info sections
-│   │   ├── filters/       — FilterBar, SearchBox
-│   │   ├── plans/         — Plan cards, modals, tables
-│   │   ├── activities/    — ActivityFormModal, CalendarView, OutcomePopover
-│   │   ├── calendar/      — CalendarInbox, CalendarEventCard, CalendarSyncBadge
-│   │   ├── progress/      — LeadingIndicatorsPanel, LaggingIndicatorsPanel, FunnelChart
-│   │   ├── tasks/         — TaskDetailModal, TaskBoard
-│   │   ├── goals/         — GoalEditorModal, ProgressCard
-│   │   └── common/        — InlineEditCell, ViewToggle
-│   ├── lib/
-│   │   ├── store.ts       — Zustand store
-│   │   ├── api.ts         — API client functions + React Query hooks
-│   │   ├── prisma.ts      — Prisma client singleton
-│   │   ├── db.ts          — pg Pool singleton
-│   │   ├── autoTags.ts    — Auto-tagging logic
-│   │   ├── google-calendar.ts — Google Calendar API client
-│   │   ├── calendar-sync.ts   — Sync engine with smart matching
-│   │   ├── calendar-push.ts   — Push activities to Google Calendar
-│   │   ├── activityTypes.ts   — Activity type/category definitions
-│   │   ├── outcomeTypes.ts    — Outcome type definitions and configs
-│   │   └── taskTypes.ts       — Task status/priority definitions
-│   ├── hooks/
-│   │   └── useIsTouchDevice.ts
-│   └── test/
-│       └── setup.ts       — Test configuration
-├── prisma/
-│   ├── schema.prisma      — Database schema
-│   └── migrations/        — Migration history
-├── public/                — Static assets
-├── Docs/                  — Documentation
-│   ├── fullmind-brand.md  — Brand guidelines
-│   ├── education-data-api.md — API reference
-│   ├── Geospacial/        — Map data docs
-│   └── plans/             — Design documents
-└── Data Files/            — Source CSV data
-```
 
 ## Development
 
