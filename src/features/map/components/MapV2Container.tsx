@@ -232,12 +232,12 @@ export default function MapV2Container({
 
   const vacanciesEnabled = activeLayers.has("vacancies") && mapReady;
   const { data: vacanciesGeoJSON, isLoading: vacanciesLoading } = useMapVacancies(
-    mapBounds, layerFilters.vacancies, dateRange, vacanciesEnabled, geoStates,
+    mapBounds, layerFilters.vacancies, dateRange.vacancies, vacanciesEnabled, geoStates,
   );
 
   const activitiesEnabled = activeLayers.has("activities") && mapReady;
   const { data: activitiesGeoJSON, isLoading: activitiesLoading } = useMapActivities(
-    mapBounds, layerFilters.activities, dateRange, activitiesEnabled, geoStates,
+    mapBounds, layerFilters.activities, dateRange.activities, activitiesEnabled, geoStates,
   );
 
   const plansEnabled = activeLayers.has("plans") && mapReady;

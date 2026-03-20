@@ -211,8 +211,8 @@ export function useMapContacts(
 ) {
   const qBounds = bounds ? quantizeBounds(bounds) : null;
   const queryString = buildOverlayParams(qBounds, {
-    seniorityLevel: filters.seniorityLevel,
-    persona: filters.persona,
+    seniorityLevel: filters.seniorityLevel?.length ? filters.seniorityLevel.join(",") : undefined,
+    persona: filters.persona?.length ? filters.persona.join(",") : undefined,
     states: geoStates?.length ? geoStates.join(",") : undefined,
   });
 
@@ -241,7 +241,11 @@ export function useMapVacancies(
   const qBounds = bounds ? quantizeBounds(bounds) : null;
   const queryString = buildOverlayParams(
     qBounds,
-    { category: filters.category, status: filters.status, states: geoStates?.length ? geoStates.join(",") : undefined },
+    {
+      category: filters.category?.length ? filters.category.join(",") : undefined,
+      status: filters.status?.length ? filters.status.join(",") : undefined,
+      states: geoStates?.length ? geoStates.join(",") : undefined,
+    },
     dateRange,
   );
 
@@ -273,8 +277,8 @@ export function useMapActivities(
   const queryString = buildOverlayParams(
     qBounds,
     {
-      type: filters.type,
-      status: filters.status,
+      type: filters.type?.length ? filters.type.join(",") : undefined,
+      status: filters.status?.length ? filters.status.join(",") : undefined,
       startDate: dateRange?.start,
       endDate: dateRange?.end,
       states: geoStates?.length ? geoStates.join(",") : undefined,
