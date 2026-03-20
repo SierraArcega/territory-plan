@@ -196,8 +196,8 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const [descriptionSearch, setDescriptionSearch] = useState("");
   const [nameInputValue, setNameInputValue] = useState("");
   const [descriptionInputValue, setDescriptionInputValue] = useState("");
-  const nameDebounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const descriptionDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const descriptionDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
