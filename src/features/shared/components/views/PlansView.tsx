@@ -541,6 +541,8 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               onShowOnMap={handleShowOnMap}
               onFilterByOwner={(ownerId) => setSelectedOwnerIds([ownerId])}
               toolbar={filterToolbar}
+              hasActiveFilters={anyFilterActive}
+              onClearFilters={clearAllFilters}
             />
           )
         ) : (

@@ -22,6 +22,8 @@ interface PlansTableProps {
   onShowOnMap?: (planId: string) => void;
   onFilterByOwner?: (ownerId: string) => void;
   toolbar?: React.ReactNode;
+  hasActiveFilters?: boolean;
+  onClearFilters?: () => void;
 }
 
 // Status options for the dropdown
@@ -122,7 +124,7 @@ function DeleteConfirmModal({
   );
 }
 
-export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMap, onFilterByOwner, toolbar }: PlansTableProps) {
+export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMap, onFilterByOwner, toolbar, hasActiveFilters, onClearFilters }: PlansTableProps) {
   const [planToDelete, setPlanToDelete] = useState<TerritoryPlan | null>(null);
 
   const updatePlan = useUpdateTerritoryPlan();
@@ -158,8 +160,8 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
     }
   };
 
-  // Empty state
-  if (plans.length === 0) {
+  // Empty state — no plans exist at all (no active filters)
+  if (plans.length === 0 && !hasActiveFilters) {
     return (
       <div className="text-center py-12 bg-white rounded-lg border border-[#D4CFE2]">
         <svg
@@ -250,6 +252,21 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
               </th>
             </tr>
           </thead>
+          {plans.length === 0 && hasActiveFilters && (
+            <tbody>
+              <tr>
+                <td colSpan={9} className="py-16 text-center">
+                  <p className="text-[#6E6390] font-medium mb-2">No plans match your filters</p>
+                  <button
+                    onClick={onClearFilters}
+                    className="text-sm text-[#F37167] hover:text-[#e5574d] font-medium cursor-pointer"
+                  >
+                    Clear filters
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          )}
           <tbody className="bg-white divide-y divide-[#E2DEEC]">
             {sortedPlans.map((plan) => (
               <tr
