@@ -127,6 +127,7 @@ export default function PlansView({ initialPlanId = null, onPlanChange }: PlansV
       <PlanDetailView
         planId={selectedPlanId}
         onBack={() => handleSelectPlan(null)}
+        onNavigate={(id) => handleSelectPlan(id)}
       />
     );
   }
@@ -630,9 +631,10 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
 interface PlanDetailViewProps {
   planId: string;
   onBack: () => void;
+  onNavigate: (planId: string) => void;
 }
 
-function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
+function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
@@ -655,6 +657,13 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
+
+  // Plan navigation — prev/next arrows
+  const { data: allPlans } = useTerritoryPlans();
+  const planIds = useMemo(() => (allPlans ?? []).map((p) => p.id), [allPlans]);
+  const currentIdx = planIds.indexOf(planId);
+  const prevPlanId = currentIdx > 0 ? planIds[currentIdx - 1] : null;
+  const nextPlanId = currentIdx >= 0 && currentIdx < planIds.length - 1 ? planIds[currentIdx + 1] : null;
 
   const handleUpdatePlan = async (data: PlanFormData) => {
     await updatePlan.mutateAsync({
@@ -785,94 +794,127 @@ function PlanDetailView({ planId, onBack }: PlanDetailViewProps) {
 
   return (
     <div className="h-full overflow-auto bg-[#FFFCFA]">
-      {/* Compact header: back + title + badges | actions */}
-      <header className="bg-white border-b border-[#D4CFE2] px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-12">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* Header — matches district detail panel pattern */}
+      <header className="bg-white border-b border-[#D4CFE2]">
+        {/* Back row with plan navigation */}
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-6 h-10 border-b border-gray-100">
+          <div className="flex items-center gap-2">
             <button
               onClick={onBack}
-              className="p-1 text-[#A69DC0] hover:text-[#403770] transition-colors flex-shrink-0"
+              className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
               aria-label="Back to Plans"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M9 3L5 7L9 11" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Plans</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => prevPlanId && onNavigate(prevPlanId)}
+              disabled={!prevPlanId}
+              className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Previous plan"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M7.5 2.5L4 6L7.5 9.5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {planIds.length > 0 && (
+              <span className="text-[10px] text-gray-400 tabular-nums min-w-[2rem] text-center">
+                {currentIdx + 1}/{planIds.length}
+              </span>
+            )}
+            <button
+              onClick={() => nextPlanId && onNavigate(nextPlanId)}
+              disabled={!nextPlanId}
+              className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Next plan"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M4.5 2.5L8 6L4.5 9.5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            <button
+              onClick={() => setActiveTab("map")}
+              className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+              aria-label="Return to map"
+              title="Return to map"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        {/* Plan info — gradient header like district panel */}
+        <div className="max-w-5xl mx-auto px-6 pt-3 pb-3 bg-gradient-to-b from-[#FFFCFA] to-white">
+          <div className="flex items-start gap-2.5 mb-2">
             <span
-              className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+              className="w-3 h-3 rounded-full mt-1 shrink-0"
               style={{ backgroundColor: plan.color }}
             />
-            <h1 className="text-lg font-bold text-[#403770] truncate">{plan.name}</h1>
-            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#403770] text-white flex-shrink-0">
-              FY{String(plan.fiscalYear).slice(-2)}
-            </span>
-            <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full flex-shrink-0 ${statusBadge.className}`}>
-              {statusBadge.label}
-            </span>
-            {/* Meta info inline */}
-            <span className="hidden md:flex items-center gap-2 text-[12px] text-[#A69DC0] ml-2 flex-shrink-0">
-              <span>{plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}</span>
-              {plan.owner?.fullName && (
-                <>
-                  <span>·</span>
-                  <span>{plan.owner.fullName}</span>
-                </>
-              )}
-              {plan.description && (
-                <>
-                  <span>·</span>
-                  <span className="truncate max-w-[200px]" title={plan.description}>{plan.description}</span>
-                </>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+            <h1 className="text-lg font-bold text-[#403770] leading-tight flex-1 min-w-0 truncate">
+              {plan.name}
+            </h1>
             <button
               onClick={() => setShowEditModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#403770] border border-[#403770] rounded-lg hover:bg-[#403770] hover:text-white transition-colors"
+              className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors shrink-0"
+              aria-label="Edit plan"
+              title="Edit plan"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M11.5 2.5L13.5 4.5M10 4L2 12V14H4L12 6L10 4Z" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Edit
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-500 border border-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+              className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors shrink-0"
+              aria-label="Delete plan"
+              title="Delete plan"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M13 4l-.6 8.5a1.5 1.5 0 01-1.5 1.5H5.1a1.5 1.5 0 01-1.5-1.5L3 4m3 3v4m4-4v4m1-7V3a1 1 0 00-1-1H6a1 1 0 00-1 1v1M2 4h12" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Delete
             </button>
           </div>
+          <div className="flex gap-1.5 flex-wrap ml-5">
+            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#403770] text-white">
+              FY{String(plan.fiscalYear).slice(-2)}
+            </span>
+            <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${statusBadge.className}`}>
+              {statusBadge.label}
+            </span>
+            <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
+              {plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}
+            </span>
+            {plan.owner?.fullName && (
+              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-600">
+                {plan.owner.fullName}
+              </span>
+            )}
+          </div>
+          {plan.description && (
+            <p className="text-xs text-gray-500 mt-2 ml-5 leading-relaxed line-clamp-2">{plan.description}</p>
+          )}
         </div>
       </header>
 
       {/* Main content: Tabbed interface for Districts, Activities, Contacts */}
-      <main className={`mx-auto px-6 py-4 transition-[margin] duration-300 ${panelLeaid ? "mr-[420px]" : "max-w-7xl"}`}>
-        <div className="flex items-center justify-between mb-3">
+      <main className={`mx-auto px-6 py-4 transition-[margin] duration-300 ${panelLeaid ? "mr-[420px]" : "max-w-5xl"}`}>
+        <div className="flex items-center justify-end gap-2 mb-3">
+          <BulkScanButton territoryPlanId={planId} />
           <button
-            onClick={() => setActiveTab("map")}
-            className="inline-flex items-center gap-2 text-sm text-[#403770] hover:text-[#F37167] transition-colors"
+            onClick={() => setShowActivityModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add Districts from Map
+            New Activity
           </button>
-          <div className="flex items-center gap-2">
-            <BulkScanButton territoryPlanId={planId} />
-            <button
-              onClick={() => setShowActivityModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Activity
-            </button>
-          </div>
         </div>
 
         <PlanTabs
