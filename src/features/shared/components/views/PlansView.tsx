@@ -160,6 +160,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
   const setPlanHighlight = useMapStore((s) => s.setPlanHighlight);
   const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const clearSearchFilters = useMapV2Store((s) => s.clearSearchFilters);
 
   const handleShowOnMap = useCallback((planId: string) => {
     const plan = plans?.find((p) => p.id === planId);
@@ -170,7 +171,8 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
       districtLeaids: plan.districtLeaids ?? [],
       planName: plan.name,
     });
-    // Set the Plan Membership filter on the map to show this plan's districts
+    // Clear any existing map search filters, then set Plan Membership for this plan
+    clearSearchFilters();
     addSearchFilter({
       id: crypto.randomUUID(),
       column: "planNames",
@@ -178,7 +180,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
       value: [plan.name],
     });
     setActiveTab("map");
-  }, [plans, setCurrentPlanId, setPlanHighlight, addSearchFilter, setActiveTab]);
+  }, [plans, setCurrentPlanId, setPlanHighlight, clearSearchFilters, addSearchFilter, setActiveTab]);
 
   // --- Filter state ---
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
