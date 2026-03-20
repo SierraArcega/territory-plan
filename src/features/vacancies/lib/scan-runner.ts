@@ -360,13 +360,19 @@ function groupByDistrict(
     const normEmployer = normalizeForMatch(job.employerName);
 
     // Check if it matches the scanning district
-    const tooShort = !normEmployer || !normSource ||
-      normEmployer.length < MIN_NAME_LENGTH_FOR_FUZZY ||
-      normSource.length < MIN_NAME_LENGTH_FOR_FUZZY;
-    const isOwn = tooShort ||
-      normEmployer.includes(normSource) ||
-      normSource.includes(normEmployer) ||
-      diceCoefficient(normEmployer, normSource) >= REDISTRIBUTION_DICE_THRESHOLD;
+    let isOwn: boolean;
+    if (!normEmployer || !normSource) {
+      // Can't compare — benefit of the doubt
+      isOwn = true;
+    } else if (normEmployer.length < MIN_NAME_LENGTH_FOR_FUZZY || normSource.length < MIN_NAME_LENGTH_FOR_FUZZY) {
+      // Short names (e.g., "waco", "bath") — only exact match, no fuzzy
+      isOwn = normEmployer === normSource;
+    } else {
+      isOwn =
+        normEmployer.includes(normSource) ||
+        normSource.includes(normEmployer) ||
+        diceCoefficient(normEmployer, normSource) >= REDISTRIBUTION_DICE_THRESHOLD;
+    }
 
     if (isOwn) {
       ownJobs.push(job);
