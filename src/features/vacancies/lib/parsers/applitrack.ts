@@ -125,6 +125,15 @@ function parseBlockWithTitle(
     }
   }
 
+  // District/Employer — shared AppliTrack instances include this per listing
+  const districtMatch = block.match(/District:?<\/span>[\s\S]*?class=.?normal.?[^>]*>([\s\S]*?)<\//i);
+  if (districtMatch) {
+    const employer = stripHtml(districtMatch[1]).trim();
+    if (employer) {
+      vacancy.employerName = employer;
+    }
+  }
+
   // Start Date
   const startMatch = blockText.match(/(?:Start|Begin)\s*Date\s*:?\s*(.+?)(?:\s{2,}|\n|$)/i);
   if (startMatch) {
