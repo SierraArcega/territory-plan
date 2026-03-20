@@ -101,11 +101,25 @@ export async function GET(request: NextRequest) {
           v.fullmind_relevant AS "fullmindRelevant",
           d.name AS "districtName",
           d.leaid,
+          v.source_url AS "sourceUrl",
+          d.job_board_url AS "jobBoardUrl",
+          tp_agg.plans AS "plans",
           COALESCE(s.longitude::double precision, ST_X(d.centroid)) AS lng,
           COALESCE(s.latitude::double precision, ST_Y(d.centroid)) AS lat
         FROM vacancies v
         INNER JOIN districts d ON v.leaid = d.leaid
         LEFT JOIN schools s ON v.school_ncessch = s.ncessch
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(jsonb_build_object(
+            'id', tp.id,
+            'name', tp.name,
+            'fiscalYear', tp.fiscal_year,
+            'color', tp.color
+          )) AS plans
+          FROM territory_plan_districts tpd
+          INNER JOIN territory_plans tp ON tpd.plan_id = tp.id
+          WHERE tpd.district_leaid = v.leaid
+        ) tp_agg ON true
         WHERE ${conditions.join(" AND ")}
         `,
         params
@@ -128,6 +142,9 @@ export async function GET(request: NextRequest) {
           fullmindRelevant: row.fullmindRelevant,
           districtName: row.districtName,
           leaid: row.leaid,
+          sourceUrl: row.sourceUrl,
+          jobBoardUrl: row.jobBoardUrl,
+          plans: row.plans ?? null,
         },
       }));
 
