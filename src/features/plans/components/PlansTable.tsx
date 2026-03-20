@@ -185,12 +185,13 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
   const totalDistrictCount = plans.reduce((sum, plan) => sum + plan.districtCount, 0);
 
   return (
-    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0">
       {toolbar && (
-        <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
+        <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA] relative z-20 rounded-t-lg border-x border-t border-[#D4CFE2]">
           {toolbar}
         </div>
       )}
+      <div className={`overflow-hidden border border-[#D4CFE2] ${toolbar ? 'rounded-b-lg border-t-0' : 'rounded-lg'} bg-white shadow-sm flex flex-col flex-1 min-h-0`}>
       <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full table-fixed divide-y divide-[#D4CFE2]">
           <thead className="bg-[#F7F5FA] sticky top-0 z-10">
@@ -384,6 +385,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
           isDeleting={deletePlan.isPending}
         />
       )}
+      </div>
     </div>
   );
 }

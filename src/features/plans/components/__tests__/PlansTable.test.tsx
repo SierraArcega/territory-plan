@@ -178,6 +178,18 @@ describe("PlansTable", () => {
       expect(screen.getByText(/no plans/i)).toBeInTheDocument();
     });
 
+    it("renders toolbar outside the overflow container", () => {
+      const toolbar = <div data-testid="filter-toolbar">Filters</div>;
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} toolbar={toolbar} />
+      );
+
+      const toolbarEl = screen.getByTestId("filter-toolbar");
+      // The toolbar's parent should NOT be inside the overflow-hidden container
+      const overflowContainer = toolbarEl.closest('[class*="overflow-hidden"]');
+      expect(overflowContainer).toBeNull();
+    });
+
     it("shows footer with total district count", () => {
       renderWithProviders(
         <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
