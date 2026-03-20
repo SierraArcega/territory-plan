@@ -130,7 +130,7 @@ export default function SearchBar() {
   const vacancyDateRange = useMapV2Store((s) => s.dateRange.vacancies);
   const activityDateRange = useMapV2Store((s) => s.dateRange.activities);
 
-  const openRightPanel = useMapV2Store((s) => s.openRightPanel);
+  const setSearchBarSelectedLeaid = useMapV2Store((s) => s.setSearchBarSelectedLeaid);
 
   // Location search state
   const [query, setQuery] = useState("");
@@ -171,7 +171,14 @@ export default function SearchBar() {
     setShowSuggestions(false);
     setSuggestions([]);
     setDistrictSuggestions([]);
-    openRightPanel({ type: "district_card", id: district.leaid });
+
+    // Show district card in SearchResults panel
+    setSearchBarSelectedLeaid(district.leaid);
+    const store = useMapV2Store.getState();
+    if (!store.searchResultsVisible) {
+      store.toggleSearchResults();
+    }
+    store.setActiveResultsTab("districts");
 
     // Fly to district location using city + state
     const city = district.cityLocation || district.name.replace(/\s*(School District|Community School District|Unified School District|Independent School District|Public Schools|Public School District|City School District|County School District|County Schools|Schools|SD)$/i, "");
@@ -181,7 +188,7 @@ export default function SearchBar() {
     if (map && results.length > 0) {
       map.flyTo({ center: [results[0].lng, results[0].lat], zoom: 9, duration: 1200 });
     }
-  }, [openRightPanel]);
+  }, [setSearchBarSelectedLeaid]);
 
   const handleSelectLocation = useCallback((suggestion: GeocodeSuggestion) => {
     setQuery(suggestion.displayName.split(",")[0]);
