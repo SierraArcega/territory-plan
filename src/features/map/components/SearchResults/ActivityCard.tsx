@@ -1,6 +1,8 @@
 "use client";
 
 import type { Feature, Point } from "geojson";
+import { ACTIVITY_STATUS_CONFIG, formatStatusLabel } from "@/features/activities/types";
+import type { ActivityStatus } from "@/features/activities/types";
 
 interface ActivityCardProps {
   feature: Feature<Point>;
@@ -17,12 +19,11 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
   default:        { bg: "rgba(110,163,190,0.12)", text: "#5e96b4" },
 };
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  completed:  { bg: "rgba(106,168,110,0.15)", text: "#5a7a61" },
-  scheduled:  { bg: "rgba(110,163,190,0.15)", text: "#3d7a96" },
-  cancelled:  { bg: "rgba(200,80,70,0.12)", text: "#a84a42" },
-  pending:    { bg: "rgba(220,180,60,0.15)", text: "#8a7230" },
-};
+function getStatusColors(status: string): { bg: string; text: string } {
+  const config = ACTIVITY_STATUS_CONFIG[status as ActivityStatus];
+  if (config) return { bg: config.bgColor, text: config.color };
+  return { bg: "rgba(110,163,190,0.15)", text: "#3d7a96" };
+}
 
 function getTypeStyle(type: string | undefined) {
   if (!type) return TYPE_COLORS.default;
@@ -30,8 +31,8 @@ function getTypeStyle(type: string | undefined) {
 }
 
 function getStatusStyle(status: string | undefined) {
-  if (!status) return STATUS_COLORS.scheduled;
-  return STATUS_COLORS[status.toLowerCase()] ?? STATUS_COLORS.scheduled;
+  if (!status) return getStatusColors("planned");
+  return getStatusColors(status.toLowerCase());
 }
 
 /** Format a date string to a short readable form. */
@@ -80,7 +81,7 @@ export default function ActivityCard({ feature, onClick }: ActivityCardProps) {
             className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
             style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
           >
-            {status}
+            {formatStatusLabel(status)}
           </span>
         )}
       </div>

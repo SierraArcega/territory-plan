@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/lib/api";
 import { useActivities } from "@/features/activities/lib/queries";
 import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrollmentDemographics, District, Tag, TerritoryPlan, ActivityListItem } from "@/features/shared/types/api-types";
+import { ACTIVITY_STATUS_CONFIG, formatStatusLabel } from "@/features/activities/types";
+import type { ActivityStatus } from "@/features/activities/types";
 import VacancyList from "@/features/vacancies/components/VacancyList";
 
 interface CompetitorSpendRecord {
@@ -521,13 +523,11 @@ function FullmindTab({
             {activities.map((a) => (
               <div key={a.id} className="flex items-center justify-between py-2 border-b border-[#E2DEEC] last:border-0">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[11px] font-medium text-[#8A80A8] uppercase shrink-0">{a.type.replace("_", " ")}</span>
+                  <span className="text-[11px] font-medium text-[#8A80A8] uppercase shrink-0">{a.type.replace(/_/g, " ")}</span>
                   <span className="text-sm text-[#544A78] truncate">{a.title}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-3">
-                  <span className={`text-[11px] font-medium capitalize ${
-                    a.status === "completed" ? "text-[#8AA891]" : a.status === "cancelled" ? "text-[#A69DC0]" : "text-[#6EA3BE]"
-                  }`}>{a.status}</span>
+                  <span className="text-[11px] font-medium" style={{ color: ACTIVITY_STATUS_CONFIG[a.status as ActivityStatus]?.color ?? "#6EA3BE" }}>{formatStatusLabel(a.status)}</span>
                   {a.startDate && (
                     <span className="text-[11px] text-[#A69DC0]">
                       {new Date(a.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
