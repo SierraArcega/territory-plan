@@ -240,4 +240,74 @@ describe("processVacancies", () => {
     expect(upsertCall.where.fingerprint).toMatch(/^[0-9a-f]{64}$/);
     expect(upsertCall.create.fingerprint).toBe(upsertCall.where.fingerprint);
   });
+
+  describe("district affinity (districtVerified)", () => {
+    it("sets districtVerified=true for district-scoped platforms (applitrack)", async () => {
+      const rawVacancies: RawVacancy[] = [
+        { title: "Math Teacher", employerName: "Some Other District" },
+      ];
+
+      await processVacancies("3601234", "scan-1", rawVacancies, "applitrack", "Springfield School District");
+
+      expect(mockPrisma.vacancy.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ districtVerified: true }),
+        })
+      );
+    });
+
+    it("sets districtVerified=true when employer matches district on statewide board", async () => {
+      const rawVacancies: RawVacancy[] = [
+        { title: "Math Teacher", employerName: "Springfield Public Schools" },
+      ];
+
+      await processVacancies("3601234", "scan-1", rawVacancies, "olas", "Springfield School District");
+
+      expect(mockPrisma.vacancy.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ districtVerified: true }),
+        })
+      );
+    });
+
+    it("sets districtVerified=false when employer mismatches district on statewide board", async () => {
+      const rawVacancies: RawVacancy[] = [
+        { title: "Math Teacher", employerName: "Albany City School District" },
+      ];
+
+      await processVacancies("3601234", "scan-1", rawVacancies, "olas", "Springfield School District");
+
+      expect(mockPrisma.vacancy.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ districtVerified: false }),
+        })
+      );
+    });
+
+    it("sets districtVerified=true when no employerName on statewide board (benefit of doubt)", async () => {
+      const rawVacancies: RawVacancy[] = [
+        { title: "Math Teacher" },
+      ];
+
+      await processVacancies("3601234", "scan-1", rawVacancies, "schoolspring", "Springfield School District");
+
+      expect(mockPrisma.vacancy.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ districtVerified: true }),
+        })
+      );
+    });
+
+    it("defaults districtVerified=true when platform/districtName not provided", async () => {
+      const rawVacancies: RawVacancy[] = [{ title: "Math Teacher" }];
+
+      await processVacancies("3601234", "scan-1", rawVacancies);
+
+      expect(mockPrisma.vacancy.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ districtVerified: true }),
+        })
+      );
+    });
+  });
 });

@@ -3,6 +3,7 @@ import type { RawVacancy } from "./parsers/types";
 import { filterExcludedRoles } from "./role-filter";
 import { categorize } from "./categorizer";
 import { generateFingerprint } from "./fingerprint";
+import { isStatewideBoard } from "./platform-detector";
 
 interface ProcessResult {
   vacancyCount: number;
@@ -63,10 +64,68 @@ const DICE_THRESHOLD = 0.8;
  * Pre-loads all lookup data (keyword configs, schools, contacts) once,
  * then processes each vacancy without additional DB queries.
  */
+/** Dice coefficient threshold for district name affinity matching (looser than school matching) */
+const DISTRICT_DICE_THRESHOLD = 0.4;
+
+/** Common words stripped from district names before affinity comparison */
+const DISTRICT_NOISE_WORDS = [
+  "school", "schools", "district", "public", "city", "county",
+  "unified", "consolidated", "independent", "regional", "area",
+  "township", "borough", "union", "free", "central",
+];
+
+/** Normalize a district/employer name for affinity comparison by stripping noise words */
+function normalizeDistrictName(name: string): string {
+  let normalized = name.toLowerCase().trim();
+  for (const word of DISTRICT_NOISE_WORDS) {
+    normalized = normalized.replace(new RegExp(`\\b${word}\\b`, "gi"), "");
+  }
+  return normalized.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Check whether a vacancy's employer name matches the expected district.
+ * Returns true (verified) for district-scoped platforms or when employer matches.
+ * Returns false only when a state-wide board provides an employer that clearly
+ * doesn't match the target district.
+ */
+function checkDistrictAffinity(
+  raw: RawVacancy,
+  platform: string,
+  districtName: string | undefined
+): boolean {
+  // District-specific platforms — always trust
+  if (!isStatewideBoard(platform)) return true;
+  // No district name to compare against — benefit of the doubt
+  if (!districtName) return true;
+  // No employer info available — benefit of the doubt
+  if (!raw.employerName) return true;
+
+  const normalizedEmployer = normalizeDistrictName(raw.employerName);
+  const normalizedDistrict = normalizeDistrictName(districtName);
+
+  // If stripping noise words leaves nothing, benefit of the doubt
+  if (!normalizedEmployer || !normalizedDistrict) return true;
+
+  // Exact substring match (handles "Springfield" appearing in "Springfield Public Schools")
+  if (
+    normalizedEmployer.includes(normalizedDistrict) ||
+    normalizedDistrict.includes(normalizedEmployer)
+  ) {
+    return true;
+  }
+
+  // Fuzzy match with looser threshold
+  const score = diceCoefficient(normalizedEmployer, normalizedDistrict);
+  return score >= DISTRICT_DICE_THRESHOLD;
+}
+
 export async function processVacancies(
   leaid: string,
   scanId: string,
-  rawVacancies: RawVacancy[]
+  rawVacancies: RawVacancy[],
+  platform: string = "unknown",
+  districtName?: string
 ): Promise<ProcessResult> {
   // Pre-load all lookup data in parallel (fixes N+1 queries)
   const [relevanceConfigs, schools, contacts, filtered] = await Promise.all([
@@ -156,6 +215,7 @@ export async function processVacancies(
     if (fullmindRelevant) fullmindRelevantCount++;
 
     const datePosted = parseDatePosted(raw.datePosted);
+    const districtVerified = checkDistrictAffinity(raw, platform, districtName);
 
     // Upsert vacancy
     await prisma.vacancy.upsert({
@@ -176,6 +236,7 @@ export async function processVacancies(
         datePosted,
         fullmindRelevant,
         relevanceReason,
+        districtVerified,
         sourceUrl: raw.sourceUrl ?? null,
         rawText: raw.rawText ?? null,
         firstSeenAt: now,
@@ -196,6 +257,7 @@ export async function processVacancies(
         datePosted,
         fullmindRelevant,
         relevanceReason,
+        districtVerified,
         sourceUrl: raw.sourceUrl ?? null,
         rawText: raw.rawText ?? null,
       },

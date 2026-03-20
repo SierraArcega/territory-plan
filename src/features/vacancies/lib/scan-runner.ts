@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { detectPlatform } from "./platform-detector";
+import { detectPlatform, isStatewideBoard, loadSharedAppliTrackInstances } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
 import { parseWithPlaywright } from "./parsers/playwright-fallback";
@@ -7,7 +7,7 @@ import { parseWithClaude } from "./parsers/claude-fallback";
 import type { RawVacancy } from "./parsers/types";
 
 /** Maximum time (ms) a single scan is allowed to run before timing out. */
-const SCAN_TIMEOUT_MS = 60_000;
+const SCAN_TIMEOUT_MS = 180_000; // 3 min for state-wide redistribution
 
 /**
  * Orchestrates a single district vacancy scan:
@@ -34,6 +34,7 @@ export async function runScan(scanId: string): Promise<void> {
             name: true,
             jobBoardUrl: true,
             jobBoardPlatform: true,
+            enrollment: true,
           },
         },
       },
@@ -56,11 +57,14 @@ export async function runScan(scanId: string): Promise<void> {
       return;
     }
 
-    // Step 2: Set status to running
-    await prisma.vacancyScan.update({
-      where: { id: scanId },
-      data: { status: "running" },
-    });
+    // Step 2: Set status to running + warm shared AppliTrack cache
+    await Promise.all([
+      prisma.vacancyScan.update({
+        where: { id: scanId },
+        data: { status: "running" },
+      }),
+      loadSharedAppliTrackInstances(),
+    ]);
 
     // Step 3: Detect platform
     const platform = detectPlatform(scan.district.jobBoardUrl);
@@ -119,27 +123,95 @@ export async function runScan(scanId: string): Promise<void> {
     }
 
     // Step 5: Post-process
-    const result = await processVacancies(
-      scan.district.leaid,
-      scanId,
-      rawVacancies
-    );
+    if (isStatewideBoard(platform, scan.district.jobBoardUrl) && rawVacancies.length > 0) {
+      // State-wide board: process THIS district's jobs first (fast),
+      // then redistribute the rest in the background.
+      const { ownJobs, otherJobs, districtsMatched } = groupByDistrict(
+        scan.district.leaid,
+        scan.district.name,
+        rawVacancies
+      );
 
-    // Check if aborted
-    if (timeoutController.signal.aborted) {
-      throw new Error("Scan timed out");
+      // Process the scanning district's own jobs synchronously (fast — usually just a few)
+      const result = await processVacancies(
+        scan.district.leaid,
+        scanId,
+        ownJobs,
+        platform,
+        scan.district.name
+      );
+
+      // Mark scan as completed immediately so the UI gets results
+      await prisma.vacancyScan.update({
+        where: { id: scanId },
+        data: {
+          status: "completed",
+          vacancyCount: result.vacancyCount,
+          fullmindRelevantCount: result.fullmindRelevantCount,
+          districtsMatched,
+          completedAt: new Date(),
+        },
+      });
+
+      // Redistribute remaining jobs to other districts in the background
+      if (otherJobs.size > 0) {
+        console.log(
+          `[scan-runner] Background redistribution: ${[...otherJobs.values()].reduce((sum, b) => sum + b.jobs.length, 0)} jobs to ${otherJobs.size} districts`
+        );
+        redistributeInBackground(otherJobs, scanId, platform).catch((err) => {
+          console.error("[scan-runner] Background redistribution failed:", err);
+        });
+      }
+    } else {
+      // Safety check: if an unknown platform returns a suspicious number of
+      // vacancies relative to district size, skip importing — it's likely a
+      // regional aggregator, not a district job board.
+      if (platform === "unknown" && rawVacancies.length > 100) {
+        const enrollment = scan.district.enrollment ?? 0;
+        // A district with <5,000 students shouldn't have 100+ vacancies
+        // Large districts (5k+) could legitimately have that many
+        if (enrollment < 5000) {
+          console.warn(
+            `[scan-runner] Suspicious: ${rawVacancies.length} vacancies from unknown platform ` +
+            `for ${scan.district.name} (enrollment: ${enrollment}). Skipping.`
+          );
+          await prisma.vacancyScan.update({
+            where: { id: scanId },
+            data: {
+              status: "completed_partial",
+              vacancyCount: 0,
+              errorMessage: `Skipped: ${rawVacancies.length} vacancies from unknown platform looks like a regional aggregator (enrollment: ${enrollment})`,
+              completedAt: new Date(),
+            },
+          });
+          return;
+        }
+      }
+
+      // District-scoped board — process normally
+      const result = await processVacancies(
+        scan.district.leaid,
+        scanId,
+        rawVacancies,
+        platform,
+        scan.district.name
+      );
+
+      // Check if aborted
+      if (timeoutController.signal.aborted) {
+        throw new Error("Scan timed out");
+      }
+
+      await prisma.vacancyScan.update({
+        where: { id: scanId },
+        data: {
+          status: "completed",
+          vacancyCount: result.vacancyCount,
+          fullmindRelevantCount: result.fullmindRelevantCount,
+          completedAt: new Date(),
+        },
+      });
     }
-
-    // Step 6: Update scan as completed
-    await prisma.vacancyScan.update({
-      where: { id: scanId },
-      data: {
-        status: "completed",
-        vacancyCount: result.vacancyCount,
-        fullmindRelevantCount: result.fullmindRelevantCount,
-        completedAt: new Date(),
-      },
-    });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
@@ -164,4 +236,232 @@ export async function runScan(scanId: string): Promise<void> {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+// ─── State-wide redistribution helpers ─────────────────────────────
+
+const NOISE_WORDS = [
+  "school", "schools", "district", "public", "city", "county",
+  "unified", "consolidated", "independent", "regional", "area",
+  "township", "borough", "union", "free", "central", "community",
+];
+
+function normalizeForMatch(name: string): string {
+  let n = name.toLowerCase().trim();
+  for (const word of NOISE_WORDS) {
+    n = n.replace(new RegExp(`\\b${word}\\b`, "gi"), "");
+  }
+  return n.replace(/\s+/g, " ").trim();
+}
+
+function bigrams(str: string): Set<string> {
+  const result = new Set<string>();
+  for (let i = 0; i < str.length - 1; i++) {
+    result.add(str.substring(i, i + 2));
+  }
+  return result;
+}
+
+function diceCoefficient(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const ba = bigrams(a);
+  const bb = bigrams(b);
+  let intersection = 0;
+  for (const bg of ba) if (bb.has(bg)) intersection++;
+  return (2 * intersection) / (ba.size + bb.size);
+}
+
+interface DistrictCandidate {
+  leaid: string;
+  name: string;
+  normalized: string;
+}
+
+/** Minimum length for normalized names to be eligible for fuzzy matching.
+ *  Short names like "bath", "union", "troy" produce too many false positives. */
+const MIN_NAME_LENGTH_FOR_FUZZY = 5;
+
+/** Dice threshold for redistribution matching (raised from 0.5 to reduce false positives) */
+const REDISTRIBUTION_DICE_THRESHOLD = 0.6;
+
+function findBestDistrict(
+  employerName: string,
+  districts: DistrictCandidate[],
+  schoolToDistrict: Map<string, string>
+): { leaid: string; name: string } | null {
+  const normEmployer = normalizeForMatch(employerName);
+
+  // Too short after normalization — skip fuzzy matching to avoid false positives
+  // (e.g., "Union" → "" after stripping, or "Bath Schools" → "bath")
+  if (!normEmployer || normEmployer.length < MIN_NAME_LENGTH_FOR_FUZZY) {
+    // Still try exact school name lookup below
+  } else {
+    // Try exact substring match (high confidence)
+    for (const d of districts) {
+      if (d.normalized.length < MIN_NAME_LENGTH_FOR_FUZZY) continue;
+      if (normEmployer.includes(d.normalized) || d.normalized.includes(normEmployer)) {
+        return { leaid: d.leaid, name: d.name };
+      }
+    }
+
+    // Fuzzy match with tighter threshold
+    let bestScore = 0;
+    let bestMatch: DistrictCandidate | null = null;
+    for (const d of districts) {
+      if (d.normalized.length < MIN_NAME_LENGTH_FOR_FUZZY) continue;
+      const score = diceCoefficient(normEmployer, d.normalized);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = d;
+      }
+    }
+    if (bestMatch && bestScore >= REDISTRIBUTION_DICE_THRESHOLD) {
+      return { leaid: bestMatch.leaid, name: bestMatch.name };
+    }
+  }
+
+  // Fallback: exact school name lookup (no fuzzy — must be exact match)
+  const schoolLeaid = schoolToDistrict.get(employerName.toLowerCase().trim());
+  if (schoolLeaid) {
+    const district = districts.find((d) => d.leaid === schoolLeaid);
+    if (district) return { leaid: district.leaid, name: district.name };
+  }
+
+  return null;
+}
+
+/**
+ * Group raw vacancies by district: separates the scanning district's own jobs
+ * from jobs belonging to other districts. Uses employer name matching against
+ * state districts and school names.
+ */
+function groupByDistrict(
+  sourceLeaid: string,
+  sourceDistrictName: string,
+  rawVacancies: RawVacancy[]
+): {
+  ownJobs: RawVacancy[];
+  otherJobs: Map<string, { districtName: string; jobs: RawVacancy[] }>;
+  districtsMatched: number;
+} {
+  // We can't do async DB lookups here since this needs to be fast.
+  // Use the employer name to split: jobs whose employerName fuzzy-matches
+  // the source district go into ownJobs, everything else into otherJobs
+  // (keyed by employerName for now — background redistribution resolves to leaids).
+  const ownJobs: RawVacancy[] = [];
+  const otherJobs = new Map<string, { districtName: string; jobs: RawVacancy[] }>();
+  const normSource = normalizeForMatch(sourceDistrictName);
+
+  for (const job of rawVacancies) {
+    if (!job.employerName) {
+      // No employer info — assume it belongs to scanning district
+      ownJobs.push(job);
+      continue;
+    }
+
+    const normEmployer = normalizeForMatch(job.employerName);
+
+    // Check if it matches the scanning district
+    const tooShort = !normEmployer || !normSource ||
+      normEmployer.length < MIN_NAME_LENGTH_FOR_FUZZY ||
+      normSource.length < MIN_NAME_LENGTH_FOR_FUZZY;
+    const isOwn = tooShort ||
+      normEmployer.includes(normSource) ||
+      normSource.includes(normEmployer) ||
+      diceCoefficient(normEmployer, normSource) >= REDISTRIBUTION_DICE_THRESHOLD;
+
+    if (isOwn) {
+      ownJobs.push(job);
+    } else {
+      // Group by employer name — we'll resolve to leaids in the background
+      const key = job.employerName;
+      if (!otherJobs.has(key)) {
+        otherJobs.set(key, { districtName: key, jobs: [] });
+      }
+      otherJobs.get(key)!.jobs.push(job);
+    }
+  }
+
+  console.log(
+    `[scan-runner] State-wide split: ${ownJobs.length} own, ` +
+    `${[...otherJobs.values()].reduce((s, b) => s + b.jobs.length, 0)} for other districts`
+  );
+
+  return { ownJobs, otherJobs, districtsMatched: otherJobs.size };
+}
+
+/**
+ * Redistribute jobs to other districts in the background.
+ * Resolves employer names to leaids via DB lookup, then processes in batches.
+ */
+async function redistributeInBackground(
+  employerBuckets: Map<string, { districtName: string; jobs: RawVacancy[] }>,
+  scanId: string,
+  platform: string
+): Promise<void> {
+  // We need to figure out the state FIPS from the scan
+  const scan = await prisma.vacancyScan.findUnique({
+    where: { id: scanId },
+    select: { leaid: true },
+  });
+  if (!scan) return;
+
+  const fipsPrefix = scan.leaid.substring(0, 2);
+
+  // Load state districts and schools for matching
+  const [stateDistricts, stateSchools] = await Promise.all([
+    prisma.district.findMany({
+      where: { leaid: { startsWith: fipsPrefix } },
+      select: { leaid: true, name: true },
+    }),
+    prisma.school.findMany({
+      where: { leaid: { startsWith: fipsPrefix } },
+      select: { schoolName: true, leaid: true },
+    }),
+  ]);
+
+  const candidates: DistrictCandidate[] = stateDistricts.map((d) => ({
+    ...d,
+    normalized: normalizeForMatch(d.name),
+  }));
+
+  const schoolToDistrict = new Map<string, string>();
+  for (const s of stateSchools) {
+    schoolToDistrict.set(s.schoolName.toLowerCase().trim(), s.leaid);
+  }
+
+  // Resolve employer names to leaids and regroup
+  const leaidBuckets = new Map<string, { districtName: string; jobs: RawVacancy[] }>();
+
+  for (const [employerName, bucket] of employerBuckets) {
+    const match = findBestDistrict(employerName, candidates, schoolToDistrict);
+    if (match) {
+      if (!leaidBuckets.has(match.leaid)) {
+        leaidBuckets.set(match.leaid, { districtName: match.name, jobs: [] });
+      }
+      leaidBuckets.get(match.leaid)!.jobs.push(...bucket.jobs);
+    }
+    // Unmatched jobs are silently dropped — they were already excluded
+    // from the scanning district's results
+  }
+
+  console.log(
+    `[scan-runner] Background redistribution: resolved to ${leaidBuckets.size} districts`
+  );
+
+  // Process in parallel with capped concurrency
+  const CONCURRENCY = 5;
+  const entries = [...leaidBuckets.entries()];
+
+  for (let i = 0; i < entries.length; i += CONCURRENCY) {
+    const batch = entries.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map(([leaid, bucket]) =>
+        processVacancies(leaid, scanId, bucket.jobs, platform, bucket.districtName)
+      )
+    );
+  }
+
+  console.log("[scan-runner] Background redistribution complete");
 }

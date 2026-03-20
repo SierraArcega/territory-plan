@@ -1223,6 +1223,7 @@ model VacancyScan {
   platform              String?   @db.VarChar(50)
   vacancyCount          Int?      @map("vacancy_count")
   fullmindRelevantCount Int?      @map("fullmind_relevant_count")
+  districtsMatched      Int?      @map("districts_matched")
   startedAt             DateTime  @default(now()) @map("started_at")
   completedAt           DateTime? @map("completed_at")
   errorMessage          String?   @map("error_message") @db.Text
@@ -1258,6 +1259,7 @@ model Vacancy {
   relevanceReason  String?   @map("relevance_reason") @db.VarChar(255)
   sourceUrl        String?   @map("source_url") @db.VarChar(1000)
   rawText          String?   @map("raw_text") @db.Text
+  districtVerified Boolean   @default(true) @map("district_verified")
   firstSeenAt      DateTime  @default(now()) @map("first_seen_at")
   lastSeenAt       DateTime  @default(now()) @map("last_seen_at")
   createdAt        DateTime  @default(now()) @map("created_at")

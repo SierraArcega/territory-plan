@@ -72,7 +72,8 @@ export async function parseSchoolSpring(url: string): Promise<RawVacancy[]> {
 
   return allJobs.map((job) => ({
     title: job.title,
-    schoolName: job.employer || undefined,
+    employerName: job.employer || undefined,
+    schoolName: job.location || undefined,
     datePosted: job.displayDate
       ? new Date(job.displayDate).toLocaleDateString("en-US")
       : undefined,
