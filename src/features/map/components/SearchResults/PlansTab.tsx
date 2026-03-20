@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { createPortal } from "react-dom";
+
 import type { FeatureCollection, Geometry, Feature } from "geojson";
 import PlanCard from "./PlanCard";
 import PlanDetailModal from "./PlanDetailModal";
@@ -86,16 +86,16 @@ export default function PlansTab({ data, isLoading }: PlansTabProps) {
       </div>
 
       {/* Plan detail modal */}
-      {selectedPlanId &&
-        createPortal(
-          <PlanDetailModal
-            planId={selectedPlanId}
-            onClose={() => setSelectedPlanId(null)}
-            onPrev={currentIndex > 0 ? handlePrev : undefined}
-            onNext={currentIndex < planIds.length - 1 ? handleNext : undefined}
-          />,
-          document.body
-        )}
+      {selectedPlanId && (
+        <PlanDetailModal
+          planId={selectedPlanId}
+          onClose={() => setSelectedPlanId(null)}
+          onPrev={currentIndex > 0 ? handlePrev : undefined}
+          onNext={currentIndex < planIds.length - 1 ? handleNext : undefined}
+          currentIndex={currentIndex}
+          totalCount={planIds.length}
+        />
+      )}
     </>
   );
 }
