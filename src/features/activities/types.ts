@@ -124,23 +124,16 @@ export const ACTIVITY_STATUS_CONFIG: Record<
   cancelled: { label: "Cancelled", color: "#9CA3AF", bgColor: "#F3F4F6" },
 };
 
-// Type-specific status lists — Conference uses extended lifecycle, all others use default
-const DEFAULT_STATUSES: ActivityStatus[] = ["planned", "completed", "cancelled"];
-const CONFERENCE_STATUSES: ActivityStatus[] = [
-  "requested",
-  "planning",
-  "in_progress",
-  "wrapping_up",
-  "completed",
-  "cancelled",
-];
+// Format a raw status string for display (e.g. "in_progress" → "In Progress")
+export function formatStatusLabel(status: string): string {
+  const config = ACTIVITY_STATUS_CONFIG[status as ActivityStatus];
+  if (config) return config.label;
+  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
-export const ACTIVITY_TYPE_STATUSES: Partial<Record<ActivityType, ActivityStatus[]>> = {
-  conference: CONFERENCE_STATUSES,
-};
-
-export function getStatusesForType(type: ActivityType): ActivityStatus[] {
-  return ACTIVITY_TYPE_STATUSES[type] ?? DEFAULT_STATUSES;
+// Unified status list — all activity types share the same lifecycle statuses
+export function getStatusesForType(_type: ActivityType): ActivityStatus[] {
+  return [...VALID_ACTIVITY_STATUSES];
 }
 
 // ===== Metadata Interfaces (stored as JSON in activity.metadata) =====
