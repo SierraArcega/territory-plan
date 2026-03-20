@@ -520,19 +520,38 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               <p className="text-sm">{error.message}</p>
             </div>
           </div>
-        ) : filteredPlans.length > 0 || (plans && plans.length > 0) ? (
+        ) : filteredPlans.length > 0 || (plans && plans.length > 0) || anyFilterActive ? (
           view === "cards" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-auto">
-              {filteredPlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  onClick={() => onSelectPlan(plan.id)}
-                  className="cursor-pointer"
-                >
-                  <PlanCard plan={plan} engagement={engagementMap.get(plan.id)} />
+            <>
+              {filterToolbar && (
+                <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA] rounded-t-lg border-x border-t border-[#D4CFE2]">
+                  {filterToolbar}
                 </div>
-              ))}
-            </div>
+              )}
+              {filteredPlans.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-auto">
+                  {filteredPlans.map((plan) => (
+                    <div
+                      key={plan.id}
+                      onClick={() => onSelectPlan(plan.id)}
+                      className="cursor-pointer"
+                    >
+                      <PlanCard plan={plan} engagement={engagementMap.get(plan.id)} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16 bg-white rounded-b-lg border-x border-b border-[#D4CFE2]">
+                  <p className="text-[#6E6390] font-medium mb-2">No plans match your filters</p>
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-sm text-[#F37167] hover:text-[#e5574d] font-medium cursor-pointer"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <PlansTable
               plans={filteredPlans}
