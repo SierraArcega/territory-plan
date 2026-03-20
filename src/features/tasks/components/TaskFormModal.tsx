@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import {
   useCreateTask,
   useTerritoryPlans,
+  useCreateTerritoryPlan,
   useActivities,
   useDistricts,
   useContacts,
@@ -59,8 +60,11 @@ export default function TaskFormModal({
   >(null);
   const [districtSearch, setDistrictSearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
+  const [showNewPlanForm, setShowNewPlanForm] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
 
   const createTask = useCreateTask();
+  const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: activitiesData } = useActivities();
   const { data: districtsData } = useDistricts({
@@ -87,6 +91,8 @@ export default function TaskFormModal({
       setOpenSection(null);
       setDistrictSearch("");
       setContactSearch("");
+      setShowNewPlanForm(false);
+      setNewPlanName("");
     }
   }, [isOpen, defaultPlanId, defaultActivityId]);
 
@@ -129,6 +135,18 @@ export default function TaskFormModal({
     setSelectedDistricts([]);
     setSelectedContacts([]);
     onClose();
+  };
+
+  const handleCreateAndLinkPlan = async () => {
+    if (!newPlanName.trim()) return;
+    const currentYear = new Date().getFullYear();
+    const newPlan = await createPlan.mutateAsync({
+      name: newPlanName.trim(),
+      fiscalYear: currentYear,
+    });
+    setSelectedPlanIds((prev) => [...prev, newPlan.id]);
+    setNewPlanName("");
+    setShowNewPlanForm(false);
   };
 
   const togglePlan = (planId: string) => {
@@ -312,7 +330,49 @@ export default function TaskFormModal({
                     </span>
                   </button>
                   {openSection === "plans" && (
-                    <div className="border-t border-gray-100 max-h-32 overflow-y-auto">
+                    <div className="border-t border-gray-100 max-h-40 overflow-y-auto">
+                      {/* Create New Plan */}
+                      <div className="border-b border-gray-100">
+                        {showNewPlanForm ? (
+                          <div className="flex items-center gap-2 px-3 py-2">
+                            <input
+                              type="text"
+                              value={newPlanName}
+                              onChange={(e) => setNewPlanName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleCreateAndLinkPlan();
+                                }
+                                if (e.key === "Escape") {
+                                  setShowNewPlanForm(false);
+                                  setNewPlanName("");
+                                }
+                              }}
+                              placeholder="Plan name..."
+                              className="flex-1 px-2 py-1.5 text-sm border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770] text-[#403770]"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={handleCreateAndLinkPlan}
+                              disabled={!newPlanName.trim() || createPlan.isPending}
+                              className="px-3 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors"
+                            >
+                              {createPlan.isPending ? "..." : "Add"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPlanForm(true)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#403770] hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="text-base leading-none">+</span>
+                            Create New Plan
+                          </button>
+                        )}
+                      </div>
                       {plans && plans.length > 0 ? (
                         plans.map((plan) => (
                           <label

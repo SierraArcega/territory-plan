@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useCreateActivity, useTerritoryPlans, useStates, useCreateTask } from "@/lib/api";
+import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -45,6 +45,7 @@ export default function ActivityFormModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
   const createTask = useCreateTask();
+  const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
 
@@ -78,6 +79,8 @@ export default function ActivityFormModal({
 
   // Navigation stack for viewing related activities
   const [viewStack, setViewStack] = useState<{ id: string; title: string }[]>([]);
+  const [showNewPlanForm, setShowNewPlanForm] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
 
   // Reset form when modal opens
   useEffect(() => {
@@ -112,6 +115,8 @@ export default function ActivityFormModal({
       setRelatedActivities([]);
       setViewStack([]);
       setError(null);
+      setShowNewPlanForm(false);
+      setNewPlanName("");
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
@@ -229,6 +234,18 @@ export default function ActivityFormModal({
 
   const isViewing = viewStack.length > 0;
   const currentView = isViewing ? viewStack[viewStack.length - 1] : null;
+
+  const handleCreateAndLinkPlan = async () => {
+    if (!newPlanName.trim()) return;
+    const currentYear = new Date().getFullYear();
+    const newPlan = await createPlan.mutateAsync({
+      name: newPlanName.trim(),
+      fiscalYear: currentYear,
+    });
+    setSelectedPlanIds((prev) => [...prev, newPlan.id]);
+    setNewPlanName("");
+    setShowNewPlanForm(false);
+  };
 
   const planOptions = useMemo(() => (plans ?? []).map((p) => ({ value: p.id, label: p.name })), [plans]);
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
@@ -436,7 +453,45 @@ export default function ActivityFormModal({
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
                       <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
-                      {selectedPlanIds.length === 0 && <p className="mt-1 text-xs text-[#F37167]">No plan linked</p>}
+                      {showNewPlanForm ? (
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <input
+                            type="text"
+                            value={newPlanName}
+                            onChange={(e) => setNewPlanName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleCreateAndLinkPlan();
+                              }
+                              if (e.key === "Escape") {
+                                setShowNewPlanForm(false);
+                                setNewPlanName("");
+                              }
+                            }}
+                            placeholder="Plan name..."
+                            className="flex-1 px-2 py-1.5 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770] text-[#403770]"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCreateAndLinkPlan}
+                            disabled={!newPlanName.trim() || createPlan.isPending}
+                            className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors"
+                          >
+                            {createPlan.isPending ? "..." : "Add"}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPlanForm(true)}
+                          className="mt-1 text-xs font-medium text-[#403770] hover:text-[#322a5a] transition-colors"
+                        >
+                          + Create New Plan
+                        </button>
+                      )}
+                      {selectedPlanIds.length === 0 && !showNewPlanForm && <p className="mt-1 text-xs text-[#F37167]">No plan linked</p>}
                     </div>
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>

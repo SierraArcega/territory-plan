@@ -303,6 +303,68 @@ const toggleDistrict = (leaid: string) => {
 };
 ```
 
+### Inline Create Option for Plan Pickers
+
+**Every plan picker must include a "Create New Plan" option** so users can create a plan without leaving their current workflow. This applies to all locations where plans are listed for linking: task creation/editing, activity creation, district linking, and bulk actions.
+
+**Placement:** Always at the **top** of the plan list, separated by a bottom border (`border-b border-[#E2DEEC]` or `border-b border-gray-100`).
+
+**Two states:**
+
+1. **Collapsed** — a `+ Create New Plan` text button:
+```tsx
+<button
+  type="button"
+  onClick={() => setShowNewPlanForm(true)}
+  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#403770] hover:bg-[#F7F5FA] transition-colors"
+>
+  <span className="text-base leading-none">+</span>
+  Create New Plan
+</button>
+```
+
+2. **Expanded** — inline name input + "Add" button:
+```tsx
+<div className="flex items-center gap-2 px-3 py-2">
+  <input
+    type="text"
+    value={newPlanName}
+    onChange={(e) => setNewPlanName(e.target.value)}
+    onKeyDown={(e) => {
+      if (e.key === "Enter") { e.preventDefault(); handleCreateAndLinkPlan(); }
+      if (e.key === "Escape") { setShowNewPlanForm(false); setNewPlanName(""); }
+    }}
+    placeholder="Plan name..."
+    className="flex-1 px-2 py-1.5 text-sm border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770] text-[#403770]"
+    autoFocus
+  />
+  <button
+    type="button"
+    onClick={handleCreateAndLinkPlan}
+    disabled={!newPlanName.trim() || createPlan.isPending}
+    className="px-3 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors"
+  >
+    {createPlan.isPending ? "..." : "Add"}
+  </button>
+</div>
+```
+
+**Behavior:**
+- Creating a plan uses `useCreateTerritoryPlan` with `name` and current `fiscalYear`
+- The new plan is immediately linked/selected after creation
+- Enter submits, Escape cancels
+- Form state resets on cancel and after successful creation
+
+**Codebase examples:**
+
+| Component | Context | File |
+|-----------|---------|------|
+| TaskDetailModal | Edit task → + Plan picker | `src/features/tasks/components/TaskDetailModal.tsx` |
+| TaskFormModal | New task → Plans section | `src/features/tasks/components/TaskFormModal.tsx` |
+| ActivityFormModal | New activity → Plans MultiSelect | `src/features/activities/components/ActivityFormModal.tsx` |
+| AddToPlanButton | District panel → Add to Plan | `src/features/map/components/panels/district/AddToPlanButton.tsx` |
+| MultiSelectActionBar | Bulk district select → Add to Plan | `src/features/shared/components/MultiSelectActionBar.tsx` |
+
 ---
 
 ## Loading Skeleton for Forms

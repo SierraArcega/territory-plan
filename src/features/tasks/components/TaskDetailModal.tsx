@@ -14,6 +14,7 @@ import {
   useLinkTaskActivities,
   useLinkTaskContacts,
   useTerritoryPlans,
+  useCreateTerritoryPlan,
   useActivities,
   useDistricts,
   useContacts,
@@ -53,6 +54,8 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
   >(null);
   const [districtSearch, setDistrictSearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
+  const [showNewPlanForm, setShowNewPlanForm] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -66,6 +69,7 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
   const linkDistricts = useLinkTaskDistricts();
   const linkActivities = useLinkTaskActivities();
   const linkContacts = useLinkTaskContacts();
+  const createPlan = useCreateTerritoryPlan();
 
   // Data hooks for pickers
   const { data: plans } = useTerritoryPlans();
@@ -90,6 +94,8 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
     setLinkingEntity(null);
     setDistrictSearch("");
     setContactSearch("");
+    setShowNewPlanForm(false);
+    setNewPlanName("");
   }, [task]);
 
   if (!isOpen) return null;
@@ -117,6 +123,18 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
 
   const handleLinkPlan = (planId: string) => {
     linkPlans.mutate({ taskId: task.id, planIds: [planId] });
+  };
+
+  const handleCreateAndLinkPlan = async () => {
+    if (!newPlanName.trim()) return;
+    const currentYear = new Date().getFullYear();
+    const newPlan = await createPlan.mutateAsync({
+      name: newPlanName.trim(),
+      fiscalYear: currentYear,
+    });
+    linkPlans.mutate({ taskId: task.id, planIds: [newPlan.id] });
+    setNewPlanName("");
+    setShowNewPlanForm(false);
   };
 
   const handleLinkActivity = (activityId: string) => {
@@ -373,24 +391,63 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
 
             {/* Inline picker: Plans */}
             {linkingEntity === "plans" && (
-              <div className="mt-2 border border-gray-200 rounded-lg max-h-36 overflow-y-auto">
+              <div className="mt-2 border border-[#D4CFE2] rounded-lg max-h-48 overflow-y-auto">
+                {/* Create New Plan */}
+                <div className="border-b border-[#E2DEEC]">
+                  {showNewPlanForm ? (
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <input
+                        type="text"
+                        value={newPlanName}
+                        onChange={(e) => setNewPlanName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCreateAndLinkPlan();
+                          if (e.key === "Escape") {
+                            setShowNewPlanForm(false);
+                            setNewPlanName("");
+                          }
+                        }}
+                        placeholder="Plan name..."
+                        className="flex-1 px-2 py-1.5 text-sm border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770] text-[#403770]"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateAndLinkPlan}
+                        disabled={!newPlanName.trim() || createPlan.isPending}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors"
+                      >
+                        {createPlan.isPending ? "..." : "Add"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPlanForm(true)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#403770] hover:bg-[#F7F5FA] transition-colors"
+                    >
+                      <span className="text-base leading-none">+</span>
+                      Create New Plan
+                    </button>
+                  )}
+                </div>
                 {availablePlans.length > 0 ? (
                   availablePlans.map((plan) => (
                     <button
                       key={plan.id}
                       type="button"
                       onClick={() => handleLinkPlan(plan.id)}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-[#F7F5FA] transition-colors"
                     >
                       <span
                         className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: plan.color }}
                       />
-                      <span className="text-gray-700 truncate">{plan.name}</span>
+                      <span className="text-[#6E6390] truncate">{plan.name}</span>
                     </button>
                   ))
                 ) : (
-                  <p className="px-3 py-2 text-sm text-gray-500">
+                  <p className="px-3 py-2 text-sm text-[#8A80A8]">
                     {plans ? "All plans already linked" : "Loading..."}
                   </p>
                 )}
