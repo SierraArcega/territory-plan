@@ -337,6 +337,24 @@ describe("PlansTable", () => {
     });
   });
 
+  describe("icon components", () => {
+    it("uses Lucide icons for action buttons", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} onShowOnMap={vi.fn()} />
+      );
+
+      const mapButton = screen.getAllByLabelText("Show plan on map")[0];
+      const mapSvg = mapButton.querySelector("svg");
+      expect(mapSvg).toBeInTheDocument();
+      expect(mapSvg).toHaveClass("lucide");
+
+      const deleteButton = screen.getAllByLabelText("Delete plan")[0];
+      const deleteSvg = deleteButton.querySelector("svg");
+      expect(deleteSvg).toBeInTheDocument();
+      expect(deleteSvg).toHaveClass("lucide");
+    });
+  });
+
   describe("hover effects", () => {
     it("has hover styling on rows", () => {
       renderWithProviders(
