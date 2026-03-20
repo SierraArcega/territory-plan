@@ -201,9 +201,18 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     return result;
   }
 
+  // Get the CalendarConnection for connection-specific fields (syncDirection, connectionId)
+  const calendarConnection = await prisma.calendarConnection.findUnique({
+    where: { userId },
+  });
+
+  if (!calendarConnection) {
+    result.errors.push("No calendar connection found");
+    return result;
+  }
+
   // One-way = app→calendar only (push). Skip pull sync entirely.
-  const metadata = (integration.metadata as Record<string, unknown>) || {};
-  if (metadata.syncDirection === "one_way") {
+  if (calendarConnection.syncDirection === "one_way") {
     return result;
   }
 
@@ -289,8 +298,8 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
       // Check if this event already exists in our staging table
       const existingEvent = await prisma.calendarEvent.findUnique({
         where: {
-          userId_googleEventId: {
-            userId,
+          connectionId_googleEventId: {
+            connectionId: calendarConnection.id,
             googleEventId: event.id,
           },
         },
@@ -324,6 +333,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
         await prisma.calendarEvent.create({
           data: {
             userId,
+            connectionId: calendarConnection.id,
             googleEventId: event.id,
             title: event.summary,
             description: event.description,
