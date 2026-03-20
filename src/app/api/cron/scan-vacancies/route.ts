@@ -8,8 +8,8 @@ export const maxDuration = 300; // 5 min — Vercel Pro limit
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
-/** Max scans to run per cron invocation */
-const SCANS_PER_RUN = 30;
+/** Max scans to run per cron invocation (keep under Vercel Pro 60s limit) */
+const SCANS_PER_RUN = 5;
 
 /**
  * POST /api/cron/scan-vacancies
