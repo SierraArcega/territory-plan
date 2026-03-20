@@ -581,7 +581,7 @@ model Activity {
   notes           String?
   startDate       DateTime? @map("start_date")
   endDate         DateTime? @map("end_date")
-  status          String    @default("planned") @db.VarChar(20) // planned, completed, cancelled
+  status          String    @default("planned") @db.VarChar(20) // planned, requested, planning, in_progress, wrapping_up, completed, cancelled
   createdByUserId String?   @map("created_by_user_id") @db.Uuid
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
@@ -654,6 +654,8 @@ model ActivityDistrict {
   warningDismissed Boolean   @default(false) @map("warning_dismissed")
   visitDate        DateTime? @map("visit_date")
   visitEndDate     DateTime? @map("visit_end_date")
+  position         Int       @default(0) @map("position")
+  notes            String?   @map("notes")
   activity         Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   district         District  @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
 

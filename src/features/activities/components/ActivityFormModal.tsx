@@ -69,7 +69,7 @@ export default function ActivityFormModal({
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
   const [districtStops, setDistrictStops] = useState<
-    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; visitEndDate: string }[]
+    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
   >([]);
 
   // Tab state (lifted so submit can access)
@@ -188,10 +188,11 @@ export default function ActivityFormModal({
         attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
         expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
         districts: districtStops.length > 0
-          ? districtStops.map((s) => ({
+          ? districtStops.map((s, index) => ({
               leaid: s.leaid,
               visitDate: s.visitDate || undefined,
-              visitEndDate: s.visitEndDate || undefined,
+              position: index,
+              notes: s.notes || undefined,
             }))
           : undefined,
         relatedActivityIds: relatedActivities.length > 0
@@ -249,7 +250,8 @@ export default function ActivityFormModal({
 
   const planOptions = useMemo(() => (plans ?? []).map((p) => ({ value: p.id, label: p.name })), [plans]);
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
-  const isEventCategory = getCategoryForType(type) === "events";
+  const typeCategory = getCategoryForType(type);
+  const isEventCategory = typeCategory === "events" || typeCategory === "thought_leadership";
   const showExpenses = isEventCategory && (type === "conference" || type === "road_trip");
 
   if (!isOpen) return null;

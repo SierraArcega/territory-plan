@@ -43,7 +43,7 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
   const [districtStops, setDistrictStops] = useState<
-    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; visitEndDate: string }[]
+    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
   >([]);
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
   const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);

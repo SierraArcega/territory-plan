@@ -2,6 +2,7 @@
 
 import { useActivities } from "@/lib/api";
 import type { ActivityListItem, ActivitiesResponse } from "@/features/shared/types/api-types";
+import { formatStatusLabel } from "@/features/activities/types";
 
 interface PlanActivitiesTabProps {
   planId: string;
@@ -80,7 +81,7 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
             <div className="flex items-center gap-3 text-[11px] text-[#8A80A8]">
               {startDate && <span>{formatDate(startDate)}</span>}
               {status && (
-                <span className="capitalize">{status}</span>
+                <span>{formatStatusLabel(status)}</span>
               )}
               {stateAbbrevs.length > 0 && (
                 <span className="truncate">{stateAbbrevs.join(", ")}</span>

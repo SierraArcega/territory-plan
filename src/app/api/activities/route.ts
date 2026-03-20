@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
 
     // Build district create entries — merge districtLeaids with districtDetails (which may have visit dates)
     const districtDetailsMap = new Map(
-      districtDetails.map((d: { leaid: string; visitDate?: string; visitEndDate?: string }) => [d.leaid, d])
+      districtDetails.map((d: { leaid: string; visitDate?: string; visitEndDate?: string; position?: number; notes?: string; name?: string }) => [d.leaid, d])
     );
     const allDistrictLeaids = [...new Set([...districtLeaids, ...districtDetails.map((d: { leaid: string }) => d.leaid)])];
 
@@ -317,12 +317,14 @@ export async function POST(request: NextRequest) {
         },
         districts: {
           create: allDistrictLeaids.map((leaid: string) => {
-            const detail = districtDetailsMap.get(leaid) as { visitDate?: string; visitEndDate?: string } | undefined;
+            const detail = districtDetailsMap.get(leaid) as { visitDate?: string; visitEndDate?: string; position?: number; notes?: string } | undefined;
             return {
               districtLeaid: leaid,
               warningDismissed: false,
               visitDate: detail?.visitDate ? new Date(detail.visitDate) : null,
               visitEndDate: detail?.visitEndDate ? new Date(detail.visitEndDate) : null,
+              position: detail?.position ?? 0,
+              notes: detail?.notes?.trim() || null,
             };
           }),
         },
@@ -389,6 +391,55 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Auto-create Visit activities for road trip stops that have visit dates
+    if (type === "road_trip") {
+      const districtsWithDates = districtDetails.filter(
+        (d: { leaid: string; visitDate?: string; name?: string }) => d.visitDate
+      );
+
+      if (districtsWithDates.length > 0) {
+        // Look up district details (name, state) for all stops that need visits
+        const stopLeaids = districtsWithDates.map((d: { leaid: string }) => d.leaid);
+        const stopDistricts = await prisma.district.findMany({
+          where: { leaid: { in: stopLeaids } },
+          select: { leaid: true, name: true, stateFips: true },
+        });
+        const stopDistrictMap = new Map(stopDistricts.map((d) => [d.leaid, d]));
+
+        for (const stop of districtsWithDates as { leaid: string; visitDate: string; name?: string }[]) {
+          const districtInfo = stopDistrictMap.get(stop.leaid);
+          const districtName = stop.name || districtInfo?.name || stop.leaid;
+
+          await prisma.activity.create({
+            data: {
+              type: "school_site_visit",
+              title: `Visit: ${districtName}`,
+              startDate: new Date(stop.visitDate),
+              status: "planned",
+              createdByUserId: user.id,
+              plans: {
+                create: planIds.map((planId: string) => ({ planId })),
+              },
+              districts: {
+                create: [{ districtLeaid: stop.leaid }],
+              },
+              states: {
+                create: districtInfo
+                  ? [{ stateFips: districtInfo.stateFips, isExplicit: false }]
+                  : [],
+              },
+              relatedTo: {
+                create: [{
+                  activityId: activity.id,
+                  relationType: "part_of",
+                }],
+              },
+            },
+          });
+        }
+      }
+    }
+
     // Push to Google Calendar if user has a connected calendar
     // This is best-effort — if it fails, the activity is still created
     pushActivityToCalendar(user.id, activity.id);
@@ -422,6 +473,8 @@ export async function POST(request: NextRequest) {
         isInPlan: false, // Will be computed on fetch
         visitDate: d.visitDate?.toISOString() ?? null,
         visitEndDate: d.visitEndDate?.toISOString() ?? null,
+        position: d.position,
+        notes: d.notes,
       })),
       contacts: activity.contacts.map((c) => ({
         id: c.contact.id,
