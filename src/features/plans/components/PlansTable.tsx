@@ -19,6 +19,7 @@ interface PlansTableProps {
   onSelectPlan: (planId: string) => void;
   onEditPlan?: (plan: TerritoryPlan) => void;
   onShowOnMap?: (planId: string) => void;
+  onFilterByOwner?: (ownerId: string) => void;
   toolbar?: React.ReactNode;
 }
 
@@ -120,7 +121,7 @@ function DeleteConfirmModal({
   );
 }
 
-export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMap, toolbar }: PlansTableProps) {
+export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMap, onFilterByOwner, toolbar }: PlansTableProps) {
   const [planToDelete, setPlanToDelete] = useState<TerritoryPlan | null>(null);
 
   const updatePlan = useUpdateTerritoryPlan();
@@ -284,11 +285,21 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                   />
                 </td>
 
-                {/* Owner (display only — owner is now a user object) */}
+                {/* Owner (click to filter) */}
                 <td className="px-2 py-1">
-                  <span className="text-xs text-[#8A80A8]">
-                    {plan.owner?.fullName ?? "\u2014"}
-                  </span>
+                  {plan.owner && onFilterByOwner ? (
+                    <button
+                      onClick={() => onFilterByOwner(plan.owner!.id)}
+                      className="text-xs text-[#8A80A8] hover:text-[#403770] hover:underline cursor-pointer transition-colors"
+                      title={`Filter by ${plan.owner.fullName}`}
+                    >
+                      {plan.owner.fullName}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-[#8A80A8]">
+                      {plan.owner?.fullName ?? "\u2014"}
+                    </span>
+                  )}
                 </td>
 
                 {/* State abbreviations */}

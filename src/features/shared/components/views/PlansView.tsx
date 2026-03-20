@@ -520,6 +520,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               onSelectPlan={onSelectPlan}
               onEditPlan={setPlanToEdit}
               onShowOnMap={handleShowOnMap}
+              onFilterByOwner={(ownerId) => setSelectedOwnerIds([ownerId])}
               toolbar={filterToolbar}
             />
           )
