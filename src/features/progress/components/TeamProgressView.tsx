@@ -352,6 +352,14 @@ export default function TeamProgressView() {
               />
             ) : (
               <div className="space-y-6">
+                {/* Show unmapped first */}
+                {data.unmapped.districtCount > 0 && (
+                  <PlanProgressTable
+                    plans={[]}
+                    unmapped={data.unmapped}
+                    onPlanClick={handlePlanClick}
+                  />
+                )}
                 {Array.from(groupedPlans.entries()).map(([group, plans]) => (
                   <div key={group}>
                     <h3 className="text-sm font-semibold text-[#403770] mb-3 flex items-center gap-2">
@@ -366,14 +374,6 @@ export default function TeamProgressView() {
                     />
                   </div>
                 ))}
-                {/* Show unmapped once at the bottom */}
-                {data.unmapped.districtCount > 0 && (
-                  <PlanProgressTable
-                    plans={[]}
-                    unmapped={data.unmapped}
-                    onPlanClick={handlePlanClick}
-                  />
-                )}
               </div>
             )}
           </>
