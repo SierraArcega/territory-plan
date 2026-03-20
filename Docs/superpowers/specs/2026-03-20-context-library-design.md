@@ -1,7 +1,7 @@
 # Context Library System
 
 **Date:** 2026-03-20
-**Status:** Draft
+**Status:** Approved (Rev 1 — addresses spec review feedback)
 
 ---
 
@@ -71,7 +71,7 @@ TanStack Query. Vitest for testing.
 - Tests co-located in `__tests__/` directories next to source
 
 ## Large Files — Read Selectively
-- `src/features/map/lib/store.ts` (1400 lines) — Zustand store, grep for specific slices
+- `src/features/map/lib/store.ts` (~1400 lines) — Zustand store, grep for specific slices
 - `src/features/map/lib/layers.ts` (688 lines) — MapLibre layer configs
 - `prisma/schema.prisma` — full DB schema, grep for specific models
 
@@ -124,6 +124,9 @@ Each feature follows the pattern `src/features/{name}/`:
 | `goals` | Revenue/pipeline goal tracking | `components/` + `lib/queries.ts` |
 | `explore` | Data grid overlay for map | `lib/queries.ts` |
 | `integrations` | External system connections | `components/` + `lib/queries.ts` |
+| `home` | Home dashboard — feed, plan cards, profile sidebar | `components/HomeView.tsx` |
+| `vacancies` | Vacancy scanning and tracking | `components/` + `lib/` |
+| `mixmax` | Mixmax campaign integration | `components/CampaignStatsPanel.tsx` |
 | `admin` | Admin tools (unmatched accounts, ICP scoring) | `components/` |
 | `shared` | Cross-feature components, hooks, utilities | `components/`, `lib/`, `hooks/` |
 
@@ -144,6 +147,7 @@ The map feature is the app's core and has the deepest nesting:
     |   |   +-- PlanWorkspace.tsx   <- Plan editing workspace
     |   |   +-- SelectionListPanel.tsx <- Multi-select results
     |   |   +-- district/           <- District detail panel
+    |   |       +-- DistrictDetailPanel.tsx  <- Container/entry point
     |   |       +-- DistrictHeader.tsx
     |   |       +-- DistrictInfoTab.tsx
     |   |       +-- DataDemographicsTab.tsx
@@ -156,7 +160,7 @@ The map feature is the app's core and has the deepest nesting:
     |   +-- right-panels/           <- Activity/task/plan edit forms
     +-- hooks/
     +-- lib/
-        +-- store.ts        <- Zustand store (1400 lines - grep, don't read whole)
+        +-- store.ts        <- Zustand store (~1400 lines - grep, don't read whole)
         +-- layers.ts       <- MapLibre layer configs (688 lines - grep, don't read whole)
         +-- queries.ts      <- Map-specific TanStack Query hooks
         +-- palettes.ts     <- Color palettes for vendors/categories
@@ -439,6 +443,9 @@ if relevant.
 | `/design-review` | Check if a built feature matches the design system |
 | `/backend-discovery` | Understand the database before making data changes |
 
+Other commands (`/frontend-design`, `/design-explore`) are used internally
+by `/new-feature` — you don't need to call them directly.
+
 ## Things to Know
 
 - Claude reads your project files to understand the code. It may take
@@ -472,7 +479,7 @@ After the "Core Framework" table (line 12), add:
 
 ### 5a. `backend-discovery` SKILL.md
 
-**Add** after the "Inputs" section (line 19), before "Process":
+**Add** after the "Inputs" section, before "## Process" (section-name anchor is the primary reference):
 
 ```markdown
 ## Context Bootstrapping
@@ -499,7 +506,7 @@ For each relevant model, document: name, key fields, relationships, and any cust
 
 ### 5b. `design-explore` SKILL.md
 
-**Add** after "Inputs" section (line 22), before "Process":
+**Add** after "## Inputs" section, before "## Process" (section-name anchor is the primary reference):
 
 ```markdown
 ## Context Bootstrapping
@@ -513,7 +520,7 @@ This prevents proposing layouts that conflict with the existing app structure.
 
 ### 5c. `design-review` SKILL.md
 
-**Add** after "Inputs" section (line 23), before "Process":
+**Add** after "## Inputs" section, before "## Process" (section-name anchor is the primary reference):
 
 ```markdown
 ## Context Bootstrapping
@@ -525,7 +532,7 @@ Before auditing, read:
 
 ### 5d. `frontend-design` SKILL.md
 
-**Replace** Step 2 (lines 43-50) with:
+**Replace** "### Step 2 — Check existing components" section (through "Use Glob and Grep..." line) with:
 
 ```markdown
 ### Step 2 — Check existing components
@@ -542,7 +549,7 @@ Use Glob and Grep to find existing implementations. Reuse and extend before crea
 
 ### 5e. `new-feature` SKILL.md
 
-**Add** to Stage 1, before "1a. Requirements gathering" (line 51):
+**Add** to Stage 1, before "**1a. Requirements gathering:**" (section-name anchor is the primary reference):
 
 ```markdown
 **Context bootstrapping:**
