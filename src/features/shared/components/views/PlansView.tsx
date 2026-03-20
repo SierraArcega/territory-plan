@@ -461,7 +461,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         ) : filteredPlans.length > 0 || (plans && plans.length > 0) || anyFilterActive ? (
           view === "cards" ? (
             <>
-              {anyFilterActive && filterToolbar && (
+              {filterToolbar && (
                 <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA] rounded-t-lg border-x border-t border-[#D4CFE2]">
                   {filterToolbar}
                 </div>
