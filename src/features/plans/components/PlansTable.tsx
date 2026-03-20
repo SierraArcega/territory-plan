@@ -269,7 +269,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 <td className="px-2 py-1 truncate">
                   <button
                     onClick={() => onSelectPlan(plan.id)}
-                    className="text-sm font-medium text-[#403770] hover:underline truncate text-left"
+                    className="text-sm font-medium text-[#403770] hover:underline truncate text-left cursor-pointer"
                   >
                     {plan.name}
                   </button>
@@ -322,7 +322,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 <td className="px-2 py-1.5 text-center">
                   <button
                     onClick={() => onSelectPlan(plan.id)}
-                    className="text-xs font-medium text-[#403770] hover:text-[#F37167] transition-colors"
+                    className="text-xs font-medium text-[#403770] hover:text-[#F37167] transition-colors cursor-pointer"
                   >
                     {plan.districtCount}
                   </button>
@@ -348,7 +348,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                     )}
                     <button
                       onClick={() => setPlanToDelete(plan)}
-                      className="text-[#8A80A8] hover:text-[#F37167] transition-colors"
+                      className="text-[#8A80A8] hover:text-[#F37167] transition-colors cursor-pointer"
                       aria-label="Delete plan"
                       title="Delete"
                     >
