@@ -15,6 +15,7 @@ import DayNavigator from "./DayNavigator";
 import FeedControls from "./FeedControls";
 import { TaskRow, ActivityRow, MeetingRow } from "./FeedRows";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
+import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import { Rocket, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -72,6 +73,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const { data: calendarData } = useCalendarInbox("pending");
   const updateTask = useUpdateTask();
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
 
   // New state for day navigation, pagination, and completed toggle
   const [selectedDate, setSelectedDate] = useState<string>(today);
@@ -257,6 +259,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
               priority={task.priority !== "low" ? task.priority : undefined}
               dueDate={task.dueDate ? formatShortDate(task.dueDate) : undefined}
               isCompleted={task.status === "done"}
+              onClick={() => setSelectedTask(task)}
               onComplete={() =>
                 updateTask.mutate({ taskId: task.id, status: "done" })
               }
@@ -285,6 +288,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
               priority={task.priority !== "low" ? task.priority : undefined}
               dueDate={task.dueDate ? formatShortDate(task.dueDate) : undefined}
               isCompleted={task.status === "done"}
+              onClick={() => setSelectedTask(task)}
               onComplete={() =>
                 updateTask.mutate({
                   taskId: task.id,
@@ -375,6 +379,15 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
             </Link>
           </div>
         </div>
+      )}
+
+      {/* Task Detail Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          isOpen={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
       )}
 
       {/* Outcome Modal */}

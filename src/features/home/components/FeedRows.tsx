@@ -111,7 +111,7 @@ export function TaskRow({
       {dueDate && (
         <span className="text-xs text-[#8A80A8] shrink-0">{dueDate}</span>
       )}
-      <ActionButton label="Complete" onClick={onComplete} />
+      <ActionButton label={isCompleted ? "Undo" : "Complete"} onClick={onComplete} />
     </div>
   );
 }

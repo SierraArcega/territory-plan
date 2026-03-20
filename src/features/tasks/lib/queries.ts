@@ -68,6 +68,7 @@ export function useCreateTask() {
 }
 
 // Update task fields
+// Uses optimistic updates so status toggles feel instant
 export function useUpdateTask() {
   const queryClient = useQueryClient();
 
@@ -88,7 +89,37 @@ export function useUpdateTask() {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
-    onSuccess: (_, variables) => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks"] });
+
+      const previousQueries = queryClient.getQueriesData({ queryKey: ["tasks"] });
+
+      queryClient.setQueriesData<TasksResponse>(
+        { queryKey: ["tasks"] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            tasks: old.tasks.map((task) => {
+              if (task.id === variables.taskId) {
+                return { ...task, ...variables };
+              }
+              return task;
+            }),
+          };
+        }
+      );
+
+      return { previousQueries };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousQueries) {
+        for (const [queryKey, data] of context.previousQueries) {
+          queryClient.setQueryData(queryKey, data);
+        }
+      }
+    },
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task", variables.taskId] });
     },
