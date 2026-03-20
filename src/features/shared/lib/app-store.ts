@@ -74,6 +74,7 @@ interface MapState {
   multiSelectMode: boolean;
   selectedLeaids: Set<string>;
   currentPlanId: string | null; // Active plan for quick-add
+  planHighlight: { districtLeaids: string[]; planName: string } | null;
   // Similar districts for "Find Similar" feature
   similarDistrictLeaids: string[];
   // Vendor comparison layer toggle
@@ -111,6 +112,7 @@ interface MapActions {
   toggleDistrictSelection: (leaid: string) => void;
   clearSelectedDistricts: () => void;
   setCurrentPlanId: (planId: string | null) => void;
+  setPlanHighlight: (highlight: { districtLeaids: string[]; planName: string } | null) => void;
   // Similar districts actions
   setSimilarDistrictLeaids: (leaids: string[]) => void;
   clearSimilarDistricts: () => void;
@@ -156,6 +158,7 @@ export const useMapStore = create<MapState & MapActions>()(
       multiSelectMode: false,
       selectedLeaids: new Set<string>(),
       currentPlanId: null,
+      planHighlight: null,
       similarDistrictLeaids: [],
       vendorLayerVisible: false,
       charterLayerVisible: false,
@@ -252,6 +255,7 @@ export const useMapStore = create<MapState & MapActions>()(
     }),
   clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>() }),
   setCurrentPlanId: (planId) => set({ currentPlanId: planId }),
+  setPlanHighlight: (highlight) => set({ planHighlight: highlight }),
 
   // Similar districts actions
   setSimilarDistrictLeaids: (leaids) => set({ similarDistrictLeaids: leaids }),
