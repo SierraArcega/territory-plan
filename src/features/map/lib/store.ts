@@ -299,7 +299,6 @@ interface MapV2State {
   searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
   searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
   exploreModalLeaid: string | null; // leaid of district currently shown in explore modal
-  searchBarSelectedLeaid: string | null; // leaid selected from search bar typeahead
 
   // Overlay layers (map planning overlays)
   activeLayers: Set<OverlayLayerType>;
@@ -473,7 +472,6 @@ interface MapV2Actions {
   setSearchResultLeaids: (leaids: string[]) => void;
   setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
   setExploreModalLeaid: (leaid: string | null) => void;
-  setSearchBarSelectedLeaid: (leaid: string | null) => void;
 
   // Overlay layers (map planning overlays)
   toggleLayer: (layer: OverlayLayerType) => void;
@@ -654,7 +652,6 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   isSearchActive: false,
   searchResultsVisible: false,
   exploreModalLeaid: null,
-  searchBarSelectedLeaid: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
 
@@ -1325,30 +1322,29 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
 
   // District Search (Zillow-style)
   setSearchFilters: (filters) =>
-    set({ searchFilters: filters, isSearchActive: filters.length > 0, searchResultsVisible: filters.length > 0, searchBarSelectedLeaid: null }),
+    set({ searchFilters: filters, isSearchActive: filters.length > 0, searchResultsVisible: filters.length > 0 }),
   addSearchFilter: (filter) =>
     set((s) => {
       const next = [...s.searchFilters, filter];
-      return { searchFilters: next, isSearchActive: true, searchResultsVisible: true, searchBarSelectedLeaid: null };
+      return { searchFilters: next, isSearchActive: true, searchResultsVisible: true };
     }),
   removeSearchFilter: (filterId) =>
     set((s) => {
       const next = s.searchFilters.filter((f) => f.id !== filterId);
-      return { searchFilters: next, isSearchActive: next.length > 0, searchResultsVisible: next.length > 0, searchBarSelectedLeaid: null };
+      return { searchFilters: next, isSearchActive: next.length > 0, searchResultsVisible: next.length > 0 };
     }),
   updateSearchFilter: (filterId, updates) =>
     set((s) => ({
       searchFilters: s.searchFilters.map((f) => (f.id === filterId ? { ...f, ...updates } : f)),
     })),
   clearSearchFilters: () =>
-    set({ searchFilters: [], isSearchActive: false, searchResultsVisible: false, searchResultLeaids: [], searchResultCentroids: [], searchBarSelectedLeaid: null }),
+    set({ searchFilters: [], isSearchActive: false, searchResultsVisible: false, searchResultLeaids: [], searchResultCentroids: [] }),
   setSearchSort: (sort) => set({ searchSort: sort }),
   setSearchFilterMode: (domain: string, mode: "all" | "any") =>
     set((s) => ({ searchFilterModes: { ...s.searchFilterModes, [domain]: mode } })),
   setSearchBounds: (bounds) => set({ searchBounds: bounds }),
   toggleSearchResults: () => set((s) => ({ searchResultsVisible: !s.searchResultsVisible })),
   setExploreModalLeaid: (leaid) => set({ exploreModalLeaid: leaid }),
-  setSearchBarSelectedLeaid: (leaid) => set({ searchBarSelectedLeaid: leaid }),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
   setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
 

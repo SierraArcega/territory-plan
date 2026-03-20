@@ -82,7 +82,6 @@ export default function SearchResults() {
   const setDistrictSelection = useMapV2Store((s) => s.setDistrictSelection);
   const setSearchResultLeaids = useMapV2Store((s) => s.setSearchResultLeaids);
 
-  const searchBarSelectedLeaid = useMapV2Store((s) => s.searchBarSelectedLeaid);
   const activeLayers = useMapV2Store((s) => s.activeLayers);
   const activeResultsTab = useMapV2Store((s) => s.activeResultsTab);
   const layerFilters = useMapV2Store((s) => s.layerFilters);
@@ -272,21 +271,12 @@ export default function SearchResults() {
   }, [overlayDerivedLeaids, isSearchActive]);
 
   // Re-fetch when bounds change (pan/zoom) — no fitBounds to avoid loop
-  // Skip if a search bar district is selected (map fly would override the single card)
   useEffect(() => {
-    if (!isSearchActive || !searchBounds || searchBarSelectedLeaid) return;
+    if (!isSearchActive || !searchBounds) return;
     setPage(1);
     fetchResults(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchBounds]);
-
-  // Fetch single district from search bar typeahead selection
-  useEffect(() => {
-    if (!searchBarSelectedLeaid) return;
-    setPage(1);
-    fetchResults(1, [searchBarSelectedLeaid]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchBarSelectedLeaid]);
 
   // Pagination
   const goToPage = (p: number) => {
@@ -468,7 +458,7 @@ export default function SearchResults() {
   }, [total, activeLayers, plansQuery.data, filteredContacts, filteredVacancies, filteredActivities]);
 
   const showingOverlayTab = activeResultsTab !== "districts";
-  const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null || searchBarSelectedLeaid != null;
+  const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null;
 
   const selectedCount = selectedDistrictLeaids.size;
 
