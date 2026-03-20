@@ -5,8 +5,8 @@ import { runScan } from "@/features/vacancies/lib/scan-runner";
 
 export const dynamic = "force-dynamic";
 
-// Allow up to 60s for the scan to complete on Vercel
-export const maxDuration = 60;
+// State-wide board redistribution can take up to 2 minutes
+export const maxDuration = 120;
 
 /**
  * POST /api/vacancies/scan
@@ -64,27 +64,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Run the scan inline — await it so it completes before the response
-    await runScan(scan.id);
-
-    // Fetch final status to return
-    const result = await prisma.vacancyScan.findUnique({
-      where: { id: scan.id },
-      select: {
-        id: true,
-        status: true,
-        vacancyCount: true,
-        fullmindRelevantCount: true,
-        errorMessage: true,
-      },
+    // Fire and forget — the UI polls /api/vacancies/scan/[scanId] for status.
+    // Using .catch to prevent unhandled rejection if scan fails.
+    runScan(scan.id).catch((err) => {
+      console.error(`[scan] Background scan ${scan.id} failed:`, err);
     });
 
     return NextResponse.json({
       scanId: scan.id,
-      status: result?.status ?? "completed",
-      vacancyCount: result?.vacancyCount ?? 0,
-      fullmindRelevantCount: result?.fullmindRelevantCount ?? 0,
-      errorMessage: result?.errorMessage ?? null,
+      status: "pending",
     });
   } catch (error) {
     console.error("Error triggering vacancy scan:", error);

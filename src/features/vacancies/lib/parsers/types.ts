@@ -1,6 +1,7 @@
 export interface RawVacancy {
   title: string;
   schoolName?: string;
+  employerName?: string;
   hiringManager?: string;
   hiringEmail?: string;
   startDate?: string;

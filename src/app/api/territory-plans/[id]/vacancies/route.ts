@@ -77,11 +77,14 @@ export async function GET(
       });
     }
 
-    // Fetch all open vacancies for these districts
+    // Fetch all open, district-verified vacancies for these districts
+    const { searchParams } = new URL(request.url);
+    const includeUnverified = searchParams.get("includeUnverified") === "true";
     const vacancies = await prisma.vacancy.findMany({
       where: {
         leaid: { in: leaids },
         status: "open",
+        ...(!includeUnverified && { districtVerified: true }),
       },
       include: {
         district: {

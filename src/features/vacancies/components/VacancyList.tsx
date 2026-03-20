@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -33,20 +32,6 @@ interface VacancySummary {
 interface VacanciesResponse {
   summary: VacancySummary;
   vacancies: VacancyRecord[];
-}
-
-interface ScanResponse {
-  scanId: string;
-  status: string;
-}
-
-interface ScanStatusResponse {
-  scanId: string;
-  status: string;
-  vacancyCount: number | null;
-  fullmindRelevantCount: number | null;
-  completedAt: string | null;
-  errorMessage: string | null;
 }
 
 export interface VacancyListProps {
@@ -91,9 +76,6 @@ function formatDaysOpen(days: number): string {
 // ─── Component ──────────────────────────────────────────────────────
 
 export default function VacancyList({ leaid }: VacancyListProps) {
-  const queryClient = useQueryClient();
-  const [activeScanId, setActiveScanId] = useState<string | null>(null);
-
   // Fetch vacancies
   const {
     data,
@@ -109,55 +91,6 @@ export default function VacancyList({ leaid }: VacancyListProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Trigger scan mutation
-  const scanMutation = useMutation<ScanResponse, Error, string>({
-    mutationFn: async (scanLeaid: string) => {
-      const res = await fetch("/api/vacancies/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leaid: scanLeaid }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(
-          (body as { error?: string }).error || "Failed to trigger scan"
-        );
-      }
-      return res.json();
-    },
-    onSuccess: (result) => {
-      setActiveScanId(result.scanId);
-    },
-  });
-
-  // Poll scan status
-  const { data: scanStatus } = useQuery<ScanStatusResponse>({
-    queryKey: ["vacancyScan", activeScanId],
-    queryFn: async () => {
-      const res = await fetch(`/api/vacancies/scan/${activeScanId}`);
-      if (!res.ok) throw new Error("Failed to poll scan status");
-      return res.json();
-    },
-    enabled: !!activeScanId,
-    refetchInterval: 2000,
-  });
-
-  // When scan finishes, refetch vacancies
-  const handleScanComplete = useCallback(() => {
-    setActiveScanId(null);
-    queryClient.invalidateQueries({ queryKey: ["vacancies", leaid] });
-  }, [queryClient, leaid]);
-
-  useEffect(() => {
-    if (!scanStatus) return;
-    const doneStatuses = ["completed", "completed_partial", "failed"];
-    if (doneStatuses.includes(scanStatus.status)) {
-      handleScanComplete();
-    }
-  }, [scanStatus, handleScanComplete]);
-
-  const isScanning = !!activeScanId || scanMutation.isPending;
-
   // Group vacancies by category
   const groupedByCategory = data?.vacancies.reduce<
     Record<string, VacancyRecord[]>
@@ -169,7 +102,6 @@ export default function VacancyList({ leaid }: VacancyListProps) {
   }, {}) ?? {};
 
   const categoryKeys = Object.keys(groupedByCategory).sort((a, b) => {
-    // Put "Other" last
     if (a === "Other") return 1;
     if (b === "Other") return -1;
     return a.localeCompare(b);
@@ -205,13 +137,11 @@ export default function VacancyList({ leaid }: VacancyListProps) {
         <p className="text-sm text-gray-400">
           {data?.summary.lastScannedAt
             ? "No vacancies found"
-            : "No job board URL configured or never scanned"}
+            : "Not yet scanned"}
         </p>
-        <ScanButton
-          isScanning={isScanning}
-          scanError={scanMutation.error?.message ?? null}
-          onScan={() => scanMutation.mutate(leaid)}
-        />
+        {data?.summary.lastScannedAt && (
+          <LastScannedInfo lastScannedAt={data.summary.lastScannedAt} />
+        )}
       </div>
     );
   }
@@ -233,12 +163,6 @@ export default function VacancyList({ leaid }: VacancyListProps) {
             <span className="text-xs text-gray-400"> Fullmind-relevant)</span>
           </>
         )}
-        {summary.lastScannedAt && (
-          <span className="text-xs text-gray-400">
-            {" "}
-            — Last scanned {formatRelativeTime(summary.lastScannedAt)}
-          </span>
-        )}
       </div>
 
       {/* Grouped vacancy listings */}
@@ -258,12 +182,10 @@ export default function VacancyList({ leaid }: VacancyListProps) {
         </div>
       ))}
 
-      {/* Scan button */}
-      <ScanButton
-        isScanning={isScanning}
-        scanError={scanMutation.error?.message ?? null}
-        onScan={() => scanMutation.mutate(leaid)}
-      />
+      {/* Last scanned info */}
+      {summary.lastScannedAt && (
+        <LastScannedInfo lastScannedAt={summary.lastScannedAt} />
+      )}
     </div>
   );
 }
@@ -343,69 +265,20 @@ function VacancyRow({ vacancy }: { vacancy: VacancyRecord }) {
   );
 }
 
-// ─── ScanButton ─────────────────────────────────────────────────────
+// ─── LastScannedInfo ─────────────────────────────────────────────────
 
-function ScanButton({
-  isScanning,
-  scanError,
-  onScan,
-}: {
-  isScanning: boolean;
-  scanError: string | null;
-  onScan: () => void;
-}) {
+function LastScannedInfo({ lastScannedAt }: { lastScannedAt: string }) {
   return (
-    <div className="pt-1">
-      <button
-        onClick={onScan}
-        disabled={isScanning}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#403770]/10 text-[#403770] hover:bg-[#403770]/15 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        {isScanning ? (
-          <>
-            <svg
-              className="w-3.5 h-3.5 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            Scanning...
-          </>
-        ) : (
-          <>
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            Scan Now
-          </>
-        )}
-      </button>
-      {scanError && (
-        <p className="text-xs text-red-400 mt-1">{scanError}</p>
-      )}
+    <div className="flex items-center gap-1.5 text-[11px] text-gray-400 pt-1">
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      Auto-scanned {formatRelativeTime(lastScannedAt)}
     </div>
   );
 }
