@@ -11,6 +11,8 @@ interface PlanDetailModalProps {
   onClose: () => void;
   onPrev?: () => void;
   onNext?: () => void;
+  currentIndex?: number;
+  totalCount?: number;
 }
 
 export default function PlanDetailModal({
@@ -18,6 +20,8 @@ export default function PlanDetailModal({
   onClose,
   onPrev,
   onNext,
+  currentIndex,
+  totalCount,
 }: PlanDetailModalProps) {
   const { data: plan, isLoading, error } = useTerritoryPlan(planId);
 
@@ -41,67 +45,93 @@ export default function PlanDetailModal({
   }, []);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative w-[92vw] max-w-[1200px] h-[88vh] max-h-[900px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg hover:bg-[#f0edf5] flex items-center justify-center transition-colors"
-          aria-label="Close"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M2 2L12 12M12 2L2 12" stroke="#8A80A8" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </button>
+      {/* Modal + navigation — matches DistrictExploreModal layout */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          {/* Prev arrow */}
+          {onPrev ? (
+            <button
+              onClick={onPrev}
+              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              title="Previous plan (←)"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          ) : <div className="w-10 shrink-0" />}
 
-        {/* Prev/Next nav */}
-        {onPrev && (
-          <button
-            onClick={onPrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 z-10 w-9 h-9 rounded-full bg-white/90 shadow-lg hover:bg-white flex items-center justify-center transition-all"
-            aria-label="Previous plan"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M9 3L5 7L9 11" stroke="#544A78" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        )}
-        {onNext && (
-          <button
-            onClick={onNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 z-10 w-9 h-9 rounded-full bg-white/90 shadow-lg hover:bg-white flex items-center justify-center transition-all"
-            aria-label="Next plan"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M5 3L9 7L5 11" stroke="#544A78" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        )}
+          {/* Center column: back button + modal + counter */}
+          <div className="flex flex-col items-start gap-2">
+            {/* Back to results */}
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Return to Map
+            </button>
 
-        {/* Content */}
-        {isLoading ? (
-          <ModalSkeleton />
-        ) : error ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <p className="text-sm font-medium text-[#F37167]">Failed to load plan</p>
-              <p className="text-xs text-[#8A80A8] mt-1">{error.message}</p>
+            {/* Modal container */}
+            <div className="relative bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden">
+              {/* Close button */}
+              <button
+                onClick={onClose}
+                className="absolute top-2 right-2 z-10 p-2 rounded-lg text-[#A69DC0] hover:text-[#403770] hover:bg-gray-100 transition-colors"
+                aria-label="Close"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Content */}
+              {isLoading ? (
+                <ModalSkeleton />
+              ) : error ? (
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-[#F37167]">Failed to load plan</p>
+                    <p className="text-xs text-[#8A80A8] mt-1">{error.message}</p>
+                  </div>
+                </div>
+              ) : plan ? (
+                <div className="flex-1 flex overflow-hidden">
+                  <PlanDetailSidebar plan={plan} />
+                  <PlanDetailTabs plan={plan} onClose={onClose} />
+                </div>
+              ) : null}
             </div>
+
+            {/* Counter */}
+            {currentIndex != null && totalCount != null && totalCount > 0 && (
+              <span className="self-center px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78]">
+                {currentIndex + 1} of {totalCount}
+              </span>
+            )}
           </div>
-        ) : plan ? (
-          <div className="flex-1 flex overflow-hidden">
-            {/* Left sidebar */}
-            <PlanDetailSidebar plan={plan} />
-            {/* Right tabbed content */}
-            <PlanDetailTabs plan={plan} onClose={onClose} />
-          </div>
-        ) : null}
+
+          {/* Next arrow */}
+          {onNext ? (
+            <button
+              onClick={onNext}
+              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              title="Next plan (→)"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ) : <div className="w-10 shrink-0" />}
+        </div>
       </div>
-    </div>,
+    </>,
     document.body
   );
 }

@@ -59,7 +59,7 @@ export default function PlanDetailSidebar({ plan }: PlanDetailSidebarProps) {
   }, 0);
 
   return (
-    <div className="w-[280px] border-r border-[#E2DEEC] flex flex-col overflow-hidden shrink-0">
+    <div className="w-[260px] shrink-0 flex flex-col overflow-hidden" style={{ background: "linear-gradient(180deg, #F7F5FA 0%, #EFEDF5 100%)" }}>
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-[#E2DEEC]">
         <div className="flex items-start justify-between gap-2 mb-2.5">
