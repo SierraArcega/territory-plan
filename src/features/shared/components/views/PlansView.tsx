@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import {
   useTerritoryPlans,
   useTerritoryPlan,
@@ -31,27 +31,38 @@ import PlansTable from "@/features/plans/components/PlansTable";
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import type { MultiSelectOption } from "@/features/shared/components/MultiSelect";
 import { AsyncMultiSelect } from "@/features/shared/components/AsyncMultiSelect";
+import { X } from "lucide-react";
 
 // Exported for unit testing — the filteredPlans useMemo delegates directly to this.
 export function applyPlanFilters(
   plans: TerritoryPlan[],
   {
+    nameSearch,
+    descriptionSearch,
     statuses,
     fiscalYears,
     ownerIds,
     stateFips,
     districtLeaids,
-    schoolLeaids,
   }: {
+    nameSearch: string;
+    descriptionSearch: string;
     statuses: string[];
     fiscalYears: string[];
     ownerIds: string[];
     stateFips: string[];
     districtLeaids: string[];
-    schoolLeaids: string[];
   }
 ): TerritoryPlan[] {
   let result = plans;
+  if (nameSearch.trim())
+    result = result.filter((p) =>
+      p.name.toLowerCase().includes(nameSearch.trim().toLowerCase())
+    );
+  if (descriptionSearch.trim())
+    result = result.filter((p) =>
+      (p.description ?? "").toLowerCase().includes(descriptionSearch.trim().toLowerCase())
+    );
   if (statuses.length)
     result = result.filter((p) => statuses.includes(p.status));
   if (fiscalYears.length)
@@ -60,11 +71,9 @@ export function applyPlanFilters(
     result = result.filter((p) => p.owner && ownerIds.includes(p.owner.id));
   if (stateFips.length)
     result = result.filter((p) => p.states.some((s) => stateFips.includes(s.fips)));
-  // District + school leaid filters are OR-combined
-  const allLeaidFilters = [...districtLeaids, ...schoolLeaids];
-  if (allLeaidFilters.length)
+  if (districtLeaids.length)
     result = result.filter((p) =>
-      (p.districtLeaids ?? []).some((id) => allLeaidFilters.includes(id))
+      (p.districtLeaids ?? []).some((id) => districtLeaids.includes(id))
     );
   return result;
 }
@@ -183,12 +192,17 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   }, [plans, setCurrentPlanId, setPlanHighlight, clearSearchFilters, addSearchFilter, setActiveTab]);
 
   // --- Filter state ---
+  const [nameSearch, setNameSearch] = useState("");
+  const [descriptionSearch, setDescriptionSearch] = useState("");
+  const [nameInputValue, setNameInputValue] = useState("");
+  const [descriptionInputValue, setDescriptionInputValue] = useState("");
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const descriptionDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedFiscalYears, setSelectedFiscalYears] = useState<string[]>([]);
   const [selectedOwnerIds, setSelectedOwnerIds] = useState<string[]>([]);
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
   const [selectedDistrictLeaids, setSelectedDistrictLeaids] = useState<string[]>([]);
-  const [selectedSchoolLeaids, setSelectedSchoolLeaids] = useState<string[]>([]);
 
   const anyFilterActive = [
     selectedStatuses,
@@ -196,16 +210,18 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     selectedOwnerIds,
     selectedStateFips,
     selectedDistrictLeaids,
-    selectedSchoolLeaids,
-  ].some((f) => f.length > 0);
+  ].some((arr) => arr.length > 0) || nameSearch.trim() !== "" || descriptionSearch.trim() !== "";
 
   const clearAllFilters = useCallback(() => {
+    setNameSearch("");
+    setDescriptionSearch("");
+    setNameInputValue("");
+    setDescriptionInputValue("");
     setSelectedStatuses([]);
     setSelectedFiscalYears([]);
     setSelectedOwnerIds([]);
     setSelectedStateFips([]);
     setSelectedDistrictLeaids([]);
-    setSelectedSchoolLeaids([]);
   }, []);
 
   // Derived options for simple filters — only show values that exist in loaded plans
@@ -262,71 +278,88 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
     []
   );
 
-  const searchSchools = useCallback(
-    async (query: string): Promise<MultiSelectOption[]> => {
-      const res = await fetch(
-        `/api/schools?search=${encodeURIComponent(query)}&limit=10`
-      );
-      if (!res.ok) throw new Error("Search failed");
-      const data = await res.json();
-      // Value is leaid (not ncessch) — the school filter reuses districtLeaids
-      // on the plan, meaning "plans containing the district this school belongs to".
-      return (data.schools ?? []).map(
-        (s: { leaid: string; schoolName: string; stateAbbrev?: string | null }) => ({
-          value: s.leaid,
-          label: s.stateAbbrev
-            ? `${s.schoolName} (${s.stateAbbrev})`
-            : s.schoolName,
-        })
-      );
-    },
-    []
-  );
-
   // filteredPlans — delegates to applyPlanFilters (exported pure function)
   const filteredPlans = useMemo(
     () =>
       applyPlanFilters(plans ?? [], {
+        nameSearch,
+        descriptionSearch,
         statuses: selectedStatuses,
         fiscalYears: selectedFiscalYears,
         ownerIds: selectedOwnerIds,
         stateFips: selectedStateFips,
         districtLeaids: selectedDistrictLeaids,
-        schoolLeaids: selectedSchoolLeaids,
       }),
     [
       plans,
+      nameSearch,
+      descriptionSearch,
       selectedStatuses,
       selectedFiscalYears,
       selectedOwnerIds,
       selectedStateFips,
       selectedDistrictLeaids,
-      selectedSchoolLeaids,
     ]
   );
 
   const filterToolbar = plans && plans.length > 0 ? (
     <div className="flex flex-wrap items-start gap-3">
-      <MultiSelect
-        id="filter-status"
-        label="Status"
-        options={STATUS_FILTER_OPTIONS}
-        selected={selectedStatuses}
-        onChange={setSelectedStatuses}
-        placeholder="Status"
-        countLabel="statuses"
-        searchPlaceholder="Search statuses…"
-      />
-      <MultiSelect
-        id="filter-fy"
-        label="Fiscal Year"
-        options={fyOptions}
-        selected={selectedFiscalYears}
-        onChange={setSelectedFiscalYears}
-        placeholder="FY"
-        countLabel="years"
-        searchPlaceholder="Search years…"
-      />
+      {/* Name text search */}
+      <div className="relative">
+        <input
+          type="text"
+          value={nameInputValue}
+          onChange={(e) => {
+            const val = e.target.value;
+            setNameInputValue(val);
+            clearTimeout(nameDebounceRef.current);
+            nameDebounceRef.current = setTimeout(() => setNameSearch(val), 300);
+          }}
+          placeholder="Name…"
+          className="h-9 px-3 pr-8 text-sm border border-[#D4CFE2] rounded-lg bg-white text-[#403770] placeholder-[#8A80A8] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 w-[160px]"
+        />
+        {nameInputValue && (
+          <button
+            type="button"
+            onClick={() => {
+              setNameInputValue("");
+              clearTimeout(nameDebounceRef.current);
+              setNameSearch("");
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8A80A8] hover:text-[#403770]"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      {/* Description text search */}
+      <div className="relative">
+        <input
+          type="text"
+          value={descriptionInputValue}
+          onChange={(e) => {
+            const val = e.target.value;
+            setDescriptionInputValue(val);
+            clearTimeout(descriptionDebounceRef.current);
+            descriptionDebounceRef.current = setTimeout(() => setDescriptionSearch(val), 300);
+          }}
+          placeholder="Description…"
+          className="h-9 px-3 pr-8 text-sm border border-[#D4CFE2] rounded-lg bg-white text-[#403770] placeholder-[#8A80A8] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 w-[160px]"
+        />
+        {descriptionInputValue && (
+          <button
+            type="button"
+            onClick={() => {
+              setDescriptionInputValue("");
+              clearTimeout(descriptionDebounceRef.current);
+              setDescriptionSearch("");
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8A80A8] hover:text-[#403770]"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
       <MultiSelect
         id="filter-owner"
         label="Owner"
@@ -347,6 +380,26 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         countLabel="states"
         searchPlaceholder="Search states…"
       />
+      <MultiSelect
+        id="filter-fy"
+        label="Fiscal Year"
+        options={fyOptions}
+        selected={selectedFiscalYears}
+        onChange={setSelectedFiscalYears}
+        placeholder="FY"
+        countLabel="years"
+        searchPlaceholder="Search years…"
+      />
+      <MultiSelect
+        id="filter-status"
+        label="Status"
+        options={STATUS_FILTER_OPTIONS}
+        selected={selectedStatuses}
+        onChange={setSelectedStatuses}
+        placeholder="Status"
+        countLabel="statuses"
+        searchPlaceholder="Search statuses…"
+      />
       <AsyncMultiSelect
         id="filter-districts"
         label="Districts"
@@ -356,16 +409,6 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
         placeholder="Districts…"
         countLabel="districts"
         searchPlaceholder="Search districts…"
-      />
-      <AsyncMultiSelect
-        id="filter-schools"
-        label="Schools"
-        selected={selectedSchoolLeaids}
-        onChange={setSelectedSchoolLeaids}
-        onSearch={searchSchools}
-        placeholder="Schools…"
-        countLabel="schools"
-        searchPlaceholder="Search schools…"
       />
       {anyFilterActive && (
         <button
@@ -515,6 +558,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
               onSelectPlan={onSelectPlan}
               onEditPlan={setPlanToEdit}
               onShowOnMap={handleShowOnMap}
+              onFilterByOwner={(ownerId) => setSelectedOwnerIds([ownerId])}
               toolbar={filterToolbar}
               hasActiveFilters={anyFilterActive}
               onClearFilters={clearAllFilters}

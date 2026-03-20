@@ -5,8 +5,6 @@ import { applyPlanFilters } from "../PlansView";
 import type { TerritoryPlan } from "@/features/shared/types/api-types";
 
 // Minimal plan stubs — only fields used by applyPlanFilters need to be populated.
-// School filtering works by matching school-parent leaid against districtLeaids;
-// selectedSchoolLeaids is a set of leaids (not ncessch ids).
 const PLANS = [
   {
     status: "planning",
@@ -31,7 +29,7 @@ const PLANS = [
   },
 ] as unknown as TerritoryPlan[];
 
-const noFilters = { statuses: [], fiscalYears: [], ownerIds: [], stateFips: [], districtLeaids: [], schoolLeaids: [] };
+const noFilters = { nameSearch: "", descriptionSearch: "", statuses: [], fiscalYears: [], ownerIds: [], stateFips: [], districtLeaids: [] };
 
 describe("applyPlanFilters — individual dimensions", () => {
   it("returns all plans when no filters are active", () => {
@@ -67,11 +65,6 @@ describe("applyPlanFilters — individual dimensions", () => {
 
   it("filters by district leaid", () => {
     const result = applyPlanFilters(PLANS, { ...noFilters, districtLeaids: ["lea003"] });
-    expect(result).toHaveLength(1);
-  });
-
-  it("filters by school leaid (OR-combined with district leaids against districtLeaids field)", () => {
-    const result = applyPlanFilters(PLANS, { ...noFilters, schoolLeaids: ["lea001"] });
     expect(result).toHaveLength(1);
   });
 
