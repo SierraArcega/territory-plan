@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { FeatureCollection, Geometry, Feature } from "geojson";
 import PlanCard from "./PlanCard";
+import PlanDetailModal from "./PlanDetailModal";
 
 interface PlansTabProps {
   data: FeatureCollection<Geometry> | undefined;
@@ -30,6 +32,8 @@ function SkeletonCards() {
 }
 
 export default function PlansTab({ data, isLoading }: PlansTabProps) {
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
   // Plans can have multiple features per plan (one per district).
   // Group by planId and show one card per unique plan.
   const uniquePlans = useMemo(() => {
@@ -43,6 +47,18 @@ export default function PlansTab({ data, isLoading }: PlansTabProps) {
     }
     return [...seen.values()];
   }, [data]);
+
+  // Prev/Next navigation
+  const planIds = useMemo(() => uniquePlans.map((f) => f.properties?.planId as string), [uniquePlans]);
+  const currentIndex = selectedPlanId ? planIds.indexOf(selectedPlanId) : -1;
+
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) setSelectedPlanId(planIds[currentIndex - 1]);
+  }, [currentIndex, planIds]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < planIds.length - 1) setSelectedPlanId(planIds[currentIndex + 1]);
+  }, [currentIndex, planIds]);
 
   if (isLoading) return <SkeletonCards />;
 
@@ -58,10 +74,28 @@ export default function PlansTab({ data, isLoading }: PlansTabProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 space-y-2">
-      {uniquePlans.map((feature) => (
-        <PlanCard key={feature.properties?.planId ?? feature.id} feature={feature} />
-      ))}
-    </div>
+    <>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {uniquePlans.map((feature) => (
+          <PlanCard
+            key={feature.properties?.planId ?? feature.id}
+            feature={feature}
+            onClick={() => setSelectedPlanId(feature.properties?.planId)}
+          />
+        ))}
+      </div>
+
+      {/* Plan detail modal */}
+      {selectedPlanId &&
+        createPortal(
+          <PlanDetailModal
+            planId={selectedPlanId}
+            onClose={() => setSelectedPlanId(null)}
+            onPrev={currentIndex > 0 ? handlePrev : undefined}
+            onNext={currentIndex < planIds.length - 1 ? handleNext : undefined}
+          />,
+          document.body
+        )}
+    </>
   );
 }
