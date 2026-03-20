@@ -10,7 +10,7 @@ interface DistrictStop {
   name: string;
   stateAbbrev: string | null;
   visitDate: string;
-  visitEndDate: string;
+  notes: string;
 }
 
 interface EventTypeFieldsProps {
