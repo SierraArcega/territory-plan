@@ -1,11 +1,59 @@
 import { create } from "zustand";
-import type { VendorId, SignalId, LocaleId } from "@/features/map/lib/layers";
+import type { VendorId, SignalId, LocaleId, LayerType, ColorDimension } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import type { TransitionBucket } from "@/features/map/lib/comparison";
 
 export type FiscalYear = "fy24" | "fy25" | "fy26" | "fy27";
 export type CompareView = "side_by_side" | "changes";
+
+// Overlay layer types for map planning overlays
+export type OverlayLayerType = "districts" | "contacts" | "vacancies" | "plans" | "activities";
+
+// Date range presets
+export type DatePreset = "7d" | "30d" | "90d" | "ytd" | "all";
+
+// Per-layer filter state
+export interface ContactLayerFilter {
+  seniorityLevel?: string[] | null;
+  persona?: string[] | null;
+  primaryOnly?: boolean;
+}
+
+export interface VacancyLayerFilter {
+  category?: string[] | null;
+  status?: string[] | null;
+  fullmindRelevant?: boolean;
+  minDaysOpen?: number | null;
+  maxDaysOpen?: number | null;
+}
+
+export interface PlanLayerFilter {
+  status?: string[] | null;
+  fiscalYear?: number | null;
+  ownerScope?: "mine" | "all";
+  planIds?: string[] | null;
+  ownerIds?: string[] | null;
+}
+
+export interface ActivityLayerFilter {
+  type?: string[] | null;
+  status?: string[] | null;
+  outcome?: string[] | null;
+}
+
+export interface LayerFilters {
+  contacts: ContactLayerFilter;
+  vacancies: VacancyLayerFilter;
+  plans: PlanLayerFilter;
+  activities: ActivityLayerFilter;
+}
+
+export interface DateRange {
+  start: string | null;
+  end: string | null;
+  preset: DatePreset | null;
+}
 
 // School type toggles: level 1-3 + charter
 export type SchoolType = "elementary" | "middle" | "high" | "charter";
@@ -86,7 +134,7 @@ export interface MapViewState {
 }
 
 export interface RightPanelContent {
-  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form" | "plan_card";
+  type: "district_card" | "task_form" | "task_edit" | "activity_form" | "activity_edit" | "plan_edit" | "contact_detail" | "contact_form" | "plan_card" | "vacancy_detail" | "vacancy_form";
   id?: string;
 }
 
@@ -161,9 +209,6 @@ interface MapV2State {
 
   // Panel visibility
   panelMode: "full" | "hidden";
-
-  // Layer bubble
-  layerBubbleOpen: boolean;
 
   // Schools layer — which school types are visible
   visibleSchoolTypes: Set<SchoolType>;
@@ -254,6 +299,19 @@ interface MapV2State {
   searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
   searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
   exploreModalLeaid: string | null; // leaid of district currently shown in explore modal
+
+  // Overlay layers (map planning overlays)
+  activeLayers: Set<OverlayLayerType>;
+  layerFilters: LayerFilters;
+  dateRange: Record<"vacancies" | "activities", DateRange>;
+  mapBounds: [number, number, number, number] | null; // [west, south, east, north]
+
+  // Unified layer control
+  colorBy: ColorDimension;
+  activeResultsTab: LayerType;
+
+  // Geography filters
+  geographyFilters: { states: string[]; zipRadius: { zip: string; radius: number } | null };
 }
 
 interface MapV2Actions {
@@ -312,10 +370,6 @@ interface MapV2Actions {
   // Panel visibility
   setPanelMode: (mode: "full" | "hidden") => void;
   collapsePanel: () => void; // full↔hidden
-
-  // Layer bubble
-  setLayerBubbleOpen: (open: boolean) => void;
-  toggleLayerBubble: () => void;
 
   // Schools layer
   toggleSchoolType: (type: SchoolType) => void;
@@ -418,6 +472,21 @@ interface MapV2Actions {
   setSearchResultLeaids: (leaids: string[]) => void;
   setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
   setExploreModalLeaid: (leaid: string | null) => void;
+
+  // Overlay layers (map planning overlays)
+  toggleLayer: (layer: OverlayLayerType) => void;
+  setLayerFilter: <K extends keyof LayerFilters>(layer: K, filter: Partial<LayerFilters[K]>) => void;
+  setDateRange: (layer: "vacancies" | "activities", range: Partial<DateRange>) => void;
+  setMapBounds: (bounds: [number, number, number, number] | null) => void;
+
+  // Unified layer control
+  setColorBy: (dimension: ColorDimension) => void;
+  setActiveResultsTab: (tab: LayerType) => void;
+  openResultsPanel: (tab: LayerType) => void;
+
+  // Geography filters
+  setGeographyStates: (states: string[]) => void;
+  setGeographyZipRadius: (zipRadius: { zip: string; radius: number } | null) => void;
 }
 
 let rippleId = 0;
@@ -490,7 +559,6 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   tooltip: initialTooltip,
   clickRipples: [],
   panelMode: "full",
-  layerBubbleOpen: false,
   visibleSchoolTypes: new Set<SchoolType>(),
   activeSignal: null,
   visibleLocales: new Set<LocaleId>(),
@@ -586,6 +654,27 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   exploreModalLeaid: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
+
+  // Overlay layers (map planning overlays)
+  activeLayers: new Set<OverlayLayerType>(["districts"]),
+  layerFilters: {
+    contacts: {},
+    vacancies: {},
+    plans: {},
+    activities: {},
+  },
+  dateRange: {
+    vacancies: { start: null, end: null, preset: null },
+    activities: { start: null, end: null, preset: null },
+  },
+  mapBounds: null,
+
+  // Unified layer control
+  colorBy: "engagement" as ColorDimension,
+  activeResultsTab: "districts" as LayerType,
+
+  // Geography filters
+  geographyFilters: { states: [] as string[], zipRadius: null as { zip: string; radius: number } | null },
 
   // Panel navigation
   setPanelState: (state) =>
@@ -802,10 +891,6 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({
       panelMode: s.panelMode === "full" ? "hidden" : "full",
     })),
-
-  // Layer bubble
-  setLayerBubbleOpen: (open) => set({ layerBubbleOpen: open }),
-  toggleLayerBubble: () => set((s) => ({ layerBubbleOpen: !s.layerBubbleOpen })),
 
   // Schools layer
   toggleSchoolType: (type) =>
@@ -1262,4 +1347,45 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   setExploreModalLeaid: (leaid) => set({ exploreModalLeaid: leaid }),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
   setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
+
+  // Overlay layers (map planning overlays)
+  toggleLayer: (layer) =>
+    set((s) => {
+      const next = new Set(s.activeLayers);
+      if (next.has(layer)) {
+        // Districts cannot be removed
+        if (layer === "districts") return s;
+        next.delete(layer);
+      } else {
+        next.add(layer);
+      }
+      return { activeLayers: next };
+    }),
+
+  setLayerFilter: (layer, filter) =>
+    set((s) => ({
+      layerFilters: {
+        ...s.layerFilters,
+        [layer]: { ...s.layerFilters[layer], ...filter },
+      },
+    })),
+
+  setDateRange: (layer, range) =>
+    set((s) => ({
+      dateRange: {
+        ...s.dateRange,
+        [layer]: { ...s.dateRange[layer], ...range },
+      },
+    })),
+
+  setMapBounds: (bounds) => set({ mapBounds: bounds }),
+
+  // Unified layer control
+  setColorBy: (dimension) => set({ colorBy: dimension }),
+  setActiveResultsTab: (tab) => set({ activeResultsTab: tab }),
+  openResultsPanel: (tab) => set({ searchResultsVisible: true, activeResultsTab: tab }),
+
+  // Geography filters
+  setGeographyStates: (states) => set((s) => ({ geographyFilters: { ...s.geographyFilters, states } })),
+  setGeographyZipRadius: (zipRadius) => set((s) => ({ geographyFilters: { ...s.geographyFilters, zipRadius } })),
 }));

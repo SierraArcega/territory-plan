@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
-import LayerBubble from "./LayerBubble";
 import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
 import SearchBar from "./SearchBar";
 import SearchResults from "./SearchResults";
+import StylesBubble from "./StylesBubble";
 import { loadPalettePrefs, savePalettePrefs } from "@/features/map/lib/palette-storage";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_IDS } from "@/features/map/lib/layers";
@@ -28,11 +28,11 @@ const MapV2Container = dynamic(() => import("./MapV2Container"), {
 
 export default function MapV2Shell() {
   const compareMode = useMapV2Store((s) => s.compareMode);
-  const compareView = useMapV2Store((s) => s.compareView);
   const focusPlanId = useMapV2Store((s) => s.focusPlanId);
   const unfocusPlan = useMapV2Store((s) => s.unfocusPlan);
   const planHighlight = useMapStore((s) => s.planHighlight);
   const setPlanHighlight = useMapStore((s) => s.setPlanHighlight);
+
 
   // Load saved palette preferences on mount
   useEffect(() => {
@@ -80,6 +80,9 @@ export default function MapV2Shell() {
         {/* Full-viewport map (renders behind everything) */}
         {compareMode ? <ComparisonMapShell /> : <MapV2Container />}
 
+        {/* District styles bubble (bottom-left) */}
+        <StylesBubble />
+
         {/* Explore data overlay (covers map when active) */}
         <ExploreOverlay />
 
@@ -105,11 +108,8 @@ export default function MapV2Shell() {
           </button>
         )}
 
-        {/* Search results panel (right side) */}
+        {/* Search results panel (right side, always present) */}
         <SearchResults />
-
-        {/* Layer controls (opened by gear icon in SearchBar) */}
-        <LayerBubble />
       </div>
     </div>
   );

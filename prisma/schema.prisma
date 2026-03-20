@@ -1267,6 +1267,7 @@ model Vacancy {
   districtVerified Boolean   @default(true) @map("district_verified")
   firstSeenAt      DateTime  @default(now()) @map("first_seen_at")
   lastSeenAt       DateTime  @default(now()) @map("last_seen_at")
+  notes            String?
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
