@@ -654,6 +654,8 @@ model ActivityDistrict {
   warningDismissed Boolean   @default(false) @map("warning_dismissed")
   visitDate        DateTime? @map("visit_date")
   visitEndDate     DateTime? @map("visit_end_date")
+  position         Int       @default(0) @map("position")
+  notes            String?   @map("notes")
   activity         Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   district         District  @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
 

@@ -28,6 +28,7 @@ export async function GET(
           include: {
             district: { select: { leaid: true, name: true, stateAbbrev: true } },
           },
+          orderBy: { position: "asc" },
         },
         contacts: {
           include: { contact: { select: { id: true, name: true, title: true } } },
@@ -85,6 +86,8 @@ export async function GET(
         isInPlan,
         visitDate: d.visitDate?.toISOString() ?? null,
         visitEndDate: d.visitEndDate?.toISOString() ?? null,
+        position: d.position,
+        notes: d.notes,
       };
     });
 
@@ -280,14 +283,16 @@ export async function PATCH(
       }
     }
 
-    // Update district visit dates if provided
+    // Update district visit dates, position, and notes if provided
     if (districtUpdates !== undefined) {
-      for (const du of districtUpdates as { leaid: string; visitDate?: string | null; visitEndDate?: string | null }[]) {
+      for (const du of districtUpdates as { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[]) {
         await prisma.activityDistrict.updateMany({
           where: { activityId: id, districtLeaid: du.leaid },
           data: {
             visitDate: du.visitDate ? new Date(du.visitDate) : null,
             visitEndDate: du.visitEndDate ? new Date(du.visitEndDate) : null,
+            ...(du.position !== undefined && { position: du.position }),
+            ...(du.notes !== undefined && { notes: du.notes?.trim() || null }),
           },
         });
       }
