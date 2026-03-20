@@ -66,7 +66,7 @@ export function useCreateActivity() {
       metadata?: Record<string, unknown> | null;
       attendeeUserIds?: string[];
       expenses?: { description: string; amount: number }[];
-      districts?: { leaid: string; visitDate?: string; visitEndDate?: string }[];
+      districts?: { leaid: string; visitDate?: string; visitEndDate?: string; position?: number; notes?: string }[];
       relatedActivityIds?: { activityId: string; relationType: string }[];
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities`, {
@@ -100,7 +100,7 @@ export function useUpdateActivity() {
       metadata?: Record<string, unknown> | null;
       attendeeUserIds?: string[];
       expenses?: { description: string; amount: number }[];
-      districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null }[];
+      districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[];
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",

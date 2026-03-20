@@ -432,6 +432,8 @@ export interface ActivityDistrictLink {
   isInPlan: boolean;
   visitDate: string | null;
   visitEndDate: string | null;
+  position: number;
+  notes: string | null;
 }
 
 export interface ActivityContactLink {
