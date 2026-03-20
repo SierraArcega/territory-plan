@@ -1,6 +1,6 @@
 "use client";
 
-export type DistrictTab = "planning" | "signals" | "schools" | "contacts";
+export type DistrictTab = "planning" | "signals" | "schools" | "contacts" | "activity";
 
 const TABS: {
   key: DistrictTab;
@@ -34,6 +34,13 @@ const TABS: {
     label: "Contacts",
     // People icon
     path: "M8 7C9.1 7 10 6.1 10 5S9.1 3 8 3 6 3.9 6 5 6.9 7 8 7ZM4 13C4 11.3 5.8 10 8 10S12 11.3 12 13",
+    stroke: true,
+  },
+  {
+    key: "activity",
+    label: "Activity",
+    // Timeline/clock icon
+    path: "M8 4V8L11 10M14 8A6 6 0 112 8A6 6 0 0114 8Z",
     stroke: true,
   },
 ];

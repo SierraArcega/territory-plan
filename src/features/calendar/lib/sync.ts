@@ -13,6 +13,7 @@ import {
   getValidAccessToken,
   type CalendarEventAttendee,
 } from "@/features/calendar/lib/google";
+import { encrypt, decrypt } from "@/features/integrations/lib/encryption";
 
 // ===== Types =====
 
@@ -185,49 +186,63 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     errors: [],
   };
 
-  // Step 1: Get the user's calendar connection and validate tokens
-  const connection = await prisma.calendarConnection.findUnique({
-    where: { userId },
+  // Step 1: Get the user's calendar integration and validate tokens
+  const integration = await prisma.userIntegration.findUnique({
+    where: { userId_service: { userId, service: "google_calendar" } },
   });
 
-  if (!connection) {
+  if (!integration) {
     result.errors.push("No calendar connection found");
     return result;
   }
 
-  if (!connection.syncEnabled) {
+  if (!integration.syncEnabled) {
     result.errors.push("Calendar sync is disabled");
     return result;
   }
 
-  // One-way = app→calendar only (push). Skip pull sync entirely.
-  if (connection.syncDirection === "one_way") {
+  // Get the CalendarConnection for connection-specific fields (syncDirection, connectionId)
+  const calendarConnection = await prisma.calendarConnection.findUnique({
+    where: { userId },
+  });
+
+  if (!calendarConnection) {
+    result.errors.push("No calendar connection found");
     return result;
   }
 
+  // One-way = app→calendar only (push). Skip pull sync entirely.
+  if (calendarConnection.syncDirection === "one_way") {
+    return result;
+  }
+
+  // Decrypt tokens for use with Google API
+  const decryptedAccessToken = decrypt(integration.accessToken);
+  const decryptedRefreshToken = integration.refreshToken ? decrypt(integration.refreshToken) : "";
+
   // Refresh the access token if it's expired
   const tokenResult = await getValidAccessToken({
-    accessToken: connection.accessToken,
-    refreshToken: connection.refreshToken,
-    tokenExpiresAt: connection.tokenExpiresAt,
+    accessToken: decryptedAccessToken,
+    refreshToken: decryptedRefreshToken,
+    tokenExpiresAt: integration.tokenExpiresAt!,
   });
 
   if (!tokenResult) {
-    // Token refresh failed — mark the connection as errored so the UI can show a reconnect prompt
-    await prisma.calendarConnection.update({
-      where: { userId },
+    // Token refresh failed — mark the integration as errored so the UI can show a reconnect prompt
+    await prisma.userIntegration.update({
+      where: { id: integration.id },
       data: { status: "error" },
     });
     result.errors.push("Failed to refresh access token — user may need to reconnect");
     return result;
   }
 
-  // If the token was refreshed, save the new one
-  if (tokenResult.accessToken !== connection.accessToken) {
-    await prisma.calendarConnection.update({
-      where: { userId },
+  // If the token was refreshed, save the new one (encrypted)
+  if (tokenResult.accessToken !== decryptedAccessToken) {
+    await prisma.userIntegration.update({
+      where: { id: integration.id },
       data: {
-        accessToken: tokenResult.accessToken,
+        accessToken: encrypt(tokenResult.accessToken),
         tokenExpiresAt: tokenResult.expiresAt,
         status: "connected",
       },
@@ -256,6 +271,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
 
   // Step 3: Process each event
   const syncTimestamp = new Date();
+  const companyDomain = (integration.metadata as Record<string, unknown>)?.companyDomain as string || "";
 
   for (const event of googleEvents) {
     result.eventsProcessed++;
@@ -264,7 +280,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
       // Filter to only external attendees using the company domain
       const externalAttendees = filterExternalAttendees(
         event.attendees,
-        connection.companyDomain
+        companyDomain
       );
 
       // Skip events with no external attendees — these are internal meetings
@@ -283,7 +299,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
       const existingEvent = await prisma.calendarEvent.findUnique({
         where: {
           connectionId_googleEventId: {
-            connectionId: connection.id,
+            connectionId: calendarConnection.id,
             googleEventId: event.id,
           },
         },
@@ -317,7 +333,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
         await prisma.calendarEvent.create({
           data: {
             userId,
-            connectionId: connection.id,
+            connectionId: calendarConnection.id,
             googleEventId: event.id,
             title: event.summary,
             description: event.description,
@@ -347,7 +363,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
   const fetchedEventIds = new Set(googleEvents.map((e) => e.id));
   const stagedPendingEvents = await prisma.calendarEvent.findMany({
     where: {
-      connectionId: connection.id,
+      userId,
       status: "pending",
       // Only check events within our sync window
       startTime: { gte: timeMin, lte: timeMax },
@@ -366,8 +382,8 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
   }
 
   // Step 5: Update the last sync timestamp
-  await prisma.calendarConnection.update({
-    where: { userId },
+  await prisma.userIntegration.update({
+    where: { userId_service: { userId, service: "google_calendar" } },
     data: { lastSyncAt: syncTimestamp },
   });
 

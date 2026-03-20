@@ -26,7 +26,7 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
 
   const isMapTab = activeTab === "map";
 
-  // Fetch filter options (same pattern as LayerBubble)
+  // Fetch filter options
   const [owners, setOwners] = useState<string[]>([]);
   const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
   const [states, setStates] = useState<

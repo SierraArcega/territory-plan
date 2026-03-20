@@ -178,6 +178,18 @@ describe("PlansTable", () => {
       expect(screen.getByText(/no plans/i)).toBeInTheDocument();
     });
 
+    it("renders toolbar outside the overflow container", () => {
+      const toolbar = <div data-testid="filter-toolbar">Filters</div>;
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} toolbar={toolbar} />
+      );
+
+      const toolbarEl = screen.getByTestId("filter-toolbar");
+      // The toolbar's parent should NOT be inside the overflow-hidden container
+      const overflowContainer = toolbarEl.closest('[class*="overflow-hidden"]');
+      expect(overflowContainer).toBeNull();
+    });
+
     it("shows footer with total district count", () => {
       renderWithProviders(
         <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
@@ -322,6 +334,56 @@ describe("PlansTable", () => {
       await waitFor(() => {
         expect(screen.queryByText("Delete Plan?")).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe("icon components", () => {
+    it("uses Lucide icons for action buttons", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} onShowOnMap={vi.fn()} />
+      );
+
+      const mapButton = screen.getAllByLabelText("Show plan on map")[0];
+      const mapSvg = mapButton.querySelector("svg");
+      expect(mapSvg).toBeInTheDocument();
+      expect(mapSvg).toHaveClass("lucide");
+
+      const deleteButton = screen.getAllByLabelText("Delete plan")[0];
+      const deleteSvg = deleteButton.querySelector("svg");
+      expect(deleteSvg).toBeInTheDocument();
+      expect(deleteSvg).toHaveClass("lucide");
+    });
+  });
+
+  describe("cursor styling", () => {
+    it("shows pointer cursor on the plan name button", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
+      );
+
+      const nameButton = screen.getByText("West Region Q1").closest("button");
+      expect(nameButton).toHaveClass("cursor-pointer");
+    });
+
+    it("shows pointer cursor on district count buttons", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
+      );
+
+      const districtButton = screen.getByText("15").closest("button");
+      expect(districtButton).toHaveClass("cursor-pointer");
+    });
+
+    it("shows pointer cursor on action buttons", () => {
+      renderWithProviders(
+        <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} onShowOnMap={vi.fn()} />
+      );
+
+      const mapButton = screen.getAllByLabelText("Show plan on map")[0];
+      expect(mapButton).toHaveClass("cursor-pointer");
+
+      const deleteButton = screen.getAllByLabelText("Delete plan")[0];
+      expect(deleteButton).toHaveClass("cursor-pointer");
     });
   });
 

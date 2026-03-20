@@ -15,6 +15,7 @@ import DistrictDetailsCard from "./DistrictDetailsCard";
 import VacanciesCard from "@/features/vacancies/components/VacanciesCard";
 import ContactsList from "@/features/districts/components/ContactsList";
 import SignalCard from "./signals/SignalCard";
+import ActivityTimeline from "@/features/activities/components/ActivityTimeline";
 
 export default function DistrictDetailPanel() {
   const selectedLeaid = useMapV2Store((s) => s.selectedLeaid);
@@ -131,6 +132,18 @@ export default function DistrictDetailPanel() {
                 badge={<></>}
               >
                 <ContactsList leaid={selectedLeaid!} contacts={contacts} />
+              </SignalCard>
+
+              <SignalCard
+                icon={
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+                title="Activity"
+                badge={<></>}
+              >
+                <ActivityTimeline districtLeaid={selectedLeaid!} />
               </SignalCard>
             </div>
 

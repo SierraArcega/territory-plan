@@ -481,7 +481,7 @@ export interface Activity {
   createdAt: string;
   updatedAt: string;
   googleEventId: string | null;
-  source: "manual" | "calendar_sync";
+  source: "manual" | "calendar_sync" | "gmail_sync" | "slack_sync";
   outcome: string | null;
   outcomeType: string | null;
   metadata: Record<string, unknown> | null;
@@ -504,13 +504,19 @@ export interface ActivityListItem {
   startDate: string | null;
   endDate: string | null;
   status: ActivityStatus;
-  source: "manual" | "calendar_sync";
+  source: "manual" | "calendar_sync" | "gmail_sync" | "slack_sync";
   outcomeType: string | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
   planCount: number;
   districtCount: number;
   stateAbbrevs: string[];
+  // Mixmax enrichment fields (populated by Mixmax sync)
+  mixmaxSequenceName?: string | null;
+  mixmaxSequenceStep?: number | null;
+  mixmaxSequenceTotalSteps?: number | null;
+  mixmaxOpenCount?: number | null;
+  mixmaxClickCount?: number | null;
 }
 
 export interface ActivitiesResponse {
@@ -530,6 +536,7 @@ export interface ActivitiesParams {
   unscheduled?: boolean;
   needsPlanAssociation?: boolean;
   hasUnlinkedDistricts?: boolean;
+  source?: string;
   limit?: number;
   offset?: number;
 }
@@ -1018,4 +1025,56 @@ export interface PlanEngagement {
   districtsWithActivity: number;
   lastActivityDate: string | null;
   activityCount: number;
+}
+
+// ===== Map Overlay Feature Properties =====
+
+export interface MapContactProperties {
+  id: number;
+  name: string;
+  title: string | null;
+  email: string | null;
+  seniorityLevel: string | null;
+  persona: string | null;
+  districtName: string;
+  leaid: string;
+}
+
+export interface MapVacancyProperties {
+  id: string;
+  title: string;
+  category: string | null;
+  status: string;
+  schoolName: string | null;
+  datePosted: string | null;
+  daysOpen: number | null;
+  fullmindRelevant: boolean;
+  districtName: string;
+  leaid: string;
+  hiringManager: string | null;
+  hiringEmail: string | null;
+  sourceUrl: string | null;
+}
+
+export interface MapActivityProperties {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  startDate: string | null;
+  endDate: string | null;
+  outcome: string | null;
+  districtName: string;
+  leaid: string;
+}
+
+export interface MapPlanProperties {
+  planId: string;
+  planName: string;
+  planColor: string;
+  planStatus: string;
+  districtName: string;
+  leaid: string;
+  renewalTarget: number | null;
+  expansionTarget: number | null;
 }

@@ -40,9 +40,13 @@ export async function GET(
     }
 
     // Build vacancy query filter
-    const whereClause: { leaid: string; status?: string } = { leaid };
+    const includeUnverified = searchParams.get("includeUnverified") === "true";
+    const whereClause: { leaid: string; status?: string; districtVerified?: boolean } = { leaid };
     if (statusFilter !== "all") {
       whereClause.status = statusFilter;
+    }
+    if (!includeUnverified) {
+      whereClause.districtVerified = true;
     }
 
     // Query vacancies with school and contact relations

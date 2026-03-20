@@ -15,22 +15,28 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find the connection to delete
-    const connection = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
+    // Find the integration to delete
+    const integration = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
     });
 
-    if (!connection) {
+    if (!integration) {
       return NextResponse.json(
         { error: "No calendar connection found" },
         { status: 404 }
       );
     }
 
-    // Delete the connection (cascades to CalendarEvent records via onDelete: Cascade)
-    await prisma.calendarConnection.delete({
-      where: { userId: user.id },
-    });
+    // Delete pending calendar events for this user and then the integration
+    // (CalendarEvent no longer cascades from the integration, so clean up manually)
+    await prisma.$transaction([
+      prisma.calendarEvent.deleteMany({
+        where: { userId: user.id, status: "pending" },
+      }),
+      prisma.userIntegration.delete({
+        where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

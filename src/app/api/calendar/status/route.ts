@@ -85,11 +85,11 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { syncEnabled, companyDomain, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
 
-    const connection = await prisma.calendarConnection.findUnique({
+    const existing = await prisma.calendarConnection.findUnique({
       where: { userId: user.id },
     });
 
-    if (!connection) {
+    if (!existing) {
       return NextResponse.json(
         { error: "No calendar connection found" },
         { status: 404 }
@@ -141,7 +141,7 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      if (secondReminderMinutes !== null && secondReminderMinutes === (updateData.reminderMinutes ?? connection.reminderMinutes)) {
+      if (secondReminderMinutes !== null && secondReminderMinutes === (updateData.reminderMinutes ?? existing.reminderMinutes)) {
         return NextResponse.json(
           { error: "secondReminderMinutes must differ from reminderMinutes" },
           { status: 400 }

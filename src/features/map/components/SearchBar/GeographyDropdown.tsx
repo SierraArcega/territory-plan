@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
-import ToggleChips from "./controls/ToggleChips";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
 
 
@@ -71,7 +70,7 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
       // Fly the map to the ZIP location with appropriate zoom
       const map = mapV2Ref.current;
       if (map) {
-        const zoomByRadius: Record<number, number> = { 5: 11, 10: 10, 25: 9, 50: 8, 100: 7 };
+        const zoomByRadius: Record<number, number> = { 5: 11, 10: 10, 25: 9, 50: 8, 100: 7, 150: 6, 200: 6, 250: 5 };
         map.flyTo({ center: [lng, lat], zoom: zoomByRadius[miles] || 9, duration: 1500 });
       }
 
@@ -106,17 +105,32 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
               className="w-24 px-2 py-1.5 rounded border border-[#D4CFE2] text-xs focus:outline-none focus:ring-1 focus:ring-plum/30"
               onKeyDown={(e) => e.key === "Enter" && handleZipSearch()}
             />
-            <select
-              value={radius}
-              onChange={(e) => setRadius(e.target.value)}
-              className="px-2 py-1.5 rounded border border-[#D4CFE2] text-xs focus:outline-none focus:ring-1 focus:ring-plum/30"
-            >
-              <option value="5">5 mi</option>
-              <option value="10">10 mi</option>
-              <option value="25">25 mi</option>
-              <option value="50">50 mi</option>
-              <option value="100">100 mi</option>
-            </select>
+            <div className="relative">
+              <select
+                value={radius}
+                onChange={(e) => setRadius(e.target.value)}
+                className="px-2 pr-7 py-1.5 text-xs border border-[#C2BBD4] rounded-lg
+                  bg-white text-[#403770] appearance-none
+                  focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
+              >
+                <option value="5">5 mi</option>
+                <option value="10">10 mi</option>
+                <option value="25">25 mi</option>
+                <option value="50">50 mi</option>
+                <option value="100">100 mi</option>
+                <option value="150">150 mi</option>
+                <option value="200">200 mi</option>
+                <option value="250">250+ mi</option>
+              </select>
+              <svg
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#A69DC0] pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
             <button
               onClick={handleZipSearch}
               disabled={zip.length < 5 || zipLoading}
@@ -137,27 +151,6 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
           />
         )}
 
-        {/* Urbanicity */}
-        <ToggleChips
-          label="Urbanicity"
-          options={[
-            { label: "City", column: "urbanicity", op: "in", value: ["11", "12", "13"] },
-            { label: "Suburb", column: "urbanicity", op: "in", value: ["21", "22", "23"] },
-            { label: "Town", column: "urbanicity", op: "in", value: ["31", "32", "33"] },
-            { label: "Rural", column: "urbanicity", op: "in", value: ["41", "42", "43"] },
-          ]}
-          onSelect={(opt) => addSearchFilter({ id: crypto.randomUUID(), column: opt.column, op: opt.op as any, value: opt.value })}
-        />
-
-        {/* District Type */}
-        <ToggleChips
-          label="District Type"
-          options={[
-            { label: "Has Charter Schools", column: "charterSchoolCount", op: "gte", value: 1 },
-            { label: "Has Title I Schools", column: "titleISchoolCount", op: "gte", value: 1 },
-          ]}
-          onSelect={(opt) => addSearchFilter({ id: crypto.randomUUID(), column: opt.column, op: opt.op as any, value: opt.value })}
-        />
       </div>
     </div>
   );

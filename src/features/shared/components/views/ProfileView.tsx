@@ -6,6 +6,7 @@ import { useProfile, useLogout, useUpdateProfile } from "@/lib/api";
 import { useCalendarConnection } from "@/features/calendar/lib/queries";
 import { useQueryClient } from "@tanstack/react-query";
 import CalendarSyncSettings from "@/features/calendar/components/CalendarSyncSettings";
+import ConnectedAccountsSection from "@/features/integrations/components/ConnectedAccountsSection";
 
 type ProfileTab = "account" | "calendar-sync";
 

@@ -9,6 +9,7 @@ import PlanningTab from "../panels/district/tabs/PlanningTab";
 import SignalsTab from "../panels/district/tabs/SignalsTab";
 import SchoolsTab from "../panels/district/tabs/SchoolsTab";
 import ContactsTab from "../panels/district/ContactsTab";
+import ActivityTimeline from "@/features/activities/components/ActivityTimeline";
 
 export default function DistrictCard({ leaid }: { leaid: string }) {
   const activePlanId = useMapV2Store((s) => s.activePlanId);
@@ -88,6 +89,11 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         )}
         {activeTab === "contacts" && (
           <ContactsTab leaid={leaid} contacts={contacts} />
+        )}
+        {activeTab === "activity" && (
+          <div className="p-3">
+            <ActivityTimeline districtLeaid={leaid} />
+          </div>
         )}
       </div>
 

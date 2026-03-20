@@ -79,11 +79,18 @@ function extractFromTable(html: string, baseUrl: string): RawVacancy[] {
     }
 
     // Look for school/location (non-title, non-date cell)
+    // On state-wide OLAS boards, the first "other" cell is typically the
+    // district/employer name, not a specific school.  Store it as
+    // employerName so the post-processor can verify district affinity.
     const otherCells = cleanCells.filter(
       (c) => c !== title && !c.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)
     );
     if (otherCells.length > 0) {
-      vacancy.schoolName = otherCells[0] || undefined;
+      vacancy.employerName = otherCells[0] || undefined;
+      // If there's a second non-title/non-date cell, treat it as school/location
+      if (otherCells.length > 1) {
+        vacancy.schoolName = otherCells[1] || undefined;
+      }
     }
 
     vacancies.push(vacancy);

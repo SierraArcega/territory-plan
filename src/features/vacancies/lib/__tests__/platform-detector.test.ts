@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectPlatform } from "../platform-detector";
+import { detectPlatform, isStatewideBoard } from "../platform-detector";
 
 describe("detectPlatform", () => {
   describe("known platforms", () => {
@@ -96,5 +96,23 @@ describe("detectPlatform", () => {
     it('returns "unknown" for a bare domain with no scheme', () => {
       expect(detectPlatform("applitrack.com/jobs")).toBe("unknown");
     });
+  });
+});
+
+describe("isStatewideBoard", () => {
+  it("returns true for olas", () => {
+    expect(isStatewideBoard("olas")).toBe(true);
+  });
+
+  it("returns true for schoolspring", () => {
+    expect(isStatewideBoard("schoolspring")).toBe(true);
+  });
+
+  it("returns false for applitrack without URL", () => {
+    expect(isStatewideBoard("applitrack")).toBe(false);
+  });
+
+  it("returns false for unknown", () => {
+    expect(isStatewideBoard("unknown")).toBe(false);
   });
 });

@@ -5,6 +5,7 @@
 // description, owner, FY, status, dates, districts, and actions.
 
 import { useState } from "react";
+import { Map, Trash2 } from "lucide-react";
 import {
   useUpdateTerritoryPlan,
   useDeleteTerritoryPlan,
@@ -186,12 +187,13 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
   const totalDistrictCount = plans.reduce((sum, plan) => sum + plan.districtCount, 0);
 
   return (
-    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0">
       {toolbar && (
-        <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
+        <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA] relative z-20 rounded-t-lg border-x border-t border-[#D4CFE2]">
           {toolbar}
         </div>
       )}
+      <div className={`overflow-hidden border border-[#D4CFE2] ${toolbar ? 'rounded-b-lg border-t-0' : 'rounded-lg'} bg-white shadow-sm flex flex-col flex-1 min-h-0`}>
       <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full table-fixed divide-y divide-[#D4CFE2]">
           <thead className="bg-[#F7F5FA] sticky top-0 z-10">
@@ -268,7 +270,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 <td className="px-2 py-1 truncate">
                   <button
                     onClick={() => onSelectPlan(plan.id)}
-                    className="text-sm font-medium text-[#403770] hover:underline truncate text-left"
+                    className="text-sm font-medium text-[#403770] hover:underline truncate text-left cursor-pointer"
                   >
                     {plan.name}
                   </button>
@@ -331,7 +333,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 <td className="px-2 py-1.5 text-center">
                   <button
                     onClick={() => onSelectPlan(plan.id)}
-                    className="text-xs font-medium text-[#403770] hover:text-[#F37167] transition-colors"
+                    className="text-xs font-medium text-[#403770] hover:text-[#F37167] transition-colors cursor-pointer"
                   >
                     {plan.districtCount}
                   </button>
@@ -343,24 +345,25 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                     {onShowOnMap && (
                       <button
                         onClick={() => onShowOnMap(plan.id)}
-                        className="text-[#8A80A8] hover:text-[#403770] transition-colors"
+                        className={`transition-colors ${
+                          plan.districtCount === 0
+                            ? "text-[#D4CFE2] cursor-not-allowed"
+                            : "text-[#8A80A8] hover:text-[#403770] cursor-pointer"
+                        }`}
+                        disabled={plan.districtCount === 0}
                         aria-label="Show plan on map"
-                        title="Show on map"
+                        title={plan.districtCount === 0 ? "No districts to show" : "Show on map"}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                        </svg>
+                        <Map className="w-4 h-4" />
                       </button>
                     )}
                     <button
                       onClick={() => setPlanToDelete(plan)}
-                      className="text-[#8A80A8] hover:text-[#F37167] transition-colors"
+                      className="text-[#8A80A8] hover:text-[#F37167] transition-colors cursor-pointer"
                       aria-label="Delete plan"
                       title="Delete"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                      </svg>
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </td>
@@ -395,6 +398,7 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
           isDeleting={deletePlan.isPending}
         />
       )}
+      </div>
     </div>
   );
 }

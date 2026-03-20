@@ -26,8 +26,10 @@ export async function GET(
       select: {
         id: true,
         status: true,
+        platform: true,
         vacancyCount: true,
         fullmindRelevantCount: true,
+        districtsMatched: true,
         completedAt: true,
         errorMessage: true,
       },
@@ -43,8 +45,10 @@ export async function GET(
     return NextResponse.json({
       scanId: scan.id,
       status: scan.status,
+      platform: scan.platform,
       vacancyCount: scan.vacancyCount,
       fullmindRelevantCount: scan.fullmindRelevantCount,
+      districtsMatched: scan.districtsMatched,
       completedAt: scan.completedAt?.toISOString() ?? null,
       errorMessage: scan.errorMessage,
     });

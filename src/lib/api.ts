@@ -15,3 +15,4 @@ export * from "@/features/progress/lib/queries";
 export * from "@/features/map/lib/queries";
 export * from "@/features/explore/lib/queries";
 export * from "@/features/shared/lib/queries";
+export * from "@/features/integrations/lib/queries";

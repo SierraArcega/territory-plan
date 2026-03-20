@@ -8,12 +8,25 @@ import "maplibre-gl/dist/maplibre-gl.css";
 setWorkerCount(4);
 import { useMapV2Store } from "@/features/map/lib/store";
 import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression } from "@/features/map/lib/layers";
+import type { SignalId } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref, mapV2Refs, type MapRefKey } from "@/features/map/lib/ref";
 import { classifyTransition } from "@/features/map/lib/comparison";
-import { useSchoolGeoJSON } from "@/features/map/lib/queries";
+import { useSchoolGeoJSON, useMapContacts, useMapVacancies, useMapActivities, useMapPlans } from "@/features/map/lib/queries";
+import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
+import {
+  CONTACTS_SOURCE, VACANCIES_SOURCE, ACTIVITIES_SOURCE, PLANS_SOURCE,
+  CONTACTS_POINT_LAYER, VACANCIES_POINT_LAYER, ACTIVITIES_POINT_LAYER,
+  CONTACTS_CLUSTER_LAYER, VACANCIES_CLUSTER_LAYER, ACTIVITIES_CLUSTER_LAYER,
+  PLANS_FILL_LAYER, PLANS_OUTLINE_LAYER,
+  ALL_OVERLAY_POINT_LAYERS, ALL_OVERLAY_CLUSTER_LAYERS,
+  createClusteredSource, createGeoJSONSource,
+  getContactLayers, getVacancyLayers, getActivityLayers, getPlanLayers,
+  layerIdToOverlayType, overlayTypeToPanel,
+} from "@/features/map/lib/pin-layers";
+import type { RightPanelContent } from "@/features/map/lib/store";
 import MapV2Tooltip from "./MapV2Tooltip";
 
 export interface MapV2ContainerProps {
@@ -184,9 +197,53 @@ export default function MapV2Container({
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
   const focusLeaids = useMapV2Store((s) => s.focusLeaids);
 
+  // Overlay layer state
+  const activeLayers = useMapV2Store((s) => s.activeLayers);
+  const layerFilters = useMapV2Store((s) => s.layerFilters);
+  const dateRange = useMapV2Store((s) => s.dateRange);
+  const mapBounds = useMapV2Store((s) => s.mapBounds);
+
+  // Color By dimension — controls which choropleth visualization is active
+  const colorBy = useMapV2Store((s) => s.colorBy);
+
   // School GeoJSON — TanStack Query with quantized bounds for cache reuse
   const schoolsEnabled = visibleSchoolTypes.size > 0 && mapReady;
   const { data: schoolGeoJSON } = useSchoolGeoJSON(schoolBounds, schoolsEnabled);
+
+  // Extract geographic state filters from searchFilters for overlay layer filtering
+  const searchFiltersForGeo = useMapV2Store((s) => s.searchFilters);
+  const geoStates = useMemo(() => {
+    const stateFilter = searchFiltersForGeo.find((f) => f.column === "state");
+    if (!stateFilter) return undefined;
+    if (stateFilter.op === "in" && Array.isArray(stateFilter.value)) {
+      return stateFilter.value as string[];
+    }
+    if (stateFilter.op === "eq" && typeof stateFilter.value === "string") {
+      return [stateFilter.value];
+    }
+    return undefined;
+  }, [searchFiltersForGeo]);
+
+  // Overlay GeoJSON — TanStack Query, conditionally fetched when layer is active
+  const contactsEnabled = activeLayers.has("contacts") && mapReady;
+  const { data: contactsGeoJSON, isLoading: contactsLoading } = useMapContacts(
+    mapBounds, layerFilters.contacts, contactsEnabled, geoStates,
+  );
+
+  const vacanciesEnabled = activeLayers.has("vacancies") && mapReady;
+  const { data: vacanciesGeoJSON, isLoading: vacanciesLoading } = useMapVacancies(
+    mapBounds, layerFilters.vacancies, dateRange.vacancies, vacanciesEnabled, geoStates,
+  );
+
+  const activitiesEnabled = activeLayers.has("activities") && mapReady;
+  const { data: activitiesGeoJSON, isLoading: activitiesLoading } = useMapActivities(
+    mapBounds, layerFilters.activities, dateRange.activities, activitiesEnabled, geoStates,
+  );
+
+  const plansEnabled = activeLayers.has("plans") && mapReady;
+  const { data: plansGeoJSON, isLoading: plansLoading } = useMapPlans(
+    layerFilters.plans, plansEnabled,
+  );
 
   // Push school data to map source whenever it changes
   useEffect(() => {
@@ -199,6 +256,160 @@ export default function MapV2Container({
       source.setData({ type: "FeatureCollection", features: [] });
     }
   }, [schoolGeoJSON, schoolsEnabled, mapReady]);
+
+  // Cross-filter: constrains overlay rendering by plan focus, plan filters, and search results
+  const { filterOverlayGeoJSON } = useCrossFilter({
+    plansGeoJSON,
+    contactsGeoJSON,
+    vacanciesGeoJSON,
+    activitiesGeoJSON,
+  });
+
+  // Push overlay contacts data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(CONTACTS_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    const filtered = filterOverlayGeoJSON(contactsGeoJSON);
+    if (filtered && contactsEnabled) {
+      source.setData(filtered);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [contactsGeoJSON, contactsEnabled, mapReady, filterOverlayGeoJSON]);
+
+  // Push overlay vacancies data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(VACANCIES_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    const filtered = filterOverlayGeoJSON(vacanciesGeoJSON);
+    if (filtered && vacanciesEnabled) {
+      source.setData(filtered);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [vacanciesGeoJSON, vacanciesEnabled, mapReady, filterOverlayGeoJSON]);
+
+  // Push overlay activities data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(ACTIVITIES_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    const filtered = filterOverlayGeoJSON(activitiesGeoJSON);
+    if (filtered && activitiesEnabled) {
+      source.setData(filtered);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [activitiesGeoJSON, activitiesEnabled, mapReady, filterOverlayGeoJSON]);
+
+  // Push overlay plans data to map source
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    const source = map.current.getSource(PLANS_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    if (plansGeoJSON && plansEnabled) {
+      source.setData(plansGeoJSON);
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [plansGeoJSON, plansEnabled, mapReady]);
+
+  // Toggle overlay layer visibility based on activeLayers
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const layerGroups: Record<string, string[]> = {
+      contacts: [CONTACTS_CLUSTER_LAYER, "overlay-contacts-cluster-count", CONTACTS_POINT_LAYER],
+      vacancies: [VACANCIES_CLUSTER_LAYER, "overlay-vacancies-cluster-count", VACANCIES_POINT_LAYER],
+      activities: [ACTIVITIES_CLUSTER_LAYER, "overlay-activities-cluster-count", ACTIVITIES_POINT_LAYER],
+      plans: [PLANS_FILL_LAYER, PLANS_OUTLINE_LAYER],
+    };
+
+    for (const [layerType, layerIds] of Object.entries(layerGroups)) {
+      const isActive = activeLayers.has(layerType as "contacts" | "vacancies" | "activities" | "plans");
+      for (const layerId of layerIds) {
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", isActive ? "visible" : "none");
+        }
+      }
+    }
+  }, [activeLayers, mapReady]);
+
+  // Color By switching — toggle between vendor/signal/locale fill layers
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const isSignalDimension = (dim: string): dim is SignalId =>
+      dim === "enrollment" || dim === "ell" || dim === "swd" || dim === "expenditure";
+
+    if (colorBy === "engagement") {
+      // Show active vendor fill layers (existing default behavior)
+      for (const vendorId of VENDOR_IDS) {
+        const layerId = `district-${vendorId}-fill`;
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(
+            layerId,
+            "visibility",
+            activeVendors.has(vendorId) ? "visible" : "none",
+          );
+        }
+      }
+      // Hide signal and locale layers
+      if (map.current.getLayer("district-signal-fill")) {
+        map.current.setLayoutProperty("district-signal-fill", "visibility", "none");
+      }
+      if (map.current.getLayer("district-locale-fill")) {
+        map.current.setLayoutProperty("district-locale-fill", "visibility", "none");
+      }
+    } else if (isSignalDimension(colorBy)) {
+      // Hide all vendor fill layers
+      for (const vendorId of VENDOR_IDS) {
+        const layerId = `district-${vendorId}-fill`;
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+      // Hide locale layer
+      if (map.current.getLayer("district-locale-fill")) {
+        map.current.setLayoutProperty("district-locale-fill", "visibility", "none");
+      }
+      // Show signal fill layer with the appropriate expression
+      if (map.current.getLayer("district-signal-fill")) {
+        map.current.setLayoutProperty("district-signal-fill", "visibility", "visible");
+        map.current.setPaintProperty(
+          "district-signal-fill",
+          "fill-color",
+          buildSignalFillExpressionFromCategories(colorBy, categoryColors) as any,
+        );
+        map.current.setPaintProperty(
+          "district-signal-fill",
+          "fill-opacity",
+          buildCategoryOpacityExpression(colorBy, categoryOpacities) as any,
+        );
+        // Update filter to match the signal's tile property
+        const config = SIGNAL_CONFIGS[colorBy];
+        map.current.setFilter("district-signal-fill", ["has", config.tileProperty]);
+      }
+    } else if (colorBy === "locale") {
+      // Hide all vendor fill layers
+      for (const vendorId of VENDOR_IDS) {
+        const layerId = `district-${vendorId}-fill`;
+        if (map.current.getLayer(layerId)) {
+          map.current.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+      // Hide signal layer
+      if (map.current.getLayer("district-signal-fill")) {
+        map.current.setLayoutProperty("district-signal-fill", "visibility", "none");
+      }
+      // Show locale fill layer
+      if (map.current.getLayer("district-locale-fill")) {
+        map.current.setLayoutProperty("district-locale-fill", "visibility", "visible");
+      }
+    }
+  }, [colorBy, activeVendors, categoryColors, categoryOpacities, mapReady]);
 
   // Initialize map
   useEffect(() => {
@@ -230,7 +441,7 @@ export default function MapV2Container({
 
     // Only add nav control to the primary map (or when not in side-by-side)
     if (refKey === "primary") {
-      map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+      map.current.addControl(new maplibregl.NavigationControl(), "bottom-right");
     }
 
     map.current.on("load", () => {
@@ -612,6 +823,32 @@ export default function MapV2Container({
         minzoom: SCHOOL_MIN_ZOOM,
       });
 
+      // === OVERLAY LAYERS (map planning overlays) ===
+
+      // Plan polygon source + layers (rendered below pin layers)
+      map.current.addSource(PLANS_SOURCE, createGeoJSONSource());
+      for (const layer of getPlanLayers()) {
+        map.current.addLayer(layer);
+      }
+
+      // Contacts pin source + layers
+      map.current.addSource(CONTACTS_SOURCE, createClusteredSource());
+      for (const layer of getContactLayers()) {
+        map.current.addLayer(layer);
+      }
+
+      // Vacancies pin source + layers
+      map.current.addSource(VACANCIES_SOURCE, createClusteredSource());
+      for (const layer of getVacancyLayers()) {
+        map.current.addLayer(layer);
+      }
+
+      // Activities pin source + layers
+      map.current.addSource(ACTIVITIES_SOURCE, createClusteredSource());
+      for (const layer of getActivityLayers()) {
+        map.current.addLayer(layer);
+      }
+
       setMapReady(true);
     });
 
@@ -646,7 +883,9 @@ export default function MapV2Container({
     setSchoolBounds([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
   }, [mapReady]);
 
-  // Handle district hover — actions via getState(), tooltip position via DOM ref
+  // Handle hover with priority-based hit testing.
+  // Priority order: overlay pins > plans > schools > districts > states.
+  // When cursor is over a pin, suppress district hover highlight.
   const handleDistrictHover = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
@@ -662,76 +901,69 @@ export default function MapV2Container({
       // When no tooltip is showing, throttle to reduce queryRenderedFeatures calls.
       if (throttled && !useMapV2Store.getState().tooltip.visible) return;
 
-      // Query only the base fill layer — same source-layer, same properties, 1 layer vs 5
-      const features = map.current.getLayer("district-base-fill")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["district-base-fill"],
-          })
-        : [];
+      // Helper: suppress district hover highlight when a higher-priority layer matches
+      const suppressDistrictHover = () => {
+        lastHoveredLeaidRef.current = null;
+        map.current!.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
+        map.current!.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+      };
 
-      if (features.length > 0) {
-        const feature = features[0];
-        const leaid = feature.properties?.leaid;
+      // Helper: query a single layer if it exists
+      const queryLayer = (layerId: string) => {
+        if (!map.current!.getLayer(layerId)) return [];
+        return map.current!.queryRenderedFeatures(e.point, { layers: [layerId] });
+      };
 
-        // Skip hover on filtered-out districts when search is active
-        if (leaid && useMapV2Store.getState().isSearchActive && searchResultSetRef.current.size > 0 && !searchResultSetRef.current.has(leaid)) {
-          if (lastHoveredLeaidRef.current) clearHover();
+      // --- Priority 1-3: Overlay pin layers (activities > vacancies > contacts) ---
+      for (const pointLayerId of ALL_OVERLAY_POINT_LAYERS) {
+        const features = queryLayer(pointLayerId);
+        if (features.length > 0) {
+          const feature = features[0];
+          const overlayType = layerIdToOverlayType(feature.layer.id);
+          const props = feature.properties;
+          suppressDistrictHover();
+          map.current.getCanvas().style.cursor = "pointer";
+
+          const typeLabels: Record<string, string> = {
+            contacts: "Contact",
+            vacancies: "Vacancy",
+            activities: "Activity",
+          };
+          const typeLabel = overlayType ? typeLabels[overlayType] ?? "" : "";
+          const name = props?.name || props?.title || "Unknown";
+
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+            type: "district", // Reuse the district tooltip type for overlays
+            name: `${typeLabel}: ${name}`,
+            leaid: props?.leaid,
+          });
           return;
         }
+      }
 
-        if (leaid && leaid !== lastHoveredLeaidRef.current) {
-          lastHoveredLeaidRef.current = leaid;
+      // --- Priority 4: Plan polygon ---
+      {
+        const planFeatures = queryLayer(PLANS_FILL_LAYER);
+        if (planFeatures.length > 0) {
+          const props = planFeatures[0].properties;
+          suppressDistrictHover();
+          map.current.getCanvas().style.cursor = "pointer";
 
-          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
-          map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
-          map.current.getCanvas().style.cursor = "crosshair";
-
-          // Build tooltip data, respecting tooltipPropertyMap for compare mode
-          const props = feature.properties;
-          const tooltipData: import("@/features/map/lib/store").V2TooltipData = {
+          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
             type: "district",
-            leaid,
-            name: props?.name || "Unknown",
-            stateAbbrev: props?.state_abbrev,
-            enrollment: props?.enrollment,
-            salesExecutive: props?.sales_executive,
-          };
-
-          if (tooltipPropertyMap) {
-            // Compare / changes mode: read _a / _b properties
-            const catPropA = tooltipPropertyMap["fullmind_category_a"] || "fullmind_category_a";
-            const catPropB = tooltipPropertyMap["fullmind_category_b"] || "fullmind_category_b";
-            tooltipData.customerCategoryA = props?.[catPropA] || undefined;
-            tooltipData.customerCategoryB = props?.[catPropB] || undefined;
-            tooltipData.transitionBucket = classifyTransition(
-              tooltipData.customerCategoryA ?? null,
-              tooltipData.customerCategoryB ?? null,
-            );
-          } else {
-            tooltipData.customerCategory = props?.fullmind_category;
-          }
-
-          useMapV2Store.getState().showTooltip(e.point.x, e.point.y, tooltipData);
-        } else if (leaid === lastHoveredLeaidRef.current) {
-          // Same district — update tooltip position directly via DOM, no store write
-          if (tooltipElRef.current) {
-            tooltipElRef.current.style.left = `${e.point.x + 12}px`;
-            tooltipElRef.current.style.top = `${e.point.y - 8}px`;
-          }
+            name: `Plan: ${props?.planName || "Untitled"}`,
+            leaid: props?.leaid,
+          });
+          return;
         }
-      } else {
-        // Check for school hover
-        const schoolFeatures = map.current.getLayer("schools-unclustered")
-          ? map.current.queryRenderedFeatures(e.point, {
-              layers: ["schools-unclustered"],
-            })
-          : [];
+      }
 
+      // --- Priority 5: School pins ---
+      {
+        const schoolFeatures = queryLayer("schools-unclustered");
         if (schoolFeatures.length > 0) {
           const props = schoolFeatures[0].properties;
-          lastHoveredLeaidRef.current = null;
-          map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], ""]);
-          map.current.setFilter("district-hover", ["==", ["get", "leaid"], ""]);
+          suppressDistrictHover();
           map.current.getCanvas().style.cursor = "crosshair";
 
           useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
@@ -743,109 +975,242 @@ export default function MapV2Container({
             lograde: props?.lograde,
             higrade: props?.higrade,
           });
-        } else if (map.current.getZoom() < 6) {
-          // Check state hover at low zoom
-          const stateFeatures = map.current.queryRenderedFeatures(e.point, {
-            layers: ["state-fill"],
-          });
-
-          if (stateFeatures.length > 0) {
-            const stateName = stateFeatures[0].properties?.name;
-            const stateCode = STATE_NAME_TO_ABBREV[stateName];
-            if (stateName) {
-              map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
-              map.current.getCanvas().style.cursor = "crosshair";
-              useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
-                type: "state",
-                stateName,
-                stateCode,
-              });
-            }
-          } else {
-            clearHover();
-          }
-        } else {
-          clearHover();
+          return;
         }
       }
+
+      // --- Priority 6: District base fill ---
+      {
+        const features = queryLayer("district-base-fill");
+        if (features.length > 0) {
+          const feature = features[0];
+          const leaid = feature.properties?.leaid;
+
+          // Skip hover on filtered-out districts when search is active
+          if (leaid && useMapV2Store.getState().isSearchActive && searchResultSetRef.current.size > 0 && !searchResultSetRef.current.has(leaid)) {
+            if (lastHoveredLeaidRef.current) clearHover();
+            return;
+          }
+
+          if (leaid && leaid !== lastHoveredLeaidRef.current) {
+            lastHoveredLeaidRef.current = leaid;
+
+            map.current.setFilter("district-hover-fill", ["==", ["get", "leaid"], leaid]);
+            map.current.setFilter("district-hover", ["==", ["get", "leaid"], leaid]);
+            map.current.getCanvas().style.cursor = "crosshair";
+
+            // Build tooltip data, respecting tooltipPropertyMap for compare mode
+            const props = feature.properties;
+            const tooltipData: import("@/features/map/lib/store").V2TooltipData = {
+              type: "district",
+              leaid,
+              name: props?.name || "Unknown",
+              stateAbbrev: props?.state_abbrev,
+              enrollment: props?.enrollment,
+              salesExecutive: props?.sales_executive,
+            };
+
+            if (tooltipPropertyMap) {
+              // Compare / changes mode: read _a / _b properties
+              const catPropA = tooltipPropertyMap["fullmind_category_a"] || "fullmind_category_a";
+              const catPropB = tooltipPropertyMap["fullmind_category_b"] || "fullmind_category_b";
+              tooltipData.customerCategoryA = props?.[catPropA] || undefined;
+              tooltipData.customerCategoryB = props?.[catPropB] || undefined;
+              tooltipData.transitionBucket = classifyTransition(
+                tooltipData.customerCategoryA ?? null,
+                tooltipData.customerCategoryB ?? null,
+              );
+            } else {
+              tooltipData.customerCategory = props?.fullmind_category;
+            }
+
+            useMapV2Store.getState().showTooltip(e.point.x, e.point.y, tooltipData);
+          } else if (leaid === lastHoveredLeaidRef.current) {
+            // Same district — update tooltip position directly via DOM, no store write
+            if (tooltipElRef.current) {
+              tooltipElRef.current.style.left = `${e.point.x + 12}px`;
+              tooltipElRef.current.style.top = `${e.point.y - 8}px`;
+            }
+          }
+          return;
+        }
+      }
+
+      // --- Priority 7: State fill (low zoom only) ---
+      if (map.current.getZoom() < 6) {
+        const stateFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: ["state-fill"],
+        });
+
+        if (stateFeatures.length > 0) {
+          const stateName = stateFeatures[0].properties?.name;
+          const stateCode = STATE_NAME_TO_ABBREV[stateName];
+          if (stateName) {
+            map.current.setFilter("state-hover", ["==", ["get", "name"], stateName]);
+            map.current.getCanvas().style.cursor = "crosshair";
+            useMapV2Store.getState().showTooltip(e.point.x, e.point.y, {
+              type: "state",
+              stateName,
+              stateCode,
+            });
+            return;
+          }
+        }
+      }
+
+      // Nothing matched — clear hover
+      clearHover();
     },
     [mapReady, clearHover]
   );
 
-  // Handle map click — all store access via getState()
+  // Handle map click with priority-based hit testing.
+  // Priority order (first match wins):
+  //   1. overlay-activities-point   → setActiveResultsTab("activities")
+  //   2. overlay-vacancies-point    → setActiveResultsTab("vacancies")
+  //   3. overlay-contacts-point     → setActiveResultsTab("contacts")
+  //   4. overlay-plans-fill         → setActiveResultsTab("plans")
+  //   5. schools-unclustered        → existing behavior
+  //   6. district-base-fill         → existing behavior
+  //   7. state-fill                 → existing behavior
+  // Overlay cluster clicks are also handled (zoom into cluster).
   const handleClick = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       if (!map.current || !mapReady) return;
 
-      // Check for individual school click — select parent district
-      const schoolFeatures = map.current.getLayer("schools-unclustered")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["schools-unclustered"],
-          })
-        : [];
+      // Helper: query a single layer if it exists
+      const queryLayer = (layerId: string) => {
+        if (!map.current!.getLayer(layerId)) return [];
+        return map.current!.queryRenderedFeatures(e.point, { layers: [layerId] });
+      };
 
-      if (schoolFeatures.length > 0) {
-        const leaid = schoolFeatures[0].properties?.leaid;
-        if (leaid) {
-          const store = useMapV2Store.getState();
-          store.addClickRipple(e.point.x, e.point.y, "coral");
-          store.selectDistrict(leaid);
-        }
-        return;
-      }
-
-      // Check for district click — query base fill only (same source-layer, same properties)
-      const districtFeatures = map.current.getLayer("district-base-fill")
-        ? map.current.queryRenderedFeatures(e.point, {
-            layers: ["district-base-fill"],
-          })
-        : [];
-
-      if (districtFeatures.length > 0) {
-        const leaid = districtFeatures[0].properties?.leaid;
-        if (!leaid) return;
-
-        const store = useMapV2Store.getState();
-
-        // Visual feedback
-        store.addClickRipple(e.point.x, e.point.y, "plum");
-
-        // In PLAN_ADD mode, shift+click or regular click adds to plan
-        if (store.panelState === "PLAN_ADD") {
-          store.addDistrictToPlan(leaid);
+      // --- Priority 1-3: Overlay pin layers in hit-test priority order ---
+      for (const pointLayerId of ALL_OVERLAY_POINT_LAYERS) {
+        const features = queryLayer(pointLayerId);
+        if (features.length > 0) {
+          const feature = features[0];
+          const overlayType = layerIdToOverlayType(feature.layer.id);
+          const featureId = feature.properties?.id;
+          if (overlayType && featureId) {
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "coral");
+            // Switch results panel to the clicked entity's tab
+            store.setActiveResultsTab(overlayType);
+            const panelType = overlayTypeToPanel(overlayType) as RightPanelContent["type"];
+            store.openRightPanel({ type: panelType, id: String(featureId) });
+          }
           return;
         }
-
-        // Multi-select is always-on — every click toggles selection
-        store.toggleLeaidSelection(leaid);
-
-        // Zoom to district
-        const bounds = districtFeatures[0].geometry;
-        if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
-          // Compute a rough bounding box from coordinates
-          const coords = bounds.type === "Polygon"
-            ? bounds.coordinates[0]
-            : bounds.coordinates.flat(1)[0] || [];
-
-          if (coords && Array.isArray(coords) && coords.length > 0) {
-            let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-            for (const c of coords) {
-              const coord = c as [number, number];
-              if (coord[0] < minLng) minLng = coord[0];
-              if (coord[0] > maxLng) maxLng = coord[0];
-              if (coord[1] < minLat) minLat = coord[1];
-              if (coord[1] > maxLat) maxLat = coord[1];
-            }
-            map.current.fitBounds(
-              [[minLng, minLat], [maxLng, maxLat]],
-              { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
-            );
-          }
-        }
-        return;
       }
 
-      // Check for state click at low zoom
+      // --- Overlay cluster clicks — zoom into the cluster ---
+      const overlayClusterLayers = ALL_OVERLAY_CLUSTER_LAYERS.filter(
+        (id) => map.current!.getLayer(id)
+      );
+      if (overlayClusterLayers.length > 0) {
+        const clusterFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: [...overlayClusterLayers],
+        });
+        if (clusterFeatures.length > 0) {
+          const feature = clusterFeatures[0];
+          const clusterId = feature.properties?.cluster_id;
+          const sourceId = feature.source;
+          if (clusterId !== undefined && sourceId) {
+            const source = map.current.getSource(sourceId) as maplibregl.GeoJSONSource;
+            source.getClusterExpansionZoom(clusterId).then((zoom) => {
+              if (!map.current) return;
+              const geom = feature.geometry;
+              if (geom.type === "Point") {
+                map.current.easeTo({
+                  center: geom.coordinates as [number, number],
+                  zoom: zoom + 1,
+                  duration: 500,
+                });
+              }
+            });
+          }
+          return;
+        }
+      }
+
+      // --- Priority 4: Plan polygon click ---
+      {
+        const planFeatures = queryLayer(PLANS_FILL_LAYER);
+        if (planFeatures.length > 0) {
+          const planId = planFeatures[0].properties?.planId;
+          if (planId) {
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "plum");
+            store.setActiveResultsTab("plans");
+            store.openRightPanel({ type: "plan_card", id: planId });
+            return;
+          }
+        }
+      }
+
+      // --- Priority 5: School pins ---
+      {
+        const schoolFeatures = queryLayer("schools-unclustered");
+        if (schoolFeatures.length > 0) {
+          const leaid = schoolFeatures[0].properties?.leaid;
+          if (leaid) {
+            const store = useMapV2Store.getState();
+            store.addClickRipple(e.point.x, e.point.y, "coral");
+            store.selectDistrict(leaid);
+          }
+          return;
+        }
+      }
+
+      // --- Priority 6: District base fill ---
+      {
+        const districtFeatures = queryLayer("district-base-fill");
+        if (districtFeatures.length > 0) {
+          const leaid = districtFeatures[0].properties?.leaid;
+          if (!leaid) return;
+
+          const store = useMapV2Store.getState();
+
+          // Visual feedback
+          store.addClickRipple(e.point.x, e.point.y, "plum");
+
+          // In PLAN_ADD mode, shift+click or regular click adds to plan
+          if (store.panelState === "PLAN_ADD") {
+            store.addDistrictToPlan(leaid);
+            return;
+          }
+
+          // Multi-select is always-on — every click toggles selection
+          store.toggleLeaidSelection(leaid);
+
+          // Zoom to district
+          const bounds = districtFeatures[0].geometry;
+          if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
+            // Compute a rough bounding box from coordinates
+            const coords = bounds.type === "Polygon"
+              ? bounds.coordinates[0]
+              : bounds.coordinates.flat(1)[0] || [];
+
+            if (coords && Array.isArray(coords) && coords.length > 0) {
+              let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+              for (const c of coords) {
+                const coord = c as [number, number];
+                if (coord[0] < minLng) minLng = coord[0];
+                if (coord[0] > maxLng) maxLng = coord[0];
+                if (coord[1] < minLat) minLat = coord[1];
+                if (coord[1] > maxLat) maxLat = coord[1];
+              }
+              map.current.fitBounds(
+                [[minLng, minLat], [maxLng, maxLat]],
+                { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
+              );
+            }
+          }
+          return;
+        }
+      }
+
+      // --- Priority 7: State fill (low zoom only) ---
       if (map.current.getZoom() < 6) {
         const stateFeatures = map.current.queryRenderedFeatures(e.point, {
           layers: ["state-fill"],
@@ -888,12 +1253,15 @@ export default function MapV2Container({
         const m = map.current;
         if (!m) return;
         const bounds = m.getBounds();
-        useMapV2Store.getState().setSearchBounds([
+        const boundsArray: [number, number, number, number] = [
           bounds.getWest(),
           bounds.getSouth(),
           bounds.getEast(),
           bounds.getNorth(),
-        ]);
+        ];
+        const store = useMapV2Store.getState();
+        store.setSearchBounds(boundsArray);
+        store.setMapBounds(boundsArray);
       }, 300);
     };
     map.current.on("moveend", handleMoveEnd);
@@ -902,12 +1270,15 @@ export default function MapV2Container({
     updateSchoolBounds();
     if (map.current) {
       const bounds = map.current.getBounds();
-      useMapV2Store.getState().setSearchBounds([
+      const boundsArray: [number, number, number, number] = [
         bounds.getWest(),
         bounds.getSouth(),
         bounds.getEast(),
         bounds.getNorth(),
-      ]);
+      ];
+      const store = useMapV2Store.getState();
+      store.setSearchBounds(boundsArray);
+      store.setMapBounds(boundsArray);
     }
 
     return () => {

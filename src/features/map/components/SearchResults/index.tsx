@@ -1,14 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 // useCallback kept for handleSelectAll below
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/features/plans/lib/queries";
 import { useProfile } from "@/features/shared/lib/queries";
+import {
+  useMapContacts,
+  useMapVacancies,
+  useMapActivities,
+  useMapPlans,
+} from "@/features/map/lib/queries";
+import type { LayerType } from "@/features/map/lib/layers";
+import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import DistrictSearchCard from "./DistrictSearchCard";
 import DistrictExploreModal from "./DistrictExploreModal";
+import ResultsTabStrip from "./ResultsTabStrip";
+import PlansTab from "./PlansTab";
+import ContactsTab from "./ContactsTab";
+import VacanciesTab from "./VacanciesTab";
+import ActivitiesTab from "./ActivitiesTab";
 
 interface SearchResultDistrict {
   leaid: string;
@@ -44,6 +57,19 @@ function getPageNumbers(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
+function LayerOffPrompt({ layer }: { layer: string }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+      <svg className="w-12 h-12 text-[#D4CFE2] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      </svg>
+      <p className="text-sm font-medium text-[#8A80A8]">{layer} layer is off</p>
+      <p className="text-xs text-[#A69DC0] mt-1">Enable the {layer} layer in the toolbar to see data here</p>
+    </div>
+  );
+}
+
 export default function SearchResults() {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const searchBounds = useMapV2Store((s) => s.searchBounds);
@@ -56,6 +82,12 @@ export default function SearchResults() {
   const setDistrictSelection = useMapV2Store((s) => s.setDistrictSelection);
   const setSearchResultLeaids = useMapV2Store((s) => s.setSearchResultLeaids);
 
+  const activeLayers = useMapV2Store((s) => s.activeLayers);
+  const activeResultsTab = useMapV2Store((s) => s.activeResultsTab);
+  const layerFilters = useMapV2Store((s) => s.layerFilters);
+  const dateRange = useMapV2Store((s) => s.dateRange);
+  const mapBounds = useMapV2Store((s) => s.mapBounds);
+
   const { data: plans } = useTerritoryPlans();
   const { data: profile } = useProfile();
   const addDistricts = useAddDistrictsToPlan();
@@ -63,6 +95,58 @@ export default function SearchResults() {
   const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
   const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
   const [showMyPlansOnly, setShowMyPlansOnly] = useState(true);
+
+  // Extract geographic state filters from searchFilters to apply to overlay layers
+  const geoStates = useMemo(() => {
+    const stateFilter = searchFilters.find((f) => f.column === "state");
+    if (!stateFilter) return undefined;
+    if (stateFilter.op === "in" && Array.isArray(stateFilter.value)) {
+      return stateFilter.value as string[];
+    }
+    if (stateFilter.op === "eq" && typeof stateFilter.value === "string") {
+      return [stateFilter.value];
+    }
+    return undefined;
+  }, [searchFilters]);
+
+  // Overlay query hooks — enabled when layer is active
+  const contactsQuery = useMapContacts(
+    mapBounds,
+    layerFilters.contacts,
+    activeLayers.has("contacts"),
+    geoStates,
+  );
+  const vacanciesQuery = useMapVacancies(
+    mapBounds,
+    layerFilters.vacancies,
+    dateRange.vacancies,
+    activeLayers.has("vacancies"),
+    geoStates,
+  );
+  const activitiesQuery = useMapActivities(
+    mapBounds,
+    layerFilters.activities,
+    dateRange.activities,
+    activeLayers.has("activities"),
+    geoStates,
+  );
+  const plansQuery = useMapPlans(
+    layerFilters.plans,
+    activeLayers.has("plans"),
+  );
+
+  // Cross-filter — single source of truth
+  const {
+    overlayDerivedLeaids,
+    filteredContacts,
+    filteredVacancies,
+    filteredActivities,
+  } = useCrossFilter({
+    plansGeoJSON: plansQuery.data,
+    contactsGeoJSON: contactsQuery.data,
+    vacanciesGeoJSON: vacanciesQuery.data,
+    activitiesGeoJSON: activitiesQuery.data,
+  });
 
   const [districts, setDistricts] = useState<SearchResultDistrict[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,10 +165,10 @@ export default function SearchResults() {
   const shouldFitBoundsRef = useRef(false);
 
   // Fetch results — reads from store snapshot to avoid stale closures
-  const fetchResults = useCallback(async (pageNum: number) => {
+  const fetchResults = useCallback(async (pageNum: number, leaidOverride?: string[]) => {
     // Read current state directly from store (not from closure)
     const state = useMapV2Store.getState();
-    if (!state.isSearchActive) return;
+    if (!state.isSearchActive && !leaidOverride?.length) return;
 
     // Abort previous request
     abortRef.current?.abort();
@@ -95,11 +179,14 @@ export default function SearchResults() {
 
     try {
       const params = new URLSearchParams();
-      if (state.searchBounds) {
+      if (!leaidOverride && state.searchBounds) {
         params.set("bounds", state.searchBounds.join(","));
       }
       if (state.searchFilters.length > 0) {
         params.set("filters", JSON.stringify(state.searchFilters));
+      }
+      if (leaidOverride?.length) {
+        params.set("leaids", leaidOverride.join(","));
       }
       params.set("sort", state.searchSort.column);
       params.set("order", state.searchSort.direction);
@@ -118,10 +205,12 @@ export default function SearchResults() {
       setTotal(json.pagination.total);
       setTotalPages(json.pagination.totalPages);
 
-      // Update matching leaids + centroids for map highlighting
-      // Always set both — use empty arrays as fallback to clear stale data when 0 results
-      state.setSearchResultLeaids(json.matchingLeaids ?? []);
-      state.setSearchResultCentroids(json.matchingCentroids ?? []);
+      // Only update search result leaids for actual searches — not overlay-derived fetches.
+      // Writing these during overlay mode creates a feedback loop via overlayLeaidSet.
+      if (!leaidOverride) {
+        state.setSearchResultLeaids(json.matchingLeaids ?? []);
+        state.setSearchResultCentroids(json.matchingCentroids ?? []);
+      }
 
       // Fit map to matching centroids only when filters change (not on pan/zoom)
       if (shouldFitBoundsRef.current) {
@@ -154,6 +243,8 @@ export default function SearchResults() {
   // Re-fetch when filters change — also fit map to results
   useEffect(() => {
     if (!isSearchActive) {
+      // If overlay layers produce leaids, those are handled separately
+      if (overlayDerivedLeaids) return;
       setDistricts([]);
       setTotal(0);
       return;
@@ -163,6 +254,21 @@ export default function SearchResults() {
     fetchResults(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFilters, searchSort, isSearchActive]);
+
+  // Fetch districts from overlay-derived leaids (when no explicit search is active)
+  useEffect(() => {
+    if (isSearchActive) return;
+    if (!overlayDerivedLeaids) {
+      // Overlay filters were removed — clear district results
+      setDistricts([]);
+      setTotal(0);
+      setTotalPages(0);
+      return;
+    }
+    setPage(1);
+    fetchResults(1, [...overlayDerivedLeaids]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayDerivedLeaids, isSearchActive]);
 
   // Re-fetch when bounds change (pan/zoom) — no fitBounds to avoid loop
   useEffect(() => {
@@ -326,74 +432,127 @@ export default function SearchResults() {
     if (canGoNext) setExploreModalLeaid(districts[currentExploreIndex + 1].leaid);
   };
 
-  if (!isSearchActive || !searchResultsVisible) return null;
+  // Compute feature counts for tab badges
+  const tabCounts = useMemo((): Partial<Record<LayerType, number>> => {
+    const counts: Partial<Record<LayerType, number>> = {};
+    counts.districts = total;
+    if (activeLayers.has("plans") && plansQuery.data) {
+      // Deduplicate by planId
+      const planIds = new Set<string>();
+      for (const f of plansQuery.data.features) {
+        const pid = f.properties?.planId;
+        if (pid) planIds.add(pid);
+      }
+      counts.plans = planIds.size;
+    }
+    if (activeLayers.has("contacts") && filteredContacts) {
+      counts.contacts = filteredContacts.features.length;
+    }
+    if (activeLayers.has("vacancies") && filteredVacancies) {
+      counts.vacancies = filteredVacancies.features.length;
+    }
+    if (activeLayers.has("activities") && filteredActivities) {
+      counts.activities = filteredActivities.features.length;
+    }
+    return counts;
+  }, [total, activeLayers, plansQuery.data, filteredContacts, filteredVacancies, filteredActivities]);
+
+  const showingOverlayTab = activeResultsTab !== "districts";
+  const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null;
 
   const selectedCount = selectedDistrictLeaids.size;
 
   return (
     <div
-      className="absolute top-0 right-0 bottom-0 w-[40%] z-10 flex flex-col bg-white border-l border-[#D4CFE2]/60 overflow-hidden"
+      className={`absolute top-0 right-0 bottom-0 z-10 flex flex-col border-l border-[#D4CFE2]/60 transition-[width] duration-200 ease-in-out ${
+        searchResultsVisible ? "w-[40%] bg-white overflow-hidden" : "w-0 overflow-visible"
+      }`}
       onMouseEnter={() => useMapV2Store.getState().hideTooltip()}
     >
-      {/* Header */}
-      <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSelectAll}
-            className="text-[10px] text-[#A69DC0] hover:text-plum transition-colors"
-          >
-            {districts.length > 0 && districts.every((d) => selectedDistrictLeaids.has(d.leaid))
-              ? "Deselect all"
-              : "Select all"
-            }
-          </button>
-          <span className="text-xs font-medium text-[#544A78]">
-            {total.toLocaleString()} district{total !== 1 ? "s" : ""}
+      {/* Collapsed — floating tab on the right edge */}
+      {!searchResultsVisible && (
+        <button
+          onClick={toggleSearchResults}
+          className="absolute top-3 -left-10 flex items-center gap-1.5 pl-2.5 pr-2.5 py-2 rounded-l-xl bg-plum shadow-lg hover:bg-plum/90 transition-colors"
+          aria-label="Open results panel"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#544A78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" stroke="white" />
+          </svg>
+          {total > 0 && (
+            <span className="text-[10px] font-bold text-plum bg-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+              {total > 999 ? `${(total / 1000).toFixed(0)}k` : total}
+            </span>
+          )}
+        </button>
+      )}
+
+      {searchResultsVisible && (
+        <>
+      {/* Tab strip — always visible with all entity tabs */}
+      <ResultsTabStrip counts={tabCounts} onCollapse={toggleSearchResults} />
+
+      {/* Cross-filter source indicator */}
+      {!showingOverlayTab && !isSearchActive && overlayDerivedLeaids && (
+        <div className="shrink-0 px-4 py-1.5 border-b border-[#E2DEEC] bg-[#F7F5FA] flex items-center justify-between">
+          <span className="text-xs text-[#8A80A8]">
+            Showing districts from filtered overlays
           </span>
         </div>
+      )}
 
-        <div className="flex items-center gap-1">
-          {/* Sort dropdown */}
-          <select
-            value={searchSort.column}
-            onChange={(e) => useMapV2Store.getState().setSearchSort({ ...searchSort, column: e.target.value })}
-            className="text-[10px] text-[#8A80A8] bg-transparent border-none focus:outline-none cursor-pointer"
-          >
-            {sortOptions.map((o) => (
-              <option key={o.column} value={o.column}>{o.label}</option>
-            ))}
-          </select>
+      {/* Districts header — only shown when districts tab is active and results exist */}
+      {!showingOverlayTab && hasDistrictResults && (
+        <div className="px-4 py-2 border-b border-[#E2DEEC] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSelectAll}
+              className="text-[10px] text-[#A69DC0] hover:text-plum transition-colors"
+            >
+              {districts.length > 0 && districts.every((d) => selectedDistrictLeaids.has(d.leaid))
+                ? "Deselect all"
+                : "Select all"
+              }
+            </button>
+            <span className="text-xs font-medium text-[#544A78]">
+              {total.toLocaleString()} district{total !== 1 ? "s" : ""}
+            </span>
+          </div>
 
-          {/* Sort direction */}
-          <button
-            onClick={() => useMapV2Store.getState().setSearchSort({
-              ...searchSort,
-              direction: searchSort.direction === "asc" ? "desc" : "asc",
-            })}
-            className="text-[#A69DC0] hover:text-[#6E6390]"
-          >
-            <svg className={`w-3 h-3 transition-transform ${searchSort.direction === "asc" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Sort dropdown */}
+            <select
+              value={searchSort.column}
+              onChange={(e) => useMapV2Store.getState().setSearchSort({ ...searchSort, column: e.target.value })}
+              className="text-[10px] text-[#8A80A8] bg-transparent border-none focus:outline-none cursor-pointer"
+            >
+              {sortOptions.map((o) => (
+                <option key={o.column} value={o.column}>{o.label}</option>
+              ))}
+            </select>
 
-          {/* Close */}
-          <button
-            onClick={toggleSearchResults}
-            className="ml-1 text-[#A69DC0] hover:text-[#6E6390]"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            {/* Sort direction */}
+            <button
+              onClick={() => useMapV2Store.getState().setSearchSort({
+                ...searchSort,
+                direction: searchSort.direction === "asc" ? "desc" : "asc",
+              })}
+              className="text-[#A69DC0] hover:text-[#6E6390]"
+            >
+              <svg className={`w-3 h-3 transition-transform ${searchSort.direction === "asc" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Actions bar */}
-      {total > 0 && (
+      {/* Actions bar — districts tab only */}
+      {!showingOverlayTab && hasDistrictResults && total > 0 && (
         <div ref={addAllRef} className="relative px-4 py-2 border-b border-[#E2DEEC] bg-[#F7F5FA] shrink-0 flex items-center gap-2">
-          {/* Save Search */}
-          {showSaveSearch ? (
+          {/* Save Search — only during explicit searches */}
+          {isSearchActive && (showSaveSearch ? (
             <div className="flex items-center gap-1.5 flex-1">
               <input
                 type="text"
@@ -430,10 +589,10 @@ export default function SearchResults() {
               </svg>
               Save Search
             </button>
-          )}
+          ))}
 
-          {/* Export CSV */}
-          {!showSaveSearch && (
+          {/* Export CSV — only during explicit searches */}
+          {isSearchActive && !showSaveSearch && (
             <button
               onClick={handleExportCsv}
               disabled={exporting}
@@ -542,8 +701,8 @@ export default function SearchResults() {
         </div>
       )}
 
-      {/* Selection status */}
-      {selectedCount > 0 && (
+      {/* Selection status — districts tab only */}
+      {!showingOverlayTab && hasDistrictResults && selectedCount > 0 && (
         <div className="shrink-0 px-4 py-1.5 border-b border-[#E2DEEC] bg-[#e8f1f5] flex items-center justify-between">
           <span className="text-xs font-medium text-[#6EA3BE]">
             {selectedCount} selected
@@ -557,57 +716,92 @@ export default function SearchResults() {
         </div>
       )}
 
-      {/* Results grid — two columns with scroll */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
-        {loading && districts.length === 0 ? (
-          // Skeleton loading — 2 column grid
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="p-3 rounded-lg border border-[#E2DEEC] animate-pulse">
-                <div className="space-y-2">
-                  <div className="h-3.5 bg-[#F7F5FA] rounded w-3/4" />
-                  <div className="h-2.5 bg-[#EFEDF5] rounded w-1/2" />
-                  <div className="flex gap-2">
-                    <div className="h-2.5 bg-[#EFEDF5] rounded w-16" />
-                    <div className="h-2.5 bg-[#EFEDF5] rounded w-12" />
+      {/* Overlay tab content */}
+      {showingOverlayTab && activeResultsTab === "plans" && (
+        activeLayers.has("plans")
+          ? <PlansTab data={plansQuery.data} isLoading={plansQuery.isLoading} />
+          : <LayerOffPrompt layer="Plans" />
+      )}
+      {showingOverlayTab && activeResultsTab === "contacts" && (
+        activeLayers.has("contacts")
+          ? <ContactsTab data={filteredContacts} isLoading={contactsQuery.isLoading} />
+          : <LayerOffPrompt layer="Contacts" />
+      )}
+      {showingOverlayTab && activeResultsTab === "vacancies" && (
+        activeLayers.has("vacancies")
+          ? <VacanciesTab data={filteredVacancies} isLoading={vacanciesQuery.isLoading} />
+          : <LayerOffPrompt layer="Vacancies" />
+      )}
+      {showingOverlayTab && activeResultsTab === "activities" && (
+        activeLayers.has("activities")
+          ? <ActivitiesTab data={filteredActivities} isLoading={activitiesQuery.isLoading} />
+          : <LayerOffPrompt layer="Activities" />
+      )}
+
+      {/* Districts — empty state when no search */}
+      {!showingOverlayTab && !hasDistrictResults && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <svg className="w-12 h-12 text-[#D4CFE2] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p className="text-sm font-medium text-[#8A80A8]">No active search</p>
+          <p className="text-xs text-[#A69DC0] mt-1">Use the filters above to search districts</p>
+        </div>
+      )}
+
+      {/* Districts results grid — two columns with scroll */}
+      {!showingOverlayTab && hasDistrictResults && (
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
+          {loading && districts.length === 0 ? (
+            // Skeleton loading — 2 column grid
+            <div className="grid grid-cols-2 gap-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="p-3 rounded-lg border border-[#E2DEEC] animate-pulse">
+                  <div className="space-y-2">
+                    <div className="h-3.5 bg-[#F7F5FA] rounded w-3/4" />
+                    <div className="h-2.5 bg-[#EFEDF5] rounded w-1/2" />
+                    <div className="flex gap-2">
+                      <div className="h-2.5 bg-[#EFEDF5] rounded w-16" />
+                      <div className="h-2.5 bg-[#EFEDF5] rounded w-12" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : districts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <svg className="w-10 h-10 text-[#C2BBD4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <p className="text-sm text-[#8A80A8]">No districts match your filters in this area.</p>
-            <p className="text-xs text-[#A69DC0] mt-1">Try zooming out or adjusting filters.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {districts.map((d) => (
-              <DistrictSearchCard
-                key={d.leaid}
-                district={d}
-                isSelected={selectedDistrictLeaids.has(d.leaid)}
-                onToggleSelect={() => toggleDistrictSelection(d.leaid)}
-                onExplore={(leaid) => setExploreModalLeaid(leaid)}
-                activeFilters={searchFilters}
-              />
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : districts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <svg className="w-10 h-10 text-[#C2BBD4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p className="text-sm text-[#8A80A8]">No districts match your filters in this area.</p>
+              <p className="text-xs text-[#A69DC0] mt-1">Try zooming out or adjusting filters.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {districts.map((d) => (
+                <DistrictSearchCard
+                  key={d.leaid}
+                  district={d}
+                  isSelected={selectedDistrictLeaids.has(d.leaid)}
+                  onToggleSelect={() => toggleDistrictSelection(d.leaid)}
+                  onExplore={(leaid) => setExploreModalLeaid(leaid)}
+                  activeFilters={searchFilters}
+                />
+              ))}
+            </div>
+          )}
 
-        {/* Loading overlay for page transitions */}
-        {loading && districts.length > 0 && (
-          <div className="py-4 flex justify-center">
-            <div className="w-5 h-5 border-2 border-plum/20 border-t-plum rounded-full animate-spin" />
-          </div>
-        )}
-      </div>
+          {/* Loading overlay for page transitions */}
+          {loading && districts.length > 0 && (
+            <div className="py-4 flex justify-center">
+              <div className="w-5 h-5 border-2 border-plum/20 border-t-plum rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Footer — always visible with result range; pagination controls when multi-page */}
-      {total > 0 && (
+      {/* Footer — districts tab only, pagination controls when multi-page */}
+      {!showingOverlayTab && hasDistrictResults && total > 0 && (
         <div className="shrink-0 px-4 py-2 border-t border-[#E2DEEC] flex items-center justify-between">
           {totalPages > 1 ? (
             <>
@@ -657,6 +851,7 @@ export default function SearchResults() {
       )}
 
       {/* Explore modal — rendered via portal into document.body to escape stacking context */}
+      {/* Explore modal — rendered via portal into document.body to escape stacking context */}
       {exploreModalLeaid && createPortal(
         <DistrictExploreModal
           leaid={exploreModalLeaid}
@@ -667,6 +862,8 @@ export default function SearchResults() {
           totalCount={districts.length}
         />,
         document.body
+      )}
+      </>
       )}
     </div>
   );

@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
 import { useMapStore } from "@/features/shared/lib/app-store";
+import { useMapV2Store } from "@/features/map/lib/store";
 import PlanCard from "@/features/plans/components/PlanCard";
 import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 import ActivityFormModal from "@/features/plans/components/ActivityFormModal";
@@ -166,11 +167,29 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const updatePlan = useUpdateTerritoryPlan();
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
+  const setPlanHighlight = useMapStore((s) => s.setPlanHighlight);
+  const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const clearSearchFilters = useMapV2Store((s) => s.clearSearchFilters);
 
   const handleShowOnMap = useCallback((planId: string) => {
+    const plan = plans?.find((p) => p.id === planId);
+    if (!plan || plan.districtCount === 0) return;
+
     setCurrentPlanId(planId);
+    setPlanHighlight({
+      districtLeaids: plan.districtLeaids ?? [],
+      planName: plan.name,
+    });
+    // Clear any existing map search filters, then set Plan Membership for this plan
+    clearSearchFilters();
+    addSearchFilter({
+      id: crypto.randomUUID(),
+      column: "planNames",
+      op: "eq",
+      value: [plan.name],
+    });
     setActiveTab("map");
-  }, [setCurrentPlanId, setActiveTab]);
+  }, [plans, setCurrentPlanId, setPlanHighlight, clearSearchFilters, addSearchFilter, setActiveTab]);
 
   // --- Filter state ---
   const [nameSearch, setNameSearch] = useState("");

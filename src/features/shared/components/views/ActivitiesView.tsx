@@ -29,6 +29,8 @@ import EditActivityFormModal, { type ActivityFormData } from "@/features/plans/c
 import ActivitiesTable from "@/features/plans/components/ActivitiesTable";
 import CalendarView from "@/features/activities/components/CalendarView";
 import CalendarInbox from "@/features/calendar/components/CalendarInbox";
+import UnlinkedActivityBadge from "@/features/activities/components/UnlinkedActivityBadge";
+import UnlinkedActivityTriage from "@/features/activities/components/UnlinkedActivityTriage";
 
 type CategoryTab = "all" | ActivityCategory;
 type ViewMode = "table" | "calendar";
@@ -47,6 +49,7 @@ export default function ActivitiesView() {
   const [hasUnlinkedFilter, setHasUnlinkedFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTriageOpen, setIsTriageOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
   const [view, setView] = useState<ViewMode>("table");
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -336,6 +339,9 @@ export default function ActivitiesView() {
               </svg>
             </button>
 
+            {/* Unlinked activity triage badge */}
+            <UnlinkedActivityBadge onClick={() => setIsTriageOpen(true)} />
+
             {/* New Activity button */}
             <button
               onClick={() => setIsModalOpen(true)}
@@ -432,6 +438,12 @@ export default function ActivitiesView() {
           title="Edit Activity"
         />
       )}
+
+      {/* Unlinked Activity Triage Drawer */}
+      <UnlinkedActivityTriage
+        isOpen={isTriageOpen}
+        onClose={() => setIsTriageOpen(false)}
+      />
     </div>
   );
 }

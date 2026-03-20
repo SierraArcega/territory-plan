@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import RangeFilter from "./controls/RangeFilter";
+import RangeFilter, { formatCompact } from "./controls/RangeFilter";
 
 
 interface AcademicsDropdownProps {
@@ -46,13 +46,13 @@ export default function AcademicsDropdown({ onClose }: AcademicsDropdownProps) {
       </div>
 
       <div className="space-y-3">
-        <RangeFilter label="Graduation Rate %" column="graduationRate" step={1} onApply={handleApply} />
-        <RangeFilter label="Math Proficiency %" column="mathProficiency" step={1} onApply={handleApply} />
-        <RangeFilter label="Reading Proficiency %" column="readProficiency" step={1} onApply={handleApply} />
-        <RangeFilter label="Chronic Absenteeism %" column="chronicAbsenteeismRate" step={1} onApply={handleApply} />
-        <RangeFilter label="Student-Teacher Ratio" column="studentTeacherRatio" step={0.5} onApply={handleApply} />
-        <RangeFilter label="Teacher FTE" column="teachersFte" step={10} onApply={handleApply} />
-        <RangeFilter label="SPED Expenditure / Student" column="spedExpenditurePerStudent" step={500} onApply={handleApply} />
+        <RangeFilter label="Graduation Rate %" column="graduationRate" min={0} max={100} step={1} onApply={handleApply} />
+        <RangeFilter label="Math Proficiency %" column="mathProficiency" min={0} max={100} step={1} onApply={handleApply} />
+        <RangeFilter label="Reading Proficiency %" column="readProficiency" min={0} max={100} step={1} onApply={handleApply} />
+        <RangeFilter label="Chronic Absenteeism %" column="chronicAbsenteeismRate" min={0} max={100} step={1} onApply={handleApply} />
+        <RangeFilter label="Student-Teacher Ratio" column="studentTeacherRatio" min={0} max={50} step={0.5} onApply={handleApply} />
+        <RangeFilter label="Teacher FTE" column="teachersFte" min={0} max={10000} step={10} onApply={handleApply} />
+        <RangeFilter label="SPED Expenditure / Student" column="spedExpenditurePerStudent" min={0} max={50000} step={500} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
       </div>
     </div>
   );

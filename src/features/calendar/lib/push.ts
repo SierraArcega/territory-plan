@@ -12,9 +12,10 @@ import {
   deleteCalendarEvent,
   getValidAccessToken,
 } from "@/features/calendar/lib/google";
+import { encrypt, decrypt } from "@/features/integrations/lib/encryption";
 
-// Helper to get a valid access token for a user's calendar connection
-// Returns null if no connection, sync disabled, or token refresh fails
+// Helper to get a valid access token for a user's calendar integration
+// Returns null if no integration, sync disabled, or token refresh fails
 async function getCalendarAccess(userId: string): Promise<{
   accessToken: string;
   connectionId: string;
@@ -22,35 +23,39 @@ async function getCalendarAccess(userId: string): Promise<{
   reminderMinutes: number;
   secondReminderMinutes: number | null;
 } | null> {
-  const connection = await prisma.calendarConnection.findUnique({
-    where: { userId },
+  const integration = await prisma.userIntegration.findUnique({
+    where: { userId_service: { userId, service: "google_calendar" } },
   });
 
-  if (!connection || !connection.syncEnabled || connection.status !== "connected") {
+  if (!integration || !integration.syncEnabled || integration.status !== "connected") {
     return null;
   }
 
+  // Decrypt tokens for use with Google API
+  const decryptedAccessToken = decrypt(integration.accessToken);
+  const decryptedRefreshToken = integration.refreshToken ? decrypt(integration.refreshToken) : "";
+
   const tokenResult = await getValidAccessToken({
-    accessToken: connection.accessToken,
-    refreshToken: connection.refreshToken,
-    tokenExpiresAt: connection.tokenExpiresAt,
+    accessToken: decryptedAccessToken,
+    refreshToken: decryptedRefreshToken,
+    tokenExpiresAt: integration.tokenExpiresAt!,
   });
 
   if (!tokenResult) {
-    // Token refresh failed — mark connection as errored
-    await prisma.calendarConnection.update({
-      where: { userId },
+    // Token refresh failed — mark integration as errored
+    await prisma.userIntegration.update({
+      where: { id: integration.id },
       data: { status: "error" },
     });
     return null;
   }
 
-  // Save refreshed token if it changed
-  if (tokenResult.accessToken !== connection.accessToken) {
-    await prisma.calendarConnection.update({
-      where: { userId },
+  // Save refreshed token if it changed (encrypted)
+  if (tokenResult.accessToken !== decryptedAccessToken) {
+    await prisma.userIntegration.update({
+      where: { id: integration.id },
       data: {
-        accessToken: tokenResult.accessToken,
+        accessToken: encrypt(tokenResult.accessToken),
         tokenExpiresAt: tokenResult.expiresAt,
         status: "connected",
       },
@@ -59,10 +64,10 @@ async function getCalendarAccess(userId: string): Promise<{
 
   return {
     accessToken: tokenResult.accessToken,
-    connectionId: connection.id,
-    syncedActivityTypes: connection.syncedActivityTypes,
-    reminderMinutes: connection.reminderMinutes,
-    secondReminderMinutes: connection.secondReminderMinutes,
+    connectionId: integration.id,
+    syncedActivityTypes: (integration as Record<string, unknown>).syncedActivityTypes as string[] ?? [],
+    reminderMinutes: (integration as Record<string, unknown>).reminderMinutes as number ?? 15,
+    secondReminderMinutes: (integration as Record<string, unknown>).secondReminderMinutes as number | null ?? null,
   };
 }
 
