@@ -399,6 +399,50 @@ describe("PlansTable", () => {
       expect(dataRow).toHaveClass("hover:bg-gray-50");
     });
   });
+
+  describe("filtered empty state", () => {
+    it("shows filtered empty state with toolbar when hasActiveFilters is true", () => {
+      const toolbar = <div data-testid="filter-toolbar">Filters</div>;
+      renderWithProviders(
+        <PlansTable
+          plans={[]}
+          onSelectPlan={mockOnSelectPlan}
+          toolbar={toolbar}
+          hasActiveFilters={true}
+          onClearFilters={vi.fn()}
+        />
+      );
+
+      expect(screen.getByTestId("filter-toolbar")).toBeInTheDocument();
+      expect(screen.getByText("No plans match your filters")).toBeInTheDocument();
+      expect(screen.getByText("Clear filters")).toBeInTheDocument();
+    });
+
+    it("calls onClearFilters when Clear filters button is clicked", () => {
+      const onClearFilters = vi.fn();
+      const toolbar = <div data-testid="filter-toolbar">Filters</div>;
+      renderWithProviders(
+        <PlansTable
+          plans={[]}
+          onSelectPlan={mockOnSelectPlan}
+          toolbar={toolbar}
+          hasActiveFilters={true}
+          onClearFilters={onClearFilters}
+        />
+      );
+
+      fireEvent.click(screen.getByText("Clear filters"));
+      expect(onClearFilters).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows default empty state when no plans exist and no filters active", () => {
+      renderWithProviders(
+        <PlansTable plans={[]} onSelectPlan={mockOnSelectPlan} />
+      );
+
+      expect(screen.getByText("No plans yet")).toBeInTheDocument();
+    });
+  });
 });
 
 // Helper to build a minimal TerritoryPlan with overrides
