@@ -6,6 +6,7 @@ import type {
   Contact,
   Service,
   PlanDistrictDetail,
+  PlanOpportunityRow,
 } from "@/features/shared/types/api-types";
 
 // Territory Plans
@@ -151,6 +152,18 @@ export function useRemoveDistrictFromPlan() {
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
     },
+  });
+}
+
+export function usePlanOpportunities(planId: string | null) {
+  return useQuery({
+    queryKey: ["planOpportunities", planId],
+    queryFn: () =>
+      fetchJson<PlanOpportunityRow[]>(
+        `${API_BASE}/territory-plans/${planId}/opportunities`
+      ),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
