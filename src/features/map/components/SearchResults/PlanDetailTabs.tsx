@@ -6,11 +6,13 @@ import PlanDistrictsTab from "./PlanDistrictsTab";
 import PlanContactsTab from "./PlanContactsTab";
 import PlanActivitiesTab from "./PlanActivitiesTab";
 import PlanTasksTab from "./PlanTasksTab";
+import PlanOpportunitiesTab from "./PlanOpportunitiesTab";
 
-type Tab = "districts" | "contacts" | "activities" | "tasks";
+type Tab = "districts" | "contacts" | "activities" | "tasks" | "opportunities";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "districts", label: "Districts" },
+  { key: "opportunities", label: "Opportunities" },
   { key: "contacts", label: "Contacts" },
   { key: "activities", label: "Activities" },
   { key: "tasks", label: "Tasks" },
@@ -66,6 +68,9 @@ export default function PlanDetailTabs({ plan, onClose }: PlanDetailTabsProps) {
       <div className="flex-1 overflow-y-auto">
         {activeTab === "districts" && (
           <PlanDistrictsTab plan={plan} onClose={onClose} />
+        )}
+        {activeTab === "opportunities" && (
+          <PlanOpportunitiesTab planId={plan.id} />
         )}
         {activeTab === "contacts" && <PlanContactsTab planId={plan.id} />}
         {activeTab === "activities" && <PlanActivitiesTab planId={plan.id} />}

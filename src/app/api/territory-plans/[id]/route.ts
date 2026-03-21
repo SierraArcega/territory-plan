@@ -96,6 +96,59 @@ export async function GET(
     const currentByDistrict = new Map(currentRows.map((r) => [r.district_lea_id, r]));
     const priorByDistrict = new Map(priorRows.map((r) => [r.district_lea_id, r]));
 
+    // Pacing data: current FY, prior FY same-date, prior FY full
+    type PacingRow = { district_lea_id: string; revenue: number; pipeline: number; deals: number; sessions: number };
+    let currentPacing: PacingRow[] = [];
+    let priorSameDatePacing: PacingRow[] = [];
+    let priorFullPacing: PacingRow[] = [];
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    try {
+      [currentPacing, priorSameDatePacing, priorFullPacing] = await Promise.all([
+        prisma.$queryRaw<PacingRow[]>`
+          SELECT district_lea_id,
+                 COALESCE(SUM(total_revenue), 0) AS revenue,
+                 COALESCE(SUM(CASE WHEN stage NOT IN ('Closed Won', 'Closed Lost') THEN net_booking_amount ELSE 0 END), 0) AS pipeline,
+                 COUNT(*)::int AS deals,
+                 COALESCE(SUM(scheduled_sessions), 0)::int AS sessions
+          FROM opportunities
+          WHERE district_lea_id = ANY(${allLeaIds})
+            AND school_yr = ${schoolYr}
+          GROUP BY district_lea_id
+        `,
+        prisma.$queryRaw<PacingRow[]>`
+          SELECT district_lea_id,
+                 COALESCE(SUM(total_revenue), 0) AS revenue,
+                 COALESCE(SUM(CASE WHEN stage NOT IN ('Closed Won', 'Closed Lost') THEN net_booking_amount ELSE 0 END), 0) AS pipeline,
+                 COUNT(*)::int AS deals,
+                 COALESCE(SUM(scheduled_sessions), 0)::int AS sessions
+          FROM opportunities
+          WHERE district_lea_id = ANY(${allLeaIds})
+            AND school_yr = ${priorSchoolYr}
+            AND created_at <= ${oneYearAgo}
+          GROUP BY district_lea_id
+        `,
+        prisma.$queryRaw<PacingRow[]>`
+          SELECT district_lea_id,
+                 COALESCE(SUM(total_revenue), 0) AS revenue,
+                 COALESCE(SUM(CASE WHEN stage NOT IN ('Closed Won', 'Closed Lost') THEN net_booking_amount ELSE 0 END), 0) AS pipeline,
+                 COUNT(*)::int AS deals,
+                 COALESCE(SUM(scheduled_sessions), 0)::int AS sessions
+          FROM opportunities
+          WHERE district_lea_id = ANY(${allLeaIds})
+            AND school_yr = ${priorSchoolYr}
+          GROUP BY district_lea_id
+        `,
+      ]);
+    } catch {
+      // Opportunities table may not exist yet
+    }
+
+    const currentPacingByDistrict = new Map(currentPacing.map((r) => [r.district_lea_id, r]));
+    const priorSameDateByDistrict = new Map(priorSameDatePacing.map((r) => [r.district_lea_id, r]));
+    const priorFullByDistrict = new Map(priorFullPacing.map((r) => [r.district_lea_id, r]));
+
     return NextResponse.json({
       id: plan.id,
       name: plan.name,
@@ -149,6 +202,26 @@ export async function GET(
                 priorFyRevenue: prior ? Number(prior.total_revenue) : 0,
               }
             : undefined,
+          pacing: (() => {
+            const cp = currentPacingByDistrict.get(pd.districtLeaid);
+            const psd = priorSameDateByDistrict.get(pd.districtLeaid);
+            const pf = priorFullByDistrict.get(pd.districtLeaid);
+            if (!cp && !psd && !pf) return undefined;
+            return {
+              currentRevenue: cp ? Number(cp.revenue) : 0,
+              currentPipeline: cp ? Number(cp.pipeline) : 0,
+              currentDeals: cp ? Number(cp.deals) : 0,
+              currentSessions: cp ? Number(cp.sessions) : 0,
+              priorSameDateRevenue: psd ? Number(psd.revenue) : 0,
+              priorSameDatePipeline: psd ? Number(psd.pipeline) : 0,
+              priorSameDateDeals: psd ? Number(psd.deals) : 0,
+              priorSameDateSessions: psd ? Number(psd.sessions) : 0,
+              priorFullRevenue: pf ? Number(pf.revenue) : 0,
+              priorFullPipeline: pf ? Number(pf.pipeline) : 0,
+              priorFullDeals: pf ? Number(pf.deals) : 0,
+              priorFullSessions: pf ? Number(pf.sessions) : 0,
+            };
+          })(),
         };
       }),
     });

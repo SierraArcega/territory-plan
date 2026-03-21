@@ -333,6 +333,22 @@ export interface TerritoryPlanDistrict {
   tags: Array<{ id: number; name: string; color: string }>;
   actuals?: PlanDistrictActuals;
   opportunities?: PlanDistrictOpportunity[];
+  pacing?: DistrictPacing;
+}
+
+export interface DistrictPacing {
+  currentRevenue: number;
+  currentPipeline: number;
+  currentDeals: number;
+  currentSessions: number;
+  priorSameDateRevenue: number;
+  priorSameDatePipeline: number;
+  priorSameDateDeals: number;
+  priorSameDateSessions: number;
+  priorFullRevenue: number;
+  priorFullPipeline: number;
+  priorFullDeals: number;
+  priorFullSessions: number;
 }
 
 export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"> {
@@ -879,6 +895,21 @@ export interface PlanDistrictOpportunity {
   totalTake: number;
   completedRevenue: number;
   scheduledRevenue: number;
+}
+
+export interface PlanOpportunityRow {
+  id: string;
+  name: string | null;
+  districtName: string | null;
+  districtLeaId: string | null;
+  stage: string | null;
+  contractType: string | null;
+  netBookingAmount: number;
+  totalRevenue: number;
+  totalTake: number;
+  completedRevenue: number;
+  scheduledRevenue: number;
+  closeDate: string | null;
 }
 
 // ===== Calendar Types =====
