@@ -23,6 +23,14 @@ export async function GET(
         enrollmentHistory: {
           orderBy: { year: "asc" },
         },
+        schoolContacts: {
+          take: 1,
+          include: {
+            contact: {
+              select: { name: true, title: true, email: true },
+            },
+          },
+        },
       },
       orderBy: { schoolName: "asc" },
     });
@@ -43,6 +51,16 @@ export async function GET(
       freeLunch: s.freeLunch,
       reducedPriceLunch: s.reducedPriceLunch,
       frplTotal: s.frplTotal,
+      streetAddress: s.streetAddress,
+      city: s.city,
+      stateAbbrev: s.stateAbbrev,
+      contact: s.schoolContacts[0]?.contact
+        ? {
+            name: s.schoolContacts[0].contact.name,
+            title: s.schoolContacts[0].contact.title,
+            email: s.schoolContacts[0].contact.email,
+          }
+        : null,
       enrollmentHistory: s.enrollmentHistory.map((eh) => ({
         year: eh.year,
         enrollment: eh.enrollment,

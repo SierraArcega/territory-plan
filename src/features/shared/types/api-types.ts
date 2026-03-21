@@ -759,6 +759,12 @@ export interface SchoolListItem {
   freeLunch: number | null;
   reducedPriceLunch: number | null;
   frplTotal: number | null;
+  // Address
+  streetAddress: string | null;
+  city: string | null;
+  stateAbbrev: string | null;
+  // First linked contact
+  contact: { name: string; title: string | null; email: string | null } | null;
   // Existing
   enrollmentHistory?: { year: number; enrollment: number | null }[];
 }
