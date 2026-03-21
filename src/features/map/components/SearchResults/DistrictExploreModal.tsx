@@ -9,6 +9,7 @@ import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrol
 import { ACTIVITY_STATUS_CONFIG, formatStatusLabel } from "@/features/activities/types";
 import type { ActivityStatus } from "@/features/activities/types";
 import VacancyList from "@/features/vacancies/components/VacancyList";
+import { useScanDistrict } from "@/features/vacancies/lib/queries";
 
 interface CompetitorSpendRecord {
   competitor: string;
@@ -40,6 +41,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
   const addDistricts = useAddDistrictsToPlan();
   const [activeTab, setActiveTab] = useState<Tab>("fullmind");
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
+  const [vacancySchoolFilter, setVacancySchoolFilter] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +49,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
   useEffect(() => {
     setActiveTab("fullmind");
     setShowPlanDropdown(false);
+    setVacancySchoolFilter(null);
   }, [leaid]);
 
   // Keyboard: Escape to close, arrow keys to navigate
@@ -302,12 +305,15 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   { key: "demographics", label: "Demographics" },
                   { key: "academics", label: "Academics" },
                   { key: "contacts", label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ""}` },
-                  { key: "schools", label: "Schools" },
+                  { key: "schools", label: `Schools${district?.numberOfSchools != null ? ` (${district.numberOfSchools})` : ""}` },
                   { key: "vacancies", label: `Vacancies${vacancyCount > 0 ? ` (${vacancyCount})` : ""}` },
                 ] as { key: Tab; label: string }[]).map(({ key, label }) => (
                   <button
                     key={key}
-                    onClick={() => setActiveTab(key)}
+                    onClick={() => {
+                      setActiveTab(key);
+                      if (key !== "vacancies") setVacancySchoolFilter(null);
+                    }}
                     className={`shrink-0 px-3 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
                       activeTab === key
                         ? "text-[#403770] border-[#403770]"
@@ -361,9 +367,13 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
               ) : activeTab === "contacts" ? (
                 <ContactsTab contacts={contacts} />
               ) : activeTab === "schools" ? (
-                <SchoolsTab district={district} />
+                <SchoolsTab
+                  leaid={leaid}
+                  setActiveTab={setActiveTab}
+                  setVacancySchoolFilter={setVacancySchoolFilter}
+                />
               ) : activeTab === "vacancies" ? (
-                <VacancyList leaid={leaid} />
+                <VacancyList leaid={leaid} schoolNcessch={vacancySchoolFilter} />
               ) : null}
             </div>
 
@@ -949,15 +959,241 @@ function ContactsTab({ contacts }: { contacts: Array<{ id: number; name: string;
 }
 
 // ─── Tab: Schools ────────────────────────────────────────────────────
-function SchoolsTab({ district }: { district: { numberOfSchools: number | null; name: string } | undefined }) {
+function SchoolsTab({
+  leaid,
+  setActiveTab,
+  setVacancySchoolFilter,
+}: {
+  leaid: string;
+  setActiveTab: (tab: Tab) => void;
+  setVacancySchoolFilter: (ncessch: string | null) => void;
+}) {
+  // Fetch schools for this district
+  const { data, isLoading, error } = useQuery<{
+    schools: Array<{
+      ncessch: string;
+      schoolName: string;
+      charter: number;
+      schoolLevel: number | null;
+      enrollment: number | null;
+      lograde: string | null;
+      higrade: string | null;
+      streetAddress: string | null;
+      city: string | null;
+      stateAbbrev: string | null;
+      contact: { name: string; title: string | null; email: string | null } | null;
+    }>;
+    summary: { totalSchools: number };
+  }>({
+    queryKey: ["schoolsByDistrict", leaid],
+    queryFn: async () => {
+      const res = await fetch(`/api/schools/by-district/${encodeURIComponent(leaid)}`);
+      if (!res.ok) throw new Error("Failed to fetch schools");
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Fetch vacancies to check if already scanned
+  const { data: vacancyData } = useQuery<{
+    summary: { totalOpen: number; lastScannedAt: string | null };
+    vacancies: Array<{ school?: { ncessch: string } | null }>;
+  }>({
+    queryKey: ["vacancies", leaid],
+    queryFn: async () => {
+      const res = await fetch(`/api/districts/${encodeURIComponent(leaid)}/vacancies`);
+      if (!res.ok) throw new Error("Failed to fetch vacancies");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const scanDistrict = useScanDistrict();
+
+  // Count vacancies per school
+  const vacancyCountBySchool = (vacancyData?.vacancies ?? []).reduce<Record<string, number>>(
+    (acc, v) => {
+      const ncessch = v.school?.ncessch;
+      if (ncessch) acc[ncessch] = (acc[ncessch] || 0) + 1;
+      return acc;
+    },
+    {}
+  );
+
+  const hasBeenScanned = !!vacancyData?.summary.lastScannedAt;
+
+  // Group schools by level
+  type SchoolItem = NonNullable<typeof data>["schools"][number];
+  const levelLabels: Record<number, string> = { 1: "Primary", 2: "Middle", 3: "High" };
+  const groups: Record<string, SchoolItem[]> = {};
+
+  if (data?.schools) {
+    for (const school of data.schools) {
+      const label = (school.schoolLevel && levelLabels[school.schoolLevel]) || "Other";
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(school);
+    }
+  }
+
+  const levelOrder = ["Primary", "Middle", "High", "Other"];
+  const sortedGroupKeys = Object.keys(groups).sort(
+    (a, b) => levelOrder.indexOf(a) - levelOrder.indexOf(b)
+  );
+
+  // Grade formatting
+  const formatGrades = (lo: string | null, hi: string | null) => {
+    if (!lo || !hi) return null;
+    const map: Record<string, string> = {
+      PK: "Pre-K", KG: "K", "01": "1", "02": "2", "03": "3", "04": "4",
+      "05": "5", "06": "6", "07": "7", "08": "8", "09": "9",
+      "10": "10", "11": "11", "12": "12",
+    };
+    return `${map[lo] || lo} – ${map[hi] || hi}`;
+  };
+
+  const handleScanVacancies = () => {
+    scanDistrict.mutate(leaid);
+  };
+
+  const handleViewSchoolVacancies = (ncessch: string) => {
+    setVacancySchoolFilter(ncessch);
+    setActiveTab("vacancies");
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="animate-pulse p-3 rounded-lg border border-[#E2DEEC]">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-2/3 bg-[#EFEDF5] rounded" />
+                <div className="h-3 w-1/2 bg-[#EFEDF5] rounded" />
+              </div>
+              <div className="h-8 w-28 bg-[#EFEDF5] rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-[#F37167]">Failed to load schools.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-xs text-[#6EA3BE] hover:underline mt-1"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!data || data.schools.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-[#A69DC0]">No schools found for this district.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="text-center py-12">
-      <p className="text-sm text-[#8A80A8]">
-        {district?.numberOfSchools != null
-          ? `${district.numberOfSchools} schools in this district.`
-          : "School data unavailable."}
-      </p>
-      <p className="text-xs text-[#A69DC0] mt-1">Open full detail to view individual schools.</p>
+    <div className="space-y-5">
+      {sortedGroupKeys.map((groupLabel) => (
+        <div key={groupLabel}>
+          <SectionLabel>
+            {groupLabel} ({groups[groupLabel].length})
+          </SectionLabel>
+          <div className="flex flex-col gap-2">
+            {groups[groupLabel].map((school) => {
+              const grades = formatGrades(school.lograde, school.higrade);
+              const address = [school.streetAddress, school.city, school.stateAbbrev]
+                .filter(Boolean)
+                .join(", ");
+              const vacCount = vacancyCountBySchool[school.ncessch];
+
+              return (
+                <div
+                  key={school.ncessch}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-[#E2DEEC] hover:bg-[#F7F5FA] transition-colors"
+                >
+                  {/* Left: name + grades + address + contact */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[#544A78] truncate">
+                        {school.schoolName}
+                      </span>
+                      {school.charter === 1 && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-[#FFCF70]/30 text-[#8A7230] shrink-0">
+                          Charter
+                        </span>
+                      )}
+                    </div>
+                    {grades && (
+                      <div className="text-[11px] text-[#A69DC0] mt-0.5">
+                        Grades {grades}
+                      </div>
+                    )}
+                    {address && (
+                      <div className="text-[11px] text-[#8A80A8] truncate mt-0.5">
+                        {address}
+                      </div>
+                    )}
+                    {school.contact && (
+                      <div className="text-[11px] text-[#6EA3BE] truncate mt-0.5">
+                        {school.contact.name}
+                        {school.contact.title && (
+                          <span className="text-[#A69DC0]"> · {school.contact.title}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: vacancy action */}
+                  <div className="shrink-0">
+                    {hasBeenScanned ? (
+                      vacCount ? (
+                        <button
+                          onClick={() => handleViewSchoolVacancies(school.ncessch)}
+                          className="px-2.5 py-1.5 text-[11px] font-semibold text-[#403770] bg-[#403770]/10 hover:bg-[#403770]/15 rounded-lg transition-colors"
+                        >
+                          {vacCount} {vacCount === 1 ? "vacancy" : "vacancies"}
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-[#A69DC0]">No vacancies</span>
+                      )
+                    ) : (
+                      <button
+                        onClick={handleScanVacancies}
+                        disabled={scanDistrict.isPending}
+                        className="px-2.5 py-1.5 text-[11px] font-semibold text-[#403770] border border-[#D4CFE2] hover:bg-[#EFEDF5] rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {scanDistrict.isPending ? (
+                          <span className="flex items-center gap-1.5">
+                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Scanning…
+                          </span>
+                        ) : (
+                          "Scan Vacancies"
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
