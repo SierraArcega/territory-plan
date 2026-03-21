@@ -302,7 +302,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   { key: "demographics", label: "Demographics" },
                   { key: "academics", label: "Academics" },
                   { key: "contacts", label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ""}` },
-                  { key: "schools", label: "Schools" },
+                  { key: "schools", label: `Schools${district?.numberOfSchools != null ? ` (${district.numberOfSchools})` : ""}` },
                   { key: "vacancies", label: `Vacancies${vacancyCount > 0 ? ` (${vacancyCount})` : ""}` },
                 ] as { key: Tab; label: string }[]).map(({ key, label }) => (
                   <button
@@ -361,7 +361,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
               ) : activeTab === "contacts" ? (
                 <ContactsTab contacts={contacts} />
               ) : activeTab === "schools" ? (
-                <SchoolsTab district={district} />
+                <SchoolsTab leaid={leaid} />
               ) : activeTab === "vacancies" ? (
                 <VacancyList leaid={leaid} />
               ) : null}
@@ -949,16 +949,99 @@ function ContactsTab({ contacts }: { contacts: Array<{ id: number; name: string;
 }
 
 // ─── Tab: Schools ────────────────────────────────────────────────────
-function SchoolsTab({ district }: { district: { numberOfSchools: number | null; name: string } | undefined }) {
+function SchoolsTab({ leaid }: { leaid: string }) {
+  const { data, isLoading, error } = useQuery<{
+    schools: Array<{
+      ncessch: string;
+      schoolName: string;
+      charter: number;
+      schoolLevel: number | null;
+      lograde: string | null;
+      higrade: string | null;
+      streetAddress: string | null;
+      city: string | null;
+      stateAbbrev: string | null;
+    }>;
+  }>({
+    queryKey: ["schoolsByDistrict", leaid],
+    queryFn: async () => {
+      const res = await fetch(`/api/schools/by-district/${encodeURIComponent(leaid)}`);
+      if (!res.ok) throw new Error("Failed to fetch schools");
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const levelLabels: Record<number, string> = { 1: "Primary", 2: "Middle", 3: "High", 4: "Other" };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="flex gap-4 py-2">
+            <div className="h-3 w-48 bg-[#EFEDF5] rounded animate-pulse" />
+            <div className="h-3 w-16 bg-[#EFEDF5] rounded animate-pulse" />
+            <div className="h-3 w-40 bg-[#EFEDF5] rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-[#F37167]">Failed to load schools.</p>
+      </div>
+    );
+  }
+
+  if (!data || data.schools.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-[#A69DC0]">No schools found for this district.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="text-center py-12">
-      <p className="text-sm text-[#8A80A8]">
-        {district?.numberOfSchools != null
-          ? `${district.numberOfSchools} schools in this district.`
-          : "School data unavailable."}
-      </p>
-      <p className="text-xs text-[#A69DC0] mt-1">Open full detail to view individual schools.</p>
-    </div>
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-[#E2DEEC]">
+          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">School</th>
+          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">Type</th>
+          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">Address</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.schools.map((school) => {
+          const address = [school.streetAddress, school.city, school.stateAbbrev]
+            .filter(Boolean)
+            .join(", ");
+
+          return (
+            <tr key={school.ncessch} className="border-b border-[#EFEDF5] last:border-0">
+              <td className="py-2.5 pr-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-medium text-[#544A78]">{school.schoolName}</span>
+                  {school.charter === 1 && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[#FFCF70]/30 text-[#8A7230] shrink-0">
+                      Charter
+                    </span>
+                  )}
+                </div>
+              </td>
+              <td className="py-2.5 pr-3 text-[#6E6390] whitespace-nowrap">
+                {(school.schoolLevel && levelLabels[school.schoolLevel]) || "—"}
+              </td>
+              <td className="py-2.5 text-[#8A80A8] truncate max-w-[200px]">
+                {address || "—"}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 

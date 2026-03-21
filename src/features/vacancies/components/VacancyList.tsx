@@ -36,6 +36,7 @@ interface VacanciesResponse {
 
 export interface VacancyListProps {
   leaid: string;
+  schoolNcessch?: string | null;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ function formatDaysOpen(days: number): string {
 
 // ─── Component ──────────────────────────────────────────────────────
 
-export default function VacancyList({ leaid }: VacancyListProps) {
+export default function VacancyList({ leaid, schoolNcessch }: VacancyListProps) {
   // Fetch vacancies
   const {
     data,
@@ -91,15 +92,20 @@ export default function VacancyList({ leaid }: VacancyListProps) {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Filter by school if provided
+  const filteredVacancies = schoolNcessch
+    ? (data?.vacancies ?? []).filter((v) => v.school?.ncessch === schoolNcessch)
+    : (data?.vacancies ?? []);
+
   // Group vacancies by category
-  const groupedByCategory = data?.vacancies.reduce<
+  const groupedByCategory = filteredVacancies.reduce<
     Record<string, VacancyRecord[]>
   >((acc, v) => {
     const cat = v.category || "Other";
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(v);
     return acc;
-  }, {}) ?? {};
+  }, {} as Record<string, VacancyRecord[]>);
 
   const categoryKeys = Object.keys(groupedByCategory).sort((a, b) => {
     if (a === "Other") return 1;
@@ -131,13 +137,15 @@ export default function VacancyList({ leaid }: VacancyListProps) {
   }
 
   // ─── Empty state ────────────────────────────────────────────────
-  if (!data || data.vacancies.length === 0) {
+  if (!data || filteredVacancies.length === 0) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-gray-400">
-          {data?.summary.lastScannedAt
-            ? "No vacancies found"
-            : "Not yet scanned"}
+          {schoolNcessch
+            ? "No vacancies matched to this school"
+            : data?.summary.lastScannedAt
+              ? "No vacancies found"
+              : "Not yet scanned"}
         </p>
         {data?.summary.lastScannedAt && (
           <LastScannedInfo lastScannedAt={data.summary.lastScannedAt} />
@@ -153,15 +161,23 @@ export default function VacancyList({ leaid }: VacancyListProps) {
     <div className="space-y-3">
       {/* Summary line */}
       <div className="text-sm text-gray-600">
-        <span className="font-semibold text-[#403770]">{summary.totalOpen}</span>{" "}
-        open position{summary.totalOpen !== 1 ? "s" : ""}
-        {summary.fullmindRelevant > 0 && (
-          <>
-            {" "}
-            <span className="text-xs text-gray-400">(</span>
-            <span className="font-semibold text-[#F37167]">{summary.fullmindRelevant}</span>
-            <span className="text-xs text-gray-400"> Fullmind-relevant)</span>
-          </>
+        <span className="font-semibold text-[#403770]">{filteredVacancies.length}</span>{" "}
+        open position{filteredVacancies.length !== 1 ? "s" : ""}
+        {(() => {
+          const relevantCount = filteredVacancies.filter((v) => v.fullmindRelevant).length;
+          return relevantCount > 0 ? (
+            <>
+              {" "}
+              <span className="text-xs text-gray-400">(</span>
+              <span className="font-semibold text-[#F37167]">{relevantCount}</span>
+              <span className="text-xs text-gray-400"> Fullmind-relevant)</span>
+            </>
+          ) : null;
+        })()}
+        {schoolNcessch && data && filteredVacancies.length !== data.vacancies.length && (
+          <span className="text-xs text-[#A69DC0] ml-1">
+            (filtered from {data.vacancies.length} district-wide)
+          </span>
         )}
       </div>
 
