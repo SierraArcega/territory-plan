@@ -9,7 +9,6 @@ import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrol
 import { ACTIVITY_STATUS_CONFIG, formatStatusLabel } from "@/features/activities/types";
 import type { ActivityStatus } from "@/features/activities/types";
 import VacancyList from "@/features/vacancies/components/VacancyList";
-import { useScanDistrict } from "@/features/vacancies/lib/queries";
 
 interface CompetitorSpendRecord {
   competitor: string;
@@ -1008,8 +1007,6 @@ function SchoolsTab({
     staleTime: 5 * 60 * 1000,
   });
 
-  const scanDistrict = useScanDistrict();
-
   // Count vacancies per school
   const vacancyCountBySchool = (vacancyData?.vacancies ?? []).reduce<Record<string, number>>(
     (acc, v) => {
@@ -1021,6 +1018,7 @@ function SchoolsTab({
   );
 
   const hasBeenScanned = !!vacancyData?.summary.lastScannedAt;
+  const lastScannedAt = vacancyData?.summary.lastScannedAt ?? null;
 
   // Group schools by level
   type SchoolItem = NonNullable<typeof data>["schools"][number];
@@ -1051,8 +1049,20 @@ function SchoolsTab({
     return `${map[lo] || lo} – ${map[hi] || hi}`;
   };
 
-  const handleScanVacancies = () => {
-    scanDistrict.mutate(leaid);
+  // Format last scanned timestamp
+  const formatLastScanned = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffMins < 1) return "Scanned just now";
+    if (diffMins < 60) return `Scanned ${diffMins}m ago`;
+    if (diffHours < 24) return `Scanned ${diffHours}h ago`;
+    if (diffDays === 1) return "Scanned yesterday";
+    if (diffDays < 7) return `Scanned ${diffDays}d ago`;
+    return `Scanned ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
   };
 
   const handleViewSchoolVacancies = (ncessch: string) => {
@@ -1155,39 +1165,24 @@ function SchoolsTab({
                     )}
                   </div>
 
-                  {/* Right: vacancy action */}
-                  <div className="shrink-0">
-                    {hasBeenScanned ? (
-                      vacCount ? (
-                        <button
-                          onClick={() => handleViewSchoolVacancies(school.ncessch)}
-                          className="px-2.5 py-1.5 text-[11px] font-semibold text-[#403770] bg-[#403770]/10 hover:bg-[#403770]/15 rounded-lg transition-colors"
-                        >
-                          {vacCount} {vacCount === 1 ? "vacancy" : "vacancies"}
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-[#A69DC0]">No vacancies</span>
-                      )
-                    ) : (
-                      <button
-                        onClick={handleScanVacancies}
-                        disabled={scanDistrict.isPending}
-                        className="px-2.5 py-1.5 text-[11px] font-semibold text-[#403770] border border-[#D4CFE2] hover:bg-[#EFEDF5] rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        {scanDistrict.isPending ? (
-                          <span className="flex items-center gap-1.5">
-                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                            Scanning…
-                          </span>
-                        ) : (
-                          "Scan Vacancies"
-                        )}
-                      </button>
+                  {/* Right: vacancy count + last scanned */}
+                  <button
+                    onClick={() => handleViewSchoolVacancies(school.ncessch)}
+                    className="shrink-0 flex flex-col items-end gap-0.5 px-2.5 py-1.5 rounded-lg hover:bg-[#EFEDF5] transition-colors"
+                  >
+                    <span className="text-[11px] font-semibold text-[#403770]">
+                      {vacCount
+                        ? `${vacCount} ${vacCount === 1 ? "vacancy" : "vacancies"}`
+                        : hasBeenScanned
+                          ? "No vacancies"
+                          : "Not scanned"}
+                    </span>
+                    {lastScannedAt && (
+                      <span className="text-[10px] text-[#A69DC0]">
+                        {formatLastScanned(lastScannedAt)}
+                      </span>
                     )}
-                  </div>
+                  </button>
                 </div>
               );
             })}
