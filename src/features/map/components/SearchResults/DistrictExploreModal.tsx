@@ -974,16 +974,6 @@ function SchoolsTab({ leaid }: { leaid: string }) {
 
   const levelLabels: Record<number, string> = { 1: "Primary", 2: "Middle", 3: "High", 4: "Other" };
 
-  const formatGrades = (lo: string | null, hi: string | null) => {
-    if (!lo || !hi) return "—";
-    const map: Record<string, string> = {
-      PK: "Pre-K", KG: "K", "01": "1", "02": "2", "03": "3", "04": "4",
-      "05": "5", "06": "6", "07": "7", "08": "8", "09": "9",
-      "10": "10", "11": "11", "12": "12",
-    };
-    return `${map[lo] || lo} – ${map[hi] || hi}`;
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -1020,7 +1010,6 @@ function SchoolsTab({ leaid }: { leaid: string }) {
         <tr className="border-b border-[#E2DEEC]">
           <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">School</th>
           <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">Type</th>
-          <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">Grades</th>
           <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-[#C2BBD4] pb-2">Address</th>
         </tr>
       </thead>
@@ -1044,9 +1033,6 @@ function SchoolsTab({ leaid }: { leaid: string }) {
               </td>
               <td className="py-2.5 pr-3 text-[#6E6390] whitespace-nowrap">
                 {(school.schoolLevel && levelLabels[school.schoolLevel]) || "—"}
-              </td>
-              <td className="py-2.5 pr-3 text-[#6E6390] whitespace-nowrap">
-                {formatGrades(school.lograde, school.higrade)}
               </td>
               <td className="py-2.5 text-[#8A80A8] truncate max-w-[200px]">
                 {address || "—"}
