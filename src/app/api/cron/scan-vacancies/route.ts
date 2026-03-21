@@ -12,9 +12,9 @@ const CRON_SECRET = process.env.CRON_SECRET;
 const SCANS_PER_RUN = 20;
 
 /**
- * POST /api/cron/scan-vacancies
+ * GET /api/cron/scan-vacancies
  *
- * Automated vacancy scanning. Called by Vercel Cron or external scheduler.
+ * Automated vacancy scanning. Called by Vercel Cron (which sends GET requests).
  *
  * Smart batching:
  * - State-wide boards (OLAS, SchoolSpring): one scan per unique URL,
@@ -29,7 +29,7 @@ const SCANS_PER_RUN = 20;
  *
  * Auth: CRON_SECRET via Bearer token or query param
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
   const { searchParams } = new URL(request.url);
