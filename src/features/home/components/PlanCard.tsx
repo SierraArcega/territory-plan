@@ -108,9 +108,10 @@ function PlanActionButton({
 
 interface TerritoryPlanCardProps {
   plan: TerritoryPlan;
+  onNavigate?: (planId: string) => void;
 }
 
-export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
+export function TerritoryPlanCard({ plan, onNavigate }: TerritoryPlanCardProps) {
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -124,7 +125,13 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
   const stateAbbrevs = plan.states?.map((s) => s.abbrev).join(", ") || "";
 
   return (
-    <div className="bg-white rounded-lg border border-[#D4CFE2] p-4 flex flex-col">
+    <div
+      className={`bg-white rounded-lg border border-[#D4CFE2] p-4 flex flex-col${onNavigate ? " cursor-pointer hover:border-[#403770]/40 hover:shadow-md transition-all" : ""}`}
+      onClick={() => onNavigate?.(plan.id)}
+      role={onNavigate ? "button" : undefined}
+      tabIndex={onNavigate ? 0 : undefined}
+      onKeyDown={onNavigate ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onNavigate(plan.id); } } : undefined}
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -205,6 +212,7 @@ interface FYPlanGroupProps {
   isCurrent: boolean;
   plans: TerritoryPlan[];
   onCreatePlan: () => void;
+  onNavigate?: (planId: string) => void;
 }
 
 export function FYPlanGroup({
@@ -212,6 +220,7 @@ export function FYPlanGroup({
   isCurrent,
   plans,
   onCreatePlan,
+  onNavigate,
 }: FYPlanGroupProps) {
   return (
     <div>
@@ -237,7 +246,7 @@ export function FYPlanGroup({
       {/* Plan cards grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {plans.map((plan) => (
-          <TerritoryPlanCard key={plan.id} plan={plan} />
+          <TerritoryPlanCard key={plan.id} plan={plan} onNavigate={onNavigate} />
         ))}
         {isCurrent && <CreatePlanCard onClick={onCreatePlan} />}
       </div>

@@ -28,6 +28,7 @@ import LeadingIndicatorsPanel from "@/features/progress/components/LeadingIndica
 import LaggingIndicatorsPanel from "@/features/progress/components/LaggingIndicatorsPanel";
 import DonutChart from "@/features/goals/components/DonutChart";
 import FlippablePlanCard from "@/features/plans/components/FlippablePlanCard";
+import PlanDetailModal from "@/features/map/components/SearchResults/PlanDetailModal";
 import PlanCardFilters, {
   filterAndSortPlans,
   type PlanSortKey,
@@ -281,6 +282,7 @@ export default function HomeView() {
   const [showGoalEditor, setShowGoalEditor] = useState(false);
   const [planOwnerId, setPlanOwnerId] = useState<string | null>(null);
   const [planSortBy, setPlanSortBy] = useState<PlanSortKey>("updated");
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const firstName = profile?.fullName?.split(" ")[0] || "there";
 
@@ -511,13 +513,7 @@ export default function HomeView() {
                       key={plan.id}
                       plan={plan}
                       variant="full"
-                      onNavigate={(id) => {
-                        const params = new URLSearchParams(window.location.search);
-                        params.set("tab", "plans");
-                        params.set("plan", id);
-                        window.history.pushState(null, "", `?${params.toString()}`);
-                        window.dispatchEvent(new PopStateEvent("popstate"));
-                      }}
+                      onNavigate={(id) => setSelectedPlanId(id)}
                     />
                   ))}
                 </div>
@@ -711,6 +707,12 @@ export default function HomeView() {
       )}
       <PlanFormModal isOpen={showPlanForm} onClose={() => setShowPlanForm(false)} onSubmit={handleCreatePlan} title="Create New Plan" />
       <GoalEditorModal isOpen={showGoalEditor} onClose={() => setShowGoalEditor(false)} fiscalYear={selectedFiscalYear} currentGoals={dashboard?.goals || null} />
+      {selectedPlanId && (
+        <PlanDetailModal
+          planId={selectedPlanId}
+          onClose={() => setSelectedPlanId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -522,7 +522,7 @@ function AddDistrictButton({
         const res = await fetch(`/api/districts?search=${encodeURIComponent(q)}&limit=10`);
         if (res.ok) {
           const data = await res.json();
-          const items = (data.data || data).filter(
+          const items = (data.districts || data.data || data).filter(
             (d: { leaid: string }) => !existingLeaids.includes(d.leaid)
           );
           setResults(items.slice(0, 8));
@@ -536,9 +536,13 @@ function AddDistrictButton({
   };
 
   const handleAdd = async (leaid: string) => {
+    const match = results.find((r) => r.leaid === leaid);
     try {
-      await addDistricts.mutateAsync({ planId, leaids: [leaid] });
-      // Remove from results
+      await addDistricts.mutateAsync({
+        planId,
+        leaids: [leaid],
+        _optimistic: match ? [{ leaid: match.leaid, name: match.name, stateAbbrev: match.stateAbbrev }] : undefined,
+      });
       setResults((prev) => prev.filter((r) => r.leaid !== leaid));
     } catch {
       // Silent

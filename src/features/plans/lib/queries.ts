@@ -111,6 +111,8 @@ export function useAddDistrictsToPlan() {
       planId: string;
       leaids?: string | string[];
       filters?: { column: string; op: string; value?: unknown }[];
+      // Optional metadata for optimistic UI — not sent to server
+      _optimistic?: Array<{ leaid: string; name: string; stateAbbrev: string }>;
     }) =>
       fetchJson<{ added: number; planId: string }>(
         `${API_BASE}/territory-plans/${planId}/districts`,
@@ -119,11 +121,53 @@ export function useAddDistrictsToPlan() {
           body: JSON.stringify({ leaids, filters }),
         }
       ),
-    onSuccess: (_, variables) => {
+    onMutate: async (variables) => {
+      // Only do optimistic update when we have metadata
+      if (!variables._optimistic?.length) return;
+
+      await queryClient.cancelQueries({ queryKey: ["territoryPlan", variables.planId] });
+      const previous = queryClient.getQueryData<TerritoryPlanDetail>(["territoryPlan", variables.planId]);
+
+      if (previous) {
+        const newDistricts = variables._optimistic.map((d) => ({
+          leaid: d.leaid,
+          name: d.name,
+          stateAbbrev: d.stateAbbrev,
+          addedAt: new Date().toISOString(),
+          enrollment: null,
+          owner: null,
+          renewalTarget: null,
+          winbackTarget: null,
+          expansionTarget: null,
+          newBusinessTarget: null,
+          notes: null,
+          returnServices: [],
+          newServices: [],
+          tags: [],
+        }));
+
+        queryClient.setQueryData<TerritoryPlanDetail>(
+          ["territoryPlan", variables.planId],
+          {
+            ...previous,
+            districts: [...previous.districts, ...newDistricts],
+          }
+        );
+      }
+
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      // Roll back on error
+      if (context?.previous) {
+        queryClient.setQueryData(["territoryPlan", variables.planId], context.previous);
+      }
+    },
+    onSettled: (_, __, variables) => {
+      // Always refetch to get full server data
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
-      // Refresh district detail so territoryPlanIds updates in the side panel
       const leaids = variables.leaids;
       if (leaids) {
         const ids = Array.isArray(leaids) ? leaids : [leaids];
