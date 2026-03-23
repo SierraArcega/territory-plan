@@ -6,8 +6,8 @@ export const maxDuration = 60;
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
-/** Close open vacancies when a district's vacancy/enrollment ratio exceeds this. */
-const RATIO_THRESHOLD = 0.3;
+/** Delete open vacancies when a district's vacancy/enrollment ratio exceeds this. */
+const RATIO_THRESHOLD = 0.1;
 
 /** Only check districts with at least this many open vacancies (skip noise). */
 const MIN_VACANCIES = 10;
@@ -24,7 +24,7 @@ interface FlaggedDistrict {
  * GET /api/cron/vacancy-hygiene
  *
  * Scheduled cleanup that finds districts with suspiciously high
- * vacancy-to-enrollment ratios (>0.3) and closes those vacancies.
+ * vacancy-to-enrollment ratios (>10%) and deletes those vacancies.
  * Flags the latest scan as completed_partial so the admin dashboard
  * shows what happened.
  *
@@ -73,15 +73,14 @@ export async function GET(request: NextRequest) {
       leaid: string;
       name: string;
       enrollment: number;
-      vacanciesClosed: number;
+      vacanciesDeleted: number;
       ratio: number;
     }[] = [];
 
     for (const district of flagged) {
-      // Close all open vacancies for this district
-      const result = await prisma.vacancy.updateMany({
+      // Delete all open vacancies for this district
+      const result = await prisma.vacancy.deleteMany({
         where: { leaid: district.leaid, status: "open" },
-        data: { status: "closed" },
       });
 
       // Flag the most recent scan as completed_partial
@@ -97,7 +96,7 @@ export async function GET(request: NextRequest) {
           data: {
             status: "completed_partial",
             errorMessage:
-              `Hygiene cleanup: ${result.count} vacancies closed ` +
+              `Hygiene cleanup: ${result.count} vacancies deleted ` +
               `(ratio ${district.ratio} exceeded ${RATIO_THRESHOLD} threshold, ` +
               `enrollment: ${district.enrollment})`,
           },
@@ -108,19 +107,19 @@ export async function GET(request: NextRequest) {
         leaid: district.leaid,
         name: district.name,
         enrollment: district.enrollment,
-        vacanciesClosed: result.count,
+        vacanciesDeleted: result.count,
         ratio: district.ratio,
       });
     }
 
-    const totalClosed = cleaned.reduce((s, d) => s + d.vacanciesClosed, 0);
+    const totalDeleted = cleaned.reduce((s, d) => s + d.vacanciesDeleted, 0);
 
     console.log(
-      `[vacancy-hygiene] Cleaned ${totalClosed} vacancies from ${cleaned.length} districts`
+      `[vacancy-hygiene] Deleted ${totalDeleted} vacancies from ${cleaned.length} districts`
     );
 
     return NextResponse.json({
-      cleaned: totalClosed,
+      deleted: totalDeleted,
       districts: cleaned,
     });
   } catch (error) {

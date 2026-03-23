@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { detectPlatform, isStatewideBoardAsync } from "./platform-detector";
+import { detectPlatform, isStatewideBoardAsync, getAppliTrackInstance } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
 import { parseWithPlaywright } from "./parsers/playwright-fallback";
@@ -143,6 +143,16 @@ export async function runScan(scanId: string): Promise<void> {
         return;
       }
 
+      // Shared AppliTrack without client-scoping params fetches the entire
+      // state board. Only process the scanning district's own jobs — do NOT
+      // redistribute to other districts via fuzzy matching (causes massive
+      // vacancy inflation). Redistribution is only safe when the URL includes
+      // applitrackclient to scope results.
+      const unscopedSharedAppliTrack =
+        platform === "applitrack" &&
+        getAppliTrackInstance(scan.district.jobBoardUrl!) &&
+        !new URL(scan.district.jobBoardUrl!).searchParams.has("applitrackclient");
+
       // State-wide board: process THIS district's jobs first (fast),
       // then redistribute the rest in the background.
       const { ownJobs, otherJobs, districtsMatched } = groupByDistrict(
@@ -167,19 +177,24 @@ export async function runScan(scanId: string): Promise<void> {
           status: "completed",
           vacancyCount: result.vacancyCount,
           fullmindRelevantCount: result.fullmindRelevantCount,
-          districtsMatched,
+          districtsMatched: unscopedSharedAppliTrack ? 0 : districtsMatched,
           completedAt: new Date(),
         },
       });
 
       // Redistribute remaining jobs to other districts in the background
-      if (otherJobs.size > 0) {
+      // — but ONLY if the URL is properly scoped (has applitrackclient param)
+      if (otherJobs.size > 0 && !unscopedSharedAppliTrack) {
         console.log(
           `[scan-runner] Background redistribution: ${[...otherJobs.values()].reduce((sum, b) => sum + b.jobs.length, 0)} jobs to ${otherJobs.size} districts`
         );
         redistributeInBackground(otherJobs, scanId, platform).catch((err) => {
           console.error("[scan-runner] Background redistribution failed:", err);
         });
+      } else if (unscopedSharedAppliTrack && otherJobs.size > 0) {
+        console.log(
+          `[scan-runner] Skipping redistribution: shared AppliTrack "${getAppliTrackInstance(scan.district.jobBoardUrl!)}" has no applitrackclient param — ${[...otherJobs.values()].reduce((sum, b) => sum + b.jobs.length, 0)} jobs dropped`
+        );
       }
     } else {
       // Safety check: if ANY platform returns a suspicious number of vacancies
