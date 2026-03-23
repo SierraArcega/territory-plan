@@ -108,12 +108,12 @@ describe("getContactLayers", () => {
 
   it("cluster layer filters for point_count", () => {
     const clusterLayer = layers.find((l) => l.id === CONTACTS_CLUSTER_LAYER)!;
-    expect(clusterLayer.filter).toEqual(["has", "point_count"]);
+    expect((clusterLayer as Record<string, unknown>).filter).toEqual(["has", "point_count"]);
   });
 
   it("point layer filters out clusters", () => {
     const pointLayer = layers.find((l) => l.id === CONTACTS_POINT_LAYER)!;
-    expect(pointLayer.filter).toEqual(["!", ["has", "point_count"]]);
+    expect((pointLayer as Record<string, unknown>).filter).toEqual(["!", ["has", "point_count"]]);
   });
 });
 
