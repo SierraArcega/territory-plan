@@ -12,7 +12,7 @@ from sync.queries import (
     fetch_sessions,
     fetch_district_mappings,
 )
-from sync.compute import build_opportunity_record
+from sync.compute import build_opportunity_record, _to_decimal
 from sync.normalize import normalize_state
 from sync.supabase_writer import (
     get_connection,
@@ -142,9 +142,9 @@ def run_sync():
                     "id": s["_id"],
                     "opportunity_id": s["opportunityId"],
                     "service_type": s.get("serviceType"),
-                    "session_price": s.get("sessionPrice"),
-                    "educator_price": s.get("educatorPrice"),
-                    "educator_approved_price": s.get("educatorApprovedPrice"),
+                    "session_price": _to_decimal(s.get("sessionPrice")),
+                    "educator_price": _to_decimal(s.get("educatorPrice")),
+                    "educator_approved_price": _to_decimal(s.get("educatorApprovedPrice")),
                     "start_time": s.get("startTime"),
                     "synced_at": now,
                 }
