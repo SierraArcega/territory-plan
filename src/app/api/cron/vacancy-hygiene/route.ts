@@ -51,6 +51,13 @@ export async function GET(request: NextRequest) {
       return purgeRedistributed();
     }
 
+    // --- Mode: purge all closed vacancies (leftover from old close-based cleanup) ---
+    if (mode === "purge-closed") {
+      const result = await prisma.vacancy.deleteMany({ where: { status: "closed" } });
+      console.log(`[vacancy-hygiene] Purge closed: deleted ${result.count} closed vacancies`);
+      return NextResponse.json({ deleted: result.count, mode: "purge-closed" });
+    }
+
     // --- Mode: purge vacancies from unscoped shared AppliTrack boards ---
     if (mode === "shared-applitrack") {
       return purgeUnscopedSharedAppliTrack();
