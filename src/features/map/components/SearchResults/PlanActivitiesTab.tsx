@@ -29,7 +29,7 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
   const { data, isLoading } = useActivities({ planId });
   const response = data as ActivitiesResponse | undefined;
   const activities = response?.activities ?? [];
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [viewingActivityId, setViewingActivityId] = useState<string | null>(null);
 
   if (isLoading) {
@@ -70,6 +70,32 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
     );
   }
 
+  // ─── Drill-in: Create new activity ───────────────────────────
+  if (isCreating) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Back bar */}
+        <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-[#E2DEEC] bg-[#FAFAFE]">
+          <button
+            onClick={() => setIsCreating(false)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#6E6390] hover:text-[#403770] transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M7.5 2.5L4 6L7.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back to Activities
+          </button>
+        </div>
+        <ActivityFormModal
+          isOpen
+          onClose={() => setIsCreating(false)}
+          defaultPlanId={planId}
+          embedded
+        />
+      </div>
+    );
+  }
+
   // ─── List view ────────────────────────────────────────────────
 
   if (activities.length === 0) {
@@ -82,17 +108,12 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
           <p className="text-sm font-medium text-[#6E6390]">No activities yet</p>
           <p className="text-xs text-[#A69DC0] mt-1">Activities linked to this plan will appear here.</p>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => setIsCreating(true)}
             className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#544A78] transition-colors"
           >
             + Add Activity
           </button>
         </div>
-        <ActivityFormModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          defaultPlanId={planId}
-        />
       </>
     );
   }
@@ -139,7 +160,7 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
       {/* Footer */}
       <div className="shrink-0 border-t border-[#E2DEEC] px-5 py-3 flex items-center justify-between bg-[#FAFAFE]">
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => setIsCreating(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#544A78] transition-colors"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -152,12 +173,6 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
         </span>
       </div>
 
-      {/* Create modal — only one that needs a modal since it's a multi-step wizard */}
-      <ActivityFormModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        defaultPlanId={planId}
-      />
     </div>
   );
 }

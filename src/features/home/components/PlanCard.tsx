@@ -6,6 +6,7 @@ import { formatCurrency } from "@/features/shared/lib/format";
 import { useMapStore } from "@/features/shared/lib/app-store";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import TaskFormModal from "@/features/tasks/components/TaskFormModal";
+import PlanDetailModal from "@/features/map/components/SearchResults/PlanDetailModal";
 import { Map, FileEdit, ListPlus, Plus } from "lucide-react";
 
 // ============================================================================
@@ -112,6 +113,7 @@ interface TerritoryPlanCardProps {
 
 export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
   const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const [showPlanDetail, setShowPlanDetail] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
 
@@ -124,7 +126,10 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
   const stateAbbrevs = plan.states?.map((s) => s.abbrev).join(", ") || "";
 
   return (
-    <div className="bg-white rounded-lg border border-[#D4CFE2] p-4 flex flex-col">
+    <div
+      onClick={() => setShowPlanDetail(true)}
+      className="bg-white rounded-lg border border-[#D4CFE2] p-4 flex flex-col cursor-pointer hover:border-[#B8B0D0] hover:shadow-sm transition-all"
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -176,6 +181,12 @@ export function TerritoryPlanCard({ plan }: TerritoryPlanCardProps) {
         onClose={() => setShowTaskModal(false)}
         defaultPlanId={plan.id}
       />
+      {showPlanDetail && (
+        <PlanDetailModal
+          planId={plan.id}
+          onClose={() => setShowPlanDetail(false)}
+        />
+      )}
     </div>
   );
 }

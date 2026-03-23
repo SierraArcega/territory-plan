@@ -28,6 +28,7 @@ interface TaskFormModalProps {
   defaultActivityId?: string;
   defaultLeaid?: string;
   defaultContactId?: number;
+  embedded?: boolean;
 }
 
 export default function TaskFormModal({
@@ -37,6 +38,7 @@ export default function TaskFormModal({
   defaultActivityId,
   defaultLeaid,
   defaultContactId,
+  embedded,
 }: TaskFormModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -214,11 +216,11 @@ export default function TaskFormModal({
     </svg>
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col">
+  const content = (
+      <div className={embedded
+        ? "flex flex-col h-full overflow-hidden"
+        : "relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col"
+      }>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-lg font-bold text-[#403770]">New Task</h2>
@@ -675,6 +677,14 @@ export default function TaskFormModal({
           </div>
         </form>
       </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      {content}
     </div>
   );
 }
