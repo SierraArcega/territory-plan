@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import PQueue from "p-queue";
 import prisma from "@/lib/prisma";
 import { detectPlatform, isStatewideBoard, loadSharedAppliTrackInstances } from "@/features/vacancies/lib/platform-detector";
 import { runScan } from "@/features/vacancies/lib/scan-runner";
@@ -9,7 +10,10 @@ export const maxDuration = 300; // 5 min — Vercel Pro limit
 const CRON_SECRET = process.env.CRON_SECRET;
 
 /** Max scans to run per cron invocation (Vercel Pro allows 300s) */
-const SCANS_PER_RUN = 20;
+const SCANS_PER_RUN = 50;
+
+/** Number of scans to run in parallel */
+const CONCURRENCY = 5;
 
 /**
  * GET /api/cron/scan-vacancies
@@ -98,55 +102,60 @@ export async function GET(request: NextRequest) {
       return b.districts.length - a.districts.length;
     });
 
-    // Run scans sequentially, up to SCANS_PER_RUN
+    // Run scans in parallel with capped concurrency
     const batchId = crypto.randomUUID();
-    let scansRun = 0;
-    let districtsProcessed = 0;
     const results: { leaid: string; name: string; status: string; statewide: boolean }[] = [];
 
-    for (const group of sortedGroups) {
-      if (scansRun >= SCANS_PER_RUN) break;
+    const batch = sortedGroups.slice(0, SCANS_PER_RUN);
+    const queue = new PQueue({ concurrency: CONCURRENCY });
 
-      // Pick the representative district for the scan
-      const representative = group.districts[0];
+    // Create all scan records upfront, then execute in parallel
+    const scanJobs = await Promise.all(
+      batch.map(async (group) => {
+        const representative = group.districts[0];
+        const scan = await prisma.vacancyScan.create({
+          data: {
+            leaid: representative.leaid,
+            status: "pending",
+            triggeredBy: "cron",
+            batchId,
+          },
+        });
+        return { scan, group, representative };
+      })
+    );
 
-      const scan = await prisma.vacancyScan.create({
-        data: {
+    await queue.addAll(
+      scanJobs.map(({ scan, group, representative }) => async () => {
+        await runScan(scan.id);
+
+        const result = await prisma.vacancyScan.findUnique({
+          where: { id: scan.id },
+          select: { status: true },
+        });
+
+        const isStatewide = isStatewideBoard(group.platform, group.url);
+        results.push({
           leaid: representative.leaid,
-          status: "pending",
-          triggeredBy: "cron",
-          batchId,
-        },
-      });
+          name: representative.name,
+          status: result?.status ?? "unknown",
+          statewide: isStatewide,
+        });
+      })
+    );
 
-      // Run synchronously so we stay within Vercel's request lifecycle
-      await runScan(scan.id);
-
-      // Check result
-      const result = await prisma.vacancyScan.findUnique({
-        where: { id: scan.id },
-        select: { status: true },
-      });
-
+    const districtsProcessed = batch.reduce((sum, group) => {
       const isStatewide = isStatewideBoard(group.platform, group.url);
-      results.push({
-        leaid: representative.leaid,
-        name: representative.name,
-        status: result?.status ?? "unknown",
-        statewide: isStatewide,
-      });
-
-      scansRun++;
-      districtsProcessed += isStatewide ? group.districts.length : 1;
-    }
+      return sum + (isStatewide ? group.districts.length : 1);
+    }, 0);
 
     return NextResponse.json({
       batchId,
       totalStale: staleDistricts.length,
       uniqueUrls: urlGroups.size,
-      scansRun,
+      scansRun: batch.length,
       districtsProcessed,
-      remaining: Math.max(0, urlGroups.size - scansRun),
+      remaining: Math.max(0, urlGroups.size - batch.length),
       results,
     });
   } catch (error) {

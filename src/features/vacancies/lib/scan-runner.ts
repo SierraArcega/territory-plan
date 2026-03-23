@@ -122,6 +122,27 @@ export async function runScan(scanId: string): Promise<void> {
     // Step 5: Post-process
     const isStwide = await isStatewideBoardAsync(platform, scan.district.jobBoardUrl);
     if (isStwide && rawVacancies.length > 0) {
+      // Safety net: if most vacancies lack employerName on a statewide board,
+      // groupByDistrict would assign them all to the scanning district.
+      // Skip importing when this happens — the data is unattributable.
+      const withoutEmployer = rawVacancies.filter((v) => !v.employerName).length;
+      if (rawVacancies.length > 20 && withoutEmployer / rawVacancies.length > 0.5) {
+        console.warn(
+          `[scan-runner] Statewide board "${platform}" returned ${rawVacancies.length} vacancies ` +
+          `but ${withoutEmployer} lack employerName — cannot attribute. Skipping.`
+        );
+        await prisma.vacancyScan.update({
+          where: { id: scanId },
+          data: {
+            status: "completed_partial",
+            vacancyCount: 0,
+            errorMessage: `Skipped: statewide board returned ${rawVacancies.length} vacancies but ${withoutEmployer} lack employer info (cannot attribute to district)`,
+            completedAt: new Date(),
+          },
+        });
+        return;
+      }
+
       // State-wide board: process THIS district's jobs first (fast),
       // then redistribute the rest in the background.
       const { ownJobs, otherJobs, districtsMatched } = groupByDistrict(
