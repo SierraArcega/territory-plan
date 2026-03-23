@@ -45,6 +45,33 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
     );
   }
 
+  // ─── Drill-in: Activity detail/edit view ──────────────────────
+  if (viewingActivityId) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Back bar */}
+        <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-[#E2DEEC] bg-[#FAFAFE]">
+          <button
+            onClick={() => setViewingActivityId(null)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#6E6390] hover:text-[#403770] transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M7.5 2.5L4 6L7.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back to Activities
+          </button>
+        </div>
+        {/* ActivityViewPanel fills remaining space — manages its own scroll + sticky save footer */}
+        <ActivityViewPanel
+          activityId={viewingActivityId}
+          onViewRelated={(id) => setViewingActivityId(id)}
+        />
+      </div>
+    );
+  }
+
+  // ─── List view ────────────────────────────────────────────────
+
   if (activities.length === 0) {
     return (
       <>
@@ -125,38 +152,12 @@ export default function PlanActivitiesTab({ planId }: PlanActivitiesTabProps) {
         </span>
       </div>
 
-      {/* Create modal */}
+      {/* Create modal — only one that needs a modal since it's a multi-step wizard */}
       <ActivityFormModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         defaultPlanId={planId}
       />
-
-      {/* View/Edit overlay */}
-      {viewingActivityId && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setViewingActivityId(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-[65vw] max-w-[960px] h-[65vh] max-h-[700px] flex flex-col overflow-hidden">
-            <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-[#E2DEEC]">
-              <span className="text-sm font-bold text-[#403770]">Activity Details</span>
-              <button
-                onClick={() => setViewingActivityId(null)}
-                className="p-1.5 rounded-lg text-[#A69DC0] hover:text-[#403770] hover:bg-[#f0edf5] transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <ActivityViewPanel
-                activityId={viewingActivityId}
-                onViewRelated={(id) => setViewingActivityId(id)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
