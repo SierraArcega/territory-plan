@@ -29,6 +29,8 @@ export async function POST(request: NextRequest) {
       city,
       state,
       zip,
+      lat,
+      lng,
       salesExecutive,
       phone,
       websiteUrl,
@@ -69,11 +71,14 @@ export async function POST(request: NextRequest) {
       ? await getStateFips(resolvedStateAbbrev)
       : "00";
 
-    // Geocode address if any address fields provided
+    // Use provided lat/lng if available, otherwise geocode from address fields
+    const hasDirectCoords = typeof lat === "number" && typeof lng === "number";
     const hasAddress = street || city || state || zip;
-    const coords = hasAddress
-      ? await geocodeAddress({ street, city, state, zip })
-      : null;
+    const coords = hasDirectCoords
+      ? { lat, lng }
+      : hasAddress
+        ? await geocodeAddress({ street, city, state, zip })
+        : null;
 
     // Create the base record with Prisma
     const newAccount = await prisma.district.create({

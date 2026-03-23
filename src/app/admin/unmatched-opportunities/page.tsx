@@ -9,6 +9,8 @@ import type { SortRule, FilterRule, CellRendererFn } from "@/features/shared/com
 import AdminFilterBar from "./AdminFilterBar";
 import AdminColumnPicker from "./AdminColumnPicker";
 import { US_STATES } from "@/lib/states";
+import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
+import type { AccountTypeValue } from "@/features/shared/types/account-types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,6 +131,56 @@ async function createDistrict(data: {
     const err = await res.json().catch(() => ({ error: "Failed to create district" }));
     throw new Error(err.error || "Failed to create district");
   }
+  return res.json();
+}
+
+async function createAccount(data: {
+  name: string;
+  accountType: string;
+  stateAbbrev?: string;
+  city?: string;
+  state?: string;
+  lat?: number;
+  lng?: number;
+}): Promise<DistrictResult> {
+  const res = await fetch("/api/accounts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Failed to create account" }));
+    throw new Error(err.error || "Failed to create account");
+  }
+  const result = await res.json();
+  return {
+    leaid: result.leaid,
+    name: result.name,
+    stateAbbrev: data.stateAbbrev || data.state || null,
+    enrollment: null,
+    cityLocation: data.city || null,
+  };
+}
+
+interface NominatimSuggestion {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+async function searchAddresses(query: string): Promise<NominatimSuggestion[]> {
+  if (!query || query.trim().length < 3) return [];
+  const params = new URLSearchParams({
+    q: query,
+    format: "json",
+    limit: "5",
+    countrycodes: "us",
+  });
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?${params}`,
+    { headers: { "User-Agent": "TerritoryPlanBuilder/1.0" } }
+  );
+  if (!res.ok) return [];
   return res.json();
 }
 
@@ -517,7 +569,132 @@ function SchoolRow({
   );
 }
 
-function CreateDistrictForm({
+function AddressSearchInput({
+  onSelect,
+}: {
+  onSelect: (suggestion: NominatimSuggestion) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<NominatimSuggestion[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedDisplay, setSelectedDisplay] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    if (debouncedQuery.length < 3) {
+      setSuggestions([]);
+      setIsOpen(false);
+      return;
+    }
+    let cancelled = false;
+    setIsSearching(true);
+    searchAddresses(debouncedQuery).then((results) => {
+      if (!cancelled) {
+        setSuggestions(results);
+        setIsOpen(results.length > 0);
+        setIsSearching(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleSelect = (suggestion: NominatimSuggestion) => {
+    setSelectedDisplay(suggestion.display_name);
+    setQuery("");
+    setIsOpen(false);
+    onSelect(suggestion);
+  };
+
+  const handleClear = () => {
+    setSelectedDisplay(null);
+    setQuery("");
+    setSuggestions([]);
+    onSelect({ display_name: "", lat: "0", lon: "0" });
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <label className="block text-xs font-medium text-[#544A78] mb-1">
+        Address
+      </label>
+      {selectedDisplay ? (
+        <div className="flex items-center gap-2 px-3 py-2 text-sm text-[#403770] bg-[#F7F5FA] border border-[#D4CFE2] rounded-lg">
+          <svg className="w-3.5 h-3.5 text-[#69B34A] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="truncate flex-1">{selectedDisplay}</span>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="flex-shrink-0 text-[#A69DC0] hover:text-[#403770] transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {isSearching && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-[#403770] border-t-transparent" />
+            </div>
+          )}
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setSelectedDisplay(null); }}
+            onFocus={() => { if (suggestions.length > 0) setIsOpen(true); }}
+            placeholder="Search for an address..."
+            className="w-full pl-10 pr-4 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+          />
+        </div>
+      )}
+      {isOpen && suggestions.length > 0 && (
+        <ul className="absolute z-10 left-0 right-0 mt-1 bg-white border border-[#D4CFE2] rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {suggestions.map((s, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => handleSelect(s)}
+                className="w-full text-left px-3 py-2 text-sm text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770] transition-colors border-b border-[#E2DEEC] last:border-b-0"
+              >
+                {s.display_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CreateAccountForm({
   opportunity,
   onCreated,
   onCancel,
@@ -526,19 +703,78 @@ function CreateDistrictForm({
   onCreated: (district: DistrictResult) => void;
   onCancel: () => void;
 }) {
+  const [accountType, setAccountType] = useState<AccountTypeValue | "">("");
   const [leaid, setLeaid] = useState("");
   const [name, setName] = useState(opportunity.accountName ?? "");
   const [stateAbbrev, setStateAbbrev] = useState(opportunity.state ?? "");
   const [cityLocation, setCityLocation] = useState("");
+  const [selectedAddress, setSelectedAddress] = useState<NominatimSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isDistrict = accountType === "district";
+
+  // Parse state from Nominatim display_name (last part before country is typically state)
+  const parseStateFromAddress = (displayName: string): string | null => {
+    const parts = displayName.split(",").map((p) => p.trim());
+    // Nominatim US format: "Street, City, County, State, Zip, United States"
+    // Try to find a 2-letter state abbreviation in the parts
+    for (const part of parts) {
+      const upper = part.toUpperCase();
+      if (US_STATES.includes(upper)) return upper;
+    }
+    return null;
+  };
+
+  // Parse city from Nominatim display_name (typically second part)
+  const parseCityFromAddress = (displayName: string): string | null => {
+    const parts = displayName.split(",").map((p) => p.trim());
+    // City is usually the first or second part
+    if (parts.length >= 2) return parts[1] || parts[0];
+    return parts[0] || null;
+  };
+
+  const handleAddressSelect = (suggestion: NominatimSuggestion) => {
+    if (!suggestion.display_name) {
+      setSelectedAddress(null);
+      return;
+    }
+    setSelectedAddress(suggestion);
+    setError(null);
+    // Auto-fill state and city from address
+    const parsedState = parseStateFromAddress(suggestion.display_name);
+    if (parsedState) setStateAbbrev(parsedState);
+    const parsedCity = parseCityFromAddress(suggestion.display_name);
+    if (parsedCity) setCityLocation(parsedCity);
+  };
+
   const createMutation = useMutation({
-    mutationFn: () => createDistrict({ leaid, name: name.trim(), stateAbbrev, cityLocation: cityLocation.trim() || undefined }),
+    mutationFn: () => {
+      if (isDistrict) {
+        return createDistrict({
+          leaid,
+          name: name.trim(),
+          stateAbbrev,
+          cityLocation: cityLocation.trim() || undefined,
+        });
+      }
+      return createAccount({
+        name: name.trim(),
+        accountType: accountType as string,
+        stateAbbrev,
+        city: cityLocation.trim() || undefined,
+        state: stateAbbrev || undefined,
+        lat: selectedAddress ? parseFloat(selectedAddress.lat) : undefined,
+        lng: selectedAddress ? parseFloat(selectedAddress.lon) : undefined,
+      });
+    },
     onSuccess: (district) => onCreated(district),
     onError: (err: Error) => setError(err.message),
   });
 
-  const isValid = /^\d{7}$/.test(leaid) && name.trim().length > 0 && stateAbbrev.length === 2;
+  const isValid = accountType !== "" &&
+    name.trim().length > 0 &&
+    stateAbbrev.length === 2 &&
+    (isDistrict ? /^\d{7}$/.test(leaid) : true);
 
   return (
     <div className="space-y-3">
@@ -551,73 +787,127 @@ function CreateDistrictForm({
         </div>
       )}
 
+      {/* Account Type */}
       <div>
         <label className="block text-xs font-medium text-[#544A78] mb-1">
-          NCES LEAID <span className="text-[#F37167]">*</span>
+          Account Type <span className="text-[#F37167]">*</span>
         </label>
-        <input
-          type="text"
-          value={leaid}
-          onChange={(e) => { setLeaid(e.target.value.replace(/\D/g, "").slice(0, 7)); setError(null); }}
-          placeholder="7-digit ID (e.g. 0100005)"
-          className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0] tabular-nums"
-        />
+        <div className="relative">
+          <select
+            value={accountType}
+            onChange={(e) => { setAccountType(e.target.value as AccountTypeValue | ""); setError(null); }}
+            className={`w-full px-3 pr-9 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#403770]/30 focus:border-[#403770] ${
+              accountType ? "text-[#403770]" : "text-[#A69DC0]"
+            }`}
+          >
+            <option value="">Select type...</option>
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+          <svg
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0] pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-[#544A78] mb-1">
-          District Name <span className="text-[#F37167]">*</span>
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => { setName(e.target.value); setError(null); }}
-          placeholder="e.g. Springfield Public Schools"
-          className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
-        />
-      </div>
+      {/* Conditional fields based on account type */}
+      {accountType && (
+        <>
+          {/* District: manual NCES LEAID */}
+          {isDistrict && (
+            <div>
+              <label className="block text-xs font-medium text-[#544A78] mb-1">
+                NCES LEAID <span className="text-[#F37167]">*</span>
+              </label>
+              <input
+                type="text"
+                value={leaid}
+                onChange={(e) => { setLeaid(e.target.value.replace(/\D/g, "").slice(0, 7)); setError(null); }}
+                placeholder="7-digit ID (e.g. 0100005)"
+                className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0] tabular-nums"
+              />
+            </div>
+          )}
 
-      <div className="flex gap-3">
-        <div className="w-28">
-          <label className="block text-xs font-medium text-[#544A78] mb-1">
-            State <span className="text-[#F37167]">*</span>
-          </label>
-          <div className="relative">
-            <select
-              value={stateAbbrev}
-              onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
-              className={`w-full px-3 pr-9 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent ${
-                stateAbbrev ? "text-[#403770]" : "text-[#A69DC0]"
-              }`}
-            >
-              <option value="">—</option>
-              {US_STATES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <svg
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0] pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+          {/* Non-district: auto-generated ID note */}
+          {!isDistrict && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#F7F5FA] border border-[#E2DEEC] rounded-lg">
+              <svg className="w-4 h-4 text-[#6EA3BE] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-xs text-[#8A80A8]">
+                ID will be auto-generated (M000XXX format)
+              </span>
+            </div>
+          )}
+
+          {/* Account Name */}
+          <div>
+            <label className="block text-xs font-medium text-[#544A78] mb-1">
+              {isDistrict ? "District Name" : "Account Name"} <span className="text-[#F37167]">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(null); }}
+              placeholder={isDistrict ? "e.g. Springfield Public Schools" : "e.g. Acme Learning Corp"}
+              className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+            />
           </div>
-        </div>
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-[#544A78] mb-1">
-            City
-          </label>
-          <input
-            type="text"
-            value={cityLocation}
-            onChange={(e) => setCityLocation(e.target.value)}
-            placeholder="Optional"
-            className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
-          />
-        </div>
-      </div>
+
+          {/* Address Search */}
+          <AddressSearchInput onSelect={handleAddressSelect} />
+
+          {/* State + City */}
+          <div className="flex gap-3">
+            <div className="w-28">
+              <label className="block text-xs font-medium text-[#544A78] mb-1">
+                State <span className="text-[#F37167]">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={stateAbbrev}
+                  onChange={(e) => { setStateAbbrev(e.target.value); setError(null); }}
+                  className={`w-full px-3 pr-9 py-2 text-sm border border-[#C2BBD4] rounded-lg bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent ${
+                    stateAbbrev ? "text-[#403770]" : "text-[#A69DC0]"
+                  }`}
+                >
+                  <option value="">—</option>
+                  {US_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <svg
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0] pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-[#544A78] mb-1">
+                City
+              </label>
+              <input
+                type="text"
+                value={cityLocation}
+                onChange={(e) => setCityLocation(e.target.value)}
+                placeholder="Optional"
+                className="w-full px-3 py-2 text-sm text-[#6E6390] border border-[#C2BBD4] rounded-lg focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 outline-none placeholder:text-[#A69DC0]"
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-end gap-2 pt-1">
         <button
@@ -691,7 +981,7 @@ function DistrictSearchModal({
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-lg font-semibold text-[#403770]">
-              {showCreate ? "Create New District" : "Resolve to District"}
+              {showCreate ? "Create New Account" : "Resolve to District"}
             </h3>
             <p className="text-sm text-[#8A80A8] mt-1">
               {opportunity.accountName}
@@ -710,7 +1000,7 @@ function DistrictSearchModal({
         </div>
 
         {showCreate ? (
-          <CreateDistrictForm
+          <CreateAccountForm
             opportunity={opportunity}
             onCreated={onSelect}
             onCancel={() => setShowCreate(false)}
@@ -842,7 +1132,7 @@ function DistrictSearchModal({
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Create new district
+                Create new account
               </button>
               <button
                 onClick={onClose}
