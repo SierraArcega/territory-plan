@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
   const mode = searchParams.get("mode");
 
   try {
+    // --- Mode: purge redistributed vacancies (vacancy.leaid != scan.leaid) ---
+    if (mode === "redistributed") {
+      return purgeRedistributed();
+    }
+
     // --- Mode: purge vacancies from unscoped shared AppliTrack boards ---
     if (mode === "shared-applitrack") {
       return purgeUnscopedSharedAppliTrack();
@@ -136,6 +141,39 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Purge all open vacancies that were redistributed from statewide board scans.
+ * Redistributed vacancies are identified by vacancy.leaid != scan.leaid —
+ * the vacancy belongs to a different district than the one that triggered the scan.
+ */
+async function purgeRedistributed() {
+  const result: { deleted: number }[] = await prisma.$queryRaw`
+    WITH redistributed AS (
+      SELECT v.id, v.leaid AS vacancy_district, vs.leaid AS scan_district
+      FROM vacancies v
+      JOIN vacancy_scans vs ON v.scan_id = vs.id
+      WHERE v.status = 'open'
+        AND v.leaid != vs.leaid
+    ),
+    deleted AS (
+      DELETE FROM vacancies
+      WHERE id IN (SELECT id FROM redistributed)
+      RETURNING id
+    )
+    SELECT COUNT(*)::int AS deleted FROM deleted
+  `;
+
+  const count = result[0]?.deleted ?? 0;
+
+  console.log(`[vacancy-hygiene] Redistributed purge: deleted ${count} vacancies`);
+
+  return NextResponse.json({
+    deleted: count,
+    mode: "redistributed",
+    description: "Deleted open vacancies where vacancy.leaid != scan.leaid (redistributed from statewide boards)",
+  });
 }
 
 /**
