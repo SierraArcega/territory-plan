@@ -51,6 +51,8 @@ const mockPlans: TerritoryPlan[] = [
     winbackRollup: 0,
     newBusinessRollup: 0,
     pipelineTotal: 0,
+    districtLeaids: [],
+    schoolNcesIds: [],
   },
   {
     id: "plan-2",
@@ -76,6 +78,8 @@ const mockPlans: TerritoryPlan[] = [
     winbackRollup: 0,
     newBusinessRollup: 0,
     pipelineTotal: 0,
+    districtLeaids: [],
+    schoolNcesIds: [],
   },
   {
     id: "plan-3",
@@ -101,6 +105,8 @@ const mockPlans: TerritoryPlan[] = [
     winbackRollup: 0,
     newBusinessRollup: 0,
     pipelineTotal: 0,
+    districtLeaids: [],
+    schoolNcesIds: [],
   },
 ];
 
@@ -471,6 +477,8 @@ function makePlan(overrides: Partial<TerritoryPlan> = {}): TerritoryPlan {
     winbackRollup: 0,
     newBusinessRollup: 0,
     pipelineTotal: 0,
+    districtLeaids: [],
+    schoolNcesIds: [],
     ...overrides,
   };
 }

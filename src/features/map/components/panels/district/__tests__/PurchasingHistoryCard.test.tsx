@@ -32,6 +32,7 @@ const mockFullmindData: FullmindData = {
   fy27OpenPipeline: 25000,
   fy27OpenPipelineWeighted: 15000,
   isCustomer: true,
+  hasOpenPipeline: true,
 };
 
 const mockCompetitorSpendResponse = {
