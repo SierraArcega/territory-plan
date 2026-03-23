@@ -149,6 +149,15 @@ export async function GET(
     const priorSameDateByDistrict = new Map(priorSameDatePacing.map((r) => [r.district_lea_id, r]));
     const priorFullByDistrict = new Map(priorFullPacing.map((r) => [r.district_lea_id, r]));
 
+    const renewalRollup = Number(plan.renewalRollup);
+    const expansionRollup = Number(plan.expansionRollup);
+    const winbackRollup = Number(plan.winbackRollup);
+    const newBusinessRollup = Number(plan.newBusinessRollup);
+    const pipelineTotal = currentRows.reduce((sum, r) => sum + Number(r.weighted_pipeline), 0);
+    const revenueActual = currentRows.reduce((sum, r) => sum + Number(r.total_revenue), 0);
+    const takeActual = currentRows.reduce((sum, r) => sum + Number(r.total_take), 0);
+    const totalEnrollment = plan.districts.reduce((sum, d) => sum + (d.district.enrollment ?? 0), 0);
+
     return NextResponse.json({
       id: plan.id,
       name: plan.name,
@@ -168,6 +177,17 @@ export async function GET(
       districtCount: plan.districts.length,
       districtLeaids: plan.districts.map((d) => d.districtLeaid),
       schoolNcesIds: [],
+      renewalRollup,
+      expansionRollup,
+      winbackRollup,
+      newBusinessRollup,
+      pipelineTotal,
+      revenueActual,
+      takeActual,
+      totalEnrollment,
+      stateCount: plan.states.length,
+      taskCount: 0,
+      completedTaskCount: 0,
       districts: plan.districts.map((pd) => {
         const curr = currentByDistrict.get(pd.districtLeaid);
         const prior = priorByDistrict.get(pd.districtLeaid);

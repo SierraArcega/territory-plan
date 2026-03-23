@@ -436,7 +436,7 @@ export default function HomeView() {
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
                   {goalMetrics.map((metric) => {
                     const percent = metric.target && metric.target > 0 ? Math.min((metric.current / metric.target) * 100, 100) : 0;
-                    const currentFmt = metric.format === "currency" ? formatCurrency(metric.current, true) : metric.current.toLocaleString();
+                    const currentFmt = metric.format === "currency" ? formatCurrency(metric.current, true) : (metric.current?.toLocaleString() ?? "0");
                     const targetFmt = metric.format === "currency" ? formatCurrency(metric.target, true) : metric.target?.toLocaleString() || "-";
                     return (
                       <div key={metric.label} className="flex flex-col items-center text-center">
