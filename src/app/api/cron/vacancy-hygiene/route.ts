@@ -43,7 +43,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const mode = searchParams.get("mode");
+
   try {
+    // --- Mode: purge vacancies from unscoped shared AppliTrack boards ---
+    if (mode === "shared-applitrack") {
+      return purgeUnscopedSharedAppliTrack();
+    }
+
     // Find districts where open vacancy count / enrollment > threshold
     const flagged: FlaggedDistrict[] = await prisma.$queryRaw`
       SELECT
@@ -129,4 +136,70 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Purge all open vacancies from districts on shared AppliTrack instances
+ * whose URLs lack applitrackclient scoping params. These districts pull
+ * the entire statewide board and redistribute via fuzzy matching, inflating
+ * vacancy counts across the state.
+ */
+async function purgeUnscopedSharedAppliTrack() {
+  // Step 1: Find shared AppliTrack instances (2+ districts share the same base path)
+  const sharedInstances: { instance: string }[] = await prisma.$queryRaw`
+    SELECT LOWER(SUBSTRING(job_board_url FROM 'applitrack.com/([^/]+)')) as instance
+    FROM districts
+    WHERE job_board_url LIKE '%applitrack.com%'
+    GROUP BY LOWER(SUBSTRING(job_board_url FROM 'applitrack.com/([^/]+)'))
+    HAVING COUNT(*) > 1
+  `;
+
+  const sharedNames = new Set(sharedInstances.map((r) => r.instance).filter(Boolean));
+
+  // Step 2: Find districts on those shared instances WITHOUT applitrackclient param
+  const allAppliTrack = await prisma.district.findMany({
+    where: { jobBoardUrl: { contains: "applitrack.com" } },
+    select: { leaid: true, name: true, jobBoardUrl: true },
+  });
+
+  const unscopedLeaids: string[] = [];
+  for (const d of allAppliTrack) {
+    if (!d.jobBoardUrl) continue;
+    try {
+      const url = new URL(d.jobBoardUrl);
+      const pathMatch = url.pathname.toLowerCase().match(/^\/([^/]+)\//);
+      const instance = pathMatch?.[1];
+      if (instance && sharedNames.has(instance) && !url.searchParams.has("applitrackclient")) {
+        unscopedLeaids.push(d.leaid);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  if (unscopedLeaids.length === 0) {
+    return NextResponse.json({
+      deleted: 0,
+      districtsAffected: 0,
+      message: "No unscoped shared AppliTrack districts found",
+    });
+  }
+
+  // Step 3: Delete all open vacancies for these districts
+  const result = await prisma.vacancy.deleteMany({
+    where: {
+      leaid: { in: unscopedLeaids },
+      status: "open",
+    },
+  });
+
+  console.log(
+    `[vacancy-hygiene] Shared AppliTrack purge: deleted ${result.count} vacancies from ${unscopedLeaids.length} districts`
+  );
+
+  return NextResponse.json({
+    deleted: result.count,
+    districtsAffected: unscopedLeaids.length,
+    sharedInstances: [...sharedNames],
+  });
 }
