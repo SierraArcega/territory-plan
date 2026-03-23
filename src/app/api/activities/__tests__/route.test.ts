@@ -31,7 +31,8 @@ vi.mock("@/features/calendar/lib/push", () => ({
 }));
 
 import prisma from "@/lib/prisma";
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 
 import { GET as listActivities, POST } from "../route";
 import { GET as getActivity, PATCH, DELETE } from "../[id]/route";
@@ -39,7 +40,7 @@ import { GET as getActivity, PATCH, DELETE } from "../[id]/route";
 const TEST_USER = { id: "user-1", email: "test@example.com" };
 
 function makeRequest(url: string, init?: RequestInit) {
-  return new NextRequest(new URL(url, "http://localhost:3000"), init);
+  return new NextRequest(new URL(url, "http://localhost:3000"), init as never);
 }
 
 // Helper to build a raw activity row as Prisma would return from findMany (list view)
