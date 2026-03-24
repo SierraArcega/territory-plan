@@ -9,6 +9,11 @@ interface SchoolSpringJob {
   title: string;
   location: string;
   displayDate: string;
+  // The API may return a direct URL — prefer it over constructed URLs
+  url?: string;
+  jobUrl?: string;
+  detailUrl?: string;
+  link?: string;
 }
 
 interface SchoolSpringResponse {
@@ -116,13 +121,21 @@ export async function parseSchoolSpring(url: string): Promise<RawVacancy[]> {
 
   console.log(`[schoolspring] Fetched ${allJobs.length} jobs from API for ${hostname}`);
 
-  return allJobs.map((job) => ({
-    title: job.title,
-    employerName: job.employer || undefined,
-    schoolName: job.location || undefined,
-    datePosted: job.displayDate
-      ? new Date(job.displayDate).toLocaleDateString("en-US")
-      : undefined,
-    sourceUrl: `https://${hostname}/jobdetail/${job.jobId}`,
-  }));
+  return allJobs.map((job) => {
+    // Prefer any API-provided URL over a constructed one
+    const apiProvidedUrl =
+      job.url || job.jobUrl || job.detailUrl || job.link || null;
+    const sourceUrl =
+      apiProvidedUrl || `https://${hostname}/job/${job.jobId}`;
+
+    return {
+      title: job.title,
+      employerName: job.employer || undefined,
+      schoolName: job.location || undefined,
+      datePosted: job.displayDate
+        ? new Date(job.displayDate).toLocaleDateString("en-US")
+        : undefined,
+      sourceUrl,
+    };
+  });
 }
