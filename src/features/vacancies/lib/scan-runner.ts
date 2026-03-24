@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { detectPlatform, isStatewideBoard, loadSharedAppliTrackInstances } from "./platform-detector";
+import { detectPlatform, isStatewideBoardAsync } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
 import { parseWithPlaywright } from "./parsers/playwright-fallback";
@@ -57,14 +57,11 @@ export async function runScan(scanId: string): Promise<void> {
       return;
     }
 
-    // Step 2: Set status to running + warm shared AppliTrack cache
-    await Promise.all([
-      prisma.vacancyScan.update({
-        where: { id: scanId },
-        data: { status: "running" },
-      }),
-      loadSharedAppliTrackInstances(),
-    ]);
+    // Step 2: Set status to running
+    await prisma.vacancyScan.update({
+      where: { id: scanId },
+      data: { status: "running" },
+    });
 
     // Step 3: Detect platform
     const platform = detectPlatform(scan.district.jobBoardUrl);
@@ -123,7 +120,8 @@ export async function runScan(scanId: string): Promise<void> {
     }
 
     // Step 5: Post-process
-    if (isStatewideBoard(platform, scan.district.jobBoardUrl) && rawVacancies.length > 0) {
+    const isStwide = await isStatewideBoardAsync(platform, scan.district.jobBoardUrl);
+    if (isStwide && rawVacancies.length > 0) {
       // State-wide board: process THIS district's jobs first (fast),
       // then redistribute the rest in the background.
       const { ownJobs, otherJobs, districtsMatched } = groupByDistrict(
@@ -163,24 +161,23 @@ export async function runScan(scanId: string): Promise<void> {
         });
       }
     } else {
-      // Safety check: if an unknown platform returns a suspicious number of
-      // vacancies relative to district size, skip importing — it's likely a
-      // regional aggregator, not a district job board.
-      if (platform === "unknown" && rawVacancies.length > 100) {
-        const enrollment = scan.district.enrollment ?? 0;
-        // A district with <5,000 students shouldn't have 100+ vacancies
-        // Large districts (5k+) could legitimately have that many
-        if (enrollment < 5000) {
+      // Safety check: if ANY platform returns a suspicious number of vacancies
+      // relative to district size, skip importing — it's likely a regional
+      // aggregator that wasn't detected as shared.
+      const enrollment = scan.district.enrollment ?? 0;
+      if (rawVacancies.length > 100 && enrollment > 0 && enrollment < 5000) {
+        const ratio = rawVacancies.length / enrollment;
+        if (ratio > 0.5) {
           console.warn(
-            `[scan-runner] Suspicious: ${rawVacancies.length} vacancies from unknown platform ` +
-            `for ${scan.district.name} (enrollment: ${enrollment}). Skipping.`
+            `[scan-runner] Suspicious: ${rawVacancies.length} vacancies from "${platform}" ` +
+            `for ${scan.district.name} (enrollment: ${enrollment}, ratio: ${ratio.toFixed(2)}). Skipping.`
           );
           await prisma.vacancyScan.update({
             where: { id: scanId },
             data: {
               status: "completed_partial",
               vacancyCount: 0,
-              errorMessage: `Skipped: ${rawVacancies.length} vacancies from unknown platform looks like a regional aggregator (enrollment: ${enrollment})`,
+              errorMessage: `Skipped: ${rawVacancies.length} vacancies looks like a regional aggregator (enrollment: ${enrollment}, ratio: ${ratio.toFixed(2)})`,
               completedAt: new Date(),
             },
           });
@@ -363,13 +360,19 @@ function groupByDistrict(
     const normEmployer = normalizeForMatch(job.employerName);
 
     // Check if it matches the scanning district
-    const tooShort = !normEmployer || !normSource ||
-      normEmployer.length < MIN_NAME_LENGTH_FOR_FUZZY ||
-      normSource.length < MIN_NAME_LENGTH_FOR_FUZZY;
-    const isOwn = tooShort ||
-      normEmployer.includes(normSource) ||
-      normSource.includes(normEmployer) ||
-      diceCoefficient(normEmployer, normSource) >= REDISTRIBUTION_DICE_THRESHOLD;
+    let isOwn: boolean;
+    if (!normEmployer || !normSource) {
+      // Can't compare — benefit of the doubt
+      isOwn = true;
+    } else if (normEmployer.length < MIN_NAME_LENGTH_FOR_FUZZY || normSource.length < MIN_NAME_LENGTH_FOR_FUZZY) {
+      // Short names (e.g., "waco", "bath") — only exact match, no fuzzy
+      isOwn = normEmployer === normSource;
+    } else {
+      isOwn =
+        normEmployer.includes(normSource) ||
+        normSource.includes(normEmployer) ||
+        diceCoefficient(normEmployer, normSource) >= REDISTRIBUTION_DICE_THRESHOLD;
+    }
 
     if (isOwn) {
       ownJobs.push(job);

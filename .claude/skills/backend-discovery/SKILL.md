@@ -18,16 +18,22 @@ Explores the backend architecture before implementation. Produces a structured c
 - **Feature description** — what the feature needs from the backend
 - **Slug and date** (optional) — for naming the output file when invoked by the orchestrator
 
+## Context Bootstrapping
+
+Before exploring, read these for a warm start:
+- `docs/architecture.md` — feature map, entry points, cross-feature dependencies
+- `docs/architecture.md` § "Key Metrics" — Fullmind's sales funnel metrics and how they map to DB columns
+- `Documentation/.md Files/TECHSTACK.md` § "Database" and "API Layer" — schema overview, connection patterns, route structure
+
+This gives you the project's conventions before you grep. Your job is to discover **feature-specific** context that these general docs don't cover.
+
 ## Process
 
 ### 1. Explore Data Models
 
-Read the database schema to find relevant models:
-
-```bash
-# Find schema files
-find . -name "schema.prisma" -o -name "schema.ts" -o -name "*.schema.ts" | head -5
-```
+Schema is at `prisma/schema.prisma`. Prisma client at `src/lib/prisma.ts`,
+raw SQL pool at `src/lib/db.ts`. Grep the schema for models relevant to
+the feature — don't read the whole file.
 
 For each relevant model, document: name, key fields, relationships, and any custom types or enums.
 

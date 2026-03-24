@@ -22,6 +22,12 @@ This is a **code-level audit** — it reads `.tsx` files and checks Tailwind cla
 - **Paper prototype node IDs** (optional) — if a Paper prototype was created during design exploration
 - **Feature spec path** (optional) — for understanding what was intended
 
+## Context Bootstrapping
+
+Before auditing, read:
+- `docs/architecture.md` § "Key Patterns" — understand where shared components live so you can check for reuse violations
+- `docs/architecture.md` § "Shared Components" — exact paths to DataGrid, filters, format utilities
+
 ## Process
 
 ### 1. Read the Implemented Code

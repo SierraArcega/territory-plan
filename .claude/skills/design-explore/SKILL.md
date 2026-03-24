@@ -22,6 +22,14 @@ Before starting, you need:
 
 If invoked standalone, gather these by asking the user and running the `frontend-design` discovery workflow.
 
+## Context Bootstrapping
+
+Before prototyping, read:
+- `docs/architecture.md` — understand where this feature fits in the app, what panels/pages exist, cross-feature dependencies
+- `docs/architecture.md` § "Key Metrics" — if the feature involves financial data, understand the sales funnel and metric names
+
+This prevents proposing layouts that conflict with the existing app structure.
+
 ## Process
 
 ### 1. Analyze Requirements

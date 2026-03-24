@@ -41,10 +41,11 @@ Every `_foundations.md` has a **decision tree** that routes you to the right spe
 
 ### Step 2 — Check existing components
 
-Before creating anything new, search for what already exists:
+Before creating anything new, search for what already exists. Read
+`docs/architecture.md` § "Shared Components" for the full inventory, then:
 
-- `src/components/common/` — shared UI primitives
-- `src/features/shared/components/` — shared feature components (forms, InlineEditCell)
+- `src/features/shared/components/` — shared feature components (DataGrid, InlineEditCell, filters, layout, navigation)
+- `src/features/shared/lib/` — shared utilities (format.ts, cn.ts, date-utils.ts)
 - `src/features/*/components/` — feature-specific components
 
 Use Glob and Grep to find existing implementations. Reuse and extend before creating.

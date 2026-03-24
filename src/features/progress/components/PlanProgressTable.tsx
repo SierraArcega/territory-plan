@@ -45,9 +45,38 @@ type CategoryKey = keyof typeof CATEGORY_COLORS;
 const CATEGORY_KEYS: CategoryKey[] = ["renewal", "expansion", "winback", "newBusiness"];
 const CATEGORY_HEADERS = ["Renewal", "Expansion", "Winback", "New Biz"];
 
+// Column tooltip descriptions
+const COLUMN_TOOLTIPS: Record<string, string> = {
+  "Plan / District / Opp": "Territory plan, school district, or sales opportunity",
+  Owner: "Team member assigned to this territory plan",
+  Renewal: "Revenue from renewing existing contracts — actual vs target",
+  Expansion: "Revenue from expanding services in existing accounts — actual vs target",
+  Winback: "Revenue from winning back former customers — actual vs target",
+  "New Biz": "Revenue from acquiring new business accounts — actual vs target",
+  Revenue: "Total combined revenue across all categories — actual vs target",
+  Take: "Current take rate — the Fullmind revenue share per student",
+};
+
+// Shared class for sticky first-column cells
+const STICKY_COL_SHADOW = "[box-shadow:2px_0_4px_-2px_rgba(0,0,0,0.06)]";
+
 // ---------------------------------------------------------------------------
 // Tiny sub-components
 // ---------------------------------------------------------------------------
+
+function HeaderTooltip({ label, description }: { label: string; description: string }) {
+  return (
+    <div className="group/tip relative inline-flex items-center gap-1 cursor-help">
+      <span>{label}</span>
+      <svg className="w-3 h-3 opacity-0 group-hover/tip:opacity-60 transition-opacity duration-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-52 px-3 py-2 text-[11px] font-normal normal-case tracking-normal text-gray-600 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 opacity-0 scale-95 group-hover/tip:opacity-100 group-hover/tip:scale-100 transition-all duration-150 origin-top">
+        {description}
+      </div>
+    </div>
+  );
+}
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
@@ -121,7 +150,6 @@ function OwnerCell({ owner }: { owner: PlanProgress["owner"] }) {
 }
 
 function StageBadge({ stage }: { stage: string }) {
-  // Derive a color based on common stage names
   let bg = "bg-gray-100";
   let text = "text-gray-600";
   const lower = stage.toLowerCase();
@@ -173,7 +201,7 @@ function WarningIcon() {
 function OpportunityRow({ opp }: { opp: OpportunityItem }) {
   return (
     <tr className="border-b border-gray-50 last:border-b-0">
-      <td className="pl-16 pr-4 py-2">
+      <td className={`pl-16 pr-4 py-2 sticky left-0 z-10 bg-white ${STICKY_COL_SHADOW}`}>
         <a
           href={`https://lms.fullmindlearning.com/opportunities/${opp.id}`}
           target="_blank"
@@ -190,7 +218,6 @@ function OpportunityRow({ opp }: { opp: OpportunityItem }) {
       <td className="px-3 py-2">
         <StageBadge stage={opp.stage} />
       </td>
-      {/* Span across the four category columns */}
       <td colSpan={4} />
       <td className="px-3 py-2 text-right">
         <span className="text-[12px] tabular-nums text-gray-500">
@@ -240,10 +267,10 @@ function DistrictRows({
   return (
     <>
       <tr
-        className={`border-b border-gray-100 bg-gray-50/40 transition-colors hover:bg-gray-100/60 ${hasOpps ? "cursor-pointer" : ""}`}
+        className={`border-b border-gray-100 bg-[#FAFAFA] transition-colors hover:bg-gray-100/60 ${hasOpps ? "cursor-pointer" : ""}`}
         onClick={() => hasOpps && toggleDistrict(district.leaid)}
       >
-        <td className="pl-10 pr-4 py-2.5">
+        <td className={`pl-10 pr-4 py-2.5 sticky left-0 z-10 bg-[#FAFAFA] ${STICKY_COL_SHADOW}`}>
           <div className="flex items-center gap-2">
             {hasOpps && <ChevronIcon expanded={isExpanded} />}
             {!hasOpps && <div className="w-4" />}
@@ -325,7 +352,7 @@ function PlanRows({
         className="border-b border-gray-200 bg-white hover:bg-gray-50/50 cursor-pointer transition-colors"
         onClick={() => togglePlan(plan.id)}
       >
-        <td className="px-4 py-3">
+        <td className={`px-4 py-3 sticky left-0 z-10 bg-white ${STICKY_COL_SHADOW}`}>
           <div className="flex items-center gap-2.5">
             <ChevronIcon expanded={isExpanded} />
             <span
@@ -407,10 +434,10 @@ function UnmappedDistrictRows({
   return (
     <>
       <tr
-        className={`border-b border-gray-100 bg-amber-50/30 hover:bg-amber-50/60 transition-colors ${hasOpps ? "cursor-pointer" : ""}`}
+        className={`border-b border-gray-100 bg-[#FFF9ED] hover:bg-amber-50/60 transition-colors ${hasOpps ? "cursor-pointer" : ""}`}
         onClick={() => hasOpps && toggleDistrict(district.leaid)}
       >
-        <td className="pl-10 pr-4 py-2.5">
+        <td className={`pl-10 pr-4 py-2.5 sticky left-0 z-10 bg-[#FFF9ED] ${STICKY_COL_SHADOW}`}>
           <div className="flex items-center gap-2">
             {hasOpps && <ChevronIcon expanded={isExpanded} />}
             {!hasOpps && <div className="w-4" />}
@@ -481,67 +508,47 @@ export default function PlanProgressTable({ plans, unmapped, onPlanClick }: Plan
   };
 
   return (
-    <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
-      <div className="overflow-x-auto">
+    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm">
+      {/* Scrollable table region — both axes */}
+      <div className="overflow-auto max-h-[70vh]">
         <table className="min-w-full">
-          {/* ---- Header ---- */}
+          {/* ---- Header — sticky top + frozen first col ---- */}
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50/80">
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[240px]">
-                Plan / District / Opp
+            <tr className="border-b border-[#D4CFE2] bg-[#F7F5FA]">
+              {/* Corner cell: sticky top AND left */}
+              <th className={`px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[240px] sticky top-0 left-0 z-30 bg-[#F7F5FA] ${STICKY_COL_SHADOW}`}>
+                <HeaderTooltip label="Plan / District / Opp" description={COLUMN_TOOLTIPS["Plan / District / Opp"]} />
               </th>
-              <th className="px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">
-                Owner
+              <th className="px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[140px] sticky top-0 z-20 bg-[#F7F5FA]">
+                <HeaderTooltip label="Owner" description={COLUMN_TOOLTIPS.Owner} />
               </th>
               {CATEGORY_HEADERS.map((label, i) => (
                 <th
                   key={label}
-                  className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-wider min-w-[160px]"
+                  className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-wider min-w-[160px] sticky top-0 z-20 bg-[#F7F5FA]"
                   style={{ color: CATEGORY_COLORS[CATEGORY_KEYS[i]] }}
                 >
-                  {label}
+                  <HeaderTooltip label={label} description={COLUMN_TOOLTIPS[label]} />
                 </th>
               ))}
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[120px]">
-                Revenue
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[120px] sticky top-0 z-20 bg-[#F7F5FA]">
+                <HeaderTooltip label="Revenue" description={COLUMN_TOOLTIPS.Revenue} />
               </th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[100px]">
-                Take
+              <th className="px-3 py-3 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wider min-w-[100px] sticky top-0 z-20 bg-[#F7F5FA]">
+                <HeaderTooltip label="Take" description={COLUMN_TOOLTIPS.Take} />
               </th>
             </tr>
           </thead>
 
-          {/* ---- Plan rows ---- */}
-          <tbody>
-            {plans.map((plan) => (
-              <PlanRows
-                key={plan.id}
-                plan={plan}
-                expandedPlans={expandedPlans}
-                expandedDistricts={expandedDistricts}
-                togglePlan={togglePlan}
-                toggleDistrict={toggleDistrict}
-                onPlanClick={onPlanClick}
-              />
-            ))}
-          </tbody>
-
-          {/* ---- Unmapped section ---- */}
+          {/* ---- Unmapped section FIRST ---- */}
           {unmapped.districtCount > 0 && (
             <tbody>
-              {/* Dashed separator */}
-              <tr>
-                <td colSpan={8} className="px-4 py-0">
-                  <div className="border-t-2 border-dashed border-gray-200" />
-                </td>
-              </tr>
-
               {/* Unmapped header row */}
               <tr
-                className="bg-amber-50/50 hover:bg-amber-50/80 cursor-pointer transition-colors border-b border-gray-200"
+                className="bg-[#FEF3C7]/50 hover:bg-[#FEF3C7]/80 cursor-pointer transition-colors border-b border-gray-200"
                 onClick={() => setUnmappedExpanded((v) => !v)}
               >
-                <td className="px-4 py-3">
+                <td className={`px-4 py-3 sticky left-0 z-10 bg-[#FEF7E0] ${STICKY_COL_SHADOW}`}>
                   <div className="flex items-center gap-2.5">
                     <ChevronIcon expanded={unmappedExpanded} />
                     <WarningIcon />
@@ -580,8 +587,32 @@ export default function PlanProgressTable({ plans, unmapped, onPlanClick }: Plan
                     toggleDistrict={toggleDistrict}
                   />
                 ))}
+
+              {/* Dashed separator between unmapped and plans */}
+              {plans.length > 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-0">
+                    <div className="border-t-2 border-dashed border-gray-200" />
+                  </td>
+                </tr>
+              )}
             </tbody>
           )}
+
+          {/* ---- Plan rows ---- */}
+          <tbody>
+            {plans.map((plan) => (
+              <PlanRows
+                key={plan.id}
+                plan={plan}
+                expandedPlans={expandedPlans}
+                expandedDistricts={expandedDistricts}
+                togglePlan={togglePlan}
+                toggleDistrict={toggleDistrict}
+                onPlanClick={onPlanClick}
+              />
+            ))}
+          </tbody>
         </table>
       </div>
 

@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { detectPlatform, isStatewideBoard } from "../platform-detector";
+import { describe, it, expect, vi } from "vitest";
+import { detectPlatform, isStatewideBoard, isStatewideBoardAsync } from "../platform-detector";
+
+vi.mock("@/lib/prisma", () => ({
+  default: {
+    $queryRaw: vi.fn().mockResolvedValue([]),
+  },
+}));
 
 describe("detectPlatform", () => {
   describe("known platforms", () => {
@@ -114,5 +120,29 @@ describe("isStatewideBoard", () => {
 
   it("returns false for unknown", () => {
     expect(isStatewideBoard("unknown")).toBe(false);
+  });
+});
+
+describe("isStatewideBoardAsync", () => {
+  it("returns true for olas without needing cache", async () => {
+    expect(await isStatewideBoardAsync("olas")).toBe(true);
+  });
+
+  it("returns true for schoolspring without needing cache", async () => {
+    expect(await isStatewideBoardAsync("schoolspring")).toBe(true);
+  });
+
+  it("returns false for unknown", async () => {
+    expect(await isStatewideBoardAsync("unknown")).toBe(false);
+  });
+
+  it("returns false for applitrack without URL", async () => {
+    expect(await isStatewideBoardAsync("applitrack")).toBe(false);
+  });
+
+  it("returns false for applitrack with a non-shared instance URL", async () => {
+    expect(
+      await isStatewideBoardAsync("applitrack", "https://www.applitrack.com/nonexistent-instance-xyz/onlineapp/")
+    ).toBe(false);
   });
 });
