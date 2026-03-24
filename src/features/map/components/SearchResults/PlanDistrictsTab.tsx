@@ -481,45 +481,45 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
         ) : (
           <>
             {/* Combined Revenue & Sessions row */}
-            <div
-              className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 border-b border-[#f0edf5] ${hasBreakdown ? "cursor-pointer hover:bg-[#FAFAFE]" : ""}`}
-              onClick={hasBreakdown ? () => setIsExpanded(!isExpanded) : undefined}
-            >
-              <span className="px-2 text-[10px] text-[#6E6390] font-medium flex items-center gap-1">
-                {hasBreakdown && (
-                  <svg
-                    width="6"
-                    height="6"
-                    viewBox="0 0 6 6"
-                    className={`shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                  >
-                    <path d="M1.5 0.5L4.5 3L1.5 5.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" />
-                  </svg>
-                )}
-                Revenue &amp; Sessions
-              </span>
-              <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">
-                {fmtCombined(pacing.currentRevenue, pacing.currentSessions)}
-              </span>
-              <div className="px-2 text-center border-l border-[#f0edf5]">
-                <span className="text-[10px] text-[#8A80A8] tabular-nums">
-                  {fmtCombined(pacing.priorSameDateRevenue, pacing.priorSameDateSessions)}{" "}
-                </span>
-                {(() => {
-                  const badge = getPaceBadge(pacing.currentRevenue, pacing.priorSameDateRevenue);
-                  return badge ? <span className={`text-[7px] px-1 py-0.5 rounded ${badge.bg} ${badge.text} font-semibold`}>{badge.label}</span> : null;
-                })()}
-              </div>
-              <div className="px-2 text-center border-l border-[#f0edf5]">
-                <span className="text-[10px] text-[#8A80A8] tabular-nums">
-                  {fmtCombined(pacing.priorFullRevenue, pacing.priorFullSessions)}{" "}
-                </span>
-                {(() => {
-                  const badge = getPercentOfBadge(pacing.currentRevenue, pacing.priorFullRevenue);
-                  return badge ? <span className={`text-[7px] px-1 py-0.5 rounded ${badge.bg} ${badge.text} font-semibold`}>{badge.label}</span> : null;
-                })()}
-              </div>
-            </div>
+            {(() => {
+              const revPaceBadge = getPaceBadge(pacing.currentRevenue, pacing.priorSameDateRevenue);
+              const revPctBadge = getPercentOfBadge(pacing.currentRevenue, pacing.priorFullRevenue);
+              return (
+                <div
+                  className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 border-b border-[#f0edf5] ${hasBreakdown ? "cursor-pointer hover:bg-[#FAFAFE]" : ""}`}
+                  onClick={hasBreakdown ? () => setIsExpanded(!isExpanded) : undefined}
+                >
+                  <span className="px-2 text-[10px] text-[#6E6390] font-medium flex items-center gap-1">
+                    {hasBreakdown && (
+                      <svg
+                        width="6"
+                        height="6"
+                        viewBox="0 0 6 6"
+                        className={`shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                      >
+                        <path d="M1.5 0.5L4.5 3L1.5 5.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" />
+                      </svg>
+                    )}
+                    Revenue &amp; Sessions
+                  </span>
+                  <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">
+                    {fmtCombined(pacing.currentRevenue, pacing.currentSessions)}
+                  </span>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <span className="text-[10px] text-[#8A80A8] tabular-nums">
+                      {fmtCombined(pacing.priorSameDateRevenue, pacing.priorSameDateSessions)}{" "}
+                    </span>
+                    {revPaceBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${revPaceBadge.bg} ${revPaceBadge.text} font-semibold`}>{revPaceBadge.label}</span>}
+                  </div>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <span className="text-[10px] text-[#8A80A8] tabular-nums">
+                      {fmtCombined(pacing.priorFullRevenue, pacing.priorFullSessions)}{" "}
+                    </span>
+                    {revPctBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${revPctBadge.bg} ${revPctBadge.text} font-semibold`}>{revPctBadge.label}</span>}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Service type sub-rows (expanded) */}
             {isExpanded && hasBreakdown && pacing.serviceTypeBreakdown!.map((st) => {
