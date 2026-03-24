@@ -299,6 +299,8 @@ interface MapV2State {
   searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
   searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
   exploreModalLeaid: string | null; // leaid of district currently shown in explore modal
+  exploreModalTab: string | null; // initial tab to open in explore modal
+  exploreModalVacancyId: string | null; // vacancy to highlight in explore modal
 
   // Overlay layers (map planning overlays)
   activeLayers: Set<OverlayLayerType>;
@@ -309,6 +311,7 @@ interface MapV2State {
   // Unified layer control
   colorBy: ColorDimension;
   activeResultsTab: LayerType;
+  pinnedVacancyIds: string[] | null;
 
   // Geography filters
   geographyFilters: { states: string[]; zipRadius: { zip: string; radius: number } | null };
@@ -471,7 +474,7 @@ interface MapV2Actions {
   toggleSearchResults: () => void;
   setSearchResultLeaids: (leaids: string[]) => void;
   setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
-  setExploreModalLeaid: (leaid: string | null) => void;
+  setExploreModalLeaid: (leaid: string | null, tab?: string | null, vacancyId?: string | null) => void;
 
   // Overlay layers (map planning overlays)
   toggleLayer: (layer: OverlayLayerType) => void;
@@ -482,6 +485,7 @@ interface MapV2Actions {
   // Unified layer control
   setColorBy: (dimension: ColorDimension) => void;
   setActiveResultsTab: (tab: LayerType) => void;
+  setPinnedVacancyIds: (ids: string[] | null) => void;
   openResultsPanel: (tab: LayerType) => void;
 
   // Geography filters
@@ -652,6 +656,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   isSearchActive: false,
   searchResultsVisible: false,
   exploreModalLeaid: null,
+  exploreModalTab: null,
+  exploreModalVacancyId: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
 
@@ -672,6 +678,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   // Unified layer control
   colorBy: "engagement" as ColorDimension,
   activeResultsTab: "districts" as LayerType,
+  pinnedVacancyIds: null,
 
   // Geography filters
   geographyFilters: { states: [] as string[], zipRadius: null as { zip: string; radius: number } | null },
@@ -1344,7 +1351,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({ searchFilterModes: { ...s.searchFilterModes, [domain]: mode } })),
   setSearchBounds: (bounds) => set({ searchBounds: bounds }),
   toggleSearchResults: () => set((s) => ({ searchResultsVisible: !s.searchResultsVisible })),
-  setExploreModalLeaid: (leaid) => set({ exploreModalLeaid: leaid }),
+  setExploreModalLeaid: (leaid, tab, vacancyId) => set({ exploreModalLeaid: leaid, exploreModalTab: tab ?? null, exploreModalVacancyId: vacancyId ?? null }),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
   setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
 
@@ -1382,7 +1389,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
 
   // Unified layer control
   setColorBy: (dimension) => set({ colorBy: dimension }),
-  setActiveResultsTab: (tab) => set({ activeResultsTab: tab }),
+  setActiveResultsTab: (tab) => set({ activeResultsTab: tab, pinnedVacancyIds: null }),
+  setPinnedVacancyIds: (ids) => set({ pinnedVacancyIds: ids }),
   openResultsPanel: (tab) => set({ searchResultsVisible: true, activeResultsTab: tab }),
 
   // Geography filters

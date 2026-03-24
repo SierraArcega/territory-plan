@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import type { FeatureCollection, Point, Feature } from "geojson";
+import { useMapV2Store } from "@/features/map/lib/store";
 import VacancyCard from "./VacancyCard";
 
 interface VacanciesTabProps {
@@ -31,11 +33,21 @@ function SkeletonCards() {
 }
 
 export default function VacanciesTab({ data, isLoading }: VacanciesTabProps) {
-  const features = data?.features ?? [];
+  const pinnedVacancyIds = useMapV2Store((s) => s.pinnedVacancyIds);
+  const setPinnedVacancyIds = useMapV2Store((s) => s.setPinnedVacancyIds);
+  const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
+
+  const allFeatures = data?.features ?? [];
+
+  const features = useMemo(() => {
+    if (!pinnedVacancyIds) return allFeatures;
+    const pinned = new Set(pinnedVacancyIds);
+    return allFeatures.filter((f) => pinned.has(String(f.properties?.id)));
+  }, [allFeatures, pinnedVacancyIds]);
 
   if (isLoading) return <SkeletonCards />;
 
-  if (features.length === 0) {
+  if (features.length === 0 && !pinnedVacancyIds) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
         <svg className="w-9 h-9 text-[#C2BBD4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,10 +60,31 @@ export default function VacanciesTab({ data, isLoading }: VacanciesTabProps) {
 
   return (
     <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      {pinnedVacancyIds && (
+        <div className="flex items-center justify-between rounded-lg bg-[#F7F5FA] px-3 py-2 mb-1">
+          <p className="text-xs text-[#403770]">
+            <span className="font-semibold">{pinnedVacancyIds.length} vacancies</span>{" "}
+            <span className="text-[#8A80A8]">in cluster</span>
+          </p>
+          <button
+            onClick={() => setPinnedVacancyIds(null)}
+            className="text-xs font-medium text-[#403770] hover:text-[#5B4E91] transition-colors cursor-pointer"
+          >
+            Show all
+          </button>
+        </div>
+      )}
       {features.map((feature, i) => (
         <VacancyCard
           key={feature.properties?.id ?? feature.id ?? i}
           feature={feature as Feature<Point>}
+          onClick={() =>
+            setExploreModalLeaid(
+              feature.properties?.leaid,
+              "vacancies",
+              feature.properties?.id
+            )
+          }
         />
       ))}
     </div>

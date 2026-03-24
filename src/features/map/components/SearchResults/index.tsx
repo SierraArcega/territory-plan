@@ -270,6 +270,20 @@ export default function SearchResults() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlayDerivedLeaids, isSearchActive]);
 
+  // Fetch districts selected via map clicks (when no search/overlay is driving results)
+  useEffect(() => {
+    if (isSearchActive || overlayDerivedLeaids) return;
+    if (selectedDistrictLeaids.size === 0) {
+      setDistricts([]);
+      setTotal(0);
+      setTotalPages(0);
+      return;
+    }
+    setPage(1);
+    fetchResults(1, [...selectedDistrictLeaids]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDistrictLeaids, isSearchActive, overlayDerivedLeaids]);
+
   // Re-fetch when bounds change (pan/zoom) — no fitBounds to avoid loop
   useEffect(() => {
     if (!isSearchActive || !searchBounds) return;
@@ -458,7 +472,7 @@ export default function SearchResults() {
   }, [total, activeLayers, plansQuery.data, filteredContacts, filteredVacancies, filteredActivities]);
 
   const showingOverlayTab = activeResultsTab !== "districts";
-  const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null;
+  const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null || selectedDistrictLeaids.size > 0;
 
   const selectedCount = selectedDistrictLeaids.size;
 
@@ -860,6 +874,7 @@ export default function SearchResults() {
           onNext={canGoNext ? handleExploreNext : undefined}
           currentIndex={currentExploreIndex}
           totalCount={districts.length}
+          initialTab={useMapV2Store.getState().exploreModalTab as "fullmind" | "competitors" | "finance" | "demographics" | "academics" | "contacts" | "schools" | "vacancies" | undefined}
         />,
         document.body
       )}

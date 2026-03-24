@@ -1103,7 +1103,7 @@ export default function MapV2Container({
         }
       }
 
-      // --- Overlay cluster clicks — zoom into the cluster ---
+      // --- Overlay cluster clicks — extract leaves or zoom into the cluster ---
       const overlayClusterLayers = ALL_OVERLAY_CLUSTER_LAYERS.filter(
         (id) => map.current!.getLayer(id)
       );
@@ -1117,17 +1117,46 @@ export default function MapV2Container({
           const sourceId = feature.source;
           if (clusterId !== undefined && sourceId) {
             const source = map.current.getSource(sourceId) as maplibregl.GeoJSONSource;
-            source.getClusterExpansionZoom(clusterId).then((zoom) => {
-              if (!map.current) return;
-              const geom = feature.geometry;
-              if (geom.type === "Point") {
-                map.current.easeTo({
-                  center: geom.coordinates as [number, number],
-                  zoom: zoom + 1,
-                  duration: 500,
-                });
-              }
-            });
+            const overlayType = layerIdToOverlayType(feature.layer.id);
+
+            if (overlayType === "vacancies") {
+              // Extract all vacancy features from the cluster and populate results panel
+              Promise.all([
+                source.getClusterLeaves(clusterId, Infinity, 0),
+                source.getClusterExpansionZoom(clusterId),
+              ]).then(([leaves, zoom]) => {
+                if (!map.current) return;
+                const ids = leaves
+                  .map((f) => f.properties?.id as string | undefined)
+                  .filter((id): id is string => !!id);
+                const store = useMapV2Store.getState();
+                store.setPinnedVacancyIds(ids);
+                store.openResultsPanel("vacancies");
+                store.addClickRipple(e.point.x, e.point.y, "coral");
+                const geom = feature.geometry;
+                if (geom.type === "Point") {
+                  map.current.easeTo({
+                    center: geom.coordinates as [number, number],
+                    zoom: Math.min(zoom + 1, 12),
+                    duration: 500,
+                    padding: { top: 50, bottom: 50, left: 0, right: map.current.getContainer().clientWidth * 0.4 },
+                  });
+                }
+              });
+            } else {
+              // For other overlay clusters (contacts, activities), zoom into the cluster
+              source.getClusterExpansionZoom(clusterId).then((zoom) => {
+                if (!map.current) return;
+                const geom = feature.geometry;
+                if (geom.type === "Point") {
+                  map.current.easeTo({
+                    center: geom.coordinates as [number, number],
+                    zoom: zoom + 1,
+                    duration: 500,
+                  });
+                }
+              });
+            }
           }
           return;
         }
@@ -1157,6 +1186,8 @@ export default function MapV2Container({
             const store = useMapV2Store.getState();
             store.addClickRipple(e.point.x, e.point.y, "coral");
             store.selectDistrict(leaid);
+            store.toggleDistrictSelection(leaid);
+            store.openResultsPanel("districts");
           }
           return;
         }
@@ -1182,6 +1213,8 @@ export default function MapV2Container({
 
           // Multi-select is always-on — every click toggles selection
           store.toggleLeaidSelection(leaid);
+          store.toggleDistrictSelection(leaid);
+          store.openResultsPanel("districts");
 
           // Zoom to district
           const bounds = districtFeatures[0].geometry;
@@ -1202,7 +1235,7 @@ export default function MapV2Container({
               }
               map.current.fitBounds(
                 [[minLng, minLat], [maxLng, maxLat]],
-                { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
+                { padding: { top: 80, bottom: 80, left: 80, right: map.current.getContainer().clientWidth * 0.4 + 80 }, maxZoom: 9, duration: 800 }
               );
             }
           }

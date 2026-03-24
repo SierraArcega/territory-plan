@@ -69,11 +69,13 @@ function extractFromTable(html: string, baseUrl: string): RawVacancy[] {
       .map((c) => stripHtml(c).trim())
       .filter((c) => c.length > 0);
 
-    // Look for date patterns
+    // Look for date patterns (M/D/YYYY, YYYY-MM-DD, Month D YYYY, MM-DD-YYYY)
     for (const cell of cleanCells) {
-      const dateMatch = cell.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
+      const dateMatch = cell.match(
+        /\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b|\b(\d{4}-\d{2}-\d{2})\b|\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})\b|\b(\d{2}-\d{2}-\d{4})\b/i
+      );
       if (dateMatch) {
-        vacancy.datePosted = dateMatch[1];
+        vacancy.datePosted = (dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4]);
         break;
       }
     }
@@ -83,13 +85,23 @@ function extractFromTable(html: string, baseUrl: string): RawVacancy[] {
     // district/employer name, not a specific school.  Store it as
     // employerName so the post-processor can verify district affinity.
     const otherCells = cleanCells.filter(
-      (c) => c !== title && !c.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)
+      (c) =>
+        c !== title &&
+        !c.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/) &&
+        !c.match(/^\d{4}-\d{2}-\d{2}$/) &&
+        !c.match(/^\d{2}-\d{2}-\d{4}$/) &&
+        !c.match(/^(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}$/i)
     );
     if (otherCells.length > 0) {
-      vacancy.employerName = otherCells[0] || undefined;
-      // If there's a second non-title/non-date cell, treat it as school/location
-      if (otherCells.length > 1) {
-        vacancy.schoolName = otherCells[1] || undefined;
+      if (otherCells.length === 1 && looksLikeSchoolName(otherCells[0])) {
+        // Single cell that looks like a school — assign to schoolName
+        vacancy.schoolName = otherCells[0];
+      } else {
+        vacancy.employerName = otherCells[0] || undefined;
+        // If there's a second non-title/non-date cell, treat it as school/location
+        if (otherCells.length > 1) {
+          vacancy.schoolName = otherCells[1] || undefined;
+        }
       }
     }
 
@@ -112,42 +124,71 @@ function extractFromCards(html: string, baseUrl: string): RawVacancy[] {
   let cardMatch: RegExpExecArray | null;
 
   while ((cardMatch = cardRegex.exec(html)) !== null) {
-    const cardHtml = cardMatch[1];
+    const parsed = parseCardHtml(cardMatch[1], baseUrl);
+    if (parsed) vacancies.push(parsed);
+  }
 
-    // Extract the first link as the job title
-    const linkMatch = cardHtml.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkMatch) continue;
+  // Fallback: match <div> or <li> elements containing <a> with job-like hrefs
+  if (vacancies.length === 0) {
+    const linkBlockRegex =
+      /<(?:div|li)[^>]*>([\s\S]*?<a[^>]+href=["'][^"']*(?:job|posting|position|vacancy|detail|apply)[^"']*["'][^>]*>[\s\S]*?)<\/(?:div|li)>/gi;
+    let blockMatch: RegExpExecArray | null;
 
-    const title = stripHtml(linkMatch[2]).trim();
-    if (!title) continue;
-
-    let sourceUrl: string | undefined;
-    try {
-      sourceUrl = new URL(linkMatch[1], baseUrl).toString();
-    } catch {
-      sourceUrl = linkMatch[1];
+    while ((blockMatch = linkBlockRegex.exec(html)) !== null) {
+      const parsed = parseCardHtml(blockMatch[1], baseUrl);
+      if (parsed) vacancies.push(parsed);
     }
-
-    const vacancy: RawVacancy = { title, sourceUrl };
-
-    // Try to extract date
-    const dateMatch = cardHtml.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/);
-    if (dateMatch) {
-      vacancy.datePosted = dateMatch[1];
-    }
-
-    // Try to extract school name from common patterns
-    const schoolMatch = cardHtml.match(
-      /(?:school|location|building|site)\s*:?\s*<[^>]*>?\s*([^<]+)/i
-    );
-    if (schoolMatch) {
-      vacancy.schoolName = stripHtml(schoolMatch[1]).trim() || undefined;
-    }
-
-    vacancies.push(vacancy);
   }
 
   return vacancies;
+}
+
+/** Parse a single card's inner HTML into a RawVacancy, or null if not a valid listing. */
+function parseCardHtml(cardHtml: string, baseUrl: string): RawVacancy | null {
+  const linkMatch = cardHtml.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i);
+  if (!linkMatch) return null;
+
+  const title = stripHtml(linkMatch[2]).trim();
+  if (!title) return null;
+
+  let sourceUrl: string | undefined;
+  try {
+    sourceUrl = new URL(linkMatch[1], baseUrl).toString();
+  } catch {
+    sourceUrl = linkMatch[1];
+  }
+
+  const vacancy: RawVacancy = { title, sourceUrl };
+
+  // Try to extract date (all supported formats)
+  const dateMatch = cardHtml.match(
+    /\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b|\b(\d{4}-\d{2}-\d{2})\b|\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})\b|\b(\d{2}-\d{2}-\d{4})\b/i
+  );
+  if (dateMatch) {
+    vacancy.datePosted = (dateMatch[1] || dateMatch[2] || dateMatch[3] || dateMatch[4]);
+  }
+
+  // Try to extract school name from common patterns
+  const schoolMatch = cardHtml.match(
+    /(?:school|location|building|site)\s*:?\s*<[^>]*>?\s*([^<]+)/i
+  );
+  if (schoolMatch) {
+    vacancy.schoolName = stripHtml(schoolMatch[1]).trim() || undefined;
+  }
+
+  // Try to extract employer/district name from common label patterns
+  const employerMatch = cardHtml.match(
+    /(?:employer|district|organization|company)\s*:?\s*<[^>]*>?\s*([^<]+)/i
+  );
+  if (employerMatch) {
+    vacancy.employerName = stripHtml(employerMatch[1]).trim() || undefined;
+  }
+
+  return vacancy;
+}
+
+function looksLikeSchoolName(text: string): boolean {
+  return /\b(?:elementary|middle|high|school|academy|preparatory|magnet|montessori)\b/i.test(text);
 }
 
 function extractCells(rowHtml: string): string[] {

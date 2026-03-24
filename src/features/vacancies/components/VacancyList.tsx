@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useRef, useEffect } from "react";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ interface VacanciesResponse {
 export interface VacancyListProps {
   leaid: string;
   schoolNcessch?: string | null;
+  highlightVacancyId?: string | null;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -76,7 +78,7 @@ function formatDaysOpen(days: number): string {
 
 // ─── Component ──────────────────────────────────────────────────────
 
-export default function VacancyList({ leaid, schoolNcessch }: VacancyListProps) {
+export default function VacancyList({ leaid, schoolNcessch, highlightVacancyId }: VacancyListProps) {
   // Fetch vacancies
   const {
     data,
@@ -192,7 +194,7 @@ export default function VacancyList({ leaid, schoolNcessch }: VacancyListProps) 
           </h4>
           <div className="space-y-2">
             {groupedByCategory[category].map((vacancy) => (
-              <VacancyRow key={vacancy.id} vacancy={vacancy} />
+              <VacancyRow key={vacancy.id} vacancy={vacancy} isHighlighted={vacancy.id === highlightVacancyId} />
             ))}
           </div>
         </div>
@@ -208,12 +210,20 @@ export default function VacancyList({ leaid, schoolNcessch }: VacancyListProps) 
 
 // ─── VacancyRow ─────────────────────────────────────────────────────
 
-function VacancyRow({ vacancy }: { vacancy: VacancyRecord }) {
+function VacancyRow({ vacancy, isHighlighted }: { vacancy: VacancyRecord; isHighlighted?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isHighlighted && ref.current) {
+      ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [isHighlighted]);
+
   const displaySchool =
     vacancy.school?.name || vacancy.schoolName || null;
 
   return (
-    <div className="border border-gray-100 rounded-lg p-2.5 space-y-1">
+    <div ref={ref} className={`rounded-lg p-2.5 space-y-1 ${isHighlighted ? "border-2 border-[#FFCF70] bg-[#FFCF70]/5" : "border border-gray-100"}`}>
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-[#403770] leading-tight">
           {vacancy.sourceUrl ? (

@@ -276,7 +276,7 @@ describe("processVacancies", () => {
         { title: "Math Teacher", employerName: "Albany City School District" },
       ];
 
-      await processVacancies("3601234", "scan-1", rawVacancies, "olas", "Springfield School District");
+      await processVacancies("3601234", "scan-1", rawVacancies, "olas", "Springfield School District", false);
 
       expect(mockPrisma.vacancy.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
