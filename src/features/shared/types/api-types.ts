@@ -355,6 +355,17 @@ export interface DistrictPacing {
   priorFullDeals: number;
   priorFullSessions: number;
   serviceTypeRevenue?: ServiceTypeRevenue[];
+  serviceTypeBreakdown?: ServiceTypePacing[];
+}
+
+export interface ServiceTypePacing {
+  serviceType: string;
+  currentRevenue: number;
+  currentSessions: number;
+  priorSameDateRevenue: number;
+  priorSameDateSessions: number;
+  priorFullRevenue: number;
+  priorFullSessions: number;
 }
 
 export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"> {
