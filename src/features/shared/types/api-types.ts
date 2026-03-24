@@ -336,6 +336,11 @@ export interface TerritoryPlanDistrict {
   pacing?: DistrictPacing;
 }
 
+export interface ServiceTypeRevenue {
+  serviceType: string;
+  revenue: number;
+}
+
 export interface DistrictPacing {
   currentRevenue: number;
   currentPipeline: number;
@@ -349,6 +354,7 @@ export interface DistrictPacing {
   priorFullPipeline: number;
   priorFullDeals: number;
   priorFullSessions: number;
+  serviceTypeRevenue?: ServiceTypeRevenue[];
 }
 
 export interface TerritoryPlanDetail extends Omit<TerritoryPlan, "districtCount"> {
