@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { detectPlatform, isStatewideBoardAsync } from "./platform-detector";
+import { detectPlatform, isStatewideBoardAsync, getAppliTrackInstance } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
 import { parseWithPlaywright } from "./parsers/playwright-fallback";
@@ -122,6 +122,37 @@ export async function runScan(scanId: string): Promise<void> {
     // Step 5: Post-process
     const isStwide = await isStatewideBoardAsync(platform, scan.district.jobBoardUrl);
     if (isStwide && rawVacancies.length > 0) {
+      // Safety net: if most vacancies lack employerName on a statewide board,
+      // groupByDistrict would assign them all to the scanning district.
+      // Skip importing when this happens — the data is unattributable.
+      const withoutEmployer = rawVacancies.filter((v) => !v.employerName).length;
+      if (rawVacancies.length > 20 && withoutEmployer / rawVacancies.length > 0.5) {
+        console.warn(
+          `[scan-runner] Statewide board "${platform}" returned ${rawVacancies.length} vacancies ` +
+          `but ${withoutEmployer} lack employerName — cannot attribute. Skipping.`
+        );
+        await prisma.vacancyScan.update({
+          where: { id: scanId },
+          data: {
+            status: "completed_partial",
+            vacancyCount: 0,
+            errorMessage: `Skipped: statewide board returned ${rawVacancies.length} vacancies but ${withoutEmployer} lack employer info (cannot attribute to district)`,
+            completedAt: new Date(),
+          },
+        });
+        return;
+      }
+
+      // Shared AppliTrack without client-scoping params fetches the entire
+      // state board. Only process the scanning district's own jobs — do NOT
+      // redistribute to other districts via fuzzy matching (causes massive
+      // vacancy inflation). Redistribution is only safe when the URL includes
+      // applitrackclient to scope results.
+      const unscopedSharedAppliTrack =
+        platform === "applitrack" &&
+        getAppliTrackInstance(scan.district.jobBoardUrl!) &&
+        !new URL(scan.district.jobBoardUrl!).searchParams.has("applitrackclient");
+
       // State-wide board: process THIS district's jobs first (fast),
       // then redistribute the rest in the background.
       const { ownJobs, otherJobs, districtsMatched } = groupByDistrict(
@@ -146,19 +177,24 @@ export async function runScan(scanId: string): Promise<void> {
           status: "completed",
           vacancyCount: result.vacancyCount,
           fullmindRelevantCount: result.fullmindRelevantCount,
-          districtsMatched,
+          districtsMatched: unscopedSharedAppliTrack ? 0 : districtsMatched,
           completedAt: new Date(),
         },
       });
 
       // Redistribute remaining jobs to other districts in the background
-      if (otherJobs.size > 0) {
+      // — but ONLY if the URL is properly scoped (has applitrackclient param)
+      if (otherJobs.size > 0 && !unscopedSharedAppliTrack) {
         console.log(
           `[scan-runner] Background redistribution: ${[...otherJobs.values()].reduce((sum, b) => sum + b.jobs.length, 0)} jobs to ${otherJobs.size} districts`
         );
         redistributeInBackground(otherJobs, scanId, platform).catch((err) => {
           console.error("[scan-runner] Background redistribution failed:", err);
         });
+      } else if (unscopedSharedAppliTrack && otherJobs.size > 0) {
+        console.log(
+          `[scan-runner] Skipping redistribution: shared AppliTrack "${getAppliTrackInstance(scan.district.jobBoardUrl!)}" has no applitrackclient param — ${[...otherJobs.values()].reduce((sum, b) => sum + b.jobs.length, 0)} jobs dropped`
+        );
       }
     } else {
       // Safety check: if ANY platform returns a suspicious number of vacancies

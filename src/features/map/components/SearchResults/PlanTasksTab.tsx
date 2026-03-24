@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTasks } from "@/lib/api";
 import type { TaskItem, TasksResponse } from "@/features/shared/types/api-types";
+import TaskFormModal from "@/features/tasks/components/TaskFormModal";
+import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 
 interface PlanTasksTabProps {
   planId: string;
@@ -43,6 +46,8 @@ export default function PlanTasksTab({ planId }: PlanTasksTabProps) {
   const { data, isLoading } = useTasks({ planId });
   const response = data as TasksResponse | undefined;
   const tasks = response?.tasks ?? [];
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
 
   if (isLoading) {
     return (
@@ -57,63 +62,127 @@ export default function PlanTasksTab({ planId }: PlanTasksTabProps) {
     );
   }
 
-  if (tasks.length === 0) {
+  // ─── Drill-in: Create new task ───────────────────────────────
+  if (isCreating) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <svg className="w-9 h-9 text-[#C2BBD4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-        <p className="text-sm font-medium text-[#6E6390]">No tasks yet</p>
-        <p className="text-xs text-[#A69DC0] mt-1">Tasks linked to this plan will appear here.</p>
+      <div className="flex flex-col h-full">
+        {/* Back bar */}
+        <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-[#E2DEEC] bg-[#FAFAFE]">
+          <button
+            onClick={() => setIsCreating(false)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#6E6390] hover:text-[#403770] transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M7.5 2.5L4 6L7.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back to Tasks
+          </button>
+        </div>
+        <TaskFormModal
+          isOpen
+          onClose={() => setIsCreating(false)}
+          defaultPlanId={planId}
+          embedded
+        />
       </div>
     );
   }
 
-  return (
-    <div className="p-5 space-y-2">
-      {tasks.map((task: TaskItem) => {
-        const status = task.status ?? "todo";
-        const priority = task.priority ?? "medium";
-        const statusColor = STATUS_COLORS[status] ?? STATUS_COLORS.todo;
-        const priorityDot = PRIORITY_DOTS[priority] ?? PRIORITY_DOTS.medium;
-        const overdue = status !== "done" && isOverdue(task.dueDate);
-        const dueSoon = !overdue && status !== "done" && isDueSoon(task.dueDate);
-
-        return (
-          <div
-            key={task.id}
-            className="p-3 rounded-lg border border-[#E2DEEC] hover:border-[#D4CFE2] hover:bg-[#FAFAFE] transition-colors"
+  if (tasks.length === 0) {
+    return (
+      <>
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <svg className="w-9 h-9 text-[#C2BBD4] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+          <p className="text-sm font-medium text-[#6E6390]">No tasks yet</p>
+          <p className="text-xs text-[#A69DC0] mt-1">Tasks linked to this plan will appear here.</p>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="mt-3 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#544A78] transition-colors"
           >
-            <div className="flex items-start justify-between gap-2 mb-1.5">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${priorityDot}`} />
-                <span className="text-xs font-semibold text-[#544A78] truncate">{task.title}</span>
-              </div>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${statusColor.bg} ${statusColor.text}`}
-              >
-                {status.replace("_", " ")}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-[11px] text-[#8A80A8] pl-4">
-              {task.dueDate && (
+            + Add Task
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-5 space-y-2">
+        {tasks.map((task: TaskItem) => {
+          const status = task.status ?? "todo";
+          const priority = task.priority ?? "medium";
+          const statusColor = STATUS_COLORS[status] ?? STATUS_COLORS.todo;
+          const priorityDot = PRIORITY_DOTS[priority] ?? PRIORITY_DOTS.medium;
+          const overdue = status !== "done" && isOverdue(task.dueDate);
+          const dueSoon = !overdue && status !== "done" && isDueSoon(task.dueDate);
+
+          return (
+            <div
+              key={task.id}
+              onClick={() => setEditingTask(task)}
+              className="p-3 rounded-lg border border-[#E2DEEC] hover:border-[#D4CFE2] hover:bg-[#FAFAFE] transition-colors cursor-pointer group"
+            >
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${priorityDot}`} />
+                  <span className="text-xs font-semibold text-[#544A78] truncate group-hover:text-[#403770]">
+                    {task.title}
+                  </span>
+                </div>
                 <span
-                  className={
-                    overdue
-                      ? "text-[#F37167] font-medium"
-                      : dueSoon
-                        ? "text-[#D4A843] font-medium"
-                        : ""
-                  }
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${statusColor.bg} ${statusColor.text}`}
                 >
-                  Due {formatDate(task.dueDate)}
-                  {overdue && " (overdue)"}
+                  {status.replace("_", " ")}
                 </span>
-              )}
+              </div>
+              <div className="flex items-center gap-3 text-[11px] text-[#8A80A8] pl-4">
+                {task.dueDate && (
+                  <span
+                    className={
+                      overdue
+                        ? "text-[#F37167] font-medium"
+                        : dueSoon
+                          ? "text-[#D4A843] font-medium"
+                          : ""
+                    }
+                  >
+                    Due {formatDate(task.dueDate)}
+                    {overdue && " (overdue)"}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="shrink-0 border-t border-[#E2DEEC] px-5 py-3 flex items-center justify-between bg-[#FAFAFE]">
+        <button
+          onClick={() => setIsCreating(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#544A78] transition-colors"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M5 1V9M1 5H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Add Task
+        </button>
+        <span className="text-[11px] text-[#A69DC0]">
+          {tasks.length} task{tasks.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Edit/detail modal */}
+      {editingTask && (
+        <TaskDetailModal
+          task={editingTask}
+          isOpen={true}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
     </div>
   );
 }

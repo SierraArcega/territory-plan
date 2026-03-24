@@ -23,6 +23,16 @@ const mockStoreState = {
   hideTooltip: vi.fn(),
   setSearchBounds: vi.fn(),
   setSearchSort: vi.fn(),
+  activeLayers: new Set(["districts"]),
+  layerFilters: { contacts: {}, vacancies: {}, activities: {}, plans: {} },
+  dateRange: { vacancies: { start: null, end: null, preset: null }, activities: { start: null, end: null, preset: null } },
+  mapBounds: null,
+  activeResultsTab: "districts" as string,
+  openResultsPanel: vi.fn(),
+  selectedFiscalYear: "fy26",
+  toggleLayer: vi.fn(),
+  setLayerFilter: vi.fn(),
+  setDateRange: vi.fn(),
 };
 
 vi.mock("@/features/map/lib/store", () => {
@@ -45,6 +55,17 @@ vi.mock("@/features/plans/lib/queries", () => ({
 
 vi.mock("@/features/shared/lib/queries", () => ({
   useProfile: () => ({ data: { id: "user-1" } }),
+}));
+
+vi.mock("@/features/map/lib/queries", () => ({
+  useMapContacts: () => ({ data: [] }),
+  useMapVacancies: () => ({ data: [] }),
+  useMapActivities: () => ({ data: [] }),
+  useMapPlans: () => ({ data: [] }),
+}));
+
+vi.mock("@/features/map/lib/useCrossFilter", () => ({
+  useCrossFilter: () => ({ contactLeaids: new Set(), vacancyLeaids: new Set(), activityLeaids: new Set(), planLeaids: new Set() }),
 }));
 
 // Stub the modal itself — we only care it renders into document.body via portal

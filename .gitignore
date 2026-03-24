@@ -78,3 +78,10 @@ tessl.json
 
 # worktrees
 .worktrees/
+
+# Local dev artifacts
+.agents/
+.claire/
+.tmp/
+logs/
+__pycache__/

@@ -4,6 +4,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DistrictsTable from "../DistrictsTable";
 import type { TerritoryPlanDistrict } from "@/features/shared/types/api-types";
 
+// Mock AddDistrictCombobox to avoid needing its query dependencies
+vi.mock("../AddDistrictCombobox", () => ({
+  default: ({ planId }: { planId: string }) => (
+    <button aria-label="Add district">Add District (mock)</button>
+  ),
+}));
+
 function makeDistrict(overrides: Partial<TerritoryPlanDistrict> = {}): TerritoryPlanDistrict {
   return {
     leaid: "d1",
@@ -116,5 +123,24 @@ describe("DistrictsTable sorting", () => {
     const rows = screen.getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("C"); // 50 < 100
     expect(rows[2]).toHaveTextContent("B"); // null last
+  });
+});
+
+describe("DistrictsTable empty state", () => {
+  it("shows Add District button and Go to Map button", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onGoToMap = vi.fn();
+    render(
+      <QueryClientProvider client={qc}>
+        <DistrictsTable
+          districts={[]}
+          planId="p1"
+          onRemove={vi.fn()}
+          onGoToMap={onGoToMap}
+        />
+      </QueryClientProvider>
+    );
+    expect(screen.getByRole("button", { name: /add district/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /go to map/i })).toBeInTheDocument();
   });
 });

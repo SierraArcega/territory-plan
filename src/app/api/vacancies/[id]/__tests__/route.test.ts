@@ -12,7 +12,8 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import prisma from "@/lib/prisma";
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 
 import { GET, PATCH } from "../route";
 
@@ -28,7 +29,7 @@ function makeRequest(
     init.body = JSON.stringify(options.body);
     init.headers = { "Content-Type": "application/json" };
   }
-  return new NextRequest(new URL(url, "http://localhost:3000"), init);
+  return new NextRequest(new URL(url, "http://localhost:3000"), init as never);
 }
 
 const now = new Date("2026-03-18T12:00:00Z");

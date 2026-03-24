@@ -166,8 +166,8 @@ describe("ActivitiesTable", () => {
     });
   });
 
-  describe("inline editing - title", () => {
-    it("allows inline editing of title", async () => {
+  describe("title click", () => {
+    it("calls onEdit when title is clicked", () => {
       renderWithProviders(
         <ActivitiesTable
           activities={mockActivities}
@@ -176,28 +176,11 @@ describe("ActivitiesTable", () => {
         />
       );
 
-      // Click on title to edit
-      const titleCell = screen.getByText("Annual Sales Conference");
-      fireEvent.click(titleCell);
+      // Click on title — now opens full editor via onEdit
+      const titleButton = screen.getByText("Annual Sales Conference");
+      fireEvent.click(titleButton);
 
-      // Should show input
-      const input = screen.getByRole("textbox");
-      expect(input).toHaveValue("Annual Sales Conference");
-
-      // Change value
-      fireEvent.change(input, { target: { value: "Updated Conference" } });
-
-      // Blur to save
-      fireEvent.blur(input);
-
-      await waitFor(() => {
-        expect(mockUpdateMutate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            activityId: "activity-1",
-            title: "Updated Conference",
-          })
-        );
-      });
+      expect(mockOnEdit).toHaveBeenCalledWith(mockActivities[0]);
     });
   });
 
@@ -233,8 +216,8 @@ describe("ActivitiesTable", () => {
     });
   });
 
-  describe("edit button", () => {
-    it("calls onEdit when Edit button clicked", () => {
+  describe("edit via title", () => {
+    it("calls onEdit when activity title is clicked", () => {
       renderWithProviders(
         <ActivitiesTable
           activities={mockActivities}
@@ -243,9 +226,9 @@ describe("ActivitiesTable", () => {
         />
       );
 
-      // Click Edit button for first activity
-      const editButtons = screen.getAllByRole("button", { name: /edit/i });
-      fireEvent.click(editButtons[0]);
+      // Title click now triggers onEdit (no separate Edit button)
+      const titleButton = screen.getByText("Annual Sales Conference");
+      fireEvent.click(titleButton);
 
       expect(mockOnEdit).toHaveBeenCalledWith(mockActivities[0]);
     });

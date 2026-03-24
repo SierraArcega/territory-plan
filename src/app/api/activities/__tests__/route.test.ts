@@ -31,7 +31,8 @@ vi.mock("@/features/calendar/lib/push", () => ({
 }));
 
 import prisma from "@/lib/prisma";
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 
 import { GET as listActivities, POST } from "../route";
 import { GET as getActivity, PATCH, DELETE } from "../[id]/route";
@@ -39,7 +40,7 @@ import { GET as getActivity, PATCH, DELETE } from "../[id]/route";
 const TEST_USER = { id: "user-1", email: "test@example.com" };
 
 function makeRequest(url: string, init?: RequestInit) {
-  return new NextRequest(new URL(url, "http://localhost:3000"), init);
+  return new NextRequest(new URL(url, "http://localhost:3000"), init as never);
 }
 
 // Helper to build a raw activity row as Prisma would return from findMany (list view)
@@ -74,6 +75,7 @@ function makeDetailActivity(overrides: Record<string, unknown> = {}) {
     source: "manual",
     outcome: null,
     outcomeType: null,
+    metadata: null,
     createdByUserId: "user-1",
     createdAt: new Date("2026-02-20T00:00:00Z"),
     updatedAt: new Date("2026-02-20T00:00:00Z"),
@@ -87,6 +89,10 @@ function makeDetailActivity(overrides: Record<string, unknown> = {}) {
       {
         districtLeaid: "1234567",
         warningDismissed: false,
+        visitDate: null,
+        visitEndDate: null,
+        position: 0,
+        notes: null,
         district: { leaid: "1234567", name: "Test District", stateAbbrev: "CA" },
       },
     ],
@@ -103,6 +109,10 @@ function makeDetailActivity(overrides: Record<string, unknown> = {}) {
         state: { fips: "06", abbrev: "CA", name: "California" },
       },
     ],
+    expenses: [],
+    attendees: [],
+    relations: [],
+    relatedTo: [],
     ...overrides,
   };
 }
@@ -317,6 +327,7 @@ describe("POST /api/activities", () => {
       startDate: new Date("2026-04-01T14:00:00Z"),
       endDate: new Date("2026-04-01T15:00:00Z"),
       status: "planned",
+      metadata: null,
       createdByUserId: "user-1",
       createdAt: new Date("2026-02-23T00:00:00Z"),
       updatedAt: new Date("2026-02-23T00:00:00Z"),
@@ -330,6 +341,10 @@ describe("POST /api/activities", () => {
         {
           districtLeaid: "0601234",
           warningDismissed: false,
+          visitDate: null,
+          visitEndDate: null,
+          position: 0,
+          notes: null,
           district: { leaid: "0601234", name: "LA Unified", stateAbbrev: "CA" },
         },
       ],
@@ -341,6 +356,10 @@ describe("POST /api/activities", () => {
           state: { fips: "06", abbrev: "CA", name: "California" },
         },
       ],
+      expenses: [],
+      attendees: [],
+      relations: [],
+      relatedTo: [],
     };
     mockPrisma.activity.create.mockResolvedValue(createdActivity as never);
 
@@ -380,7 +399,7 @@ describe("POST /api/activities", () => {
           createdByUserId: "user-1",
           plans: { create: [{ planId: "plan-1" }] },
           districts: {
-            create: [{ districtLeaid: "0601234", warningDismissed: false }],
+            create: [expect.objectContaining({ districtLeaid: "0601234", warningDismissed: false })],
           },
         }),
       })
@@ -399,7 +418,7 @@ describe("POST /api/activities", () => {
 
     expect(res.status).toBe(500);
     const body = await res.json();
-    expect(body.error).toBe("Failed to create activity");
+    expect(body.error).toBe("Failed to create activity: DB error");
   });
 });
 

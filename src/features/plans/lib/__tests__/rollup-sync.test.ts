@@ -17,7 +17,8 @@ vi.mock("@/lib/prisma", () => ({
 import prisma from "@/lib/prisma";
 import { syncPlanRollups } from "../rollup-sync";
 
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 
 describe("syncPlanRollups", () => {
   beforeEach(() => {

@@ -61,7 +61,8 @@ import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 
 // Get typed mocks
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 const mockGetUser = vi.mocked(getUser);
 
 describe("Territory Plans API", () => {
@@ -363,6 +364,7 @@ describe("Territory Plans API", () => {
         createdAt: new Date("2024-01-01"),
         updatedAt: new Date("2024-01-20"),
         _count: { districts: 3 },
+        districts: [] as { districtLeaid: string }[],
         ownerUser: null,
         states: [],
         collaborators: [],

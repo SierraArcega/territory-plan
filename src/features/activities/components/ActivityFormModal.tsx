@@ -32,6 +32,7 @@ interface ActivityFormModalProps {
   onClose: () => void;
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
+  embedded?: boolean;
 }
 
 type ModalStep = "pick-category" | "pick-type" | "form";
@@ -41,6 +42,7 @@ export default function ActivityFormModal({
   onClose,
   defaultCategory,
   defaultPlanId,
+  embedded,
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
@@ -121,6 +123,7 @@ export default function ActivityFormModal({
   }, [isOpen, defaultCategory, defaultPlanId]);
 
   useEffect(() => {
+    if (embedded) return; // parent modal handles escape
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -128,7 +131,7 @@ export default function ActivityFormModal({
       document.addEventListener("keydown", handleEscape);
       return () => document.removeEventListener("keydown", handleEscape);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, embedded]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -259,16 +262,15 @@ export default function ActivityFormModal({
   // Picker steps use a narrower modal
   const isPickerStep = step === "pick-category" || step === "pick-type";
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-      onClick={handleBackdropClick}
-    >
+  const content = (
       <div
         ref={modalRef}
-        className={`bg-white rounded-2xl shadow-xl w-full max-h-[85vh] overflow-hidden flex flex-col transition-all ${
-          isPickerStep ? "max-w-xl" : "max-w-4xl"
-        }`}
+        className={embedded
+          ? "flex flex-col h-full overflow-hidden"
+          : `bg-white rounded-2xl shadow-xl w-full max-h-[85vh] overflow-hidden flex flex-col transition-all ${
+              isPickerStep ? "max-w-xl" : "max-w-4xl"
+            }`
+        }
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2DEEC]">
@@ -558,6 +560,16 @@ export default function ActivityFormModal({
           </form>
         )}
       </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={handleBackdropClick}
+    >
+      {content}
     </div>
   );
 }

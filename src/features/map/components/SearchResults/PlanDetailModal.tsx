@@ -45,7 +45,9 @@ export default function PlanDetailModal({
   }, []);
 
   return createPortal(
-    <>
+    // Stop propagation so clicks inside the portal don't bubble
+    // through React's tree back to the parent card's onClick
+    <div onClick={(e) => e.stopPropagation()}>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
@@ -131,7 +133,7 @@ export default function PlanDetailModal({
           ) : <div className="w-10 shrink-0" />}
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   );
 }

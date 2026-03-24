@@ -47,7 +47,7 @@ export default function DonutMetricPopover({
   const currentFmt =
     format === "currency"
       ? formatCurrency(current, true)
-      : current.toLocaleString();
+      : (current?.toLocaleString() ?? "0");
   const targetFmt =
     target !== null && target !== undefined
       ? format === "currency"

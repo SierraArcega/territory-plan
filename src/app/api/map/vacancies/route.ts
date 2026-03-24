@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     const category = searchParams.get("category");
-    const status = searchParams.get("status");
+    const status = searchParams.get("status") ?? "open"; // default to open vacancies only
     const dateStart = searchParams.get("dateStart");
     const dateEnd = searchParams.get("dateEnd");
     const states = searchParams.get("states"); // comma-separated state abbreviations

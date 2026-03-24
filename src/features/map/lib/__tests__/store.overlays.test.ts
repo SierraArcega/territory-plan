@@ -55,37 +55,37 @@ describe("toggleLayer", () => {
 
 describe("setLayerFilter", () => {
   it("sets a filter on the contacts layer", () => {
-    useMapV2Store.getState().setLayerFilter("contacts", { seniorityLevel: "Director" });
+    useMapV2Store.getState().setLayerFilter("contacts", { seniorityLevel: ["Director"] });
     const s = useMapV2Store.getState();
-    expect(s.layerFilters.contacts.seniorityLevel).toBe("Director");
+    expect(s.layerFilters.contacts.seniorityLevel).toEqual(["Director"]);
   });
 
   it("sets a filter on the vacancies layer", () => {
-    useMapV2Store.getState().setLayerFilter("vacancies", { category: "SPED", status: "open" });
+    useMapV2Store.getState().setLayerFilter("vacancies", { category: ["SPED"], status: ["open"] });
     const s = useMapV2Store.getState();
-    expect(s.layerFilters.vacancies.category).toBe("SPED");
-    expect(s.layerFilters.vacancies.status).toBe("open");
+    expect(s.layerFilters.vacancies.category).toEqual(["SPED"]);
+    expect(s.layerFilters.vacancies.status).toEqual(["open"]);
   });
 
   it("merges partial filter updates without overwriting other keys", () => {
-    useMapV2Store.getState().setLayerFilter("vacancies", { category: "SPED" });
-    useMapV2Store.getState().setLayerFilter("vacancies", { status: "open" });
+    useMapV2Store.getState().setLayerFilter("vacancies", { category: ["SPED"] });
+    useMapV2Store.getState().setLayerFilter("vacancies", { status: ["open"] });
     const s = useMapV2Store.getState();
-    expect(s.layerFilters.vacancies.category).toBe("SPED");
-    expect(s.layerFilters.vacancies.status).toBe("open");
+    expect(s.layerFilters.vacancies.category).toEqual(["SPED"]);
+    expect(s.layerFilters.vacancies.status).toEqual(["open"]);
   });
 
   it("can clear a filter by setting it to null", () => {
-    useMapV2Store.getState().setLayerFilter("contacts", { seniorityLevel: "Director" });
+    useMapV2Store.getState().setLayerFilter("contacts", { seniorityLevel: ["Director"] });
     useMapV2Store.getState().setLayerFilter("contacts", { seniorityLevel: null });
     const s = useMapV2Store.getState();
     expect(s.layerFilters.contacts.seniorityLevel).toBeNull();
   });
 
   it("does not affect other layers when setting a filter", () => {
-    useMapV2Store.getState().setLayerFilter("plans", { status: "active" });
+    useMapV2Store.getState().setLayerFilter("plans", { status: ["active"] });
     const s = useMapV2Store.getState();
-    expect(s.layerFilters.plans.status).toBe("active");
+    expect(s.layerFilters.plans.status).toEqual(["active"]);
     expect(s.layerFilters.contacts).toEqual({});
     expect(s.layerFilters.vacancies).toEqual({});
     expect(s.layerFilters.activities).toEqual({});

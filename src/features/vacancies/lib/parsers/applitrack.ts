@@ -26,7 +26,17 @@ function buildListingsUrl(url: string): string {
   // Strip to the base onlineapp path
   const basePath = parsed.pathname.replace(/\/(default\.aspx|jobpostings\/.*)?$/i, "");
   parsed.pathname = `${basePath}/jobpostings/Output.asp`;
-  parsed.search = "?all=1";
+
+  // Preserve district-scoping params from shared AppliTrack instances.
+  // Without these, every district on a shared board (e.g. wvde) fetches ALL listings.
+  const clientId = parsed.searchParams.get("applitrackclient");
+  const postingSearch = parsed.searchParams.get("AppliTrackPostingSearch");
+
+  parsed.search = "";
+  parsed.searchParams.set("all", "1");
+  if (clientId) parsed.searchParams.set("applitrackclient", clientId);
+  if (postingSearch) parsed.searchParams.set("AppliTrackPostingSearch", postingSearch);
+
   return parsed.toString();
 }
 

@@ -774,7 +774,8 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
 
   const statusBadge = plan ? getStatusBadge(plan.status) : null;
 
-  const fmtCurrency = (n: number) => {
+  const fmtCurrency = (n: number | null | undefined) => {
+    if (n == null) return "$0";
     if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
     return `$${n.toLocaleString()}`;

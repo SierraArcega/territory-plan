@@ -14,7 +14,8 @@ vi.mock("@/lib/prisma", () => ({
 import { GET } from "../route";
 import prisma from "@/lib/prisma";
 
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 
 // Helper to create mock district
 const createMockDistrict = (overrides: Partial<{

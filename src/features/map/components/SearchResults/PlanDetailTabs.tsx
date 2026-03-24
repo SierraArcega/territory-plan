@@ -1,19 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import type { TerritoryPlanDetail } from "@/features/shared/types/api-types";
+import { useState, useMemo } from "react";
+import type {
+  TerritoryPlanDetail,
+  ActivitiesResponse,
+  TasksResponse,
+} from "@/features/shared/types/api-types";
+import {
+  usePlanOpportunities,
+  usePlanContacts,
+  useActivities,
+  useTasks,
+} from "@/lib/api";
 import PlanDistrictsTab from "./PlanDistrictsTab";
 import PlanContactsTab from "./PlanContactsTab";
 import PlanActivitiesTab from "./PlanActivitiesTab";
 import PlanTasksTab from "./PlanTasksTab";
+import PlanOpportunitiesTab from "./PlanOpportunitiesTab";
+import PlanVacanciesTab from "./PlanVacanciesTab";
+import { usePlanVacancies } from "@/features/vacancies/lib/queries";
 
-type Tab = "districts" | "contacts" | "activities" | "tasks";
+type Tab = "districts" | "contacts" | "activities" | "tasks" | "opportunities" | "vacancies";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "districts", label: "Districts" },
+  { key: "opportunities", label: "Opportunities" },
   { key: "contacts", label: "Contacts" },
   { key: "activities", label: "Activities" },
   { key: "tasks", label: "Tasks" },
+  { key: "vacancies", label: "Vacancies" },
 ];
 
 interface PlanDetailTabsProps {
@@ -24,13 +39,33 @@ interface PlanDetailTabsProps {
 export default function PlanDetailTabs({ plan, onClose }: PlanDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("districts");
 
+  // Fetch counts for each tab — shares TanStack Query cache with tab content
+  const { data: opportunities } = usePlanOpportunities(plan.id);
+  const { data: contacts } = usePlanContacts(plan.id);
+  const { data: activitiesData } = useActivities({ planId: plan.id });
+  const { data: tasksData } = useTasks({ planId: plan.id });
+  const { data: vacanciesData } = usePlanVacancies(plan.id);
+
+  const tabCounts = useMemo(() => {
+    const activitiesResponse = activitiesData as ActivitiesResponse | undefined;
+    const tasksResponse = tasksData as TasksResponse | undefined;
+    return {
+      districts: plan.districts.length,
+      opportunities: opportunities?.length ?? null,
+      contacts: contacts?.length ?? null,
+      activities: activitiesResponse?.activities?.length ?? null,
+      tasks: tasksResponse?.tasks?.length ?? null,
+      vacancies: vacanciesData?.vacancies?.length ?? null,
+    };
+  }, [plan.districts.length, opportunities, contacts, activitiesData, tasksData, vacanciesData]);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* Tab strip */}
       <div className="shrink-0 border-b border-[#E2DEEC] flex items-center px-5 pt-1">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
-          const count = getTabCount(plan, tab.key);
+          const count = tabCounts[tab.key];
 
           return (
             <button
@@ -67,21 +102,20 @@ export default function PlanDetailTabs({ plan, onClose }: PlanDetailTabsProps) {
         {activeTab === "districts" && (
           <PlanDistrictsTab plan={plan} onClose={onClose} />
         )}
-        {activeTab === "contacts" && <PlanContactsTab planId={plan.id} />}
+        {activeTab === "opportunities" && (
+          <PlanOpportunitiesTab planId={plan.id} />
+        )}
+        {activeTab === "contacts" && (
+          <PlanContactsTab
+            planId={plan.id}
+            districts={plan.districts.map((d) => ({ leaid: d.leaid, name: d.name ?? d.leaid }))}
+          />
+        )}
         {activeTab === "activities" && <PlanActivitiesTab planId={plan.id} />}
         {activeTab === "tasks" && <PlanTasksTab planId={plan.id} />}
+        {activeTab === "vacancies" && <PlanVacanciesTab planId={plan.id} />}
       </div>
     </div>
   );
 }
 
-function getTabCount(plan: TerritoryPlanDetail, tab: Tab): number | null {
-  switch (tab) {
-    case "districts":
-      return plan.districts.length;
-    case "tasks":
-      return plan.taskCount > 0 ? plan.taskCount : null;
-    default:
-      return null;
-  }
-}

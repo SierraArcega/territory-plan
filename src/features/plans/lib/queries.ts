@@ -3,9 +3,11 @@ import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type {
   TerritoryPlan,
   TerritoryPlanDetail,
+  TerritoryPlanDistrict,
   Contact,
   Service,
   PlanDistrictDetail,
+  PlanOpportunityRow,
 } from "@/features/shared/types/api-types";
 
 // Territory Plans
@@ -111,8 +113,8 @@ export function useAddDistrictsToPlan() {
       planId: string;
       leaids?: string | string[];
       filters?: { column: string; op: string; value?: unknown }[];
-      // Optional metadata for optimistic UI — not sent to server
-      _optimistic?: Array<{ leaid: string; name: string; stateAbbrev: string }>;
+      /** Partial district data for optimistic UI — not sent to server */
+      districtData?: Partial<TerritoryPlanDistrict>;
     }) =>
       fetchJson<{ added: number; planId: string }>(
         `${API_BASE}/territory-plans/${planId}/districts`,
@@ -122,18 +124,21 @@ export function useAddDistrictsToPlan() {
         }
       ),
     onMutate: async (variables) => {
-      // Only do optimistic update when we have metadata
-      if (!variables._optimistic?.length) return;
+      // Only do optimistic update if districtData is provided (combobox flow)
+      if (!variables.districtData || !variables.leaids) return undefined;
 
       await queryClient.cancelQueries({ queryKey: ["territoryPlan", variables.planId] });
-      const previous = queryClient.getQueryData<TerritoryPlanDetail>(["territoryPlan", variables.planId]);
 
-      if (previous) {
-        const newDistricts = variables._optimistic.map((d) => ({
-          leaid: d.leaid,
-          name: d.name,
-          stateAbbrev: d.stateAbbrev,
+      const planKey = ["territoryPlan", variables.planId] as const;
+      const previousPlan = queryClient.getQueryData<TerritoryPlanDetail>(planKey);
+
+      if (previousPlan) {
+        const leaid = Array.isArray(variables.leaids) ? variables.leaids[0] : variables.leaids;
+        const newDistrict: TerritoryPlanDistrict = {
+          leaid,
           addedAt: new Date().toISOString(),
+          name: "",
+          stateAbbrev: null,
           enrollment: null,
           owner: null,
           renewalTarget: null,
@@ -144,27 +149,25 @@ export function useAddDistrictsToPlan() {
           returnServices: [],
           newServices: [],
           tags: [],
-        }));
+          opportunities: [],
+          ...variables.districtData,
+        };
 
-        queryClient.setQueryData<TerritoryPlanDetail>(
-          ["territoryPlan", variables.planId],
-          {
-            ...previous,
-            districts: [...previous.districts, ...newDistricts],
-          }
-        );
+        queryClient.setQueryData<TerritoryPlanDetail>(planKey, {
+          ...previousPlan,
+          districts: [...previousPlan.districts, newDistrict],
+        });
       }
 
-      return { previous };
+      return { previousPlan };
     },
     onError: (_err, variables, context) => {
-      // Roll back on error
-      if (context?.previous) {
-        queryClient.setQueryData(["territoryPlan", variables.planId], context.previous);
+      // Roll back optimistic update
+      if (context?.previousPlan) {
+        queryClient.setQueryData(["territoryPlan", variables.planId], context.previousPlan);
       }
     },
-    onSettled: (_, __, variables) => {
-      // Always refetch to get full server data
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
@@ -195,6 +198,18 @@ export function useRemoveDistrictFromPlan() {
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
     },
+  });
+}
+
+export function usePlanOpportunities(planId: string | null) {
+  return useQuery({
+    queryKey: ["planOpportunities", planId],
+    queryFn: () =>
+      fetchJson<PlanOpportunityRow[]>(
+        `${API_BASE}/territory-plans/${planId}/opportunities`
+      ),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -318,5 +333,29 @@ export function useUpdateDistrictTargets() {
       // Debounce the dashboard refresh — it's not urgent
       queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
     },
+  });
+}
+
+// District name search for the combobox
+export interface DistrictSearchResult {
+  leaid: string;
+  name: string;
+  stateAbbrev: string | null;
+  enrollment: number | null;
+  accountType: string | null;
+  owner: string | null;
+}
+
+export function useDistrictNameSearch(query: string) {
+  return useQuery({
+    queryKey: ["districtNameSearch", query],
+    queryFn: async () => {
+      const res = await fetchJson<{ data: DistrictSearchResult[] }>(
+        `${API_BASE}/districts/search?name=${encodeURIComponent(query)}&limit=10`
+      );
+      return res.data;
+    },
+    enabled: query.length >= 2,
+    staleTime: 30 * 1000, // 30 seconds — search results are fairly stable
   });
 }

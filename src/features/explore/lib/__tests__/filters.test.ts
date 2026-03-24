@@ -201,14 +201,14 @@ describe("buildWhereClause", () => {
       });
     });
 
-    it("last filter wins when multiple filters target the same column", () => {
+    it("combines multiple filters on the same column with AND", () => {
       const filters: FilterDef[] = [
         { column: "score", op: "gt", value: 50 },
         { column: "score", op: "lt", value: 90 },
       ];
-      // The loop overwrites the same key, so the last one wins
+      // Multiple filters on same column are combined via AND
       expect(buildWhereClause(filters)).toEqual({
-        score: { lt: 90 },
+        AND: [{ score: { gt: 50 } }, { score: { lt: 90 } }],
       });
     });
   });
