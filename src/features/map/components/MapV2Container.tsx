@@ -1186,6 +1186,8 @@ export default function MapV2Container({
             const store = useMapV2Store.getState();
             store.addClickRipple(e.point.x, e.point.y, "coral");
             store.selectDistrict(leaid);
+            store.toggleDistrictSelection(leaid);
+            store.openResultsPanel("districts");
           }
           return;
         }
@@ -1211,6 +1213,8 @@ export default function MapV2Container({
 
           // Multi-select is always-on — every click toggles selection
           store.toggleLeaidSelection(leaid);
+          store.toggleDistrictSelection(leaid);
+          store.openResultsPanel("districts");
 
           // Zoom to district
           const bounds = districtFeatures[0].geometry;
@@ -1231,7 +1235,7 @@ export default function MapV2Container({
               }
               map.current.fitBounds(
                 [[minLng, minLat], [maxLng, maxLat]],
-                { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 9, duration: 800 }
+                { padding: { top: 80, bottom: 80, left: 80, right: map.current.getContainer().clientWidth * 0.4 + 80 }, maxZoom: 9, duration: 800 }
               );
             }
           }
