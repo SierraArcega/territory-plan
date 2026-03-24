@@ -874,6 +874,7 @@ export default function SearchResults() {
           onNext={canGoNext ? handleExploreNext : undefined}
           currentIndex={currentExploreIndex}
           totalCount={districts.length}
+          initialTab={useMapV2Store.getState().exploreModalTab as "fullmind" | "competitors" | "finance" | "demographics" | "academics" | "contacts" | "schools" | "vacancies" | undefined}
         />,
         document.body
       )}

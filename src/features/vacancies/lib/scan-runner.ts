@@ -497,7 +497,7 @@ async function redistributeInBackground(
     const batch = entries.slice(i, i + CONCURRENCY);
     await Promise.all(
       batch.map(([leaid, bucket]) =>
-        processVacancies(leaid, scanId, bucket.jobs, platform, bucket.districtName)
+        processVacancies(leaid, scanId, bucket.jobs, platform, bucket.districtName, false)
       )
     );
   }

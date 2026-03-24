@@ -125,7 +125,9 @@ export async function processVacancies(
   scanId: string,
   rawVacancies: RawVacancy[],
   platform: string = "unknown",
-  districtName?: string
+  districtName?: string,
+  /** When true, skip district affinity check — vacancies are known to belong to this district */
+  isOwnDistrict: boolean = true
 ): Promise<ProcessResult> {
   // Pre-load all lookup data in parallel (fixes N+1 queries)
   const [relevanceConfigs, schools, contacts, filtered] = await Promise.all([
@@ -215,7 +217,7 @@ export async function processVacancies(
     if (fullmindRelevant) fullmindRelevantCount++;
 
     const datePosted = parseDatePosted(raw.datePosted);
-    const districtVerified = checkDistrictAffinity(raw, platform, districtName);
+    const districtVerified = isOwnDistrict || checkDistrictAffinity(raw, platform, districtName);
 
     // Upsert vacancy
     await prisma.vacancy.upsert({
