@@ -41,117 +41,53 @@ function makePlan(overrides: Partial<TerritoryPlan> = {}): TerritoryPlan {
 describe("FlippablePlanCard", () => {
   const onNavigate = vi.fn();
 
-  // Test 8: Front face renders plan name and district count
   it("renders plan name and district count", () => {
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
     expect(screen.getByText("West Region Q1")).toBeInTheDocument();
     expect(screen.getByText(/15 districts/)).toBeInTheDocument();
   });
 
-  // Test 9: Renders owner name
-  it("renders owner name", () => {
-    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    expect(screen.getByText("John Smith")).toBeInTheDocument();
-  });
-
-  // Test 10: Shows "Unassigned" when no owner
-  it('shows "Unassigned" when plan has no owner', () => {
-    render(
-      <FlippablePlanCard plan={makePlan({ owner: null })} variant="full" onNavigate={onNavigate} />
-    );
-    expect(screen.getByText("Unassigned")).toBeInTheDocument();
-  });
-
-  // Test 11: Shows "Owner" label
-  it('displays "Owner" label', () => {
-    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    expect(screen.getByText("Owner")).toBeInTheDocument();
-  });
-
-  // Test 12: Shows "Targets" label beneath donut
-  it('displays "Targets" label beneath the donut', () => {
-    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    expect(screen.getByText("Targets")).toBeInTheDocument();
-  });
-
-  // Test 13: Clicking card calls onNavigate
   it("calls onNavigate with plan ID when card is clicked", () => {
     onNavigate.mockClear();
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-
     const card = screen.getByRole("button");
     fireEvent.click(card);
-
     expect(onNavigate).toHaveBeenCalledWith("plan-1");
   });
 
-  // Test 14: Keyboard navigation works
   it("calls onNavigate when Enter is pressed on the card", () => {
     onNavigate.mockClear();
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-
     const card = screen.getByRole("button");
     fireEvent.keyDown(card, { key: "Enter" });
-
     expect(onNavigate).toHaveBeenCalledWith("plan-1");
   });
 
-  // Test 15: Shows states inline with districts
   it("shows state abbreviations after district count", () => {
     render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    // States are in a nested span: " · CA, TX"
     expect(screen.getByText((_, el) => el?.textContent?.includes("CA, TX") && el.tagName === "SPAN" || false)).toBeInTheDocument();
   });
 
-  // Test 16: Shows pipeline and target labels
-  it("shows Pipeline and Target labels with formatted values", () => {
-    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    expect(screen.getByText("Pipeline")).toBeInTheDocument();
-    expect(screen.getByText("Target")).toBeInTheDocument();
-    // Pipeline = 120K, Target = 250K (100k+50k+25k+75k)
-    expect(screen.getByText("$120K")).toBeInTheDocument();
-    expect(screen.getByText("$250K")).toBeInTheDocument();
-  });
-
-  // Test 17: Shows percentage to target
-  it("shows percentage to target", () => {
-    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
-    // 120000 / 250000 = 48%
-    expect(screen.getByText("48%")).toBeInTheDocument();
-  });
-
-  // Test 18: Compact variant uses smaller donut
-  it("renders donut with size 44 in compact variant", () => {
-    const { container } = render(
-      <FlippablePlanCard plan={makePlan()} variant="compact" onNavigate={onNavigate} />
-    );
-    const svg = container.querySelector('svg[aria-label="Target breakdown donut chart"]');
-    expect(svg).toHaveAttribute("width", "44");
-  });
-
-  // Test 19: Full variant uses larger donut
-  it("renders donut with size 56 in full variant", () => {
-    const { container } = render(
-      <FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />
-    );
-    const svg = container.querySelector('svg[aria-label="Target breakdown donut chart"]');
-    expect(svg).toHaveAttribute("width", "56");
-  });
-
-  // Test 20: Shows owner initials fallback when no avatar
-  it("shows initials fallback when owner has no avatar", () => {
+  it("shows revenue progress bar with percentage when targets exist", () => {
     render(
       <FlippablePlanCard
-        plan={makePlan({ owner: { id: "user-1", fullName: "John Smith", avatarUrl: null } })}
+        plan={makePlan({ revenueActual: 125000 })}
         variant="full"
         onNavigate={onNavigate}
       />
     );
-    expect(screen.getByText("JS")).toBeInTheDocument();
+    // totalTarget = 100k+50k+25k+75k = 250k, revenueActual = 125k → 50%
+    expect(screen.getByText("50%")).toBeInTheDocument();
+    expect(screen.getByText(/\$125K.*\/.*\$250K.*revenue/)).toBeInTheDocument();
   });
 
-  // Test: Hides pipeline/target section when all rollups are zero
-  it("hides pipeline bar when total target is zero", () => {
+  it("shows 0% when revenueActual is not set", () => {
+    render(<FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />);
+    // revenueActual defaults to 0, totalTarget = 250k → 0%
+    expect(screen.getByText("0%")).toBeInTheDocument();
+  });
+
+  it("hides progress bar when total target is zero", () => {
     render(
       <FlippablePlanCard
         plan={makePlan({
@@ -165,11 +101,25 @@ describe("FlippablePlanCard", () => {
         onNavigate={onNavigate}
       />
     );
-    expect(screen.queryByText("Target")).not.toBeInTheDocument();
-    expect(screen.queryByText("%")).not.toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 
-  // Test: Color bar uses plan.color
+  it("uses compact padding in compact variant", () => {
+    const { container } = render(
+      <FlippablePlanCard plan={makePlan()} variant="compact" onNavigate={onNavigate} />
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).toContain("p-3");
+  });
+
+  it("uses full padding in full variant", () => {
+    const { container } = render(
+      <FlippablePlanCard plan={makePlan()} variant="full" onNavigate={onNavigate} />
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).toContain("p-4");
+  });
+
   it("renders left color bar with plan color", () => {
     const { container } = render(
       <FlippablePlanCard plan={makePlan({ color: "#FF5733" })} variant="full" onNavigate={onNavigate} />
@@ -177,5 +127,12 @@ describe("FlippablePlanCard", () => {
     const colorBar = container.querySelector('[style*="background-color: rgb(255, 87, 51)"]') ||
       container.querySelector('[style*="#FF5733"]');
     expect(colorBar).toBeInTheDocument();
+  });
+
+  it("uses singular 'district' when count is 1", () => {
+    render(
+      <FlippablePlanCard plan={makePlan({ districtCount: 1 })} variant="full" onNavigate={onNavigate} />
+    );
+    expect(screen.getByText(/1 district$/)).toBeInTheDocument();
   });
 });

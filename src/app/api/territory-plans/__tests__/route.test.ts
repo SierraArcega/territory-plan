@@ -364,6 +364,7 @@ describe("Territory Plans API", () => {
         createdAt: new Date("2024-01-01"),
         updatedAt: new Date("2024-01-20"),
         _count: { districts: 3 },
+        districts: [] as { districtLeaid: string }[],
         ownerUser: null,
         states: [],
         collaborators: [],

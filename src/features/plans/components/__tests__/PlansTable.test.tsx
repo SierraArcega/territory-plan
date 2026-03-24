@@ -226,35 +226,35 @@ describe("PlansTable", () => {
       expect(mockOnSelectPlan).toHaveBeenCalledWith("plan-1");
     });
 
-    it("calls onSelectPlan when clicking View button", () => {
+    it("calls onSelectPlan when clicking plan name", () => {
       renderWithProviders(
         <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
       );
 
-      // Click View button for first plan
-      const viewButtons = screen.getAllByRole("button", { name: /view/i });
-      fireEvent.click(viewButtons[0]);
+      // Click the plan name button (name is rendered as clickable button)
+      const nameButton = screen.getByText("West Region Q1");
+      fireEvent.click(nameButton);
 
       expect(mockOnSelectPlan).toHaveBeenCalledWith("plan-1");
     });
   });
 
-  describe("inline editing - name", () => {
-    it("allows inline editing of name", async () => {
+  describe("inline editing - description", () => {
+    it("allows inline editing of description", async () => {
       renderWithProviders(
         <PlansTable plans={mockPlans} onSelectPlan={mockOnSelectPlan} />
       );
 
-      // Click on name to edit
-      const nameCell = screen.getByText("West Region Q1");
-      fireEvent.click(nameCell);
+      // Click on description to edit (name is a navigation button, not inline editable)
+      const descCell = screen.getByText("Primary focus on expanding in the Western region");
+      fireEvent.click(descCell);
 
-      // Should show input
+      // Should show textarea
       const input = screen.getByRole("textbox");
-      expect(input).toHaveValue("West Region Q1");
+      expect(input).toBeInTheDocument();
 
       // Change value
-      fireEvent.change(input, { target: { value: "Updated Name" } });
+      fireEvent.change(input, { target: { value: "Updated Description" } });
 
       // Blur to save
       fireEvent.blur(input);
@@ -263,7 +263,7 @@ describe("PlansTable", () => {
         expect(mockUpdateMutate).toHaveBeenCalledWith(
           expect.objectContaining({
             id: "plan-1",
-            name: "Updated Name",
+            description: "Updated Description",
           })
         );
       });
@@ -402,7 +402,7 @@ describe("PlansTable", () => {
       const rows = screen.getAllByRole("row");
       // First row is header, so check data rows (index 1+)
       const dataRow = rows[1];
-      expect(dataRow).toHaveClass("hover:bg-gray-50");
+      expect(dataRow).toHaveClass("hover:bg-[#EFEDF5]");
     });
   });
 

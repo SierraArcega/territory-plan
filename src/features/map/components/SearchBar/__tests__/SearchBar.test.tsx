@@ -2,23 +2,32 @@ import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import SearchBar from "../index";
 
-vi.mock("@/features/map/lib/store", () => ({
-  useMapV2Store: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      searchFilters: [],
-      selectedFiscalYear: "fy26",
-      setSelectedFiscalYear: vi.fn(),
-      compareMode: false,
-      compareFyA: "fy25",
-      compareFyB: "fy26",
-      enterCompareMode: vi.fn(),
-      exitCompareMode: vi.fn(),
-      setCompareFyA: vi.fn(),
-      setCompareFyB: vi.fn(),
-      exploreModalLeaid: "1234567",  // simulate modal open
-      clearSearchFilters: vi.fn(),
-    }),
-}));
+vi.mock("@/features/map/lib/store", () => {
+  const storeState = {
+    searchFilters: [],
+    selectedFiscalYear: "fy26",
+    setSelectedFiscalYear: vi.fn(),
+    compareMode: false,
+    compareFyA: "fy25",
+    compareFyB: "fy26",
+    enterCompareMode: vi.fn(),
+    exitCompareMode: vi.fn(),
+    setCompareFyA: vi.fn(),
+    setCompareFyB: vi.fn(),
+    exploreModalLeaid: "1234567",  // simulate modal open
+    clearSearchFilters: vi.fn(),
+    activeLayers: new Set(["districts"]),
+    toggleLayer: vi.fn(),
+    layerFilters: { contacts: {}, vacancies: {}, activities: {}, plans: {} },
+    dateRange: { vacancies: { start: null, end: null, preset: null }, activities: { start: null, end: null, preset: null } },
+    openResultsPanel: vi.fn(),
+    isSearchActive: true,
+    searchResultsVisible: true,
+  };
+  const useMapV2Store = (selector: (s: typeof storeState) => unknown) => selector(storeState);
+  useMapV2Store.getState = () => storeState;
+  return { useMapV2Store };
+});
 
 vi.mock("@/features/map/lib/geocode", () => ({
   searchLocations: vi.fn().mockResolvedValue([]),

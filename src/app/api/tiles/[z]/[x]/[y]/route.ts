@@ -41,7 +41,7 @@ export async function GET(
     const isNationalView = zoom < 6 && !stateFilter;
 
     // Geometry simplification tolerance based on zoom level
-    const simplifyTolerance = zoom < 4 ? 0.005 : zoom < 6 ? 0.003 : zoom < 8 ? 0.001 : 0.0005;
+    const simplifyTolerance = zoom < 5 ? 0.01 : zoom < 7 ? 0.005 : 0.001;
 
     // Build category column aliases based on whether fy2 is present
     let categoryColumns: string;

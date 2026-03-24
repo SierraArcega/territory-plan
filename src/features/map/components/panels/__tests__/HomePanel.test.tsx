@@ -291,7 +291,7 @@ describe("HomePanel — Plan cards integration", () => {
     fireEvent.change(sortSelect, { target: { value: "name" } });
 
     // Plan name headings inside FlippablePlanCard have the text-plum class
-    const planNameHeadings = container.querySelectorAll("h3.text-plum");
+    const planNameHeadings = container.querySelectorAll("h3.text-\\[\\#403770\\]");
     const nameTexts = Array.from(planNameHeadings).map((h) => h.textContent);
 
     // Should be alphabetical
