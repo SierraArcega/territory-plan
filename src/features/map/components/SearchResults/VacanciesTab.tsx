@@ -35,6 +35,7 @@ function SkeletonCards() {
 export default function VacanciesTab({ data, isLoading }: VacanciesTabProps) {
   const pinnedVacancyIds = useMapV2Store((s) => s.pinnedVacancyIds);
   const setPinnedVacancyIds = useMapV2Store((s) => s.setPinnedVacancyIds);
+  const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
 
   const allFeatures = data?.features ?? [];
 
@@ -77,6 +78,13 @@ export default function VacanciesTab({ data, isLoading }: VacanciesTabProps) {
         <VacancyCard
           key={feature.properties?.id ?? feature.id ?? i}
           feature={feature as Feature<Point>}
+          onClick={() =>
+            setExploreModalLeaid(
+              feature.properties?.leaid,
+              "vacancies",
+              feature.properties?.id
+            )
+          }
         />
       ))}
     </div>

@@ -9,6 +9,7 @@ import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrol
 import { ACTIVITY_STATUS_CONFIG, formatStatusLabel } from "@/features/activities/types";
 import type { ActivityStatus } from "@/features/activities/types";
 import VacancyList from "@/features/vacancies/components/VacancyList";
+import { useMapV2Store } from "@/features/map/lib/store";
 
 interface CompetitorSpendRecord {
   competitor: string;
@@ -32,22 +33,23 @@ interface DistrictExploreModalProps {
   onNext?: () => void;
   currentIndex?: number;
   totalCount?: number;
+  initialTab?: Tab;
 }
 
-export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, currentIndex, totalCount }: DistrictExploreModalProps) {
+export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, currentIndex, totalCount, initialTab }: DistrictExploreModalProps) {
   const { data, isLoading } = useDistrictDetail(leaid);
   const { data: plans } = useTerritoryPlans();
   const addDistricts = useAddDistrictsToPlan();
-  const [activeTab, setActiveTab] = useState<Tab>("fullmind");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? "fullmind");
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Reset tab when navigating between districts
   useEffect(() => {
-    setActiveTab("fullmind");
+    setActiveTab(initialTab ?? "fullmind");
     setShowPlanDropdown(false);
-  }, [leaid]);
+  }, [leaid, initialTab]);
 
   // Keyboard: Escape to close, arrow keys to navigate
   useEffect(() => {
@@ -363,7 +365,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
               ) : activeTab === "schools" ? (
                 <SchoolsTab leaid={leaid} />
               ) : activeTab === "vacancies" ? (
-                <VacancyList leaid={leaid} />
+                <VacancyList leaid={leaid} highlightVacancyId={useMapV2Store.getState().exploreModalVacancyId} />
               ) : null}
             </div>
 

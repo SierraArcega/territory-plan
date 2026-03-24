@@ -299,6 +299,8 @@ interface MapV2State {
   searchResultLeaids: string[]; // leaids of districts matching current search (for map dimming)
   searchResultCentroids: Array<{ leaid: string; lat: number; lng: number }>; // centroids for dot markers
   exploreModalLeaid: string | null; // leaid of district currently shown in explore modal
+  exploreModalTab: string | null; // initial tab to open in explore modal
+  exploreModalVacancyId: string | null; // vacancy to highlight in explore modal
 
   // Overlay layers (map planning overlays)
   activeLayers: Set<OverlayLayerType>;
@@ -472,7 +474,7 @@ interface MapV2Actions {
   toggleSearchResults: () => void;
   setSearchResultLeaids: (leaids: string[]) => void;
   setSearchResultCentroids: (centroids: Array<{ leaid: string; lat: number; lng: number }>) => void;
-  setExploreModalLeaid: (leaid: string | null) => void;
+  setExploreModalLeaid: (leaid: string | null, tab?: string | null, vacancyId?: string | null) => void;
 
   // Overlay layers (map planning overlays)
   toggleLayer: (layer: OverlayLayerType) => void;
@@ -654,6 +656,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   isSearchActive: false,
   searchResultsVisible: false,
   exploreModalLeaid: null,
+  exploreModalTab: null,
+  exploreModalVacancyId: null,
   searchResultLeaids: [],
   searchResultCentroids: [],
 
@@ -1347,7 +1351,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     set((s) => ({ searchFilterModes: { ...s.searchFilterModes, [domain]: mode } })),
   setSearchBounds: (bounds) => set({ searchBounds: bounds }),
   toggleSearchResults: () => set((s) => ({ searchResultsVisible: !s.searchResultsVisible })),
-  setExploreModalLeaid: (leaid) => set({ exploreModalLeaid: leaid }),
+  setExploreModalLeaid: (leaid, tab, vacancyId) => set({ exploreModalLeaid: leaid, exploreModalTab: tab ?? null, exploreModalVacancyId: vacancyId ?? null }),
   setSearchResultLeaids: (leaids) => set({ searchResultLeaids: leaids }),
   setSearchResultCentroids: (centroids) => set({ searchResultCentroids: centroids }),
 
