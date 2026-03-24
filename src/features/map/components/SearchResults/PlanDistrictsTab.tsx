@@ -443,15 +443,21 @@ function TargetCard({
 // ─── Pacing Table ────────────────────────────────────────────────
 
 export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYear: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const fyShort = String(fiscalYear).slice(-2);
   const priorFyShort = String(fiscalYear - 1).slice(-2);
 
-  const metrics = pacing
+  const hasBreakdown = pacing?.serviceTypeBreakdown && pacing.serviceTypeBreakdown.length > 0;
+
+  // Format combined "$revenue / sessions" display
+  const fmtCombined = (revenue: number, sessions: number) =>
+    `${formatCurrency(revenue)} / ${sessions}`;
+
+  // Pipeline and Deals metrics (unchanged from before)
+  const otherMetrics = pacing
     ? [
-        { label: "Revenue", current: pacing.currentRevenue, sameDate: pacing.priorSameDateRevenue, full: pacing.priorFullRevenue, isCurrency: true },
         { label: "Pipeline", current: pacing.currentPipeline, sameDate: pacing.priorSameDatePipeline, full: pacing.priorFullPipeline, isCurrency: true },
         { label: "Deals", current: pacing.currentDeals, sameDate: pacing.priorSameDateDeals, full: pacing.priorFullDeals, isCurrency: false },
-        { label: "Sessions", current: pacing.currentSessions, sameDate: pacing.priorSameDateSessions, full: pacing.priorFullSessions, isCurrency: false },
       ]
     : null;
 
@@ -462,7 +468,7 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
         <span className="text-[8px] text-[#8A80A8] bg-[#f0edf5] px-1.5 py-0.5 rounded">FY{fyShort} vs FY{priorFyShort}</span>
       </div>
       <div className="bg-white border border-[#E2DEEC] rounded-lg overflow-hidden">
-        {/* Group headers */}
+        {/* Column headers */}
         <div className="grid grid-cols-[1fr_1fr_1fr_1fr] bg-[#FAFAFE] border-b border-[#E2DEEC]">
           <div className="px-2 py-1" />
           <div className="px-2 py-1" />
@@ -470,37 +476,105 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
           <div className="px-2 py-1 text-center border-l border-[#E2DEEC] text-[8px] font-bold text-[#8A80A8]">Full PFY</div>
         </div>
 
-        {!metrics ? (
+        {!pacing ? (
           <div className="px-3 py-4 text-center text-[10px] text-[#C2BBD4] italic">No prior year data</div>
         ) : (
-          metrics.map((m, i) => {
-            const paceBadge = getPaceBadge(m.current, m.sameDate);
-            const pctBadge = getPercentOfBadge(m.current, m.full);
-            const isLast = i === metrics.length - 1;
-            const fmt = m.isCurrency ? formatCurrency : (v: number) => String(v);
-
-            return (
-              <div
-                key={m.label}
-                className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 ${!isLast ? "border-b border-[#f0edf5]" : ""}`}
-              >
-                <span className="px-2 text-[10px] text-[#6E6390] font-medium">{m.label}</span>
-                <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">{fmt(m.current)}</span>
-                <div className="px-2 text-center border-l border-[#f0edf5]">
-                  <span className="text-[10px] text-[#8A80A8] tabular-nums">{fmt(m.sameDate)} </span>
-                  {paceBadge && (
-                    <span className={`text-[7px] px-1 py-0.5 rounded ${paceBadge.bg} ${paceBadge.text} font-semibold`}>{paceBadge.label}</span>
-                  )}
-                </div>
-                <div className="px-2 text-center border-l border-[#f0edf5]">
-                  <span className="text-[10px] text-[#8A80A8] tabular-nums">{fmt(m.full)} </span>
-                  {pctBadge && (
-                    <span className={`text-[7px] px-1 py-0.5 rounded ${pctBadge.bg} ${pctBadge.text} font-semibold`}>{pctBadge.label}</span>
-                  )}
-                </div>
+          <>
+            {/* Combined Revenue & Sessions row */}
+            <div
+              className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 border-b border-[#f0edf5] ${hasBreakdown ? "cursor-pointer hover:bg-[#FAFAFE]" : ""}`}
+              onClick={hasBreakdown ? () => setIsExpanded(!isExpanded) : undefined}
+            >
+              <span className="px-2 text-[10px] text-[#6E6390] font-medium flex items-center gap-1">
+                {hasBreakdown && (
+                  <svg
+                    width="6"
+                    height="6"
+                    viewBox="0 0 6 6"
+                    className={`shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                  >
+                    <path d="M1.5 0.5L4.5 3L1.5 5.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" />
+                  </svg>
+                )}
+                Revenue &amp; Sessions
+              </span>
+              <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">
+                {fmtCombined(pacing.currentRevenue, pacing.currentSessions)}
+              </span>
+              <div className="px-2 text-center border-l border-[#f0edf5]">
+                <span className="text-[10px] text-[#8A80A8] tabular-nums">
+                  {fmtCombined(pacing.priorSameDateRevenue, pacing.priorSameDateSessions)}{" "}
+                </span>
+                {(() => {
+                  const badge = getPaceBadge(pacing.currentRevenue, pacing.priorSameDateRevenue);
+                  return badge ? <span className={`text-[7px] px-1 py-0.5 rounded ${badge.bg} ${badge.text} font-semibold`}>{badge.label}</span> : null;
+                })()}
               </div>
-            );
-          })
+              <div className="px-2 text-center border-l border-[#f0edf5]">
+                <span className="text-[10px] text-[#8A80A8] tabular-nums">
+                  {fmtCombined(pacing.priorFullRevenue, pacing.priorFullSessions)}{" "}
+                </span>
+                {(() => {
+                  const badge = getPercentOfBadge(pacing.currentRevenue, pacing.priorFullRevenue);
+                  return badge ? <span className={`text-[7px] px-1 py-0.5 rounded ${badge.bg} ${badge.text} font-semibold`}>{badge.label}</span> : null;
+                })()}
+              </div>
+            </div>
+
+            {/* Service type sub-rows (expanded) */}
+            {isExpanded && hasBreakdown && pacing.serviceTypeBreakdown!.map((st) => {
+              const paceBadge = getPaceBadge(st.currentRevenue, st.priorSameDateRevenue);
+              const pctBadge = getPercentOfBadge(st.currentRevenue, st.priorFullRevenue);
+              return (
+                <div
+                  key={st.serviceType}
+                  className="grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1 border-b border-[#f0edf5] bg-[#FAFAFE]/50"
+                >
+                  <span className="px-2 pl-5 text-[9px] text-[#8A80A8]">{st.serviceType}</span>
+                  <span className="px-2 text-right text-[10px] text-[#6E6390] tabular-nums">
+                    {fmtCombined(st.currentRevenue, st.currentSessions)}
+                  </span>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <span className="text-[9px] text-[#A69DC0] tabular-nums">
+                      {fmtCombined(st.priorSameDateRevenue, st.priorSameDateSessions)}{" "}
+                    </span>
+                    {paceBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${paceBadge.bg} ${paceBadge.text} font-semibold`}>{paceBadge.label}</span>}
+                  </div>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <span className="text-[9px] text-[#A69DC0] tabular-nums">
+                      {fmtCombined(st.priorFullRevenue, st.priorFullSessions)}{" "}
+                    </span>
+                    {pctBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${pctBadge.bg} ${pctBadge.text} font-semibold`}>{pctBadge.label}</span>}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Pipeline and Deals rows (unchanged logic) */}
+            {otherMetrics!.map((m, i) => {
+              const paceBadge = getPaceBadge(m.current, m.sameDate);
+              const pctBadge = getPercentOfBadge(m.current, m.full);
+              const isLast = i === otherMetrics!.length - 1;
+              const fmt = m.isCurrency ? formatCurrency : (v: number) => String(v);
+              return (
+                <div
+                  key={m.label}
+                  className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 ${!isLast ? "border-b border-[#f0edf5]" : ""}`}
+                >
+                  <span className="px-2 text-[10px] text-[#6E6390] font-medium">{m.label}</span>
+                  <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">{fmt(m.current)}</span>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <span className="text-[10px] text-[#8A80A8] tabular-nums">{fmt(m.sameDate)} </span>
+                    {paceBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${paceBadge.bg} ${paceBadge.text} font-semibold`}>{paceBadge.label}</span>}
+                  </div>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <span className="text-[10px] text-[#8A80A8] tabular-nums">{fmt(m.full)} </span>
+                    {pctBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${pctBadge.bg} ${pctBadge.text} font-semibold`}>{pctBadge.label}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </>
         )}
       </div>
     </div>
