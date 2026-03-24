@@ -309,6 +309,7 @@ interface MapV2State {
   // Unified layer control
   colorBy: ColorDimension;
   activeResultsTab: LayerType;
+  pinnedVacancyIds: string[] | null;
 
   // Geography filters
   geographyFilters: { states: string[]; zipRadius: { zip: string; radius: number } | null };
@@ -482,6 +483,7 @@ interface MapV2Actions {
   // Unified layer control
   setColorBy: (dimension: ColorDimension) => void;
   setActiveResultsTab: (tab: LayerType) => void;
+  setPinnedVacancyIds: (ids: string[] | null) => void;
   openResultsPanel: (tab: LayerType) => void;
 
   // Geography filters
@@ -672,6 +674,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   // Unified layer control
   colorBy: "engagement" as ColorDimension,
   activeResultsTab: "districts" as LayerType,
+  pinnedVacancyIds: null,
 
   // Geography filters
   geographyFilters: { states: [] as string[], zipRadius: null as { zip: string; radius: number } | null },
@@ -1382,7 +1385,8 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
 
   // Unified layer control
   setColorBy: (dimension) => set({ colorBy: dimension }),
-  setActiveResultsTab: (tab) => set({ activeResultsTab: tab }),
+  setActiveResultsTab: (tab) => set({ activeResultsTab: tab, pinnedVacancyIds: null }),
+  setPinnedVacancyIds: (ids) => set({ pinnedVacancyIds: ids }),
   openResultsPanel: (tab) => set({ searchResultsVisible: true, activeResultsTab: tab }),
 
   // Geography filters
