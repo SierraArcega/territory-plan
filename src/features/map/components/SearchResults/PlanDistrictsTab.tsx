@@ -39,8 +39,7 @@ function getAttainmentStyle(pct: number): { bg: string; text: string } {
 }
 
 function getPaceBadge(current: number, prior: number): { label: string; bg: string; text: string } | null {
-  if (prior === 0 && current === 0) return null;
-  if (prior === 0) return { label: "New", bg: "bg-[#EBF0F7]", text: "text-[#3D5A80]" };
+  if (current === 0 || prior === 0) return null;
   const pct = Math.round(((current - prior) / prior) * 100);
   if (pct > 0) return { label: `▲ ${pct}%`, bg: "bg-[#EFF5F0]", text: "text-[#5a7a61]" };
   if (pct === 0) return { label: "—", bg: "bg-[#f0edf5]", text: "text-[#8A80A8]" };
