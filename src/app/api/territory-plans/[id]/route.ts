@@ -305,8 +305,9 @@ export async function GET(
               : [];
 
             // Derive revenue/sessions totals from breakdown so parent = sum of children
-            const sumField = (field: keyof typeof breakdown[0]) =>
-              breakdown.reduce((acc, row) => acc + (row[field] as number), 0);
+            type NumericBreakdownKey = Exclude<keyof typeof breakdown[0], "serviceType">;
+            const sumField = (field: NumericBreakdownKey) =>
+              breakdown.reduce((acc, row) => acc + row[field], 0);
 
             return {
               currentRevenue: breakdown.length > 0 ? sumField("currentRevenue") : (cp ? Number(cp.revenue) : 0),
