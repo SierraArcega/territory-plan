@@ -8,14 +8,11 @@ import {
   useServices,
 } from "@/lib/api";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { useMapStore } from "@/features/shared/lib/app-store";
-import { STATE_BBOX } from "@/features/map/components/MapV2Container";
 import type {
   TerritoryPlanDetail,
   TerritoryPlanDistrict,
   DistrictPacing,
 } from "@/features/shared/types/api-types";
-import { ServiceTypeBreakdown } from "./ServiceTypeBreakdown";
 
 // ─── Formatting Helpers ──────────────────────────────────────────
 
@@ -41,7 +38,8 @@ function getAttainmentStyle(pct: number): { bg: string; text: string } {
 }
 
 function getPaceBadge(current: number, prior: number): { label: string; bg: string; text: string } | null {
-  if (current === 0 || prior === 0) return null;
+  if (prior === 0 && current === 0) return null;
+  if (prior === 0) return { label: "New", bg: "bg-[#EBF0F7]", text: "text-[#3D5A80]" };
   const pct = Math.round(((current - prior) / prior) * 100);
   if (pct > 0) return { label: `▲ ${pct}%`, bg: "bg-[#EFF5F0]", text: "text-[#5a7a61]" };
   if (pct === 0) return { label: "—", bg: "bg-[#f0edf5]", text: "text-[#8A80A8]" };
@@ -127,7 +125,7 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
         <p className="text-xs text-[#A69DC0] mt-1">Add districts to start building your territory plan.</p>
         <div className="mt-4 flex items-center gap-2">
           <AddDistrictButton planId={plan.id} existingLeaids={[]} />
-          <BrowseMapButton plan={plan} onClose={onClose} />
+          <BrowseMapButton planId={plan.id} onClose={onClose} />
         </div>
       </div>
     );
@@ -177,7 +175,7 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
             planId={plan.id}
             existingLeaids={plan.districts.map((d) => d.leaid)}
           />
-          <BrowseMapButton plan={plan} onClose={onClose} />
+          <BrowseMapButton planId={plan.id} onClose={onClose} />
         </div>
         <span className="text-[11px] text-[#A69DC0]">
           {plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}
@@ -444,8 +442,7 @@ function TargetCard({
 
 // ─── Pacing Table ────────────────────────────────────────────────
 
-function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYear: number }) {
-  const [sessionsExpanded, setSessionsExpanded] = useState(false);
+export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYear: number }) {
   const fyShort = String(fiscalYear).slice(-2);
   const priorFyShort = String(fiscalYear - 1).slice(-2);
 
@@ -481,21 +478,13 @@ function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYe
             const pctBadge = getPercentOfBadge(m.current, m.full);
             const isLast = i === metrics.length - 1;
             const fmt = m.isCurrency ? formatCurrency : (v: number) => String(v);
-            const isSessionsRow = m.label === "Sessions";
 
             return (
               <div
                 key={m.label}
-                className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 ${!isLast ? "border-b border-[#f0edf5]" : ""} ${isSessionsRow ? "cursor-pointer hover:bg-[#faf9fc]" : ""}`}
-                onClick={isSessionsRow ? () => setSessionsExpanded(!sessionsExpanded) : undefined}
+                className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 ${!isLast ? "border-b border-[#f0edf5]" : ""}`}
               >
-                <span className={`px-2 text-[10px] font-medium ${isSessionsRow ? "text-[#7c5cbf]" : "text-[#6E6390]"}`}>
-                  {isSessionsRow ? (
-                    <>{sessionsExpanded ? "▼" : "▶"} {m.label}</>
-                  ) : (
-                    m.label
-                  )}
-                </span>
+                <span className="px-2 text-[10px] text-[#6E6390] font-medium">{m.label}</span>
                 <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">{fmt(m.current)}</span>
                 <div className="px-2 text-center border-l border-[#f0edf5]">
                   <span className="text-[10px] text-[#8A80A8] tabular-nums">{fmt(m.sameDate)} </span>
@@ -512,13 +501,6 @@ function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYe
               </div>
             );
           })
-        )}
-
-        {sessionsExpanded && pacing?.serviceTypeRevenue !== undefined && (
-          <ServiceTypeBreakdown
-            data={pacing.serviceTypeRevenue}
-            fiscalYear={fiscalYear}
-          />
         )}
       </div>
     </div>
@@ -738,7 +720,7 @@ function AddDistrictButton({
         const res = await fetch(`/api/districts?search=${encodeURIComponent(q)}&limit=10`);
         if (res.ok) {
           const data = await res.json();
-          const items = (data.districts || data.data || data).filter(
+          const items = (data.data || data).filter(
             (d: { leaid: string }) => !existingLeaids.includes(d.leaid)
           );
           setResults(items.slice(0, 8));
@@ -748,7 +730,6 @@ function AddDistrictButton({
   };
 
   const handleAdd = async (leaid: string) => {
-    const match = results.find((r) => r.leaid === leaid);
     try {
       await addDistricts.mutateAsync({ planId, leaids: [leaid] });
       setResults((prev) => prev.filter((r) => r.leaid !== leaid));
@@ -806,70 +787,9 @@ function AddDistrictButton({
 
 // ─── Browse Map Button ───────────────────────────────────────────
 
-function BrowseMapButton({ plan, onClose }: { plan: TerritoryPlanDetail; onClose: () => void }) {
-  const clearSearchFilters = useMapV2Store((s) => s.clearSearchFilters);
-  const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
-  const openResultsPanel = useMapV2Store((s) => s.openResultsPanel);
-  const setFullmindEngagement = useMapV2Store((s) => s.setFullmindEngagement);
-  const setActiveTab = useMapStore((s) => s.setActiveTab);
-  const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
-
-  const handleClick = () => {
-    // Clear any previous search state
-    clearSearchFilters();
-
-    const abbrevs = plan.states.map((s) => s.abbrev);
-
-    // Add state filter so the search system finds all districts in the plan's states
-    if (abbrevs.length > 0) {
-      addSearchFilter({
-        id: crypto.randomUUID(),
-        column: "state",
-        op: "in",
-        value: abbrevs,
-      });
-
-      // Set state overlay highlighting + zoom
-      useMapV2Store.setState((s) => {
-        let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-        for (const abbrev of abbrevs) {
-          const bbox = STATE_BBOX[abbrev];
-          if (!bbox) continue;
-          if (bbox[0][0] < minLng) minLng = bbox[0][0];
-          if (bbox[0][1] < minLat) minLat = bbox[0][1];
-          if (bbox[1][0] > maxLng) maxLng = bbox[1][0];
-          if (bbox[1][1] > maxLat) maxLat = bbox[1][1];
-        }
-        return {
-          filterStates: abbrevs,
-          pendingFitBounds: minLng <= maxLng ? [[minLng, minLat], [maxLng, maxLat]] : null,
-        };
-      });
-    }
-
-    // Show all engagement levels so 100% of districts are visible
-    setFullmindEngagement([
-      "target",
-      "new_business_pipeline",
-      "winback_pipeline",
-      "renewal_pipeline",
-      "expansion_pipeline",
-      "first_year",
-      "multi_year_growing",
-      "multi_year_flat",
-      "multi_year_shrinking",
-      "lapsed",
-    ]);
-
-    // Open the Districts tab in the results panel
-    openResultsPanel("districts");
-
-    // Set the current plan so "Add All to Plan" context is available
-    setCurrentPlanId(plan.id);
-
-    setActiveTab("map");
-    onClose();
-  };
+function BrowseMapButton({ planId, onClose }: { planId: string; onClose: () => void }) {
+  const viewPlan = useMapV2Store((s) => s.viewPlan);
+  const handleClick = () => { onClose(); viewPlan(planId); };
 
   return (
     <button
