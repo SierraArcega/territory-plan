@@ -108,12 +108,12 @@ describe("getContactLayers", () => {
 
   it("cluster layer filters for point_count", () => {
     const clusterLayer = layers.find((l) => l.id === CONTACTS_CLUSTER_LAYER)!;
-    expect(clusterLayer.filter).toEqual(["has", "point_count"]);
+    expect((clusterLayer as Record<string, unknown>).filter).toEqual(["has", "point_count"]);
   });
 
   it("point layer filters out clusters", () => {
     const pointLayer = layers.find((l) => l.id === CONTACTS_POINT_LAYER)!;
-    expect(pointLayer.filter).toEqual(["!", ["has", "point_count"]]);
+    expect((pointLayer as Record<string, unknown>).filter).toEqual(["!", ["has", "point_count"]]);
   });
 });
 
@@ -198,10 +198,10 @@ describe("getPlanLayers", () => {
     expect(outlineLayer.type).toBe("line");
   });
 
-  it("fill uses coalesce with planColor and plum fallback #403770", () => {
+  it("fill uses coalesce with planColor and plum fallback #7B6BA4", () => {
     const fillLayer = layers.find((l) => l.id === PLANS_FILL_LAYER)!;
     const paint = (fillLayer as { paint: Record<string, unknown> }).paint;
-    expect(paint["fill-color"]).toEqual(["coalesce", ["get", "planColor"], "#403770"]);
+    expect(paint["fill-color"]).toEqual(["coalesce", ["get", "planColor"], "#7B6BA4"]);
   });
 });
 

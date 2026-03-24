@@ -11,7 +11,8 @@ vi.mock("@/lib/prisma", () => ({
 import prisma from "@/lib/prisma";
 import { matchSchool } from "../school-matcher";
 
-const mockPrisma = vi.mocked(prisma);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockPrisma = vi.mocked(prisma) as any;
 
 describe("matchSchool", () => {
   beforeEach(() => {
