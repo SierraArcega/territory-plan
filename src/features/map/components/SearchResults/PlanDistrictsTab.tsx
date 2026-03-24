@@ -13,6 +13,7 @@ import type {
   TerritoryPlanDistrict,
   DistrictPacing,
 } from "@/features/shared/types/api-types";
+import { ServiceTypeBreakdown } from "./ServiceTypeBreakdown";
 
 // ─── Formatting Helpers ──────────────────────────────────────────
 
@@ -38,8 +39,7 @@ function getAttainmentStyle(pct: number): { bg: string; text: string } {
 }
 
 function getPaceBadge(current: number, prior: number): { label: string; bg: string; text: string } | null {
-  if (prior === 0 && current === 0) return null;
-  if (prior === 0) return { label: "New", bg: "bg-[#EBF0F7]", text: "text-[#3D5A80]" };
+  if (current === 0 || prior === 0) return null;
   const pct = Math.round(((current - prior) / prior) * 100);
   if (pct > 0) return { label: `▲ ${pct}%`, bg: "bg-[#EFF5F0]", text: "text-[#5a7a61]" };
   if (pct === 0) return { label: "—", bg: "bg-[#f0edf5]", text: "text-[#8A80A8]" };
@@ -443,6 +443,7 @@ function TargetCard({
 // ─── Pacing Table ────────────────────────────────────────────────
 
 function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYear: number }) {
+  const [sessionsExpanded, setSessionsExpanded] = useState(false);
   const fyShort = String(fiscalYear).slice(-2);
   const priorFyShort = String(fiscalYear - 1).slice(-2);
 
@@ -478,13 +479,21 @@ function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYe
             const pctBadge = getPercentOfBadge(m.current, m.full);
             const isLast = i === metrics.length - 1;
             const fmt = m.isCurrency ? formatCurrency : (v: number) => String(v);
+            const isSessionsRow = m.label === "Sessions";
 
             return (
               <div
                 key={m.label}
-                className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 ${!isLast ? "border-b border-[#f0edf5]" : ""}`}
+                className={`grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1.5 ${!isLast ? "border-b border-[#f0edf5]" : ""} ${isSessionsRow ? "cursor-pointer hover:bg-[#faf9fc]" : ""}`}
+                onClick={isSessionsRow ? () => setSessionsExpanded(!sessionsExpanded) : undefined}
               >
-                <span className="px-2 text-[10px] text-[#6E6390] font-medium">{m.label}</span>
+                <span className={`px-2 text-[10px] font-medium ${isSessionsRow ? "text-[#7c5cbf]" : "text-[#6E6390]"}`}>
+                  {isSessionsRow ? (
+                    <>{sessionsExpanded ? "▼" : "▶"} {m.label}</>
+                  ) : (
+                    m.label
+                  )}
+                </span>
                 <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">{fmt(m.current)}</span>
                 <div className="px-2 text-center border-l border-[#f0edf5]">
                   <span className="text-[10px] text-[#8A80A8] tabular-nums">{fmt(m.sameDate)} </span>
@@ -501,6 +510,13 @@ function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYe
               </div>
             );
           })
+        )}
+
+        {sessionsExpanded && pacing?.serviceTypeRevenue !== undefined && (
+          <ServiceTypeBreakdown
+            data={pacing.serviceTypeRevenue}
+            fiscalYear={fiscalYear}
+          />
         )}
       </div>
     </div>

@@ -149,6 +149,38 @@ export async function GET(
     const priorSameDateByDistrict = new Map(priorSameDatePacing.map((r) => [r.district_lea_id, r]));
     const priorFullByDistrict = new Map(priorFullPacing.map((r) => [r.district_lea_id, r]));
 
+    // Service type revenue breakdown from sessions table
+    type ServiceRevenueRow = { district_lea_id: string; service_type: string | null; revenue: number };
+    let serviceRevenueRows: ServiceRevenueRow[] = [];
+
+    try {
+      serviceRevenueRows = await prisma.$queryRaw<ServiceRevenueRow[]>`
+        SELECT o.district_lea_id,
+               s.service_type,
+               COALESCE(SUM(s.session_price), 0) AS revenue
+        FROM sessions s
+        JOIN opportunities o ON o.id = s.opportunity_id
+        WHERE o.district_lea_id = ANY(${allLeaIds})
+          AND o.school_yr = ${schoolYr}
+        GROUP BY o.district_lea_id, s.service_type
+        ORDER BY revenue DESC
+      `;
+    } catch {
+      // Sessions table may not exist yet
+    }
+
+    const serviceRevenueByDistrict = new Map<string, Array<{ serviceType: string; revenue: number }>>();
+    for (const row of serviceRevenueRows) {
+      const leaid = row.district_lea_id;
+      if (!serviceRevenueByDistrict.has(leaid)) {
+        serviceRevenueByDistrict.set(leaid, []);
+      }
+      serviceRevenueByDistrict.get(leaid)!.push({
+        serviceType: row.service_type ?? "Other",
+        revenue: Number(row.revenue),
+      });
+    }
+
     const renewalRollup = Number(plan.renewalRollup);
     const expansionRollup = Number(plan.expansionRollup);
     const winbackRollup = Number(plan.winbackRollup);
@@ -240,6 +272,7 @@ export async function GET(
               priorFullPipeline: pf ? Number(pf.pipeline) : 0,
               priorFullDeals: pf ? Number(pf.deals) : 0,
               priorFullSessions: pf ? Number(pf.sessions) : 0,
+              serviceTypeRevenue: serviceRevenueByDistrict.get(pd.districtLeaid) ?? [],
             };
           })(),
         };
