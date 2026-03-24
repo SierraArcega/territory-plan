@@ -59,6 +59,9 @@ export async function GET(req: NextRequest) {
 
   const url = req.nextUrl;
 
+  // Name search shortcut (used by combobox — simpler than constructing a filters array)
+  const nameParam = url.searchParams.get("name");
+
   // Parse bounding box: bounds=west,south,east,north
   const boundsParam = url.searchParams.get("bounds");
   let bounds: [number, number, number, number] | null = null;
@@ -256,6 +259,10 @@ export async function GET(req: NextRequest) {
   // Merge AND arrays if both exist
   if (filterWhere.AND && relationWhere.AND) {
     where.AND = [...(filterWhere.AND as unknown[]), ...(relationWhere.AND as unknown[])];
+  }
+  // Add name search if provided
+  if (nameParam) {
+    where.name = { contains: nameParam, mode: "insensitive" };
   }
   if (leaidWhitelist !== null) {
     where.leaid = { in: leaidWhitelist };
