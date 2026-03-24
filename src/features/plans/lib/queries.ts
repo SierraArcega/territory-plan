@@ -289,3 +289,27 @@ export function useUpdateDistrictTargets() {
     },
   });
 }
+
+// District name search for the combobox
+export interface DistrictSearchResult {
+  leaid: string;
+  name: string;
+  stateAbbrev: string | null;
+  enrollment: number | null;
+  accountType: string | null;
+  owner: string | null;
+}
+
+export function useDistrictNameSearch(query: string) {
+  return useQuery({
+    queryKey: ["districtNameSearch", query],
+    queryFn: async () => {
+      const res = await fetchJson<{ data: DistrictSearchResult[] }>(
+        `${API_BASE}/districts/search?name=${encodeURIComponent(query)}&limit=10`
+      );
+      return res.data;
+    },
+    enabled: query.length >= 2,
+    staleTime: 30 * 1000, // 30 seconds — search results are fairly stable
+  });
+}
