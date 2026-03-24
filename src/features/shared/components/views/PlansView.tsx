@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   useTerritoryPlans,
   useTerritoryPlan,
@@ -32,6 +32,7 @@ import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import type { MultiSelectOption } from "@/features/shared/components/MultiSelect";
 import { AsyncMultiSelect } from "@/features/shared/components/AsyncMultiSelect";
 import { X } from "lucide-react";
+import PlanDetailModal from "@/features/map/components/SearchResults/PlanDetailModal";
 
 // Exported for unit testing — the filteredPlans useMemo delegates directly to this.
 export function applyPlanFilters(
@@ -115,12 +116,34 @@ export default function PlansView({ initialPlanId = null, onPlanChange }: PlansV
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(initialPlanId);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Fetch plans for prev/next navigation in the modal
+  const { data: plans = [] } = useTerritoryPlans();
+  const planIds = useMemo(() => plans.map((p) => p.id), [plans]);
+  const currentIndex = selectedPlanId ? planIds.indexOf(selectedPlanId) : -1;
+
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) {
+      const prevId = planIds[currentIndex - 1];
+      setSelectedPlanId(prevId);
+      onPlanChange?.(prevId);
+    }
+  }, [currentIndex, planIds, onPlanChange]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < planIds.length - 1) {
+      const nextId = planIds[currentIndex + 1];
+      setSelectedPlanId(nextId);
+      onPlanChange?.(nextId);
+    }
+  }, [currentIndex, planIds, onPlanChange]);
+
   // Notify parent when selection changes
   const handleSelectPlan = (planId: string | null) => {
     setSelectedPlanId(planId);
     onPlanChange?.(planId);
   };
 
+  // Always render the list; overlay the modal when a plan is selected
   return (
     <>
       <PlansListView
@@ -129,10 +152,11 @@ export default function PlansView({ initialPlanId = null, onPlanChange }: PlansV
         setShowCreateModal={setShowCreateModal}
       />
       {selectedPlanId && (
-        <PlanDetailView
+        <PlanDetailModal
           planId={selectedPlanId}
-          onBack={() => handleSelectPlan(null)}
-          onNavigate={(id) => handleSelectPlan(id)}
+          onClose={() => handleSelectPlan(null)}
+          onPrev={currentIndex > 0 ? handlePrev : undefined}
+          onNext={currentIndex < planIds.length - 1 ? handleNext : undefined}
         />
       )}
     </>

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { useUpdateDistrictTargets, useServices, type TerritoryPlanDistrict } from "@/lib/api";
+import { useUpdateDistrictTargets, useAddDistrictsToPlan, useServices, type TerritoryPlanDistrict } from "@/lib/api";
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
 import { useSortableTable, type SortComparator } from "@/features/shared/hooks/useSortableTable";
 import { SortHeader } from "@/features/shared/components/SortHeader";
@@ -205,6 +205,157 @@ function InlineServiceSelector({
               })}
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Add-District-by-Name Dropdown                                      */
+/* ------------------------------------------------------------------ */
+
+function AddDistrictDropdown({
+  planId,
+  existingLeaids,
+}: {
+  planId: string;
+  existingLeaids: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<
+    Array<{ leaid: string; name: string; stateAbbrev: string }>
+  >([]);
+  const [searching, setSearching] = useState(false);
+  const addDistricts = useAddDistrictsToPlan();
+  const ref = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+        setResults([]);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Auto-focus input when opened
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const handleSearch = useCallback(
+    (q: string) => {
+      setQuery(q);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (!q.trim()) {
+        setResults([]);
+        return;
+      }
+      debounceRef.current = setTimeout(async () => {
+        setSearching(true);
+        try {
+          const res = await fetch(
+            `/api/districts?search=${encodeURIComponent(q)}&limit=10`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const items = (data.districts || data.data || data).filter(
+              (d: { leaid: string }) => !existingLeaids.includes(d.leaid)
+            );
+            setResults(items.slice(0, 8));
+          }
+        } catch {
+          // Silent
+        } finally {
+          setSearching(false);
+        }
+      }, 300);
+    },
+    [existingLeaids]
+  );
+
+  const handleAdd = async (leaid: string) => {
+    const match = results.find((r) => r.leaid === leaid);
+    try {
+      await addDistricts.mutateAsync({
+        planId,
+        leaids: [leaid],
+        districtData: match ? { leaid: match.leaid, name: match.name, stateAbbrev: match.stateAbbrev } : undefined,
+      });
+      setResults((prev) => prev.filter((r) => r.leaid !== leaid));
+    } catch {
+      // Silent
+    }
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#322a5a] transition-colors"
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path
+            d="M5 1.5V8.5M1.5 5H8.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+        Add District
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full mb-2 left-0 w-72 bg-white rounded-xl shadow-xl border border-[#D4CFE2] overflow-hidden z-50">
+          <div className="px-3 py-2 border-b border-[#E2DEEC]">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search districts by name..."
+              className="w-full text-sm outline-none bg-transparent text-[#403770] placeholder:text-[#C2BBD4]"
+            />
+          </div>
+
+          <div className="max-h-52 overflow-y-auto">
+            {searching && (
+              <div className="px-3 py-2 text-xs text-[#A69DC0]">
+                Searching...
+              </div>
+            )}
+
+            {!searching && query && results.length === 0 && (
+              <div className="px-3 py-3 text-xs text-[#A69DC0] text-center">
+                No districts found
+              </div>
+            )}
+
+            {results.map((d) => (
+              <button
+                key={d.leaid}
+                onClick={() => handleAdd(d.leaid)}
+                disabled={addDistricts.isPending}
+                className="w-full flex items-center justify-between px-3 py-2 text-left text-sm hover:bg-[#F7F5FA] transition-colors disabled:opacity-50"
+              >
+                <span className="text-[#403770] font-medium truncate mr-2">
+                  {d.name}
+                </span>
+                <span className="text-[10px] text-[#A69DC0] shrink-0">
+                  {d.stateAbbrev}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -519,9 +670,15 @@ export default function DistrictsTable({
       </div>
       {/* Footer */}
       <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between">
-        <span className="text-[12px] font-medium text-gray-400 tracking-wide">
-          {districts.length} district{districts.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] font-medium text-gray-400 tracking-wide">
+            {districts.length} district{districts.length !== 1 ? "s" : ""}
+          </span>
+          <AddDistrictDropdown
+            planId={planId}
+            existingLeaids={districts.map((d) => d.leaid)}
+          />
+        </div>
         <div className="flex gap-4 text-[12px] text-gray-400">
           <span>Target: <span className="font-medium text-gray-500">{formatCurrency(grandTotal)}</span></span>
           <span>Revenue: <span className="font-medium text-gray-500">{formatCurrency(totals.revenueActual)}</span></span>

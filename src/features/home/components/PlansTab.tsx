@@ -12,6 +12,7 @@ import PlanFormModal, {
   type PlanFormData,
 } from "@/features/plans/components/PlanFormModal";
 import { FYPlanGroup } from "./PlanCard";
+import PlanDetailModal from "@/features/map/components/SearchResults/PlanDetailModal";
 import { Clock, Plus } from "lucide-react";
 
 // ============================================================================
@@ -27,6 +28,7 @@ export default function PlansTab({ onBadgeCountChange }: PlansTabProps) {
   const { data: plans } = useTerritoryPlans();
   const createPlan = useCreateTerritoryPlan();
   const [showPlanForm, setShowPlanForm] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   const currentFY = getDefaultFiscalYear();
 
@@ -103,6 +105,7 @@ export default function PlansTab({ onBadgeCountChange }: PlansTabProps) {
             isCurrent={fy === currentFY}
             plans={plans}
             onCreatePlan={() => setShowPlanForm(true)}
+            onNavigate={(id) => setSelectedPlanId(id)}
           />
         ))}
 
@@ -133,6 +136,12 @@ export default function PlansTab({ onBadgeCountChange }: PlansTabProps) {
         onSubmit={handleCreatePlan}
         title="Create New Plan"
       />
+      {selectedPlanId && (
+        <PlanDetailModal
+          planId={selectedPlanId}
+          onClose={() => setSelectedPlanId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -171,7 +171,6 @@ export function useAddDistrictsToPlan() {
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
-      // Refresh district detail so territoryPlanIds updates in the side panel
       const leaids = variables.leaids;
       if (leaids) {
         const ids = Array.isArray(leaids) ? leaids : [leaids];
