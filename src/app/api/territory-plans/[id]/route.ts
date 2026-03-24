@@ -104,6 +104,16 @@ export async function GET(
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
+    type SessionServiceRow = {
+      district_lea_id: string;
+      service_type: string;
+      sessions: number;
+      revenue: number;
+    };
+    let currentSessionsByService: SessionServiceRow[] = [];
+    let priorSameDateSessionsByService: SessionServiceRow[] = [];
+    let priorFullSessionsByService: SessionServiceRow[] = [];
+
     try {
       [currentPacing, priorSameDatePacing, priorFullPacing] = await Promise.all([
         prisma.$queryRaw<PacingRow[]>`
@@ -145,9 +155,78 @@ export async function GET(
       // Opportunities table may not exist yet
     }
 
+    try {
+      [currentSessionsByService, priorSameDateSessionsByService, priorFullSessionsByService] = await Promise.all([
+        prisma.$queryRaw<SessionServiceRow[]>`
+          SELECT o.district_lea_id,
+                 COALESCE(NULLIF(s.service_type, ''), 'Other') AS service_type,
+                 COUNT(*)::int AS sessions,
+                 COALESCE(SUM(s.session_price), 0) AS revenue
+          FROM sessions s
+          JOIN opportunities o ON o.id = s.opportunity_id
+          WHERE o.district_lea_id = ANY(${allLeaIds})
+            AND o.school_yr = ${schoolYr}
+          GROUP BY o.district_lea_id, COALESCE(NULLIF(s.service_type, ''), 'Other')
+        `,
+        prisma.$queryRaw<SessionServiceRow[]>`
+          SELECT o.district_lea_id,
+                 COALESCE(NULLIF(s.service_type, ''), 'Other') AS service_type,
+                 COUNT(*)::int AS sessions,
+                 COALESCE(SUM(s.session_price), 0) AS revenue
+          FROM sessions s
+          JOIN opportunities o ON o.id = s.opportunity_id
+          WHERE o.district_lea_id = ANY(${allLeaIds})
+            AND o.school_yr = ${priorSchoolYr}
+            AND s.start_time <= ${oneYearAgo}
+          GROUP BY o.district_lea_id, COALESCE(NULLIF(s.service_type, ''), 'Other')
+        `,
+        prisma.$queryRaw<SessionServiceRow[]>`
+          SELECT o.district_lea_id,
+                 COALESCE(NULLIF(s.service_type, ''), 'Other') AS service_type,
+                 COUNT(*)::int AS sessions,
+                 COALESCE(SUM(s.session_price), 0) AS revenue
+          FROM sessions s
+          JOIN opportunities o ON o.id = s.opportunity_id
+          WHERE o.district_lea_id = ANY(${allLeaIds})
+            AND o.school_yr = ${priorSchoolYr}
+          GROUP BY o.district_lea_id, COALESCE(NULLIF(s.service_type, ''), 'Other')
+        `,
+      ]);
+    } catch {
+      // Sessions table may not exist yet — breakdown will be empty
+    }
+
     const currentPacingByDistrict = new Map(currentPacing.map((r) => [r.district_lea_id, r]));
     const priorSameDateByDistrict = new Map(priorSameDatePacing.map((r) => [r.district_lea_id, r]));
     const priorFullByDistrict = new Map(priorFullPacing.map((r) => [r.district_lea_id, r]));
+
+    // Build per-district, per-service-type lookup
+    type ServiceAgg = { revenue: number; sessions: number };
+    const serviceTypeLookup = new Map<string, Map<string, { current: ServiceAgg; sameDate: ServiceAgg; full: ServiceAgg }>>();
+
+    function ensureEntry(leaid: string, st: string) {
+      if (!serviceTypeLookup.has(leaid)) serviceTypeLookup.set(leaid, new Map());
+      const byType = serviceTypeLookup.get(leaid)!;
+      if (!byType.has(st)) byType.set(st, {
+        current: { revenue: 0, sessions: 0 },
+        sameDate: { revenue: 0, sessions: 0 },
+        full: { revenue: 0, sessions: 0 },
+      });
+      return byType.get(st)!;
+    }
+
+    for (const r of currentSessionsByService) {
+      const e = ensureEntry(r.district_lea_id, r.service_type);
+      e.current = { revenue: Number(r.revenue), sessions: Number(r.sessions) };
+    }
+    for (const r of priorSameDateSessionsByService) {
+      const e = ensureEntry(r.district_lea_id, r.service_type);
+      e.sameDate = { revenue: Number(r.revenue), sessions: Number(r.sessions) };
+    }
+    for (const r of priorFullSessionsByService) {
+      const e = ensureEntry(r.district_lea_id, r.service_type);
+      e.full = { revenue: Number(r.revenue), sessions: Number(r.sessions) };
+    }
 
     return NextResponse.json({
       id: plan.id,
@@ -206,20 +285,43 @@ export async function GET(
             const cp = currentPacingByDistrict.get(pd.districtLeaid);
             const psd = priorSameDateByDistrict.get(pd.districtLeaid);
             const pf = priorFullByDistrict.get(pd.districtLeaid);
-            if (!cp && !psd && !pf) return undefined;
+            const stMap = serviceTypeLookup.get(pd.districtLeaid);
+
+            if (!cp && !psd && !pf && !stMap) return undefined;
+
+            // Build serviceTypeBreakdown array
+            const breakdown = stMap
+              ? Array.from(stMap.entries())
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([serviceType, agg]) => ({
+                    serviceType,
+                    currentRevenue: agg.current.revenue,
+                    currentSessions: agg.current.sessions,
+                    priorSameDateRevenue: agg.sameDate.revenue,
+                    priorSameDateSessions: agg.sameDate.sessions,
+                    priorFullRevenue: agg.full.revenue,
+                    priorFullSessions: agg.full.sessions,
+                  }))
+              : [];
+
+            // Derive revenue/sessions totals from breakdown so parent = sum of children
+            const sumField = (field: keyof typeof breakdown[0]) =>
+              breakdown.reduce((acc, row) => acc + (row[field] as number), 0);
+
             return {
-              currentRevenue: cp ? Number(cp.revenue) : 0,
+              currentRevenue: breakdown.length > 0 ? sumField("currentRevenue") : (cp ? Number(cp.revenue) : 0),
               currentPipeline: cp ? Number(cp.pipeline) : 0,
               currentDeals: cp ? Number(cp.deals) : 0,
-              currentSessions: cp ? Number(cp.sessions) : 0,
-              priorSameDateRevenue: psd ? Number(psd.revenue) : 0,
+              currentSessions: breakdown.length > 0 ? sumField("currentSessions") : (cp ? Number(cp.sessions) : 0),
+              priorSameDateRevenue: breakdown.length > 0 ? sumField("priorSameDateRevenue") : (psd ? Number(psd.revenue) : 0),
               priorSameDatePipeline: psd ? Number(psd.pipeline) : 0,
               priorSameDateDeals: psd ? Number(psd.deals) : 0,
-              priorSameDateSessions: psd ? Number(psd.sessions) : 0,
-              priorFullRevenue: pf ? Number(pf.revenue) : 0,
+              priorSameDateSessions: breakdown.length > 0 ? sumField("priorSameDateSessions") : (psd ? Number(psd.sessions) : 0),
+              priorFullRevenue: breakdown.length > 0 ? sumField("priorFullRevenue") : (pf ? Number(pf.revenue) : 0),
               priorFullPipeline: pf ? Number(pf.pipeline) : 0,
               priorFullDeals: pf ? Number(pf.deals) : 0,
-              priorFullSessions: pf ? Number(pf.sessions) : 0,
+              priorFullSessions: breakdown.length > 0 ? sumField("priorFullSessions") : (pf ? Number(pf.sessions) : 0),
+              serviceTypeBreakdown: breakdown.length > 0 ? breakdown : undefined,
             };
           })(),
         };
