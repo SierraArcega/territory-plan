@@ -3,6 +3,7 @@ import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type {
   TerritoryPlan,
   TerritoryPlanDetail,
+  TerritoryPlanDistrict,
   Contact,
   Service,
   PlanDistrictDetail,
@@ -112,6 +113,8 @@ export function useAddDistrictsToPlan() {
       planId: string;
       leaids?: string | string[];
       filters?: { column: string; op: string; value?: unknown }[];
+      /** Partial district data for optimistic UI — not sent to server */
+      districtData?: Partial<TerritoryPlanDistrict>;
     }) =>
       fetchJson<{ added: number; planId: string }>(
         `${API_BASE}/territory-plans/${planId}/districts`,
@@ -120,6 +123,50 @@ export function useAddDistrictsToPlan() {
           body: JSON.stringify({ leaids, filters }),
         }
       ),
+    onMutate: async (variables) => {
+      // Only do optimistic update if districtData is provided (combobox flow)
+      if (!variables.districtData || !variables.leaids) return undefined;
+
+      await queryClient.cancelQueries({ queryKey: ["territoryPlan", variables.planId] });
+
+      const planKey = ["territoryPlan", variables.planId] as const;
+      const previousPlan = queryClient.getQueryData<TerritoryPlanDetail>(planKey);
+
+      if (previousPlan) {
+        const leaid = Array.isArray(variables.leaids) ? variables.leaids[0] : variables.leaids;
+        const newDistrict: TerritoryPlanDistrict = {
+          leaid,
+          addedAt: new Date().toISOString(),
+          name: "",
+          stateAbbrev: null,
+          enrollment: null,
+          owner: null,
+          renewalTarget: null,
+          winbackTarget: null,
+          expansionTarget: null,
+          newBusinessTarget: null,
+          notes: null,
+          returnServices: [],
+          newServices: [],
+          tags: [],
+          opportunities: [],
+          ...variables.districtData,
+        };
+
+        queryClient.setQueryData<TerritoryPlanDetail>(planKey, {
+          ...previousPlan,
+          districts: [...previousPlan.districts, newDistrict],
+        });
+      }
+
+      return { previousPlan };
+    },
+    onError: (_err, variables, context) => {
+      // Roll back optimistic update
+      if (context?.previousPlan) {
+        queryClient.setQueryData(["territoryPlan", variables.planId], context.previousPlan);
+      }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
@@ -287,5 +334,29 @@ export function useUpdateDistrictTargets() {
       // Debounce the dashboard refresh — it's not urgent
       queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
     },
+  });
+}
+
+// District name search for the combobox
+export interface DistrictSearchResult {
+  leaid: string;
+  name: string;
+  stateAbbrev: string | null;
+  enrollment: number | null;
+  accountType: string | null;
+  owner: string | null;
+}
+
+export function useDistrictNameSearch(query: string) {
+  return useQuery({
+    queryKey: ["districtNameSearch", query],
+    queryFn: async () => {
+      const res = await fetchJson<{ data: DistrictSearchResult[] }>(
+        `${API_BASE}/districts/search?name=${encodeURIComponent(query)}&limit=10`
+      );
+      return res.data;
+    },
+    enabled: query.length >= 2,
+    staleTime: 30 * 1000, // 30 seconds — search results are fairly stable
   });
 }
