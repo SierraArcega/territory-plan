@@ -449,15 +449,12 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
 
   const hasBreakdown = pacing?.serviceTypeBreakdown && pacing.serviceTypeBreakdown.length > 0;
 
-  // Format combined "$revenue / sessions" display
-  const fmtCombined = (revenue: number, sessions: number) =>
-    `${formatCurrency(revenue)} / ${sessions}`;
-
-  // Pipeline and Deals metrics (unchanged from before)
-  const otherMetrics = pacing
+  // Remaining metrics after Revenue
+  const tailMetrics = pacing
     ? [
         { label: "Pipeline", current: pacing.currentPipeline, sameDate: pacing.priorSameDatePipeline, full: pacing.priorFullPipeline, isCurrency: true },
         { label: "Deals", current: pacing.currentDeals, sameDate: pacing.priorSameDateDeals, full: pacing.priorFullDeals, isCurrency: false },
+        { label: "Sessions", current: pacing.currentSessions, sameDate: pacing.priorSameDateSessions, full: pacing.priorFullSessions, isCurrency: false },
       ]
     : null;
 
@@ -480,7 +477,7 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
           <div className="px-3 py-4 text-center text-[10px] text-[#C2BBD4] italic">No prior year data</div>
         ) : (
           <>
-            {/* Combined Revenue & Sessions row */}
+            {/* Revenue row — expandable when service-type breakdown exists */}
             {(() => {
               const revPaceBadge = getPaceBadge(pacing.currentRevenue, pacing.priorSameDateRevenue);
               const revPctBadge = getPercentOfBadge(pacing.currentRevenue, pacing.priorFullRevenue);
@@ -500,28 +497,24 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
                         <path d="M1.5 0.5L4.5 3L1.5 5.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" />
                       </svg>
                     )}
-                    Revenue &amp; Sessions
+                    Revenue
                   </span>
                   <span className="px-2 text-right text-[11px] font-bold text-[#544A78] tabular-nums">
-                    {fmtCombined(pacing.currentRevenue, pacing.currentSessions)}
+                    {formatCurrency(pacing.currentRevenue)}
                   </span>
                   <div className="px-2 text-center border-l border-[#f0edf5]">
-                    <span className="text-[10px] text-[#8A80A8] tabular-nums">
-                      {fmtCombined(pacing.priorSameDateRevenue, pacing.priorSameDateSessions)}{" "}
-                    </span>
+                    <span className="text-[10px] text-[#8A80A8] tabular-nums">{formatCurrency(pacing.priorSameDateRevenue)} </span>
                     {revPaceBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${revPaceBadge.bg} ${revPaceBadge.text} font-semibold`}>{revPaceBadge.label}</span>}
                   </div>
                   <div className="px-2 text-center border-l border-[#f0edf5]">
-                    <span className="text-[10px] text-[#8A80A8] tabular-nums">
-                      {fmtCombined(pacing.priorFullRevenue, pacing.priorFullSessions)}{" "}
-                    </span>
+                    <span className="text-[10px] text-[#8A80A8] tabular-nums">{formatCurrency(pacing.priorFullRevenue)} </span>
                     {revPctBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${revPctBadge.bg} ${revPctBadge.text} font-semibold`}>{revPctBadge.label}</span>}
                   </div>
                 </div>
               );
             })()}
 
-            {/* Service type sub-rows (expanded) */}
+            {/* Service-type breakdown sub-rows (expanded) */}
             {isExpanded && hasBreakdown && pacing.serviceTypeBreakdown!.map((st) => {
               const paceBadge = getPaceBadge(st.currentRevenue, st.priorSameDateRevenue);
               const pctBadge = getPercentOfBadge(st.currentRevenue, st.priorFullRevenue);
@@ -531,30 +524,33 @@ export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; f
                   className="grid grid-cols-[1fr_1fr_1fr_1fr] items-center py-1 border-b border-[#f0edf5] bg-[#FAFAFE]/50"
                 >
                   <span className="px-2 pl-5 text-[9px] text-[#8A80A8]">{st.serviceType}</span>
-                  <span className="px-2 text-right text-[10px] text-[#6E6390] tabular-nums">
-                    {fmtCombined(st.currentRevenue, st.currentSessions)}
-                  </span>
-                  <div className="px-2 text-center border-l border-[#f0edf5]">
-                    <span className="text-[9px] text-[#A69DC0] tabular-nums">
-                      {fmtCombined(st.priorSameDateRevenue, st.priorSameDateSessions)}{" "}
-                    </span>
-                    {paceBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${paceBadge.bg} ${paceBadge.text} font-semibold`}>{paceBadge.label}</span>}
+                  <div className="px-2 text-right tabular-nums">
+                    <div className="text-[10px] text-[#6E6390]">{formatCurrency(st.currentRevenue)}</div>
+                    <div className="text-[8px] text-[#A69DC0]">{st.currentSessions} sessions</div>
                   </div>
                   <div className="px-2 text-center border-l border-[#f0edf5]">
-                    <span className="text-[9px] text-[#A69DC0] tabular-nums">
-                      {fmtCombined(st.priorFullRevenue, st.priorFullSessions)}{" "}
-                    </span>
-                    {pctBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${pctBadge.bg} ${pctBadge.text} font-semibold`}>{pctBadge.label}</span>}
+                    <div>
+                      <span className="text-[9px] text-[#A69DC0] tabular-nums">{formatCurrency(st.priorSameDateRevenue)} </span>
+                      {paceBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${paceBadge.bg} ${paceBadge.text} font-semibold`}>{paceBadge.label}</span>}
+                    </div>
+                    <div className="text-[8px] text-[#C2BBD4]">{st.priorSameDateSessions} sessions</div>
+                  </div>
+                  <div className="px-2 text-center border-l border-[#f0edf5]">
+                    <div>
+                      <span className="text-[9px] text-[#A69DC0] tabular-nums">{formatCurrency(st.priorFullRevenue)} </span>
+                      {pctBadge && <span className={`text-[7px] px-1 py-0.5 rounded ${pctBadge.bg} ${pctBadge.text} font-semibold`}>{pctBadge.label}</span>}
+                    </div>
+                    <div className="text-[8px] text-[#C2BBD4]">{st.priorFullSessions} sessions</div>
                   </div>
                 </div>
               );
             })}
 
-            {/* Pipeline and Deals rows (unchanged logic) */}
-            {otherMetrics!.map((m, i) => {
+            {/* Pipeline, Deals, Sessions rows */}
+            {tailMetrics!.map((m, i) => {
               const paceBadge = getPaceBadge(m.current, m.sameDate);
               const pctBadge = getPercentOfBadge(m.current, m.full);
-              const isLast = i === otherMetrics!.length - 1;
+              const isLast = i === tailMetrics!.length - 1;
               const fmt = m.isCurrency ? formatCurrency : (v: number) => String(v);
               return (
                 <div
