@@ -89,6 +89,57 @@ function extractListings(html: string, baseUrl: string): RawVacancy[] {
   return vacancies;
 }
 
+/**
+ * Extract the best source URL for a job listing block.
+ *
+ * Priority:
+ * 1. Direct <a href> link in the title table pointing to a detail page
+ * 2. Construct from AppliTrackJobId / JobID found in the block
+ * 3. Fall back to the generic board landing page
+ */
+function extractSourceUrl(block: string, baseUrl: string): string {
+  const genericUrl = baseUrl.replace(/\/jobpostings\/Output\.asp.*$/i, "/");
+  const detailBase = baseUrl.replace(/\/jobpostings\/Output\.asp.*$/i, "/default.aspx");
+
+  // 1. Look for an <a href> in the title table that links to a detail page
+  const titleTableHtml = block.match(
+    /<table[^>]*class=['"]?title['"]?[^>]*>([\s\S]*?)<\/table>/i
+  );
+  if (titleTableHtml) {
+    const hrefMatch = titleTableHtml[1].match(/<a[^>]+href=['"]([^'"]+)['"]/i);
+    if (hrefMatch) {
+      const href = hrefMatch[1];
+      // If it's an absolute URL, use it directly; otherwise resolve relative to base
+      if (/^https?:\/\//i.test(href)) return href;
+      try {
+        return new URL(href, baseUrl).toString();
+      } catch {
+        // invalid URL, continue to next strategy
+      }
+    }
+  }
+
+  // 2. Extract JobID from the title table's second <td> or anywhere in the block
+  const jobIdMatch =
+    block.match(/(?:AppliTrackJobId|JobID)\s*[:=]\s*(\d+)/i) ||
+    block.match(/JobID\s*[:=]?\s*(\d+)/i);
+  if (jobIdMatch) {
+    const jobId = jobIdMatch[1];
+    // Preserve scoping params from shared AppliTrack instances
+    const parsed = new URL(detailBase);
+    const origUrl = new URL(baseUrl);
+    const clientId = origUrl.searchParams.get("applitrackclient");
+    if (clientId) parsed.searchParams.set("applitrackclient", clientId);
+    parsed.searchParams.set("AppliTrackJobId", jobId);
+    parsed.searchParams.set("AppliTrackLayoutMode", "detail");
+    parsed.searchParams.set("AppliTrackViewPosting", "1");
+    return parsed.toString();
+  }
+
+  // 3. Fall back to generic board URL
+  return genericUrl;
+}
+
 function parseBlock(block: string, baseUrl: string): RawVacancy | null {
   // Extract job title from the title table — the title text is in a <td>
   // Structure: <table class='title'><tr><td>Job Title Here</td><td>...JobID...</td></tr></table>
@@ -103,8 +154,8 @@ function parseBlock(block: string, baseUrl: string): RawVacancy | null {
   title = title.replace(/['"]\);?\s*document\.write\s*\(['"].*/i, "").trim();
   if (!title || title.length < 3) return null;
 
-  // Link back to the district's main job board page
-  const sourceUrl = baseUrl.replace(/\/jobpostings\/Output\.asp.*$/i, "/");
+  // Build a detail URL for this specific job posting
+  const sourceUrl = extractSourceUrl(block, baseUrl);
 
   return parseBlockWithTitle(block, title, sourceUrl, baseUrl);
 }
@@ -126,22 +177,16 @@ function parseBlockWithTitle(
     vacancy.datePosted = dateMatch[1];
   }
 
-  // Location: School Name — extract from <span class='normal'> after Location label
-  const locationMatch = block.match(/Location:?<\/span>[\s\S]*?class=.?normal.?[^>]*>([\s\S]*?)<\//i);
-  if (locationMatch) {
-    const location = stripHtml(locationMatch[1]).trim();
-    if (location && location.toLowerCase() !== "to be determined" && !location.match(/viewing all/i) && !location.includes("/")) {
-      vacancy.schoolName = location;
-    }
+  // Location: School Name — try multiple patterns for resilience
+  const locationValue = extractField(block, blockText, "Location");
+  if (locationValue && locationValue.toLowerCase() !== "to be determined" && !locationValue.match(/viewing all/i) && !locationValue.includes("/")) {
+    vacancy.schoolName = locationValue;
   }
 
   // District/Employer — shared AppliTrack instances include this per listing
-  const districtMatch = block.match(/District:?<\/span>[\s\S]*?class=.?normal.?[^>]*>([\s\S]*?)<\//i);
-  if (districtMatch) {
-    const employer = stripHtml(districtMatch[1]).trim();
-    if (employer) {
-      vacancy.employerName = employer;
-    }
+  const districtValue = extractField(block, blockText, "District");
+  if (districtValue) {
+    vacancy.employerName = districtValue;
   }
 
   // Start Date
@@ -173,6 +218,55 @@ function parseBlockWithTitle(
   if (vacancy.sourceUrl && vacancy.sourceUrl.length > 1000) vacancy.sourceUrl = vacancy.sourceUrl.slice(0, 1000);
 
   return vacancy;
+}
+
+/**
+ * Extract a labeled field value from a listing block using multiple strategies.
+ *
+ * Tries (in order):
+ * 1. Original AppliTrack pattern: `Label:</span>...class="normal"...>Value</`
+ * 2. Label followed by text in any sibling element: `Label:</span>...>Value</`
+ * 3. `<li>Label: Value</li>` pattern
+ * 4. Plain text pattern from stripped HTML: `Label: Value`
+ */
+function extractField(block: string, blockText: string, label: string): string | null {
+  // 1. Original: Label:</span> ... class='normal' ... >Value</
+  const original = block.match(
+    new RegExp(`${label}:?<\\/span>[\\s\\S]*?class=.?normal.?[^>]*>([\\s\\S]*?)<\\/`, "i")
+  );
+  if (original) {
+    const val = stripHtml(original[1]).trim();
+    if (val) return val;
+  }
+
+  // 2. Label:</span> followed by text in the next element
+  const sibling = block.match(
+    new RegExp(`${label}:?<\\/span>[\\s\\S]*?<[^>]+>([^<]+)<\\/`, "i")
+  );
+  if (sibling) {
+    const val = stripHtml(sibling[1]).trim();
+    if (val) return val;
+  }
+
+  // 3. <li>Label: Value</li>
+  const liMatch = block.match(
+    new RegExp(`<li[^>]*>\\s*${label}\\s*:\\s*([^<]+)<\\/li>`, "i")
+  );
+  if (liMatch) {
+    const val = stripHtml(liMatch[1]).trim();
+    if (val) return val;
+  }
+
+  // 4. Plain text fallback from stripped block
+  const textMatch = blockText.match(
+    new RegExp(`${label}\\s*:\\s*(.+?)(?:\\s{2,}|\\n|$)`, "i")
+  );
+  if (textMatch) {
+    const val = textMatch[1].trim();
+    if (val) return val;
+  }
+
+  return null;
 }
 
 function stripHtml(html: string): string {
