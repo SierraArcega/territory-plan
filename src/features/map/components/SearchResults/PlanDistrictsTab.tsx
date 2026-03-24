@@ -442,7 +442,7 @@ function TargetCard({
 
 // ─── Pacing Table ────────────────────────────────────────────────
 
-function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYear: number }) {
+export function PacingTable({ pacing, fiscalYear }: { pacing?: DistrictPacing; fiscalYear: number }) {
   const fyShort = String(fiscalYear).slice(-2);
   const priorFyShort = String(fiscalYear - 1).slice(-2);
 
