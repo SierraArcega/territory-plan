@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useUpdateDistrictTargets, useServices, type TerritoryPlanDistrict } from "@/lib/api";
 import InlineEditCell from "@/features/shared/components/InlineEditCell";
 import { useSortableTable, type SortComparator } from "@/features/shared/hooks/useSortableTable";
 import { SortHeader } from "@/features/shared/components/SortHeader";
+import AddDistrictCombobox from "./AddDistrictCombobox";
 
 // Revenue, Take, Pipeline, Prior FY are nested under district.actuals —
 // they are not top-level fields on TerritoryPlanDistrict.
@@ -256,6 +257,20 @@ export default function DistrictsTable({
     data: districts,
     comparators: districtComparators,
   });
+  const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
+  const existingLeaids = useMemo(() => new Set(districts.map((d) => d.leaid)), [districts]);
+
+  const handleDistrictAdded = useCallback((leaid: string) => {
+    setRecentlyAdded((prev) => new Set(prev).add(leaid));
+    // Clear highlight after 1.5s
+    setTimeout(() => {
+      setRecentlyAdded((prev) => {
+        const next = new Set(prev);
+        next.delete(leaid);
+        return next;
+      });
+    }, 1500);
+  }, []);
 
   const handleRemoveClick = (district: TerritoryPlanDistrict) => {
     setConfirmRemove(district);
@@ -272,7 +287,7 @@ export default function DistrictsTable({
     return (
       <div className="text-center py-12">
         <svg
-          className="w-16 h-16 mx-auto text-gray-300 mb-4"
+          className="w-16 h-16 mx-auto text-[#D4CFE2] mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -284,24 +299,32 @@ export default function DistrictsTable({
             d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
           />
         </svg>
-        <h3 className="text-lg font-medium text-gray-600 mb-2">No districts yet</h3>
-        <p className="text-sm text-gray-500 max-w-sm mx-auto">
-          Add districts to this plan from the map view. Select a district and click &quot;Add to Plan&quot;.
+        <h3 className="text-lg font-medium text-[#6E6390] mb-2">No districts yet</h3>
+        <p className="text-sm text-[#8A80A8] max-w-sm mx-auto mb-4">
+          Search by name to add districts, or browse the map.
         </p>
-        <button
-          onClick={onGoToMap}
-          className="inline-flex items-center gap-2 mt-4 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-            />
-          </svg>
-          Go to Map
-        </button>
+        <div className="flex items-center justify-center gap-3">
+          <AddDistrictCombobox
+            planId={planId}
+            existingLeaids={existingLeaids}
+            onAdded={handleDistrictAdded}
+          />
+          <button
+            onClick={onGoToMap}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#403770] border border-[#403770]/20 rounded-lg hover:bg-[#403770]/5 transition-colors"
+            aria-label="Go to Map"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+              />
+            </svg>
+            Go to Map
+          </button>
+        </div>
       </div>
     );
   }
@@ -325,6 +348,13 @@ export default function DistrictsTable({
 
   return (
     <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
+      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
+        <AddDistrictCombobox
+          planId={planId}
+          existingLeaids={existingLeaids}
+          onAdded={handleDistrictAdded}
+        />
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
@@ -351,7 +381,12 @@ export default function DistrictsTable({
             return (
             <tr
               key={district.leaid}
-              className={`group transition-colors duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""} ${onDistrictClick ? "cursor-pointer" : ""}`}
+              className={`group transition-all duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""} ${onDistrictClick ? "cursor-pointer" : ""}`}
+              style={
+                recentlyAdded.has(district.leaid)
+                  ? { backgroundColor: "rgba(64,55,112,0.06)", transition: "background-color 1.5s ease-out" }
+                  : undefined
+              }
               onClick={() => onDistrictClick?.(district.leaid)}
             >
               <td className="px-4 py-3">
