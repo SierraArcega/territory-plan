@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  CircleAlert,
-  TrendingUp,
-  FolderOpen,
-  ListTodo,
-  CalendarClock,
+  CalendarCheck,
+  AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -17,26 +15,20 @@ interface SummaryCardData {
 }
 
 interface FeedSummaryCardsProps {
-  overdueTasks: number;
-  unmappedOpps: number;
-  unmappedExpenses: number;
-  needNextSteps: number;
-  meetingsToLog: number;
+  dueToday: number;
+  alerts: number;
+  thisWeek: number;
 }
 
 export default function FeedSummaryCards({
-  overdueTasks,
-  unmappedOpps,
-  unmappedExpenses,
-  needNextSteps,
-  meetingsToLog,
+  dueToday,
+  alerts,
+  thisWeek,
 }: FeedSummaryCardsProps) {
   const cards: SummaryCardData[] = [
-    { icon: CircleAlert, iconColor: "#F37167", count: overdueTasks, label: "Overdue Tasks" },
-    { icon: TrendingUp, iconColor: "#E8913A", count: unmappedOpps, label: "Unmapped Opps" },
-    { icon: FolderOpen, iconColor: "#6EA3BE", count: unmappedExpenses, label: "Unmapped Expenses" },
-    { icon: ListTodo, iconColor: "#544A78", count: needNextSteps, label: "Need Next Steps" },
-    { icon: CalendarClock, iconColor: "#8AA891", count: meetingsToLog, label: "Meetings to Log" },
+    { icon: CalendarCheck, iconColor: "#403770", count: dueToday, label: "Due Today" },
+    { icon: AlertTriangle, iconColor: "#F37167", count: alerts, label: "Needs Attention" },
+    { icon: Calendar, iconColor: "#6EA3BE", count: thisWeek, label: "This Week" },
   ];
 
   return (

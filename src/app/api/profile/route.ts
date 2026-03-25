@@ -92,42 +92,64 @@ export async function GET() {
       );
     }
 
-    // Upsert the profile - create if doesn't exist, update lastLoginAt if it does
-    const profile = await prisma.userProfile.upsert({
-      where: { id: user.id },
-      update: {
-        // Update user info from Supabase on each login
-        email: user.email!,
-        fullName:
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          null,
-        avatarUrl:
-          user.user_metadata?.avatar_url ||
-          user.user_metadata?.picture ||
-          null,
-        lastLoginAt: new Date(),
-      },
-      create: {
-        id: user.id,
-        email: user.email!,
-        fullName:
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          null,
-        avatarUrl:
-          user.user_metadata?.avatar_url ||
-          user.user_metadata?.picture ||
-          null,
-        hasCompletedSetup: false,
-        lastLoginAt: new Date(),
-      },
-      include: {
-        goals: {
-          orderBy: { fiscalYear: "desc" },
+    // When impersonating, just read the profile — don't overwrite with admin's
+    // Supabase metadata (email, name, avatar) which would corrupt the target
+    // user's data and violate the unique email constraint.
+    let profile;
+    if (user.isImpersonating) {
+      profile = await prisma.userProfile.findUnique({
+        where: { id: user.id },
+        include: {
+          goals: {
+            orderBy: { fiscalYear: "desc" },
+          },
         },
-      },
-    });
+      });
+
+      if (!profile) {
+        return NextResponse.json(
+          { error: "User profile not found" },
+          { status: 404 }
+        );
+      }
+    } else {
+      // Upsert the profile - create if doesn't exist, update lastLoginAt if it does
+      profile = await prisma.userProfile.upsert({
+        where: { id: user.id },
+        update: {
+          // Update user info from Supabase on each login
+          email: user.email!,
+          fullName:
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            null,
+          avatarUrl:
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            null,
+          lastLoginAt: new Date(),
+        },
+        create: {
+          id: user.id,
+          email: user.email!,
+          fullName:
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            null,
+          avatarUrl:
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            null,
+          hasCompletedSetup: false,
+          lastLoginAt: new Date(),
+        },
+        include: {
+          goals: {
+            orderBy: { fiscalYear: "desc" },
+          },
+        },
+      });
+    }
 
     // Calculate actuals from user's territory plans
     const actuals = await calculateActuals(user.id);

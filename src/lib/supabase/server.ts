@@ -48,6 +48,9 @@ export async function getRealUser() {
 /**
  * Returns the effective user — impersonated user if an admin has an active
  * impersonation session, otherwise the real authenticated user.
+ *
+ * The returned object includes an `isImpersonating` flag so callers can
+ * avoid overwriting the target user's profile with the admin's metadata.
  */
 export async function getUser() {
   const realUser = await getRealUser()
@@ -56,7 +59,7 @@ export async function getUser() {
   const cookieStore = await cookies()
   const impersonateUid = cookieStore.get('impersonate_uid')?.value
 
-  if (!impersonateUid) return realUser
+  if (!impersonateUid) return { ...realUser, isImpersonating: false as const }
 
   // Verify the real user is an admin
   try {
@@ -66,20 +69,20 @@ export async function getUser() {
       select: { role: true },
     })
 
-    if (!adminProfile || adminProfile.role !== 'admin') return realUser
+    if (!adminProfile || adminProfile.role !== 'admin') return { ...realUser, isImpersonating: false as const }
 
-    // Verify the target user exists
+    // Verify the target user exists and get their email
     const targetProfile = await prisma.userProfile.findUnique({
       where: { id: impersonateUid },
-      select: { id: true },
+      select: { id: true, email: true },
     })
 
-    if (!targetProfile) return realUser
+    if (!targetProfile) return { ...realUser, isImpersonating: false as const }
 
-    // Return a synthetic user object with the impersonated user's ID
-    return { ...realUser, id: impersonateUid }
+    // Return a synthetic user object with the impersonated user's ID and email
+    return { ...realUser, id: impersonateUid, email: targetProfile.email, isImpersonating: true as const }
   } catch {
-    return realUser
+    return { ...realUser, isImpersonating: false as const }
   }
 }
 

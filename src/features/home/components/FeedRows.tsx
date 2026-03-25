@@ -188,6 +188,50 @@ export function ActivityRow({
 }
 
 // ============================================================================
+// UpcomingActivityRow
+// ============================================================================
+
+interface UpcomingActivityRowProps {
+  title: string;
+  date?: string;
+  type?: string;
+  districtCount?: number;
+  onClick?: () => void;
+}
+
+export function UpcomingActivityRow({
+  title,
+  date,
+  type,
+  districtCount,
+  onClick,
+}: UpcomingActivityRowProps) {
+  return (
+    <div
+      className="flex items-center gap-3.5 px-5 py-4 hover:bg-[#F7F5FA]/50 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[#403770] truncate">{title}</p>
+        <p className="text-xs text-[#8A80A8] mt-0.5">
+          {[
+            type,
+            districtCount && districtCount > 0
+              ? `${districtCount} district${districtCount > 1 ? "s" : ""}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </div>
+      {date && (
+        <span className="text-xs text-[#8A80A8] shrink-0">{date}</span>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // MeetingRow
 // ============================================================================
 
