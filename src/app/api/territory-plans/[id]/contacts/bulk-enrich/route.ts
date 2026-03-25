@@ -101,6 +101,7 @@ export async function POST(
         streetLocation: true,
         stateLocation: true,
         zipLocation: true,
+        websiteUrl: true,
       },
     });
 
@@ -160,6 +161,7 @@ export async function POST(
                   street: district.streetLocation,
                   state_full: district.stateLocation,
                   zip: district.zipLocation,
+                  website_url: district.websiteUrl,
                   target_role: targetRole,
                   callback_url: callbackUrl,
                 }),
