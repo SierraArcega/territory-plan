@@ -38,6 +38,10 @@ export async function POST(request: NextRequest) {
         name: true,
         stateAbbrev: true,
         cityLocation: true,
+        streetLocation: true,
+        stateLocation: true,
+        zipLocation: true,
+        websiteUrl: true,
       },
     });
 
@@ -71,6 +75,10 @@ export async function POST(request: NextRequest) {
         district_name: district.name,
         state: district.stateAbbrev,
         city: district.cityLocation,
+        street: district.streetLocation,
+        state_full: district.stateLocation,
+        zip: district.zipLocation,
+        website_url: district.websiteUrl,
         // Include our webhook URL for Clay to send results back
         callback_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://plan.fullmindlearning.com"}/api/webhooks/clay`,
       }),
