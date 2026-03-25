@@ -138,11 +138,30 @@ Progress state is derived from the database (districts with contacts vs total), 
 
 Uses the existing Blob/download pattern from `ContactsTable.tsx`.
 
-## 6. Data Flow
+## 6. Activity Logging
+
+When bulk enrichment is triggered, create an Activity record to log the effort for administrator visibility. This is database-only — no new UI required.
+
+**On enrichment start** — create the Activity:
+- `type`: `"contact_enrichment"` (new type, added to `ACTIVITY_CATEGORIES` under a new `system` category)
+- `title`: `"Bulk contact enrichment — {targetRole}"` (e.g., "Bulk contact enrichment — Superintendent")
+- `status`: `"in_progress"`
+- `source`: `"system"` (distinguishes from manual user-created activities)
+- `createdByUserId`: the authenticated user who triggered the enrichment
+- `metadata`: `{ "targetRole": "Superintendent", "queued": 389, "skipped": 12 }`
+- Linked to the plan via `ActivityPlan` join table
+
+**On enrichment completion** (when `enriched >= queued` or stall timeout):
+- Update the Activity: `status` → `"completed"`, `metadata.enriched` → final count
+- If stalled: `status` → `"completed"`, `outcome` → `"Partial — enrichment stalled after N districts"`, `outcomeType` → `"neutral"`
+
+The Activity ID is stored on the plan alongside `enrichmentStartedAt` and `enrichmentQueued` (new column: `enrichmentActivityId`) so the progress endpoint can update it when complete.
+
+## 7. Data Flow
 
 ```
 User clicks "Find Contacts" → role selector popover
-  → POST /bulk-enrich { targetRole } → batched Clay webhooks fire
+  → POST /bulk-enrich { targetRole } → Activity record created → batched Clay webhooks fire
   → Clay processes → POSTs back to /webhooks/clay → Contact records created
   → Frontend polls enrich-progress → updates progress bar
   → Frontend polls usePlanContacts → table populates live
@@ -159,6 +178,7 @@ User clicks "Find Contacts" → role selector popover
 - `src/features/plans/components/ContactsTable.tsx` — add action bar, progress indicator, new full-plan export
 - `src/features/plans/lib/queries.ts` — new hooks: `useBulkEnrich`, `useEnrichProgress` (co-located with existing `usePlanContacts`)
 - `src/features/shared/types/contact-types.ts` — add `TARGET_ROLES` constant
+- `src/features/activities/types.ts` — add `"contact_enrichment"` to activity types under new `system` category
 
 ### Existing Files (no changes needed)
 - `src/app/api/contacts/clay-lookup/route.ts` — existing Clay lookup logic (referenced for batch implementation)
@@ -177,3 +197,4 @@ User clicks "Find Contacts" → role selector popover
 - **Concurrency guard via plan columns** — `enrichmentStartedAt` and `enrichmentQueued` on `TerritoryPlan` model; lightweight, no new tables needed
 - **Sequential batches with 1s delay** — respects Clay rate limits; parallel within batch for speed
 - **Partial failure tolerance** — individual Clay request failures are logged but don't abort the batch
+- **Activity logging for admin visibility** — enrichment attempts are recorded as Activity records with `source: "system"`, queryable by admins without new UI
