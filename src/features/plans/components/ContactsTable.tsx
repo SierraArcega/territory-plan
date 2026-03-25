@@ -9,6 +9,7 @@ import { useState, useMemo, useCallback } from "react";
 import type { Contact } from "@/lib/api";
 import { useSortableTable } from "@/features/shared/hooks/useSortableTable";
 import { SortHeader } from "@/features/shared/components/SortHeader";
+import ContactsActionBar from "./ContactsActionBar";
 
 // Generate a consistent color from a contact's name for their avatar
 // Uses the brand palette so every avatar feels intentional
@@ -88,6 +89,11 @@ interface ContactsTableProps {
   onDelete?: (contactId: number) => void;
   // Clicking a contact row opens the district detail panel for their district
   onContactClick?: (leaid: string, contactId: number) => void;
+  // Action bar props (optional — only shown when plan context is available)
+  planId?: string;
+  planName?: string;
+  allDistrictLeaids?: string[];
+  onEnrichingChange?: (isEnriching: boolean) => void;
 }
 
 export default function ContactsTable({
@@ -97,6 +103,10 @@ export default function ContactsTable({
   onEdit,
   onDelete,
   onContactClick,
+  planId,
+  planName,
+  allDistrictLeaids,
+  onEnrichingChange,
 }: ContactsTableProps) {
   // Sort state — Person, Email, Department, Seniority are sortable;
   // District is derived (no direct field), Last Activity is a future placeholder.
@@ -176,25 +186,42 @@ export default function ContactsTable({
     return `${contacts.length} contact${contacts.length !== 1 ? "s" : ""}`;
   }, [contacts.length, totalCount]);
 
+  const actionBar = planId && planName && allDistrictLeaids ? (
+    <div className="mb-3 overflow-hidden border border-[#EFEDF5] rounded-lg bg-white shadow-sm">
+      <ContactsActionBar
+        planId={planId}
+        planName={planName}
+        contacts={contacts}
+        districtNameMap={districtNameMap}
+        allDistrictLeaids={allDistrictLeaids}
+        onEnrichingChange={onEnrichingChange}
+      />
+    </div>
+  ) : null;
+
   // Empty state
   if (contacts.length === 0) {
     return (
-      <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
-        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#C4E7E6]/40 flex items-center justify-center">
-          <svg className="w-7 h-7 text-[#6EA3BE]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
+      <div className="relative">
+        {actionBar}
+        <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#C4E7E6]/40 flex items-center justify-center">
+            <svg className="w-7 h-7 text-[#6EA3BE]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-[#403770] mb-1">No contacts yet</h3>
+          <p className="text-sm text-gray-500 max-w-xs mx-auto">
+            Add contacts from the district detail panel or use Clay to find contacts.
+          </p>
         </div>
-        <h3 className="text-base font-semibold text-[#403770] mb-1">No contacts yet</h3>
-        <p className="text-sm text-gray-500 max-w-xs mx-auto">
-          Add contacts from the district detail panel or use Clay to find contacts.
-        </p>
       </div>
     );
   }
 
   return (
     <div className="relative">
+      {actionBar}
       {/* Table */}
       <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
         <div className="overflow-x-auto">

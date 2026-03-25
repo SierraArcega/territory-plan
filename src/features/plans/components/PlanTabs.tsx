@@ -31,6 +31,7 @@ interface Tab {
 
 interface PlanTabsProps {
   planId: string;
+  planName: string;
   districts: TerritoryPlanDistrict[];
   activities: ActivityListItem[];
   contacts: Contact[];
@@ -45,6 +46,7 @@ interface PlanTabsProps {
   onDistrictClick?: (leaid: string) => void;
   onContactClick?: (leaid: string, contactId: number) => void;
   onGoToMap?: () => void;
+  onEnrichingChange?: (isEnriching: boolean) => void;
 }
 
 // Filter configurations per tab
@@ -219,6 +221,7 @@ const SAVED_VIEWS_KEY = "territory-plan-saved-views";
 
 export default function PlanTabs({
   planId,
+  planName,
   districts,
   activities,
   contacts,
@@ -232,7 +235,10 @@ export default function PlanTabs({
   onDistrictClick,
   onContactClick,
   onGoToMap,
+  onEnrichingChange,
 }: PlanTabsProps) {
+  const allDistrictLeaids = useMemo(() => districts.map((d) => d.leaid), [districts]);
+
   const [activeTab, setActiveTab] = useState<TabId>("districts");
   const [views, setViews] = useState<Record<TabId, "cards" | "table">>({
     districts: "table",
@@ -815,6 +821,10 @@ export default function PlanTabs({
               onEdit={onEditContact}
               onDelete={onDeleteContact}
               onContactClick={onContactClick}
+              planId={planId}
+              planName={planName}
+              allDistrictLeaids={allDistrictLeaids}
+              onEnrichingChange={onEnrichingChange}
             />
           );
         }
@@ -838,6 +848,10 @@ export default function PlanTabs({
                     onEdit={onEditContact}
                     onDelete={onDeleteContact}
                     onContactClick={onContactClick}
+                    planId={planId}
+                    planName={planName}
+                    allDistrictLeaids={allDistrictLeaids}
+                    onEnrichingChange={onEnrichingChange}
                   />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
