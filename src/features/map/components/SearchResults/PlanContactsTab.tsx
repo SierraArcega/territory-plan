@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { usePlanContacts } from "@/lib/api";
+import { usePlanContacts, useDistrictWebsites } from "@/lib/api";
 import { useCreateContact, useUpdateContact } from "@/features/shared/lib/queries";
 import type { Contact } from "@/features/shared/types/api-types";
 import { PERSONAS, SENIORITY_LEVELS } from "@/features/shared/types/contact-types";
@@ -85,6 +85,7 @@ export default function PlanContactsTab({ planId, planName, districts = [] }: Pl
   }, [districts]);
 
   const allDistrictLeaids = useMemo(() => districts.map((d) => d.leaid), [districts]);
+  const { data: districtWebsiteMap } = useDistrictWebsites(allDistrictLeaids);
 
   // Group contacts by district, then track departments
   const districtGroups = useMemo(() => {
@@ -234,6 +235,7 @@ export default function PlanContactsTab({ planId, planName, districts = [] }: Pl
             contacts={contacts || []}
             districtNameMap={districtNameMap}
             allDistrictLeaids={allDistrictLeaids}
+            districtWebsiteMap={districtWebsiteMap}
             onEnrichingChange={setIsEnriching}
           />
         </div>

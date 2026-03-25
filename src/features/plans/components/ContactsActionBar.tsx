@@ -16,6 +16,8 @@ interface ContactsActionBarProps {
   districtNameMap?: Map<string, string>;
   /** All district LEAIDs in the plan — used for CSV export of empty districts */
   allDistrictLeaids: string[];
+  /** Map of leaid -> website URL for CSV export */
+  districtWebsiteMap?: Map<string, string>;
   /** Callback to notify parent when enrichment starts/stops (for polling usePlanContacts) */
   onEnrichingChange?: (isEnriching: boolean) => void;
 }
@@ -26,6 +28,7 @@ export default function ContactsActionBar({
   contacts,
   districtNameMap,
   allDistrictLeaids,
+  districtWebsiteMap,
   onEnrichingChange,
 }: ContactsActionBarProps) {
   const [showPopover, setShowPopover] = useState(false);
@@ -127,7 +130,7 @@ export default function ContactsActionBar({
   }, [planId, selectedRole, bulkEnrich]);
 
   const handleExportCsv = useCallback(() => {
-    const headers = ["District Name", "Contact Name", "Title", "Email", "Phone", "Department", "Seniority Level"];
+    const headers = ["District Name", "Website", "Contact Name", "Title", "Email", "Phone", "Department", "Seniority Level"];
 
     // Build a map of leaid -> primary contact
     const primaryByDistrict = new Map<string, Contact>();
@@ -151,8 +154,11 @@ export default function ContactsActionBar({
       const districtName = districtNameMap?.get(leaid) || leaid;
       const contact = primaryByDistrict.get(leaid);
 
+      const websiteUrl = districtWebsiteMap?.get(leaid) || "";
+
       return [
         districtName,
+        websiteUrl,
         contact?.name || "",
         contact?.title || "",
         contact?.email || "",

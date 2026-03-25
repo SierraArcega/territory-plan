@@ -6,7 +6,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { TerritoryPlanDistrict, ActivityListItem, Contact } from "@/lib/api";
-import { useTasks } from "@/lib/api";
+import { useTasks, useDistrictWebsites } from "@/lib/api";
 import { PERSONAS, SENIORITY_LEVELS } from "@/features/shared/types/contact-types";
 import ViewToggle from "@/features/shared/components/ViewToggle";
 import FilterBar, { type FilterConfig, type SavedView } from "./FilterBar";
@@ -238,6 +238,7 @@ export default function PlanTabs({
   onEnrichingChange,
 }: PlanTabsProps) {
   const allDistrictLeaids = useMemo(() => districts.map((d) => d.leaid), [districts]);
+  const { data: districtWebsiteMap } = useDistrictWebsites(allDistrictLeaids);
 
   const [activeTab, setActiveTab] = useState<TabId>("districts");
   const [views, setViews] = useState<Record<TabId, "cards" | "table">>({
@@ -825,6 +826,7 @@ export default function PlanTabs({
               planName={planName}
               allDistrictLeaids={allDistrictLeaids}
               onEnrichingChange={onEnrichingChange}
+              districtWebsiteMap={districtWebsiteMap}
             />
           );
         }

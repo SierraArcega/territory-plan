@@ -94,6 +94,7 @@ interface ContactsTableProps {
   planName?: string;
   allDistrictLeaids?: string[];
   onEnrichingChange?: (isEnriching: boolean) => void;
+  districtWebsiteMap?: Map<string, string>;
 }
 
 export default function ContactsTable({
@@ -107,6 +108,7 @@ export default function ContactsTable({
   planName,
   allDistrictLeaids,
   onEnrichingChange,
+  districtWebsiteMap,
 }: ContactsTableProps) {
   // Sort state — Person, Email, Department, Seniority are sortable;
   // District is derived (no direct field), Last Activity is a future placeholder.
@@ -195,6 +197,7 @@ export default function ContactsTable({
         districtNameMap={districtNameMap}
         allDistrictLeaids={allDistrictLeaids}
         onEnrichingChange={onEnrichingChange}
+        districtWebsiteMap={districtWebsiteMap}
       />
     </div>
   ) : null;

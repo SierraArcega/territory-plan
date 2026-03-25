@@ -213,6 +213,28 @@ export function usePlanOpportunities(planId: string | null) {
   });
 }
 
+export function useDistrictWebsites(leaids: string[]) {
+  return useQuery({
+    queryKey: ["districtWebsites", leaids],
+    queryFn: async () => {
+      const res = await fetchJson<{ leaid: string; websiteUrl: string | null }[]>(
+        `${API_BASE}/districts/websites`,
+        {
+          method: "POST",
+          body: JSON.stringify({ leaids }),
+        }
+      );
+      const map = new Map<string, string>();
+      for (const d of res) {
+        if (d.websiteUrl) map.set(d.leaid, d.websiteUrl);
+      }
+      return map;
+    },
+    enabled: leaids.length > 0,
+    staleTime: 10 * 60 * 1000, // 10 minutes — websites don't change often
+  });
+}
+
 export function usePlanContacts(planId: string | null, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: ["planContacts", planId],
