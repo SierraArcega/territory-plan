@@ -149,6 +149,7 @@ export const OUTCOMES_BY_CATEGORY: Record<ActivityCategory, OutcomeType[]> = {
   events: ["contacts_made", "meetings_scheduled", "pipeline_generated"],
   gift_drop: ["delivered", "thank_you_received"],
   thought_leadership: ["contacts_made", "meetings_scheduled", "pipeline_generated", "attendees_engaged"],
+  system: [],
 };
 
 // Get the outcome config for a given type, with a fallback for unknown types
