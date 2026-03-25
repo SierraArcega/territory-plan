@@ -14,9 +14,14 @@ const prisma = new PrismaClient({
   datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL,
 });
 
-// ─── Deterministic test IDs ───────────────────────────────────────────────────
+// ─── Test user — uses the real authenticated user's profile ─────────────────
+// The E2E tests authenticate as a real user via Google OAuth.
+// We associate test data with this user rather than creating a fake profile.
 
-export const TEST_USER_ID = "e2e00000-0000-0000-0000-000000000001";
+export const TEST_USER_ID = "768f4535-0272-4503-a002-57e832bf1cc1"; // sierra.arcega@fullmindlearning.com
+
+// ─── Deterministic test IDs (for data we CREATE during tests) ────────────────
+
 export const TEST_PLAN_ID = "e2e00000-0000-0000-0000-000000000002";
 export const TEST_ACTIVITY_ID = "e2e00000-0000-0000-0000-000000000003";
 export const TEST_TASK_ID = "e2e00000-0000-0000-0000-000000000004";
@@ -25,7 +30,6 @@ export const TEST_ACTIVITY_SYNCED_ID = "e2e00000-0000-0000-0000-000000000006";
 
 // ─── Known test data values ──────────────────────────────────────────────────
 
-export const TEST_USER_EMAIL = "e2e-test@fullmind.test";
 export const TEST_PLAN_NAME = "E2E Test Plan";
 export const TEST_ACTIVITY_TITLE = "E2E Test Activity";
 export const TEST_TASK_TITLE = "E2E Test Task";
@@ -42,19 +46,13 @@ export interface SeedResult {
 
 // ─── Factory functions ───────────────────────────────────────────────────────
 
-/** Creates or upserts a UserProfile for the test user */
+/** Returns the existing UserProfile for the authenticated test user.
+ *  We do NOT create a new profile — the real user already exists from OAuth. */
 export async function seedUserProfile() {
-  return prisma.userProfile.upsert({
+  const profile = await prisma.userProfile.findUniqueOrThrow({
     where: { id: TEST_USER_ID },
-    update: {},
-    create: {
-      id: TEST_USER_ID,
-      email: TEST_USER_EMAIL,
-      fullName: "E2E Test User",
-      role: "rep",
-      hasCompletedSetup: true,
-    },
   });
+  return profile;
 }
 
 /** Creates a territory plan owned by the test user */
@@ -259,10 +257,8 @@ export async function cleanupAllTestData() {
     prisma.territoryPlan.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
   );
 
-  // UserProfile last (other records reference it)
-  await safeDelete(() =>
-    prisma.userProfile.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
-  );
+  // NOTE: We do NOT delete the UserProfile — it's the real authenticated user.
+  // Only test-created data (plans, activities, tasks, integrations) is cleaned up.
 
   await prisma.$disconnect();
 }

@@ -51,15 +51,25 @@ export default async function globalSetup(config: FullConfig) {
   try {
     await page.goto(baseURL);
 
-    // Wait for the user to complete OAuth and get redirected away from /login
-    // Give them up to 2 minutes to complete the flow
-    await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 120_000,
-    });
+    // Wait for the FULL OAuth round-trip:
+    // localhost/login → Google OAuth → localhost/auth/callback → localhost/
+    // We must wait for a localhost URL that is NOT /login and NOT /auth/callback
+    await page.waitForURL(
+      (url) =>
+        url.hostname === "localhost" &&
+        !url.pathname.includes("/login") &&
+        !url.pathname.includes("/auth/callback"),
+      { timeout: 120_000 }
+    );
 
-    // Wait a moment for any post-login redirects/state to settle
+    // Wait for the app to fully load and middleware to set session cookies
     await page.waitForLoadState("domcontentloaded");
     await page.waitForTimeout(2_000);
+
+    // Navigate once more to ensure all session cookies are set in the response
+    await page.goto(baseURL);
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(1_000);
 
     // Save the authenticated state (cookies + localStorage)
     await context.storageState({ path: AUTH_FILE });
