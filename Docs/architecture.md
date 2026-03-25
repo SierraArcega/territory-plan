@@ -24,6 +24,7 @@ Each feature follows the pattern `src/features/{name}/`:
 | `home` | Home dashboard — feed, plan cards, profile sidebar | `components/HomeView.tsx` |
 | `vacancies` | Vacancy scanning and tracking | `components/` + `lib/` |
 | `mixmax` | Mixmax campaign integration | `components/CampaignStatsPanel.tsx` |
+| `reports` | Report builder — ad-hoc tables from any entity with save/share/export | `components/ReportsView.tsx` |
 | `admin` | Admin tools (unmatched accounts, ICP scoring) | `components/` |
 | `shared` | Cross-feature components, hooks, utilities | `components/`, `lib/`, `hooks/` |
 
