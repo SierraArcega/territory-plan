@@ -107,11 +107,16 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   // ============================================================================
 
   // Overdue tasks (always pinned above today's items)
+  // When showCompleted is on, include tasks completed today
   const overdueTasks = useMemo(() => {
-    return allTasks.filter(
-      (t) => t.status !== "done" && t.dueDate !== null && toDateKey(t.dueDate) < today
-    );
-  }, [allTasks, today]);
+    return allTasks.filter((t) => {
+      if (!t.dueDate || toDateKey(t.dueDate) >= today) return false;
+      if (t.status === "done") {
+        return showCompleted && t.updatedAt && toDateKey(t.updatedAt) === today;
+      }
+      return true;
+    });
+  }, [allTasks, today, showCompleted]);
 
   // Non-overdue tasks for day grouping
   const nonOverdueTasks = useMemo(() => {
@@ -181,9 +186,14 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
     }
     if (!showCompleted) {
       tasks = tasks.filter((t) => t.status !== "done");
+    } else {
+      // Only show tasks completed today (not old completed tasks)
+      tasks = tasks.filter((t) =>
+        t.status !== "done" || (t.updatedAt && toDateKey(t.updatedAt) === today)
+      );
     }
     return tasks.sort(sortByPriority);
-  }, [nonOverdueTasks, selectedDate, showCompleted]);
+  }, [nonOverdueTasks, selectedDate, showCompleted, today]);
 
   // Selected day's activities
   const selectedDayActivities = useMemo(() => {
