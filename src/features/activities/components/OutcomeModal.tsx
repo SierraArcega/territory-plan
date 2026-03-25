@@ -1,7 +1,6 @@
 // OutcomeModal — Shown when an activity is completed (from table or calendar confirm).
-// Section A: Category-specific outcome pills + optional note
-// Section B: Optional follow-up activity and/or follow-up task creation
-// Section C: Skip / Save actions
+// Enhanced with star rating, opportunity linking, calendar attendees, and multi-task support.
+// Section order: Star Rating > Outcome Pills > Note > Opportunity > Calendar Attendees > Follow-ups > Footer
 
 "use client";
 
@@ -17,7 +16,6 @@ import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_CATEGORIES,
   type ActivityType,
-  type ActivityCategory,
 } from "@/features/activities/types";
 import {
   OUTCOMES_BY_CATEGORY,
@@ -25,49 +23,70 @@ import {
   type OutcomeType,
 } from "@/features/activities/outcome-types";
 
+import StarRating from "@/features/activities/components/StarRating";
+import type { OpportunityResult, AttendeeSelection } from "@/features/activities/lib/outcome-types-api";
+import OpportunitySearch from "@/features/activities/components/OpportunitySearch";
+import CalendarAttendeesSection from "@/features/activities/components/CalendarAttendeesSection";
+import TaskRowList, { type TaskRow } from "@/features/activities/components/TaskRowList";
+
 interface OutcomeModalProps {
   activity: { id: string; type: string; title: string };
+  googleEventId?: string;
   sourceContext?: {
     planIds?: string[];
     districtLeaids?: string[];
     contactIds?: number[];
   };
+  currentUserId?: string;
   onClose: () => void;
+}
+
+function getDefaultDueDate(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split("T")[0];
 }
 
 export default function OutcomeModal({
   activity,
+  googleEventId,
   sourceContext,
+  currentUserId = "",
   onClose,
 }: OutcomeModalProps) {
-  // Section A state
+  // Star rating state (required for save)
+  const [rating, setRating] = useState(0);
+
+  // Section A state — outcome pills + note
   const [selectedOutcome, setSelectedOutcome] = useState<OutcomeType | null>(null);
   const [note, setNote] = useState("");
   const [showNote, setShowNote] = useState(false);
 
-  // Section B state — follow-up activity
+  // Opportunity link state
+  const [linkedOpportunity, setLinkedOpportunity] = useState<OpportunityResult | null>(null);
+
+  // Calendar attendees state
+  const [selectedAttendees, setSelectedAttendees] = useState<AttendeeSelection[]>([]);
+
+  // Task row list state
+  const [taskRows, setTaskRows] = useState<TaskRow[]>([
+    {
+      title: `Follow up on: ${activity.title}`,
+      assignedToUserId: currentUserId,
+      priority: "high",
+      dueDate: getDefaultDueDate(3),
+    },
+  ]);
+
+  // Follow-up activity state (existing toggle)
   const [showFollowUpActivity, setShowFollowUpActivity] = useState(false);
   const [fuActivityTitle, setFuActivityTitle] = useState(`Follow-up: ${activity.title}`);
   const [fuActivityType, setFuActivityType] = useState<ActivityType>(
     (activity.type as ActivityType) || "program_check_in"
   );
-  const [fuActivityDate, setFuActivityDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().split("T")[0];
-  });
+  const [fuActivityDate, setFuActivityDate] = useState(() => getDefaultDueDate(7));
 
-  // Section B state — follow-up task
-  const [showFollowUpTask, setShowFollowUpTask] = useState(false);
-  const [fuTaskTitle, setFuTaskTitle] = useState(`Follow up on: ${activity.title}`);
-  const [fuTaskPriority, setFuTaskPriority] = useState<"high" | "medium" | "low">("high");
-  const [fuTaskDueDate, setFuTaskDueDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().split("T")[0];
-  });
-
-  // Section B state — new contact
+  // New contact state (existing toggle)
   const [showNewContact, setShowNewContact] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactTitle, setContactTitle] = useState("");
@@ -130,40 +149,45 @@ export default function OutcomeModal({
     ([, types]) => types.map((t) => ({ value: t, label: ACTIVITY_TYPE_LABELS[t] }))
   );
 
+  const canSave = rating >= 1;
+
   const handleSave = async () => {
-    if (!selectedOutcome) return;
+    if (!canSave) return;
     setIsSaving(true);
 
     try {
-      const config = OUTCOME_CONFIGS[selectedOutcome];
-
-      // 1. Save outcome to the activity
+      // 1. Save outcome + rating + opportunity link to the activity
       await updateActivity.mutateAsync({
         activityId: activity.id,
         outcomeType: selectedOutcome,
         outcome: note.trim() || null,
+        ...(rating > 0 && { rating }),
+        ...(linkedOpportunity && { opportunityIds: [linkedOpportunity.id] }),
       });
 
       // 2. Auto-task from outcome config (existing pattern)
-      if (config.autoTask) {
-        const isFollowUp = config.autoTask === "follow_up";
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + (isFollowUp ? 3 : 7));
+      if (selectedOutcome) {
+        const config = OUTCOME_CONFIGS[selectedOutcome];
+        if (config.autoTask) {
+          const isFollowUp = config.autoTask === "follow_up";
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + (isFollowUp ? 3 : 7));
 
-        await createTask.mutateAsync({
-          title: isFollowUp
-            ? `Follow up: ${activity.title}`
-            : `Prep for meeting: ${activity.title}`,
-          description: note.trim()
-            ? `Auto-created from outcome "${config.label}" \u2014 ${note.trim()}`
-            : `Auto-created from outcome "${config.label}" on activity "${activity.title}"`,
-          priority: isFollowUp ? "high" : "medium",
-          dueDate: dueDate.toISOString(),
-          activityIds: [activity.id],
-          planIds: sourceContext?.planIds,
-          leaids: sourceContext?.districtLeaids,
-          contactIds: sourceContext?.contactIds,
-        });
+          await createTask.mutateAsync({
+            title: isFollowUp
+              ? `Follow up: ${activity.title}`
+              : `Prep for meeting: ${activity.title}`,
+            description: note.trim()
+              ? `Auto-created from outcome "${config.label}" \u2014 ${note.trim()}`
+              : `Auto-created from outcome "${config.label}" on activity "${activity.title}"`,
+            priority: isFollowUp ? "high" : "medium",
+            dueDate: dueDate.toISOString(),
+            activityIds: [activity.id],
+            planIds: sourceContext?.planIds,
+            leaids: sourceContext?.districtLeaids,
+            contactIds: sourceContext?.contactIds,
+          });
+        }
       }
 
       // 3. Follow-up activity if toggled on
@@ -179,21 +203,35 @@ export default function OutcomeModal({
         });
       }
 
-      // 4. Follow-up task if toggled on
-      if (showFollowUpTask && fuTaskTitle.trim()) {
-        await createTask.mutateAsync({
-          title: fuTaskTitle.trim(),
-          description: `Follow-up task created from "${activity.title}"`,
-          priority: fuTaskPriority,
-          dueDate: fuTaskDueDate ? new Date(fuTaskDueDate).toISOString() : null,
-          activityIds: [activity.id],
-          planIds: sourceContext?.planIds,
-          leaids: sourceContext?.districtLeaids,
-          contactIds: sourceContext?.contactIds,
-        });
+      // 4. Create tasks from TaskRowList
+      for (const task of taskRows) {
+        if (task.title.trim()) {
+          await createTask.mutateAsync({
+            title: task.title.trim(),
+            description: `Follow-up task created from "${activity.title}"`,
+            priority: task.priority,
+            dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+            activityIds: [activity.id],
+            planIds: sourceContext?.planIds,
+            leaids: sourceContext?.districtLeaids,
+            contactIds: sourceContext?.contactIds,
+            ...(task.assignedToUserId && { assignedToUserId: task.assignedToUserId }),
+          });
+        }
       }
 
-      // 5. New contact if toggled on
+      // 5. Create contacts from checked calendar attendees
+      for (const attendee of selectedAttendees) {
+        if (attendee.checked && !attendee.existingContactId && attendee.district) {
+          await createContact.mutateAsync({
+            leaid: attendee.district.leaid,
+            name: attendee.displayName || attendee.email,
+            email: attendee.email,
+          });
+        }
+      }
+
+      // 6. New contact if toggled on (existing manual contact)
       if (showNewContact && contactName.trim() && contactDistrict) {
         await createContact.mutateAsync({
           leaid: contactDistrict.leaid,
@@ -249,7 +287,18 @@ export default function OutcomeModal({
 
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-            {/* Section A — Outcome Selection */}
+            {/* 1. Star Rating */}
+            <div>
+              <p className={labelStyle}>Rate this activity</p>
+              <StarRating value={rating} onChange={setRating} disabled={isSaving} />
+              {rating === 0 && (
+                <p className="mt-1 text-[11px] font-medium text-[#A69DC0]">
+                  Required to save
+                </p>
+              )}
+            </div>
+
+            {/* 2. Outcome Pills */}
             <div>
               <p className={labelStyle}>How did it go?</p>
               <div className="flex flex-wrap gap-2">
@@ -301,7 +350,7 @@ export default function OutcomeModal({
                 </div>
               )}
 
-              {/* Quick note */}
+              {/* 3. Quick note */}
               {!showNote ? (
                 <button
                   onClick={() => setShowNote(true)}
@@ -321,7 +370,22 @@ export default function OutcomeModal({
               )}
             </div>
 
-            {/* Section B — Follow-up Creation */}
+            {/* 4. Link Opportunity */}
+            <OpportunitySearch
+              value={linkedOpportunity}
+              onChange={setLinkedOpportunity}
+              disabled={isSaving}
+            />
+
+            {/* 5. Calendar Attendees (conditional on googleEventId) */}
+            {googleEventId && (
+              <CalendarAttendeesSection
+                activityId={activity.id}
+                onAttendeesChange={setSelectedAttendees}
+              />
+            )}
+
+            {/* 6. Follow-ups Section */}
             <div className="space-y-3">
               <p className={labelStyle}>Follow-ups</p>
 
@@ -393,71 +457,12 @@ export default function OutcomeModal({
                 )}
               </div>
 
-              {/* Follow-up Task toggle */}
-              <div className="border border-[#D4CFE2] rounded-lg overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowFollowUpTask(!showFollowUpTask)}
-                  className="w-full flex items-center justify-between px-3.5 py-3 text-sm text-left hover:bg-[#F7F5FA] transition-colors cursor-pointer"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#F7FFF2] text-[#69B34A]">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </span>
-                    <span className="font-medium text-[#544A78]">Create follow-up task</span>
-                  </span>
-                  <div
-                    className={`w-8 h-[18px] rounded-full transition-colors relative ${
-                      showFollowUpTask ? "bg-plum" : "bg-[#D4CFE2]"
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform ${
-                        showFollowUpTask ? "translate-x-[16px]" : "translate-x-[2px]"
-                      }`}
-                    />
-                  </div>
-                </button>
-
-                {showFollowUpTask && (
-                  <div className="border-t border-[#E2DEEC] px-3.5 py-3.5 space-y-3 bg-[#F7F5FA]">
-                    <div>
-                      <label className={labelStyle}>Title</label>
-                      <input
-                        type="text"
-                        value={fuTaskTitle}
-                        onChange={(e) => setFuTaskTitle(e.target.value)}
-                        className={inputStyle}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={labelStyle}>Priority</label>
-                        <select
-                          value={fuTaskPriority}
-                          onChange={(e) => setFuTaskPriority(e.target.value as "high" | "medium" | "low")}
-                          className={inputStyle}
-                        >
-                          <option value="high">High</option>
-                          <option value="medium">Medium</option>
-                          <option value="low">Low</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelStyle}>Due Date</label>
-                        <input
-                          type="date"
-                          value={fuTaskDueDate}
-                          onChange={(e) => setFuTaskDueDate(e.target.value)}
-                          className={inputStyle}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Follow-up Tasks (TaskRowList replaces old single task toggle) */}
+              <TaskRowList
+                tasks={taskRows}
+                onChange={setTaskRows}
+                currentUserId={currentUserId}
+              />
 
               {/* New Contact toggle */}
               <div className="border border-[#D4CFE2] rounded-lg overflow-hidden">
@@ -588,7 +593,7 @@ export default function OutcomeModal({
             </div>
           </div>
 
-          {/* Section C — Actions */}
+          {/* Footer — Actions */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-[#E2DEEC]">
             <button
               onClick={onClose}
@@ -598,7 +603,7 @@ export default function OutcomeModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={!selectedOutcome || isSaving}
+              disabled={!canSave || isSaving}
               className="px-5 py-2 text-sm font-semibold text-white bg-plum rounded-lg hover:bg-[#322a5a] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
               {isSaving ? "Saving..." : "Save & Close"}
