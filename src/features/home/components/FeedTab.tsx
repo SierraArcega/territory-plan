@@ -17,8 +17,10 @@ import { TaskRow, ActivityRow, MeetingRow, UpcomingActivityRow } from "./FeedRow
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import { ACTIVITY_TYPE_LABELS } from "@/features/activities/types";
-import { Rocket, Users } from "lucide-react";
+import { Rocket, Users, BarChart3 } from "lucide-react";
 import Link from "next/link";
+import { useMapStore } from "@/features/shared/lib/app-store";
+import { useSavedReports } from "@/features/reports/lib/queries";
 
 // ============================================================================
 // Helpers
@@ -67,6 +69,8 @@ interface FeedTabProps {
 
 export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const today = getToday();
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const { data: savedReports } = useSavedReports();
 
   // Data fetching
   const { data: allTasksData } = useTasks({});
@@ -254,6 +258,25 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
 
       {/* Summary Cards */}
       <FeedSummaryCards {...counts} />
+
+      {/* Reports Quick Access */}
+      <button
+        onClick={() => setActiveTab("reports")}
+        className="w-full flex items-center gap-3 px-4 py-3 bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#EFEDF5] transition-colors duration-100 text-left"
+      >
+        <BarChart3 className="w-5 h-5 text-[#6EA3BE] flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-[#403770]">Reports</p>
+          <p className="text-xs text-[#8A80A8]">
+            {savedReports && savedReports.length > 0
+              ? `${savedReports.length} saved report${savedReports.length === 1 ? "" : "s"}`
+              : "Build custom reports from your data"}
+          </p>
+        </div>
+        <svg className="w-4 h-4 text-[#A69DC0] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
 
       {/* Controls: completed toggle + page size */}
       <FeedControls
