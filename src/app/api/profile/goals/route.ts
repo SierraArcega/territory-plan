@@ -75,18 +75,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure user profile exists first
-    await prisma.userProfile.upsert({
-      where: { id: user.id },
-      update: {},
-      create: {
-        id: user.id,
-        email: user.email!,
-        fullName: user.user_metadata?.full_name || user.user_metadata?.name || null,
-        avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-        hasCompletedSetup: false,
-      },
-    });
+    // Ensure user profile exists first (skip create during impersonation —
+    // admin's Supabase metadata would corrupt the target user's profile)
+    if (!user.isImpersonating) {
+      await prisma.userProfile.upsert({
+        where: { id: user.id },
+        update: {},
+        create: {
+          id: user.id,
+          email: user.email!,
+          fullName: user.user_metadata?.full_name || user.user_metadata?.name || null,
+          avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+          hasCompletedSetup: false,
+        },
+      });
+    }
 
     // Upsert the goal - creates if doesn't exist for this year, updates if it does
     const goal = await prisma.userGoal.upsert({
