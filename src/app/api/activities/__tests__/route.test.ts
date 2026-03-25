@@ -109,10 +109,12 @@ function makeDetailActivity(overrides: Record<string, unknown> = {}) {
         state: { fips: "06", abbrev: "CA", name: "California" },
       },
     ],
+    rating: null,
     expenses: [],
     attendees: [],
     relations: [],
     relatedTo: [],
+    opportunities: [],
     ...overrides,
   };
 }
