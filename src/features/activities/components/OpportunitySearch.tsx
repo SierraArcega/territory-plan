@@ -1,20 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, ExternalLink } from "lucide-react";
 import { useOpportunitySearch } from "@/features/activities/lib/queries";
 import type { OpportunityResult } from "@/features/activities/lib/outcome-types-api";
 
 export type { OpportunityResult };
 
 interface OpportunitySearchProps {
-  value: OpportunityResult | null;
-  onChange: (opp: OpportunityResult | null) => void;
+  value: OpportunityResult[];
+  onChange: (opps: OpportunityResult[]) => void;
   disabled?: boolean;
 }
-
-const labelStyle =
-  "block text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider mb-1.5";
 
 function formatCurrency(amount: number | null): string {
   if (amount === null || amount === undefined) return "";
@@ -67,74 +64,99 @@ export default function OpportunitySearch({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const selectedIds = new Set(value.map((o) => o.id));
+
   const handleSelect = useCallback(
     (opp: OpportunityResult) => {
-      onChange(opp);
+      if (!selectedIds.has(opp.id)) {
+        onChange([...value, opp]);
+      }
       setQuery("");
       setDebouncedQuery("");
       setShowDropdown(false);
     },
-    [onChange]
+    [onChange, value, selectedIds]
   );
 
-  const handleRemove = useCallback(() => {
-    onChange(null);
-  }, [onChange]);
+  const handleRemove = useCallback(
+    (oppId: string) => {
+      onChange(value.filter((o) => o.id !== oppId));
+    },
+    [onChange, value]
+  );
 
-  // If an opportunity is selected, show the preview card
-  if (value) {
-    return (
-      <div>
-        <p className={labelStyle}>Link Opportunity</p>
-        <div className="border border-[#E2DEEC] rounded-lg p-3 bg-[#F7F5FA]">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#403770] truncate">{value.name}</p>
-              <p className="text-xs text-[#8A80A8] mt-0.5 truncate">{value.id}</p>
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                {value.stage && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#EEEAF5] text-[#403770]">
-                    {value.stage}
-                  </span>
-                )}
-                {value.netBookingAmount !== null && (
-                  <span className="text-xs font-medium text-[#544A78]">
-                    {formatCurrency(value.netBookingAmount)}
-                  </span>
-                )}
-                {value.districtName && (
-                  <span className="text-xs text-[#8A80A8] truncate">
-                    {value.districtName}
-                  </span>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleRemove}
-              disabled={disabled}
-              className="p-1 text-[#A69DC0] hover:text-[#F37167] rounded-lg hover:bg-[#fef1f0] transition-colors cursor-pointer shrink-0"
-              aria-label="Remove linked opportunity"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Filter out already-selected opps from dropdown
+  const filteredResults = results?.filter((opp) => !selectedIds.has(opp.id));
 
-  // Search input mode
   return (
     <div ref={containerRef} className="relative">
-      <p className={labelStyle}>Link Opportunity</p>
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
+          Link Opportunities
+        </p>
+        <a
+          href="https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-[10px] font-medium text-[#6E6390] hover:text-[#403770] transition-colors"
+        >
+          Create new <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
+
+      {/* Selected opportunities */}
+      {value.length > 0 && (
+        <div className="space-y-1.5 mb-2">
+          {value.map((opp) => (
+            <div
+              key={opp.id}
+              className="border border-[#E2DEEC] rounded-lg p-2.5 bg-[#F7F5FA]"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#403770] truncate">{opp.name}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-[10px] text-[#A69DC0]">{opp.id}</span>
+                    {opp.stage && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#EEEAF5] text-[#403770]">
+                        {opp.stage}
+                      </span>
+                    )}
+                    {opp.netBookingAmount !== null && (
+                      <span className="text-xs font-medium text-[#544A78]">
+                        {formatCurrency(opp.netBookingAmount)}
+                      </span>
+                    )}
+                    {opp.districtName && (
+                      <span className="text-xs text-[#8A80A8] truncate">
+                        {opp.districtName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(opp.id)}
+                  disabled={disabled}
+                  className="p-1 text-[#A69DC0] hover:text-[#F37167] rounded-lg hover:bg-[#fef1f0] transition-colors cursor-pointer shrink-0"
+                  aria-label={`Remove ${opp.name}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search input — always visible */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A69DC0]" />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by opportunity name or ID..."
+          placeholder={value.length > 0 ? "Link another opportunity..." : "Search by opportunity name or ID..."}
           disabled={disabled}
           className="w-full pl-8 pr-3 py-2 text-sm font-medium border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-coral/30 focus:border-coral bg-white text-[#403770] placeholder:text-[#A69DC0]"
         />
@@ -145,12 +167,12 @@ export default function OpportunitySearch({
 
       {showDropdown && (
         <div className="absolute z-30 mt-1 w-full bg-white border border-[#D4CFE2]/60 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-          {(!results || results.length === 0) && !isLoading ? (
+          {(!filteredResults || filteredResults.length === 0) && !isLoading ? (
             <div className="px-3 py-3 text-sm text-[#A69DC0] italic">
               No opportunities found
             </div>
           ) : (
-            results?.map((opp) => (
+            filteredResults?.map((opp) => (
               <button
                 key={opp.id}
                 type="button"

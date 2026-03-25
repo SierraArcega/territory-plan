@@ -58,12 +58,12 @@ export default function OutcomeModal({
   const [rating, setRating] = useState(0);
 
   // Section A state — outcome pills + note
-  const [selectedOutcome, setSelectedOutcome] = useState<OutcomeType | null>(null);
+  const [selectedOutcomes, setSelectedOutcomes] = useState<OutcomeType[]>([]);
   const [note, setNote] = useState("");
   const [showNote, setShowNote] = useState(false);
 
   // Opportunity link state
-  const [linkedOpportunity, setLinkedOpportunity] = useState<OpportunityResult | null>(null);
+  const [linkedOpportunities, setLinkedOpportunities] = useState<OpportunityResult[]>([]);
 
   // Calendar attendees state
   const [selectedAttendees, setSelectedAttendees] = useState<AttendeeSelection[]>([]);
@@ -158,17 +158,19 @@ export default function OutcomeModal({
 
     try {
       // 1. Save outcome + rating + opportunity link to the activity
-      await updateActivity.mutateAsync({
+      const patchData = {
         activityId: activity.id,
-        outcomeType: selectedOutcome,
+        status: "completed" as const,
+        outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes.join(",") : null,
         outcome: note.trim() || null,
         ...(rating > 0 && { rating }),
-        ...(linkedOpportunity && { opportunityIds: [linkedOpportunity.id] }),
-      });
+        ...(linkedOpportunities.length > 0 && { opportunityIds: linkedOpportunities.map((o) => o.id) }),
+      };
+      await updateActivity.mutateAsync(patchData);
 
-      // 2. Auto-task from outcome config (existing pattern)
-      if (selectedOutcome) {
-        const config = OUTCOME_CONFIGS[selectedOutcome];
+      // 2. Auto-tasks from outcome configs (existing pattern)
+      for (const outcome of selectedOutcomes) {
+        const config = OUTCOME_CONFIGS[outcome];
         if (config.autoTask) {
           const isFollowUp = config.autoTask === "follow_up";
           const dueDate = new Date();
@@ -252,7 +254,7 @@ export default function OutcomeModal({
 
       onClose();
     } catch {
-      // Let mutation error states surface in the UI
+      // Mutation error states surface via TanStack Query
     } finally {
       setIsSaving(false);
     }
@@ -312,13 +314,17 @@ export default function OutcomeModal({
               <div className="flex flex-wrap gap-2">
                 {outcomes.map((outcomeType) => {
                   const config = OUTCOME_CONFIGS[outcomeType];
-                  const isSelected = selectedOutcome === outcomeType;
+                  const isSelected = selectedOutcomes.includes(outcomeType);
 
                   return (
                     <button
                       key={outcomeType}
                       onClick={() =>
-                        setSelectedOutcome(isSelected ? null : outcomeType)
+                        setSelectedOutcomes(
+                          isSelected
+                            ? selectedOutcomes.filter((o) => o !== outcomeType)
+                            : [...selectedOutcomes, outcomeType]
+                        )
                       }
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 cursor-pointer"
                       style={{
@@ -336,24 +342,33 @@ export default function OutcomeModal({
                 })}
               </div>
 
-              {/* Description hint for selected outcome */}
-              {selectedOutcome && (
-                <p className="mt-2 text-xs font-medium text-[#8A80A8]">
-                  {OUTCOME_CONFIGS[selectedOutcome].description}
-                </p>
+              {/* Description hints for selected outcomes */}
+              {selectedOutcomes.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {selectedOutcomes.map((o) => (
+                    <p key={o} className="text-xs font-medium text-[#8A80A8]">
+                      {OUTCOME_CONFIGS[o].icon} {OUTCOME_CONFIGS[o].description}
+                    </p>
+                  ))}
+                </div>
               )}
 
-              {/* Auto-task hint */}
-              {selectedOutcome && OUTCOME_CONFIGS[selectedOutcome].autoTask && (
+              {/* Auto-task hints */}
+              {selectedOutcomes.some((o) => OUTCOME_CONFIGS[o].autoTask) && (
                 <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#e8f1f5]">
                   <svg className="w-3 h-3 text-steel-blue shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-[11px] font-medium text-steel-blue">
-                    Auto-creates a{" "}
-                    {OUTCOME_CONFIGS[selectedOutcome].autoTask === "follow_up"
-                      ? "follow-up task"
-                      : "prep task"}
+                    Auto-creates{" "}
+                    {selectedOutcomes
+                      .filter((o) => OUTCOME_CONFIGS[o].autoTask)
+                      .map((o) =>
+                        OUTCOME_CONFIGS[o].autoTask === "follow_up"
+                          ? "a follow-up task"
+                          : "a prep task"
+                      )
+                      .join(" and ")}
                   </span>
                 </div>
               )}
@@ -380,8 +395,8 @@ export default function OutcomeModal({
 
             {/* 4. Link Opportunity */}
             <OpportunitySearch
-              value={linkedOpportunity}
-              onChange={setLinkedOpportunity}
+              value={linkedOpportunities}
+              onChange={setLinkedOpportunities}
               disabled={isSaving}
             />
 
