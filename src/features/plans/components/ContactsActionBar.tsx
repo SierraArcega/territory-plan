@@ -40,7 +40,21 @@ export default function ContactsActionBar({
   const lastEnrichedRef = useRef<number>(0);
 
   const bulkEnrich = useBulkEnrich();
+
+  // Fetch progress on mount (cached 30s), fast-poll every 5s when enriching
   const { data: progress } = useEnrichProgress(planId, isEnriching);
+
+  // On mount, auto-detect if enrichment is already in progress (e.g., after page refresh)
+  const hasCheckedInitial = useRef(false);
+  useEffect(() => {
+    if (hasCheckedInitial.current || isEnriching) return;
+    if (progress && progress.queued > 0 && progress.enriched < progress.queued) {
+      setIsEnriching(true);
+    }
+    if (progress) {
+      hasCheckedInitial.current = true;
+    }
+  }, [progress, isEnriching]);
 
   // Notify parent of enrichment state changes (for usePlanContacts polling)
   useEffect(() => {

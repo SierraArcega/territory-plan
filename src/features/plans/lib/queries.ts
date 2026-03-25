@@ -270,16 +270,16 @@ export interface EnrichProgress {
   queued: number;
 }
 
-export function useEnrichProgress(planId: string | null, enabled: boolean) {
+export function useEnrichProgress(planId: string | null, polling: boolean) {
   return useQuery({
     queryKey: ["enrichProgress", planId],
     queryFn: () =>
       fetchJson<EnrichProgress>(
         `${API_BASE}/territory-plans/${planId}/contacts/enrich-progress`
       ),
-    enabled: !!planId && enabled,
-    refetchInterval: enabled ? 5000 : false,
-    staleTime: 0,
+    enabled: !!planId,
+    refetchInterval: polling ? 5000 : false,
+    staleTime: polling ? 0 : 30 * 1000, // When not polling, cache for 30s
   });
 }
 
