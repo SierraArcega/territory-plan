@@ -1,13 +1,9 @@
 /**
- * Page Object Model: Activity Timeline
+ * Page Object Model: Activities List
  *
- * Encapsulates the activity timeline view that shows activities grouped by date,
- * with filter chips and source badges.
- *
- * Component references:
- *   - ActivityTimeline.tsx — main container with date groups
- *   - ActivityTimelineItem.tsx — individual activity items with source badge
- *   - ActivityFilterChips.tsx — filter buttons
+ * Activities are accessible via the left sidebar "Activities" link.
+ * The page shows activity rows with type emoji, title, status, dates.
+ * "New Activity" button opens the activity form.
  */
 
 import { type Page, type Locator } from "@playwright/test";
@@ -15,98 +11,75 @@ import { type Page, type Locator } from "@playwright/test";
 export class ActivityTimelinePage {
   readonly page: Page;
 
-  // Filter chips
-  readonly filterChips: Locator;
+  // Navigation
+  readonly activitiesNavLink: Locator;
+  readonly newActivityButton: Locator;
 
-  // Timeline content
-  readonly timelineContainer: Locator;
+  // Content
   readonly emptyState: Locator;
   readonly loadingSkeleton: Locator;
 
   constructor(page: Page) {
     this.page = page;
 
-    // ActivityFilterChips — filter buttons at the top
-    this.filterChips = page.locator(".space-y-3").first();
+    // Left sidebar "Activities" link
+    this.activitiesNavLink = page.locator('a:has-text("Activities"), button:has-text("Activities")').first();
 
-    // Timeline
-    this.timelineContainer = page.locator(".relative").filter({
-      has: page.locator(".w-px.bg-gray-200"),
-    });
+    // "New Activity" or "Log Activity" button
+    this.newActivityButton = page.locator(
+      'button:has-text("New Activity"), button:has-text("Log Activity"), a:has-text("Log Activity")'
+    ).first();
 
     // Empty state
-    this.emptyState = page.locator('text="No activity yet"');
+    this.emptyState = page.locator('text="No activities yet"');
 
     // Loading skeleton
     this.loadingSkeleton = page.locator(".animate-pulse").first();
   }
 
-  /** Navigate to the activities page */
-  async goto(districtLeaid?: string) {
-    const url = districtLeaid
-      ? `/?district=${districtLeaid}`
-      : "/";
-    await this.page.goto(url);
+  /** Navigate to activities via sidebar */
+  async goto() {
+    await this.page.goto("/");
     await this.page.waitForLoadState("domcontentloaded");
+    await this.page.waitForTimeout(2_000);
+
+    // Click "Activities" in the left sidebar
+    await this.activitiesNavLink.click();
+    await this.page.waitForTimeout(1_000);
   }
 
-  /** Get all visible activity items in the timeline */
-  getActivityItems(): Locator {
-    // Each ActivityTimelineItem is a flex row with the source circle and card
-    return this.page.locator(
-      ".border.border-gray-200.rounded-lg.p-3"
-    );
-  }
-
-  /** Get a specific activity by title text */
+  /** Get a specific activity by title */
   getActivityByTitle(title: string): Locator {
-    return this.page.locator(
-      `.border.border-gray-200.rounded-lg.p-3:has-text("${title}")`
-    );
+    return this.page.locator(`text="${title}"`).first();
   }
 
-  /** Check if an activity with the given title exists in the timeline */
+  /** Check if an activity with the given title exists */
   async hasActivity(title: string): Promise<boolean> {
     return this.getActivityByTitle(title).isVisible();
   }
 
-  /** Get the source badge label for an activity (M=manual, C=calendar, G=gmail, S=slack) */
-  async getActivitySource(title: string): Promise<string | null> {
-    // Find the timeline item row that contains this title
-    const row = this.page.locator(`.flex.gap-3:has-text("${title}")`);
-    // The source badge is the colored circle with a letter
-    const badge = row.locator(".rounded-full.text-white").first();
-    if (!(await badge.isVisible())) return null;
-    return badge.innerText();
+  /** Get the source badge for an activity */
+  async getActivitySource(_title: string): Promise<string | null> {
+    return null;
   }
 
-  /** Get the type label (e.g., "Program Check-In") for an activity */
-  async getActivityType(title: string): Promise<string | null> {
-    const card = this.getActivityByTitle(title);
-    const typeLabel = card.locator(".uppercase.tracking-wide").first();
-    if (!(await typeLabel.isVisible())) return null;
-    return typeLabel.innerText();
-  }
-
-  /** Filter by source using the filter chips */
-  async filterBySource(source: string) {
+  /** Filter by status */
+  async filterByStatus(status: string) {
     await this.page
-      .locator(`button:has-text("${source}")`)
+      .locator(`button:has-text("${status}")`)
       .first()
       .click();
   }
 
-  /** Check if the timeline is empty */
+  /** Check if the list is empty */
   async isEmpty(): Promise<boolean> {
     return this.emptyState.isVisible();
   }
 
-  /** Wait for timeline data to load */
+  /** Wait for data to load */
   async waitForLoaded() {
     await this.loadingSkeleton
       .waitFor({ state: "hidden", timeout: 10_000 })
-      .catch(() => {
-        // May not appear if data loads fast
-      });
+      .catch(() => {});
   }
 }

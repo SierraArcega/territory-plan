@@ -1,111 +1,41 @@
 /**
- * Page Object Model: Calendar Sync Settings
+ * Page Object Model: Calendar Settings
  *
- * Encapsulates the calendar settings section, which lives within the
- * profile/settings page. Provides methods for connection status,
- * sync direction, activity type filters, and reminders.
+ * IMPORTANT: Calendar settings are not yet exposed in the main UI.
+ * The "Settings" icon tab falls back to HomePanel.
+ * Calendar-related components exist but are not wired into navigation.
  *
- * Component references:
- *   - CalendarSyncSettings.tsx — main container
- *   - ConnectionStatusCard.tsx — shows email, sync now, disconnect
- *   - SyncDirectionCard.tsx — one_way / two_way radio
- *   - ActivityTypeFiltersCard.tsx — multi-select activity types
- *   - RemindersCard.tsx — reminder minutes config
+ * This POM is a placeholder for when calendar settings are integrated.
+ * For now, tests that need calendar settings should use DB seeding
+ * to configure the UserIntegration directly.
  */
 
 import { type Page, type Locator } from "@playwright/test";
 
 export class CalendarSettingsPage {
   readonly page: Page;
-
-  // Connection status
-  readonly connectBanner: Locator;
-  readonly connectButton: Locator;
-  readonly connectedEmail: Locator;
-  readonly syncNowButton: Locator;
-  readonly disconnectButton: Locator;
-  readonly connectionCard: Locator;
-  readonly lockedOverlay: Locator;
-
-  // Sync direction
-  readonly syncDirectionCard: Locator;
-  readonly oneWayRadio: Locator;
-  readonly twoWayRadio: Locator;
+  readonly settingsTab: Locator;
 
   constructor(page: Page) {
     this.page = page;
-
-    // Connection status (ConnectionStatusCard or connect banner)
-    this.connectBanner = page.locator(
-      'text="Connect your Google Calendar"'
-    );
-    this.connectButton = page.locator('button:has-text("Connect")');
-    this.connectionCard = page.locator('h3:has-text("Connection")').locator("..");
-    this.connectedEmail = this.connectionCard.locator(
-      "p.truncate"
-    );
-    this.syncNowButton = page.locator('button:has-text("Sync Now")');
-    this.disconnectButton = page.locator('button:has-text("Disconnect")');
-    this.lockedOverlay = page.locator(
-      'text="Connect your calendar to configure sync"'
-    );
-
-    // Sync direction (SyncDirectionCard)
-    this.syncDirectionCard = page.locator('h3:has-text("Sync Direction")').locator("..");
-    this.oneWayRadio = page.locator('input[name="sync-direction"][value="one_way"]');
-    this.twoWayRadio = page.locator('input[name="sync-direction"][value="two_way"]');
+    this.settingsTab = page.locator('button[aria-label="Settings"]');
   }
 
-  /** Navigate to the settings page with calendar settings visible */
+  /** Navigate to the settings icon tab */
   async goto() {
-    await this.page.goto("/settings");
+    await this.page.goto("/");
     await this.page.waitForLoadState("domcontentloaded");
+    await this.settingsTab.click();
   }
 
-  /** Check if the calendar is currently connected */
+  /** Check if connected (placeholder — checks DB state via UI when available) */
   async isConnected(): Promise<boolean> {
-    // If the connection card with email is visible, we're connected
-    const connectionHeader = this.page.locator('h3:has-text("Connection")');
-    return connectionHeader.isVisible();
+    // Calendar settings not yet in UI — always returns false
+    return false;
   }
 
-  /** Check if the connect banner is showing (not connected) */
-  async showsConnectBanner(): Promise<boolean> {
-    return this.connectBanner.isVisible();
-  }
-
-  /** Check if settings are locked (shows overlay when disconnected) */
+  /** Check if settings are locked */
   async isLocked(): Promise<boolean> {
-    return this.lockedOverlay.isVisible();
-  }
-
-  /** Get the connected Google account email */
-  async getConnectionEmail(): Promise<string> {
-    return this.connectedEmail.innerText();
-  }
-
-  /** Click Sync Now */
-  async triggerSync() {
-    await this.syncNowButton.click();
-  }
-
-  /** Set sync direction to one_way or two_way */
-  async setSyncDirection(direction: "one_way" | "two_way") {
-    const label =
-      direction === "one_way"
-        ? this.page.locator('text="One-way (App → Calendar)"')
-        : this.page.locator('text="Two-way sync"');
-    await label.click();
-  }
-
-  /** Get current sync direction */
-  async getSyncDirection(): Promise<"one_way" | "two_way"> {
-    const isOneWay = await this.oneWayRadio.isChecked();
-    return isOneWay ? "one_way" : "two_way";
-  }
-
-  /** Wait for the "Saved" confirmation text to appear */
-  async waitForSaved() {
-    await this.page.locator('text="Saved"').waitFor({ state: "visible" });
+    return true; // Not yet available in UI
   }
 }

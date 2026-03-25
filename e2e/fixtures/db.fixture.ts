@@ -51,6 +51,9 @@ export interface DbFixture {
 
 export const test = base.extend<{ db: DbFixture }>({
   db: async ({}, use) => {
+    // Clean up any leftover test data before seeding (handles reruns)
+    await cleanupAllTestData();
+
     const fixture: DbFixture = {
       seedTestData: async () => {
         const profile = await seedUserProfile();

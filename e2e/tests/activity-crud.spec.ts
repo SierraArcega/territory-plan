@@ -23,21 +23,20 @@ test.describe("Activity CRUD", () => {
 
     await timeline.goto();
 
-    // Click "New Activity" button
-    await page.locator('button:has-text("New Activity")').first().click();
+    // Click "+ New Activity" button
+    await timeline.newActivityButton.click();
 
-    // Navigate through the wizard
+    // Fill the form (modal opens directly — no category/type wizard)
     await activityForm.createActivity({
-      category: "Outreach",
-      type: "Program Check-In",
+      category: "Meetings",
+      type: "Program Check",
       title: "E2E Created Activity",
       startDate: "2026-04-01",
     });
 
-    // Wait for the modal to close
     await activityForm.waitForClose();
 
-    // The activity should appear in the timeline
+    // The activity should appear in the list
     await expect(
       timeline.getActivityByTitle("E2E Created Activity")
     ).toBeVisible({ timeout: 5_000 });
@@ -55,18 +54,17 @@ test.describe("Activity CRUD", () => {
     await timeline.waitForLoaded();
 
     // Click on the existing activity to open edit
-    const activityItem = timeline.getActivityByTitle("E2E Test Activity");
-    await activityItem.click();
+    await timeline.getActivityByTitle("E2E Test Activity").click();
 
-    // The edit form should open — look for the title input pre-filled
-    const titleInput = page.locator('input[type="text"]').first();
+    // The edit form should open — look for the title input
+    const titleInput = page.locator('input[placeholder*="e.g."]').first();
     await titleInput.waitFor({ state: "visible", timeout: 5_000 });
 
     // Change the title
     await titleInput.fill("E2E Updated Activity");
 
     // Save
-    await page.locator('button:has-text("Save")').first().click();
+    await page.locator('button:has-text("Save"), button:has-text("Update")').first().click();
 
     // Verify the updated title appears
     await expect(
@@ -89,20 +87,17 @@ test.describe("Activity CRUD", () => {
     page.on("dialog", (dialog) => dialog.accept());
 
     // Click on the activity
-    const activityItem = timeline.getActivityByTitle("E2E Test Activity");
-    await activityItem.click();
+    await timeline.getActivityByTitle("E2E Test Activity").click();
 
-    // Look for delete button in the detail view
+    // Look for delete button
     await page.locator('button:has-text("Delete")').first().click();
 
-    // Confirm deletion dialog (may use button or native dialog)
+    // Confirm deletion
     await page
-      .locator('button:has-text("Confirm")')
+      .locator('button:has-text("Confirm"), button:has-text("Yes")')
       .first()
       .click()
-      .catch(() => {
-        // Native dialog handled above
-      });
+      .catch(() => {});
 
     // Activity should no longer be visible
     await expect(
@@ -121,18 +116,17 @@ test.describe("Activity CRUD", () => {
     const timeline = new ActivityTimelinePage(page);
 
     await timeline.goto();
-    await page.locator('button:has-text("New Activity")').first().click();
+    await timeline.newActivityButton.click();
 
     await activityForm.createActivity({
-      category: "Outreach",
-      type: "Program Check-In",
+      category: "Meetings",
+      type: "Program Check",
       title: "Push Test Activity",
       startDate: "2026-04-15",
     });
 
     await activityForm.waitForClose();
 
-    // Verify activity was created first
     await expect(
       timeline.getActivityByTitle("Push Test Activity")
     ).toBeVisible({ timeout: 5_000 });
@@ -141,7 +135,6 @@ test.describe("Activity CRUD", () => {
     const pushRequests = mockGoogleCalendar.getPushRequests();
     expect(pushRequests.length).toBeGreaterThanOrEqual(1);
 
-    // Verify the push payload contains the title
     const createRequest = pushRequests.find(
       (r) =>
         r.method === "POST" &&
@@ -160,7 +153,6 @@ test.describe("Activity CRUD", () => {
     db,
     mockGoogleCalendar,
   }) => {
-    // Seed an activity that has a googleEventId (simulating an already-pushed activity)
     await db.seedUserProfile();
     await db.seedPlan();
     await db.seedUserIntegration();
@@ -173,20 +165,17 @@ test.describe("Activity CRUD", () => {
     await timeline.goto();
     await timeline.waitForLoaded();
 
-    // Click to edit
     await timeline.getActivityByTitle("Existing Pushed Activity").click();
 
-    const titleInput = page.locator('input[type="text"]').first();
+    const titleInput = page.locator('input[placeholder*="e.g."]').first();
     await titleInput.waitFor({ state: "visible", timeout: 5_000 });
     await titleInput.fill("Updated Pushed Activity");
-    await page.locator('button:has-text("Save")').first().click();
+    await page.locator('button:has-text("Save"), button:has-text("Update")').first().click();
 
-    // Wait for the update to complete
     await expect(
       timeline.getActivityByTitle("Updated Pushed Activity")
     ).toBeVisible({ timeout: 5_000 });
 
-    // Should have sent a PATCH/PUT to Google Calendar
     const pushRequests = mockGoogleCalendar.getPushRequests();
     const updateRequest = pushRequests.find(
       (r) => r.method === "PUT" || r.method === "PATCH"
@@ -211,19 +200,15 @@ test.describe("Activity CRUD", () => {
     await timeline.goto();
     await timeline.waitForLoaded();
 
-    // Register dialog handler BEFORE the action
     page.on("dialog", (dialog) => dialog.accept());
 
-    // Click and delete
     await timeline.getActivityByTitle("Activity To Delete").click();
     await page.locator('button:has-text("Delete")').first().click();
 
-    // Wait for the activity to disappear
     await expect(
       timeline.getActivityByTitle("Activity To Delete")
     ).toBeHidden({ timeout: 5_000 });
 
-    // Should have sent a DELETE to Google Calendar
     const deleteRequests = mockGoogleCalendar.getDeleteRequests();
     expect(deleteRequests.length).toBeGreaterThanOrEqual(1);
   });
@@ -235,7 +220,6 @@ test.describe("Activity CRUD", () => {
   }) => {
     await db.seedTestData();
 
-    // Create a calendar-synced activity (source = calendar_sync)
     await db.seedActivity({
       id: "e2e00000-0000-0000-0000-000000000099",
       title: "Synced From Calendar",
@@ -243,19 +227,16 @@ test.describe("Activity CRUD", () => {
       googleEventId: "gcal-synced-001",
     });
 
-    // Reset mock tracking before the test
     mockGoogleCalendar.reset();
 
     const timeline = new ActivityTimelinePage(page);
     await timeline.goto();
     await timeline.waitForLoaded();
 
-    // The synced activity should be visible
     await expect(
       timeline.getActivityByTitle("Synced From Calendar")
     ).toBeVisible();
 
-    // Verify no push requests were made (the app should NOT push back to calendar)
     const pushRequests = mockGoogleCalendar.getPushRequests();
     expect(pushRequests.length).toBe(0);
   });

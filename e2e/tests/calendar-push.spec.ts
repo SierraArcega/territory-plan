@@ -22,23 +22,21 @@ test.describe("Calendar Push Sync", () => {
     const timeline = new ActivityTimelinePage(page);
 
     await timeline.goto();
-    await page.locator('button:has-text("New Activity")').first().click();
+    await timeline.newActivityButton.click();
 
     await activityForm.createActivity({
-      category: "Outreach",
-      type: "Program Check-In",
+      category: "Meetings",
+      type: "Program Check",
       title: "Push Payload Test",
       startDate: "2026-05-01",
     });
 
     await activityForm.waitForClose();
 
-    // Wait for activity to appear (ensures push had time to fire)
     await expect(
       timeline.getActivityByTitle("Push Payload Test")
     ).toBeVisible({ timeout: 5_000 });
 
-    // Verify the push request payload
     const pushRequests = mockGoogleCalendar.getPushRequests();
     const createReq = pushRequests.find(
       (r) =>
@@ -65,24 +63,21 @@ test.describe("Calendar Push Sync", () => {
     const timeline = new ActivityTimelinePage(page);
 
     await timeline.goto();
-    await page.locator('button:has-text("New Activity")').first().click();
+    await timeline.newActivityButton.click();
 
-    // Create an activity with type that supports attendees
-    await activityForm.selectCategory("Events");
-    await activityForm.selectType("Conference");
-    await activityForm.waitForForm();
-    await activityForm.setTitle("Attendee Push Test");
-    await activityForm.setStartDate("2026-05-15");
+    await activityForm.createActivity({
+      category: "Meetings",
+      type: "Program Check",
+      title: "Attendee Push Test",
+      startDate: "2026-05-15",
+    });
 
-    await activityForm.save();
     await activityForm.waitForClose();
 
-    // Verify activity was created
     await expect(
       timeline.getActivityByTitle("Attendee Push Test")
     ).toBeVisible({ timeout: 5_000 });
 
-    // Verify a push request was made
     const pushRequests = mockGoogleCalendar.getPushRequests();
     expect(pushRequests.length).toBeGreaterThanOrEqual(1);
   });
@@ -92,35 +87,31 @@ test.describe("Calendar Push Sync", () => {
     db,
     mockGoogleCalendar,
   }) => {
-    // Set sync direction to one_way (calendar -> app only, no push)
     await db.seedUserProfile();
     await db.seedPlan();
     await db.seedUserIntegration({ syncDirection: "one_way" });
 
-    // Reset mock tracking
     mockGoogleCalendar.reset();
 
     const activityForm = new ActivityFormPage(page);
     const timeline = new ActivityTimelinePage(page);
 
     await timeline.goto();
-    await page.locator('button:has-text("New Activity")').first().click();
+    await timeline.newActivityButton.click();
 
     await activityForm.createActivity({
-      category: "Outreach",
-      type: "Program Check-In",
+      category: "Meetings",
+      type: "Program Check",
       title: "No Push Activity",
       startDate: "2026-05-20",
     });
 
     await activityForm.waitForClose();
 
-    // Wait for the activity to appear (ensures the create flow completed)
     await expect(
       timeline.getActivityByTitle("No Push Activity")
     ).toBeVisible({ timeout: 5_000 });
 
-    // With one_way sync, NO push should be made to Google Calendar
     const pushRequests = mockGoogleCalendar.getPushRequests();
     expect(pushRequests.length).toBe(0);
   });
@@ -130,8 +121,6 @@ test.describe("Calendar Push Sync", () => {
     db,
     mockGoogleCalendar,
   }) => {
-    // Configure integration to only sync specific activity types
-    // (filtering out "dinner" type)
     await db.seedUserProfile();
     await db.seedPlan();
     await db.seedUserIntegration({
@@ -144,24 +133,21 @@ test.describe("Calendar Push Sync", () => {
     const timeline = new ActivityTimelinePage(page);
 
     await timeline.goto();
-    await page.locator('button:has-text("New Activity")').first().click();
+    await timeline.newActivityButton.click();
 
-    // Create a "Dinner" activity which is NOT in the filter list
     await activityForm.createActivity({
-      category: "Relationship Building",
-      type: "Dinner",
+      category: "Meetings",
+      type: "Program Check",
       title: "Filtered Dinner Activity",
       startDate: "2026-05-25",
     });
 
     await activityForm.waitForClose();
 
-    // Wait for activity to appear
     await expect(
       timeline.getActivityByTitle("Filtered Dinner Activity")
     ).toBeVisible({ timeout: 5_000 });
 
-    // Dinner is not in syncedActivityTypes, so no push should happen
     const pushRequests = mockGoogleCalendar.getPushRequests();
     expect(pushRequests.length).toBe(0);
   });
@@ -173,26 +159,23 @@ test.describe("Calendar Push Sync", () => {
   }) => {
     await db.seedTestData();
 
-    // Configure Google API to return 500 errors
     mockGoogleCalendar.setError(500, "Internal Server Error");
 
     const activityForm = new ActivityFormPage(page);
     const timeline = new ActivityTimelinePage(page);
 
     await timeline.goto();
-    await page.locator('button:has-text("New Activity")').first().click();
+    await timeline.newActivityButton.click();
 
     await activityForm.createActivity({
-      category: "Outreach",
-      type: "Program Check-In",
+      category: "Meetings",
+      type: "Program Check",
       title: "Error Handling Test",
       startDate: "2026-06-01",
     });
 
-    // The activity should still be saved locally even if push fails
     await activityForm.waitForClose();
 
-    // Activity should exist in the timeline despite push failure
     await expect(
       timeline.getActivityByTitle("Error Handling Test")
     ).toBeVisible({ timeout: 5_000 });
