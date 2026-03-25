@@ -52,6 +52,7 @@ export function useCreateTask() {
       priority?: TaskPriority;
       dueDate?: string | null;
       position?: number;
+      assignedToUserId?: string;
       planIds?: string[];
       activityIds?: string[];
       leaids?: string[];
