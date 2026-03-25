@@ -84,7 +84,28 @@ export async function POST(request: NextRequest) {
     //   return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     // }
 
-    const payload: ClayWebhookPayload = await request.json();
+    // Support both JSON body and query parameters (Clay's HTTP API column
+    // sometimes struggles with JSON body formatting for string values)
+    let payload: ClayWebhookPayload;
+    const contentType = request.headers.get("content-type") || "";
+    const url = new URL(request.url);
+
+    if (contentType.includes("application/json")) {
+      try {
+        payload = await request.json();
+      } catch {
+        // JSON parse failed — fall back to query params
+        payload = Object.fromEntries(url.searchParams) as unknown as ClayWebhookPayload;
+      }
+    } else {
+      payload = Object.fromEntries(url.searchParams) as unknown as ClayWebhookPayload;
+    }
+
+    // Also merge query params if body is partial
+    if (!payload.leaid && url.searchParams.has("leaid")) {
+      payload = { ...payload, ...Object.fromEntries(url.searchParams) } as unknown as ClayWebhookPayload;
+    }
+
     console.log("Received Clay webhook payload:", JSON.stringify(payload, null, 2));
 
     // Validate that we have a leaid to associate contacts with
