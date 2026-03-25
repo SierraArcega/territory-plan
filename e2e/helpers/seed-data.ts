@@ -27,6 +27,8 @@ export const TEST_ACTIVITY_ID = "e2e00000-0000-0000-0000-000000000003";
 export const TEST_TASK_ID = "e2e00000-0000-0000-0000-000000000004";
 export const TEST_INTEGRATION_ID = "e2e00000-0000-0000-0000-000000000005";
 export const TEST_ACTIVITY_SYNCED_ID = "e2e00000-0000-0000-0000-000000000006";
+export const TEST_OPPORTUNITY_ID = "e2e-OPP-001";
+export const TEST_DISTRICT_LEAID = "9999901";
 
 // ─── Known test data values ──────────────────────────────────────────────────
 
@@ -188,6 +190,53 @@ export async function seedTask(
   });
 }
 
+/** Creates a test opportunity for linking */
+export async function seedOpportunity(
+  overrides: {
+    id?: string;
+    name?: string;
+    stage?: string;
+    netBookingAmount?: number;
+    districtName?: string;
+  } = {}
+) {
+  const id = overrides.id ?? TEST_OPPORTUNITY_ID;
+  return prisma.opportunity.upsert({
+    where: { id },
+    update: {},
+    create: {
+      id,
+      name: overrides.name ?? "E2E Test Opportunity",
+      stage: overrides.stage ?? "Proposal",
+      netBookingAmount: overrides.netBookingAmount ?? 45000,
+      districtName: overrides.districtName ?? "E2E Test District",
+    },
+  });
+}
+
+/** Creates a test district */
+export async function seedDistrict(
+  overrides: {
+    leaid?: string;
+    name?: string;
+    websiteUrl?: string;
+  } = {}
+) {
+  const leaid = overrides.leaid ?? TEST_DISTRICT_LEAID;
+  return prisma.district.upsert({
+    where: { leaid },
+    update: {},
+    create: {
+      leaid,
+      name: overrides.name ?? "E2E Test District",
+      websiteUrl: overrides.websiteUrl ?? "https://www.e2e-test-district.k12.us",
+      stateFips: "99",
+      stateAbbrev: "TS",
+      enrollment: 5000,
+    },
+  });
+}
+
 // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 // All known test IDs that may be created during tests
@@ -201,6 +250,10 @@ const ALL_TEST_IDS = [
   // Additional IDs that tests may create
   "e2e00000-0000-0000-0000-000000000099",
 ];
+
+// Non-UUID IDs that need separate cleanup
+const ALL_TEST_OPPORTUNITY_IDS = [TEST_OPPORTUNITY_ID];
+const ALL_TEST_DISTRICT_LEAIDS = [TEST_DISTRICT_LEAID];
 
 /** Removes all test data created by seed functions (identified by known test IDs).
  *  Each delete runs individually so a missing table doesn't abort the whole cleanup. */
@@ -218,6 +271,12 @@ export async function cleanupAllTestData() {
   };
 
   // Delete junction tables first (foreign key constraints)
+  await safeDelete(() =>
+    prisma.activityOpportunity.deleteMany({ where: { activityId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.activityOpportunity.deleteMany({ where: { opportunityId: { in: ALL_TEST_OPPORTUNITY_IDS } } })
+  );
   await safeDelete(() =>
     prisma.taskActivity.deleteMany({ where: { taskId: { in: ALL_TEST_IDS } } })
   );
@@ -255,6 +314,13 @@ export async function cleanupAllTestData() {
   );
   await safeDelete(() =>
     prisma.territoryPlan.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.opportunity.deleteMany({ where: { id: { in: ALL_TEST_OPPORTUNITY_IDS } } })
+  );
+  // District cleanup — only delete our synthetic test district (safe because leaid is unique)
+  await safeDelete(() =>
+    prisma.district.deleteMany({ where: { leaid: { in: ALL_TEST_DISTRICT_LEAIDS } } })
   );
 
   // NOTE: We do NOT delete the UserProfile — it's the real authenticated user.

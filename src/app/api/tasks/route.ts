@@ -113,6 +113,9 @@ export async function GET(request: NextRequest) {
               contact: { select: { name: true, title: true } },
             },
           },
+          assignedTo: {
+            select: { id: true, fullName: true, avatarUrl: true },
+          },
         },
         orderBy: [
           { position: "asc" },
@@ -131,6 +134,13 @@ export async function GET(request: NextRequest) {
       priority: task.priority,
       dueDate: task.dueDate?.toISOString() ?? null,
       position: task.position,
+      assignedTo: task.assignedTo
+        ? {
+            id: task.assignedTo.id,
+            fullName: task.assignedTo.fullName,
+            avatarUrl: task.assignedTo.avatarUrl,
+          }
+        : null,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
       districts: task.districts.map((d) => ({
@@ -181,6 +191,7 @@ export async function POST(request: NextRequest) {
       priority = "medium",
       dueDate,
       position = 0,
+      assignedToUserId,
       planIds = [],
       activityIds = [],
       leaids = [],
@@ -211,6 +222,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate assignedToUserId if provided
+    if (assignedToUserId) {
+      const assignee = await prisma.userProfile.findUnique({
+        where: { id: assignedToUserId },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return NextResponse.json(
+          { error: "Assigned user not found" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create task with all junction records in a single transaction
     const task = await prisma.task.create({
       data: {
@@ -221,6 +246,7 @@ export async function POST(request: NextRequest) {
         dueDate: dueDate ? new Date(dueDate) : null,
         position,
         createdByUserId: user.id,
+        ...(assignedToUserId && { assignedToUserId }),
         plans: {
           create: planIds.map((planId: string) => ({ planId })),
         },
@@ -251,6 +277,9 @@ export async function POST(request: NextRequest) {
         contacts: {
           include: { contact: { select: { id: true, name: true, title: true } } },
         },
+        assignedTo: {
+          select: { id: true, fullName: true, avatarUrl: true },
+        },
       },
     });
 
@@ -262,6 +291,13 @@ export async function POST(request: NextRequest) {
       priority: task.priority,
       dueDate: task.dueDate?.toISOString() ?? null,
       position: task.position,
+      assignedTo: task.assignedTo
+        ? {
+            id: task.assignedTo.id,
+            fullName: task.assignedTo.fullName,
+            avatarUrl: task.assignedTo.avatarUrl,
+          }
+        : null,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
       plans: task.plans.map((p) => ({

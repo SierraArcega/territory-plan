@@ -1,14 +1,14 @@
 /**
  * Page Object Model: Activity Form Modal
  *
- * The activity form is a modal dialog with:
- * - Title input (placeholder: "e.g. SC Education Conference")
- * - Date picker
- * - Status dropdown (Planned, etc.)
- * - Plans and States multi-selects
- * - Notes textarea
- * - Cancel / Create Activity buttons
- * - Right side tabs: Tasks, Expenses, Related Activities, Files
+ * Encapsulates the multi-step activity creation/edit modal.
+ * Steps: pick-category -> pick-type -> form
+ *
+ * Component references:
+ *   - ActivityFormModal.tsx — modal with 3-step wizard
+ *   - EventTypeFields.tsx — type-specific fields
+ *   - CalendarPicker.tsx — date picker
+ *   - StatusSelect.tsx — status dropdown
  */
 
 import { type Page, type Locator } from "@playwright/test";
@@ -16,56 +16,114 @@ import { type Page, type Locator } from "@playwright/test";
 export class ActivityFormPage {
   readonly page: Page;
 
-  // Modal
+  // Modal container
   readonly modal: Locator;
+  readonly backdrop: Locator;
 
-  // Form fields
+  // Header
+  readonly headerTitle: Locator;
+  readonly closeButton: Locator;
+  readonly backButton: Locator;
+
+  // Category picker (step 1)
+  readonly categoryPicker: Locator;
+
+  // Form fields (step 3)
   readonly titleInput: Locator;
+  readonly startDateInput: Locator;
   readonly notesTextarea: Locator;
 
   // Footer actions
   readonly cancelButton: Locator;
   readonly submitButton: Locator;
 
+  // Error display
+  readonly errorMessage: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
-    // The modal dialog
-    this.modal = page.locator('[role="dialog"], .fixed.inset-0').first();
+    // The modal is the white rounded container inside the fixed backdrop
+    this.backdrop = page.locator(".fixed.inset-0.bg-black\\/40");
+    this.modal = page.locator(".bg-white.rounded-2xl.shadow-xl");
 
-    // Form fields — title input has distinctive placeholder
+    // Header
+    this.headerTitle = page.locator("h2");
+    this.closeButton = this.modal.locator("button").filter({
+      has: page.locator('svg path[d="M6 18L18 6M6 6l12 12"]'),
+    });
+    this.backButton = this.modal.locator("button").filter({
+      has: page.locator('svg path[d*="M15 19l-7-7 7-7"]'),
+    });
+
+    // Category picker
+    this.categoryPicker = page.locator(
+      'text="What kind of activity are you creating?"'
+    );
+
+    // Form fields
     this.titleInput = page.locator(
-      'input[placeholder*="e.g."], input[placeholder*="SC Education"]'
-    ).first();
-
+      'input[placeholder*="e.g., SC Education Conference"]'
+    );
+    this.startDateInput = page.locator('input[type="date"]').first();
     this.notesTextarea = page.locator(
-      'textarea[placeholder*="notes"], textarea[placeholder*="details"]'
-    ).first();
+      'textarea[placeholder="Add any notes or details..."]'
+    );
 
-    // Footer buttons
-    this.cancelButton = page.locator('button:has-text("Cancel")').first();
-    this.submitButton = page.locator('button:has-text("Create Activity")').first();
+    // Footer
+    this.cancelButton = page.locator('button:has-text("Cancel")');
+    this.submitButton = page.locator('button:has-text("Create Activity")');
+
+    // Error
+    this.errorMessage = page.locator(".bg-\\[\\#fef1f0\\]");
+  }
+
+  /** Check if the modal is open */
+  async isOpen(): Promise<boolean> {
+    return this.modal.isVisible();
+  }
+
+  /** Select an activity category (step 1) */
+  async selectCategory(categoryLabel: string) {
+    await this.page
+      .locator(`button:has-text("${categoryLabel}")`)
+      .first()
+      .click();
+  }
+
+  /** Select an activity type (step 2) */
+  async selectType(typeLabel: string) {
+    await this.page
+      .locator(`button:has-text("${typeLabel}")`)
+      .first()
+      .click();
   }
 
   /** Fill the title field */
   async setTitle(title: string) {
-    await this.titleInput.waitFor({ state: "visible", timeout: 5_000 });
     await this.titleInput.fill(title);
   }
 
-  /** Set the start date via the date input */
+  /** Set the start date */
   async setStartDate(dateStr: string) {
-    const dateInput = this.page.locator('input[type="date"]').first();
-    if (await dateInput.isVisible()) {
-      await dateInput.fill(dateStr);
-    }
+    await this.startDateInput.fill(dateStr);
   }
 
   /** Set notes */
   async setNotes(notes: string) {
-    if (await this.notesTextarea.isVisible()) {
-      await this.notesTextarea.fill(notes);
-    }
+    await this.notesTextarea.fill(notes);
+  }
+
+  /** Select a plan from the Plans multi-select */
+  async linkPlan(planName: string) {
+    // Click the Plans multi-select trigger
+    const plansSelect = this.page.locator("#activity-plans");
+    await plansSelect.click();
+    // Search and select
+    await this.page
+      .locator(`text="${planName}"`)
+      .first()
+      .click();
   }
 
   /** Click Save / Create Activity */
@@ -78,55 +136,37 @@ export class ActivityFormPage {
     await this.cancelButton.click();
   }
 
-  /** Wait for the form to be visible */
-  async waitForForm() {
-    await this.titleInput.waitFor({ state: "visible", timeout: 5_000 });
+  /** Close the modal via the X button */
+  async close() {
+    await this.closeButton.click();
   }
 
   /** Wait for the modal to close */
   async waitForClose() {
-    await this.submitButton.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
+    await this.modal.waitFor({ state: "hidden", timeout: 5_000 });
   }
 
-  /** Select category card (step 1): Events, Campaigns, Meetings, Gift Drop, Thought Leadership */
-  async selectCategory(categoryLabel: string) {
-    // Category cards are clickable divs/buttons with the category name as heading text
-    // Wait for the category picker to be visible
-    await this.page.locator('text=/What kind of activity/').waitFor({ state: "visible", timeout: 5_000 });
-    // Click the card that contains this category name
-    await this.page
-      .locator(`button:has-text("${categoryLabel}"), [role="button"]:has-text("${categoryLabel}"), div[class*="cursor-pointer"]:has-text("${categoryLabel}")`)
-      .first()
-      .click();
+  /** Wait for the form step to be visible */
+  async waitForForm() {
+    await this.titleInput.waitFor({ state: "visible", timeout: 5_000 });
   }
 
-  /** Select activity type card (step 2) */
-  async selectType(typeLabel: string) {
-    // Wait for type picker to load
-    await this.page.locator('text=/What type of/').waitFor({ state: "visible", timeout: 5_000 });
-    await this.page
-      .locator(`button:has-text("${typeLabel}")`)
-      .first()
-      .click();
+  /** Check if the creating spinner is showing */
+  async isSubmitting(): Promise<boolean> {
+    const creatingText = this.page.locator('button:has-text("Creating...")');
+    return creatingText.isVisible();
   }
 
-  /** Full flow: pick category → pick type → fill form → submit */
+  /** Full flow: create an activity from scratch */
   async createActivity(options: {
-    category?: string;
-    type?: string;
+    category: string;
+    type: string;
     title: string;
     startDate?: string;
     notes?: string;
   }) {
-    // Step 1: pick category (if provided)
-    if (options.category) {
-      await this.selectCategory(options.category);
-    }
-    // Step 2: pick type (if provided)
-    if (options.type) {
-      await this.selectType(options.type);
-    }
-    // Step 3: fill form
+    await this.selectCategory(options.category);
+    await this.selectType(options.type);
     await this.waitForForm();
     await this.setTitle(options.title);
     if (options.startDate) {

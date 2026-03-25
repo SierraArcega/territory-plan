@@ -15,11 +15,15 @@ import {
   seedActivity,
   seedTask,
   seedUserIntegration,
+  seedOpportunity,
+  seedDistrict,
   TEST_USER_ID,
   TEST_PLAN_ID,
   TEST_ACTIVITY_ID,
   TEST_TASK_ID,
   TEST_INTEGRATION_ID,
+  TEST_OPPORTUNITY_ID,
+  TEST_DISTRICT_LEAID,
   cleanupAllTestData,
   type SeedResult,
 } from "../helpers/seed-data";
@@ -37,6 +41,10 @@ export interface DbFixture {
   seedTask: typeof seedTask;
   /** Seed a UserIntegration (calendar connection) */
   seedUserIntegration: typeof seedUserIntegration;
+  /** Seed a test opportunity */
+  seedOpportunity: typeof seedOpportunity;
+  /** Seed a test district */
+  seedDistrict: typeof seedDistrict;
   /** Clean up all e2e test data */
   cleanup: typeof cleanupAllTestData;
   /** Known test IDs for assertions */
@@ -46,14 +54,13 @@ export interface DbFixture {
     activityId: string;
     taskId: string;
     integrationId: string;
+    opportunityId: string;
+    districtLeaid: string;
   };
 }
 
 export const test = base.extend<{ db: DbFixture }>({
   db: async ({}, use) => {
-    // Clean up any leftover test data before seeding (handles reruns)
-    await cleanupAllTestData();
-
     const fixture: DbFixture = {
       seedTestData: async () => {
         const profile = await seedUserProfile();
@@ -68,6 +75,8 @@ export const test = base.extend<{ db: DbFixture }>({
       seedActivity,
       seedTask,
       seedUserIntegration,
+      seedOpportunity,
+      seedDistrict,
       cleanup: cleanupAllTestData,
       ids: {
         userId: TEST_USER_ID,
@@ -75,6 +84,8 @@ export const test = base.extend<{ db: DbFixture }>({
         activityId: TEST_ACTIVITY_ID,
         taskId: TEST_TASK_ID,
         integrationId: TEST_INTEGRATION_ID,
+        opportunityId: TEST_OPPORTUNITY_ID,
+        districtLeaid: TEST_DISTRICT_LEAID,
       },
     };
 
