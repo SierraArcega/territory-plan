@@ -75,7 +75,16 @@ interface ClayWebhookPayload {
   department?: string;
 }
 
+// Support both GET and POST — Clay's HTTP API column may use either
+export async function GET(request: NextRequest) {
+  return handleClayWebhook(request);
+}
+
 export async function POST(request: NextRequest) {
+  return handleClayWebhook(request);
+}
+
+async function handleClayWebhook(request: NextRequest) {
   try {
     // Optional: Validate webhook signature
     // const signature = request.headers.get("x-clay-signature");
