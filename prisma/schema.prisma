@@ -788,6 +788,8 @@ model UserProfile {
   integrations    UserIntegration[]
   // Legacy calendar connection (migrating to UserIntegration)
   calendarConnection CalendarConnection?
+  // Saved reports created by this user
+  savedReports    SavedReport[]
 
   @@map("user_profiles")
 }
@@ -1374,4 +1376,23 @@ model VacancyKeywordConfig {
 
   @@index([type])
   @@map("vacancy_keyword_config")
+}
+
+// ===== Saved Reports =====
+// User-created report configurations for the Report Builder feature.
+// Stores the query config (source, columns, filters, sorts) as JSON.
+model SavedReport {
+  id         String   @id @default(uuid())
+  name       String
+  source     String   // entity name (e.g., "districts", "opportunities")
+  config     Json     // { columns, filters, sorts, pageSize }
+  createdBy  String   @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  sharedWith String[] @map("shared_with") // user IDs with access (empty = private)
+
+  creator UserProfile @relation(fields: [createdBy], references: [id])
+
+  @@index([createdBy])
+  @@map("saved_reports")
 }
