@@ -228,6 +228,15 @@ export async function GET(
       e.full = { revenue: Number(r.revenue), sessions: Number(r.sessions) };
     }
 
+    const renewalRollup = Number(plan.renewalRollup);
+    const expansionRollup = Number(plan.expansionRollup);
+    const winbackRollup = Number(plan.winbackRollup);
+    const newBusinessRollup = Number(plan.newBusinessRollup);
+    const pipelineTotal = currentRows.reduce((sum, r) => sum + Number(r.weighted_pipeline), 0);
+    const revenueActual = currentRows.reduce((sum, r) => sum + Number(r.total_revenue), 0);
+    const takeActual = currentRows.reduce((sum, r) => sum + Number(r.total_take), 0);
+    const totalEnrollment = plan.districts.reduce((sum, d) => sum + (d.district.enrollment ?? 0), 0);
+
     return NextResponse.json({
       id: plan.id,
       name: plan.name,
