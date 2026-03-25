@@ -213,13 +213,73 @@ export function usePlanOpportunities(planId: string | null) {
   });
 }
 
-export function usePlanContacts(planId: string | null) {
+export function useDistrictWebsites(leaids: string[]) {
+  return useQuery({
+    queryKey: ["districtWebsites", leaids],
+    queryFn: async () => {
+      const res = await fetchJson<{ leaid: string; websiteUrl: string | null }[]>(
+        `${API_BASE}/districts/websites`,
+        {
+          method: "POST",
+          body: JSON.stringify({ leaids }),
+        }
+      );
+      const map = new Map<string, string>();
+      for (const d of res) {
+        if (d.websiteUrl) map.set(d.leaid, d.websiteUrl);
+      }
+      return map;
+    },
+    enabled: leaids.length > 0,
+    staleTime: 10 * 60 * 1000, // 10 minutes — websites don't change often
+  });
+}
+
+export function usePlanContacts(planId: string | null, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: ["planContacts", planId],
     queryFn: () =>
       fetchJson<Contact[]>(`${API_BASE}/territory-plans/${planId}/contacts`),
     enabled: !!planId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: options?.refetchInterval ?? false,
+  });
+}
+
+export function useBulkEnrich() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, targetRole }: { planId: string; targetRole: string }) =>
+      fetchJson<{ total: number; skipped: number; queued: number }>(
+        `${API_BASE}/territory-plans/${planId}/contacts/bulk-enrich`,
+        {
+          method: "POST",
+          body: JSON.stringify({ targetRole }),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planContacts", variables.planId] });
+    },
+  });
+}
+
+export interface EnrichProgress {
+  total: number;
+  enriched: number;
+  queued: number;
+}
+
+export function useEnrichProgress(planId: string | null, polling: boolean) {
+  return useQuery({
+    queryKey: ["enrichProgress", planId],
+    queryFn: () =>
+      fetchJson<EnrichProgress>(
+        `${API_BASE}/territory-plans/${planId}/contacts/enrich-progress`
+      ),
+    enabled: !!planId,
+    refetchInterval: polling ? 5000 : false,
+    staleTime: polling ? 0 : 30 * 1000, // When not polling, cache for 30s
   });
 }
 

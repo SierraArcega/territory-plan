@@ -513,6 +513,11 @@ model TerritoryPlan {
   winbackRollup     Decimal @default(0) @map("winback_rollup") @db.Decimal(15, 2)
   newBusinessRollup Decimal @default(0) @map("new_business_rollup") @db.Decimal(15, 2)
 
+  // Bulk enrichment tracking
+  enrichmentStartedAt  DateTime? @map("enrichment_started_at")
+  enrichmentQueued     Int?      @map("enrichment_queued")
+  enrichmentActivityId String?   @map("enrichment_activity_id") @db.Uuid
+
   // Relations
   ownerUser     UserProfile?                @relation("PlanOwner", fields: [ownerId], references: [id])
   districts     TerritoryPlanDistrict[]

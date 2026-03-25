@@ -672,7 +672,10 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
   const { data: plan, isLoading, error } = useTerritoryPlan(planId);
   const { data: activitiesResponse } = useActivities({ planId });
   const activities = activitiesResponse?.activities || [];
-  const { data: contacts = [] } = usePlanContacts(planId);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const { data: contacts = [] } = usePlanContacts(planId, {
+    refetchInterval: isEnriching ? 5000 : false,
+  });
   const updatePlan = useUpdateTerritoryPlan();
   const deletePlan = useDeleteTerritoryPlan();
   const removeDistrict = useRemoveDistrictFromPlan();
@@ -988,6 +991,7 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
                     <div className="flex-1 overflow-auto">
                       <PlanTabs
                         planId={planId}
+                        planName={plan.name}
                         districts={plan.districts}
                         activities={activities}
                         contacts={contacts}
@@ -999,6 +1003,7 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
                         onDistrictClick={handleDistrictClick}
                         onContactClick={handleContactClick}
                         onGoToMap={() => setActiveTab("map")}
+                        onEnrichingChange={setIsEnriching}
                       />
                     </div>
 

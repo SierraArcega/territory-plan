@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { usePlanContacts } from "@/lib/api";
+import { usePlanContacts, useDistrictWebsites } from "@/lib/api";
 import { useCreateContact, useUpdateContact } from "@/features/shared/lib/queries";
 import type { Contact } from "@/features/shared/types/api-types";
 import { PERSONAS, SENIORITY_LEVELS } from "@/features/shared/types/contact-types";
+import ContactsActionBar from "@/features/plans/components/ContactsActionBar";
 
 // ─── Types ──────────────────────────────────────────────────────
 
 interface PlanContactsTabProps {
   planId: string;
+  planName?: string;
   districts?: { leaid: string; name: string }[];
 }
 
@@ -61,8 +63,11 @@ interface DistrictGroup {
 
 // ─── Main Component ─────────────────────────────────────────────
 
-export default function PlanContactsTab({ planId, districts = [] }: PlanContactsTabProps) {
-  const { data: contacts, isLoading } = usePlanContacts(planId);
+export default function PlanContactsTab({ planId, planName, districts = [] }: PlanContactsTabProps) {
+  const [isEnriching, setIsEnriching] = useState(false);
+  const { data: contacts, isLoading } = usePlanContacts(planId, {
+    refetchInterval: isEnriching ? 5000 : false,
+  });
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
 
@@ -78,6 +83,9 @@ export default function PlanContactsTab({ planId, districts = [] }: PlanContacts
     for (const d of districts) map.set(d.leaid, d.name);
     return map;
   }, [districts]);
+
+  const allDistrictLeaids = useMemo(() => districts.map((d) => d.leaid), [districts]);
+  const { data: districtWebsiteMap } = useDistrictWebsites(allDistrictLeaids);
 
   // Group contacts by district, then track departments
   const districtGroups = useMemo(() => {
@@ -218,6 +226,21 @@ export default function PlanContactsTab({ planId, districts = [] }: PlanContacts
 
   return (
     <div className="flex flex-col h-full">
+      {/* Action bar */}
+      {planName && (
+        <div className="shrink-0 border-b border-[#E2DEEC]">
+          <ContactsActionBar
+            planId={planId}
+            planName={planName}
+            contacts={contacts || []}
+            districtNameMap={districtNameMap}
+            allDistrictLeaids={allDistrictLeaids}
+            districtWebsiteMap={districtWebsiteMap}
+            onEnrichingChange={setIsEnriching}
+          />
+        </div>
+      )}
+
       {/* Section label */}
       <div className="shrink-0 px-5 pt-2.5 pb-1.5 flex items-baseline justify-between">
         <span className="text-[9px] font-bold uppercase tracking-wider text-[#A69DC0]">

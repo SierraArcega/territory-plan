@@ -108,6 +108,7 @@ export default function PlanDetailTabs({ plan, onClose }: PlanDetailTabsProps) {
         {activeTab === "contacts" && (
           <PlanContactsTab
             planId={plan.id}
+            planName={plan.name}
             districts={plan.districts.map((d) => ({ leaid: d.leaid, name: d.name ?? d.leaid }))}
           />
         )}

@@ -60,6 +60,22 @@ export const SENIORITY_LEVELS = [
 
 export type SeniorityLevel = (typeof SENIORITY_LEVELS)[number];
 
+// =============================================================================
+// Target Roles (title-based, for Clay enrichment hints)
+// =============================================================================
+
+export const TARGET_ROLES = [
+  "Superintendent",
+  "Assistant Superintendent",
+  "Chief Technology Officer",
+  "Chief Financial Officer",
+  "Curriculum Director",
+  "Special Education Director",
+  "HR Director",
+] as const;
+
+export type TargetRole = (typeof TARGET_ROLES)[number];
+
 // Seniority badge colors (hierarchy gradient: darker = more senior)
 export const SENIORITY_COLORS: Record<SeniorityLevel, { bg: string; text: string }> = {
   "Executive Leadership":       { bg: "#403770", text: "#FFFFFF" },
