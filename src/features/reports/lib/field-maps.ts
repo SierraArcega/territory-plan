@@ -214,6 +214,16 @@ export const ENTITY_PRISMA_MODEL: Record<string, string> = {
   sessions: "session",
 };
 
+/**
+ * Entities that must be scoped to the current user.
+ * Maps entity name → Prisma field holding the user ID.
+ * Queries to these entities automatically add a where clause filtering by user.id.
+ */
+export const USER_SCOPED_ENTITIES: Record<string, string> = {
+  tasks: "createdByUserId",
+  activities: "createdByUserId",
+};
+
 // ---------------------------------------------------------------------------
 // Column metadata per entity — provides type hints for filter UI
 // ---------------------------------------------------------------------------
@@ -458,11 +468,6 @@ export const ENTITY_COLUMN_META: Record<string, Record<string, ColumnMeta>> = {
   vendorFinancials: buildColumnMeta(VENDOR_FINANCIALS_FIELD_MAP, VENDOR_FINANCIALS_TYPE_OVERRIDES),
   sessions: buildColumnMeta(SESSIONS_FIELD_MAP, SESSIONS_TYPE_OVERRIDES),
 };
-
-/** Helper to get a field map for a given entity, or undefined if not found */
-export function getEntityFieldMap(entity: string): Record<string, string> | undefined {
-  return ENTITY_FIELD_MAPS[entity];
-}
 
 /** Human-readable label for a column key (converts camelCase/snake_case to Title Case) */
 export function columnKeyToLabel(key: string): string {

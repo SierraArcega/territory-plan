@@ -212,6 +212,7 @@ export default function ReportBuilder({
         isSaving={saveMutation.isPending}
         isExporting={exportMutation.isPending}
         canSave={canSave}
+        canShare={!!reportId}
       />
 
       {/* Results */}

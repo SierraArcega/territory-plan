@@ -183,6 +183,7 @@ export function useExportReport() {
       const res = await fetch(`${API_BASE}/reports/export`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify(payload),
       });
 

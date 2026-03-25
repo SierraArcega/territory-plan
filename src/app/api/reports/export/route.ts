@@ -8,6 +8,7 @@ import { type FilterDef, buildWhereClause } from "@/features/explore/lib/filters
 import {
   ENTITY_FIELD_MAPS,
   ENTITY_PRISMA_MODEL,
+  USER_SCOPED_ENTITIES,
   columnKeyToLabel,
 } from "@/features/reports/lib/field-maps";
 
@@ -66,7 +67,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Build where clause
-    const where = buildWhereClause(filters, fieldMap);
+    const where: Record<string, unknown> = buildWhereClause(filters, fieldMap);
+
+    // Apply user-scoping for entities that contain user-owned data
+    const userScopeField = USER_SCOPED_ENTITIES[source];
+    if (userScopeField) {
+      where[userScopeField] = user.id;
+    }
 
     // Build orderBy
     const orderBy: Record<string, string>[] = [];
@@ -147,7 +154,11 @@ function serializeValue(value: unknown): unknown {
 }
 
 function escapeCsvValue(value: unknown): string {
-  const str = String(value ?? "");
+  let str = String(value ?? "");
+  // Prevent CSV formula injection — prefix dangerous characters with a single quote
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
   // Quote if contains comma, quote, or newline
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replace(/"/g, '""')}"`;

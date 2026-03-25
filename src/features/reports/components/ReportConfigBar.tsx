@@ -18,6 +18,7 @@ interface ReportConfigBarProps {
   isSaving: boolean;
   isExporting: boolean;
   canSave: boolean;
+  canShare: boolean;
 }
 
 export default function ReportConfigBar({
@@ -33,6 +34,7 @@ export default function ReportConfigBar({
   isSaving,
   isExporting,
   canSave,
+  canShare,
 }: ReportConfigBarProps) {
   const currentEntity = entities.find((e) => e.name === config.source);
   const hasSource = config.source.length > 0;
@@ -107,7 +109,8 @@ export default function ReportConfigBar({
 
           <button
             onClick={onShare}
-            disabled={!config.source}
+            disabled={!canShare}
+            title={!canShare ? "Save the report first to share it" : undefined}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-[#D4CFE2] text-[#403770] text-xs font-medium rounded-lg hover:bg-[#EFEDF5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg

@@ -9,6 +9,7 @@ import { type FilterDef, buildWhereClause } from "@/features/explore/lib/filters
 import {
   ENTITY_FIELD_MAPS,
   ENTITY_PRISMA_MODEL,
+  USER_SCOPED_ENTITIES,
 } from "@/features/reports/lib/field-maps";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +70,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Build where clause from filters
-    const where = buildWhereClause(filters, fieldMap);
+    const where: Record<string, unknown> = buildWhereClause(filters, fieldMap);
+
+    // Apply user-scoping for entities that contain user-owned data
+    const userScopeField = USER_SCOPED_ENTITIES[source];
+    if (userScopeField) {
+      where[userScopeField] = user.id;
+    }
 
     // Build orderBy from sorts
     const orderBy: Record<string, string>[] = [];
