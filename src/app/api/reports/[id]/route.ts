@@ -3,6 +3,7 @@
 // DELETE /api/reports/[id] — Delete a saved report (owner only)
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 
@@ -91,16 +92,17 @@ export async function PUT(
     const { name, source, config } = body as {
       name?: string;
       source?: string;
-      config?: Record<string, unknown>;
+      config?: Prisma.InputJsonValue;
     };
+
+    const updateData: Prisma.SavedReportUpdateInput = {};
+    if (name !== undefined) updateData.name = name;
+    if (source !== undefined) updateData.source = source;
+    if (config !== undefined) updateData.config = config;
 
     const report = await prisma.savedReport.update({
       where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(source !== undefined && { source }),
-        ...(config !== undefined && { config }),
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,

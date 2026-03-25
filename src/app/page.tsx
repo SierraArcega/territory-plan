@@ -14,6 +14,7 @@ import ProfileView from "@/features/shared/components/views/ProfileView";
 import TeamProgressView from "@/features/progress/components/TeamProgressView";
 import AdminDashboard from "@/features/admin/components/AdminDashboard";
 import ResourcesView from "@/features/shared/components/views/ResourcesView";
+import ReportsView from "@/features/reports/components/ReportsView";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
 const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
@@ -29,7 +30,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "progress", "resources", "profile", "admin"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "progress", "reports", "resources", "profile", "admin"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -193,6 +194,8 @@ function HomeContent() {
         return <TeamProgressView />;
       case "home":
         return <HomeView />;
+      case "reports":
+        return <ReportsView />;
       case "resources":
         return <ResourcesView />;
       case "profile":

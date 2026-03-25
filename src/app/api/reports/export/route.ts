@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Access model dynamically
-    const delegate = (prisma as Record<string, unknown>)[prismaModel] as PrismaDelegate;
+    const delegate = (prisma as unknown as Record<string, unknown>)[prismaModel] as PrismaDelegate;
     if (!delegate) {
       return NextResponse.json(
         { error: `Model not found: ${prismaModel}` },

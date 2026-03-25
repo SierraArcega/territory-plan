@@ -2,6 +2,7 @@
 // POST /api/reports — Create a new saved report
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { name, source, config } = body as {
       name: string;
       source: string;
-      config: Record<string, unknown>;
+      config: Prisma.InputJsonValue;
     };
 
     if (!name || !source || !config) {

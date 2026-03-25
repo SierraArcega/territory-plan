@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "resources" | "profile" | "admin";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "reports" | "resources" | "profile" | "admin";
 
 interface Tab {
   id: TabId;
@@ -63,6 +63,12 @@ const TasksIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 7h6" />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 17l2 2 4-4" />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 17h6" />
+  </svg>
+);
+
+const ReportsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h4v11H3zM10 3h4v18h-4zM17 7h4v14h-4z" />
   </svg>
 );
 
@@ -150,6 +156,7 @@ const MAIN_TABS: Tab[] = [
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
   { id: "progress", label: "Progress", icon: <ProgressIcon /> },
+  { id: "reports", label: "Reports", icon: <ReportsIcon /> },
   { id: "resources", label: "Resources", icon: <ResourcesIcon /> },
 ];
 
