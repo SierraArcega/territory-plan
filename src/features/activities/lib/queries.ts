@@ -6,6 +6,7 @@ import type {
   ActivitiesResponse,
   Activity,
 } from "@/features/shared/types/api-types";
+import type { OpportunityResult, CalendarAttendee } from "@/features/activities/lib/outcome-types-api";
 
 // List activities with filtering
 export function useActivities(params: ActivitiesParams = {}) {
@@ -97,6 +98,8 @@ export function useUpdateActivity() {
       notes?: string | null;
       outcome?: string | null;
       outcomeType?: string | null;
+      rating?: number;
+      opportunityIds?: string[];
       metadata?: Record<string, unknown> | null;
       attendeeUserIds?: string[];
       expenses?: { description: string; amount: number }[];
@@ -187,6 +190,32 @@ export function useUnlinkedActivities() {
     queryKey: ["activities", "unlinked"],
     queryFn: () => fetchJson("/api/activities/unlinked"),
     staleTime: 2 * 60_000,
+  });
+}
+
+// Search opportunities by name or ID
+export function useOpportunitySearch(query: string) {
+  return useQuery({
+    queryKey: ["opportunities", "search", query],
+    queryFn: () =>
+      fetchJson<OpportunityResult[]>(
+        `${API_BASE}/opportunities?search=${encodeURIComponent(query)}&limit=10`
+      ),
+    enabled: query.length >= 2,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+}
+
+// Fetch calendar attendees for an activity
+export function useCalendarAttendees(activityId: string | null) {
+  return useQuery({
+    queryKey: ["activity", activityId, "calendar-attendees"],
+    queryFn: () =>
+      fetchJson<{ attendees: CalendarAttendee[] }>(
+        `${API_BASE}/activities/${activityId}/calendar-attendees`
+      ).then((res) => res.attendees),
+    enabled: !!activityId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
