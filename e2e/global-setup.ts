@@ -1,13 +1,12 @@
 /**
  * Global setup: authenticates once before all E2E tests.
  *
- * Uses Supabase signInWithPassword on a pre-created test account,
- * then saves the browser cookies/localStorage to e2e/.auth/user.json
- * so every test can reuse the session via storageState.
+ * Strategy:
+ * 1. If a valid storageState file already exists, skip setup (reuse session)
+ * 2. Otherwise, open a headed browser for manual Google OAuth login
+ * 3. Save the cookies/localStorage to e2e/.auth/user.json for all tests
  *
- * Required env vars:
- *   E2E_USER_EMAIL    — test user email
- *   E2E_USER_PASSWORD — test user password
+ * To refresh auth: delete e2e/.auth/user.json and re-run tests.
  */
 
 import { chromium, type FullConfig } from "@playwright/test";
@@ -17,50 +16,61 @@ import * as fs from "fs";
 const AUTH_DIR = path.join(__dirname, ".auth");
 const AUTH_FILE = path.join(AUTH_DIR, "user.json");
 
-export default async function globalSetup(config: FullConfig) {
-  const email = process.env.E2E_USER_EMAIL;
-  const password = process.env.E2E_USER_PASSWORD;
+function hasValidStorageState(): boolean {
+  try {
+    if (!fs.existsSync(AUTH_FILE)) return false;
+    const data = JSON.parse(fs.readFileSync(AUTH_FILE, "utf-8"));
+    // Must have at least one cookie to be considered valid
+    return Array.isArray(data.cookies) && data.cookies.length > 0;
+  } catch {
+    return false;
+  }
+}
 
-  if (!email || !password) {
-    console.warn(
-      "\n⚠ E2E_USER_EMAIL and E2E_USER_PASSWORD not set.\n" +
-        "  Skipping auth setup — tests requiring auth will fail.\n" +
-        "  Create a test user in Supabase and set these env vars.\n"
-    );
-    // Write an empty storage state so Playwright doesn't error
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
-    fs.writeFileSync(AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }));
+export default async function globalSetup(config: FullConfig) {
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+
+  // Reuse existing session if cookies are present
+  if (hasValidStorageState()) {
+    console.log("✓ Reusing existing auth session from e2e/.auth/user.json");
     return;
   }
 
-  const browser = await chromium.launch();
+  console.log(
+    "\n🔐 No valid auth session found. Opening browser for manual login...\n" +
+      "   Log in with your Google account, then the browser will close automatically.\n"
+  );
+
+  const baseURL =
+    config.projects[0]?.use?.baseURL || "http://localhost:3005";
+
+  const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext();
   const page = await context.newPage();
 
   try {
-    // Navigate to login page
-    const baseURL =
-      config.projects[0]?.use?.baseURL || "http://localhost:3005";
-    await page.goto(`${baseURL}/login`);
+    await page.goto(baseURL);
 
-    // Fill Supabase email/password login form
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await page.click('button[type="submit"]');
-
-    // Wait for redirect away from login (auth middleware sends to /)
+    // Wait for the user to complete OAuth and get redirected away from /login
+    // Give them up to 2 minutes to complete the flow
     await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 15_000,
+      timeout: 120_000,
     });
 
-    // Save authenticated state
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
-    await context.storageState({ path: AUTH_FILE });
+    // Wait a moment for any post-login redirects/state to settle
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(2_000);
 
-    console.log("✓ Auth setup complete — session saved to e2e/.auth/user.json");
+    // Save the authenticated state (cookies + localStorage)
+    await context.storageState({ path: AUTH_FILE });
+    console.log(
+      "✓ Auth setup complete — session saved to e2e/.auth/user.json"
+    );
   } catch (error) {
-    console.error("✗ Auth setup failed:", error);
-    // Write empty state so we can still run tests that don't need auth
+    console.error(
+      "✗ Auth setup failed (did you complete the login?):",
+      error
+    );
     fs.writeFileSync(AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }));
   } finally {
     await browser.close();

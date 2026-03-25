@@ -7,7 +7,12 @@
 
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+// Use DIRECT_URL to bypass Supabase connection pooler limits.
+// The pooled DATABASE_URL has a max client limit that gets exhausted
+// when Playwright runs multiple workers in parallel.
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL,
+});
 
 // ─── Deterministic test IDs ───────────────────────────────────────────────────
 
@@ -69,7 +74,8 @@ export async function seedPlan() {
   });
 }
 
-/** Creates a UserIntegration record for Google Calendar */
+/** Creates a UserIntegration record for Google Calendar.
+ *  Gracefully skips if user_integrations table hasn't been migrated yet. */
 export async function seedUserIntegration(
   overrides: {
     syncDirection?: "one_way" | "two_way";
@@ -81,39 +87,48 @@ export async function seedUserIntegration(
   // because we mock the Google Calendar API at the network level
   const fakeEncryptedToken = "e2e-fake-iv:e2e-fake-tag:e2e-fake-cipher";
 
-  return prisma.userIntegration.upsert({
-    where: { id: TEST_INTEGRATION_ID },
-    update: {
-      syncEnabled: overrides.syncEnabled ?? true,
-      metadata: {
-        syncDirection: overrides.syncDirection ?? "two_way",
-        syncedActivityTypes: overrides.syncedActivityTypes ?? [],
-        companyDomain: "fullmind.test",
-        reminderMinutes: 15,
-        secondReminderMinutes: null,
+  try {
+    return await prisma.userIntegration.upsert({
+      where: { id: TEST_INTEGRATION_ID },
+      update: {
+        syncEnabled: overrides.syncEnabled ?? true,
+        metadata: {
+          syncDirection: overrides.syncDirection ?? "two_way",
+          syncedActivityTypes: overrides.syncedActivityTypes ?? [],
+          companyDomain: "fullmind.test",
+          reminderMinutes: 15,
+          secondReminderMinutes: null,
+        },
       },
-    },
-    create: {
-      id: TEST_INTEGRATION_ID,
-      userId: TEST_USER_ID,
-      service: "google_calendar",
-      accountEmail: "e2e-test@gmail.com",
-      accountName: "E2E Test User",
-      accessToken: fakeEncryptedToken,
-      refreshToken: fakeEncryptedToken,
-      tokenExpiresAt: new Date(Date.now() + 3600_000),
-      scopes: ["https://www.googleapis.com/auth/calendar"],
-      syncEnabled: overrides.syncEnabled ?? true,
-      status: "connected",
-      metadata: {
-        syncDirection: overrides.syncDirection ?? "two_way",
-        syncedActivityTypes: overrides.syncedActivityTypes ?? [],
-        companyDomain: "fullmind.test",
-        reminderMinutes: 15,
-        secondReminderMinutes: null,
+      create: {
+        id: TEST_INTEGRATION_ID,
+        userId: TEST_USER_ID,
+        service: "google_calendar",
+        accountEmail: "e2e-test@gmail.com",
+        accountName: "E2E Test User",
+        accessToken: fakeEncryptedToken,
+        refreshToken: fakeEncryptedToken,
+        tokenExpiresAt: new Date(Date.now() + 3600_000),
+        scopes: ["https://www.googleapis.com/auth/calendar"],
+        syncEnabled: overrides.syncEnabled ?? true,
+        status: "connected",
+        metadata: {
+          syncDirection: overrides.syncDirection ?? "two_way",
+          syncedActivityTypes: overrides.syncedActivityTypes ?? [],
+          companyDomain: "fullmind.test",
+          reminderMinutes: 15,
+          secondReminderMinutes: null,
+        },
       },
-    },
-  });
+    });
+  } catch (error: unknown) {
+    const prismaError = error as { code?: string };
+    if (prismaError.code === "P2021") {
+      console.warn("⚠ user_integrations table not yet migrated — skipping seed");
+      return null;
+    }
+    throw error;
+  }
 }
 
 /** Creates a test activity */
@@ -189,56 +204,65 @@ const ALL_TEST_IDS = [
   "e2e00000-0000-0000-0000-000000000099",
 ];
 
-/** Removes all test data created by seed functions (identified by known test IDs) */
+/** Removes all test data created by seed functions (identified by known test IDs).
+ *  Each delete runs individually so a missing table doesn't abort the whole cleanup. */
 export async function cleanupAllTestData() {
-  try {
-    await prisma.$transaction([
-      // Delete junction tables first (foreign key constraints)
-      prisma.taskActivity.deleteMany({
-        where: { taskId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.taskPlan.deleteMany({
-        where: { taskId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.taskDistrict.deleteMany({
-        where: { taskId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.taskContact.deleteMany({
-        where: { taskId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.activityPlan.deleteMany({
-        where: { activityId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.activityDistrict.deleteMany({
-        where: { activityId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.activityContact.deleteMany({
-        where: { activityId: { in: ALL_TEST_IDS } },
-      }),
-      prisma.activityState.deleteMany({
-        where: { activityId: { in: ALL_TEST_IDS } },
-      }),
-      // Delete main records
-      prisma.task.deleteMany({
-        where: { id: { in: ALL_TEST_IDS } },
-      }),
-      prisma.activity.deleteMany({
-        where: { id: { in: ALL_TEST_IDS } },
-      }),
-      prisma.userIntegration.deleteMany({
-        where: { id: { in: ALL_TEST_IDS } },
-      }),
-      prisma.territoryPlan.deleteMany({
-        where: { id: { in: ALL_TEST_IDS } },
-      }),
-      // UserProfile last (other records reference it)
-      prisma.userProfile.deleteMany({
-        where: { id: { in: ALL_TEST_IDS } },
-      }),
-    ]);
-  } catch (error) {
-    console.error("E2E cleanup error:", error);
-  } finally {
-    await prisma.$disconnect();
-  }
+  const safeDelete = async (fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+    } catch (error: unknown) {
+      const prismaError = error as { code?: string };
+      // P2021 = table doesn't exist (migration not deployed)
+      if (prismaError.code !== "P2021") {
+        console.error("E2E cleanup error:", error);
+      }
+    }
+  };
+
+  // Delete junction tables first (foreign key constraints)
+  await safeDelete(() =>
+    prisma.taskActivity.deleteMany({ where: { taskId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.taskPlan.deleteMany({ where: { taskId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.taskDistrict.deleteMany({ where: { taskId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.taskContact.deleteMany({ where: { taskId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.activityPlan.deleteMany({ where: { activityId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.activityDistrict.deleteMany({ where: { activityId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.activityContact.deleteMany({ where: { activityId: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.activityState.deleteMany({ where: { activityId: { in: ALL_TEST_IDS } } })
+  );
+
+  // Delete main records
+  await safeDelete(() =>
+    prisma.task.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.activity.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.userIntegration.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
+  );
+  await safeDelete(() =>
+    prisma.territoryPlan.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
+  );
+
+  // UserProfile last (other records reference it)
+  await safeDelete(() =>
+    prisma.userProfile.deleteMany({ where: { id: { in: ALL_TEST_IDS } } })
+  );
+
+  await prisma.$disconnect();
 }

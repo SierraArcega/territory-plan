@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+
+// Load .env so DATABASE_URL, E2E_USER_*, etc. are available to fixtures
+dotenv.config();
 
 /**
  * Playwright E2E configuration for Territory Plan Builder.
@@ -24,8 +28,8 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
 
-  /* Limit parallel workers on CI */
-  workers: process.env.CI ? 1 : undefined,
+  /* Limit parallel workers to avoid DB connection pool exhaustion */
+  workers: process.env.CI ? 1 : 3,
 
   /* Reporter */
   reporter: [
