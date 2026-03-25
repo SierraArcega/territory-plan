@@ -222,14 +222,12 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
 
   // ---- Summary counts ----
   const counts = {
-    overdueTasks: overdueTasks.length,
-    unmappedOpps: 0,
-    unmappedExpenses: 0,
-    needNextSteps: activitiesNeedNextSteps.length,
-    meetingsToLog: meetingsToLog.length,
+    dueToday: overdueTasks.length,
+    alerts: activitiesNeedNextSteps.length + meetingsToLog.length,
+    thisWeek: 0,
   };
 
-  const totalBadge = counts.overdueTasks + counts.unmappedOpps + counts.needNextSteps + counts.meetingsToLog;
+  const totalBadge = counts.dueToday + counts.alerts;
 
   // Report badge count to parent
   useMemo(() => {

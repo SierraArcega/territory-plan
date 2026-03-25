@@ -133,7 +133,7 @@ export default function PlanDetailModal({
           ) : <div className="w-10 shrink-0" />}
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   );
 }
