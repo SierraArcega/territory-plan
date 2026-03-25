@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       createdByUserId: user.id,
     };
 
+
     // Filter by status
     if (status) {
       where.status = status;
