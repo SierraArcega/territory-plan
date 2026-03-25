@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 // useCallback kept for handleSelectAll below
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
-import { useTerritoryPlans, useAddDistrictsToPlan } from "@/features/plans/lib/queries";
+import { useTerritoryPlans, useAddDistrictsToPlan, useCreateTerritoryPlan } from "@/features/plans/lib/queries";
 import { useProfile } from "@/features/shared/lib/queries";
 import {
   useMapContacts,
@@ -91,6 +91,7 @@ export default function SearchResults() {
   const { data: plans } = useTerritoryPlans();
   const { data: profile } = useProfile();
   const addDistricts = useAddDistrictsToPlan();
+  const createPlan = useCreateTerritoryPlan();
   const searchResultLeaids = useMapV2Store((s) => s.searchResultLeaids);
   const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
   const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
@@ -157,6 +158,9 @@ export default function SearchResults() {
   const [exporting, setExporting] = useState(false);
   const [showSaveSearch, setShowSaveSearch] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
+  const [showNewPlanForm, setShowNewPlanForm] = useState(false);
+  const [newPlanName, setNewPlanName] = useState("");
+  const [newPlanColor, setNewPlanColor] = useState("#403770");
   const addAllRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -313,6 +317,8 @@ export default function SearchResults() {
     const handler = (e: MouseEvent) => {
       if (addAllRef.current && !addAllRef.current.contains(e.target as Node)) {
         setShowAddAllDropdown(false);
+        setShowNewPlanForm(false);
+        setNewPlanName("");
       }
     };
     document.addEventListener("mousedown", handler);
@@ -343,8 +349,30 @@ export default function SearchResults() {
       setShowAddAllDropdown(false);
       setSelectedPlanIds(new Set());
       setPlanSearchQuery("");
+      setShowNewPlanForm(false);
+      setNewPlanName("");
     } catch (error) {
       console.error("Failed to add districts to plans:", error);
+    }
+  };
+
+  const handleCreatePlan = async () => {
+    if (!newPlanName.trim()) return;
+    try {
+      const now = new Date();
+      const fiscalYear = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
+      const plan = await createPlan.mutateAsync({
+        name: newPlanName.trim(),
+        color: newPlanColor,
+        fiscalYear,
+      });
+      // Auto-select the new plan so user can hit "Add to plan"
+      setSelectedPlanIds((prev) => new Set(prev).add(plan.id));
+      setShowNewPlanForm(false);
+      setNewPlanName("");
+      setNewPlanColor("#403770");
+    } catch (error) {
+      console.error("Failed to create plan:", error);
     }
   };
 
@@ -624,7 +652,7 @@ export default function SearchResults() {
 
           {/* Add to Plan */}
           <button
-            onClick={() => { setShowAddAllDropdown(!showAddAllDropdown); if (showAddAllDropdown) { setPlanSearchQuery(""); setSelectedPlanIds(new Set()); } }}
+            onClick={() => { setShowAddAllDropdown(!showAddAllDropdown); if (showAddAllDropdown) { setPlanSearchQuery(""); setSelectedPlanIds(new Set()); setShowNewPlanForm(false); setNewPlanName(""); } }}
             disabled={addDistricts.isPending}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-50"
           >
@@ -694,6 +722,74 @@ export default function SearchResults() {
                       </button>
                     );
                   })}
+              </div>
+              {/* Create new plan */}
+              <div className="border-t border-[#E2DEEC]">
+                {showNewPlanForm ? (
+                  <div className="px-3 py-2.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">New Plan</span>
+                      <button
+                        onClick={() => { setShowNewPlanForm(false); setNewPlanName(""); }}
+                        className="text-[#A69DC0] hover:text-[#6E6390] transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Plan name"
+                      value={newPlanName}
+                      onChange={(e) => setNewPlanName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCreatePlan();
+                        if (e.key === "Escape") { setShowNewPlanForm(false); setNewPlanName(""); }
+                      }}
+                      autoFocus
+                      className="w-full px-2 py-1 text-xs rounded border border-[#C2BBD4] bg-white focus:outline-none focus:ring-1 focus:ring-plum/30"
+                    />
+                    <div className="flex items-center gap-1.5">
+                      {[
+                        { name: "Plum", value: "#403770" },
+                        { name: "Coral", value: "#F37167" },
+                        { name: "Steel Blue", value: "#6EA3BE" },
+                        { name: "Sage", value: "#8AA891" },
+                        { name: "Gold", value: "#D4A84B" },
+                      ].map((color) => (
+                        <button
+                          key={color.value}
+                          onClick={() => setNewPlanColor(color.value)}
+                          className={`w-5 h-5 rounded-full transition-all ${
+                            newPlanColor === color.value
+                              ? "ring-2 ring-offset-1 ring-plum"
+                              : "hover:scale-110"
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleCreatePlan}
+                      disabled={!newPlanName.trim() || createPlan.isPending}
+                      className="w-full py-1.5 rounded-lg text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {createPlan.isPending ? "Creating..." : "Create Plan"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNewPlanForm(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#544A78] hover:bg-[#EFEDF5] transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create new plan
+                  </button>
+                )}
               </div>
               {/* Confirm button */}
               {selectedPlanIds.size > 0 && (
