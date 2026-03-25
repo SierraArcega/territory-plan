@@ -54,8 +54,20 @@ export async function GET(
       ],
     });
 
+    // De-duplicate by email: keep only the first contact per email address.
+    // Contacts without email are always included. The ordering (isPrimary DESC)
+    // ensures the primary contact is kept when duplicates exist.
+    const seenEmails = new Set<string>();
+    const dedupedContacts = contacts.filter((c) => {
+      if (!c.email) return true;
+      const lower = c.email.toLowerCase();
+      if (seenEmails.has(lower)) return false;
+      seenEmails.add(lower);
+      return true;
+    });
+
     return NextResponse.json(
-      contacts.map((c) => ({
+      dedupedContacts.map((c) => ({
         id: c.id,
         leaid: c.leaid,
         salutation: c.salutation,
