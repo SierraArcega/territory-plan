@@ -198,9 +198,9 @@ export function useOpportunitySearch(query: string) {
   return useQuery({
     queryKey: ["opportunities", "search", query],
     queryFn: () =>
-      fetchJson<OpportunityResult[]>(
+      fetchJson<{ opportunities: OpportunityResult[] }>(
         `${API_BASE}/opportunities?search=${encodeURIComponent(query)}&limit=10`
-      ),
+      ).then((res) => res.opportunities),
     enabled: query.length >= 2,
     staleTime: 30 * 1000, // 30 seconds
   });

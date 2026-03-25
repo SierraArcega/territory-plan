@@ -71,6 +71,7 @@ export default function OutcomeModal({
   // Task row list state
   const [taskRows, setTaskRows] = useState<TaskRow[]>([
     {
+      id: crypto.randomUUID(),
       title: `Follow up on: ${activity.title}`,
       assignedToUserId: currentUserId,
       priority: "high",
@@ -203,10 +204,11 @@ export default function OutcomeModal({
         });
       }
 
-      // 4. Create tasks from TaskRowList
-      for (const task of taskRows) {
-        if (task.title.trim()) {
-          await createTask.mutateAsync({
+      // 4. Create tasks from TaskRowList (parallel)
+      const taskPromises = taskRows
+        .filter((task) => task.title.trim())
+        .map((task) =>
+          createTask.mutateAsync({
             title: task.title.trim(),
             description: `Follow-up task created from "${activity.title}"`,
             priority: task.priority,
@@ -216,31 +218,37 @@ export default function OutcomeModal({
             leaids: sourceContext?.districtLeaids,
             contactIds: sourceContext?.contactIds,
             ...(task.assignedToUserId && { assignedToUserId: task.assignedToUserId }),
-          });
-        }
-      }
+          })
+        );
 
-      // 5. Create contacts from checked calendar attendees
-      for (const attendee of selectedAttendees) {
-        if (attendee.checked && !attendee.existingContactId && attendee.district) {
-          await createContact.mutateAsync({
-            leaid: attendee.district.leaid,
+      // 5. Create contacts from checked calendar attendees (parallel)
+      const attendeeContactPromises = selectedAttendees
+        .filter((a) => a.checked && !a.existingContactId && a.district)
+        .map((attendee) =>
+          createContact.mutateAsync({
+            leaid: attendee.district!.leaid,
             name: attendee.displayName || attendee.email,
             email: attendee.email,
-          });
-        }
-      }
+          })
+        );
 
       // 6. New contact if toggled on (existing manual contact)
-      if (showNewContact && contactName.trim() && contactDistrict) {
-        await createContact.mutateAsync({
-          leaid: contactDistrict.leaid,
-          name: contactName.trim(),
-          ...(contactTitle.trim() && { title: contactTitle.trim() }),
-          ...(contactEmail.trim() && { email: contactEmail.trim() }),
-          ...(contactPhone.trim() && { phone: contactPhone.trim() }),
-        });
-      }
+      const manualContactPromise =
+        showNewContact && contactName.trim() && contactDistrict
+          ? createContact.mutateAsync({
+              leaid: contactDistrict.leaid,
+              name: contactName.trim(),
+              ...(contactTitle.trim() && { title: contactTitle.trim() }),
+              ...(contactEmail.trim() && { email: contactEmail.trim() }),
+              ...(contactPhone.trim() && { phone: contactPhone.trim() }),
+            })
+          : null;
+
+      await Promise.allSettled([
+        ...taskPromises,
+        ...attendeeContactPromises,
+        ...(manualContactPromise ? [manualContactPromise] : []),
+      ]);
 
       onClose();
     } catch {

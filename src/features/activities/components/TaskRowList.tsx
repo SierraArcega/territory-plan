@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useUsers } from "@/features/shared/lib/queries";
 
 export interface TaskRow {
+  id: string;
   title: string;
   assignedToUserId: string;
   priority: "high" | "medium" | "low";
@@ -57,6 +58,7 @@ export default function TaskRowList({ tasks, onChange, currentUserId }: TaskRowL
     onChange([
       ...tasks,
       {
+        id: crypto.randomUUID(),
         title: "",
         assignedToUserId: currentUserId,
         priority: "medium",
@@ -71,7 +73,7 @@ export default function TaskRowList({ tasks, onChange, currentUserId }: TaskRowL
       <div className="space-y-2">
         {tasks.map((task, i) => (
           <div
-            key={i}
+            key={task.id}
             className="border border-[#E2DEEC] rounded-lg p-3 space-y-2"
           >
             {/* Title row */}
