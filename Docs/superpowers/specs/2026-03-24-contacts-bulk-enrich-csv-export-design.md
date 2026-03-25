@@ -168,7 +168,7 @@ User clicks "Find Contacts" → role selector popover
   → User clicks "Export CSV" → client-side CSV generation → download
 ```
 
-## 7. Key Files
+## 8. Key Files
 
 ### New Files
 - `src/app/api/territory-plans/[id]/contacts/bulk-enrich/route.ts` — bulk enrichment endpoint
@@ -184,7 +184,7 @@ User clicks "Find Contacts" → role selector popover
 - `src/app/api/contacts/clay-lookup/route.ts` — existing Clay lookup logic (referenced for batch implementation)
 - `src/app/api/webhooks/clay/route.ts` — existing webhook handler creates Contact records
 
-## 8. Decisions
+## 9. Decisions
 
 - **`TARGET_ROLES` vs `PERSONAS`** — new title-based constant because PERSONAS is department-based; "Superintendent" is a title, not a department
 - **Role as Clay hint, not our filter** — Clay returns all contacts it finds; role is a hint to prioritize the search. All contacts are saved, giving the user a richer dataset
