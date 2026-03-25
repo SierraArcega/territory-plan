@@ -9,13 +9,11 @@ import {
   type TaskItem,
   type ActivityListItem,
 } from "@/lib/api";
-import { useFeedAlerts } from "@/features/home/lib/queries";
 import FeedSummaryCards from "./FeedSummaryCards";
 import FeedSection from "./FeedSection";
 import DayNavigator from "./DayNavigator";
 import FeedControls from "./FeedControls";
-import { TaskRow, MeetingRow, UpcomingActivityRow } from "./FeedRows";
-import { AlertRow } from "./AlertRow";
+import { TaskRow, ActivityRow, MeetingRow, UpcomingActivityRow } from "./FeedRows";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import { ACTIVITY_TYPE_LABELS } from "@/features/activities/types";
@@ -31,21 +29,10 @@ function getToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function getDatePlusDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function formatShortDate(isoDate: string): string {
   const datePart = isoDate.split("T")[0];
   const date = new Date(datePart + "T00:00:00");
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function formatDayHeader(isoDate: string): string {
-  const date = new Date(isoDate + "T00:00:00");
-  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 function formatTime(isoDate: string): string {
@@ -53,9 +40,9 @@ function formatTime(isoDate: string): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-/** Extract YYYY-MM-DD from a date string (may include time component). */
-function toDateKey(date: string): string {
-  return date.split("T")[0];
+/** Extract YYYY-MM-DD from a dueDate string (may include time component). */
+function toDateKey(dueDate: string): string {
+  return dueDate.split("T")[0];
 }
 
 /** Priority sort order: urgent=0, high=1, medium=2, low=3. */
@@ -71,7 +58,7 @@ function sortByPriority(a: TaskItem, b: TaskItem): number {
 }
 
 // ============================================================================
-// FeedTab — Three-zone layout
+// FeedTab
 // ============================================================================
 
 interface FeedTabProps {
@@ -80,47 +67,65 @@ interface FeedTabProps {
 
 export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const today = getToday();
-  const weekEnd = getDatePlusDays(today, 7);
 
-  // ---- Data fetching ----
+  // Data fetching
   const { data: allTasksData } = useTasks({});
   const { data: activitiesData } = useActivities({});
   const { data: calendarData } = useCalendarInbox("pending");
-  const { data: alertsData } = useFeedAlerts();
   const updateTask = useUpdateTask();
-
-  // ---- Modal state ----
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
 
-  // ---- Day navigation state ----
+  // New state for day navigation, pagination, and completed toggle
   const [selectedDate, setSelectedDate] = useState<string>(today);
-  const [showCompleted, setShowCompleted] = useState<boolean>(true);
   const [pageSize, setPageSize] = useState<number>(5);
+  const [showCompleted, setShowCompleted] = useState<boolean>(true);
 
-  // ---- All tasks & activities ----
+  // ---- All tasks ----
   const allTasks = useMemo(() => allTasksData?.tasks || [], [allTasksData]);
-  const allActivities = useMemo(() => activitiesData?.activities || [], [activitiesData]);
 
-  // ============================================================================
-  // ZONE 1: TODAY'S FOCUS
-  // ============================================================================
-
-  // Overdue tasks (always pinned above today's items)
-  // When showCompleted is on, include tasks completed today
+  // ---- Overdue tasks (always pinned, regardless of selected day) ----
   const overdueTasks = useMemo(() => {
-    return allTasks.filter((t) => {
-      if (!t.dueDate || toDateKey(t.dueDate) >= today) return false;
-      if (t.status === "done") {
-        return showCompleted && t.updatedAt && toDateKey(t.updatedAt) === today;
-      }
-      return true;
-    });
-  }, [allTasks, today, showCompleted]);
+    return allTasks.filter(
+      (t) => t.status !== "done" && t.dueDate !== null && toDateKey(t.dueDate) < today
+    );
+  }, [allTasks, today]);
 
-  // Non-overdue tasks for day grouping
+  // ---- Incomplete tasks (for empty state check) ----
+  const incompleteTasks = useMemo(() => {
+    return allTasks.filter((t) => t.status !== "done");
+  }, [allTasks]);
+
+  // ---- Activities needing next steps ----
+  const activitiesNeedNextSteps = useMemo(() => {
+    const activities = activitiesData?.activities || [];
+    return activities.filter(
+      (a) => a.status === "completed" && !a.outcomeType
+    );
+  }, [activitiesData]);
+
+  // ---- Upcoming activities (planned, sorted by date) ----
+  const upcomingActivities = useMemo(() => {
+    const activities = activitiesData?.activities || [];
+    return activities
+      .filter((a) => a.status === "planned")
+      .sort((a, b) => {
+        if (!a.startDate && !b.startDate) return 0;
+        if (!a.startDate) return 1;
+        if (!b.startDate) return -1;
+        return a.startDate.localeCompare(b.startDate);
+      });
+  }, [activitiesData]);
+
+  // ---- Meetings to log ----
+  const meetingsToLog = useMemo(() => {
+    return calendarData?.events || [];
+  }, [calendarData]);
+
+  // ---- Non-overdue tasks (for day grouping) ----
   const nonOverdueTasks = useMemo(() => {
     return allTasks.filter((t) => {
+      // Exclude overdue incomplete tasks (they appear in the pinned section)
       if (t.status !== "done" && t.dueDate !== null && toDateKey(t.dueDate) < today) {
         return false;
       }
@@ -128,12 +133,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
     });
   }, [allTasks, today]);
 
-  // Planned activities (for day navigation + today view)
-  const plannedActivities = useMemo(() => {
-    return allActivities.filter((a) => a.status === "planned");
-  }, [allActivities]);
-
-  // Days with tasks or activities (for day navigator)
+  // ---- Days with tasks or activities (sorted dates + optional "no-due-date") ----
   const daysWithItems = useMemo(() => {
     const dateSet = new Set<string>();
     let hasNoDueDate = false;
@@ -146,7 +146,8 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
       }
     }
 
-    for (const activity of plannedActivities) {
+    // Include planned activity dates
+    for (const activity of upcomingActivities) {
       if (activity.startDate) {
         dateSet.add(toDateKey(activity.startDate));
       }
@@ -156,27 +157,42 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
     if (hasNoDueDate) {
       sortedDates.push("no-due-date");
     }
-    return sortedDates;
-  }, [nonOverdueTasks, plannedActivities]);
 
-  // Auto-select nearest day on mount
+    return sortedDates;
+  }, [nonOverdueTasks, upcomingActivities]);
+
+  // ---- Auto-select nearest day with tasks on mount / when data changes ----
   useEffect(() => {
     if (daysWithItems.length === 0) return;
+
+    // If the current selectedDate is already in the list, keep it
     if (daysWithItems.includes(selectedDate)) return;
 
+    // Find the nearest day with tasks relative to today
     const realDates = daysWithItems.filter((d) => d !== "no-due-date");
+
+    // Try to find the nearest future day
     const futureDay = realDates.find((d) => d >= today);
-    if (futureDay) { setSelectedDate(futureDay); return; }
+    if (futureDay) {
+      setSelectedDate(futureDay);
+      return;
+    }
 
+    // Fall back to the most recent past day
     const pastDay = realDates[realDates.length - 1];
-    if (pastDay) { setSelectedDate(pastDay); return; }
+    if (pastDay) {
+      setSelectedDate(pastDay);
+      return;
+    }
 
+    // Only "no-due-date" tasks exist
     setSelectedDate("no-due-date");
   }, [daysWithItems, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Selected day's tasks
+  // ---- Selected day's tasks ----
   const selectedDayTasks = useMemo(() => {
     let tasks: TaskItem[];
+
     if (selectedDate === "no-due-date") {
       tasks = nonOverdueTasks.filter((t) => t.dueDate === null);
     } else {
@@ -184,131 +200,46 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         (t) => t.dueDate !== null && toDateKey(t.dueDate) === selectedDate
       );
     }
+
+    // Filter by completed toggle
     if (!showCompleted) {
       tasks = tasks.filter((t) => t.status !== "done");
-    } else {
-      // Only show tasks completed today (not old completed tasks)
-      tasks = tasks.filter((t) =>
-        t.status !== "done" || (t.updatedAt && toDateKey(t.updatedAt) === today)
-      );
     }
+
+    // Sort by priority
     return tasks.sort(sortByPriority);
-  }, [nonOverdueTasks, selectedDate, showCompleted, today]);
+  }, [nonOverdueTasks, selectedDate, showCompleted]);
 
-  // Selected day's activities
-  const selectedDayActivities = useMemo(() => {
-    if (selectedDate === "no-due-date") return [];
-    return plannedActivities
-      .filter((a) => a.startDate && toDateKey(a.startDate) === selectedDate)
-      .sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
-  }, [plannedActivities, selectedDate]);
-
-  // Paginated tasks
+  // ---- Paginated tasks ----
   const paginatedTasks = useMemo(() => {
     return selectedDayTasks.slice(0, pageSize);
   }, [selectedDayTasks, pageSize]);
 
-  // Day navigation
+  // ---- Prev / Next day navigation ----
   const currentIndex = daysWithItems.indexOf(selectedDate);
   const prevDay = currentIndex > 0 ? daysWithItems[currentIndex - 1] : null;
   const nextDay = currentIndex < daysWithItems.length - 1 ? daysWithItems[currentIndex + 1] : null;
 
-  // Today's Focus item count
-  const todayFocusCount = overdueTasks.length + selectedDayTasks.length + selectedDayActivities.length;
+  // ---- Summary counts ----
+  const counts = {
+    dueToday: overdueTasks.length,
+    alerts: activitiesNeedNextSteps.length + meetingsToLog.length,
+    thisWeek: 0,
+  };
 
-  // Meetings to log
-  const meetingsToLog = useMemo(() => calendarData?.events || [], [calendarData]);
+  const totalBadge = counts.dueToday + counts.alerts;
 
-  // ============================================================================
-  // ZONE 2: NEEDS ATTENTION
-  // ============================================================================
-
-  const districtsWithoutContacts = alertsData?.districtsWithoutContacts || [];
-  const stalePlans = alertsData?.stalePlans || [];
-
-  const activitiesNeedNextSteps = useMemo(() => {
-    return allActivities.filter(
-      (a) => a.status === "completed" && !a.outcomeType
-    );
-  }, [allActivities]);
-
-  const totalAlerts = districtsWithoutContacts.length + stalePlans.length + activitiesNeedNextSteps.length;
-
-  // ============================================================================
-  // ZONE 3: COMING UP (Next 7 Days)
-  // ============================================================================
-
-  const comingUpTasks = useMemo(() => {
-    return allTasks.filter((t) => {
-      if (t.status === "done" || !t.dueDate) return false;
-      const key = toDateKey(t.dueDate);
-      return key > today && key <= weekEnd;
-    }).sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
-  }, [allTasks, today, weekEnd]);
-
-  const comingUpActivities = useMemo(() => {
-    return plannedActivities.filter((a) => {
-      if (!a.startDate) return false;
-      const key = toDateKey(a.startDate);
-      return key > today && key <= weekEnd;
-    }).sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
-  }, [plannedActivities, today, weekEnd]);
-
-  // Group coming up items by date
-  const comingUpByDate = useMemo(() => {
-    const dateMap = new Map<string, { tasks: TaskItem[]; activities: ActivityListItem[] }>();
-
-    for (const task of comingUpTasks) {
-      const key = toDateKey(task.dueDate!);
-      if (!dateMap.has(key)) dateMap.set(key, { tasks: [], activities: [] });
-      dateMap.get(key)!.tasks.push(task);
-    }
-
-    for (const activity of comingUpActivities) {
-      const key = toDateKey(activity.startDate!);
-      if (!dateMap.has(key)) dateMap.set(key, { tasks: [], activities: [] });
-      dateMap.get(key)!.activities.push(activity);
-    }
-
-    return Array.from(dateMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, items]) => ({ date, ...items }));
-  }, [comingUpTasks, comingUpActivities]);
-
-  const comingUpCount = comingUpTasks.length + comingUpActivities.length;
-
-  // Overflow — items beyond 7 days
-  const overflowCount = useMemo(() => {
-    const futureTasks = allTasks.filter((t) => {
-      if (t.status === "done" || !t.dueDate) return false;
-      return toDateKey(t.dueDate) > weekEnd;
-    }).length;
-    const futureActivities = plannedActivities.filter((a) => {
-      if (!a.startDate) return false;
-      return toDateKey(a.startDate) > weekEnd;
-    }).length;
-    return futureTasks + futureActivities;
-  }, [allTasks, plannedActivities, weekEnd]);
-
-  // ============================================================================
-  // Badge & empty state
-  // ============================================================================
-
-  const totalBadge = todayFocusCount + totalAlerts + comingUpCount;
-
+  // Report badge count to parent
   useMemo(() => {
     onBadgeCountChange?.(totalBadge);
   }, [totalBadge, onBadgeCountChange]);
 
+  // ---- True empty state check ----
   const isTrulyEmpty =
-    todayFocusCount === 0 &&
-    totalAlerts === 0 &&
-    comingUpCount === 0 &&
+    incompleteTasks.length === 0 &&
+    activitiesNeedNextSteps.length === 0 &&
+    upcomingActivities.length === 0 &&
     meetingsToLog.length === 0;
-
-  // ============================================================================
-  // Render
-  // ============================================================================
 
   return (
     <div className="space-y-6">
@@ -322,23 +253,15 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
       />
 
       {/* Summary Cards */}
-      <FeedSummaryCards
-        dueToday={todayFocusCount}
-        alerts={totalAlerts}
-        thisWeek={comingUpCount}
-      />
+      <FeedSummaryCards {...counts} />
 
-      {/* Controls */}
+      {/* Controls: completed toggle + page size */}
       <FeedControls
         showCompleted={showCompleted}
         onToggleCompleted={() => setShowCompleted((prev) => !prev)}
         pageSize={pageSize}
         onPageSizeChange={setPageSize}
       />
-
-      {/* ================================================================== */}
-      {/* ZONE 1: TODAY'S FOCUS                                              */}
-      {/* ================================================================== */}
 
       {/* Overdue Tasks — always pinned */}
       {overdueTasks.length > 0 && (
@@ -365,13 +288,13 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         </FeedSection>
       )}
 
-      {/* Today's Tasks */}
+      {/* Day's Tasks */}
       {paginatedTasks.length > 0 && (
         <FeedSection
           title={
             selectedDate === "no-due-date"
               ? "No Due Date"
-              : `Tasks · ${formatShortDate(selectedDate + "T00:00:00")}`
+              : `Tasks for ${formatShortDate(selectedDate + "T00:00:00")}`
           }
           dotColor="#403770"
           itemCount={selectedDayTasks.length}
@@ -398,25 +321,56 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
       )}
 
       {/* Task count footer */}
-      {selectedDayTasks.length > pageSize && (
+      {selectedDayTasks.length > 0 && (
         <p className="text-xs text-[#8A80A8] text-center">
           Showing {paginatedTasks.length} of {selectedDayTasks.length} tasks
         </p>
       )}
 
-      {/* Today's Activities */}
-      {selectedDayActivities.length > 0 && (
+      {/* Activities Need Next Steps */}
+      {activitiesNeedNextSteps.length > 0 && (
         <FeedSection
-          title={`Activities · ${formatShortDate(selectedDate + "T00:00:00")}`}
-          dotColor="#E8735A"
-          itemCount={selectedDayActivities.length}
+          title="Activities Need Next Steps"
+          dotColor="#6EA3BE"
+          itemCount={activitiesNeedNextSteps.length}
         >
-          {selectedDayActivities.map((activity) => (
+          {activitiesNeedNextSteps.map((activity) => (
+            <ActivityRow
+              key={activity.id}
+              title={activity.title}
+              completedDate={
+                activity.startDate
+                  ? formatShortDate(activity.startDate)
+                  : undefined
+              }
+              details={
+                activity.districtCount > 0
+                  ? `${activity.districtCount} district${activity.districtCount > 1 ? "s" : ""}`
+                  : undefined
+              }
+              onAddNextSteps={() => setOutcomeActivity(activity)}
+            />
+          ))}
+        </FeedSection>
+      )}
+
+      {/* Upcoming Activities */}
+      {upcomingActivities.length > 0 && (
+        <FeedSection
+          title="Upcoming Activities"
+          dotColor="#E8735A"
+          itemCount={upcomingActivities.length}
+        >
+          {upcomingActivities.map((activity) => (
             <UpcomingActivityRow
               key={activity.id}
               title={activity.title}
               type={ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
-              date={activity.startDate ? formatShortDate(activity.startDate) : undefined}
+              date={
+                activity.startDate
+                  ? formatShortDate(activity.startDate)
+                  : undefined
+              }
               districtCount={activity.districtCount}
             />
           ))}
@@ -441,122 +395,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         </FeedSection>
       )}
 
-      {/* ================================================================== */}
-      {/* ZONE 2: NEEDS ATTENTION                                            */}
-      {/* ================================================================== */}
-
-      {totalAlerts > 0 && (
-        <FeedSection
-          title="Needs Attention"
-          dotColor="#F37167"
-          itemCount={totalAlerts}
-        >
-          {/* Districts without contacts */}
-          {districtsWithoutContacts.map((d) => (
-            <AlertRow
-              key={`no-contacts-${d.leaid}-${d.planId}`}
-              variant="no-contacts"
-              title={d.districtName}
-              subtitle={`${d.planName} · No contacts`}
-              dotColor={d.planColor}
-              actionLabel="Add Contacts"
-              href={`/?panel=district&leaid=${d.leaid}`}
-            />
-          ))}
-
-          {/* Stale plans */}
-          {stalePlans.map((p) => (
-            <AlertRow
-              key={`stale-${p.planId}`}
-              variant="stale-plan"
-              title={p.planName}
-              subtitle={`No tasks or activities in 30 days · ${p.districtCount} district${p.districtCount !== 1 ? "s" : ""}`}
-              dotColor={p.planColor}
-              actionLabel="View Plan"
-              href={`/?panel=plan&planId=${p.planId}`}
-            />
-          ))}
-
-          {/* Completed activities without outcomes */}
-          {activitiesNeedNextSteps.map((activity) => (
-            <AlertRow
-              key={`outcome-${activity.id}`}
-              variant="needs-outcome"
-              title={activity.title}
-              subtitle={`Completed ${activity.startDate ? formatShortDate(activity.startDate) : ""} · No next steps`}
-              dotColor="#F37167"
-              actionLabel="Add Next Steps"
-              onAction={() => setOutcomeActivity(activity)}
-            />
-          ))}
-        </FeedSection>
-      )}
-
-      {/* ================================================================== */}
-      {/* ZONE 3: COMING UP (Next 7 Days)                                    */}
-      {/* ================================================================== */}
-
-      {comingUpByDate.length > 0 && (
-        <FeedSection
-          title="Coming Up"
-          dotColor="#6EA3BE"
-          itemCount={comingUpCount}
-        >
-          {comingUpByDate.map(({ date, tasks, activities }) => (
-            <div key={date}>
-              {/* Date header */}
-              <div className="px-5 py-2 bg-[#F7F5FA]">
-                <span className="text-xs font-semibold text-[#544A78] uppercase tracking-wide">
-                  {formatDayHeader(date)}
-                </span>
-              </div>
-
-              {/* Tasks for this date */}
-              {tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  title={task.title}
-                  territory={task.plans?.[0]?.planName}
-                  territoryColor={task.plans?.[0]?.planColor}
-                  priority={task.priority !== "low" ? task.priority : undefined}
-                  dueDate={task.dueDate ? formatShortDate(task.dueDate) : undefined}
-                  isCompleted={task.status === "done"}
-                  onClick={() => setSelectedTask(task)}
-                  onComplete={() =>
-                    updateTask.mutate({
-                      taskId: task.id,
-                      status: task.status === "done" ? "todo" : "done",
-                    })
-                  }
-                />
-              ))}
-
-              {/* Activities for this date */}
-              {activities.map((activity) => (
-                <UpcomingActivityRow
-                  key={activity.id}
-                  title={activity.title}
-                  type={ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
-                  date={activity.startDate ? formatShortDate(activity.startDate) : undefined}
-                  districtCount={activity.districtCount}
-                />
-              ))}
-            </div>
-          ))}
-        </FeedSection>
-      )}
-
-      {/* Overflow count */}
-      {overflowCount > 0 && (
-        <p className="text-xs text-[#8A80A8] text-center">
-          + {overflowCount} more item{overflowCount !== 1 ? "s" : ""} beyond this week
-        </p>
-      )}
-
-      {/* ================================================================== */}
-      {/* Empty state                                                        */}
-      {/* ================================================================== */}
-
+      {/* True empty state — CTA */}
       {isTrulyEmpty && (
         <div className="bg-white rounded-lg border border-[#D4CFE2] flex flex-col items-center justify-center gap-3 py-10">
           <Rocket className="w-10 h-10 text-[#C2BBD4]" strokeWidth={1.5} />
@@ -585,7 +424,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         </div>
       )}
 
-      {/* Modals */}
+      {/* Task Detail Modal */}
       {selectedTask && (
         <TaskDetailModal
           task={selectedTask}
@@ -593,6 +432,8 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
           onClose={() => setSelectedTask(null)}
         />
       )}
+
+      {/* Outcome Modal */}
       {outcomeActivity && (
         <OutcomeModal
           activity={outcomeActivity}

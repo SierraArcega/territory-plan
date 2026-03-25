@@ -9,8 +9,8 @@ export const maxDuration = 300; // 5 min — Vercel Pro limit
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
-/** Max scans to run per cron invocation (Vercel Pro allows 300s) */
-const SCANS_PER_RUN = 50;
+/** Max scans to run per cron invocation (keep under Vercel Pro 60s limit) */
+const SCANS_PER_RUN = 5;
 
 /** Number of scans to run in parallel */
 const CONCURRENCY = 5;

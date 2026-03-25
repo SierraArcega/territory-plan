@@ -614,6 +614,7 @@ model Activity {
   // Captures what resulted from the activity (set on completion)
   outcome     String? @db.VarChar(500) // free-text outcome note
   outcomeType String? @map("outcome_type") @db.VarChar(30) // positive_progress, neutral, negative, follow_up_needed, etc.
+  rating      Int?    // 1-5 star rating for activity outcome
 
   // ===== Type-Specific Fields =====
   // JSON blob for scalar fields that vary by event type (address, urls, timezone, time, etc.)
@@ -627,8 +628,9 @@ model Activity {
   taskLinks  TaskActivity[]
   expenses   ActivityExpense[]
   attendees  ActivityAttendee[]
-  relations  ActivityRelation[] @relation("ActivityRelations")
-  relatedTo  ActivityRelation[] @relation("RelatedToActivities")
+  relations      ActivityRelation[] @relation("ActivityRelations")
+  relatedTo      ActivityRelation[] @relation("RelatedToActivities")
+  opportunities  ActivityOpportunity[]
 
   @@unique([slackChannelId, slackMessageTs])
   @@index([createdByUserId])
@@ -672,6 +674,18 @@ model ActivityContact {
 
   @@id([activityId, contactId])
   @@map("activity_contacts")
+}
+
+model ActivityOpportunity {
+  activityId    String   @map("activity_id")
+  opportunityId String   @map("opportunity_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  activity      Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, opportunityId])
+  @@index([opportunityId])
+  @@map("activity_opportunities")
 }
 
 model ActivityState {
@@ -763,6 +777,8 @@ model UserProfile {
   savedMapViews      MapView[]                    @relation("MapViewOwner")
   // Activity attendance
   activityAttendances ActivityAttendee[]
+  // Tasks assigned to this user (not necessarily created by them)
+  assignedTasks   Task[] @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
   integrations    UserIntegration[]
   // Legacy calendar connection (migrating to UserIntegration)
@@ -893,17 +909,20 @@ model Task {
   priority        String    @default("medium") @db.VarChar(10) // low, medium, high, urgent
   dueDate         DateTime? @map("due_date")
   position        Int       @default(0) // ordering within kanban column
-  createdByUserId String    @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdByUserId  String    @map("created_by_user_id") @db.Uuid
+  assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   // Relations (all many-to-many via junction tables)
   districts  TaskDistrict[]
   plans      TaskPlan[]
   activities TaskActivity[]
   contacts   TaskContact[]
+  assignedTo UserProfile? @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
 
   @@index([createdByUserId])
+  @@index([assignedToUserId])
   @@index([status])
   @@index([dueDate])
   @@map("tasks")
@@ -1220,6 +1239,8 @@ model Opportunity {
   averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
   serviceTypes       Json      @default("[]") @map("service_types")
   syncedAt           DateTime? @map("synced_at") @db.Timestamptz
+
+  activityLinks ActivityOpportunity[]
 
   @@index([schoolYr])
   @@index([districtNcesId])

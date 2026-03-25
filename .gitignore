@@ -85,3 +85,8 @@ tessl.json
 .tmp/
 logs/
 __pycache__/
+
+# Playwright E2E
+e2e/test-results/
+e2e/.auth/
+playwright-report/

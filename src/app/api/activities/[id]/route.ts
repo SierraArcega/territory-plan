@@ -46,6 +46,21 @@ export async function GET(
         relatedTo: {
           include: { activity: { select: { id: true, title: true, type: true, startDate: true, status: true } } },
         },
+        opportunities: {
+          include: {
+            opportunity: {
+              select: {
+                id: true,
+                name: true,
+                stage: true,
+                netBookingAmount: true,
+                districtName: true,
+                districtLeaId: true,
+                closeDate: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -110,6 +125,7 @@ export async function GET(
       source: activity.source || "manual",
       outcome: activity.outcome,
       outcomeType: activity.outcomeType,
+      rating: activity.rating,
       createdByUserId: activity.createdByUserId,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
@@ -160,6 +176,17 @@ export async function GET(
           relationType: r.relationType,
         })),
       ],
+      opportunities: activity.opportunities.map((ao) => ({
+        id: ao.opportunity.id,
+        name: ao.opportunity.name,
+        stage: ao.opportunity.stage,
+        netBookingAmount: ao.opportunity.netBookingAmount
+          ? Number(ao.opportunity.netBookingAmount)
+          : null,
+        districtName: ao.opportunity.districtName,
+        districtLeaId: ao.opportunity.districtLeaId,
+        closeDate: ao.opportunity.closeDate?.toISOString() ?? null,
+      })),
     });
   } catch (error) {
     console.error("Error fetching activity:", error);
@@ -199,7 +226,7 @@ export async function PATCH(
     const body = await request.json();
     const {
       type, title, notes, startDate, endDate, status, outcome, outcomeType,
-      metadata, attendeeUserIds, expenses,
+      metadata, attendeeUserIds, expenses, rating, opportunityIds,
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
@@ -240,6 +267,24 @@ export async function PATCH(
       }
     }
 
+    // Validate rating if provided (1-5 integer)
+    if (rating !== undefined && rating !== null) {
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return NextResponse.json(
+          { error: "rating must be an integer between 1 and 5" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate opportunityIds if provided
+    if (opportunityIds !== undefined && !Array.isArray(opportunityIds)) {
+      return NextResponse.json(
+        { error: "opportunityIds must be an array of strings" },
+        { status: 400 }
+      );
+    }
+
     const activity = await prisma.activity.update({
       where: { id },
       data: {
@@ -256,6 +301,7 @@ export async function PATCH(
         ...(outcome !== undefined && { outcome: outcome?.trim() || null }),
         ...(outcomeType !== undefined && { outcomeType: outcomeType || null }),
         ...(metadata !== undefined && { metadata: metadata }),
+        ...(rating !== undefined && { rating: rating }),
       },
     });
 
@@ -298,15 +344,58 @@ export async function PATCH(
       }
     }
 
+    // Update opportunity links if provided (replace all)
+    if (opportunityIds !== undefined) {
+      await prisma.activityOpportunity.deleteMany({ where: { activityId: id } });
+      if (Array.isArray(opportunityIds) && opportunityIds.length > 0) {
+        await prisma.activityOpportunity.createMany({
+          data: (opportunityIds as string[]).map((opportunityId) => ({
+            activityId: id,
+            opportunityId,
+          })),
+        });
+      }
+    }
+
     // Push changes to Google Calendar if the activity has a linked event
     // Best-effort — doesn't block the response
     updateActivityOnCalendar(user.id, activity.id);
+
+    // Fetch opportunities for response if they were updated
+    const opportunities = opportunityIds !== undefined
+      ? await prisma.activityOpportunity.findMany({
+          where: { activityId: id },
+          include: {
+            opportunity: {
+              select: {
+                id: true,
+                name: true,
+                stage: true,
+                netBookingAmount: true,
+                districtName: true,
+              },
+            },
+          },
+        })
+      : undefined;
 
     return NextResponse.json({
       id: activity.id,
       type: activity.type,
       title: activity.title,
+      rating: activity.rating,
       updatedAt: activity.updatedAt.toISOString(),
+      ...(opportunities !== undefined && {
+        opportunities: opportunities.map((ao) => ({
+          id: ao.opportunity.id,
+          name: ao.opportunity.name,
+          stage: ao.opportunity.stage,
+          netBookingAmount: ao.opportunity.netBookingAmount
+            ? Number(ao.opportunity.netBookingAmount)
+            : null,
+          districtName: ao.opportunity.districtName,
+        })),
+      }),
     });
   } catch (error) {
     console.error("Error updating activity:", error);
