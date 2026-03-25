@@ -213,13 +213,51 @@ export function usePlanOpportunities(planId: string | null) {
   });
 }
 
-export function usePlanContacts(planId: string | null) {
+export function usePlanContacts(planId: string | null, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: ["planContacts", planId],
     queryFn: () =>
       fetchJson<Contact[]>(`${API_BASE}/territory-plans/${planId}/contacts`),
     enabled: !!planId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: options?.refetchInterval ?? false,
+  });
+}
+
+export function useBulkEnrich() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, targetRole }: { planId: string; targetRole: string }) =>
+      fetchJson<{ total: number; skipped: number; queued: number }>(
+        `${API_BASE}/territory-plans/${planId}/contacts/bulk-enrich`,
+        {
+          method: "POST",
+          body: JSON.stringify({ targetRole }),
+        }
+      ),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planContacts", variables.planId] });
+    },
+  });
+}
+
+export interface EnrichProgress {
+  total: number;
+  enriched: number;
+  queued: number;
+}
+
+export function useEnrichProgress(planId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["enrichProgress", planId],
+    queryFn: () =>
+      fetchJson<EnrichProgress>(
+        `${API_BASE}/territory-plans/${planId}/contacts/enrich-progress`
+      ),
+    enabled: !!planId && enabled,
+    refetchInterval: enabled ? 5000 : false,
+    staleTime: 0,
   });
 }
 
