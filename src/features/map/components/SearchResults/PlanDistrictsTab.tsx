@@ -8,6 +8,8 @@ import {
   useServices,
 } from "@/lib/api";
 import { useMapV2Store } from "@/features/map/lib/store";
+import { useMapStore } from "@/features/shared/lib/app-store";
+import { STATE_BBOX } from "@/features/map/components/MapV2Container";
 import type {
   TerritoryPlanDetail,
   TerritoryPlanDistrict,
@@ -125,7 +127,7 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
         <p className="text-xs text-[#A69DC0] mt-1">Add districts to start building your territory plan.</p>
         <div className="mt-4 flex items-center gap-2">
           <AddDistrictButton planId={plan.id} existingLeaids={[]} />
-          <BrowseMapButton planId={plan.id} onClose={onClose} />
+          <BrowseMapButton plan={plan} onClose={onClose} />
         </div>
       </div>
     );
@@ -175,7 +177,7 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
             planId={plan.id}
             existingLeaids={plan.districts.map((d) => d.leaid)}
           />
-          <BrowseMapButton planId={plan.id} onClose={onClose} />
+          <BrowseMapButton plan={plan} onClose={onClose} />
         </div>
         <span className="text-[11px] text-[#A69DC0]">
           {plan.districts.length} district{plan.districts.length !== 1 ? "s" : ""}
@@ -804,9 +806,70 @@ function AddDistrictButton({
 
 // ─── Browse Map Button ───────────────────────────────────────────
 
-function BrowseMapButton({ planId, onClose }: { planId: string; onClose: () => void }) {
-  const viewPlan = useMapV2Store((s) => s.viewPlan);
-  const handleClick = () => { onClose(); viewPlan(planId); };
+function BrowseMapButton({ plan, onClose }: { plan: TerritoryPlanDetail; onClose: () => void }) {
+  const clearSearchFilters = useMapV2Store((s) => s.clearSearchFilters);
+  const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const openResultsPanel = useMapV2Store((s) => s.openResultsPanel);
+  const setFullmindEngagement = useMapV2Store((s) => s.setFullmindEngagement);
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const setCurrentPlanId = useMapStore((s) => s.setCurrentPlanId);
+
+  const handleClick = () => {
+    // Clear any previous search state
+    clearSearchFilters();
+
+    const abbrevs = plan.states.map((s) => s.abbrev);
+
+    // Add state filter so the search system finds all districts in the plan's states
+    if (abbrevs.length > 0) {
+      addSearchFilter({
+        id: crypto.randomUUID(),
+        column: "state",
+        op: "in",
+        value: abbrevs,
+      });
+
+      // Set state overlay highlighting + zoom
+      useMapV2Store.setState((s) => {
+        let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+        for (const abbrev of abbrevs) {
+          const bbox = STATE_BBOX[abbrev];
+          if (!bbox) continue;
+          if (bbox[0][0] < minLng) minLng = bbox[0][0];
+          if (bbox[0][1] < minLat) minLat = bbox[0][1];
+          if (bbox[1][0] > maxLng) maxLng = bbox[1][0];
+          if (bbox[1][1] > maxLat) maxLat = bbox[1][1];
+        }
+        return {
+          filterStates: abbrevs,
+          pendingFitBounds: minLng <= maxLng ? [[minLng, minLat], [maxLng, maxLat]] : null,
+        };
+      });
+    }
+
+    // Show all engagement levels so 100% of districts are visible
+    setFullmindEngagement([
+      "target",
+      "new_business_pipeline",
+      "winback_pipeline",
+      "renewal_pipeline",
+      "expansion_pipeline",
+      "first_year",
+      "multi_year_growing",
+      "multi_year_flat",
+      "multi_year_shrinking",
+      "lapsed",
+    ]);
+
+    // Open the Districts tab in the results panel
+    openResultsPanel("districts");
+
+    // Set the current plan so "Add All to Plan" context is available
+    setCurrentPlanId(plan.id);
+
+    setActiveTab("map");
+    onClose();
+  };
 
   return (
     <button

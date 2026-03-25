@@ -1809,12 +1809,14 @@ export default function MapV2Container({
       map.current.setFilter("state-filter-outline", nameFilter);
 
       // Only show district outlines for districts in selected states
+      // MapLibre requires "zoom" expressions at the top level of interpolate/step,
+      // so we use interpolate at the top with per-stop case expressions.
       if (map.current.getLayer("district-base-boundary")) {
         map.current.setPaintProperty("district-base-boundary", "line-opacity", [
-          "case",
-          ["in", ["get", "state_abbrev"], ["literal", effectiveFilterStates]],
-          ["interpolate", ["linear"], ["zoom"], 5, 0.2, 8, 0.4, 12, 0.6],
-          0, // hide outlines for non-selected states
+          "interpolate", ["linear"], ["zoom"],
+          5, ["case", ["in", ["get", "state_abbrev"], ["literal", effectiveFilterStates]], 0.2, 0],
+          8, ["case", ["in", ["get", "state_abbrev"], ["literal", effectiveFilterStates]], 0.4, 0],
+          12, ["case", ["in", ["get", "state_abbrev"], ["literal", effectiveFilterStates]], 0.6, 0],
         ]);
       }
 
