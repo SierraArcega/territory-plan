@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/scan-vacancies?secret=${CRON_SECRET}",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/vacancy-hygiene?secret=${CRON_SECRET}",
