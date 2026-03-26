@@ -52,8 +52,8 @@ export default function PlanDetailModal({
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
       {/* Modal + navigation — matches DistrictExploreModal layout */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
+      <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
           {/* Prev arrow */}
           {onPrev ? (
             <button
@@ -69,30 +69,30 @@ export default function PlanDetailModal({
 
           {/* Center column: back button + modal + counter */}
           <div className="flex flex-col items-start gap-2">
-            {/* Back to results */}
-            <button
-              onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Return to Map
-            </button>
-
-            {/* Modal container */}
-            <div className="relative bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden">
-              {/* Close button */}
+            {/* Top row: back + close */}
+            <div className="flex items-center justify-between w-full">
               <button
                 onClick={onClose}
-                className="absolute top-2 right-2 z-10 p-2 rounded-lg text-[#A69DC0] hover:text-[#403770] hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Return to Map
+              </button>
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
                 aria-label="Close"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </div>
 
+            {/* Modal container */}
+            <div className="relative bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden">
               {/* Content */}
               {isLoading ? (
                 <ModalSkeleton />
