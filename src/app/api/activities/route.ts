@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Prisma.ActivityWhereInput = {
       createdByUserId: user.id,
+      source: { not: "system" },
     };
 
     // Search by title
