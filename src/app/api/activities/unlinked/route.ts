@@ -19,7 +19,7 @@ export async function GET() {
     const activities = await prisma.activity.findMany({
       where: {
         createdByUserId: user.id,
-        source: { not: "manual" },
+        source: { notIn: ["manual", "system"] },
         districts: { none: {} }, // No ActivityDistrict links
       },
       orderBy: { startDate: "desc" },
