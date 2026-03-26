@@ -18,7 +18,6 @@ export const ACTIVITY_CATEGORIES = {
   ],
   gift_drop: ["gift_drop"],
   thought_leadership: ["webinar", "speaking_engagement", "professional_development", "course"],
-  system: ["contact_enrichment"],
 } as const;
 
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
@@ -60,8 +59,6 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   speaking_engagement: "Speaking Engagement",
   professional_development: "PD Session",
   course: "Course",
-  // System
-  contact_enrichment: "Contact Enrichment",
 };
 
 // Icons for each activity type (emoji for simplicity)
@@ -87,8 +84,6 @@ export const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
   speaking_engagement: "🎙️",
   professional_development: "🎓",
   course: "📚",
-  // System
-  contact_enrichment: "🔍",
 };
 
 // Category display labels
@@ -98,7 +93,6 @@ export const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   meetings: "Meetings",
   gift_drop: "Gift Drop",
   thought_leadership: "Thought Leadership",
-  system: "System",
 };
 
 // Category icons (used in the category picker tiles)
@@ -108,7 +102,6 @@ export const CATEGORY_ICONS: Record<ActivityCategory, string> = {
   meetings: "🤝",
   gift_drop: "🎁",
   thought_leadership: "💡",
-  system: "⚙️",
 };
 
 // Category descriptions (shown under the tile label)
@@ -118,7 +111,6 @@ export const CATEGORY_DESCRIPTIONS: Record<ActivityCategory, string> = {
   meetings: "Calls, check-ins, reviews, and conversations",
   gift_drop: "Send gifts to contacts and champions",
   thought_leadership: "Webinars, talks, PD sessions, and courses",
-  system: "Automated system activities",
 };
 
 // Activity status types and config
@@ -222,5 +214,4 @@ export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> =
   meetings: "discovery_call",
   gift_drop: "gift_drop",
   thought_leadership: "webinar",
-  system: "contact_enrichment",
 };
