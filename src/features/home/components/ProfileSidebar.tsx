@@ -9,6 +9,8 @@ import PlanFormModal, { type PlanFormData } from "@/features/plans/components/Pl
 import { useCreateTerritoryPlan } from "@/lib/api";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import TaskFormModal from "@/features/tasks/components/TaskFormModal";
+import LeaderboardHomeWidget from "@/features/leaderboard/components/LeaderboardHomeWidget";
+import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 import {
   Calendar,
   Clock,
@@ -67,6 +69,7 @@ export default function ProfileSidebar() {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const createPlan = useCreateTerritoryPlan();
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const initials = profile?.fullName
     ? profile.fullName
@@ -83,6 +86,9 @@ export default function ProfileSidebar() {
   return (
     <aside className="w-[289px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
       <div className="px-6 pt-8">
+        {/* ---- Leaderboard Widget ---- */}
+        <LeaderboardHomeWidget onOpenModal={() => setShowLeaderboard(true)} />
+
         {/* ---- User Avatar + Info ---- */}
         <div className="flex flex-col items-center mb-6">
           {isLoading ? (
@@ -195,6 +201,12 @@ export default function ProfileSidebar() {
       <TaskFormModal
         isOpen={showTaskModal}
         onClose={() => setShowTaskModal(false)}
+      />
+
+      {/* Leaderboard modal */}
+      <LeaderboardModal
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
       />
     </aside>
   );

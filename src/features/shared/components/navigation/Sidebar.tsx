@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardNavWidget";
+import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
@@ -179,6 +181,8 @@ export default function Sidebar({
   const [adminExpanded, setAdminExpanded] = useState(false);
   // Track hovered admin item for collapsed tooltip
   const [hoveredAdmin, setHoveredAdmin] = useState<string | null>(null);
+  // Leaderboard modal
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // Render a single tab item
   // Shows icon + label when expanded, icon only (with tooltip) when collapsed
@@ -300,6 +304,7 @@ export default function Sidebar({
   };
 
   return (
+    <>
     <aside
       className={`
         flex flex-col bg-white border-r border-[#D4CFE2]
@@ -317,6 +322,14 @@ export default function Sidebar({
 
       {/* Divider between main/admin tabs and bottom section */}
       <div className="mx-3 border-t border-[#E2DEEC]" />
+
+      {/* Leaderboard widget — above Profile */}
+      <div className="py-1">
+        <LeaderboardNavWidget
+          collapsed={collapsed}
+          onOpenModal={() => setShowLeaderboard(true)}
+        />
+      </div>
 
       {/* Bottom tabs (Profile) */}
       <nav className="py-2">
@@ -336,6 +349,13 @@ export default function Sidebar({
         {collapsed ? <ChevronRight /> : <ChevronLeft />}
       </button>
     </aside>
+
+    {/* Leaderboard modal — rendered outside aside for proper z-index */}
+    <LeaderboardModal
+      isOpen={showLeaderboard}
+      onClose={() => setShowLeaderboard(false)}
+    />
+    </>
   );
 }
 
