@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityCategory, type ActivityType } from "@/features/activities/types";
 import { pushActivityToCalendar } from "@/features/calendar/lib/push";
+import { awardPoints } from "@/features/leaderboard/lib/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -444,6 +445,11 @@ export async function POST(request: NextRequest) {
     // Push to Google Calendar if user has a connected calendar
     // This is best-effort — if it fails, the activity is still created
     pushActivityToCalendar(user.id, activity.id);
+
+    // Award leaderboard points for activity logging (non-blocking)
+    awardPoints(user.id, "activity_logged").catch((err) =>
+      console.error("Failed to award activity_logged points:", err)
+    );
 
     // Transform the activity response inline (type-safe via Prisma inference)
     return NextResponse.json({
