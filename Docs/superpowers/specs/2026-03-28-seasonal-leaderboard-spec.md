@@ -71,8 +71,9 @@ Higher tiers (Platinum, Diamond, etc.) can be added later as user count scales.
 | `endDate` | datetime | Season end |
 | `isActive` | boolean | Only one active at a time |
 | `softResetTiers` | int (default 1) | Full tiers to drop on reset |
-| `seasonWeight` | decimal (default 0.7) | Weight for season points in Combined view |
-| `takeWeight` | decimal (default 0.3) | Weight for take in Combined view |
+| `seasonWeight` | decimal (default 0.6) | Weight for season points in Combined view |
+| `pipelineWeight` | decimal (default 0.2) | Weight for pipeline actual in Combined view |
+| `takeWeight` | decimal (default 0.2) | Weight for take in Combined view |
 | `createdAt` | datetime | Auto-set |
 | `updatedAt` | datetime | Auto-set |
 
@@ -82,7 +83,7 @@ Higher tiers (Platinum, Diamond, etc.) can be added later as user count scales.
 |-------|------|-------------|
 | `id` | int (auto-increment) | Primary key |
 | `seasonId` | FK → Season | Which season this metric belongs to |
-| `action` | string | Action identifier, e.g., `plan_created`, `activity_logged`, `task_completed` |
+| `action` | string | Action identifier, e.g., `plan_created`, `activity_logged`, `task_completed`, `revenue_targeted` |
 | `pointValue` | int | Points awarded per action |
 | `label` | string | Display name, e.g., "Create a Plan" |
 
@@ -128,18 +129,21 @@ Season points and take operate on completely different scales. The Combined view
 
 - Normalized season score = `(yourPoints / maxPoints) × 100`
 - Normalized take score = `(yourTake / maxTake) × 100`
-- Combined = `(normalizedSeason × seasonWeight) + (normalizedTake × takeWeight)`
+- Combined = `(normalizedSeason × seasonWeight) + (normalizedPipeline × pipelineWeight) + (normalizedTake × takeWeight)`
 
-The `seasonWeight` and `takeWeight` values are stored on the Season model (default 0.7 / 0.3 for Season 0), adjustable per season via seed data.
+The `seasonWeight`, `pipelineWeight`, and `takeWeight` values are stored on the Season model (default 0.6 / 0.2 / 0.2 for Season 0), adjustable per season via seed data. Pipeline data comes from the existing `district_opportunity_actuals` materialized view (`weightedPipeline` field).
 
-**Edge case:** If `maxPoints` or `maxTake` is 0 (e.g., season just started, no one has scored), the normalized value for that dimension is 0 for all reps. The combined score weights fully toward whichever dimension has data.
+**Edge case:** If `maxPoints`, `maxPipeline`, or `maxTake` is 0 (e.g., season just started, no one has scored), the normalized value for that dimension is 0 for all reps. The combined score weights fully toward whichever dimensions have data.
 
 ### Season 0
 
 - **Name:** "Season 0"
-- **Tracked metric:** Plans Created (`plan_created`, point value TBD)
-- **Retroactive backfill:** A seed script counts each rep's existing plans and credits their `SeasonScore` with the appropriate points
-- **Blend:** 70% season points / 30% take-normalized
+- **Tracked metrics:**
+  - Plans Created (`plan_created`) — 10 pts per plan
+  - Activities Logged (`activity_logged`) — 5 pts per activity
+  - Revenue Targeted (`revenue_targeted`) — 1 pt per $10K targeted on plan districts
+- **Retroactive backfill:** A seed script counts each rep's existing plans, activities, and district targets, then credits their `SeasonScore` with the appropriate points
+- **Combined weights:** 60% season points / 20% pipeline / 20% take
 
 ---
 
