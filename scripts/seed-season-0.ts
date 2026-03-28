@@ -50,10 +50,10 @@ async function main() {
 
   // 3. Create tier thresholds (clear and recreate)
   const thresholds = [
-    { tier: "iron", minPoints: 0 },
-    { tier: "bronze", minPoints: 100 },
-    { tier: "silver", minPoints: 300 },
-    { tier: "gold", minPoints: 600 },
+    { tier: "freshman", minPoints: 0 },
+    { tier: "honor_roll", minPoints: 100 },
+    { tier: "deans_list", minPoints: 300 },
+    { tier: "valedictorian", minPoints: 600 },
   ];
 
   await prisma.seasonTierThreshold.deleteMany({ where: { seasonId: season.id } });
@@ -125,7 +125,7 @@ async function main() {
         seasonId: season.id,
         userId: user.id,
         totalPoints,
-        tier: "iron_3",
+        tier: "freshman_3",
       },
       update: {
         totalPoints,

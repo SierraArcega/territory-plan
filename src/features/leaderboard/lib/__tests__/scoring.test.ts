@@ -3,33 +3,33 @@ import { calculateTier, calculateCombinedScore } from "../scoring";
 
 describe("calculateTier", () => {
   const thresholds = [
-    { tier: "iron", minPoints: 0 },
-    { tier: "bronze", minPoints: 100 },
-    { tier: "silver", minPoints: 300 },
-    { tier: "gold", minPoints: 600 },
+    { tier: "freshman", minPoints: 0 },
+    { tier: "honor_roll", minPoints: 100 },
+    { tier: "deans_list", minPoints: 300 },
+    { tier: "valedictorian", minPoints: 600 },
   ];
 
-  it("assigns iron for 0 points", () => {
-    expect(calculateTier(0, thresholds, [])).toBe("iron_3");
+  it("assigns freshman for 0 points", () => {
+    expect(calculateTier(0, thresholds, [])).toBe("freshman_3");
   });
 
-  it("assigns bronze for 150 points", () => {
-    expect(calculateTier(150, thresholds, [])).toBe("bronze_3");
+  it("assigns honor_roll for 150 points", () => {
+    expect(calculateTier(150, thresholds, [])).toBe("honor_roll_3");
   });
 
-  it("assigns gold for 700 points", () => {
-    expect(calculateTier(700, thresholds, [])).toBe("gold_3");
+  it("assigns valedictorian for 700 points", () => {
+    expect(calculateTier(700, thresholds, [])).toBe("valedictorian_3");
   });
 
   it("calculates sub-rank based on percentile within tier", () => {
     const peersInTier = [100, 150, 200];
-    expect(calculateTier(100, thresholds, peersInTier)).toBe("bronze_3");
-    expect(calculateTier(150, thresholds, peersInTier)).toBe("bronze_2");
-    expect(calculateTier(200, thresholds, peersInTier)).toBe("bronze_1");
+    expect(calculateTier(100, thresholds, peersInTier)).toBe("honor_roll_3");
+    expect(calculateTier(150, thresholds, peersInTier)).toBe("honor_roll_2");
+    expect(calculateTier(200, thresholds, peersInTier)).toBe("honor_roll_1");
   });
 
   it("handles single rep in tier as sub-rank 3", () => {
-    expect(calculateTier(150, thresholds, [150])).toBe("bronze_3");
+    expect(calculateTier(150, thresholds, [150])).toBe("honor_roll_3");
   });
 });
 
@@ -46,8 +46,6 @@ describe("calculateCombinedScore", () => {
       pipelineWeight: 0.2,
       takeWeight: 0.2,
     });
-    // season: (50/100)*100 = 50, pipeline: (200k/400k)*100 = 50, take: (100k/500k)*100 = 20
-    // combined: 50*0.6 + 50*0.2 + 20*0.2 = 30 + 10 + 4 = 44
     expect(score).toBeCloseTo(44);
   });
 

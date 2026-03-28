@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const tierGroups = new Map<string, number[]>();
     for (const score of scores) {
       const matched = thresholdsSorted.find((t) => score.totalPoints >= t.minPoints);
-      const tierName = matched?.tier ?? "iron";
+      const tierName = matched?.tier ?? "freshman";
       if (!tierGroups.has(tierName)) tierGroups.set(tierName, []);
       tierGroups.get(tierName)!.push(score.totalPoints);
     }
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const entries = scores.map((score, index) => {
       const actuals = actualsMap.get(score.userId) ?? { take: 0, pipeline: 0 };
       const matched = thresholdsSorted.find((t) => score.totalPoints >= t.minPoints);
-      const tierName = matched?.tier ?? "iron";
+      const tierName = matched?.tier ?? "freshman";
       const peersInTier = tierGroups.get(tierName) ?? [];
 
       const tier = calculateTier(

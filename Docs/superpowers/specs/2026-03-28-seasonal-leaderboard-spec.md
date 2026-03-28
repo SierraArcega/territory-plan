@@ -8,7 +8,7 @@
 
 ## Overview
 
-A competitive leaderboard system that tracks rep engagement with the platform through seasonally-rotating metrics. Reps earn points for performing tracked actions, are ranked against each other, and progress through a tiered ranking system (Iron → Bronze → Silver → Gold). A combined view blends season points with actual sales performance (take) to ensure top sellers are recognized alongside highly-engaged reps.
+A competitive leaderboard system that tracks rep engagement with the platform through seasonally-rotating metrics. Reps earn points for performing tracked actions, are ranked against each other, and progress through a tiered ranking system (Freshman → Honor Roll → Dean's List → Valedictorian). A combined view blends season points with actual sales performance (take) to ensure top sellers are recognized alongside highly-engaged reps.
 
 The first season — **Season 0** — retroactively rewards early adopters by tracking **Plans Created**.
 
@@ -38,23 +38,23 @@ Reps earn points in real-time when they perform actions tracked by the active se
 
 | Tier | Sub-ranks | Color | Description |
 |------|-----------|-------|-------------|
-| Iron | III, II, I | `#8A80A8` (plum-neutral) | Starting tier for all new reps |
-| Bronze | III, II, I | Coral tones | Early engagement |
-| Silver | III, II, I | Steel blue tones | Consistent engagement |
-| Gold | III, II, I | Golden tones | Top performers |
+| Freshman | III, II, I | `#8A80A8` (plum-neutral) | Starting tier for all new reps |
+| Honor Roll | III, II, I | Coral tones | Early engagement |
+| Dean's List | III, II, I | Steel blue tones | Consistent engagement |
+| Valedictorian | III, II, I | Valedictorianen tones | Top performers |
 
 Higher tiers (Platinum, Diamond, etc.) can be added later as user count scales.
 
 **Tier assignment logic:**
-- **Threshold** determines your tier — fixed point totals per season (e.g., 0-99 = Iron, 100-299 = Bronze, etc.)
+- **Threshold** determines your tier — fixed point totals per season (e.g., 0-99 = Freshman, 100-299 = Honor Roll, etc.)
 - **Sub-rank within a tier** is percentile-based among everyone in the same tier (bottom third = III, middle = II, top third = I)
-- Everyone starts at **Iron III**
+- Everyone starts at **Freshman III**
 - Exact point thresholds are defined per season in seed data, tunable as engagement patterns emerge
 
 **Soft reset between seasons:**
 - All reps drop by a configurable number of full tiers (default: 1)
-- A Gold I player starts the next season at Silver I
-- No one drops below Iron III
+- A Valedictorian I player starts the next season at Dean's List I
+- No one drops below Freshman III
 - Configured via `softResetTiers` on the Season model
 
 ---
@@ -95,7 +95,7 @@ Higher tiers (Platinum, Diamond, etc.) can be added later as user count scales.
 | `seasonId` | FK → Season | Which season |
 | `userId` | FK → UserProfile | Which rep |
 | `totalPoints` | int (default 0) | Accumulated points |
-| `tier` | string | Current tier, e.g., "gold_1", "iron_3" |
+| `tier` | string | Current tier, e.g., "valedictorian_1", "freshman_3" |
 | `rank` | int | Cached position in leaderboard |
 | `updatedAt` | datetime | Last update |
 
@@ -107,7 +107,7 @@ Higher tiers (Platinum, Diamond, etc.) can be added later as user count scales.
 |-------|------|-------------|
 | `id` | int (auto-increment) | Primary key |
 | `seasonId` | FK → Season | Which season |
-| `tier` | string | Tier name, e.g., "iron", "bronze", "silver", "gold" |
+| `tier` | string | Tier name, e.g., "freshman", "honor_roll", "deans_list", "valedictorian" |
 | `minPoints` | int | Minimum points to enter this tier |
 
 One row per tier per season. Sub-rank (III/II/I) is calculated at runtime via percentile within the tier.
@@ -154,7 +154,7 @@ The `seasonWeight`, `pipelineWeight`, and `takeWeight` values are stored on the 
 **Position:** Bottom of the left navigation sidebar, directly above the Profile button.
 
 **Expanded state (~60-70px tall):**
-- Tier badge (shield icon in tier color) + tier label (e.g., "Silver II")
+- Tier badge (shield icon in tier color) + tier label (e.g., "Dean's List II")
 - Rank number (e.g., "#3")
 - Auto-rotating ticker that cycles every 3-4 seconds between:
   - "#2 Sarah — +4 pts ahead"
@@ -211,7 +211,7 @@ Each toggle re-sorts the table. Active view is highlighted.
 **Rankings table:**
 - Columns: Rank / Rep (avatar + name) / Tier badge / Score (contextual to active toggle)
 - Your row highlighted with plum-tinted background
-- Tier boundary dividers — subtle visual separator between Gold/Silver/Bronze/Iron sections
+- Tier boundary dividers — subtle visual separator between Valedictorian/Dean's List/Honor Roll/Freshman sections
 - All reps visible, full transparency
 
 **Modal transitions:**

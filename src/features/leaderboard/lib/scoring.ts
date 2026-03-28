@@ -21,7 +21,7 @@ export function calculateTier(
   // Find highest threshold the rep meets
   const sorted = [...thresholds].sort((a, b) => b.minPoints - a.minPoints);
   const matched = sorted.find((t) => points >= t.minPoints);
-  const tierName = (matched?.tier ?? "iron") as TierName;
+  const tierName = (matched?.tier ?? "freshman") as TierName;
 
   // Sub-rank: percentile within tier
   let subRank: SubRank = 3;
@@ -88,7 +88,7 @@ export async function awardPoints(userId: string, action: string): Promise<numbe
       seasonId: season.id,
       userId,
       totalPoints: metric.pointValue,
-      tier: "iron_3",
+      tier: "freshman_3",
     },
     update: {
       totalPoints: { increment: metric.pointValue },
@@ -126,7 +126,7 @@ export async function awardRevenueTargetedPoints(
       seasonId: season.id,
       userId,
       totalPoints: points,
-      tier: "iron_3",
+      tier: "freshman_3",
     },
     update: {
       totalPoints: { increment: points },

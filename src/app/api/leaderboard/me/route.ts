@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         rank: allScores.length + 1,
         totalReps: allScores.length + 1,
         totalPoints: 0,
-        tier: "iron_3",
+        tier: "freshman_3",
         above: null,
         below: null,
         pointBreakdown: season.metrics.map((m) => ({
