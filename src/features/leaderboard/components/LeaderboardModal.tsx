@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useLeaderboard, useMyLeaderboardRank } from "../lib/queries";
 import TierBadge from "./TierBadge";
-import { parseTierRank, TIER_LABELS } from "../lib/types";
+import { parseTierRank, TIER_LABELS, TIERS, TIER_COLORS } from "../lib/types";
 import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
 
 interface LeaderboardModalProps {
@@ -166,73 +166,88 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
               <div className="w-6 h-6 border-2 border-plum border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="divide-y divide-[#E2DEEC]">
-              {rankedEntries.map((entry, i) => {
-                const currentTier = getTierForEntry(entry);
-                const prevTier = i > 0 ? getTierForEntry(rankedEntries[i - 1]) : null;
-                const showDivider = prevTier !== null && prevTier !== currentTier;
-                const isMe = myRank ? entry.userId === myRank.rank.toString() : false;
+            <div>
+              {/* Render tiers from highest to lowest, including empty aspirational tiers */}
+              {[...TIERS].reverse().map((tierKey) => {
+                const tierEntries = rankedEntries.filter(
+                  (e) => getTierForEntry(e) === tierKey
+                );
+                const tierLabel = TIER_LABELS[tierKey];
+                const minPoints = tierThresholdMap.get(tierKey);
+                const colors = TIER_COLORS[tierKey];
 
                 return (
-                  <div key={entry.userId}>
-                    {/* Tier boundary divider */}
-                    {showDivider && (
-                      <div className="flex items-center gap-2 px-6 py-1.5 bg-[#F7F5FA]">
-                        <div className="h-px flex-1 bg-[#E2DEEC]" />
-                        <span className="text-[10px] font-semibold text-[#8A80A8] tracking-wider">
-                          {TIER_LABELS[currentTier as TierName] ?? currentTier}
-                          {tierThresholdMap.has(currentTier) && (
-                            <span className="font-normal ml-1">
-                              ({tierThresholdMap.get(currentTier)}+ pts)
-                            </span>
-                          )}
+                  <div key={tierKey}>
+                    {/* Tier header — always shown */}
+                    <div className="flex items-center gap-2 px-6 py-2 bg-[#F7F5FA] border-b border-[#E2DEEC]">
+                      <div className="h-px flex-1 bg-[#E2DEEC]" />
+                      <span className="text-[10px] font-semibold tracking-wider" style={{ color: colors.text }}>
+                        {tierLabel}
+                        {minPoints != null && (
+                          <span className="font-normal text-[#8A80A8] ml-1">
+                            ({minPoints}+ pts)
+                          </span>
+                        )}
+                      </span>
+                      <div className="h-px flex-1 bg-[#E2DEEC]" />
+                    </div>
+
+                    {/* Entries in this tier, or empty state */}
+                    {tierEntries.length === 0 ? (
+                      <div className="px-6 py-4 text-center">
+                        <span className="text-xs text-[#8A80A8] italic">
+                          No reps yet — be the first to reach {tierLabel}!
                         </span>
-                        <div className="h-px flex-1 bg-[#E2DEEC]" />
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[#E2DEEC]">
+                        {tierEntries.map((entry) => {
+                          const isMe = entry.userId === myRank?.rank?.toString();
+
+                          return (
+                            <div
+                              key={entry.userId}
+                              className={`flex items-center gap-3 px-6 py-3 transition-colors ${
+                                isMe ? "bg-[#F7F5FA]" : "hover:bg-[#FAFAFA]"
+                              }`}
+                            >
+                              <span className="w-8 text-sm font-bold text-plum text-right">
+                                #{entry.displayRank}
+                              </span>
+
+                              {entry.avatarUrl ? (
+                                <img
+                                  src={entry.avatarUrl}
+                                  alt={entry.fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-coral flex items-center justify-center">
+                                  <span className="text-xs font-bold text-white">
+                                    {entry.fullName
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .slice(0, 2)}
+                                  </span>
+                                </div>
+                              )}
+
+                              <span className="flex-1 text-sm font-medium text-plum truncate">
+                                {entry.fullName}
+                              </span>
+
+                              <TierBadge tierRank={entry.tier} size="sm" />
+
+                              <span className="w-20 text-right text-sm font-semibold text-plum">
+                                {getScore(entry)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
-                    <div
-                      className={`flex items-center gap-3 px-6 py-3 transition-colors ${
-                        isMe ? "bg-[#F7F5FA]" : "hover:bg-[#FAFAFA]"
-                      }`}
-                    >
-                      {/* Rank */}
-                      <span className="w-8 text-sm font-bold text-plum text-right">
-                        #{entry.displayRank}
-                      </span>
-
-                      {/* Avatar */}
-                      {entry.avatarUrl ? (
-                        <img
-                          src={entry.avatarUrl}
-                          alt={entry.fullName}
-                          className="w-8 h-8 rounded-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-coral flex items-center justify-center">
-                          <span className="text-xs font-bold text-white">
-                            {entry.fullName
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .slice(0, 2)}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Name */}
-                      <span className="flex-1 text-sm font-medium text-plum truncate">
-                        {entry.fullName}
-                      </span>
-
-                      {/* Tier badge */}
-                      <TierBadge tierRank={entry.tier} size="sm" />
-
-                      {/* Score */}
-                      <span className="w-20 text-right text-sm font-semibold text-plum">
-                        {getScore(entry)}
-                      </span>
-                    </div>
                   </div>
                 );
               })}

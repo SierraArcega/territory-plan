@@ -53,7 +53,7 @@ async function main() {
     { tier: "freshman", minPoints: 0 },
     { tier: "honor_roll", minPoints: 100 },
     { tier: "deans_list", minPoints: 300 },
-    { tier: "valedictorian", minPoints: 600 },
+    { tier: "valedictorian", minPoints: 900 },
   ];
 
   await prisma.seasonTierThreshold.deleteMany({ where: { seasonId: season.id } });
