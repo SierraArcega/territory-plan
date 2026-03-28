@@ -1,6 +1,6 @@
 // src/features/leaderboard/lib/scoring.ts
 import prisma from "@/lib/prisma";
-import type { TierName, TierRank, SubRank } from "./types";
+import type { TierName, TierRank } from "./types";
 
 interface TierThreshold {
   tier: string;
@@ -8,33 +8,17 @@ interface TierThreshold {
 }
 
 /**
- * Determine the full tier rank (e.g. "bronze_2") for a given point total.
+ * Determine the tier for a given point total.
  * @param points - the rep's total points
  * @param thresholds - tier thresholds for the season
- * @param peersInTier - all point totals of reps in the same tier (for sub-rank percentile)
  */
 export function calculateTier(
   points: number,
   thresholds: TierThreshold[],
-  peersInTier: number[]
 ): TierRank {
-  // Find highest threshold the rep meets
   const sorted = [...thresholds].sort((a, b) => b.minPoints - a.minPoints);
   const matched = sorted.find((t) => points >= t.minPoints);
-  const tierName = (matched?.tier ?? "freshman") as TierName;
-
-  // Sub-rank: percentile within tier
-  let subRank: SubRank = 3;
-  if (peersInTier.length >= 3) {
-    const sortedPeers = [...peersInTier].sort((a, b) => a - b);
-    const position = sortedPeers.indexOf(points);
-    const percentile = position / (sortedPeers.length - 1);
-    if (percentile >= 0.667) subRank = 1;
-    else if (percentile >= 0.333) subRank = 2;
-    else subRank = 3;
-  }
-
-  return `${tierName}_${subRank}` as TierRank;
+  return (matched?.tier ?? "freshman") as TierRank;
 }
 
 interface CombinedScoreInput {
@@ -88,7 +72,7 @@ export async function awardPoints(userId: string, action: string): Promise<numbe
       seasonId: season.id,
       userId,
       totalPoints: metric.pointValue,
-      tier: "freshman_3",
+      tier: "freshman",
     },
     update: {
       totalPoints: { increment: metric.pointValue },
@@ -126,7 +110,7 @@ export async function awardRevenueTargetedPoints(
       seasonId: season.id,
       userId,
       totalPoints: points,
-      tier: "freshman_3",
+      tier: "freshman",
     },
     update: {
       totalPoints: { increment: points },

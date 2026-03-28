@@ -2,10 +2,8 @@
 
 import { Shield } from "lucide-react";
 import { parseTierRank, formatTierLabel, TIER_COLORS } from "../lib/types";
-import type { TierRank } from "../lib/types";
-
 interface TierBadgeProps {
-  tierRank: TierRank;
+  tierRank: string;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
 }

@@ -125,7 +125,7 @@ async function main() {
         seasonId: season.id,
         userId: user.id,
         totalPoints,
-        tier: "freshman_3",
+        tier: "freshman",
       },
       update: {
         totalPoints,

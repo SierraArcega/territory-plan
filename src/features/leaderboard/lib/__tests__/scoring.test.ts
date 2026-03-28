@@ -10,26 +10,23 @@ describe("calculateTier", () => {
   ];
 
   it("assigns freshman for 0 points", () => {
-    expect(calculateTier(0, thresholds, [])).toBe("freshman_3");
+    expect(calculateTier(0, thresholds)).toBe("freshman");
   });
 
   it("assigns honor_roll for 150 points", () => {
-    expect(calculateTier(150, thresholds, [])).toBe("honor_roll_3");
+    expect(calculateTier(150, thresholds)).toBe("honor_roll");
   });
 
   it("assigns valedictorian for 700 points", () => {
-    expect(calculateTier(700, thresholds, [])).toBe("valedictorian_3");
+    expect(calculateTier(700, thresholds)).toBe("valedictorian");
   });
 
-  it("calculates sub-rank based on percentile within tier", () => {
-    const peersInTier = [100, 150, 200];
-    expect(calculateTier(100, thresholds, peersInTier)).toBe("honor_roll_3");
-    expect(calculateTier(150, thresholds, peersInTier)).toBe("honor_roll_2");
-    expect(calculateTier(200, thresholds, peersInTier)).toBe("honor_roll_1");
+  it("assigns deans_list for exactly 300 points", () => {
+    expect(calculateTier(300, thresholds)).toBe("deans_list");
   });
 
-  it("handles single rep in tier as sub-rank 3", () => {
-    expect(calculateTier(150, thresholds, [150])).toBe("honor_roll_3");
+  it("assigns freshman for 99 points (just below honor_roll)", () => {
+    expect(calculateTier(99, thresholds)).toBe("freshman");
   });
 });
 

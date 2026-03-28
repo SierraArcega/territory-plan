@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useLeaderboard, useMyLeaderboardRank } from "../lib/queries";
 import TierBadge from "./TierBadge";
-import { parseTierRank } from "../lib/types";
-import type { LeaderboardView, TierRank, LeaderboardEntry } from "../lib/types";
+import { parseTierRank, TIER_LABELS } from "../lib/types";
+import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
 
 interface LeaderboardModalProps {
   isOpen: boolean;
@@ -68,8 +68,16 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
   };
 
   const getTierForEntry = (entry: LeaderboardEntry): string => {
-    return parseTierRank(entry.tier as TierRank).tier;
+    return parseTierRank(entry.tier).tier;
   };
+
+  // Build a map of tier -> minPoints for the divider labels
+  const tierThresholdMap = new Map<string, number>();
+  if (leaderboard?.thresholds) {
+    for (const t of leaderboard.thresholds) {
+      tierThresholdMap.set(t.tier, t.minPoints);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -126,7 +134,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
         {myRank && (
           <div className="px-6 py-4 bg-[#F7F5FA] border-b border-[#E2DEEC]">
             <div className="flex items-center gap-3">
-              <TierBadge tierRank={(myRank.tier ?? "iron_3") as TierRank} size="lg" />
+              <TierBadge tierRank={myRank.tier ?? "freshman"} size="lg" />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-plum">
@@ -171,8 +179,13 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
                     {showDivider && (
                       <div className="flex items-center gap-2 px-6 py-1.5 bg-[#F7F5FA]">
                         <div className="h-px flex-1 bg-[#E2DEEC]" />
-                        <span className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
-                          {currentTier}
+                        <span className="text-[10px] font-semibold text-[#8A80A8] tracking-wider">
+                          {TIER_LABELS[currentTier as TierName] ?? currentTier}
+                          {tierThresholdMap.has(currentTier) && (
+                            <span className="font-normal ml-1">
+                              ({tierThresholdMap.get(currentTier)}+ pts)
+                            </span>
+                          )}
                         </span>
                         <div className="h-px flex-1 bg-[#E2DEEC]" />
                       </div>
@@ -213,7 +226,7 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
                       </span>
 
                       {/* Tier badge */}
-                      <TierBadge tierRank={entry.tier as TierRank} size="sm" />
+                      <TierBadge tierRank={entry.tier} size="sm" />
 
                       {/* Score */}
                       <span className="w-20 text-right text-sm font-semibold text-plum">

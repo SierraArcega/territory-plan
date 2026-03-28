@@ -70,28 +70,13 @@ export async function GET(request: NextRequest) {
     const maxTake = Math.max(...repActuals.map((a) => a.take), 0);
     const maxPipeline = Math.max(...repActuals.map((a) => a.pipeline), 0);
 
-    // Group scores by tier for sub-rank calculation
-    const thresholdsSorted = [...season.thresholds].sort((a, b) => b.minPoints - a.minPoints);
-    const tierGroups = new Map<string, number[]>();
-    for (const score of scores) {
-      const matched = thresholdsSorted.find((t) => score.totalPoints >= t.minPoints);
-      const tierName = matched?.tier ?? "freshman";
-      if (!tierGroups.has(tierName)) tierGroups.set(tierName, []);
-      tierGroups.get(tierName)!.push(score.totalPoints);
-    }
+    const thresholdData = season.thresholds.map((t) => ({ tier: t.tier, minPoints: t.minPoints }));
 
     // Build leaderboard entries
     const entries = scores.map((score, index) => {
       const actuals = actualsMap.get(score.userId) ?? { take: 0, pipeline: 0 };
-      const matched = thresholdsSorted.find((t) => score.totalPoints >= t.minPoints);
-      const tierName = matched?.tier ?? "freshman";
-      const peersInTier = tierGroups.get(tierName) ?? [];
 
-      const tier = calculateTier(
-        score.totalPoints,
-        season.thresholds.map((t) => ({ tier: t.tier, minPoints: t.minPoints })),
-        peersInTier
-      );
+      const tier = calculateTier(score.totalPoints, thresholdData);
 
       const combinedScore = calculateCombinedScore({
         seasonPoints: score.totalPoints,
@@ -138,6 +123,10 @@ export async function GET(request: NextRequest) {
         action: m.action,
         label: m.label,
         pointValue: m.pointValue,
+      })),
+      thresholds: season.thresholds.map((t) => ({
+        tier: t.tier,
+        minPoints: t.minPoints,
       })),
     });
   } catch (error) {

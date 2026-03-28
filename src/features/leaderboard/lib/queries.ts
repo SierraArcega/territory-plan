@@ -6,6 +6,7 @@ interface LeaderboardResponse {
   season: SeasonInfo;
   entries: LeaderboardEntry[];
   metrics: { action: string; label: string; pointValue: number }[];
+  thresholds: { tier: string; minPoints: number }[];
 }
 
 export function useLeaderboard() {

@@ -3,11 +3,8 @@
 export const TIERS = ["freshman", "honor_roll", "deans_list", "valedictorian"] as const;
 export type TierName = (typeof TIERS)[number];
 
-export const SUB_RANKS = [3, 2, 1] as const;
-export type SubRank = (typeof SUB_RANKS)[number];
-
-/** e.g. "freshman_3", "valedictorian_1" */
-export type TierRank = `${TierName}_${SubRank}`;
+/** Tier rank is now just the tier name (no sub-ranks) */
+export type TierRank = TierName;
 
 export const TIER_COLORS: Record<TierName, { bg: string; text: string; glow: string }> = {
   freshman:       { bg: "#F7F5FA", text: "#8A80A8", glow: "rgba(138,128,168,0.3)" },
@@ -23,15 +20,15 @@ export const TIER_LABELS: Record<TierName, string> = {
   valedictorian: "Valedictorian",
 };
 
-export function parseTierRank(tierRank: TierRank): { tier: TierName; subRank: SubRank } {
-  const [tier, rank] = tierRank.split("_") as [TierName, string];
-  return { tier, subRank: parseInt(rank, 10) as SubRank };
+export function parseTierRank(tierRank: string): { tier: TierName } {
+  // Handle legacy "tier_N" format by stripping the sub-rank
+  const tier = tierRank.replace(/_\d$/, "") as TierName;
+  return { tier: TIERS.includes(tier) ? tier : "freshman" };
 }
 
-export function formatTierLabel(tierRank: TierRank): string {
-  const { tier, subRank } = parseTierRank(tierRank);
-  const romanMap: Record<SubRank, string> = { 3: "III", 2: "II", 1: "I" };
-  return `${TIER_LABELS[tier]} ${romanMap[subRank]}`;
+export function formatTierLabel(tierRank: string): string {
+  const { tier } = parseTierRank(tierRank);
+  return TIER_LABELS[tier];
 }
 
 export interface LeaderboardEntry {

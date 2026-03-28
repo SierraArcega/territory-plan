@@ -6,7 +6,6 @@ import { useMyLeaderboardRank } from "../lib/queries";
 import TierBadge from "./TierBadge";
 import RankTicker from "./RankTicker";
 import { parseTierRank, TIER_COLORS } from "../lib/types";
-import type { TierRank } from "../lib/types";
 
 interface LeaderboardNavWidgetProps {
   collapsed: boolean;
@@ -56,7 +55,7 @@ export default function LeaderboardNavWidget({
 
   if (isLoading || !data) return null;
 
-  const tierRank = (data.tier ?? "iron_3") as TierRank;
+  const tierRank = data.tier ?? "freshman";
   const { tier } = parseTierRank(tierRank);
   const colors = TIER_COLORS[tier];
 

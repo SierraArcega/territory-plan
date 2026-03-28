@@ -1419,7 +1419,7 @@ model SeasonScore {
   seasonId    Int      @map("season_id")
   userId      String   @map("user_id") @db.Uuid
   totalPoints Int      @default(0) @map("total_points")
-  tier        String   @default("freshman_3") @db.VarChar(20)
+  tier        String   @default("freshman") @db.VarChar(20)
   rank        Int      @default(0)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
