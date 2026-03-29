@@ -10,6 +10,7 @@ import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
 interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigateToDetails?: () => void;
 }
 
 function formatDate(iso: string): string {
@@ -32,7 +33,7 @@ const VIEW_OPTIONS: { value: LeaderboardView; label: string }[] = [
   { value: "take", label: "Take" },
 ];
 
-export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalProps) {
+export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
   const [view, setView] = useState<LeaderboardView>("combined");
   const { data: leaderboard, isLoading: lbLoading } = useLeaderboard();
   const { data: myRank } = useMyLeaderboardRank();
@@ -97,7 +98,9 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
         <div className="px-6 pt-6 pb-4 border-b border-[#E2DEEC]">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-xl font-bold text-plum">
-              {leaderboard?.season.name ?? "Leaderboard"}
+              {leaderboard?.season.showName !== false
+                ? (leaderboard?.season.name ?? "Leaderboard")
+                : "Leaderboard"}
             </h2>
             <button
               onClick={onClose}
@@ -106,27 +109,40 @@ export default function LeaderboardModal({ isOpen, onClose }: LeaderboardModalPr
               <X size={20} />
             </button>
           </div>
-          {leaderboard?.season && (
+          {leaderboard?.season && leaderboard.season.showDates !== false && leaderboard.season.endDate && (
             <p className="text-xs text-[#8A80A8]">
               {formatDate(leaderboard.season.startDate)} — {formatDate(leaderboard.season.endDate)}
             </p>
           )}
 
-          {/* View toggle pills */}
-          <div className="flex gap-1.5 mt-4">
-            {VIEW_OPTIONS.map((opt) => (
+          {/* View toggle pills + details link */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex gap-1.5">
+              {VIEW_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setView(opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    view === opt.value
+                      ? "bg-plum text-white"
+                      : "bg-[#F7F5FA] text-[#8A80A8] hover:text-plum"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {onNavigateToDetails && (
               <button
-                key={opt.value}
-                onClick={() => setView(opt.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  view === opt.value
-                    ? "bg-plum text-white"
-                    : "bg-[#F7F5FA] text-[#8A80A8] hover:text-plum"
-                }`}
+                onClick={() => {
+                  onClose();
+                  onNavigateToDetails();
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#403770] bg-[#F7F5FA] hover:bg-[#EFEDF5] transition-colors"
               >
-                {opt.label}
+                Show me details
               </button>
-            ))}
+            )}
           </div>
         </div>
 

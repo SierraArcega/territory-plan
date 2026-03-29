@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     if (myIndex === -1) {
       return NextResponse.json({
-        seasonName: season.name,
+        seasonName: season.showName ? season.name : "Leaderboard",
         rank: allScores.length + 1,
         totalReps: allScores.length + 1,
         totalPoints: 0,

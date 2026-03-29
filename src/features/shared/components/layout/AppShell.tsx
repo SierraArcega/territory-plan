@@ -6,7 +6,7 @@ import FilterBar from "@/features/shared/components/filters/FilterBar";
 interface AppShellProps {
   // Current active tab - determines which content view to show
   activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  onTabChange: (tab: TabId, adminSection?: string) => void;
 
   // Sidebar collapsed state
   sidebarCollapsed: boolean;

@@ -71,7 +71,9 @@ export interface SeasonInfo {
   id: number;
   name: string;
   startDate: string;
-  endDate: string;
+  endDate: string | null;
+  showName: boolean;
+  showDates: boolean;
   seasonWeight: number;
   pipelineWeight: number;
   takeWeight: number;

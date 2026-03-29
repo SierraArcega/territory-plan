@@ -14,6 +14,7 @@ import ProfileView from "@/features/shared/components/views/ProfileView";
 import TeamProgressView from "@/features/progress/components/TeamProgressView";
 import AdminDashboard from "@/features/admin/components/AdminDashboard";
 import ResourcesView from "@/features/shared/components/views/ResourcesView";
+import LeaderboardDetailView from "@/features/leaderboard/components/LeaderboardDetailView";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
 const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
@@ -87,6 +88,9 @@ function HomeContent() {
 
   // Track the selected plan ID for PlansView (from URL)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
+  // Track which admin section to show when navigating from sidebar
+  const [adminSection, setAdminSection] = useState<string | undefined>(undefined);
 
   // Ref-based flag so the sync effect never runs before init completes.
   // Using a ref (not state) avoids batching issues between Zustand and React setState.
@@ -193,6 +197,8 @@ function HomeContent() {
         return <TeamProgressView />;
       case "home":
         return <HomeView />;
+      case "leaderboard":
+        return <LeaderboardDetailView />;
       case "resources":
         return <ResourcesView />;
       case "profile":
@@ -201,7 +207,7 @@ function HomeContent() {
         return (
           <div className="h-full overflow-y-auto">
             <div className="max-w-7xl mx-auto px-6 py-8">
-              <AdminDashboard />
+              <AdminDashboard initialSection={adminSection} />
             </div>
           </div>
         );
@@ -213,11 +219,17 @@ function HomeContent() {
   return (
     <AppShell
       activeTab={activeTab}
-      onTabChange={(tab) => {
+      onTabChange={(tab, section) => {
         setActiveTab(tab);
         // Clear plan selection when switching away from plans
         if (tab !== "plans") {
           setSelectedPlanId(null);
+        }
+        // Pass admin section when navigating from sidebar sub-items
+        if (tab === "admin" && section) {
+          setAdminSection(section);
+        } else if (tab !== "admin") {
+          setAdminSection(undefined);
         }
       }}
       sidebarCollapsed={sidebarCollapsed}

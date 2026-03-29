@@ -31,22 +31,36 @@ function TabSkeleton() {
   );
 }
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  initialSection?: string;
+}
+
+export default function AdminDashboard({ initialSection }: AdminDashboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Read initial section from URL, default to "unmatched"
+  // Read initial section from props (sidebar) or URL, default to "unmatched"
   const sectionParam = searchParams.get("section") as AdminTab | null;
-  const [activeTab, setActiveTab] = useState<AdminTab>(
-    sectionParam && TABS.some((t) => t.id === sectionParam) ? sectionParam : "unmatched",
-  );
+  const defaultTab = initialSection && TABS.some((t) => t.id === initialSection)
+    ? (initialSection as AdminTab)
+    : sectionParam && TABS.some((t) => t.id === sectionParam)
+      ? sectionParam
+      : "unmatched";
+  const [activeTab, setActiveTab] = useState<AdminTab>(defaultTab);
 
-  // Sync tab state with URL
+  // Sync tab state with URL params
   useEffect(() => {
     if (sectionParam && TABS.some((t) => t.id === sectionParam) && sectionParam !== activeTab) {
       setActiveTab(sectionParam);
     }
   }, [sectionParam, activeTab]);
+
+  // Sync tab state with initialSection prop (from sidebar clicks)
+  useEffect(() => {
+    if (initialSection && TABS.some((t) => t.id === initialSection)) {
+      setActiveTab(initialSection as AdminTab);
+    }
+  }, [initialSection]);
 
   const handleTabChange = (tab: AdminTab) => {
     setActiveTab(tab);

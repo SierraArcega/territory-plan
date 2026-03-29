@@ -114,6 +114,8 @@ export async function GET(request: NextRequest) {
         name: season.name,
         startDate: season.startDate.toISOString(),
         endDate: season.endDate?.toISOString() ?? null,
+        showName: season.showName,
+        showDates: season.showDates,
         seasonWeight: Number(season.seasonWeight),
         pipelineWeight: Number(season.pipelineWeight),
         takeWeight: Number(season.takeWeight),
