@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateTier, calculateCombinedScore } from "../scoring";
+import { calculateTier, calculateCombinedScore, calculateEffectivePoints } from "../scoring";
 
 describe("calculateTier", () => {
   const thresholds = [
@@ -74,5 +74,23 @@ describe("calculateCombinedScore", () => {
       takeWeight: 0.2,
     });
     expect(score).toBe(0);
+  });
+});
+
+describe("calculateEffectivePoints", () => {
+  it("returns pointValue * weight rounded to nearest integer", () => {
+    expect(calculateEffectivePoints(10, 1.5)).toBe(15);
+  });
+
+  it("rounds to nearest integer", () => {
+    expect(calculateEffectivePoints(7, 1.3)).toBe(9); // 7 * 1.3 = 9.1 → 9
+  });
+
+  it("defaults weight to 1.0 when undefined", () => {
+    expect(calculateEffectivePoints(10, undefined)).toBe(10);
+  });
+
+  it("handles weight of 0", () => {
+    expect(calculateEffectivePoints(10, 0)).toBe(0);
   });
 });

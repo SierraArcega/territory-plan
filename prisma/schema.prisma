@@ -1382,17 +1382,20 @@ model VacancyKeywordConfig {
 // Gamified point system with tiered rankings and seasonal rotation.
 
 model Season {
-  id             Int      @id @default(autoincrement())
-  name           String   @db.VarChar(100)
-  startDate      DateTime @map("start_date") @db.Timestamptz
-  endDate        DateTime @map("end_date") @db.Timestamptz
-  isActive       Boolean  @default(false) @map("is_active")
-  softResetTiers Int      @default(1) @map("soft_reset_tiers")
-  seasonWeight   Decimal  @default(0.6) @map("season_weight") @db.Decimal(3, 2)
-  pipelineWeight Decimal  @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
-  takeWeight     Decimal  @default(0.2) @map("take_weight") @db.Decimal(3, 2)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(100)
+  seasonUid      String?   @unique @map("season_uid") @db.VarChar(30)
+  startDate      DateTime  @map("start_date") @db.Timestamptz
+  endDate        DateTime? @map("end_date") @db.Timestamptz
+  isActive       Boolean   @default(false) @map("is_active")
+  showName       Boolean   @default(true) @map("show_name")
+  showDates      Boolean   @default(true) @map("show_dates")
+  softResetTiers Int       @default(1) @map("soft_reset_tiers")
+  seasonWeight   Decimal   @default(0.6) @map("season_weight") @db.Decimal(3, 2)
+  pipelineWeight Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
+  takeWeight     Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   metrics    SeasonMetric[]
   scores     SeasonScore[]
@@ -1402,11 +1405,12 @@ model Season {
 }
 
 model SeasonMetric {
-  id         Int    @id @default(autoincrement())
-  seasonId   Int    @map("season_id")
-  action     String @db.VarChar(50)
-  pointValue Int    @map("point_value")
-  label      String @db.VarChar(100)
+  id         Int     @id @default(autoincrement())
+  seasonId   Int     @map("season_id")
+  action     String  @db.VarChar(50)
+  pointValue Int     @map("point_value")
+  label      String  @db.VarChar(100)
+  weight     Decimal @default(1.0) @map("weight") @db.Decimal(4, 2)
 
   season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
@@ -1442,4 +1446,14 @@ model SeasonTierThreshold {
   @@unique([seasonId, tier])
   @@index([seasonId])
   @@map("season_tier_thresholds")
+}
+
+model MetricRegistry {
+  id          Int    @id @default(autoincrement())
+  action      String @unique @db.VarChar(50)
+  label       String @db.VarChar(100)
+  description String @db.VarChar(255)
+  category    String @db.VarChar(50)
+
+  @@map("metric_registry")
 }

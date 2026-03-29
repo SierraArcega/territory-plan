@@ -51,6 +51,17 @@ export function calculateCombinedScore(input: CombinedScoreInput): number {
 }
 
 /**
+ * Calculate effective points for an action: pointValue × weight, rounded.
+ */
+export function calculateEffectivePoints(
+  pointValue: number,
+  weight: number | { toNumber?: () => number } | undefined | null,
+): number {
+  const w = weight ?? 1.0;
+  return Math.round(pointValue * Number(w));
+}
+
+/**
  * Award points to a user for a tracked action.
  * Finds the active season, checks if the action is tracked, and increments the score.
  * Returns the points awarded (0 if no active season or action not tracked).
@@ -66,20 +77,23 @@ export async function awardPoints(userId: string, action: string): Promise<numbe
   const metric = season.metrics.find((m) => m.action === action);
   if (!metric) return 0;
 
+  const points = calculateEffectivePoints(metric.pointValue, metric.weight);
+  if (points <= 0) return 0;
+
   await prisma.seasonScore.upsert({
     where: { seasonId_userId: { seasonId: season.id, userId } },
     create: {
       seasonId: season.id,
       userId,
-      totalPoints: metric.pointValue,
+      totalPoints: points,
       tier: "freshman",
     },
     update: {
-      totalPoints: { increment: metric.pointValue },
+      totalPoints: { increment: points },
     },
   });
 
-  return metric.pointValue;
+  return points;
 }
 
 /**
@@ -101,7 +115,8 @@ export async function awardRevenueTargetedPoints(
   if (!metric) return 0;
 
   const units = Math.floor(targetAmount / 10000);
-  const points = units * metric.pointValue;
+  const effectivePointValue = calculateEffectivePoints(metric.pointValue, metric.weight);
+  const points = units * effectivePointValue;
   if (points <= 0) return 0;
 
   await prisma.seasonScore.upsert({

@@ -8,8 +8,9 @@ const UsersTab = lazy(() => import("./UsersTab"));
 const IntegrationsTab = lazy(() => import("./IntegrationsTab"));
 const DataSyncTab = lazy(() => import("./DataSyncTab"));
 const VacancyConfigTab = lazy(() => import("./VacancyConfigTab"));
+const LeaderboardTab = lazy(() => import("./LeaderboardTab"));
 
-type AdminTab = "unmatched" | "users" | "integrations" | "sync" | "vacancy-config";
+type AdminTab = "unmatched" | "users" | "integrations" | "sync" | "vacancy-config" | "leaderboard";
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: "unmatched", label: "Unmatched Opps" },
@@ -17,6 +18,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: "integrations", label: "Integrations" },
   { id: "sync", label: "Data Sync" },
   { id: "vacancy-config", label: "Vacancy Config" },
+  { id: "leaderboard", label: "Leaderboard" },
 ];
 
 function TabSkeleton() {
@@ -96,6 +98,7 @@ export default function AdminDashboard() {
             {activeTab === "integrations" && <IntegrationsTab />}
             {activeTab === "sync" && <DataSyncTab />}
             {activeTab === "vacancy-config" && <VacancyConfigTab />}
+            {activeTab === "leaderboard" && <LeaderboardTab />}
           </Suspense>
         </div>
       </div>

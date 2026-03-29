@@ -21,6 +21,7 @@ const ADMIN_SUB_ITEMS = [
   { id: "users", label: "Users" },
   { id: "integrations", label: "Integrations" },
   { id: "sync", label: "Data Sync" },
+  { id: "leaderboard", label: "Leaderboard" },
 ];
 
 // SVG icons for each tab - kept inline for simplicity

@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
         id: season.id,
         name: season.name,
         startDate: season.startDate.toISOString(),
-        endDate: season.endDate.toISOString(),
+        endDate: season.endDate?.toISOString() ?? null,
         seasonWeight: Number(season.seasonWeight),
         pipelineWeight: Number(season.pipelineWeight),
         takeWeight: Number(season.takeWeight),
