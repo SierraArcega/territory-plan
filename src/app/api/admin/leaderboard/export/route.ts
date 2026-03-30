@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const seasons = await prisma.season.findMany({
+    const initiatives = await prisma.initiative.findMany({
       orderBy: { startDate: "desc" },
       include: {
         metrics: true,
@@ -25,18 +25,18 @@ export async function GET() {
 
     // Build CSV
     const rows: string[] = [
-      "Season Name,Season UID,Start Date,End Date,Active,Rep Name,Rep Email,Total Points,Tier,Rank",
+      "Initiative Name,Initiative UID,Start Date,End Date,Active,Rep Name,Rep Email,Total Points,Tier,Rank",
     ];
 
-    for (const season of seasons) {
-      for (const score of season.scores) {
+    for (const initiative of initiatives) {
+      for (const score of initiative.scores) {
         rows.push(
           [
-            `"${season.name}"`,
-            season.seasonUid ?? "",
-            season.startDate.toISOString().split("T")[0],
-            season.endDate?.toISOString().split("T")[0] ?? "",
-            season.isActive ? "Yes" : "No",
+            `"${initiative.name}"`,
+            initiative.initiativeUid ?? "",
+            initiative.startDate.toISOString().split("T")[0],
+            initiative.endDate?.toISOString().split("T")[0] ?? "",
+            initiative.isActive ? "Yes" : "No",
             `"${score.user.fullName ?? ""}"`,
             `"${score.user.email ?? ""}"`,
             score.totalPoints,

@@ -10,17 +10,16 @@ import {
   useUpdateMetrics,
   usePreviewChanges,
 } from "@/features/admin/hooks/useAdminLeaderboard";
-import type { AdminSeasonConfig, RegistryEntry } from "@/features/admin/lib/leaderboard-types";
+import type { AdminInitiativeConfig, RegistryEntry } from "@/features/admin/lib/leaderboard-types";
 
 interface ScoringMetricsProps {
-  config: AdminSeasonConfig;
+  config: AdminInitiativeConfig;
 }
 
 interface DraftMetric {
   action: string;
   label: string;
   pointValue: number;
-  weight: number;
 }
 
 export default function ScoringMetrics({ config }: ScoringMetricsProps) {
@@ -29,7 +28,6 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
       action: m.action,
       label: m.label,
       pointValue: m.pointValue,
-      weight: m.weight,
     }))
   );
   const [showPreview, setShowPreview] = useState(false);
@@ -42,7 +40,6 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
         action: m.action,
         label: m.label,
         pointValue: m.pointValue,
-        weight: m.weight,
       }))
     );
   }, [config.metrics]);
@@ -50,6 +47,8 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
   const { data: registry = [] } = useMetricRegistry();
   const updateMutation = useUpdateMetrics();
   const previewMutation = usePreviewChanges();
+
+  const descriptionMap = new Map(registry.map((r) => [r.action, r.description]));
 
   const addMetric = (entry: RegistryEntry) => {
     if (metrics.length >= 5 && !showMetricWarning) {
@@ -59,7 +58,7 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
     }
     setMetrics([
       ...metrics,
-      { action: entry.action, label: entry.label, pointValue: 5, weight: 1.0 },
+      { action: entry.action, label: entry.label, pointValue: 5 },
     ]);
     setShowMetricWarning(false);
     setPendingEntry(null);
@@ -69,7 +68,7 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
     if (pendingEntry) {
       setMetrics([
         ...metrics,
-        { action: pendingEntry.action, label: pendingEntry.label, pointValue: 5, weight: 1.0 },
+        { action: pendingEntry.action, label: pendingEntry.label, pointValue: 5 },
       ]);
     }
     setShowMetricWarning(false);
@@ -80,19 +79,21 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
     setMetrics(metrics.filter((m) => m.action !== action));
   };
 
-  const updateMetric = (action: string, field: "pointValue" | "weight", value: number) => {
-    setMetrics(metrics.map((m) => (m.action === action ? { ...m, [field]: value } : m)));
+  const updateMetric = (action: string, value: number) => {
+    setMetrics(metrics.map((m) => (m.action === action ? { ...m, pointValue: value } : m)));
   };
+
+  const metricsWithWeight = metrics.map((m) => ({ ...m, weight: 1.0 }));
 
   const handleSave = () => {
     previewMutation.mutate(
-      { section: "metrics", data: { metrics } },
+      { section: "metrics", data: { metrics: metricsWithWeight } },
       { onSuccess: () => setShowPreview(true) }
     );
   };
 
   const handleConfirm = () => {
-    updateMutation.mutate({ metrics }, { onSuccess: () => setShowPreview(false) });
+    updateMutation.mutate({ metrics: metricsWithWeight }, { onSuccess: () => setShowPreview(false) });
   };
 
   return (
@@ -143,7 +144,6 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
                     <th className="text-left px-4 py-2">Action</th>
                     <th className="text-left px-4 py-2">Label</th>
                     <th className="text-right px-4 py-2 w-24">Points</th>
-                    <th className="text-right px-4 py-2 w-24">Weight</th>
                     <th className="w-10 px-2 py-2" />
                   </tr>
                 </thead>
@@ -151,24 +151,18 @@ export default function ScoringMetrics({ config }: ScoringMetricsProps) {
                   {metrics.map((m) => (
                     <tr key={m.action} className="border-t border-[#E2DEEC] hover:bg-[#EFEDF5]">
                       <td className="px-4 py-2 text-sm text-[#8A80A8] font-mono">{m.action}</td>
-                      <td className="px-4 py-2 text-sm text-[#403770]">{m.label}</td>
+                      <td className="px-4 py-2">
+                        <div className="text-sm text-[#403770]">{m.label}</div>
+                        {descriptionMap.get(m.action) && (
+                          <div className="text-xs text-[#8A80A8] mt-0.5">{descriptionMap.get(m.action)}</div>
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-right">
                         <input
                           type="number"
                           value={m.pointValue}
                           onChange={(e) =>
-                            updateMetric(m.action, "pointValue", parseInt(e.target.value) || 0)
-                          }
-                          className="w-20 px-2 py-1 text-sm text-right border border-[#C2BBD4] rounded text-[#403770] focus:border-[#403770] focus:ring-1 focus:ring-[#403770]/30 outline-none"
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={m.weight}
-                          onChange={(e) =>
-                            updateMetric(m.action, "weight", parseFloat(e.target.value) || 1.0)
+                            updateMetric(m.action, parseInt(e.target.value) || 0)
                           }
                           className="w-20 px-2 py-1 text-sm text-right border border-[#C2BBD4] rounded text-[#403770] focus:border-[#403770] focus:ring-1 focus:ring-[#403770]/30 outline-none"
                         />

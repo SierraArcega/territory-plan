@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const season = await prisma.season.findFirst({
+    const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
       include: {
         metrics: true,
@@ -25,11 +25,11 @@ export async function GET() {
       },
     });
 
-    if (!season) {
+    if (!initiative) {
       return NextResponse.json({ entries: [], metrics: [] });
     }
 
-    const userIds = season.scores.map((s) => s.userId);
+    const userIds = initiative.scores.map((s) => s.userId);
 
     // Fetch actual plan and activity records for all users
     const [plans, activities] = await Promise.all([
@@ -82,7 +82,7 @@ export async function GET() {
     }
 
     // Build entries with breakdowns and individual items
-    const entries = season.scores.map((score, index) => {
+    const entries = initiative.scores.map((score, index) => {
       const userId = score.userId;
       const userPlans = plansByUser.get(userId) ?? [];
       const userActivities = activitiesByUser.get(userId) ?? [];
@@ -106,7 +106,7 @@ export async function GET() {
         revenue_targeted: revenueUnits,
       };
 
-      const breakdown = season.metrics.map((m) => {
+      const breakdown = initiative.metrics.map((m) => {
         const count = actionCounts[m.action] ?? 0;
         return {
           action: m.action,
@@ -159,7 +159,7 @@ export async function GET() {
 
     return NextResponse.json({
       entries,
-      metrics: season.metrics.map((m) => ({
+      metrics: initiative.metrics.map((m) => ({
         action: m.action,
         label: m.label,
         pointValue: m.pointValue,

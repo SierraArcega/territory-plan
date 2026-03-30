@@ -788,8 +788,8 @@ model UserProfile {
   integrations    UserIntegration[]
   // Legacy calendar connection (migrating to UserIntegration)
   calendarConnection CalendarConnection?
-  // Seasonal leaderboard scores
-  seasonScores       SeasonScore[]
+  // Initiative leaderboard scores
+  initiativeScores       InitiativeScore[]
 
   @@map("user_profiles")
 }
@@ -1016,7 +1016,7 @@ model CalendarConnection {
 model CalendarEvent {
   id                    String   @id @default(uuid())
   userId                String   @map("user_id") @db.Uuid
-  connectionId          String   @map("connection_id")
+  connectionId          String?  @map("connection_id")
   googleEventId         String   @map("google_event_id")
   title                 String   @db.VarChar(500)
   description           String?
@@ -1036,7 +1036,7 @@ model CalendarEvent {
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   // Relations
-  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connection CalendarConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@unique([connectionId, googleEventId])
   @@index([userId, status])
@@ -1378,74 +1378,78 @@ model VacancyKeywordConfig {
   @@map("vacancy_keyword_config")
 }
 
-// ===== Seasonal Leaderboard =====
-// Gamified point system with tiered rankings and seasonal rotation.
+// ===== Initiative Leaderboard =====
+// Gamified point system with tiered rankings and initiative-based rotation.
 
-model Season {
-  id             Int       @id @default(autoincrement())
-  name           String    @db.VarChar(100)
-  seasonUid      String?   @unique @map("season_uid") @db.VarChar(30)
-  startDate      DateTime  @map("start_date") @db.Timestamptz
-  endDate        DateTime? @map("end_date") @db.Timestamptz
-  isActive       Boolean   @default(false) @map("is_active")
-  showName       Boolean   @default(true) @map("show_name")
-  showDates      Boolean   @default(true) @map("show_dates")
-  softResetTiers Int       @default(1) @map("soft_reset_tiers")
-  seasonWeight   Decimal   @default(0.6) @map("season_weight") @db.Decimal(3, 2)
-  pipelineWeight Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
-  takeWeight     Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+model Initiative {
+  id               Int       @id @default(autoincrement())
+  name             String    @db.VarChar(100)
+  initiativeUid    String?   @unique @map("initiative_uid") @db.VarChar(30)
+  startDate        DateTime  @map("start_date") @db.Timestamptz
+  endDate          DateTime? @map("end_date") @db.Timestamptz
+  isActive         Boolean   @default(false) @map("is_active")
+  showName         Boolean   @default(true) @map("show_name")
+  showDates        Boolean   @default(true) @map("show_dates")
+  softResetTiers   Int       @default(1) @map("soft_reset_tiers")
+  initiativeWeight   Decimal   @default(0.4) @map("initiative_weight") @db.Decimal(3, 2)
+  pipelineWeight     Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
+  pipelineFiscalYear String?   @map("pipeline_fiscal_year") @db.VarChar(10)
+  takeWeight         Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
+  takeFiscalYear     String?   @map("take_fiscal_year") @db.VarChar(10)
+  revenueWeight      Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
+  revenueFiscalYear  String?   @map("revenue_fiscal_year") @db.VarChar(10)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  metrics    SeasonMetric[]
-  scores     SeasonScore[]
-  thresholds SeasonTierThreshold[]
+  metrics    InitiativeMetric[]
+  scores     InitiativeScore[]
+  thresholds InitiativeTierThreshold[]
 
-  @@map("seasons")
+  @@map("initiatives")
 }
 
-model SeasonMetric {
-  id         Int     @id @default(autoincrement())
-  seasonId   Int     @map("season_id")
-  action     String  @db.VarChar(50)
-  pointValue Int     @map("point_value")
-  label      String  @db.VarChar(100)
-  weight     Decimal @default(1.0) @map("weight") @db.Decimal(4, 2)
+model InitiativeMetric {
+  id           Int     @id @default(autoincrement())
+  initiativeId Int     @map("initiative_id")
+  action       String  @db.VarChar(50)
+  pointValue   Int     @map("point_value")
+  label        String  @db.VarChar(100)
+  weight       Decimal @default(1.0) @map("weight") @db.Decimal(4, 2)
 
-  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
 
-  @@index([seasonId])
-  @@map("season_metrics")
+  @@index([initiativeId])
+  @@map("initiative_metrics")
 }
 
-model SeasonScore {
+model InitiativeScore {
   id          Int      @id @default(autoincrement())
-  seasonId    Int      @map("season_id")
+  initiativeId Int     @map("initiative_id")
   userId      String   @map("user_id") @db.Uuid
   totalPoints Int      @default(0) @map("total_points")
   tier        String   @default("freshman") @db.VarChar(20)
   rank        Int      @default(0)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  season Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  user   UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([seasonId, userId])
-  @@index([seasonId, totalPoints(sort: Desc)])
-  @@map("season_scores")
+  @@unique([initiativeId, userId])
+  @@index([initiativeId, totalPoints(sort: Desc)])
+  @@map("initiative_scores")
 }
 
-model SeasonTierThreshold {
-  id        Int    @id @default(autoincrement())
-  seasonId  Int    @map("season_id")
-  tier      String @db.VarChar(20)
-  minPoints Int    @map("min_points")
+model InitiativeTierThreshold {
+  id           Int    @id @default(autoincrement())
+  initiativeId Int    @map("initiative_id")
+  tier         String @db.VarChar(20)
+  minPoints    Int    @map("min_points")
 
-  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
 
-  @@unique([seasonId, tier])
-  @@index([seasonId])
-  @@map("season_tier_thresholds")
+  @@unique([initiativeId, tier])
+  @@index([initiativeId])
+  @@map("initiative_tier_thresholds")
 }
 
 model MetricRegistry {

@@ -5,10 +5,10 @@ import CollapsibleSection from "./CollapsibleSection";
 import PreviewConfirmModal from "./PreviewConfirmModal";
 import { useUpdateTiers, usePreviewChanges } from "@/features/admin/hooks/useAdminLeaderboard";
 import { TIER_LABELS, TIER_COLORS } from "@/features/leaderboard/lib/types";
-import type { AdminSeasonConfig } from "@/features/admin/lib/leaderboard-types";
+import type { AdminInitiativeConfig } from "@/features/admin/lib/leaderboard-types";
 
 interface TierThresholdsProps {
-  config: AdminSeasonConfig;
+  config: AdminInitiativeConfig;
 }
 
 const TIER_ORDER = ["valedictorian", "deans_list", "honor_roll", "freshman"] as const;

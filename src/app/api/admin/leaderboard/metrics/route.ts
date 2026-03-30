@@ -20,18 +20,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "metrics must be an array" }, { status: 400 });
     }
 
-    const season = await prisma.season.findFirst({ where: { isActive: true } });
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
+    const initiative = await prisma.initiative.findFirst({ where: { isActive: true } });
+    if (!initiative) {
+      return NextResponse.json({ error: "No active initiative" }, { status: 404 });
     }
 
-    // Replace all metrics for the season in a transaction
+    // Replace all metrics for the initiative in a transaction
     await prisma.$transaction([
-      prisma.seasonMetric.deleteMany({ where: { seasonId: season.id } }),
+      prisma.initiativeMetric.deleteMany({ where: { initiativeId: initiative.id } }),
       ...metrics.map((m) =>
-        prisma.seasonMetric.create({
+        prisma.initiativeMetric.create({
           data: {
-            seasonId: season.id,
+            initiativeId: initiative.id,
             action: m.action,
             label: m.label,
             pointValue: m.pointValue,
@@ -41,8 +41,8 @@ export async function PUT(request: NextRequest) {
       ),
     ]);
 
-    const updated = await prisma.seasonMetric.findMany({
-      where: { seasonId: season.id },
+    const updated = await prisma.initiativeMetric.findMany({
+      where: { initiativeId: initiative.id },
       orderBy: { id: "asc" },
     });
 

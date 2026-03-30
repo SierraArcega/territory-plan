@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
-import type { LeaderboardEntry, LeaderboardMyRank, SeasonInfo } from "./types";
+import type { LeaderboardEntry, LeaderboardMyRank, InitiativeInfo } from "./types";
 
 interface LeaderboardResponse {
-  season: SeasonInfo;
+  initiative: InitiativeInfo;
   entries: LeaderboardEntry[];
   metrics: { action: string; label: string; pointValue: number }[];
   thresholds: { tier: string; minPoints: number }[];

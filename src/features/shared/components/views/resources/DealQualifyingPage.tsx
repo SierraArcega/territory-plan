@@ -582,8 +582,8 @@ export default function DealQualifyingPage() {
         </a>
       </div>
 
-      {/* Section jump nav */}
-      <nav className="flex flex-wrap items-center gap-1.5 mb-8 pb-4 border-b border-[#E2DEEC]">
+      {/* Section jump nav — sticky */}
+      <nav className="sticky top-0 z-10 flex flex-wrap items-center gap-1.5 mb-8 pb-3 pt-3 -mt-3 border-b border-[#E2DEEC] bg-[#FFFCFA]">
         {SECTIONS.map((s) => (
           <a
             key={s.id}
@@ -815,7 +815,7 @@ export default function DealQualifyingPage() {
         {/* Callout */}
         <div className="mt-4 bg-[#F7F5FA] rounded-xl border border-[#E2DEEC] px-5 py-3">
           <p className="text-xs text-[#544A78] font-medium leading-relaxed">
-            Once in Salesforce beats five times in different spreadsheets.{" "}
+            Once in your CRM beats five times in different spreadsheets.{" "}
             <span className="text-[#F37167] font-semibold">
               BANT, MEDPICC, and next steps
             </span>{" "}

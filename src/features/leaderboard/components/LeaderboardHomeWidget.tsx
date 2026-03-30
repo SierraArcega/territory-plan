@@ -91,9 +91,9 @@ export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWi
         <span className="text-lg font-bold text-plum">#{data.rank}</span>
       </div>
 
-      {/* Season name */}
+      {/* Initiative name */}
       <p className="text-[10px] font-medium text-[#8A80A8] mb-1.5">
-        {data.seasonName}
+        {data.initiativeName}
       </p>
 
       {/* Ticker */}

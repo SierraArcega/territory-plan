@@ -31,47 +31,62 @@ describe("calculateTier", () => {
 });
 
 describe("calculateCombinedScore", () => {
-  it("calculates normalized combined score with 60/20/20 weights", () => {
+  it("calculates normalized combined score with 40/20/20/20 weights", () => {
     const score = calculateCombinedScore({
-      seasonPoints: 50,
-      maxSeasonPoints: 100,
+      initiativePoints: 50,
+      maxInitiativePoints: 100,
       pipeline: 200000,
       maxPipeline: 400000,
       take: 100000,
       maxTake: 500000,
-      seasonWeight: 0.6,
+      revenue: 150000,
+      maxRevenue: 300000,
+      initiativeWeight: 0.4,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
+      revenueWeight: 0.2,
     });
+    // initiative: 50/100=50% * 0.4 = 20
+    // pipeline:   200k/400k=50% * 0.2 = 10
+    // take:       100k/500k=20% * 0.2 = 4
+    // revenue:    150k/300k=50% * 0.2 = 10
+    // total = 44
     expect(score).toBeCloseTo(44);
   });
 
   it("handles zero max values gracefully", () => {
     const score = calculateCombinedScore({
-      seasonPoints: 50,
-      maxSeasonPoints: 100,
+      initiativePoints: 50,
+      maxInitiativePoints: 100,
       pipeline: 0,
       maxPipeline: 0,
       take: 0,
       maxTake: 0,
-      seasonWeight: 0.6,
+      revenue: 0,
+      maxRevenue: 0,
+      initiativeWeight: 0.4,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
+      revenueWeight: 0.2,
     });
-    expect(score).toBeCloseTo(30);
+    // Only initiative contributes: 50/100=50% * 0.4 = 20
+    expect(score).toBeCloseTo(20);
   });
 
   it("handles all zeros", () => {
     const score = calculateCombinedScore({
-      seasonPoints: 0,
-      maxSeasonPoints: 0,
+      initiativePoints: 0,
+      maxInitiativePoints: 0,
       pipeline: 0,
       maxPipeline: 0,
       take: 0,
       maxTake: 0,
-      seasonWeight: 0.6,
+      revenue: 0,
+      maxRevenue: 0,
+      initiativeWeight: 0.4,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
+      revenueWeight: 0.2,
     });
     expect(score).toBe(0);
   });

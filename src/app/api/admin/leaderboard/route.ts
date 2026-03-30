@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const season = await prisma.season.findFirst({
+    const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
       include: {
         metrics: { orderBy: { id: "asc" } },
@@ -19,14 +19,14 @@ export async function GET() {
       },
     });
 
-    if (!season) {
-      return NextResponse.json({ season: null, metrics: [], thresholds: [], repCounts: {} });
+    if (!initiative) {
+      return NextResponse.json({ initiative: null, metrics: [], thresholds: [], repCounts: {} });
     }
 
-    // Count reps per tier for the active season
-    const tierCounts = await prisma.seasonScore.groupBy({
+    // Count reps per tier for the active initiative
+    const tierCounts = await prisma.initiativeScore.groupBy({
       by: ["tier"],
-      where: { seasonId: season.id },
+      where: { initiativeId: initiative.id },
       _count: { tier: true },
     });
 
@@ -36,28 +36,32 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      season: {
-        id: season.id,
-        name: season.name,
-        seasonUid: season.seasonUid,
-        startDate: season.startDate.toISOString(),
-        endDate: season.endDate?.toISOString() ?? null,
-        isActive: season.isActive,
-        showName: season.showName,
-        showDates: season.showDates,
-        softResetTiers: season.softResetTiers,
-        seasonWeight: Number(season.seasonWeight),
-        pipelineWeight: Number(season.pipelineWeight),
-        takeWeight: Number(season.takeWeight),
+      initiative: {
+        id: initiative.id,
+        name: initiative.name,
+        initiativeUid: initiative.initiativeUid,
+        startDate: initiative.startDate.toISOString(),
+        endDate: initiative.endDate?.toISOString() ?? null,
+        isActive: initiative.isActive,
+        showName: initiative.showName,
+        showDates: initiative.showDates,
+        softResetTiers: initiative.softResetTiers,
+        initiativeWeight: Number(initiative.initiativeWeight),
+        pipelineWeight: Number(initiative.pipelineWeight),
+        takeWeight: Number(initiative.takeWeight),
+        revenueWeight: Number(initiative.revenueWeight),
+        pipelineFiscalYear: initiative.pipelineFiscalYear,
+        takeFiscalYear: initiative.takeFiscalYear,
+        revenueFiscalYear: initiative.revenueFiscalYear,
       },
-      metrics: season.metrics.map((m) => ({
+      metrics: initiative.metrics.map((m) => ({
         id: m.id,
         action: m.action,
         label: m.label,
         pointValue: m.pointValue,
         weight: Number(m.weight),
       })),
-      thresholds: season.thresholds.map((t) => ({
+      thresholds: initiative.thresholds.map((t) => ({
         id: t.id,
         tier: t.tier,
         minPoints: t.minPoints,

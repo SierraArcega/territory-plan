@@ -1,19 +1,23 @@
 // src/features/admin/lib/leaderboard-types.ts
 
-export interface AdminSeasonConfig {
-  season: {
+export interface AdminInitiativeConfig {
+  initiative: {
     id: number;
     name: string;
-    seasonUid: string | null;
+    initiativeUid: string | null;
     startDate: string;
     endDate: string | null;
     isActive: boolean;
     showName: boolean;
     showDates: boolean;
     softResetTiers: number;
-    seasonWeight: number;
+    initiativeWeight: number;
     pipelineWeight: number;
     takeWeight: number;
+    revenueWeight: number;
+    pipelineFiscalYear: string | null;
+    takeFiscalYear: string | null;
+    revenueFiscalYear: string | null;
   };
   metrics: AdminMetric[];
   thresholds: AdminThreshold[];
@@ -50,7 +54,7 @@ export interface PreviewResult {
   } | null;
 }
 
-export interface SeasonIdentityPayload {
+export interface InitiativeIdentityPayload {
   name: string;
   startDate: string;
   endDate: string | null;
@@ -67,16 +71,16 @@ export interface TiersPayload {
 }
 
 export interface WeightsPayload {
-  seasonWeight: number;
+  initiativeWeight: number;
   pipelineWeight: number;
   takeWeight: number;
-}
-
-export interface TransitionPayload {
-  softResetTiers: number;
+  revenueWeight: number;
+  pipelineFiscalYear: string | null;
+  takeFiscalYear: string | null;
+  revenueFiscalYear: string | null;
 }
 
 export interface PreviewPayload {
-  section: "season" | "metrics" | "tiers" | "weights" | "transition";
-  data: SeasonIdentityPayload | MetricsPayload | TiersPayload | WeightsPayload | TransitionPayload;
+  section: "initiative" | "metrics" | "tiers" | "weights";
+  data: InitiativeIdentityPayload | MetricsPayload | TiersPayload | WeightsPayload;
 }

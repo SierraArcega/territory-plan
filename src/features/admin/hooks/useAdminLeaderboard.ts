@@ -1,14 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type {
-  AdminSeasonConfig,
+  AdminInitiativeConfig,
   RegistryEntry,
   PreviewResult,
-  SeasonIdentityPayload,
+  InitiativeIdentityPayload,
   MetricsPayload,
   TiersPayload,
   WeightsPayload,
-  TransitionPayload,
   PreviewPayload,
 } from "@/features/admin/lib/leaderboard-types";
 
@@ -17,7 +16,7 @@ import type {
 export function useAdminLeaderboardConfig() {
   return useQuery({
     queryKey: ["admin", "leaderboard"],
-    queryFn: () => fetchJson<AdminSeasonConfig>(`${API_BASE}/admin/leaderboard`),
+    queryFn: () => fetchJson<AdminInitiativeConfig>(`${API_BASE}/admin/leaderboard`),
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -35,11 +34,11 @@ export function useMetricRegistry() {
 
 // ── Mutations ──
 
-export function useUpdateSeasonIdentity() {
+export function useUpdateInitiativeIdentity() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: SeasonIdentityPayload) =>
-      fetchJson(`${API_BASE}/admin/leaderboard/season`, {
+    mutationFn: (data: InitiativeIdentityPayload) =>
+      fetchJson(`${API_BASE}/admin/leaderboard/initiative`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -95,20 +94,6 @@ export function useUpdateWeights() {
   });
 }
 
-export function useUpdateTransition() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: TransitionPayload) =>
-      fetchJson(`${API_BASE}/admin/leaderboard/transition`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "leaderboard"] });
-    },
-  });
-}
-
 export function usePreviewChanges() {
   return useMutation({
     mutationFn: (data: PreviewPayload) =>
@@ -119,11 +104,14 @@ export function usePreviewChanges() {
   });
 }
 
-export function useCreateNewSeason() {
+export function useCreateNewInitiative() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      fetchJson(`${API_BASE}/admin/leaderboard/season/new`, { method: "POST" }),
+    mutationFn: (opts: { backfill: boolean }) =>
+      fetchJson(`${API_BASE}/admin/leaderboard/initiative/new`, {
+        method: "POST",
+        body: JSON.stringify(opts),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
@@ -131,11 +119,23 @@ export function useCreateNewSeason() {
   });
 }
 
-export function useEndSeason() {
+export function useEndInitiative() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      fetchJson(`${API_BASE}/admin/leaderboard/season/end`, { method: "POST" }),
+      fetchJson(`${API_BASE}/admin/leaderboard/initiative/end`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+}
+
+export function useRecalculateScores() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      fetchJson(`${API_BASE}/admin/leaderboard/recalculate`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
