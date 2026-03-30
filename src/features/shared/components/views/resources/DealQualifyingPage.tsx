@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Search } from "lucide-react";
 
 // ── Expandable Section ────────────────────────────────────────────────────────
 
@@ -125,6 +125,11 @@ const BANT_ELEMENTS = [
     letter: "B",
     name: "Budget",
     definition: "What is the budget and how is it determined?",
+    topQuestions: [
+      "What is the budget and how is it determined?",
+      "How much does the problem currently cost you?",
+      "How do you measure ROI for investments like this?",
+    ],
     questions: [
       "What is the budget?",
       "How is it determined?",
@@ -142,6 +147,11 @@ const BANT_ELEMENTS = [
     letter: "A",
     name: "Authority",
     definition: "Who has the ability to say yes and make the final decision?",
+    topQuestions: [
+      "Who has the ability to say yes?",
+      "Who makes the final decision?",
+      "Do you have a formal approval process?",
+    ],
     questions: [
       "Who has the ability to say yes?",
       "Who is involved in the purchasing process?",
@@ -156,6 +166,11 @@ const BANT_ELEMENTS = [
     letter: "N",
     name: "Need",
     definition: "What problems are they trying to solve?",
+    topQuestions: [
+      "What problems are you trying to solve?",
+      "What prompted you to look for a solution now?",
+      "What would a successful solution look like?",
+    ],
     questions: [
       "What problems are you trying to solve?",
       "What specific challenges or pain points are you trying to solve with this solution?",
@@ -174,6 +189,11 @@ const BANT_ELEMENTS = [
     name: "Timing",
     definition:
       "When would they be ready to implement our solutions including payment?",
+    topQuestions: [
+      "When would you be ready to implement including payment?",
+      "What determines the timeline / close date?",
+      "What happens if we miss this date?",
+    ],
     questions: [
       "When would you be ready to implement our solutions including payment?",
       "What determines the timeline / close date?",
@@ -197,6 +217,10 @@ const MEDPICC_ELEMENTS = [
     letter: "M",
     name: "Metrics",
     definition: "The quantifiable measures of value that your solution can provide.",
+    topQuestions: [
+      "What criteria matter most when evaluating a purchase?",
+      "How do you measure the financial impact of a new solution?",
+    ],
     questions: [
       "What factors or criteria are most important to you when evaluating a potential purchase?",
       "How do you measure the financial impact of a new solution or investment?",
@@ -224,6 +248,10 @@ const MEDPICC_ELEMENTS = [
     name: "Economic Buyer",
     definition:
       "The person with the overall authority in the buying decision.",
+    topQuestions: [
+      "Who is ultimately responsible for approving this budget?",
+      "Can you walk me through your approval process?",
+    ],
     questions: [
       "Who in your organization is ultimately responsible for making purchasing decisions and approving budgets?",
       "How much discretion do you have in allocating budget for new projects or solutions?",
@@ -243,6 +271,10 @@ const MEDPICC_ELEMENTS = [
     name: "Decision Criteria & Process",
     definition:
       "Criteria with which your solution will be judged in the buying process, and the process the buyer will follow to make a decision.",
+    topQuestions: [
+      "What are the most important capabilities you're looking for?",
+      "Walk me through your evaluation and selection steps.",
+    ],
     questions: [
       "What are the most important features or capabilities you're looking for in a solution?",
       "If you had to rank the most critical factors in this decision, what would they be?",
@@ -264,6 +296,10 @@ const MEDPICC_ELEMENTS = [
     name: "Procurement Process",
     definition:
       "Steps that follow the Decision Process from Decision to signature including factors that impact the speed of deal closing.",
+    topQuestions: [
+      "Walk me through your procurement process start to finish.",
+      "Is the budget already approved or does it need further review?",
+    ],
     questions: [
       "Can you walk me through the steps involved in your procurement process from start to finish?",
       "What documents will you need from us to move forward in the procurement process?",
@@ -286,6 +322,10 @@ const MEDPICC_ELEMENTS = [
     name: "Identified Pain",
     definition:
       "Identify the Pain your solution solves for your customer; understand what happens if no decision is made or something goes wrong.",
+    topQuestions: [
+      "What are the biggest challenges you're currently facing?",
+      "What's the worst-case scenario if this isn't addressed?",
+    ],
     questions: [
       "What are the biggest challenges you are currently facing in your business?",
       "How is this issue impacting your day-to-day operations or bottom line?",
@@ -308,6 +348,10 @@ const MEDPICC_ELEMENTS = [
     name: "Champion",
     definition:
       "A person who has power, influence, and credibility within the customer's organization.",
+    topQuestions: [
+      "Who will be most affected and would benefit from this solution?",
+      "How committed are you to driving this forward?",
+    ],
     questions: [
       "Who in your organization will be most affected by solving this problem and would benefit from this solution?",
       "How involved are you in the decision-making process and how do you influence the final decision?",
@@ -327,6 +371,10 @@ const MEDPICC_ELEMENTS = [
     name: "Competition",
     definition:
       "Any person, vendor, or initiative competing for the same funds you are, including taking no action.",
+    topQuestions: [
+      "What other solutions or vendors are you considering?",
+      "What do you see as our biggest advantage vs. competitors?",
+    ],
     questions: [
       "What other solutions or vendors are you currently considering for this project?",
       "How do you perceive our solution in comparison to others you're evaluating?",
@@ -352,6 +400,7 @@ function FrameworkCard({
   letter,
   name,
   definition,
+  topQuestions,
   questions,
   examples,
   strategic,
@@ -359,6 +408,7 @@ function FrameworkCard({
   letter: string;
   name: string;
   definition: string;
+  topQuestions?: string[];
   questions: string[];
   examples?: string[];
   strategic?: string[];
@@ -378,6 +428,23 @@ function FrameworkCard({
         </div>
       </div>
 
+      {/* Top questions — always visible */}
+      {topQuestions && (
+        <div className="mb-2">
+          <p className="text-xs font-semibold text-[#544A78] mb-1.5">Start here:</p>
+          <ul className="space-y-1">
+            {topQuestions.map((q, i) => (
+              <li
+                key={i}
+                className="text-xs text-[#6E6390] pl-3 border-l-2 border-[#F37167]/30 leading-relaxed"
+              >
+                {q}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Examples (MEDPICC Metrics only) */}
       {examples && (
         <ExpandableSection title="Examples">
@@ -391,8 +458,8 @@ function FrameworkCard({
         </ExpandableSection>
       )}
 
-      {/* Qualifying questions */}
-      <ExpandableSection title="Qualifying Questions">
+      {/* All qualifying questions */}
+      <ExpandableSection title={`All Questions (${questions.length})`}>
         <ul className="list-disc pl-5 space-y-1.5">
           {questions.map((q, i) => (
             <li key={i} className="text-xs">
@@ -428,21 +495,193 @@ function FrameworkCard({
 
 // ── Main Page Component ───────────────────────────────────────────────────────
 
+// ── Section Nav ───────────────────────────────────────────────────────────────
+
+const SECTIONS = [
+  { id: "stage-finder", label: "What Stage Am I In?" },
+  { id: "overview", label: "Overview" },
+  { id: "pipeline", label: "Pipeline" },
+  { id: "bant", label: "BANT" },
+  { id: "medpicc", label: "MEDPICC" },
+];
+
+// ── Stage Finder Data ─────────────────────────────────────────────────────────
+
+const STAGE_SIGNALS = [
+  {
+    signal: "Prospect has agreed to a meeting",
+    stage: 0,
+    name: "Meeting Booked",
+    pct: "0%",
+    framework: "BANT",
+    nextStep: "Prepare BANT research — budget sources, decision-makers, timeline drivers.",
+  },
+  {
+    signal: "Prospect has agreed to be qualified and shared information",
+    stage: 1,
+    name: "Discovery",
+    pct: "10%",
+    framework: "BANT",
+    nextStep: "Confirm all four BANT elements. Identify the buying committee.",
+  },
+  {
+    signal: "Prospect invited their committee to a sales discussion",
+    stage: 2,
+    name: "Presentation",
+    pct: "40%",
+    framework: "BANT",
+    nextStep: "Finalize BANT with all attendees. Confirm explicitly.",
+  },
+  {
+    signal: "Prospect asked for a written quote with a dollar figure",
+    stage: 3,
+    name: "Proposal",
+    pct: "60%",
+    framework: "BANT → MEDPICC",
+    nextStep: "Ensure quote includes certifications, dates, SWD, content. Get MEDPICC confirmed in writing.",
+  },
+  {
+    signal: "Prospect confirmed receipt and is discussing the quote",
+    stage: 4,
+    name: "Negotiation",
+    pct: "70%",
+    framework: "MEDPICC",
+    nextStep: "Confirm all MEDPICC elements. Get a deadline for their response.",
+  },
+  {
+    signal: "Prospect confirmed the contract is approved — only signature remains",
+    stage: 5,
+    name: "Commitment",
+    pct: "90%",
+    framework: "MEDPICC",
+    nextStep: "Confirm who is signing and when. Follow up until ink is on paper.",
+  },
+];
+
 export default function DealQualifyingPage() {
+  const [selectedSignal, setSelectedSignal] = useState<number | null>(null);
+
   return (
     <div className="max-w-[960px] mx-auto">
       {/* Page header */}
-      <div className="mb-8">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-[#403770] tracking-tight">
           Deal Qualifying
         </h1>
         <p className="text-sm text-[#8A80A8] mt-1">
           BANT and MEDPICC frameworks for qualifying deals across your pipeline.
         </p>
+        <a
+          href="https://docs.google.com/presentation/d/1jEZN3heIuGnXCxTnPqax0_oWwPPFDvC0u_rJaAH5CS4/edit#slide=id.g341d6806c7e_0_0"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-[#6EA3BE] hover:text-[#403770] transition-colors duration-100"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          View or download the full slide deck
+        </a>
       </div>
 
+      {/* Section jump nav */}
+      <nav className="flex flex-wrap items-center gap-1.5 mb-8 pb-4 border-b border-[#E2DEEC]">
+        {SECTIONS.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            className="px-3 py-1.5 text-xs font-medium text-[#6E6390] hover:text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors duration-100"
+          >
+            {s.label}
+          </a>
+        ))}
+      </nav>
+
+      {/* ── Stage Finder ────────────────────────────────────────────────── */}
+      <section id="stage-finder" className="mb-10 scroll-mt-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Search className="w-4.5 h-4.5 text-[#F37167]" />
+          <h2 className="text-lg font-bold text-[#403770]">
+            What Stage Am I In?
+          </h2>
+        </div>
+        <p className="text-sm text-[#6E6390] mb-4 leading-relaxed">
+          Select the customer action that best describes where your deal is
+          right now.
+        </p>
+
+        <div className="space-y-2">
+          {STAGE_SIGNALS.map((s) => {
+            const isSelected = selectedSignal === s.stage;
+            return (
+              <button
+                key={s.stage}
+                onClick={() =>
+                  setSelectedSignal(isSelected ? null : s.stage)
+                }
+                className={`w-full text-left rounded-xl border px-4 py-3 transition-all duration-150 ${
+                  isSelected
+                    ? "bg-[#fef1f0] border-[#F37167] shadow-sm"
+                    : "bg-white border-[#D4CFE2] hover:border-[#C2BBD4] hover:shadow-sm"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Radio indicator */}
+                  <div
+                    className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                      isSelected
+                        ? "border-[#F37167]"
+                        : "border-[#C2BBD4]"
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="w-2 h-2 rounded-full bg-[#F37167]" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm leading-relaxed ${
+                        isSelected
+                          ? "font-semibold text-[#403770]"
+                          : "text-[#6E6390]"
+                      }`}
+                    >
+                      {s.signal}
+                    </p>
+
+                    {/* Result — shown when selected */}
+                    {isSelected && (
+                      <div className="mt-3 pt-3 border-t border-[#F37167]/20">
+                        <div className="flex items-baseline gap-3 mb-2">
+                          <span className="text-lg font-bold text-[#F37167]">
+                            {s.pct}
+                          </span>
+                          <span className="text-sm font-bold text-[#403770]">
+                            Stage {s.stage} — {s.name}
+                          </span>
+                          <span className="text-xs font-semibold text-[#8A80A8]">
+                            {s.framework}
+                          </span>
+                        </div>
+                        <div className="bg-[#F7F5FA] rounded-lg px-3 py-2">
+                          <p className="text-xs font-semibold text-[#544A78] mb-0.5">
+                            Next step:
+                          </p>
+                          <p className="text-xs text-[#6E6390] leading-relaxed">
+                            {s.nextStep}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* ── Section 1: Overview ──────────────────────────────────────────── */}
-      <section className="mb-10">
+      <section id="overview" className="mb-10 scroll-mt-4">
         <h2 className="text-lg font-bold text-[#403770] mb-4">
           Why Qualifying Matters
         </h2>
@@ -486,7 +725,7 @@ export default function DealQualifyingPage() {
       </section>
 
       {/* ── Section 2: Pipeline Stages ───────────────────────────────────── */}
-      <section className="mb-10">
+      <section id="pipeline" className="mb-10 scroll-mt-4">
         <h2 className="text-lg font-bold text-[#403770] mb-2">
           Pipeline Stages
         </h2>
@@ -497,65 +736,80 @@ export default function DealQualifyingPage() {
           , not your internal assessment.
         </p>
 
-        {/* Framework range indicator */}
-        <div className="flex items-center gap-2 mb-4 text-xs font-semibold">
-          <span className="px-2.5 py-1 rounded-lg bg-[#e8f1f5] text-[#6EA3BE]">
-            BANT — Stages 0–3
-          </span>
-          <span className="px-2.5 py-1 rounded-lg bg-[#fef1f0] text-[#F37167]">
-            MEDPICC — Stages 3–5
-          </span>
-        </div>
+        {/* Pipeline timeline */}
+        <div className="relative">
+          {PIPELINE_STAGES.map((s, idx) => {
+            const isBant = s.framework === "bant";
+            const color = isBant ? "#6EA3BE" : "#F37167";
+            const bgTint = isBant ? "#e8f1f5" : "#fef1f0";
+            const isLast = idx === PIPELINE_STAGES.length - 1;
 
-        {/* Stage cards */}
-        <div className="space-y-3">
-          {PIPELINE_STAGES.map((s) => (
-            <div
-              key={s.stage}
-              className={`bg-white rounded-xl border shadow-sm px-5 py-4 ${
-                s.framework === "bant"
-                  ? "border-[#6EA3BE]/30"
-                  : "border-[#F37167]/30"
-              }`}
-            >
-              <div className="flex items-baseline gap-3 mb-2">
-                <span
-                  className={`text-lg font-bold ${
-                    s.framework === "bant"
-                      ? "text-[#6EA3BE]"
-                      : "text-[#F37167]"
-                  }`}
+            return (
+              <div key={s.stage} className="flex gap-4">
+                {/* Timeline rail */}
+                <div className="flex flex-col items-center flex-shrink-0 w-12">
+                  {/* Percentage badge */}
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center border-2 text-xs font-bold z-10"
+                    style={{
+                      borderColor: color,
+                      backgroundColor: bgTint,
+                      color: color,
+                    }}
+                  >
+                    {s.pct}
+                  </div>
+                  {/* Connector line */}
+                  {!isLast && (
+                    <div
+                      className="w-0.5 flex-1 min-h-4"
+                      style={{ backgroundColor: `${color}40` }}
+                    />
+                  )}
+                </div>
+
+                {/* Stage content card */}
+                <div
+                  className="flex-1 mb-3 bg-white rounded-xl border shadow-sm px-5 py-4"
+                  style={{ borderColor: `${color}30` }}
                 >
-                  {s.pct}
-                </span>
-                <span className="text-sm font-bold text-[#403770]">
-                  {s.stage} — {s.name}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-                <div>
-                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
-                    Criteria
-                  </p>
-                  <ul className="text-xs text-[#6E6390] space-y-0.5">
-                    {s.criteria.map((c, i) => (
-                      <li key={i}>• {c}</li>
-                    ))}
-                  </ul>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                      style={{ backgroundColor: bgTint, color }}
+                    >
+                      {isBant ? "BANT" : "MEDPICC"}
+                    </span>
+                    <span className="text-sm font-bold text-[#403770]">
+                      {s.stage} — {s.name}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                    <div>
+                      <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
+                        Criteria
+                      </p>
+                      <ul className="text-xs text-[#6E6390] space-y-0.5">
+                        {s.criteria.map((c, i) => (
+                          <li key={i}>• {c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
+                        Customer Actions
+                      </p>
+                      <ul className="text-xs text-[#6E6390] space-y-0.5">
+                        {s.customerActions.map((a, i) => (
+                          <li key={i}>• {a}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider mb-1">
-                    Customer Actions
-                  </p>
-                  <ul className="text-xs text-[#6E6390] space-y-0.5">
-                    {s.customerActions.map((a, i) => (
-                      <li key={i}>• {a}</li>
-                    ))}
-                  </ul>
-                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Callout */}
@@ -571,7 +825,7 @@ export default function DealQualifyingPage() {
       </section>
 
       {/* ── Section 3: BANT Framework ────────────────────────────────────── */}
-      <section className="mb-10">
+      <section id="bant" className="mb-10 scroll-mt-4">
         <h2 className="text-lg font-bold text-[#403770] mb-1">
           BANT Framework
         </h2>
@@ -591,7 +845,7 @@ export default function DealQualifyingPage() {
       </section>
 
       {/* ── Section 4: MEDPICC Framework ─────────────────────────────────── */}
-      <section className="mb-10">
+      <section id="medpicc" className="mb-10 scroll-mt-4">
         <h2 className="text-lg font-bold text-[#403770] mb-1">
           MEDPICC Framework
         </h2>
@@ -610,74 +864,6 @@ export default function DealQualifyingPage() {
         </div>
       </section>
 
-      {/* ── Section 5: Quick Reference ───────────────────────────────────── */}
-      <section className="mb-10">
-        <h2 className="text-lg font-bold text-[#403770] mb-4">
-          Quick Reference
-        </h2>
-        <div className="bg-white rounded-xl border border-[#D4CFE2] shadow-sm overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-[#F7F5FA]">
-                <th className="text-left px-4 py-2.5 font-semibold text-[#544A78]">
-                  Stage
-                </th>
-                <th className="text-left px-4 py-2.5 font-semibold text-[#544A78]">
-                  Framework
-                </th>
-                <th className="text-left px-4 py-2.5 font-semibold text-[#544A78]">
-                  Key Question
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                {
-                  stage: "0 — Meeting Booked",
-                  fw: "BANT",
-                  q: "Is there a real meeting on the calendar?",
-                },
-                {
-                  stage: "1 — Discovery",
-                  fw: "BANT",
-                  q: "Have we confirmed Budget, Authority, Need, Timing?",
-                },
-                {
-                  stage: "2 — Presentation",
-                  fw: "BANT",
-                  q: "Did we meet with the committee and finalize BANT?",
-                },
-                {
-                  stage: "3 — Proposal",
-                  fw: "BANT → MEDPICC",
-                  q: "Have they asked for a written quote with a dollar figure?",
-                },
-                {
-                  stage: "4 — Negotiation",
-                  fw: "MEDPICC",
-                  q: "Are we confident on all MEDPICC elements?",
-                },
-                {
-                  stage: "5 — Commitment",
-                  fw: "MEDPICC",
-                  q: "Is the only remaining step a signature?",
-                },
-              ].map((row, i) => (
-                <tr
-                  key={i}
-                  className="border-t border-[#E2DEEC] hover:bg-[#EFEDF5] transition-colors duration-100"
-                >
-                  <td className="px-4 py-2.5 font-medium text-[#403770]">
-                    {row.stage}
-                  </td>
-                  <td className="px-4 py-2.5 text-[#6E6390]">{row.fw}</td>
-                  <td className="px-4 py-2.5 text-[#6E6390]">{row.q}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </div>
   );
 }
