@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
         : null;
 
     return NextResponse.json({
+      userId: user.id,
       initiativeName: initiative.name,
       rank: myIndex + 1,
       totalReps: allScores.length,

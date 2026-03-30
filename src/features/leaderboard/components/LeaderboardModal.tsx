@@ -31,26 +31,12 @@ const VIEW_CONFIG: {
   value: LeaderboardView;
   label: string;
   icon: typeof Trophy;
-  description: string;
 }[] = [
-  {
-    value: "combined",
-    label: "Combined",
-    icon: Zap,
-    description: "Weighted blend of initiative points, pipeline, take, and revenue — normalized across all reps.",
-  },
-  {
-    value: "initiative",
-    label: "Initiative Points",
-    icon: Target,
-    description: "Points earned from tracked actions: creating plans, logging activities, and targeting revenue.",
-  },
-  {
-    value: "take",
-    label: "Take",
-    icon: DollarSign,
-    description: "Total take (net revenue after costs) from closed opportunities in the selected fiscal year.",
-  },
+  { value: "combined", label: "Combined", icon: Zap },
+  { value: "initiative", label: "Initiative", icon: Target },
+  { value: "pipeline", label: "Pipeline", icon: TrendingUp },
+  { value: "take", label: "Take", icon: DollarSign },
+  { value: "revenue", label: "Revenue", icon: Trophy },
 ];
 
 export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
@@ -84,10 +70,25 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
       }
     : { initiative: 40, pipeline: 20, take: 20, revenue: 20 };
 
+  // Format fiscal year for display — "2025-26" → "FY26", null → "Current FY"
+  const formatFY = (fy: string | null | undefined): string => {
+    if (!fy) return "Current FY";
+    const parts = fy.split("-");
+    return `FY${parts[1] ?? fy}`;
+  };
+
+  const fyLabels = {
+    pipeline: formatFY(initiative?.pipelineFiscalYear),
+    take: formatFY(initiative?.takeFiscalYear),
+    revenue: formatFY(initiative?.revenueFiscalYear),
+  };
+
   // Sort entries by the active view
   const sortedEntries = [...(leaderboard?.entries ?? [])].sort((a, b) => {
     if (view === "combined") return b.combinedScore - a.combinedScore;
     if (view === "initiative") return b.totalPoints - a.totalPoints;
+    if (view === "pipeline") return b.pipeline - a.pipeline;
+    if (view === "revenue") return b.revenue - a.revenue;
     return b.take - a.take;
   });
 
@@ -99,6 +100,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
   const getScore = (entry: LeaderboardEntry): string => {
     if (view === "combined") return entry.combinedScore.toFixed(1);
     if (view === "initiative") return `${entry.totalPoints} pts`;
+    if (view === "pipeline") return formatCurrency(entry.pipeline);
+    if (view === "revenue") return formatCurrency(entry.revenue);
     return formatCurrency(entry.take);
   };
 
@@ -151,28 +154,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
             </p>
           )}
 
-          {/* Tab pills + details link */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex gap-1.5">
-              {VIEW_CONFIG.map((opt) => {
-                const Icon = opt.icon;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => setView(opt.value)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      view === opt.value
-                        ? "bg-[#403770] text-white"
-                        : "bg-[#F7F5FA] text-[#8A80A8] hover:text-[#403770]"
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-            {onNavigateToDetails && (
+          {onNavigateToDetails && (
+            <div className="mt-3 flex justify-end">
               <button
                 onClick={() => {
                   onClose();
@@ -182,48 +165,47 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
               >
                 Show me details
               </button>
-            )}
-          </div>
-
-          {/* View description */}
-          <p className="mt-3 text-xs text-[#6E6390] leading-relaxed">
-            {activeViewConfig.description}
-            {view === "combined" && (
-              <span className="text-[#8A80A8]">
-                {" "}Current weights: Initiative {weights.initiative}%, Pipeline {weights.pipeline}%, Take {weights.take}%, Revenue {weights.revenue}%.
-              </span>
-            )}
-          </p>
+            </div>
+          )}
         </div>
 
-        {/* My rank card */}
-        {myRank && (
-          <div className="px-6 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
-            <div className="flex items-center gap-3">
-              <TierBadge tierRank={myRank.tier ?? "freshman"} size="lg" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-[#403770]">
-                    #{myRank.rank}
-                  </span>
-                  <span className="text-xs text-[#8A80A8]">
-                    of {myRank.totalReps} reps
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                  {myRank.pointBreakdown.map((b) => (
-                    <span key={b.action} className="text-[10px] text-[#8A80A8]">
-                      {b.count} {b.label.toLowerCase()} x {b.pointValue}pts = {b.total}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <span className="text-lg font-bold text-[#403770]">
-                {myRank.totalPoints} pts
-              </span>
-            </div>
+        {/* Tabs + description */}
+        <div className="border-b border-[#E2DEEC]">
+          <div className="flex px-6">
+            {VIEW_CONFIG.map((opt) => {
+              const Icon = opt.icon;
+              const isActive = view === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setView(opt.value)}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+                    isActive
+                      ? "border-[#403770] text-[#403770]"
+                      : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
-        )}
+          <p className="px-6 py-2 text-[11px] text-[#6E6390] bg-[#F7F5FA] leading-relaxed">
+            {view === "combined" && (
+              <>
+                Weighted blend of all metrics, normalized across reps.
+                <span className="text-[#8A80A8]">
+                  {" "}Initiative {weights.initiative}% · Pipeline {weights.pipeline}% ({fyLabels.pipeline}) · Take {weights.take}% ({fyLabels.take}) · Revenue {weights.revenue}% ({fyLabels.revenue})
+                </span>
+              </>
+            )}
+            {view === "initiative" && "Points from tracked actions — plans created, activities logged, and revenue targeted."}
+            {view === "pipeline" && (<>Weighted pipeline from open opportunities in <span className="font-medium text-[#403770]">{fyLabels.pipeline}</span>.</>)}
+            {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
+            {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
+          </p>
+        </div>
 
         {/* Rankings */}
         <div className="flex-1 overflow-y-auto">
@@ -270,6 +252,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                       <div className="divide-y divide-[#E2DEEC]">
                         {tierEntries.map((entry) => {
                           const isExpanded = expandedUser === entry.userId;
+                          const isMe = myRank?.userId === entry.userId;
 
                           return (
                             <div key={entry.userId}>
@@ -278,7 +261,11 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                                 onClick={() =>
                                   setExpandedUser(isExpanded ? null : entry.userId)
                                 }
-                                className="w-full flex items-center gap-3 px-6 py-3 transition-colors hover:bg-[#FAFAFA] text-left"
+                                className={`w-full flex items-center gap-3 px-6 py-3 transition-colors text-left ${
+                                  isMe
+                                    ? "bg-[#C4E7E6]/20 border-l-3 border-l-[#C4E7E6]"
+                                    : "hover:bg-[#FAFAFA]"
+                                }`}
                               >
                                 <span className="w-8 text-sm font-bold text-[#403770] text-right">
                                   #{entry.displayRank}
@@ -305,6 +292,9 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
 
                                 <span className="flex-1 text-sm font-medium text-[#403770] truncate">
                                   {entry.fullName}
+                                  {isMe && (
+                                    <span className="ml-1.5 text-[10px] font-semibold text-[#6EA3BE]">You</span>
+                                  )}
                                 </span>
 
                                 <TierBadge tierRank={entry.tier} size="sm" />
@@ -382,21 +372,21 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                                         />
                                         <ScoreRow
                                           icon={TrendingUp}
-                                          label="Pipeline"
+                                          label={`Pipeline (${fyLabels.pipeline})`}
                                           value={formatCurrency(entry.pipeline)}
                                           weight={weights.pipeline}
                                           color="#6EA3BE"
                                         />
                                         <ScoreRow
                                           icon={DollarSign}
-                                          label="Take"
+                                          label={`Take (${fyLabels.take})`}
                                           value={formatCurrency(entry.take)}
                                           weight={weights.take}
                                           color="#69B34A"
                                         />
                                         <ScoreRow
                                           icon={Trophy}
-                                          label="Revenue"
+                                          label={`Revenue (${fyLabels.revenue})`}
                                           value={formatCurrency(entry.revenue)}
                                           weight={weights.revenue}
                                           color="#D4A843"

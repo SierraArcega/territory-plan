@@ -55,6 +55,7 @@ export interface LeaderboardEntry {
 }
 
 export interface LeaderboardMyRank {
+  userId: string;
   initiativeName: string;
   rank: number;
   totalReps: number;
@@ -93,4 +94,4 @@ export interface InitiativeInfo {
   revenueFiscalYear: string | null;
 }
 
-export type LeaderboardView = "combined" | "initiative" | "take";
+export type LeaderboardView = "combined" | "initiative" | "pipeline" | "take" | "revenue";
