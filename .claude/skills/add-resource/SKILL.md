@@ -67,9 +67,7 @@ Wait for user confirmation before proceeding.
 
 Check whether the Resources tab wiki layout exists:
 
-```
-Grep ResourcesView.tsx for "RESOURCE_PAGES"
-```
+Use the Grep tool: pattern `RESOURCE_PAGES`, path `src/features/shared/components/views/ResourcesView.tsx`
 
 **Path:** `src/features/shared/components/views/ResourcesView.tsx`
 
@@ -112,7 +110,7 @@ Grep ResourcesView.tsx for "RESOURCE_PAGES"
      id: string;
      label: string;
      category: string;
-     component: React.ComponentType;
+     component: React.FC;
    }
 
    const RESOURCE_PAGES: ResourcePage[] = [
@@ -129,7 +127,7 @@ Grep ResourcesView.tsx for "RESOURCE_PAGES"
    - `TabId` type (includes `"resources"`)
    - `ResourcesView` import in `page.tsx`
 
-   Use the `/frontend-design` skill to build this layout with full brand compliance. Read `Documentation/UI Framework/tokens.md` first.
+   Use the `/frontend-design` skill to build this layout with full brand compliance. Read `Documentation/UI Framework/tokens.md` first. **After `/frontend-design` completes, return here and continue with Step 4.**
 
 **If `RESOURCE_PAGES` IS found** — skip to Step 4.
 
@@ -167,7 +165,7 @@ Generate a structured brief, then invoke the `/frontend-design` skill to build t
 
 **IMPORTANT:** The Content Sections must include the actual content from the source material, not just descriptions. The `/frontend-design` skill needs the real text to build the page.
 
-After writing the brief, invoke the `/frontend-design` skill to build the component. Pass the brief as context. The component should:
+After writing the brief, invoke the `/frontend-design` skill to build the component. Pass the brief as context. **After `/frontend-design` completes, return here and continue with Step 5.** The component should:
 - Be a React component in `src/features/shared/components/views/resources/[Name]Page.tsx`
 - Use `"use client"` directive
 - Accept no props (content is baked in)
@@ -188,11 +186,11 @@ After `/frontend-design` creates the page component:
    { id: "[slug]", label: "[title]", category: "[category]", component: [ComponentName] },
    ```
 
-3. **Verify** — run the dev server and confirm no build errors:
+3. **Verify** — check for TypeScript errors:
    ```bash
-   npm run dev
+   npx tsc --noEmit
    ```
-   Check that the page appears in the Resources tab sidebar and renders correctly.
+   If clean, start the dev server (`npm run dev`) and confirm the page appears in the Resources tab sidebar and renders correctly.
 
 ## Resource Categories
 
