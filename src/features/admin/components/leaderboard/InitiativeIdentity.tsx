@@ -59,6 +59,32 @@ export default function InitiativeIdentity({ config }: InitiativeIdentityProps) 
     <>
       <CollapsibleSection title="Initiative Identity" defaultOpen>
         <div className="space-y-4">
+          {/* Active since banner */}
+          {initiative.isActive && (
+            <div className="px-3 py-2 bg-[#F7FFF2] border border-[#69B34A]/20 rounded-lg text-sm text-[#4A8A2F]">
+              This initiative has been active since{" "}
+              <span className="font-medium">
+                {new Date(initiative.startDate).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+              {initiative.endDate && (
+                <>
+                  {" "}and is set to end{" "}
+                  <span className="font-medium">
+                    {new Date(initiative.endDate).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Initiative UID (read-only) */}
           <div>
             <label className="block text-sm font-medium text-[#6E6390] mb-1">Initiative UID</label>

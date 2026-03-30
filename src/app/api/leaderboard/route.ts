@@ -88,21 +88,22 @@ export async function GET(request: NextRequest) {
 
     const thresholdData = initiative.thresholds.map((t) => ({ tier: t.tier, minPoints: t.minPoints }));
 
-    // Fetch per-user action counts for point breakdowns
+    // Fetch per-user action counts for point breakdowns (only since initiative start)
     const userIds = scores.map((s) => s.userId);
+    const sinceDate = initiative.startDate;
     const [planCounts, activityCounts, planDistricts] = await Promise.all([
       prisma.territoryPlan.groupBy({
         by: ["userId"],
-        where: { userId: { in: userIds } },
+        where: { userId: { in: userIds }, createdAt: { gte: sinceDate } },
         _count: true,
       }),
       prisma.activity.groupBy({
         by: ["createdByUserId"],
-        where: { createdByUserId: { in: userIds } },
+        where: { createdByUserId: { in: userIds }, createdAt: { gte: sinceDate } },
         _count: true,
       }),
       prisma.territoryPlanDistrict.findMany({
-        where: { plan: { userId: { in: userIds } } },
+        where: { plan: { userId: { in: userIds }, createdAt: { gte: sinceDate } } },
         select: {
           renewalTarget: true,
           winbackTarget: true,
@@ -140,6 +141,7 @@ export async function GET(request: NextRequest) {
       where: {
         plan: {
           userId: { in: userIds },
+          createdAt: { gte: sinceDate },
           ...(revenueTargetedFY ? { fiscalYear: revenueTargetedFY } : {}),
         },
       },

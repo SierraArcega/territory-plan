@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json().catch(() => ({}));
     const backfill = (body as { backfill?: boolean }).backfill ?? false;
+    const customStartDate = (body as { startDate?: string }).startDate
+      ? new Date((body as { startDate?: string }).startDate!)
+      : null;
 
     const uid = `s_${Math.floor(Date.now() / 1000)}`;
 
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: current ? current.name : "New Initiative",
         initiativeUid: uid,
-        startDate: new Date(),
+        startDate: customStartDate ?? new Date(),
         isActive: true,
         showName: current?.showName ?? true,
         showDates: current?.showDates ?? true,
@@ -99,6 +102,8 @@ export async function POST(request: NextRequest) {
         ])
       );
 
+      const sinceDate = newInitiative.startDate;
+
       for (const user of allUsers) {
         let totalPoints = 0;
 
@@ -106,7 +111,7 @@ export async function POST(request: NextRequest) {
         const planPts = metricMap.get("plan_created");
         if (planPts) {
           const planCount = await prisma.territoryPlan.count({
-            where: { userId: user.id },
+            where: { userId: user.id, createdAt: { gte: sinceDate } },
           });
           totalPoints += planCount * planPts;
         }
@@ -115,7 +120,7 @@ export async function POST(request: NextRequest) {
         const activityPts = metricMap.get("activity_logged");
         if (activityPts) {
           const activityCount = await prisma.activity.count({
-            where: { createdByUserId: user.id },
+            where: { createdByUserId: user.id, createdAt: { gte: sinceDate } },
           });
           totalPoints += activityCount * activityPts;
         }
@@ -124,7 +129,7 @@ export async function POST(request: NextRequest) {
         const revenuePts = metricMap.get("revenue_targeted");
         if (revenuePts) {
           const plans = await prisma.territoryPlan.findMany({
-            where: { userId: user.id },
+            where: { userId: user.id, createdAt: { gte: sinceDate } },
             include: {
               districts: {
                 select: {
@@ -154,7 +159,7 @@ export async function POST(request: NextRequest) {
         const districtPts = metricMap.get("district_added");
         if (districtPts) {
           const districtCount = await prisma.territoryPlanDistrict.count({
-            where: { plan: { userId: user.id } },
+            where: { plan: { userId: user.id, createdAt: { gte: sinceDate } } },
           });
           totalPoints += districtCount * districtPts;
         }

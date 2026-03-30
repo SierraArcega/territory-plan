@@ -30,11 +30,12 @@ export async function GET() {
     }
 
     const userIds = initiative.scores.map((s) => s.userId);
+    const sinceDate = initiative.startDate;
 
-    // Fetch actual plan and activity records for all users
+    // Fetch actual plan and activity records for all users (only since initiative start)
     const [plans, activities] = await Promise.all([
       prisma.territoryPlan.findMany({
-        where: { userId: { in: userIds } },
+        where: { userId: { in: userIds }, createdAt: { gte: sinceDate } },
         select: {
           id: true,
           name: true,
@@ -52,7 +53,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       }),
       prisma.activity.findMany({
-        where: { createdByUserId: { in: userIds } },
+        where: { createdByUserId: { in: userIds }, createdAt: { gte: sinceDate } },
         select: {
           id: true,
           title: true,

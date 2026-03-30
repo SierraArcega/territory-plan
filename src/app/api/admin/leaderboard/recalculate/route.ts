@@ -37,6 +37,7 @@ export async function POST() {
       select: { id: true },
     });
 
+    const sinceDate = initiative.startDate;
     let updated = 0;
 
     for (const user of allUsers) {
@@ -44,20 +45,24 @@ export async function POST() {
 
       const planPts = metricMap.get("plan_created");
       if (planPts) {
-        const count = await prisma.territoryPlan.count({ where: { userId: user.id } });
+        const count = await prisma.territoryPlan.count({
+          where: { userId: user.id, createdAt: { gte: sinceDate } },
+        });
         totalPoints += count * planPts;
       }
 
       const activityPts = metricMap.get("activity_logged");
       if (activityPts) {
-        const count = await prisma.activity.count({ where: { createdByUserId: user.id } });
+        const count = await prisma.activity.count({
+          where: { createdByUserId: user.id, createdAt: { gte: sinceDate } },
+        });
         totalPoints += count * activityPts;
       }
 
       const revenuePts = metricMap.get("revenue_targeted");
       if (revenuePts) {
         const plans = await prisma.territoryPlan.findMany({
-          where: { userId: user.id },
+          where: { userId: user.id, createdAt: { gte: sinceDate } },
           include: {
             districts: {
               select: {
@@ -86,7 +91,7 @@ export async function POST() {
       const districtPts = metricMap.get("district_added");
       if (districtPts) {
         const count = await prisma.territoryPlanDistrict.count({
-          where: { plan: { userId: user.id } },
+          where: { plan: { userId: user.id, createdAt: { gte: sinceDate } } },
         });
         totalPoints += count * districtPts;
       }

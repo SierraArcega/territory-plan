@@ -107,7 +107,7 @@ export function usePreviewChanges() {
 export function useCreateNewInitiative() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (opts: { backfill: boolean }) =>
+    mutationFn: (opts: { backfill: boolean; startDate?: string }) =>
       fetchJson(`${API_BASE}/admin/leaderboard/initiative/new`, {
         method: "POST",
         body: JSON.stringify(opts),

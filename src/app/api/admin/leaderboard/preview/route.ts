@@ -97,6 +97,28 @@ export async function POST(request: NextRequest) {
           after: String(d.showDates),
         });
       }
+      if (d.startDate !== undefined) {
+        const oldStart = initiative.startDate.toISOString().split("T")[0];
+        const newStart = new Date(d.startDate).toISOString().split("T")[0];
+        if (oldStart !== newStart) {
+          changes.push({
+            field: "Start Date",
+            before: oldStart,
+            after: newStart,
+          });
+        }
+      }
+      if (d.endDate !== undefined) {
+        const oldEnd = initiative.endDate?.toISOString().split("T")[0] ?? "None";
+        const newEnd = d.endDate ? new Date(d.endDate).toISOString().split("T")[0] : "None";
+        if (oldEnd !== newEnd) {
+          changes.push({
+            field: "End Date",
+            before: oldEnd,
+            after: newEnd,
+          });
+        }
+      }
     } else if (section === "weights") {
       const d = data as {
         initiativeWeight: number;
