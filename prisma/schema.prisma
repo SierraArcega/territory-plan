@@ -1396,8 +1396,10 @@ model Initiative {
   pipelineFiscalYear String?   @map("pipeline_fiscal_year") @db.VarChar(10)
   takeWeight         Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
   takeFiscalYear     String?   @map("take_fiscal_year") @db.VarChar(10)
-  revenueWeight      Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
-  revenueFiscalYear  String?   @map("revenue_fiscal_year") @db.VarChar(10)
+  revenueWeight           Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
+  revenueFiscalYear       String?   @map("revenue_fiscal_year") @db.VarChar(10)
+  revenueTargetedWeight   Decimal   @default(0.0) @map("revenue_targeted_weight") @db.Decimal(3, 2)
+  revenueTargetedFiscalYear String? @map("revenue_targeted_fiscal_year") @db.VarChar(10)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 

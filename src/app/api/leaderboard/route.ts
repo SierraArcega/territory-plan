@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { calculateTier, calculateCombinedScore } from "@/features/leaderboard/lib/scoring";
-import { getRepActuals, fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
+import { getRepActuals } from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -47,15 +47,9 @@ export async function GET(request: NextRequest) {
     const currentFY = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
     const defaultSchoolYr = `${currentFY - 1}-${String(currentFY).slice(-2)}`;
 
-    const pipelineSchoolYr = initiative.pipelineFiscalYear
-      ? fiscalYearToSchoolYear(Number(initiative.pipelineFiscalYear))
-      : defaultSchoolYr;
-    const takeSchoolYr = initiative.takeFiscalYear
-      ? fiscalYearToSchoolYear(Number(initiative.takeFiscalYear))
-      : defaultSchoolYr;
-    const revenueSchoolYr = initiative.revenueFiscalYear
-      ? fiscalYearToSchoolYear(Number(initiative.revenueFiscalYear))
-      : defaultSchoolYr;
+    const pipelineSchoolYr = initiative.pipelineFiscalYear ?? defaultSchoolYr;
+    const takeSchoolYr = initiative.takeFiscalYear ?? defaultSchoolYr;
+    const revenueSchoolYr = initiative.revenueFiscalYear ?? defaultSchoolYr;
 
     const uniqueYears = [...new Set([pipelineSchoolYr, takeSchoolYr, revenueSchoolYr])];
 
@@ -74,7 +68,7 @@ export async function GET(request: NextRequest) {
 
           return {
             userId: score.userId,
-            pipeline: yearActuals.get(pipelineSchoolYr)?.weightedPipeline ?? 0,
+            pipeline: yearActuals.get(pipelineSchoolYr)?.openPipeline ?? 0,
             take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
             revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
           };
@@ -135,6 +129,36 @@ export async function GET(request: NextRequest) {
       revenueByUser.set(uid, (revenueByUser.get(uid) ?? 0) + total);
     }
 
+    // Calculate revenue targeted per user (filterable by plan fiscal year)
+    const revenueTargetedFYStr = initiative.revenueTargetedFiscalYear ?? null;
+    // Parse school-year string "2025-26" → ending calendar year 2026 (matches TerritoryPlan.fiscalYear Int)
+    const revenueTargetedFY = revenueTargetedFYStr
+      ? parseInt(revenueTargetedFYStr.split("-")[0], 10) + 1
+      : null;
+    const revenueTargetedByUser = new Map<string, number>();
+    const planDistrictData = await prisma.territoryPlanDistrict.findMany({
+      where: {
+        plan: {
+          userId: { in: userIds },
+          ...(revenueTargetedFY ? { fiscalYear: revenueTargetedFY } : {}),
+        },
+      },
+      select: {
+        renewalTarget: true,
+        winbackTarget: true,
+        expansionTarget: true,
+        newBusinessTarget: true,
+        plan: { select: { userId: true } },
+      },
+    });
+    for (const d of planDistrictData) {
+      const uid = d.plan.userId;
+      if (!uid) continue;
+      const total = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) + Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
+      revenueTargetedByUser.set(uid, (revenueTargetedByUser.get(uid) ?? 0) + total);
+    }
+    const maxRevenueTargeted = Math.max(...[...revenueTargetedByUser.values()], 0);
+
     const getActionCount = (userId: string, action: string): number => {
       if (action === "plan_created") return planCountMap.get(userId) ?? 0;
       if (action === "activity_logged") return activityCountMap.get(userId) ?? 0;
@@ -157,10 +181,13 @@ export async function GET(request: NextRequest) {
         maxTake,
         revenue: actuals.revenue,
         maxRevenue,
+        revenueTargeted: revenueTargetedByUser.get(score.userId) ?? 0,
+        maxRevenueTargeted,
         initiativeWeight: Number(initiative.initiativeWeight),
         pipelineWeight: Number(initiative.pipelineWeight),
         takeWeight: Number(initiative.takeWeight),
         revenueWeight: Number(initiative.revenueWeight),
+        revenueTargetedWeight: Number(initiative.revenueTargetedWeight),
       });
 
       const initiativeScore = maxInitiativePoints > 0
@@ -188,6 +215,7 @@ export async function GET(request: NextRequest) {
         take: actuals.take,
         pipeline: actuals.pipeline,
         revenue: actuals.revenue,
+        revenueTargeted: revenueTargetedByUser.get(score.userId) ?? 0,
         combinedScore: Math.round(combinedScore * 10) / 10,
         initiativeScore: Math.round(initiativeScore * 10) / 10,
         pointBreakdown,
@@ -206,9 +234,11 @@ export async function GET(request: NextRequest) {
         pipelineWeight: Number(initiative.pipelineWeight),
         takeWeight: Number(initiative.takeWeight),
         revenueWeight: Number(initiative.revenueWeight),
+        revenueTargetedWeight: Number(initiative.revenueTargetedWeight),
         pipelineFiscalYear: initiative.pipelineFiscalYear,
         takeFiscalYear: initiative.takeFiscalYear,
         revenueFiscalYear: initiative.revenueFiscalYear,
+        revenueTargetedFiscalYear: initiative.revenueTargetedFiscalYear,
       },
       entries,
       metrics: initiative.metrics.map((m) => ({

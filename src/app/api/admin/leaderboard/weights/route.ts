@@ -13,20 +13,22 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const {
-      initiativeWeight, pipelineWeight, takeWeight, revenueWeight,
-      pipelineFiscalYear, takeFiscalYear, revenueFiscalYear,
+      initiativeWeight, pipelineWeight, takeWeight, revenueWeight, revenueTargetedWeight,
+      pipelineFiscalYear, takeFiscalYear, revenueFiscalYear, revenueTargetedFiscalYear,
     } = body as {
       initiativeWeight: number;
       pipelineWeight: number;
       takeWeight: number;
       revenueWeight: number;
+      revenueTargetedWeight: number;
       pipelineFiscalYear?: string | null;
       takeFiscalYear?: string | null;
       revenueFiscalYear?: string | null;
+      revenueTargetedFiscalYear?: string | null;
     };
 
     // Validate sum equals 1.0 (allow small floating point tolerance)
-    const sum = initiativeWeight + pipelineWeight + takeWeight + revenueWeight;
+    const sum = initiativeWeight + pipelineWeight + takeWeight + revenueWeight + revenueTargetedWeight;
     if (Math.abs(sum - 1.0) > 0.01) {
       return NextResponse.json(
         { error: `Weights must sum to 100%. Current sum: ${(sum * 100).toFixed(1)}%` },
@@ -46,9 +48,11 @@ export async function PUT(request: NextRequest) {
         pipelineWeight,
         takeWeight,
         revenueWeight,
+        revenueTargetedWeight,
         ...(pipelineFiscalYear !== undefined && { pipelineFiscalYear }),
         ...(takeFiscalYear !== undefined && { takeFiscalYear }),
         ...(revenueFiscalYear !== undefined && { revenueFiscalYear }),
+        ...(revenueTargetedFiscalYear !== undefined && { revenueTargetedFiscalYear }),
       },
     });
 

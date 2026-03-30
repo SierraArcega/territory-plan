@@ -50,9 +50,11 @@ export async function GET() {
         pipelineWeight: Number(initiative.pipelineWeight),
         takeWeight: Number(initiative.takeWeight),
         revenueWeight: Number(initiative.revenueWeight),
+        revenueTargetedWeight: Number(initiative.revenueTargetedWeight),
         pipelineFiscalYear: initiative.pipelineFiscalYear,
         takeFiscalYear: initiative.takeFiscalYear,
         revenueFiscalYear: initiative.revenueFiscalYear,
+        revenueTargetedFiscalYear: initiative.revenueTargetedFiscalYear,
       },
       metrics: initiative.metrics.map((m) => ({
         id: m.id,

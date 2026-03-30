@@ -140,6 +140,7 @@ export interface RepActuals {
   completedTake: number;
   scheduledTake: number;
   weightedPipeline: number;
+  openPipeline: number;
   bookings: number;
   invoiced: number;
 }
@@ -160,6 +161,7 @@ export async function getRepActuals(
         completed_take: number;
         scheduled_take: number;
         weighted_pipeline: number;
+        open_pipeline: number;
         bookings: number;
         invoiced: number;
       }[]
@@ -170,6 +172,7 @@ export async function getRepActuals(
         COALESCE(SUM(completed_take), 0) AS completed_take,
         COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
         COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
+        COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
         COALESCE(SUM(bookings), 0) AS bookings,
         COALESCE(SUM(invoiced), 0) AS invoiced
       FROM district_opportunity_actuals
@@ -186,6 +189,7 @@ export async function getRepActuals(
       completedTake: 0,
       scheduledTake: 0,
       weightedPipeline: 0,
+      openPipeline: 0,
       bookings: 0,
       invoiced: 0,
     };
@@ -198,6 +202,7 @@ export async function getRepActuals(
     completedTake: Number(row.completed_take),
     scheduledTake: Number(row.scheduled_take),
     weightedPipeline: Number(row.weighted_pipeline),
+    openPipeline: Number(row.open_pipeline),
     bookings: Number(row.bookings),
     invoiced: Number(row.invoiced),
   };

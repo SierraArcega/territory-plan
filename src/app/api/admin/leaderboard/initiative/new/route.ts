@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
         takeFiscalYear: current?.takeFiscalYear ?? null,
         revenueWeight: current ? Number(current.revenueWeight) : 0.2,
         revenueFiscalYear: current?.revenueFiscalYear ?? null,
+        revenueTargetedWeight: current ? Number(current.revenueTargetedWeight) : 0,
+        revenueTargetedFiscalYear: current?.revenueTargetedFiscalYear ?? null,
         metrics: {
           create: metricsToUse,
         },

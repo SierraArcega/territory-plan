@@ -41,10 +41,13 @@ describe("calculateCombinedScore", () => {
       maxTake: 500000,
       revenue: 150000,
       maxRevenue: 300000,
+      revenueTargeted: 0,
+      maxRevenueTargeted: 0,
       initiativeWeight: 0.4,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
       revenueWeight: 0.2,
+      revenueTargetedWeight: 0,
     });
     // initiative: 50/100=50% * 0.4 = 20
     // pipeline:   200k/400k=50% * 0.2 = 10
@@ -64,10 +67,13 @@ describe("calculateCombinedScore", () => {
       maxTake: 0,
       revenue: 0,
       maxRevenue: 0,
+      revenueTargeted: 0,
+      maxRevenueTargeted: 0,
       initiativeWeight: 0.4,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
       revenueWeight: 0.2,
+      revenueTargetedWeight: 0,
     });
     // Only initiative contributes: 50/100=50% * 0.4 = 20
     expect(score).toBeCloseTo(20);
@@ -83,10 +89,13 @@ describe("calculateCombinedScore", () => {
       maxTake: 0,
       revenue: 0,
       maxRevenue: 0,
+      revenueTargeted: 0,
+      maxRevenueTargeted: 0,
       initiativeWeight: 0.4,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
       revenueWeight: 0.2,
+      revenueTargetedWeight: 0,
     });
     expect(score).toBe(0);
   });

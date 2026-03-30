@@ -15,6 +15,8 @@ export interface AdminInitiativeConfig {
     pipelineWeight: number;
     takeWeight: number;
     revenueWeight: number;
+    revenueTargetedWeight: number;
+    revenueTargetedFiscalYear: string | null;
     pipelineFiscalYear: string | null;
     takeFiscalYear: string | null;
     revenueFiscalYear: string | null;
@@ -75,6 +77,8 @@ export interface WeightsPayload {
   pipelineWeight: number;
   takeWeight: number;
   revenueWeight: number;
+  revenueTargetedWeight: number;
+  revenueTargetedFiscalYear: string | null;
   pipelineFiscalYear: string | null;
   takeFiscalYear: string | null;
   revenueFiscalYear: string | null;

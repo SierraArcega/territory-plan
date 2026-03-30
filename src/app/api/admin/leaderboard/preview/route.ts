@@ -103,9 +103,11 @@ export async function POST(request: NextRequest) {
         pipelineWeight: number;
         takeWeight: number;
         revenueWeight: number;
+        revenueTargetedWeight: number;
         pipelineFiscalYear?: string | null;
         takeFiscalYear?: string | null;
         revenueFiscalYear?: string | null;
+        revenueTargetedFiscalYear?: string | null;
       };
       if (d.initiativeWeight !== Number(initiative.initiativeWeight)) {
         changes.push({
@@ -135,6 +137,13 @@ export async function POST(request: NextRequest) {
           after: `${d.revenueWeight * 100}%`,
         });
       }
+      if (d.revenueTargetedWeight !== Number(initiative.revenueTargetedWeight)) {
+        changes.push({
+          field: "Revenue Targeted Weight",
+          before: `${Number(initiative.revenueTargetedWeight) * 100}%`,
+          after: `${d.revenueTargetedWeight * 100}%`,
+        });
+      }
       if (d.pipelineFiscalYear !== undefined && d.pipelineFiscalYear !== initiative.pipelineFiscalYear) {
         changes.push({
           field: "Pipeline Fiscal Year",
@@ -154,6 +163,13 @@ export async function POST(request: NextRequest) {
           field: "Revenue Fiscal Year",
           before: initiative.revenueFiscalYear ?? "Current FY",
           after: d.revenueFiscalYear ?? "Current FY",
+        });
+      }
+      if (d.revenueTargetedFiscalYear !== undefined && d.revenueTargetedFiscalYear !== initiative.revenueTargetedFiscalYear) {
+        changes.push({
+          field: "Revenue Targeted Fiscal Year",
+          before: initiative.revenueTargetedFiscalYear ?? "All Plans",
+          after: d.revenueTargetedFiscalYear ?? "All Plans",
         });
       }
     } else if (section === "metrics") {

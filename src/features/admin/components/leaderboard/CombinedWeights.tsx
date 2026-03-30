@@ -21,9 +21,11 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
   const [pipelineWeight, setPipelineWeight] = useState(Math.round(initiative.pipelineWeight * 100));
   const [takeWeight, setTakeWeight] = useState(Math.round(initiative.takeWeight * 100));
   const [revenueWeight, setRevenueWeight] = useState(Math.round(initiative.revenueWeight * 100));
+  const [revenueTargetedWeight, setRevenueTargetedWeight] = useState(Math.round(initiative.revenueTargetedWeight * 100));
   const [pipelineFY, setPipelineFY] = useState(initiative.pipelineFiscalYear ?? "");
   const [takeFY, setTakeFY] = useState(initiative.takeFiscalYear ?? "");
   const [revenueFY, setRevenueFY] = useState(initiative.revenueFiscalYear ?? "");
+  const [revenueTargetedFY, setRevenueTargetedFY] = useState(initiative.revenueTargetedFiscalYear ?? "");
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
@@ -31,9 +33,11 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
     setPipelineWeight(Math.round(initiative.pipelineWeight * 100));
     setTakeWeight(Math.round(initiative.takeWeight * 100));
     setRevenueWeight(Math.round(initiative.revenueWeight * 100));
+    setRevenueTargetedWeight(Math.round(initiative.revenueTargetedWeight * 100));
     setPipelineFY(initiative.pipelineFiscalYear ?? "");
     setTakeFY(initiative.takeFiscalYear ?? "");
     setRevenueFY(initiative.revenueFiscalYear ?? "");
+    setRevenueTargetedFY(initiative.revenueTargetedFiscalYear ?? "");
   }, [initiative]);
 
   const fyOptions = useMemo(() => {
@@ -45,7 +49,7 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
     });
   }, []);
 
-  const sum = initiativeWeight + pipelineWeight + takeWeight + revenueWeight;
+  const sum = initiativeWeight + pipelineWeight + takeWeight + revenueWeight + revenueTargetedWeight;
   const isValid = sum === 100;
 
   const updateMutation = useUpdateWeights();
@@ -56,9 +60,11 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
     pipelineWeight: pipelineWeight / 100,
     takeWeight: takeWeight / 100,
     revenueWeight: revenueWeight / 100,
+    revenueTargetedWeight: revenueTargetedWeight / 100,
     pipelineFiscalYear: pipelineFY || null,
     takeFiscalYear: takeFY || null,
     revenueFiscalYear: revenueFY || null,
+    revenueTargetedFiscalYear: revenueTargetedFY || null,
   };
 
   const handleSave = () => {
@@ -82,6 +88,7 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
     { label: "Pipeline", value: pipelineWeight, onChange: setPipelineWeight, fy: { value: pipelineFY, onChange: setPipelineFY } },
     { label: "Take", value: takeWeight, onChange: setTakeWeight, fy: { value: takeFY, onChange: setTakeFY } },
     { label: "Revenue", value: revenueWeight, onChange: setRevenueWeight, fy: { value: revenueFY, onChange: setRevenueFY } },
+    { label: "Revenue Targeted", value: revenueTargetedWeight, onChange: setRevenueTargetedWeight, fy: { value: revenueTargetedFY, onChange: setRevenueTargetedFY } },
   ];
 
   return (

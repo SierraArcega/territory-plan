@@ -30,10 +30,13 @@ interface CombinedScoreInput {
   maxTake: number;
   revenue: number;
   maxRevenue: number;
+  revenueTargeted: number;
+  maxRevenueTargeted: number;
   initiativeWeight: number;
   pipelineWeight: number;
   takeWeight: number;
   revenueWeight: number;
+  revenueTargetedWeight: number;
 }
 
 /**
@@ -46,12 +49,14 @@ export function calculateCombinedScore(input: CombinedScoreInput): number {
   const pipelineNorm = normalize(input.pipeline, input.maxPipeline);
   const takeNorm = normalize(input.take, input.maxTake);
   const revenueNorm = normalize(input.revenue, input.maxRevenue);
+  const revenueTargetedNorm = normalize(input.revenueTargeted, input.maxRevenueTargeted);
 
   return (
     initiativeNorm * input.initiativeWeight +
     pipelineNorm * input.pipelineWeight +
     takeNorm * input.takeWeight +
-    revenueNorm * input.revenueWeight
+    revenueNorm * input.revenueWeight +
+    revenueTargetedNorm * input.revenueTargetedWeight
   );
 }
 

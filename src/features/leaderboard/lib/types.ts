@@ -49,6 +49,7 @@ export interface LeaderboardEntry {
   take: number;
   pipeline: number;
   revenue: number;
+  revenueTargeted: number;
   combinedScore: number;
   initiativeScore: number;
   pointBreakdown: PointBreakdownItem[];
@@ -89,9 +90,11 @@ export interface InitiativeInfo {
   pipelineWeight: number;
   takeWeight: number;
   revenueWeight: number;
+  revenueTargetedWeight: number;
+  revenueTargetedFiscalYear: string | null;
   pipelineFiscalYear: string | null;
   takeFiscalYear: string | null;
   revenueFiscalYear: string | null;
 }
 
-export type LeaderboardView = "combined" | "initiative" | "pipeline" | "take" | "revenue";
+export type LeaderboardView = "combined" | "initiative" | "pipeline" | "take" | "revenue" | "revenueTargeted";

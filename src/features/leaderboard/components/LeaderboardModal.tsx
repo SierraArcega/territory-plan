@@ -37,6 +37,7 @@ const VIEW_CONFIG: {
   { value: "pipeline", label: "Pipeline", icon: TrendingUp },
   { value: "take", label: "Take", icon: DollarSign },
   { value: "revenue", label: "Revenue", icon: Trophy },
+  { value: "revenueTargeted", label: "Targeted", icon: Target },
 ];
 
 export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
@@ -67,8 +68,9 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
         pipeline: Math.round(initiative.pipelineWeight * 100),
         take: Math.round(initiative.takeWeight * 100),
         revenue: Math.round(initiative.revenueWeight * 100),
+        revenueTargeted: Math.round(initiative.revenueTargetedWeight * 100),
       }
-    : { initiative: 40, pipeline: 20, take: 20, revenue: 20 };
+    : { initiative: 40, pipeline: 20, take: 20, revenue: 20, revenueTargeted: 0 };
 
   // Format fiscal year for display — "2025-26" → "FY26", null → "Current FY"
   const formatFY = (fy: string | null | undefined): string => {
@@ -81,6 +83,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
     pipeline: formatFY(initiative?.pipelineFiscalYear),
     take: formatFY(initiative?.takeFiscalYear),
     revenue: formatFY(initiative?.revenueFiscalYear),
+    revenueTargeted: formatFY(initiative?.revenueTargetedFiscalYear),
   };
 
   // Sort entries by the active view
@@ -89,6 +92,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
     if (view === "initiative") return b.totalPoints - a.totalPoints;
     if (view === "pipeline") return b.pipeline - a.pipeline;
     if (view === "revenue") return b.revenue - a.revenue;
+    if (view === "revenueTargeted") return b.revenueTargeted - a.revenueTargeted;
     return b.take - a.take;
   });
 
@@ -102,6 +106,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
     if (view === "initiative") return `${entry.totalPoints} pts`;
     if (view === "pipeline") return formatCurrency(entry.pipeline);
     if (view === "revenue") return formatCurrency(entry.revenue);
+    if (view === "revenueTargeted") return formatCurrency(entry.revenueTargeted);
     return formatCurrency(entry.take);
   };
 
@@ -130,8 +135,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
         style={{ animation: "modal-in 200ms ease-out" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-[#E2DEEC]">
+        {/* Header — sticky above scroll */}
+        <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-[#E2DEEC]">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
               <Trophy className="w-5 h-5 text-[#D4A843]" />
@@ -154,6 +159,24 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
             </p>
           )}
 
+          {/* Initiative summary — always visible regardless of active tab */}
+          {initiative && (
+            <p className="text-xs text-[#6E6390] leading-relaxed mt-2 ml-7.5">
+              Ranked by a weighted blend of{" "}
+              {[
+                weights.initiative > 0 && "initiative points",
+                weights.pipeline > 0 && "pipeline",
+                weights.take > 0 && "take",
+                weights.revenue > 0 && "revenue",
+                weights.revenueTargeted > 0 && "targeted revenue",
+              ]
+                .filter(Boolean)
+                .join(", ")
+                .replace(/, ([^,]+)$/, ", and $1")}
+              . Use the tabs below to see how each input breaks down.
+            </p>
+          )}
+
           {onNavigateToDetails && (
             <div className="mt-3 flex justify-end">
               <button
@@ -169,8 +192,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
           )}
         </div>
 
-        {/* Tabs + description */}
-        <div className="border-b border-[#E2DEEC]">
+        {/* Tabs + description — sticky above scroll */}
+        <div className="flex-shrink-0 border-b border-[#E2DEEC]">
           <div className="flex px-6">
             {VIEW_CONFIG.map((opt) => {
               const Icon = opt.icon;
@@ -196,19 +219,20 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
               <>
                 Weighted blend of all metrics, normalized across reps.
                 <span className="text-[#8A80A8]">
-                  {" "}Initiative {weights.initiative}% · Pipeline {weights.pipeline}% ({fyLabels.pipeline}) · Take {weights.take}% ({fyLabels.take}) · Revenue {weights.revenue}% ({fyLabels.revenue})
+                  {" "}Initiative {weights.initiative}% · Pipeline {weights.pipeline}% ({fyLabels.pipeline}) · Take {weights.take}% ({fyLabels.take}) · Revenue {weights.revenue}% ({fyLabels.revenue}){weights.revenueTargeted > 0 && <> · Targeted {weights.revenueTargeted}% ({fyLabels.revenueTargeted})</>}
                 </span>
               </>
             )}
             {view === "initiative" && "Points from tracked actions — plans created, activities logged, and revenue targeted."}
-            {view === "pipeline" && (<>Weighted pipeline from open opportunities in <span className="font-medium text-[#403770]">{fyLabels.pipeline}</span>.</>)}
+            {view === "pipeline" && (<>Open pipeline (stages 0–5) from opportunities in <span className="font-medium text-[#403770]">{fyLabels.pipeline}</span>.</>)}
             {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
             {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
+            {view === "revenueTargeted" && (<>Total revenue targeted in territory plans{fyLabels.revenueTargeted !== "Current FY" ? <> for <span className="font-medium text-[#403770]">{fyLabels.revenueTargeted}</span></> : ""}.</>)}
           </p>
         </div>
 
-        {/* Rankings */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Rankings — scrollable area */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {lbLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-[#403770] border-t-transparent rounded-full animate-spin" />
@@ -233,7 +257,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                         style={{ color: colors.text }}
                       >
                         {tierLabel}
-                        {minPoints != null && (
+                        {minPoints != null && (view === "combined" || view === "initiative") && (
                           <span className="font-normal text-[#8A80A8] ml-1">
                             ({minPoints}+ pts)
                           </span>
@@ -391,6 +415,15 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                                           weight={weights.revenue}
                                           color="#D4A843"
                                         />
+                                        {weights.revenueTargeted > 0 && (
+                                          <ScoreRow
+                                            icon={Target}
+                                            label={`Targeted (${fyLabels.revenueTargeted})`}
+                                            value={formatCurrency(entry.revenueTargeted)}
+                                            weight={weights.revenueTargeted}
+                                            color="#F37167"
+                                          />
+                                        )}
                                         <div className="col-span-2 pt-2 mt-1 border-t border-[#E2DEEC]">
                                           <div className="flex items-center justify-between">
                                             <span className="text-xs font-semibold text-[#403770]">
