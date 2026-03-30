@@ -154,10 +154,7 @@ Generate a structured brief, then invoke the `/frontend-design` skill to build t
 ...
 
 ### Visual Treatment Notes
-- [Specific UI patterns to use: accordions, card grids, timelines, tables, steppers, etc.]
-- [Color accent suggestions using brand palette]
-- [Any interactive elements: expandable sections, tabs within the page, etc.]
-- Full brand compliance per Documentation/UI Framework/tokens.md
+[See required page structure below — then add section-specific notes]
 
 ### Source Material
 [Include the key extracted content that should appear on the page. Do not just reference the source — include the actual text, lists, frameworks, etc. that the page should contain.]
@@ -165,12 +162,68 @@ Generate a structured brief, then invoke the `/frontend-design` skill to build t
 
 **IMPORTANT:** The Content Sections must include the actual content from the source material, not just descriptions. The `/frontend-design` skill needs the real text to build the page.
 
+#### Required Page Structure — Wiki Format
+
+Every resource page MUST follow this structure. Reference `src/features/shared/components/views/resources/UnderstandingLeaderboardPage.tsx` as the canonical example.
+
+**Layout:**
+```
+┌──────────────────────────────────────────────────────────┐
+│  [flex gap-10]                                            │
+│                                                          │
+│  ┌─────────┐  ┌──────────────────────────────────────┐   │
+│  │ Sticky   │  │  Hero (icon + title + subtitle)      │   │
+│  │ TOC      │  │  Summary box (gradient bg)           │   │
+│  │          │  │                                      │   │
+│  │ On this  │  │  ── Section 1 ──────────────────     │   │
+│  │ page:    │  │  Full inline content                 │   │
+│  │ • Link   │  │  Cards, tables, callouts             │   │
+│  │ • Link   │  │                                      │   │
+│  │ • Link   │  │  ── divider ────────────────────     │   │
+│  │          │  │                                      │   │
+│  │          │  │  ── Section 2 ──────────────────     │   │
+│  │          │  │  ...                                 │   │
+│  └─────────┘  └──────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Required elements:**
+
+1. **Sticky table of contents** (left side, `hidden xl:block w-44`):
+   - "On this page" label: `text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider`
+   - Anchor links: `text-xs text-[#6E6390] hover:text-[#403770] border-l-2 hover:border-[#F37167] pl-3`
+   - Each section needs an `id` and `scroll-mt-6` for smooth anchor scrolling
+
+2. **Hero header** with icon, title (`text-2xl font-bold`), and subtitle
+   - Summary box below: `rounded-xl bg-gradient-to-r from-[#F7F5FA] to-[#EFEDF5] p-5 border border-[#E2DEEC]`
+
+3. **Inline sections** (NOT accordions) — all content visible, separated by `border-t border-[#E2DEEC] mb-12` dividers
+   - Section headings: `text-lg font-bold text-[#403770]` with a Lucide icon
+   - Body text: `text-sm text-[#6E6390] leading-relaxed`
+   - Content fills the page width (`flex-1 min-w-0 max-w-4xl`)
+
+4. **Visual elements** to break up text — choose from:
+   - **Card grids** (2-col or 3-col) with icon + title + description for concepts, features, tabs
+   - **Data tables** with `rounded-xl` borders, `bg-[#F7F5FA]` headers, alternating row tints
+   - **Callout boxes** — info: `bg-[#e8f1f5] border-[#8bb5cb]`, warning: `bg-[#FFF8EE] border-[#ffd98d]`, tip: `border-l-4 border-[#F37167]`
+   - **Flow diagrams** using inline flex with arrow icons between steps
+   - **Stacked progression** for ranked/tiered content with colored backgrounds per tier
+   - **Tip cards** with coral left border: `border-l-4 border-[#F37167] bg-white border border-[#E2DEEC] rounded-xl px-5 py-4`
+
+5. **FAQ section** (if applicable) — expandable items inside a bordered container. This is the ONE section that uses expand/collapse; everything else is inline.
+
+**Do NOT use:**
+- Accordion/collapsible sections for main content (all sections should be open/visible)
+- `max-w-3xl` or other narrow constraints — pages should fill the content area
+- Generic Tailwind grays — use plum-derived neutrals only
+
 After writing the brief, invoke the `/frontend-design` skill to build the component. Pass the brief as context. **After `/frontend-design` completes, return here and continue with Step 5.** The component should:
 - Be a React component in `src/features/shared/components/views/resources/[Name]Page.tsx`
 - Use `"use client"` directive
 - Accept no props (content is baked in)
 - Follow Fullmind brand tokens
 - Be fully self-contained (no API calls — content is static)
+- Follow the wiki page structure above
 
 ### Step 5: Register & Verify
 

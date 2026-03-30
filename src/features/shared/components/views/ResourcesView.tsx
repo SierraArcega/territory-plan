@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import DealQualifyingPage from "./resources/DealQualifyingPage";
+import UnderstandingLeaderboardPage from "./resources/UnderstandingLeaderboardPage";
 
 // ── Resource page registry ────────────────────────────────────────────────────
 // Add new pages here — one line per resource. The sidebar groups by category.
@@ -15,6 +16,7 @@ interface ResourcePage {
 
 const RESOURCE_PAGES: ResourcePage[] = [
   { id: "deal-qualifying", label: "Deal Qualifying", category: "Sales Enablement", component: DealQualifyingPage },
+  { id: "understanding-leaderboard", label: "Understanding the Leaderboard", category: "Training", component: UnderstandingLeaderboardPage },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────

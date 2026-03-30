@@ -509,6 +509,14 @@ const SECTIONS = [
 
 const STAGE_SIGNALS = [
   {
+    signal: "I've identified a lead but haven't gotten a meeting yet",
+    stage: -1,
+    name: "Not Yet in Pipeline",
+    pct: "—",
+    framework: "None",
+    nextStep: "This isn't a deal yet. Focus on outreach — get a meeting on the calendar before adding to your pipeline.",
+  },
+  {
     signal: "Prospect has agreed to a meeting",
     stage: 0,
     name: "Meeting Booked",
@@ -619,7 +627,7 @@ export default function DealQualifyingPage() {
                 }
                 className={`w-full text-left rounded-xl border px-4 py-3 transition-all duration-150 ${
                   isSelected
-                    ? "bg-[#fef1f0] border-[#F37167] shadow-sm"
+                    ? "bg-[#F7F5FA] border-[#403770] shadow-sm"
                     : "bg-white border-[#D4CFE2] hover:border-[#C2BBD4] hover:shadow-sm"
                 }`}
               >
@@ -628,12 +636,12 @@ export default function DealQualifyingPage() {
                   <div
                     className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
                       isSelected
-                        ? "border-[#F37167]"
+                        ? "border-[#403770]"
                         : "border-[#C2BBD4]"
                     }`}
                   >
                     {isSelected && (
-                      <div className="w-2 h-2 rounded-full bg-[#F37167]" />
+                      <div className="w-2 h-2 rounded-full bg-[#403770]" />
                     )}
                   </div>
 
@@ -650,9 +658,9 @@ export default function DealQualifyingPage() {
 
                     {/* Result — shown when selected */}
                     {isSelected && (
-                      <div className="mt-3 pt-3 border-t border-[#F37167]/20">
+                      <div className="mt-3 pt-3 border-t border-[#403770]/20">
                         <div className="flex items-baseline gap-3 mb-2">
-                          <span className="text-lg font-bold text-[#F37167]">
+                          <span className="text-lg font-bold text-[#403770]">
                             {s.pct}
                           </span>
                           <span className="text-sm font-bold text-[#403770]">
