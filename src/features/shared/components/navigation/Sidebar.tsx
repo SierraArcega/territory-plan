@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardNavWidget";
+import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "resources" | "profile" | "admin";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "leaderboard" | "resources" | "profile" | "admin";
 
 interface Tab {
   id: TabId;
@@ -19,6 +22,7 @@ const ADMIN_SUB_ITEMS = [
   { id: "users", label: "Users" },
   { id: "integrations", label: "Integrations" },
   { id: "sync", label: "Data Sync" },
+  { id: "leaderboard", label: "Leaderboard" },
 ];
 
 // SVG icons for each tab - kept inline for simplicity
@@ -105,6 +109,12 @@ const ProfileIcon = () => (
   </svg>
 );
 
+const LeaderboardIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 21h8m-4-4v4m-4.5-8l-2-6h13l-2 6m-9 0h9m-9 0a2.5 2.5 0 01-2.5-2.5M15.5 7a2.5 2.5 0 002.5-2.5M6 7l-1-4h14l-1 4" />
+  </svg>
+);
+
 // Admin gear icon
 const AdminIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,6 +160,7 @@ const MAIN_TABS: Tab[] = [
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
   { id: "progress", label: "Progress", icon: <ProgressIcon /> },
+  { id: "leaderboard", label: "Leaderboard", icon: <LeaderboardIcon /> },
   { id: "resources", label: "Resources", icon: <ResourcesIcon /> },
 ];
 
@@ -160,7 +171,7 @@ const BOTTOM_TABS: Tab[] = [
 
 interface SidebarProps {
   activeTab: TabId;
-  onTabChange: (tab: TabId) => void;
+  onTabChange: (tab: TabId, adminSection?: string) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   isAdmin?: boolean;
@@ -173,12 +184,15 @@ export default function Sidebar({
   onCollapsedChange,
   isAdmin = false,
 }: SidebarProps) {
+  const router = useRouter();
   // Track which tab is being hovered for tooltip display
   const [hoveredTab, setHoveredTab] = useState<TabId | null>(null);
   // Admin section expand/collapse
   const [adminExpanded, setAdminExpanded] = useState(false);
   // Track hovered admin item for collapsed tooltip
   const [hoveredAdmin, setHoveredAdmin] = useState<string | null>(null);
+  // Leaderboard modal
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   // Render a single tab item
   // Shows icon + label when expanded, icon only (with tooltip) when collapsed
@@ -284,7 +298,7 @@ export default function Sidebar({
               {ADMIN_SUB_ITEMS.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => onTabChange("admin" as TabId)}
+                  onClick={() => onTabChange("admin" as TabId, item.id)}
                   onMouseEnter={() => setHoveredAdmin(item.id)}
                   onMouseLeave={() => setHoveredAdmin(null)}
                   className="flex items-center pl-12 pr-4 py-2 text-[13px] font-medium text-[#6E6390] hover:bg-[#EFEDF5] hover:text-[#403770] transition-colors duration-100 w-full text-left"
@@ -300,6 +314,7 @@ export default function Sidebar({
   };
 
   return (
+    <>
     <aside
       className={`
         flex flex-col bg-white border-r border-[#D4CFE2]
@@ -317,6 +332,14 @@ export default function Sidebar({
 
       {/* Divider between main/admin tabs and bottom section */}
       <div className="mx-3 border-t border-[#E2DEEC]" />
+
+      {/* Leaderboard widget — above Profile */}
+      <div className="py-1">
+        <LeaderboardNavWidget
+          collapsed={collapsed}
+          onOpenModal={() => setShowLeaderboard(true)}
+        />
+      </div>
 
       {/* Bottom tabs (Profile) */}
       <nav className="py-2">
@@ -336,6 +359,14 @@ export default function Sidebar({
         {collapsed ? <ChevronRight /> : <ChevronLeft />}
       </button>
     </aside>
+
+    {/* Leaderboard modal — rendered outside aside for proper z-index */}
+    <LeaderboardModal
+      isOpen={showLeaderboard}
+      onClose={() => setShowLeaderboard(false)}
+      onNavigateToDetails={() => onTabChange("leaderboard" as TabId)}
+    />
+    </>
   );
 }
 

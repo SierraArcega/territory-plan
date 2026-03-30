@@ -76,6 +76,7 @@ export function useCreateActivity() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }

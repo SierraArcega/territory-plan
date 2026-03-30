@@ -52,6 +52,7 @@ export function useCreateTerritoryPlan() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["territoryPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
