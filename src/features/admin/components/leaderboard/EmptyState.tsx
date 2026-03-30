@@ -17,7 +17,7 @@ export default function EmptyState() {
         default metrics and standard tier thresholds.
       </p>
       <button
-        onClick={() => newInitiativeMutation.mutate()}
+        onClick={() => newInitiativeMutation.mutate({ backfill: false })}
         disabled={newInitiativeMutation.isPending}
         className="px-6 py-3 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors disabled:opacity-50"
       >
