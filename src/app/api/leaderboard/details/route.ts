@@ -33,12 +33,20 @@ export async function GET() {
     const sinceDate = initiative.startDate;
 
     // Fetch actual plan and activity records for all users (only since initiative start)
+    // Attribute plans to their owner, falling back to creator when no owner is set
     const [plans, activities] = await Promise.all([
       prisma.territoryPlan.findMany({
-        where: { userId: { in: userIds }, createdAt: { gte: sinceDate } },
+        where: {
+          createdAt: { gte: sinceDate },
+          OR: [
+            { ownerId: { in: userIds } },
+            { userId: { in: userIds }, ownerId: null },
+          ],
+        },
         select: {
           id: true,
           name: true,
+          ownerId: true,
           userId: true,
           createdAt: true,
           districts: {
@@ -65,13 +73,14 @@ export async function GET() {
       }),
     ]);
 
-    // Group plans and activities by userId
+    // Group plans by effective owner (ownerId, falling back to userId)
     const plansByUser = new Map<string, typeof plans>();
     for (const plan of plans) {
-      if (!plan.userId) continue;
-      const list = plansByUser.get(plan.userId) ?? [];
+      const uid = plan.ownerId ?? plan.userId;
+      if (!uid) continue;
+      const list = plansByUser.get(uid) ?? [];
       list.push(plan);
-      plansByUser.set(plan.userId, list);
+      plansByUser.set(uid, list);
     }
 
     const activitiesByUser = new Map<string, typeof activities>();

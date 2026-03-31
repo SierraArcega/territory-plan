@@ -89,38 +89,56 @@ export async function GET(request: NextRequest) {
     const thresholdData = initiative.thresholds.map((t) => ({ tier: t.tier, minPoints: t.minPoints }));
 
     // Fetch per-user action counts for point breakdowns (only since initiative start)
+    // Attribute plans to their owner (ownerId), falling back to creator (userId) when no owner is set
     const userIds = scores.map((s) => s.userId);
     const sinceDate = initiative.startDate;
-    const [planCounts, activityCounts, planDistricts] = await Promise.all([
-      prisma.territoryPlan.groupBy({
-        by: ["userId"],
-        where: { userId: { in: userIds }, createdAt: { gte: sinceDate } },
-        _count: true,
-      }),
+
+    // Fetch all plans since initiative start that belong to any scored user (as owner or creator)
+    const allPlans = await prisma.territoryPlan.findMany({
+      where: {
+        createdAt: { gte: sinceDate },
+        OR: [
+          { ownerId: { in: userIds } },
+          { userId: { in: userIds }, ownerId: null },
+        ],
+      },
+      select: { id: true, ownerId: true, userId: true },
+    });
+
+    // Build plan count per effective owner
+    const planCountMap = new Map<string, number>();
+    for (const plan of allPlans) {
+      const uid = plan.ownerId ?? plan.userId;
+      if (!uid) continue;
+      planCountMap.set(uid, (planCountMap.get(uid) ?? 0) + 1);
+    }
+
+    const planIds = allPlans.map((p) => p.id);
+
+    const [activityCounts, planDistricts] = await Promise.all([
       prisma.activity.groupBy({
         by: ["createdByUserId"],
         where: { createdByUserId: { in: userIds }, createdAt: { gte: sinceDate } },
         _count: true,
       }),
       prisma.territoryPlanDistrict.findMany({
-        where: { plan: { userId: { in: userIds }, createdAt: { gte: sinceDate } } },
+        where: { planId: { in: planIds } },
         select: {
           renewalTarget: true,
           winbackTarget: true,
           expansionTarget: true,
           newBusinessTarget: true,
-          plan: { select: { userId: true } },
+          plan: { select: { ownerId: true, userId: true } },
         },
       }),
     ]);
 
-    const planCountMap = new Map(planCounts.map((p) => [p.userId, p._count]));
     const activityCountMap = new Map(activityCounts.map((a) => [a.createdByUserId, a._count]));
 
-    // Calculate revenue units per user
+    // Calculate revenue units per user (attributed to plan owner)
     const revenueByUser = new Map<string, number>();
     for (const d of planDistricts) {
-      const uid = d.plan.userId;
+      const uid = d.plan.ownerId ?? d.plan.userId;
       if (!uid) continue;
       const total =
         Number(d.renewalTarget ?? 0) +
@@ -137,24 +155,25 @@ export async function GET(request: NextRequest) {
       ? parseInt(revenueTargetedFYStr.split("-")[0], 10) + 1
       : null;
     const revenueTargetedByUser = new Map<string, number>();
-    const planDistrictData = await prisma.territoryPlanDistrict.findMany({
-      where: {
-        plan: {
-          userId: { in: userIds },
-          createdAt: { gte: sinceDate },
-          ...(revenueTargetedFY ? { fiscalYear: revenueTargetedFY } : {}),
-        },
-      },
-      select: {
-        renewalTarget: true,
-        winbackTarget: true,
-        expansionTarget: true,
-        newBusinessTarget: true,
-        plan: { select: { userId: true } },
-      },
-    });
+    const planDistrictData = revenueTargetedFY
+      ? await prisma.territoryPlanDistrict.findMany({
+          where: {
+            plan: {
+              id: { in: planIds },
+              fiscalYear: revenueTargetedFY,
+            },
+          },
+          select: {
+            renewalTarget: true,
+            winbackTarget: true,
+            expansionTarget: true,
+            newBusinessTarget: true,
+            plan: { select: { ownerId: true, userId: true } },
+          },
+        })
+      : planDistricts; // Reuse if no FY filter
     for (const d of planDistrictData) {
-      const uid = d.plan.userId;
+      const uid = d.plan.ownerId ?? d.plan.userId;
       if (!uid) continue;
       const total = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) + Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
       revenueTargetedByUser.set(uid, (revenueTargetedByUser.get(uid) ?? 0) + total);

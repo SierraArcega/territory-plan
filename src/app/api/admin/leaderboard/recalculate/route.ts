@@ -43,10 +43,19 @@ export async function POST() {
     for (const user of allUsers) {
       let totalPoints = 0;
 
+      // Attribute plans to their owner, falling back to creator when no owner is set
+      const userPlanWhere = {
+        OR: [
+          { ownerId: user.id },
+          { userId: user.id, ownerId: null },
+        ],
+        createdAt: { gte: sinceDate },
+      };
+
       const planPts = metricMap.get("plan_created");
       if (planPts) {
         const count = await prisma.territoryPlan.count({
-          where: { userId: user.id, createdAt: { gte: sinceDate } },
+          where: userPlanWhere,
         });
         totalPoints += count * planPts;
       }
@@ -62,7 +71,7 @@ export async function POST() {
       const revenuePts = metricMap.get("revenue_targeted");
       if (revenuePts) {
         const plans = await prisma.territoryPlan.findMany({
-          where: { userId: user.id, createdAt: { gte: sinceDate } },
+          where: userPlanWhere,
           include: {
             districts: {
               select: {
@@ -91,7 +100,7 @@ export async function POST() {
       const districtPts = metricMap.get("district_added");
       if (districtPts) {
         const count = await prisma.territoryPlanDistrict.count({
-          where: { plan: { userId: user.id, createdAt: { gte: sinceDate } } },
+          where: { plan: userPlanWhere },
         });
         totalPoints += count * districtPts;
       }

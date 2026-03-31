@@ -51,9 +51,13 @@ export async function GET(
     });
 
     // Get all plans for this fiscal year with their district targets
+    // Attribute plans to their owner, falling back to creator when no owner is set
     const plans = await prisma.territoryPlan.findMany({
       where: {
-        userId: user.id,
+        OR: [
+          { ownerId: user.id },
+          { userId: user.id, ownerId: null },
+        ],
         fiscalYear,
       },
       include: {

@@ -58,8 +58,16 @@ export async function GET(request: NextRequest) {
     const below = myIndex < allScores.length - 1 ? allScores[myIndex + 1] : null;
 
     // Calculate point breakdown per metric
+    // Attribute plans to their owner, falling back to creator when no owner is set
+    const userPlanWhere = {
+      OR: [
+        { ownerId: user.id },
+        { userId: user.id, ownerId: null },
+      ],
+    };
+
     const [planCount, activityCount] = await Promise.all([
-      prisma.territoryPlan.count({ where: { userId: user.id } }),
+      prisma.territoryPlan.count({ where: userPlanWhere }),
       prisma.activity.count({ where: { createdByUserId: user.id } }),
     ]);
 
@@ -83,7 +91,7 @@ export async function GET(request: NextRequest) {
     const revMetric = initiative.metrics.find((m) => m.action === "revenue_targeted");
     if (revMetric) {
       const plans = await prisma.territoryPlan.findMany({
-        where: { userId: user.id },
+        where: userPlanWhere,
         include: {
           districts: {
             select: {
