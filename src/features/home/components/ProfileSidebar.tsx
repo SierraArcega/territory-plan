@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useProfile } from "@/lib/api";
 import { useCalendarConnection } from "@/features/calendar/lib/queries";
 import { useGoalDashboard } from "@/features/goals/lib/queries";
 import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
 import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 import { useCreateTerritoryPlan } from "@/lib/api";
+import { useMapStore } from "@/features/shared/lib/app-store";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import TaskFormModal from "@/features/tasks/components/TaskFormModal";
 import LeaderboardHomeWidget from "@/features/leaderboard/components/LeaderboardHomeWidget";
@@ -70,6 +71,10 @@ export default function ProfileSidebar() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const createPlan = useCreateTerritoryPlan();
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const setActiveTab = useMapStore((s) => s.setActiveTab);
+  const handleNavigateToDetails = useCallback(() => {
+    setActiveTab("leaderboard");
+  }, [setActiveTab]);
 
   const initials = profile?.fullName
     ? profile.fullName
@@ -207,6 +212,7 @@ export default function ProfileSidebar() {
       <LeaderboardModal
         isOpen={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}
+        onNavigateToDetails={handleNavigateToDetails}
       />
     </aside>
   );

@@ -790,7 +790,7 @@ function AddDistrictButton({
         const res = await fetch(`/api/districts?search=${encodeURIComponent(q)}&limit=10`);
         if (res.ok) {
           const data = await res.json();
-          const items = (data.data || data).filter(
+          const items = (data.districts || data.data || data).filter(
             (d: { leaid: string }) => !existingLeaids.includes(d.leaid)
           );
           setResults(items.slice(0, 8));
