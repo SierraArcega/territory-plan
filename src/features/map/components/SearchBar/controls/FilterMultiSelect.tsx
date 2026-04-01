@@ -16,7 +16,9 @@ export default function FilterMultiSelect({ label, column, options, onApply }: F
   const removeSearchFilter = useMapV2Store((s) => s.removeSearchFilter);
   const existingFilter = searchFilters.find((f) => f.column === column && f.op === "in");
   const existingValues = existingFilter && Array.isArray(existingFilter.value)
-    ? (existingFilter.value as string[])
+    ? (existingFilter.value as unknown[]).map((v) =>
+        typeof v === "string" ? v : JSON.stringify(v)
+      )
     : [];
 
   const [selected, setSelected] = useState<Set<string>>(new Set(existingValues));
