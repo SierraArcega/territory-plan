@@ -22,40 +22,42 @@ Sales reps often work regions that span state borders (e.g., Kansas City metro, 
 
 ### API Endpoint: `GET /api/counties`
 
-**Query parameters (all optional):**
-- `search` — case-insensitive substring match on county name (minimum 2 characters enforced client-side)
-- `states` — comma-separated state abbreviations to scope results (e.g., `TX,OK`)
+**No query parameters.** Returns the full list of distinct county+state pairs.
 
 **Response:**
 ```json
 [
   { "countyName": "Harris County", "stateAbbrev": "TX" },
-  { "countyName": "Harrison County", "stateAbbrev": "TX" },
-  { "countyName": "Harris County", "stateAbbrev": "GA" }
+  { "countyName": "Washington County", "stateAbbrev": "AL" },
+  ...
 ]
 ```
 
 **Implementation:**
 - Queries distinct `(countyName, stateAbbrev)` pairs from the `district` table using Prisma `groupBy`
-- Filters with `contains` + `mode: "insensitive"` when `search` is provided
-- Filters with `stateAbbrev: { in: [...] }` when `states` is provided
 - Sorted alphabetically by county name, then state abbreviation
+- Returns all ~3,136 pairs in a single response (~100KB)
+- Called once on component mount, same pattern as `/api/states`
 
 ### UI: County Section in GeographyDropdown
 
 Added below the existing State filter section in `GeographyDropdown.tsx`.
 
+**Data loading:**
+- All counties fetched once on mount via `/api/counties` (same pattern as states)
+- Stored in component state as the full list
+
 **Search input:**
 - Text field with placeholder "Search county..."
-- Debounced at 300ms
-- Minimum 2 characters before triggering API call
-- If states are selected in the state filter, passes them to narrow results (convenience, not required)
+- Filters the preloaded list client-side (instant, no API calls per keystroke)
+- Case-insensitive substring match on county name
+- If states are selected in the state filter, additionally narrows the list to those states (convenience, not required)
 
 **Results list:**
 - Scrollable dropdown below search input
 - Each result displays as `County Name (ST)` — e.g., "Washington County (AL)"
 - Checkbox-style multi-select, consistent with state filter pattern
-- Results sourced directly from database — values match exactly, no case mismatch possible
+- Results sourced directly from preloaded database data — values match exactly, no case mismatch possible
 
 **Selected counties:**
 - Displayed as removable pills below the search input
@@ -86,7 +88,7 @@ Added below the existing State filter section in `GeographyDropdown.tsx`.
 
 ### Edge Cases
 
-- **Empty state:** County section shows just the search input. No results until 2+ characters typed.
+- **Empty state:** County section shows just the search input. No results displayed until the user starts typing.
 - **No results:** Shows "No counties found" inline below the input.
 - **State filter interaction:** If states are selected, county search is scoped to those states for convenience. Already-selected counties are never removed when states change.
 - **Overlapping filters:** If a user selects both "TX" in states and "Harris County (TX)" in counties, both filters apply. The overlap is harmless — districts must match both, and they will.
