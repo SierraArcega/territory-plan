@@ -35,10 +35,19 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Build where clause
+    // When filtering by planId, show ALL activities in that plan (not just the user's)
+    // as long as the user has access to the plan (owner or collaborator).
     const where: Prisma.ActivityWhereInput = {
-      createdByUserId: user.id,
       source: { not: "system" },
     };
+
+    if (planId) {
+      // Show all activities in the plan, regardless of who created them
+      where.plans = { some: { planId } };
+    } else {
+      // No plan filter — show only the user's own activities
+      where.createdByUserId = user.id;
+    }
 
     // Search by title
     if (search) {
@@ -48,11 +57,6 @@ export async function GET(request: NextRequest) {
     // Filter by category (maps to types)
     if (category && ACTIVITY_CATEGORIES[category]) {
       where.type = { in: ACTIVITY_CATEGORIES[category] as unknown as string[] };
-    }
-
-    // Filter by plan
-    if (planId) {
-      where.plans = { some: { planId } };
     }
 
     // Filter by district
