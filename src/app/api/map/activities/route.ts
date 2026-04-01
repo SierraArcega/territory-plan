@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
  *
  * Returns a GeoJSON FeatureCollection of activities positioned at linked
  * district centroids. Multi-district activities produce one feature per
- * district. Auth required — scoped to the current user's activities.
+ * district. Auth required. When planId is provided, returns all activities
+ * in the plan (if user has access); otherwise scoped to user's own activities.
  *
  * Query params:
  *   - bounds: "west,south,east,north" (required)
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const states = searchParams.get("states"); // comma-separated state abbreviations
+    const planId = searchParams.get("planId");
 
     const conditions: string[] = [
       "d.centroid IS NOT NULL",
@@ -55,9 +57,17 @@ export async function GET(request: NextRequest) {
       "ST_Y(d.centroid) >= $2",
       "ST_X(d.centroid) <= $3",
       "ST_Y(d.centroid) <= $4",
-      "a.created_by_user_id = $5",
     ];
-    const params: (string | number)[] = [west, south, east, north, user.id];
+    const params: (string | number)[] = [west, south, east, north];
+
+    if (planId) {
+      // Show all activities linked to this plan, regardless of who created them
+      params.push(planId);
+      conditions.push(`EXISTS (SELECT 1 FROM activity_plans ap WHERE ap.activity_id = a.id AND ap.plan_id = $${params.length})`);
+    } else {
+      params.push(user.id);
+      conditions.push(`a.created_by_user_id = $${params.length}`);
+    }
 
     if (type) {
       params.push(type);

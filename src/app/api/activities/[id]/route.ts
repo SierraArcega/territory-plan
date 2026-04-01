@@ -68,9 +68,16 @@ export async function GET(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow viewing if user owns it OR if it has no owner (backwards compatibility)
+    // Allow viewing if user owns it, if it has no owner (backwards compatibility),
+    // or if the activity is linked to any plan (plan activities are visible to all)
     if (activity.createdByUserId && activity.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to view this activity" }, { status: 403 });
+      const linkedToPlan = await prisma.activityPlan.findFirst({
+        where: { activityId: id },
+        select: { planId: true },
+      });
+      if (!linkedToPlan) {
+        return NextResponse.json({ error: "Not authorized to view this activity" }, { status: 403 });
+      }
     }
 
     // Get plan districts for computing isInPlan
