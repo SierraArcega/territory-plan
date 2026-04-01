@@ -37,15 +37,22 @@ Sales reps often work regions that span state borders (e.g., Kansas City metro, 
 - Queries distinct `(countyName, stateAbbrev)` pairs from the `district` table using Prisma `groupBy`
 - Sorted alphabetically by county name, then state abbreviation
 - Returns all ~3,136 pairs in a single response (~100KB)
-- Called once on component mount, same pattern as `/api/states`
+
+### Data Hook: `useCounties()`
+
+TanStack Query hook (following the project's preferred data-fetching pattern):
+- Fetches `/api/counties` once
+- `staleTime: Infinity` — county data is static, no need to refetch during a session
+- Cached globally — if multiple components need counties, TanStack Query serves from cache
+- Located in a shared queries file (e.g., `src/features/shared/lib/queries.ts` or `src/features/map/lib/queries.ts`)
 
 ### UI: County Section in GeographyDropdown
 
 Added below the existing State filter section in `GeographyDropdown.tsx`.
 
 **Data loading:**
-- All counties fetched once on mount via `/api/counties` (same pattern as states)
-- Stored in component state as the full list
+- Uses `useCounties()` hook — data loaded once and cached by TanStack Query
+- No local `useEffect` + `fetch` needed
 
 **Search input:**
 - Text field with placeholder "Search county..."
@@ -97,5 +104,5 @@ Added below the existing State filter section in `GeographyDropdown.tsx`.
 
 - Integration test: create a county filter, serialize it, send to search API, confirm matching districts return
 - Unit test: county filter special case in search route correctly builds compound OR clause
-- Unit test: `/api/counties` endpoint returns correct results with search and state params
-- Component test: GeographyDropdown renders county section, search triggers API, selections create filters
+- Unit test: `/api/counties` endpoint returns correct distinct county+state pairs
+- Component test: GeographyDropdown renders county section, client-side search filters list, selections create filters
