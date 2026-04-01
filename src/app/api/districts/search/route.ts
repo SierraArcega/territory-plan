@@ -103,6 +103,27 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)));
 
+  // Extract compound county+state filter (structured objects, not plain strings)
+  // Before splitting into scalar/relation filters, pull out countyName and handle
+  // it separately since it needs a compound (countyName + stateAbbrev) WHERE clause.
+  let countyWhere: Record<string, unknown> | null = null;
+  const countyFilter = filters.find(
+    (f) => f.column === "countyName" && f.op === "in" && Array.isArray(f.value)
+  );
+  if (countyFilter) {
+    const pairs = countyFilter.value as Array<{
+      countyName: string;
+      stateAbbrev: string;
+    }>;
+    countyWhere = {
+      OR: pairs.map((p) => ({
+        countyName: p.countyName,
+        stateAbbrev: p.stateAbbrev,
+      })),
+    };
+    filters = filters.filter((f) => f !== countyFilter);
+  }
+
   // Separate relation/special filters from scalar filters
   // Scalar filters map directly to District columns via DISTRICT_FIELD_MAP.
   // Relation filters need custom Prisma where clauses (tags, plans, competitors).
@@ -242,7 +263,7 @@ export async function GET(req: NextRequest) {
   // are active. When attribute filters narrow the result set, we show ALL matching
   // districts regardless of viewport (many districts lack geometry and would be
   // silently excluded by a bounds query).
-  const hasAttributeFilters = scalarFilters.length > 0 || relationFilters.length > 0;
+  const hasAttributeFilters = scalarFilters.length > 0 || relationFilters.length > 0 || countyWhere !== null;
   let boundsLeaids: string[] | null = null;
   if (!zipRadius && bounds && !hasAttributeFilters) {
     const [west, south, east, north] = bounds;
@@ -259,6 +280,11 @@ export async function GET(req: NextRequest) {
   // Merge AND arrays if both exist
   if (filterWhere.AND && relationWhere.AND) {
     where.AND = [...(filterWhere.AND as unknown[]), ...(relationWhere.AND as unknown[])];
+  }
+  // Merge county compound filter into the AND array
+  if (countyWhere) {
+    if (!where.AND) where.AND = [];
+    (where.AND as unknown[]).push(countyWhere);
   }
   // Add name search if provided
   if (nameParam) {

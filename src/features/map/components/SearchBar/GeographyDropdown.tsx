@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
+import { useCounties } from "@/features/map/lib/queries";
+import type { CountyOption } from "@/features/map/lib/queries";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
 
 
@@ -12,12 +14,35 @@ interface GeographyDropdownProps {
 
 export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
   const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
+  const searchFilters = useMapV2Store((s) => s.searchFilters);
   const ref = useRef<HTMLDivElement>(null);
 
   const [states, setStates] = useState<Array<{ abbrev: string; name: string }>>([]);
   const [zip, setZip] = useState("");
   const [radius, setRadius] = useState("25");
   const [zipLoading, setZipLoading] = useState(false);
+
+  // Fetch counties via TanStack Query (cached for the session)
+  const { data: counties = [] } = useCounties();
+
+  // Get currently selected state abbreviations from the state filter (if any)
+  const selectedStates = useMemo(() => {
+    const stateFilter = searchFilters.find((f) => f.column === "state" && f.op === "in");
+    return stateFilter && Array.isArray(stateFilter.value)
+      ? (stateFilter.value as string[])
+      : [];
+  }, [searchFilters]);
+
+  // Build county options — scoped to selected states if any are active
+  const countyOptions = useMemo(() => {
+    const filtered = selectedStates.length > 0
+      ? counties.filter((c) => selectedStates.includes(c.stateAbbrev))
+      : counties;
+    return filtered.map((c) => ({
+      value: JSON.stringify({ countyName: c.countyName, stateAbbrev: c.stateAbbrev }),
+      label: `${c.countyName} (${c.stateAbbrev})`,
+    }));
+  }, [counties, selectedStates]);
 
   useEffect(() => {
     fetch("/api/states")
@@ -78,6 +103,12 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
     } finally {
       setZipLoading(false);
     }
+  };
+
+  // Handle county filter application — store structured objects as value
+  const handleCountyApply = (_column: string, values: string[]) => {
+    const parsed = values.map((v) => JSON.parse(v) as CountyOption);
+    addFilter("countyName", "in", parsed);
   };
 
   return (
@@ -148,6 +179,16 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
             column="state"
             options={states.map((s) => ({ value: s.abbrev, label: `${s.name} (${s.abbrev})` }))}
             onApply={(col, vals) => addFilter(col, "in", vals)}
+          />
+        )}
+
+        {/* County */}
+        {countyOptions.length > 0 && (
+          <FilterMultiSelect
+            label="County"
+            column="countyName"
+            options={countyOptions}
+            onApply={handleCountyApply}
           />
         )}
 

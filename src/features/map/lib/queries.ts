@@ -49,6 +49,20 @@ export function useStates(options?: { enabled?: boolean }) {
   });
 }
 
+// County options for geography filter (static data, fetched once per session)
+export interface CountyOption {
+  countyName: string;
+  stateAbbrev: string;
+}
+
+export function useCounties() {
+  return useQuery({
+    queryKey: ["counties"],
+    queryFn: () => fetchJson<CountyOption[]>(`${API_BASE}/counties`),
+    staleTime: Infinity,
+  });
+}
+
 // State detail hook
 export function useStateDetail(stateCode: string | null) {
   return useQuery({
