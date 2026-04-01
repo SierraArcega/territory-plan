@@ -83,42 +83,48 @@ export default function ActivityFormModal({
   const [viewStack, setViewStack] = useState<{ id: string; title: string }[]>([]);
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
+  const [successFlash, setSuccessFlash] = useState<string | null>(null);
+
+  const resetForm = () => {
+    if (defaultCategory) {
+      setSelectedCategory(defaultCategory);
+      const types = ACTIVITY_CATEGORIES[defaultCategory];
+      if (types.length === 1) {
+        setType(types[0] as ActivityType);
+        setStep("form");
+      } else {
+        setStep("pick-type");
+      }
+    } else {
+      setStep("pick-category");
+      setSelectedCategory(null);
+    }
+    setType("conference");
+    setTitle("");
+    setStartDate(new Date().toISOString().split("T")[0]);
+    setEndDate("");
+    setIsMultiDay(false);
+    setNotes("");
+    setStatus("planned");
+    setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
+    setSelectedStateFips([]);
+    setMetadata({});
+    setAttendeeUserIds([]);
+    setDistrictStops([]);
+    setTaskDrafts([]);
+    setExpenses([]);
+    setRelatedActivities([]);
+    setViewStack([]);
+    setError(null);
+    setShowNewPlanForm(false);
+    setNewPlanName("");
+  };
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (defaultCategory) {
-        setSelectedCategory(defaultCategory);
-        const types = ACTIVITY_CATEGORIES[defaultCategory];
-        if (types.length === 1) {
-          setType(types[0] as ActivityType);
-          setStep("form");
-        } else {
-          setStep("pick-type");
-        }
-      } else {
-        setStep("pick-category");
-        setSelectedCategory(null);
-      }
-      setType("conference");
-      setTitle("");
-      setStartDate(new Date().toISOString().split("T")[0]);
-      setEndDate("");
-      setIsMultiDay(false);
-      setNotes("");
-      setStatus("planned");
-      setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
-      setSelectedStateFips([]);
-      setMetadata({});
-      setAttendeeUserIds([]);
-      setDistrictStops([]);
-      setTaskDrafts([]);
-      setExpenses([]);
-      setRelatedActivities([]);
-      setViewStack([]);
-      setError(null);
-      setShowNewPlanForm(false);
-      setNewPlanName("");
+      resetForm();
+      setSuccessFlash(null);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
@@ -169,7 +175,7 @@ export default function ActivityFormModal({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, { createAnother = false } = {}) => {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -178,9 +184,10 @@ export default function ActivityFormModal({
 
     setError(null);
     try {
+      const savedTitle = title.trim();
       const activity = await createActivity.mutateAsync({
         type,
-        title: title.trim(),
+        title: savedTitle,
         startDate: startDate || undefined,
         endDate: isMultiDay && endDate ? endDate : undefined,
         notes: notes.trim() || undefined,
@@ -219,7 +226,13 @@ export default function ActivityFormModal({
         );
       }
 
-      onClose();
+      if (createAnother) {
+        resetForm();
+        setSuccessFlash(`"${savedTitle}" created`);
+        setTimeout(() => setSuccessFlash(null), 2500);
+      } else {
+        onClose();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create activity";
       setError(message);
@@ -530,6 +543,16 @@ export default function ActivityFormModal({
               </div>
             </div>
 
+            {/* Success flash */}
+            {successFlash && (
+              <div className="mx-5 mb-2 p-3 bg-[#f0faf4] border border-[#6ec992] rounded-lg text-sm text-[#2d7a4f] flex items-center gap-2">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {successFlash}
+              </div>
+            )}
+
             {/* Error */}
             {error && (
               <div className="mx-5 mb-2 p-3 bg-[#fef1f0] border border-[#f58d85] rounded-lg text-sm text-[#F37167]">
@@ -545,6 +568,14 @@ export default function ActivityFormModal({
                 className="px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!title.trim() || createActivity.isPending}
+                onClick={(e) => handleSubmit(e as unknown as React.FormEvent, { createAnother: true })}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#403770] border border-[#C2BBD4] rounded-lg hover:bg-[#EFEDF5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save & Create New
               </button>
               <button
                 type="submit"
