@@ -475,24 +475,38 @@ export default function ActivityFormModal({
                     )].map((fips) => ({ fips, abbrev: stateAbbrevMap.get(fips) })).filter((s) => s.abbrev);
                     if (autoDistricts.length === 0 && autoStates.length === 0) return null;
                     return (
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {autoDistricts.map(([leaid, name]) => (
-                          <span key={leaid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#e8f1f5] text-[#3B6B83] rounded-md text-[11px]">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            {name}
-                          </span>
-                        ))}
-                        {autoStates.map((s) => (
-                          <span key={s.fips} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFEDF5] text-[#544A78] rounded-md text-[11px]">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            {s.abbrev}
-                          </span>
-                        ))}
+                      <div className="mt-2 space-y-2">
+                        {autoDistricts.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-medium text-[#8A80A8] mb-1">Districts</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {autoDistricts.map(([leaid, name]) => (
+                                <span key={leaid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#e8f1f5] text-[#3B6B83] rounded-md text-[11px]">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {autoStates.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {autoStates.map((s) => (
+                                <span key={s.fips} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFEDF5] text-[#544A78] rounded-md text-[11px]">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  {s.abbrev}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
