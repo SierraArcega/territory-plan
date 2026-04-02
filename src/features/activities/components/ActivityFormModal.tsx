@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask } from "@/lib/api";
+import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask, useUpdateActivity } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -28,6 +28,7 @@ import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
 import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
 import ActivityViewPanel from "./ActivityViewPanel";
 import { type OutcomeType } from "@/features/activities/outcome-types";
+import type { OpportunityResult } from "@/features/activities/lib/outcome-types-api";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export default function ActivityFormModal({
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
   const createTask = useCreateTask();
   const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
@@ -81,6 +83,10 @@ export default function ActivityFormModal({
   const [outcomeRating, setOutcomeRating] = useState(0);
   const [selectedOutcomes, setSelectedOutcomes] = useState<OutcomeType[]>([]);
   const [outcomeNote, setOutcomeNote] = useState("");
+
+  // Outcome extras
+  const [linkedOpportunities, setLinkedOpportunities] = useState<OpportunityResult[]>([]);
+  const [outcomeContacts, setOutcomeContacts] = useState<SelectedContact[]>([]);
 
   // Tab state (lifted so submit can access)
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
@@ -122,6 +128,8 @@ export default function ActivityFormModal({
     setOutcomeRating(0);
     setSelectedOutcomes([]);
     setOutcomeNote("");
+    setLinkedOpportunities([]);
+    setOutcomeContacts([]);
     setDistrictStops([]);
     setTaskDrafts([]);
     setExpenses([]);
@@ -208,7 +216,10 @@ export default function ActivityFormModal({
         stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
         metadata: hasMetadata ? metadata : undefined,
         attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
-        contactIds: selectedContacts.length > 0 ? selectedContacts.map((c) => c.id) : undefined,
+        contactIds: (() => {
+          const allIds = [...new Set([...selectedContacts.map((c) => c.id), ...outcomeContacts.map((c) => c.id)])];
+          return allIds.length > 0 ? allIds : undefined;
+        })(),
         expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
         districts: (() => {
           // Merge district stops with auto-linked districts from contacts
@@ -247,6 +258,14 @@ export default function ActivityFormModal({
             })
           )
         );
+      }
+
+      // Link opportunities (via update, since POST doesn't support it)
+      if (linkedOpportunities.length > 0 && activity?.id) {
+        await updateActivity.mutateAsync({
+          activityId: activity.id,
+          opportunityIds: linkedOpportunities.map((o) => o.id),
+        });
       }
 
       if (createAnother) {
@@ -639,6 +658,10 @@ export default function ActivityFormModal({
                   outcomeNote={outcomeNote}
                   onOutcomeNoteChange={setOutcomeNote}
                   activityCategory={selectedCategory}
+                  linkedOpportunities={linkedOpportunities}
+                  onLinkedOpportunitiesChange={setLinkedOpportunities}
+                  outcomeContacts={outcomeContacts}
+                  onOutcomeContactsChange={setOutcomeContacts}
                 />
               </div>
             </div>

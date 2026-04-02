@@ -6,11 +6,14 @@ import ExpenseLineItems from "./event-fields/ExpenseLineItems";
 import RelatedActivitiesTab, { type RelationDraft } from "./tabs/RelatedActivitiesTab";
 import FilesTab from "./tabs/FilesTab";
 import StarRating from "./StarRating";
+import OpportunitySearch from "./OpportunitySearch";
+import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
 import {
   OUTCOMES_BY_CATEGORY,
   OUTCOME_CONFIGS,
   type OutcomeType,
 } from "@/features/activities/outcome-types";
+import type { OpportunityResult } from "@/features/activities/lib/outcome-types-api";
 import type { ActivityCategory } from "@/features/activities/types";
 
 type TabKey = "tasks" | "expenses" | "related" | "outcomes" | "files";
@@ -40,6 +43,10 @@ interface ActivityFormTabsProps {
   outcomeNote?: string;
   onOutcomeNoteChange?: (note: string) => void;
   activityCategory?: ActivityCategory | null;
+  linkedOpportunities?: OpportunityResult[];
+  onLinkedOpportunitiesChange?: (opps: OpportunityResult[]) => void;
+  outcomeContacts?: SelectedContact[];
+  onOutcomeContactsChange?: (contacts: SelectedContact[]) => void;
 }
 
 export default function ActivityFormTabs({
@@ -58,6 +65,10 @@ export default function ActivityFormTabs({
   outcomeNote,
   onOutcomeNoteChange,
   activityCategory,
+  linkedOpportunities,
+  onLinkedOpportunitiesChange,
+  outcomeContacts,
+  onOutcomeContactsChange,
 }: ActivityFormTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("expenses");
 
@@ -176,6 +187,22 @@ export default function ActivityFormTabs({
                 className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent resize-none"
               />
             </div>
+
+            {/* Opportunity linking */}
+            {onLinkedOpportunitiesChange && (
+              <OpportunitySearch
+                value={linkedOpportunities ?? []}
+                onChange={onLinkedOpportunitiesChange}
+              />
+            )}
+
+            {/* Contacts from this activity */}
+            {onOutcomeContactsChange && (
+              <ContactSelect
+                selectedContacts={outcomeContacts ?? []}
+                onChange={onOutcomeContactsChange}
+              />
+            )}
           </div>
         )}
         {activeTab === "files" && <FilesTab />}
