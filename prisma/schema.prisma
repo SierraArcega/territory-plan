@@ -407,6 +407,7 @@ model UnmatchedAccount {
   salesExecutive     String?  @map("sales_executive") @db.VarChar(100)
   salesExecutiveId String?     @map("sales_executive_id") @db.Uuid
   stateAbbrev        String   @map("state_abbrev") @db.VarChar(2)
+  stateFips          String?  @map("state_fips") @db.VarChar(2)
   lmsid              String?  @db.VarChar(50)
   leaidRaw           String?  @map("leaid_raw") @db.VarChar(50)
   matchFailureReason String   @map("match_failure_reason") @db.VarChar(100)
@@ -421,6 +422,7 @@ model UnmatchedAccount {
   financials VendorFinancials[]
 
   @@index([stateAbbrev])
+  @@index([stateFips])
   @@map("unmatched_accounts")
 }
 
@@ -486,6 +488,7 @@ model State {
 
   // ===== Relations =====
   districts      District[]
+  schools        School[]
   planStateLinks TerritoryPlanState[] @relation("PlanStates")
   activityLinks  ActivityState[]
   assessments    StateAssessment[]
@@ -1093,6 +1096,8 @@ model School {
   streetAddress      String?  @map("street_address") @db.VarChar(255)
   city               String?  @db.VarChar(100)
   stateAbbrev        String?  @map("state_abbrev") @db.VarChar(2)
+  stateFips          String?  @map("state_fips") @db.VarChar(2)
+  stateRef           State?   @relation(fields: [stateFips], references: [fips])
   zip                String?  @db.VarChar(10)
   countyName         String?  @map("county_name") @db.VarChar(100)
   phone              String?  @db.VarChar(20)
@@ -1250,6 +1255,7 @@ model Opportunity {
   schoolYr           String?   @map("school_yr") @db.Text
   contractType       String?   @map("contract_type") @db.Text
   state              String?   @db.Text
+  stateFips          String?   @map("state_fips") @db.VarChar(2)
   salesRepName       String?   @map("sales_rep_name") @db.Text
   salesRepEmail      String?   @map("sales_rep_email") @db.Text
   salesRepId     String?   @map("sales_rep_id") @db.Uuid
@@ -1287,6 +1293,7 @@ model Opportunity {
   @@index([districtLeaId])
   @@index([stage])
   @@index([districtLeaId, schoolYr, stage])
+  @@index([stateFips])
   @@map("opportunities")
 }
 
