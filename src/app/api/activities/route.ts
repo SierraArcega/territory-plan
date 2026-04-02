@@ -265,6 +265,9 @@ export async function POST(request: NextRequest) {
       expenses = [],
       districts: districtDetails = [],
       relatedActivityIds = [], // [{activityId, relationType}] // [{leaid, visitDate?, visitEndDate?}]
+      outcome = null,
+      outcomeType = null,
+      rating = null,
     } = body;
 
     // Validate required fields
@@ -316,6 +319,9 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         status,
+        outcome: outcome?.trim() || null,
+        outcomeType: outcomeType || null,
+        rating: rating != null ? Number(rating) : null,
         metadata: metadata || undefined,
         createdByUserId: user.id,
         plans: {

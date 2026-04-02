@@ -69,6 +69,9 @@ export function useCreateActivity() {
       expenses?: { description: string; amount: number }[];
       districts?: { leaid: string; visitDate?: string; visitEndDate?: string; position?: number; notes?: string }[];
       relatedActivityIds?: { activityId: string; relationType: string }[];
+      outcome?: string | null;
+      outcomeType?: string | null;
+      rating?: number | null;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities`, {
         method: "POST",

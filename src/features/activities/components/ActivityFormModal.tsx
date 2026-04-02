@@ -27,6 +27,12 @@ import StatusSelect from "./event-fields/StatusSelect";
 import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
 import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
 import ActivityViewPanel from "./ActivityViewPanel";
+import StarRating from "./StarRating";
+import {
+  OUTCOMES_BY_CATEGORY,
+  OUTCOME_CONFIGS,
+  type OutcomeType,
+} from "@/features/activities/outcome-types";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -76,6 +82,11 @@ export default function ActivityFormModal({
     { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
   >([]);
 
+  // Outcome state
+  const [outcomeRating, setOutcomeRating] = useState(0);
+  const [selectedOutcomes, setSelectedOutcomes] = useState<OutcomeType[]>([]);
+  const [outcomeNote, setOutcomeNote] = useState("");
+
   // Tab state (lifted so submit can access)
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
   const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);
@@ -113,6 +124,9 @@ export default function ActivityFormModal({
     setMetadata({});
     setAttendeeUserIds([]);
     setSelectedContacts([]);
+    setOutcomeRating(0);
+    setSelectedOutcomes([]);
+    setOutcomeNote("");
     setDistrictStops([]);
     setTaskDrafts([]);
     setExpenses([]);
@@ -219,6 +233,9 @@ export default function ActivityFormModal({
         relatedActivityIds: relatedActivities.length > 0
           ? relatedActivities.map((r) => ({ activityId: r.activityId, relationType: r.relationType }))
           : undefined,
+        outcome: outcomeNote.trim() || undefined,
+        outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes[0] : undefined,
+        rating: outcomeRating > 0 ? outcomeRating : undefined,
       });
 
       // Create linked tasks
@@ -536,6 +553,63 @@ export default function ActivityFormModal({
                     />
                   </div>
                 )}
+
+                {/* Outcomes */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Outcomes</p>
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Rating</label>
+                    <StarRating value={outcomeRating} onChange={setOutcomeRating} />
+                  </div>
+                  {selectedCategory && OUTCOMES_BY_CATEGORY[selectedCategory] && (
+                    <div>
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1.5">What happened?</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {OUTCOMES_BY_CATEGORY[selectedCategory].map((outcomeKey) => {
+                          const config = OUTCOME_CONFIGS[outcomeKey];
+                          const isSelected = selectedOutcomes.includes(outcomeKey);
+                          return (
+                            <button
+                              key={outcomeKey}
+                              type="button"
+                              onClick={() => {
+                                setSelectedOutcomes((prev) =>
+                                  isSelected
+                                    ? prev.filter((o) => o !== outcomeKey)
+                                    : [...prev, outcomeKey]
+                                );
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors duration-100 ${
+                                isSelected
+                                  ? "ring-1 ring-offset-1"
+                                  : "hover:opacity-80"
+                              }`}
+                              style={{
+                                backgroundColor: config.bgColor,
+                                color: config.color,
+                                ...(isSelected ? { ringColor: config.color } : {}),
+                              }}
+                              title={config.description}
+                            >
+                              <span>{config.icon}</span>
+                              {config.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Outcome Notes</label>
+                    <textarea
+                      value={outcomeNote}
+                      onChange={(e) => setOutcomeNote(e.target.value)}
+                      placeholder="What resulted from this activity?"
+                      rows={2}
+                      className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent resize-none"
+                    />
+                  </div>
+                </div>
 
                 {/* Organization & Notes */}
                 <div className="space-y-3">
