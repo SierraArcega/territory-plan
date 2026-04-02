@@ -18,6 +18,7 @@ export interface MultiSelectProps {
   countLabel?: string;
   searchPlaceholder?: string;
   disabled?: boolean;
+  footer?: React.ReactNode;
 }
 
 type TriState = "unchecked" | "indeterminate" | "checked";
@@ -58,6 +59,7 @@ export function MultiSelect({
   countLabel = "items",
   searchPlaceholder = "Search...",
   disabled = false,
+  footer,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -383,6 +385,11 @@ export function MultiSelect({
               })
             )}
           </ul>
+          {footer && (
+            <div className="border-t border-[#E2DEEC]">
+              {footer}
+            </div>
+          )}
         </div>,
         document.body
       )}

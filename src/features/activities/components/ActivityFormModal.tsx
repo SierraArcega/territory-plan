@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask } from "@/lib/api";
+import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask, useUpdateActivity } from "@/lib/api";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -25,7 +25,10 @@ import AttendeeSelect from "./event-fields/AttendeeSelect";
 import ActivityFormTabs from "./ActivityFormTabs";
 import StatusSelect from "./event-fields/StatusSelect";
 import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
+import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
 import ActivityViewPanel from "./ActivityViewPanel";
+import { type OutcomeType } from "@/features/activities/outcome-types";
+import type { OpportunityResult } from "@/features/activities/lib/outcome-types-api";
 
 interface ActivityFormModalProps {
   isOpen: boolean;
@@ -46,6 +49,7 @@ export default function ActivityFormModal({
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
   const createTask = useCreateTask();
   const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
@@ -70,9 +74,19 @@ export default function ActivityFormModal({
   // Type-specific state
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
   const [districtStops, setDistrictStops] = useState<
     { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
   >([]);
+
+  // Outcome state
+  const [outcomeRating, setOutcomeRating] = useState(0);
+  const [selectedOutcomes, setSelectedOutcomes] = useState<OutcomeType[]>([]);
+  const [outcomeNote, setOutcomeNote] = useState("");
+
+  // Outcome extras
+  const [linkedOpportunities, setLinkedOpportunities] = useState<OpportunityResult[]>([]);
+  const [outcomeContacts, setOutcomeContacts] = useState<SelectedContact[]>([]);
 
   // Tab state (lifted so submit can access)
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
@@ -83,42 +97,54 @@ export default function ActivityFormModal({
   const [viewStack, setViewStack] = useState<{ id: string; title: string }[]>([]);
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
+  const [successFlash, setSuccessFlash] = useState<string | null>(null);
+
+  const resetForm = () => {
+    if (defaultCategory) {
+      setSelectedCategory(defaultCategory);
+      const types = ACTIVITY_CATEGORIES[defaultCategory];
+      if (types.length === 1) {
+        setType(types[0] as ActivityType);
+        setStep("form");
+      } else {
+        setStep("pick-type");
+      }
+    } else {
+      setStep("pick-category");
+      setSelectedCategory(null);
+    }
+    setType("conference");
+    setTitle("");
+    setStartDate(new Date().toISOString().split("T")[0]);
+    setEndDate("");
+    setIsMultiDay(false);
+    setNotes("");
+    setStatus("planned");
+    setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
+    setSelectedStateFips([]);
+    setMetadata({});
+    setAttendeeUserIds([]);
+    setSelectedContacts([]);
+    setOutcomeRating(0);
+    setSelectedOutcomes([]);
+    setOutcomeNote("");
+    setLinkedOpportunities([]);
+    setOutcomeContacts([]);
+    setDistrictStops([]);
+    setTaskDrafts([]);
+    setExpenses([]);
+    setRelatedActivities([]);
+    setViewStack([]);
+    setError(null);
+    setShowNewPlanForm(false);
+    setNewPlanName("");
+  };
 
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (defaultCategory) {
-        setSelectedCategory(defaultCategory);
-        const types = ACTIVITY_CATEGORIES[defaultCategory];
-        if (types.length === 1) {
-          setType(types[0] as ActivityType);
-          setStep("form");
-        } else {
-          setStep("pick-type");
-        }
-      } else {
-        setStep("pick-category");
-        setSelectedCategory(null);
-      }
-      setType("conference");
-      setTitle("");
-      setStartDate(new Date().toISOString().split("T")[0]);
-      setEndDate("");
-      setIsMultiDay(false);
-      setNotes("");
-      setStatus("planned");
-      setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
-      setSelectedStateFips([]);
-      setMetadata({});
-      setAttendeeUserIds([]);
-      setDistrictStops([]);
-      setTaskDrafts([]);
-      setExpenses([]);
-      setRelatedActivities([]);
-      setViewStack([]);
-      setError(null);
-      setShowNewPlanForm(false);
-      setNewPlanName("");
+      resetForm();
+      setSuccessFlash(null);
     }
   }, [isOpen, defaultCategory, defaultPlanId]);
 
@@ -169,7 +195,7 @@ export default function ActivityFormModal({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, { createAnother = false } = {}) => {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -178,9 +204,10 @@ export default function ActivityFormModal({
 
     setError(null);
     try {
+      const savedTitle = title.trim();
       const activity = await createActivity.mutateAsync({
         type,
-        title: title.trim(),
+        title: savedTitle,
         startDate: startDate || undefined,
         endDate: isMultiDay && endDate ? endDate : undefined,
         notes: notes.trim() || undefined,
@@ -189,18 +216,32 @@ export default function ActivityFormModal({
         stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
         metadata: hasMetadata ? metadata : undefined,
         attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
+        contactIds: (() => {
+          const allIds = [...new Set([...selectedContacts.map((c) => c.id), ...outcomeContacts.map((c) => c.id)])];
+          return allIds.length > 0 ? allIds : undefined;
+        })(),
         expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
-        districts: districtStops.length > 0
-          ? districtStops.map((s, index) => ({
-              leaid: s.leaid,
-              visitDate: s.visitDate || undefined,
-              position: index,
-              notes: s.notes || undefined,
-            }))
-          : undefined,
+        districts: (() => {
+          // Merge district stops with auto-linked districts from contacts
+          const stopLeaids = new Set(districtStops.map((s) => s.leaid));
+          const contactDistricts = selectedContacts
+            .filter((c) => !stopLeaids.has(c.leaid))
+            .map((c, i) => ({ leaid: c.leaid, position: districtStops.length + i }));
+          const stops = districtStops.map((s, i) => ({
+            leaid: s.leaid,
+            visitDate: s.visitDate || undefined,
+            position: i,
+            notes: s.notes || undefined,
+          }));
+          const all = [...stops, ...contactDistricts];
+          return all.length > 0 ? all : undefined;
+        })(),
         relatedActivityIds: relatedActivities.length > 0
           ? relatedActivities.map((r) => ({ activityId: r.activityId, relationType: r.relationType }))
           : undefined,
+        outcome: outcomeNote.trim() || undefined,
+        outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes[0] : undefined,
+        rating: outcomeRating > 0 ? outcomeRating : undefined,
       });
 
       // Create linked tasks
@@ -219,7 +260,21 @@ export default function ActivityFormModal({
         );
       }
 
-      onClose();
+      // Link opportunities (via update, since POST doesn't support it)
+      if (linkedOpportunities.length > 0 && activity?.id) {
+        await updateActivity.mutateAsync({
+          activityId: activity.id,
+          opportunityIds: linkedOpportunities.map((o) => o.id),
+        });
+      }
+
+      if (createAnother) {
+        resetForm();
+        setSuccessFlash(`"${savedTitle}" created`);
+        setTimeout(() => setSuccessFlash(null), 2500);
+      } else {
+        onClose();
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create activity";
       setError(message);
@@ -268,7 +323,7 @@ export default function ActivityFormModal({
         className={embedded
           ? "flex flex-col h-full overflow-hidden"
           : `bg-white rounded-2xl shadow-xl w-full max-h-[85vh] overflow-hidden flex flex-col transition-all ${
-              isPickerStep ? "max-w-xl" : "max-w-4xl"
+              isPickerStep ? "max-w-xl" : "max-w-5xl"
             }`
         }
       >
@@ -396,7 +451,7 @@ export default function ActivityFormModal({
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
             <div className="flex flex-1 overflow-hidden">
               {/* ── Left Panel: Event Info ── */}
-              <div className="w-1/2 overflow-y-auto p-5 space-y-5">
+              <div className="w-[55%] overflow-y-auto p-6 space-y-4">
                 {/* Title */}
                 <div>
                   <label className="block text-xs font-medium text-[#8A80A8] mb-1">
@@ -413,7 +468,7 @@ export default function ActivityFormModal({
                   />
                 </div>
 
-                {/* Date + Status side by side */}
+                {/* Date + Status */}
                 <div className="grid grid-cols-2 gap-3">
                   <CalendarPicker
                     startDate={startDate}
@@ -430,9 +485,78 @@ export default function ActivityFormModal({
                   />
                 </div>
 
+                {/* Contacts */}
+                <div>
+                  <ContactSelect
+                    selectedContacts={selectedContacts}
+                    onChange={setSelectedContacts}
+                  />
+                  {/* Auto-linked districts & states as chips */}
+                  {selectedContacts.length > 0 && (() => {
+                    const stopLeaids = new Set(districtStops.map((s) => s.leaid));
+                    const autoDistricts = [...new Map(
+                      selectedContacts
+                        .filter((c) => !stopLeaids.has(c.leaid) && c.districtName)
+                        .map((c) => [c.leaid, c.districtName] as const)
+                    ).entries()];
+                    const stateAbbrevMap = new Map((states ?? []).map((s) => [s.fips, s.abbrev]));
+                    const explicitFips = new Set(selectedStateFips);
+                    const autoStates = [...new Set(
+                      selectedContacts.map((c) => c.leaid.slice(0, 2)).filter((fips) => !explicitFips.has(fips))
+                    )].map((fips) => ({ fips, abbrev: stateAbbrevMap.get(fips) })).filter((s) => s.abbrev);
+                    if (autoDistricts.length === 0 && autoStates.length === 0) return null;
+                    return (
+                      <div className="mt-2 space-y-2">
+                        {autoDistricts.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-medium text-[#8A80A8] mb-1">Districts</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {autoDistricts.map(([leaid, name]) => (
+                                <span key={leaid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#e8f1f5] text-[#3B6B83] rounded-md text-[11px]">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {autoStates.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {autoStates.map((s) => (
+                                <span key={s.fips} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFEDF5] text-[#544A78] rounded-md text-[11px]">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  {s.abbrev}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Fullmind Attendees — team members on this activity */}
+                {isEventCategory && (
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Fullmind Attendees</label>
+                    <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
+                  </div>
+                )}
+
+                {/* Divider */}
+                <div className="border-t border-[#E2DEEC]" />
+
                 {/* Type-specific details */}
                 {isEventCategory && (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
                     <EventTypeFields
                       type={type}
@@ -444,63 +568,64 @@ export default function ActivityFormModal({
                   </div>
                 )}
 
-                {/* People & Organization */}
+                {/* Organization & Notes */}
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">People & Organization</p>
-                  {isEventCategory && (
-                    <div>
-                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Attendees</label>
-                      <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="min-w-0">
-                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
-                      <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
-                      {showNewPlanForm ? (
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <input
-                            type="text"
-                            value={newPlanName}
-                            onChange={(e) => setNewPlanName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleCreateAndLinkPlan();
-                              }
-                              if (e.key === "Escape") {
-                                setShowNewPlanForm(false);
-                                setNewPlanName("");
-                              }
-                            }}
-                            placeholder="Plan name..."
-                            className="flex-1 px-2 py-1.5 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770] text-[#403770]"
-                            autoFocus
-                          />
+                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Organization</p>
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
+                    <MultiSelect
+                      id="activity-plans"
+                      label="Plans"
+                      options={planOptions}
+                      selected={selectedPlanIds}
+                      onChange={setSelectedPlanIds}
+                      placeholder="Select..."
+                      countLabel="plans"
+                      searchPlaceholder="Search plans..."
+                      footer={
+                        showNewPlanForm ? (
+                          <div className="flex items-center gap-1.5 p-2">
+                            <input
+                              type="text"
+                              value={newPlanName}
+                              onChange={(e) => setNewPlanName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleCreateAndLinkPlan();
+                                }
+                                if (e.key === "Escape") {
+                                  setShowNewPlanForm(false);
+                                  setNewPlanName("");
+                                }
+                              }}
+                              placeholder="Plan name..."
+                              className="flex-1 px-2 py-1.5 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#F37167] text-[#403770] placeholder:text-[#A69DC0]"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={handleCreateAndLinkPlan}
+                              disabled={!newPlanName.trim() || createPlan.isPending}
+                              className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors duration-100"
+                            >
+                              {createPlan.isPending ? "..." : "Add"}
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            onClick={handleCreateAndLinkPlan}
-                            disabled={!newPlanName.trim() || createPlan.isPending}
-                            className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors"
+                            onClick={() => setShowNewPlanForm(true)}
+                            className="flex items-center gap-1.5 w-full px-3 py-2.5 text-xs font-medium text-[#403770] hover:bg-[#F7F5FA] transition-colors duration-100"
                           >
-                            {createPlan.isPending ? "..." : "Add"}
+                            <svg className="w-3.5 h-3.5 text-[#F37167]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create New Plan
                           </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPlanForm(true)}
-                          className="mt-1 text-xs font-medium text-[#403770] hover:text-[#322a5a] transition-colors"
-                        >
-                          + Create New Plan
-                        </button>
-                      )}
-                      {selectedPlanIds.length === 0 && !showNewPlanForm && <p className="mt-1 text-xs text-[#F37167]">No plan linked</p>}
-                    </div>
-                    <div className="min-w-0">
-                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
-                      <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
-                    </div>
+                        )
+                      }
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#8A80A8] mb-1">Notes</label>
@@ -516,7 +641,7 @@ export default function ActivityFormModal({
               </div>
 
               {/* ── Right Panel: Tabs ── */}
-              <div className="w-1/2 border-l border-[#E2DEEC] flex flex-col">
+              <div className="w-[45%] border-l border-[#E2DEEC] flex flex-col">
                 <ActivityFormTabs
                   taskDrafts={taskDrafts}
                   onTaskDraftsChange={setTaskDrafts}
@@ -526,9 +651,30 @@ export default function ActivityFormModal({
                   onRelatedActivitiesChange={setRelatedActivities}
                   showExpenses={showExpenses}
                   onViewActivity={handleViewActivity}
+                  outcomeRating={outcomeRating}
+                  onOutcomeRatingChange={setOutcomeRating}
+                  selectedOutcomes={selectedOutcomes}
+                  onSelectedOutcomesChange={setSelectedOutcomes}
+                  outcomeNote={outcomeNote}
+                  onOutcomeNoteChange={setOutcomeNote}
+                  activityCategory={selectedCategory}
+                  linkedOpportunities={linkedOpportunities}
+                  onLinkedOpportunitiesChange={setLinkedOpportunities}
+                  outcomeContacts={outcomeContacts}
+                  onOutcomeContactsChange={setOutcomeContacts}
                 />
               </div>
             </div>
+
+            {/* Success flash */}
+            {successFlash && (
+              <div className="mx-5 mb-2 p-3 bg-[#f0faf4] border border-[#6ec992] rounded-lg text-sm text-[#2d7a4f] flex items-center gap-2">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {successFlash}
+              </div>
+            )}
 
             {/* Error */}
             {error && (
@@ -545,6 +691,14 @@ export default function ActivityFormModal({
                 className="px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!title.trim() || createActivity.isPending}
+                onClick={(e) => handleSubmit(e as unknown as React.FormEvent, { createAnother: true })}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#403770] border border-[#C2BBD4] rounded-lg hover:bg-[#EFEDF5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save & Create New
               </button>
               <button
                 type="submit"
