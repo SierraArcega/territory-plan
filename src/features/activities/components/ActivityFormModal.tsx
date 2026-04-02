@@ -464,25 +464,31 @@ export default function ActivityFormModal({
                     selectedContacts={selectedContacts}
                     onChange={setSelectedContacts}
                   />
-                  {/* Auto-linked districts indicator */}
+                  {/* Auto-linked districts & states indicator */}
                   {selectedContacts.length > 0 && (() => {
                     const stopLeaids = new Set(districtStops.map((s) => s.leaid));
-                    const autoLinked = [...new Map(
+                    const autoDistricts = [...new Map(
                       selectedContacts
                         .filter((c) => !stopLeaids.has(c.leaid) && c.districtName)
                         .map((c) => [c.leaid, c.districtName] as const)
-                    ).entries()];
-                    if (autoLinked.length === 0) return null;
+                    ).values()];
+                    // Derive state abbrevs from leaid prefix (first 2 chars = state FIPS)
+                    const stateAbbrevMap = new Map((states ?? []).map((s) => [s.fips, s.abbrev]));
+                    const explicitFips = new Set(selectedStateFips);
+                    const autoStates = [...new Set(
+                      selectedContacts.map((c) => c.leaid.slice(0, 2)).filter((fips) => !explicitFips.has(fips))
+                    )].map((fips) => stateAbbrevMap.get(fips)).filter(Boolean) as string[];
+                    if (autoDistricts.length === 0 && autoStates.length === 0) return null;
+                    const parts: string[] = [];
+                    if (autoDistricts.length > 0) parts.push(autoDistricts.join(", "));
+                    if (autoStates.length > 0) parts.push(autoStates.join(", ") + (autoStates.length === 1 ? " (state)" : " (states)"));
                     return (
                       <div className="flex items-start gap-1.5 mt-1.5">
                         <svg className="w-3.5 h-3.5 text-[#6EA3BE] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
                         <p className="text-[11px] text-[#8A80A8] leading-tight">
-                          {autoLinked.length === 1
-                            ? <>{autoLinked[0][1]} will be linked</>
-                            : <>{autoLinked.map(([, name]) => name).join(", ")} will be linked</>
-                          }
+                          {parts.join(" + ")} will be linked
                         </p>
                       </div>
                     );
