@@ -107,7 +107,7 @@ model District {
 
   // ===== Graduation Data =====
   // Source: Urban Institute API (graduation endpoint)
-  graduationRateTotal Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
+  graduationRateTotal Decimal? @map("graduation_rate") @db.Decimal(5, 2)
   graduationDataYear  Int?     @map("graduation_data_year")
 
   // ===== Staffing & Salaries =====
@@ -1205,17 +1205,17 @@ model DistrictDataHistory {
   // Finance (for budget capacity analysis)
   totalRevenue     Decimal? @map("total_revenue") @db.Decimal(15, 2)
   totalExpenditure Decimal? @map("total_expenditure") @db.Decimal(15, 2)
-  expenditurePp    Decimal? @map("expenditure_pp") @db.Decimal(12, 2)
+  expenditurePp    Decimal? @map("expenditure_per_pupil") @db.Decimal(12, 2)
   federalRevenue   Decimal? @map("federal_revenue") @db.Decimal(15, 2)
   stateRevenue     Decimal? @map("state_revenue") @db.Decimal(15, 2)
   localRevenue     Decimal? @map("local_revenue") @db.Decimal(15, 2)
-  spedExpenditure  Decimal? @map("sped_expenditure") @db.Decimal(15, 2)
+  spedExpenditure  Decimal? @map("sped_expenditure_total") @db.Decimal(15, 2)
 
   // Outcomes
-  povertyPct      Decimal? @map("poverty_pct") @db.Decimal(5, 2)
+  povertyPct      Decimal? @map("poverty_percent") @db.Decimal(5, 2)
   graduationRate  Decimal? @map("graduation_rate") @db.Decimal(5, 2)
-  mathProficiency Decimal? @map("math_proficiency") @db.Decimal(5, 2)
-  readProficiency Decimal? @map("read_proficiency") @db.Decimal(5, 2)
+  mathProficiency Decimal? @map("math_proficiency_pct") @db.Decimal(5, 2)
+  readProficiency Decimal? @map("read_proficiency_pct") @db.Decimal(5, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
 
