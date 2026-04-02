@@ -335,7 +335,7 @@ model CompetitorSpend {
 // Source: Fullmind CSV, GovSpend PO data, user-provided CSV
 model VendorFinancials {
   id                Int      @id @default(autoincrement())
-  leaid             String   @db.VarChar(7)
+  leaid             String?  @db.VarChar(7)
   vendor            String   @db.VarChar(20)
   fiscalYear        String   @map("fiscal_year") @db.VarChar(4)
   openPipeline      Decimal  @default(0) @map("open_pipeline") @db.Decimal(15, 2)
@@ -348,11 +348,22 @@ model VendorFinancials {
   deliveredTake     Decimal  @default(0) @map("delivered_take") @db.Decimal(15, 2)
   scheduledTake     Decimal  @default(0) @map("scheduled_take") @db.Decimal(15, 2)
   allTake           Decimal  @default(0) @map("all_take") @db.Decimal(15, 2)
+  // New columns for FY data migration (from districts table)
+  sessionCount        Int?     @default(0) @map("session_count")
+  closedWonOppCount   Int?     @default(0) @map("closed_won_opp_count")
+  openPipelineOppCount Int?    @default(0) @map("open_pipeline_opp_count")
+  weightedPipeline    Decimal? @default(0) @map("weighted_pipeline") @db.Decimal(15, 2)
+  // From competitor_spend merger
+  poCount             Int?     @map("po_count")
+  // Optional FK — for financial data linked to unmatched accounts (no leaid)
+  unmatchedAccountId  Int?     @map("unmatched_account_id")
+  unmatchedAccount    UnmatchedAccount? @relation(fields: [unmatchedAccountId], references: [id])
   lastUpdated       DateTime @default(now()) @map("last_updated")
 
-  district District @relation(fields: [leaid], references: [leaid])
+  district District? @relation(fields: [leaid], references: [leaid])
 
   @@unique([leaid, vendor, fiscalYear])
+  @@unique([unmatchedAccountId, vendor, fiscalYear])
   @@index([leaid])
   @@index([vendor, fiscalYear])
   @@map("vendor_financials")
@@ -397,6 +408,8 @@ model UnmatchedAccount {
   isCustomer         Boolean  @default(false) @map("is_customer")
   hasOpenPipeline    Boolean  @default(false) @map("has_open_pipeline")
   createdAt          DateTime @default(now()) @map("created_at")
+
+  financials VendorFinancials[]
 
   @@index([stateAbbrev])
   @@map("unmatched_accounts")
