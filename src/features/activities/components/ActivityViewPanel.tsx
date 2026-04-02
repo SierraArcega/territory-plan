@@ -81,7 +81,6 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
   const planOptions = useMemo(() => (plans ?? []).map((p) => ({ value: p.id, label: p.name })), [plans]);
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
   const isEventCategory = getCategoryForType(type) === "events";
-  const showExpenses = isEventCategory && (type === "conference" || type === "road_trip");
 
   // Mark changes
   const markChanged = () => setHasChanges(true);
@@ -207,7 +206,6 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
             onExpensesChange={(v) => { setExpenses(v); markChanged(); }}
             relatedActivities={relatedActivities}
             onRelatedActivitiesChange={(v) => { setRelatedActivities(v); markChanged(); }}
-            showExpenses={showExpenses}
             onViewActivity={onViewRelated}
           />
         </div>

@@ -310,7 +310,6 @@ export default function ActivityFormModal({
   const stateOptions = useMemo(() => (states ?? []).map((s) => ({ value: s.fips, label: `${s.name} (${s.abbrev})` })), [states]);
   const typeCategory = getCategoryForType(type);
   const isEventCategory = typeCategory === "events" || typeCategory === "thought_leadership";
-  const showExpenses = isEventCategory && (type === "conference" || type === "road_trip");
 
   if (!isOpen) return null;
 
@@ -649,7 +648,6 @@ export default function ActivityFormModal({
                   onExpensesChange={setExpenses}
                   relatedActivities={relatedActivities}
                   onRelatedActivitiesChange={setRelatedActivities}
-                  showExpenses={showExpenses}
                   onViewActivity={handleViewActivity}
                   outcomeRating={outcomeRating}
                   onOutcomeRatingChange={setOutcomeRating}
