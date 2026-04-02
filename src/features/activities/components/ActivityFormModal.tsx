@@ -292,7 +292,7 @@ export default function ActivityFormModal({
         className={embedded
           ? "flex flex-col h-full overflow-hidden"
           : `bg-white rounded-2xl shadow-xl w-full max-h-[85vh] overflow-hidden flex flex-col transition-all ${
-              isPickerStep ? "max-w-xl" : "max-w-4xl"
+              isPickerStep ? "max-w-xl" : "max-w-5xl"
             }`
         }
       >
@@ -420,7 +420,7 @@ export default function ActivityFormModal({
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
             <div className="flex flex-1 overflow-hidden">
               {/* ── Left Panel: Event Info ── */}
-              <div className="w-1/2 overflow-y-auto p-5 space-y-5">
+              <div className="w-[55%] overflow-y-auto p-6 space-y-4">
                 {/* Title */}
                 <div>
                   <label className="block text-xs font-medium text-[#8A80A8] mb-1">
@@ -437,8 +437,8 @@ export default function ActivityFormModal({
                   />
                 </div>
 
-                {/* Date + Status side by side */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Date + Status + Contacts — core fields */}
+                <div className="grid grid-cols-3 gap-3">
                   <CalendarPicker
                     startDate={startDate}
                     endDate={endDate}
@@ -452,6 +452,10 @@ export default function ActivityFormModal({
                     onChange={setStatus}
                     statuses={getStatusesForType(type)}
                   />
+                  <div className="min-w-0">
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plan</label>
+                    <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
+                  </div>
                 </div>
 
                 {/* Contacts */}
@@ -485,9 +489,12 @@ export default function ActivityFormModal({
                   })()}
                 </div>
 
+                {/* Divider */}
+                <div className="border-t border-[#E2DEEC]" />
+
                 {/* Type-specific details */}
                 {isEventCategory && (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Details</p>
                     <EventTypeFields
                       type={type}
@@ -499,64 +506,69 @@ export default function ActivityFormModal({
                   </div>
                 )}
 
-                {/* People & Organization */}
+                {/* Organization & Notes */}
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">People & Organization</p>
-                  {isEventCategory && (
-                    <div>
-                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Attendees</label>
-                      <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
-                    </div>
-                  )}
+                  <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Organization</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="min-w-0">
-                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
-                      <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
-                      {showNewPlanForm ? (
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <input
-                            type="text"
-                            value={newPlanName}
-                            onChange={(e) => setNewPlanName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleCreateAndLinkPlan();
-                              }
-                              if (e.key === "Escape") {
-                                setShowNewPlanForm(false);
-                                setNewPlanName("");
-                              }
-                            }}
-                            placeholder="Plan name..."
-                            className="flex-1 px-2 py-1.5 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#403770] text-[#403770]"
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={handleCreateAndLinkPlan}
-                            disabled={!newPlanName.trim() || createPlan.isPending}
-                            className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors"
-                          >
-                            {createPlan.isPending ? "..." : "Add"}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPlanForm(true)}
-                          className="mt-1 text-xs font-medium text-[#403770] hover:text-[#322a5a] transition-colors"
-                        >
-                          + Create New Plan
-                        </button>
-                      )}
-                      {selectedPlanIds.length === 0 && !showNewPlanForm && <p className="mt-1 text-xs text-[#F37167]">No plan linked</p>}
-                    </div>
+                    {isEventCategory && (
+                      <div className="min-w-0">
+                        <label className="block text-xs font-medium text-[#8A80A8] mb-1">Attendees</label>
+                        <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
                       <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
                     </div>
                   </div>
+                  {showNewPlanForm ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newPlanName}
+                        onChange={(e) => setNewPlanName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleCreateAndLinkPlan();
+                          }
+                          if (e.key === "Escape") {
+                            setShowNewPlanForm(false);
+                            setNewPlanName("");
+                          }
+                        }}
+                        placeholder="New plan name..."
+                        className="flex-1 px-2.5 py-1.5 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent text-[#403770]"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateAndLinkPlan}
+                        disabled={!newPlanName.trim() || createPlan.isPending}
+                        className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors duration-100"
+                      >
+                        {createPlan.isPending ? "..." : "Add"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowNewPlanForm(false); setNewPlanName(""); }}
+                        className="text-xs text-[#A69DC0] hover:text-[#403770] transition-colors duration-100"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {selectedPlanIds.length === 0 && <p className="text-xs text-[#F37167]">No plan linked</p>}
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPlanForm(true)}
+                        className="text-xs font-medium text-[#403770] hover:text-[#322a5a] transition-colors duration-100"
+                      >
+                        + Create New Plan
+                      </button>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-xs font-medium text-[#8A80A8] mb-1">Notes</label>
                     <textarea
@@ -571,7 +583,7 @@ export default function ActivityFormModal({
               </div>
 
               {/* ── Right Panel: Tabs ── */}
-              <div className="w-1/2 border-l border-[#E2DEEC] flex flex-col">
+              <div className="w-[45%] border-l border-[#E2DEEC] flex flex-col">
                 <ActivityFormTabs
                   taskDrafts={taskDrafts}
                   onTaskDraftsChange={setTaskDrafts}
