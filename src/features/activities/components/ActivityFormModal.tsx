@@ -523,60 +523,50 @@ export default function ActivityFormModal({
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
                       <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
+                      {showNewPlanForm ? (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <input
+                            type="text"
+                            value={newPlanName}
+                            onChange={(e) => setNewPlanName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleCreateAndLinkPlan();
+                              }
+                              if (e.key === "Escape") {
+                                setShowNewPlanForm(false);
+                                setNewPlanName("");
+                              }
+                            }}
+                            placeholder="Plan name..."
+                            className="flex-1 px-2 py-1 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#F37167] text-[#403770]"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCreateAndLinkPlan}
+                            disabled={!newPlanName.trim() || createPlan.isPending}
+                            className="px-2 py-1 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors duration-100"
+                          >
+                            {createPlan.isPending ? "..." : "Add"}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPlanForm(true)}
+                          className="mt-1 text-xs font-medium text-[#403770] hover:text-[#322a5a] transition-colors duration-100"
+                        >
+                          + New Plan
+                        </button>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
                       <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
                     </div>
                   </div>
-                  {showNewPlanForm ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={newPlanName}
-                        onChange={(e) => setNewPlanName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleCreateAndLinkPlan();
-                          }
-                          if (e.key === "Escape") {
-                            setShowNewPlanForm(false);
-                            setNewPlanName("");
-                          }
-                        }}
-                        placeholder="New plan name..."
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-[#C2BBD4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent text-[#403770]"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCreateAndLinkPlan}
-                        disabled={!newPlanName.trim() || createPlan.isPending}
-                        className="px-2.5 py-1.5 text-xs font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 transition-colors duration-100"
-                      >
-                        {createPlan.isPending ? "..." : "Add"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setShowNewPlanForm(false); setNewPlanName(""); }}
-                        className="text-xs text-[#A69DC0] hover:text-[#403770] transition-colors duration-100"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      {selectedPlanIds.length === 0 && <p className="text-xs text-[#F37167]">No plan linked</p>}
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPlanForm(true)}
-                        className="text-xs font-medium text-[#403770] hover:text-[#322a5a] transition-colors duration-100"
-                      >
-                        + Create New Plan
-                      </button>
-                    </div>
-                  )}
                   <div>
                     <label className="block text-xs font-medium text-[#8A80A8] mb-1">Notes</label>
                     <textarea
