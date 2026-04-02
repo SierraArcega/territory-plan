@@ -437,8 +437,8 @@ export default function ActivityFormModal({
                   />
                 </div>
 
-                {/* Date + Status + Contacts — core fields */}
-                <div className="grid grid-cols-3 gap-3">
+                {/* Date + Status */}
+                <div className="grid grid-cols-2 gap-3">
                   <CalendarPicker
                     startDate={startDate}
                     endDate={endDate}
@@ -452,10 +452,6 @@ export default function ActivityFormModal({
                     onChange={setStatus}
                     statuses={getStatusesForType(type)}
                   />
-                  <div className="min-w-0">
-                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plan</label>
-                    <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
-                  </div>
                 </div>
 
                 {/* Contacts */}
@@ -523,9 +519,15 @@ export default function ActivityFormModal({
                 {/* Organization & Notes */}
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Organization</p>
-                  <div>
-                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
-                    <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="min-w-0">
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
+                      <MultiSelect id="activity-plans" label="Plans" options={planOptions} selected={selectedPlanIds} onChange={setSelectedPlanIds} placeholder="Select..." countLabel="plans" searchPlaceholder="Search plans..." />
+                    </div>
+                    <div className="min-w-0">
+                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
+                      <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
+                    </div>
                   </div>
                   {showNewPlanForm ? (
                     <div className="flex items-center gap-2">
