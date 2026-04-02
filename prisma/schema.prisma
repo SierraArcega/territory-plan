@@ -161,6 +161,12 @@ model District {
   owner          String?   @db.VarChar(100)
   notesUpdatedAt DateTime? @map("notes_updated_at")
 
+  // Normalized person references (Phase 1: populated from string names)
+  ownerId            String?   @map("owner_id") @db.Uuid
+  salesExecutiveId   String?   @map("sales_executive_id") @db.Uuid
+  ownerUser          UserProfile? @relation("DistrictOwner", fields: [ownerId], references: [id])
+  salesExecutiveUser UserProfile? @relation("DistrictSalesExec", fields: [salesExecutiveId], references: [id])
+
   // ===== PostGIS Geometry (managed outside Prisma) =====
   geometry Unsupported("geometry(MultiPolygon, 4326)")?
   centroid Unsupported("geometry(Point, 4326)")?
@@ -287,6 +293,8 @@ model District {
   @@index([salesExecutive])
   @@index([studentTeacherRatio])
   @@index([vacancyPressureSignal])
+  @@index([ownerId])
+  @@index([salesExecutiveId])
   @@map("districts")
 }
 
@@ -397,6 +405,7 @@ model UnmatchedAccount {
   id                 Int      @id @default(autoincrement())
   accountName        String   @map("account_name") @db.VarChar(255)
   salesExecutive     String?  @map("sales_executive") @db.VarChar(100)
+  salesExecutiveId String?     @map("sales_executive_id") @db.Uuid
   stateAbbrev        String   @map("state_abbrev") @db.VarChar(2)
   lmsid              String?  @db.VarChar(50)
   leaidRaw           String?  @map("leaid_raw") @db.VarChar(50)
@@ -466,6 +475,8 @@ model State {
 
   // ===== Territory Management =====
   territoryOwner String? @map("territory_owner") @db.VarChar(100)
+  territoryOwnerId String?     @map("territory_owner_id") @db.Uuid
+  territoryOwnerUser UserProfile? @relation("StateOwner", fields: [territoryOwnerId], references: [id])
   notes          String?
 
   // ===== Timestamps =====
@@ -781,6 +792,7 @@ model UserProfile {
   slackUrl          String?   @map("slack_url") @db.VarChar(500)
   bookingLink       String?   @map("booking_link") @db.VarChar(500)
   bio               String?   @db.Text
+  crmName           String?   @map("crm_name") @db.VarChar(100)
   hasCompletedSetup Boolean   @default(false) @map("has_completed_setup")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -803,6 +815,11 @@ model UserProfile {
   calendarConnection CalendarConnection?
   // Initiative leaderboard scores
   initiativeScores       InitiativeScore[]
+  // Inverse relations for normalized person FKs
+  ownedDistricts       District[] @relation("DistrictOwner")
+  assignedDistricts    District[] @relation("DistrictSalesExec")
+  ownedStates          State[]    @relation("StateOwner")
+  ownedSchools         School[]   @relation("SchoolOwner")
 
   @@map("user_profiles")
 }
@@ -1109,6 +1126,8 @@ model School {
 
   // ===== Lightweight CRM Fields =====
   owner          String?   @db.VarChar(100)
+  ownerId        String?      @map("owner_id") @db.Uuid
+  ownerUser      UserProfile? @relation("SchoolOwner", fields: [ownerId], references: [id])
   notes          String?
   notesUpdatedAt DateTime? @map("notes_updated_at")
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -1233,6 +1252,7 @@ model Opportunity {
   state              String?   @db.Text
   salesRepName       String?   @map("sales_rep_name") @db.Text
   salesRepEmail      String?   @map("sales_rep_email") @db.Text
+  salesRepId     String?   @map("sales_rep_id") @db.Uuid
   districtName       String?   @map("district_name") @db.Text
   districtLmsId      String?   @map("district_lms_id") @db.Text
   districtNcesId     String?   @map("district_nces_id") @db.Text
