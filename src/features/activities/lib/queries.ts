@@ -238,3 +238,33 @@ export function useUnlinkActivityDistrict() {
     },
   });
 }
+
+// Search contacts (external district personnel)
+interface ContactSearchResult {
+  id: number;
+  leaid: string;
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  isPrimary: boolean;
+  districtName: string | null;
+}
+
+export function useSearchContacts(search: string, leaid?: string) {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  if (leaid) params.set("leaid", leaid);
+  params.set("limit", "20");
+
+  return useQuery({
+    queryKey: ["contacts", "search", search, leaid],
+    queryFn: () =>
+      fetchJson<{ contacts: ContactSearchResult[]; total: number }>(
+        `${API_BASE}/contacts?${params}`
+      ),
+    enabled: search.length >= 1 || !!leaid,
+    staleTime: 30 * 1000,
+  });
+}
+

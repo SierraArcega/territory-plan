@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
+    const leaid = searchParams.get("leaid");
     const limit = Math.min(parseInt(searchParams.get("limit") || "30", 10), 100);
 
     const where: Record<string, unknown> = {};
@@ -19,6 +20,10 @@ export async function GET(request: NextRequest) {
         { title: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    if (leaid) {
+      where.leaid = leaid;
     }
 
     const contacts = await prisma.contact.findMany({
