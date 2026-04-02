@@ -495,6 +495,14 @@ export default function ActivityFormModal({
                   })()}
                 </div>
 
+                {/* Fullmind Attendees — team members on this activity */}
+                {isEventCategory && (
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Fullmind Attendees</label>
+                    <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
+                  </div>
+                )}
+
                 {/* Divider */}
                 <div className="border-t border-[#E2DEEC]" />
 
@@ -515,17 +523,9 @@ export default function ActivityFormModal({
                 {/* Organization & Notes */}
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">Organization</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {isEventCategory && (
-                      <div className="min-w-0">
-                        <label className="block text-xs font-medium text-[#8A80A8] mb-1">Attendees</label>
-                        <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
-                      <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">States</label>
+                    <MultiSelect id="activity-states" label="States" options={stateOptions} selected={selectedStateFips} onChange={setSelectedStateFips} placeholder="Select..." countLabel="states" searchPlaceholder="Search states..." />
                   </div>
                   {showNewPlanForm ? (
                     <div className="flex items-center gap-2">
