@@ -5,8 +5,9 @@ import { useSearchContacts } from "@/features/activities/lib/queries";
 import { useCreateContact } from "@/features/shared/lib/queries";
 import { useDistrictNameSearch } from "@/features/plans/lib/queries";
 
-interface SelectedContact {
+export interface SelectedContact {
   id: number;
+  leaid: string;
   name: string;
   title: string | null;
   districtName: string | null;
@@ -61,6 +62,7 @@ export default function ContactSelect({ selectedContacts, onChange }: ContactSel
 
   const handleToggleContact = (contact: {
     id: number;
+    leaid: string;
     name: string;
     title: string | null;
     districtName: string | null;
@@ -68,7 +70,7 @@ export default function ContactSelect({ selectedContacts, onChange }: ContactSel
     if (selectedIds.has(contact.id)) {
       onChange(selectedContacts.filter((c) => c.id !== contact.id));
     } else {
-      onChange([...selectedContacts, { id: contact.id, name: contact.name, title: contact.title, districtName: contact.districtName }]);
+      onChange([...selectedContacts, { id: contact.id, leaid: contact.leaid, name: contact.name, title: contact.title, districtName: contact.districtName }]);
     }
   };
 
@@ -89,6 +91,7 @@ export default function ContactSelect({ selectedContacts, onChange }: ContactSel
 
       onChange([...selectedContacts, {
         id: created.id,
+        leaid: newDistrict.leaid,
         name: created.name,
         title: created.title,
         districtName: newDistrict.name,

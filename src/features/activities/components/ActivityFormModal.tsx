@@ -25,7 +25,7 @@ import AttendeeSelect from "./event-fields/AttendeeSelect";
 import ActivityFormTabs from "./ActivityFormTabs";
 import StatusSelect from "./event-fields/StatusSelect";
 import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
-import ContactSelect from "./event-fields/ContactSelect";
+import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
 import ActivityViewPanel from "./ActivityViewPanel";
 
 interface ActivityFormModalProps {
@@ -71,9 +71,7 @@ export default function ActivityFormModal({
   // Type-specific state
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
-  const [selectedContacts, setSelectedContacts] = useState<
-    { id: number; name: string; title: string | null; districtName: string | null }[]
-  >([]);
+  const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
   const [districtStops, setDistrictStops] = useState<
     { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
   >([]);
@@ -203,14 +201,21 @@ export default function ActivityFormModal({
         attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
         contactIds: selectedContacts.length > 0 ? selectedContacts.map((c) => c.id) : undefined,
         expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
-        districts: districtStops.length > 0
-          ? districtStops.map((s, index) => ({
-              leaid: s.leaid,
-              visitDate: s.visitDate || undefined,
-              position: index,
-              notes: s.notes || undefined,
-            }))
-          : undefined,
+        districts: (() => {
+          // Merge district stops with auto-linked districts from contacts
+          const stopLeaids = new Set(districtStops.map((s) => s.leaid));
+          const contactDistricts = selectedContacts
+            .filter((c) => !stopLeaids.has(c.leaid))
+            .map((c, i) => ({ leaid: c.leaid, position: districtStops.length + i }));
+          const stops = districtStops.map((s, i) => ({
+            leaid: s.leaid,
+            visitDate: s.visitDate || undefined,
+            position: i,
+            notes: s.notes || undefined,
+          }));
+          const all = [...stops, ...contactDistricts];
+          return all.length > 0 ? all : undefined;
+        })(),
         relatedActivityIds: relatedActivities.length > 0
           ? relatedActivities.map((r) => ({ activityId: r.activityId, relationType: r.relationType }))
           : undefined,
@@ -449,6 +454,12 @@ export default function ActivityFormModal({
                   />
                 </div>
 
+                {/* Contacts */}
+                <ContactSelect
+                  selectedContacts={selectedContacts}
+                  onChange={setSelectedContacts}
+                />
+
                 {/* Type-specific details */}
                 {isEventCategory && (
                   <div className="space-y-4">
@@ -472,12 +483,6 @@ export default function ActivityFormModal({
                       <AttendeeSelect selectedUserIds={attendeeUserIds} onChange={setAttendeeUserIds} />
                     </div>
                   )}
-                  <div>
-                    <ContactSelect
-                      selectedContacts={selectedContacts}
-                      onChange={setSelectedContacts}
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="min-w-0">
                       <label className="block text-xs font-medium text-[#8A80A8] mb-1">Plans</label>
