@@ -17,6 +17,7 @@ export const ACTIVITY_CATEGORIES = {
     "renewal_conversation",
   ],
   gift_drop: ["gift_drop"],
+  sponsorships: ["booth_exhibit", "conference_sponsor", "meal_reception", "charity_event"],
   thought_leadership: ["webinar", "speaking_engagement", "professional_development", "course"],
 } as const;
 
@@ -54,6 +55,11 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   renewal_conversation: "Renewal Conversation",
   // Gift Drop
   gift_drop: "Gift Drop",
+  // Sponsorships
+  booth_exhibit: "Booth / Exhibit",
+  conference_sponsor: "Conference Sponsor",
+  meal_reception: "Meal / Reception",
+  charity_event: "Charity Event",
   // Thought Leadership
   webinar: "Webinar",
   speaking_engagement: "Speaking Engagement",
@@ -79,6 +85,11 @@ export const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
   renewal_conversation: "🔄",
   // Gift Drop
   gift_drop: "🎁",
+  // Sponsorships
+  booth_exhibit: "🏗️",
+  conference_sponsor: "🤝",
+  meal_reception: "🍽️",
+  charity_event: "❤️",
   // Thought Leadership
   webinar: "🖥️",
   speaking_engagement: "🎙️",
@@ -92,6 +103,7 @@ export const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   campaigns: "Campaigns",
   meetings: "Meetings",
   gift_drop: "Gift Drop",
+  sponsorships: "Sponsorships",
   thought_leadership: "Thought Leadership",
 };
 
@@ -101,6 +113,7 @@ export const CATEGORY_ICONS: Record<ActivityCategory, string> = {
   campaigns: "📧",
   meetings: "🤝",
   gift_drop: "🎁",
+  sponsorships: "🏆",
   thought_leadership: "💡",
 };
 
@@ -110,6 +123,7 @@ export const CATEGORY_DESCRIPTIONS: Record<ActivityCategory, string> = {
   campaigns: "Email sequences and outreach campaigns",
   meetings: "Calls, check-ins, reviews, and conversations",
   gift_drop: "Send gifts to contacts and champions",
+  sponsorships: "Booths, conference sponsors, meals, and charity events",
   thought_leadership: "Webinars, talks, PD sessions, and courses",
 };
 
@@ -197,12 +211,21 @@ export interface CourseMetadata {
   topic?: string;
 }
 
+export interface SponsorshipMetadata {
+  eventName?: string;
+  cost?: number;
+  address?: string;
+  addressLat?: number;
+  addressLng?: number;
+}
+
 // Road Trip uses no metadata — districts (with visit dates), attendees, and expenses cover it
 export type ActivityMetadata =
   | ConferenceMetadata
   | SocialEventMetadata
   | WebinarMetadata
   | SpeakingEngagementMetadata
+  | SponsorshipMetadata
   | ProfessionalDevelopmentMetadata
   | CourseMetadata
   | null;
@@ -213,5 +236,6 @@ export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> =
   campaigns: "mixmax_campaign",
   meetings: "discovery_call",
   gift_drop: "gift_drop",
+  sponsorships: "booth_exhibit",
   thought_leadership: "webinar",
 };

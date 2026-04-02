@@ -8,6 +8,7 @@ import type {
   SpeakingEngagementMetadata,
   ProfessionalDevelopmentMetadata,
   CourseMetadata,
+  SponsorshipMetadata,
 } from "@/features/activities/types";
 import ConferenceFields from "./ConferenceFields";
 import RoadTripFields from "./RoadTripFields";
@@ -16,6 +17,7 @@ import WebinarFields from "./WebinarFields";
 import SpeakingEngagementFields from "./SpeakingEngagementFields";
 import ProfessionalDevelopmentFields from "./ProfessionalDevelopmentFields";
 import CourseFields from "./CourseFields";
+import SponsorshipFields from "./SponsorshipFields";
 
 interface DistrictStop {
   leaid: string;
@@ -96,6 +98,17 @@ export default function EventTypeFields({
       return (
         <CourseFields
           metadata={metadata as CourseMetadata}
+          onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
+        />
+      );
+
+    case "booth_exhibit":
+    case "conference_sponsor":
+    case "meal_reception":
+    case "charity_event":
+      return (
+        <SponsorshipFields
+          metadata={metadata as SponsorshipMetadata}
           onMetadataChange={(m) => onMetadataChange(m as unknown as Record<string, unknown>)}
         />
       );
