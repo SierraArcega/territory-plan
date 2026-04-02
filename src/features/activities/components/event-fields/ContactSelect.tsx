@@ -69,6 +69,11 @@ export default function ContactSelect({ selectedContacts, onChange }: ContactSel
       onChange(selectedContacts.filter((c) => c.id !== contact.id));
     } else {
       onChange([...selectedContacts, { id: contact.id, leaid: contact.leaid, name: contact.name, title: contact.title, districtName: contact.districtName }]);
+      // Auto-set district filter so user can easily add more from same district
+      if (!districtFilter && contact.districtName) {
+        setDistrictFilter({ leaid: contact.leaid, name: contact.districtName });
+      }
+      setSearch("");
     }
   };
 
@@ -103,6 +108,8 @@ export default function ContactSelect({ selectedContacts, onChange }: ContactSel
         districtName: newDistrict.name,
       }]);
 
+      // Auto-set district filter to the new contact's district
+      setDistrictFilter({ leaid: newDistrict.leaid, name: newDistrict.name });
       resetCreateForm();
       setMode("search");
     } catch {
