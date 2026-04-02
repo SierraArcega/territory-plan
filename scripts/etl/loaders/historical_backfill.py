@@ -426,17 +426,17 @@ def backfill_finance_history(
                 cur,
                 """
                 INSERT INTO district_data_history
-                    (leaid, year, source, total_revenue, total_expenditure, expenditure_pp,
-                     federal_revenue, state_revenue, local_revenue, sped_expenditure)
+                    (leaid, year, source, total_revenue, total_expenditure, expenditure_per_pupil,
+                     federal_revenue, state_revenue, local_revenue, sped_expenditure_total)
                 VALUES %s
                 ON CONFLICT (leaid, year, source) DO UPDATE SET
                     total_revenue = EXCLUDED.total_revenue,
                     total_expenditure = EXCLUDED.total_expenditure,
-                    expenditure_pp = EXCLUDED.expenditure_pp,
+                    expenditure_per_pupil = EXCLUDED.expenditure_per_pupil,
                     federal_revenue = EXCLUDED.federal_revenue,
                     state_revenue = EXCLUDED.state_revenue,
                     local_revenue = EXCLUDED.local_revenue,
-                    sped_expenditure = EXCLUDED.sped_expenditure
+                    sped_expenditure_total = EXCLUDED.sped_expenditure_total
                 """,
                 batch,
                 template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
@@ -489,10 +489,10 @@ def backfill_poverty_history(
             execute_values(
                 cur,
                 """
-                INSERT INTO district_data_history (leaid, year, source, poverty_pct)
+                INSERT INTO district_data_history (leaid, year, source, poverty_percent)
                 VALUES %s
                 ON CONFLICT (leaid, year, source) DO UPDATE SET
-                    poverty_pct = EXCLUDED.poverty_pct
+                    poverty_percent = EXCLUDED.poverty_percent
                 """,
                 batch,
                 template="(%s, %s, %s, %s)"
