@@ -22,7 +22,6 @@ interface ActivityFormTabsProps {
   onExpensesChange: (expenses: { description: string; amount: number }[]) => void;
   relatedActivities: RelationDraft[];
   onRelatedActivitiesChange: (relations: RelationDraft[]) => void;
-  showExpenses: boolean;
   onViewActivity?: (activityId: string, title: string) => void;
 }
 
@@ -33,7 +32,6 @@ export default function ActivityFormTabs({
   onExpensesChange,
   relatedActivities,
   onRelatedActivitiesChange,
-  showExpenses,
   onViewActivity,
 }: ActivityFormTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("expenses");
@@ -83,13 +81,7 @@ export default function ActivityFormTabs({
           <TaskLineItems tasks={taskDrafts} onChange={onTaskDraftsChange} />
         )}
         {activeTab === "expenses" && (
-          showExpenses ? (
-            <ExpenseLineItems expenses={expenses} onChange={onExpensesChange} />
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-sm text-[#A69DC0]">Expenses not applicable for this activity type</p>
-            </div>
-          )
+          <ExpenseLineItems expenses={expenses} onChange={onExpensesChange} />
         )}
         {activeTab === "related" && (
           <RelatedActivitiesTab relations={relatedActivities} onChange={onRelatedActivitiesChange} onViewActivity={onViewActivity} />
