@@ -214,9 +214,9 @@ def compute_district_trends(connection_string: str) -> int:
     - absenteeism_trend_3yr: point change in chronic_absenteeism_rate
     - graduation_trend_3yr: point change in graduation_rate
     - student_teacher_ratio_trend_3yr: point change in student-teacher ratio
-    - math_proficiency_trend_3yr: point change in math_proficiency
-    - read_proficiency_trend_3yr: point change in read_proficiency
-    - expenditure_pp_trend_3yr: % change in expenditure_pp
+    - math_proficiency_trend_3yr: point change in math_proficiency_pct
+    - read_proficiency_trend_3yr: point change in read_proficiency_pct
+    - expenditure_pp_trend_3yr: % change in expenditure_per_pupil
 
     Returns:
         Number of districts updated
@@ -347,29 +347,29 @@ def compute_district_trends(connection_string: str) -> int:
     # Step 5: Assessment trends (point change) from edfacts_assess history
     cur.execute("""
         SELECT MIN(year), MAX(year) FROM district_data_history
-        WHERE source = 'edfacts_assess' AND (math_proficiency IS NOT NULL OR read_proficiency IS NOT NULL)
+        WHERE source = 'edfacts_assess' AND (math_proficiency_pct IS NOT NULL OR read_proficiency_pct IS NOT NULL)
     """)
     assess_row = cur.fetchone()
     if assess_row and assess_row[0] is not None:
         assess_base = max(assess_row[0], assess_row[1] - 3)
         cur.execute("""
             WITH base AS (
-                SELECT leaid, math_proficiency, read_proficiency FROM district_data_history
+                SELECT leaid, math_proficiency_pct, read_proficiency_pct FROM district_data_history
                 WHERE source = 'edfacts_assess' AND year = %s
             ),
             latest AS (
-                SELECT leaid, math_proficiency, read_proficiency FROM district_data_history
+                SELECT leaid, math_proficiency_pct, read_proficiency_pct FROM district_data_history
                 WHERE source = 'edfacts_assess' AND year = %s
             )
             UPDATE districts d SET
                 math_proficiency_trend_3yr = CASE
-                    WHEN l.math_proficiency IS NOT NULL AND b.math_proficiency IS NOT NULL
-                    THEN ROUND((l.math_proficiency - b.math_proficiency)::numeric, 2)
+                    WHEN l.math_proficiency_pct IS NOT NULL AND b.math_proficiency_pct IS NOT NULL
+                    THEN ROUND((l.math_proficiency_pct - b.math_proficiency_pct)::numeric, 2)
                     ELSE NULL
                 END,
                 read_proficiency_trend_3yr = CASE
-                    WHEN l.read_proficiency IS NOT NULL AND b.read_proficiency IS NOT NULL
-                    THEN ROUND((l.read_proficiency - b.read_proficiency)::numeric, 2)
+                    WHEN l.read_proficiency_pct IS NOT NULL AND b.read_proficiency_pct IS NOT NULL
+                    THEN ROUND((l.read_proficiency_pct - b.read_proficiency_pct)::numeric, 2)
                     ELSE NULL
                 END
             FROM latest l
@@ -381,25 +381,25 @@ def compute_district_trends(connection_string: str) -> int:
     # Step 6: Expenditure per pupil trend (% change) from ccd_finance history
     cur.execute("""
         SELECT MIN(year), MAX(year) FROM district_data_history
-        WHERE source = 'ccd_finance' AND expenditure_pp IS NOT NULL
+        WHERE source = 'ccd_finance' AND expenditure_per_pupil IS NOT NULL
     """)
     fin_row = cur.fetchone()
     if fin_row and fin_row[0] is not None:
         fin_base = max(fin_row[0], fin_row[1] - 3)
         cur.execute("""
             WITH base AS (
-                SELECT leaid, expenditure_pp FROM district_data_history
+                SELECT leaid, expenditure_per_pupil FROM district_data_history
                 WHERE source = 'ccd_finance' AND year = %s
             ),
             latest AS (
-                SELECT leaid, expenditure_pp FROM district_data_history
+                SELECT leaid, expenditure_per_pupil FROM district_data_history
                 WHERE source = 'ccd_finance' AND year = %s
             )
             UPDATE districts d SET
                 expenditure_pp_trend_3yr = CASE
-                    WHEN b.expenditure_pp IS NOT NULL AND b.expenditure_pp > 0
-                         AND l.expenditure_pp IS NOT NULL
-                    THEN ROUND(((l.expenditure_pp - b.expenditure_pp) / b.expenditure_pp * 100)::numeric, 2)
+                    WHEN b.expenditure_per_pupil IS NOT NULL AND b.expenditure_per_pupil > 0
+                         AND l.expenditure_per_pupil IS NOT NULL
+                    THEN ROUND(((l.expenditure_per_pupil - b.expenditure_per_pupil) / b.expenditure_per_pupil * 100)::numeric, 2)
                     ELSE NULL
                 END
             FROM latest l
