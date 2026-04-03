@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import SequencesTab from "./SequencesTab";
-import ActiveRunsTab from "./ActiveRunsTab";
-import TemplatesTab from "./TemplatesTab";
-import HistoryTab from "./HistoryTab";
-import ExecutionPanel from "./ExecutionPanel";
+import { useState, lazy, Suspense } from "react";
 import { useExecutions } from "../lib/queries";
+import { Loader2 } from "lucide-react";
+
+// Lazy-load sub-tab components so Next.js only compiles the active tab on first visit
+const SequencesTab = lazy(() => import("./SequencesTab"));
+const ActiveRunsTab = lazy(() => import("./ActiveRunsTab"));
+const TemplatesTab = lazy(() => import("./TemplatesTab"));
+const HistoryTab = lazy(() => import("./HistoryTab"));
+const ExecutionPanel = lazy(() => import("./ExecutionPanel"));
 
 type EngageSubTab = "sequences" | "active-runs" | "templates" | "history";
 
@@ -17,27 +20,46 @@ const SUB_TABS: { id: EngageSubTab; label: string }[] = [
   { id: "history", label: "History" },
 ];
 
+function TabSpinner() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <Loader2 className="w-6 h-6 text-[#A69DC0] animate-spin" />
+    </div>
+  );
+}
+
+function ActiveRunBadge() {
+  // Isolated component so badge fetches don't block the parent render
+  const { data: activeRuns } = useExecutions("active");
+  const { data: pausedRuns } = useExecutions("paused");
+  const count = (activeRuns?.length ?? 0) + (pausedRuns?.length ?? 0);
+
+  if (count === 0) return null;
+  return (
+    <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-[#F37167] rounded-full">
+      {count}
+    </span>
+  );
+}
+
 export default function EngageView() {
   const [activeSubTab, setActiveSubTab] = useState<EngageSubTab>("sequences");
   const [activeExecutionId, setActiveExecutionId] = useState<number | null>(
     null
   );
 
-  // Badge count for active runs
-  const { data: activeRuns } = useExecutions("active");
-  const { data: pausedRuns } = useExecutions("paused");
-  const activeRunCount = (activeRuns?.length ?? 0) + (pausedRuns?.length ?? 0);
-
   // If an execution is active, show the execution panel
   if (activeExecutionId !== null) {
     return (
-      <ExecutionPanel
-        executionId={activeExecutionId}
-        onClose={() => {
-          setActiveExecutionId(null);
-          setActiveSubTab("active-runs");
-        }}
-      />
+      <Suspense fallback={<TabSpinner />}>
+        <ExecutionPanel
+          executionId={activeExecutionId}
+          onClose={() => {
+            setActiveExecutionId(null);
+            setActiveSubTab("active-runs");
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -64,24 +86,22 @@ export default function EngageView() {
               }`}
             >
               {tab.label}
-              {tab.id === "active-runs" && activeRunCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-[#F37167] rounded-full">
-                  {activeRunCount}
-                </span>
-              )}
+              {tab.id === "active-runs" && <ActiveRunBadge />}
             </button>
           ))}
         </div>
 
-        {/* Sub-tab content */}
-        {activeSubTab === "sequences" && <SequencesTab />}
-        {activeSubTab === "active-runs" && (
-          <ActiveRunsTab
-            onResume={(executionId) => setActiveExecutionId(executionId)}
-          />
-        )}
-        {activeSubTab === "templates" && <TemplatesTab />}
-        {activeSubTab === "history" && <HistoryTab />}
+        {/* Sub-tab content — only the active tab's code is loaded */}
+        <Suspense fallback={<TabSpinner />}>
+          {activeSubTab === "sequences" && <SequencesTab />}
+          {activeSubTab === "active-runs" && (
+            <ActiveRunsTab
+              onResume={(executionId) => setActiveExecutionId(executionId)}
+            />
+          )}
+          {activeSubTab === "templates" && <TemplatesTab />}
+          {activeSubTab === "history" && <HistoryTab />}
+        </Suspense>
       </div>
     </div>
   );
