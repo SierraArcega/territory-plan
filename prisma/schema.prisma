@@ -107,7 +107,7 @@ model District {
 
   // ===== Graduation Data =====
   // Source: Urban Institute API (graduation endpoint)
-  graduationRateTotal Decimal? @map("graduation_rate_total") @db.Decimal(5, 2)
+  graduationRateTotal Decimal? @map("graduation_rate") @db.Decimal(5, 2)
   graduationDataYear  Int?     @map("graduation_data_year")
 
   // ===== Staffing & Salaries =====
