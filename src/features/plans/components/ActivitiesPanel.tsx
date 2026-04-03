@@ -219,6 +219,7 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
           isOpen={!!editingActivity}
           onClose={handleCloseModal}
           onSubmit={handleUpdateActivity}
+          onDelete={handleDeleteActivity}
           districts={districtOptions}
           contacts={contacts}
           initialData={editingActivity}

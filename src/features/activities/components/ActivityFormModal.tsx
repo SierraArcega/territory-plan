@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask, useUpdateActivity } from "@/lib/api";
+import { useDeleteActivity } from "@/features/activities/lib/queries";
 import { useActivity } from "@/features/activities/lib/queries";
 import {
   type ActivityCategory,
@@ -53,6 +54,7 @@ export default function ActivityFormModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
+  const deleteActivityMutation = useDeleteActivity();
   const createTask = useCreateTask();
   const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
@@ -104,6 +106,7 @@ export default function ActivityFormModal({
   const [showNewPlanForm, setShowNewPlanForm] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
   const [successFlash, setSuccessFlash] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const resetForm = () => {
     if (defaultCategory) {
@@ -144,6 +147,7 @@ export default function ActivityFormModal({
     setError(null);
     setShowNewPlanForm(false);
     setNewPlanName("");
+    setShowDeleteConfirm(false);
   };
 
   // Reset form when modal opens
@@ -243,6 +247,17 @@ export default function ActivityFormModal({
     } else if (step === "pick-type") {
       setStep("pick-category");
       setSelectedCategory(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editActivityId) return;
+    try {
+      await deleteActivityMutation.mutateAsync(editActivityId);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete activity");
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -769,34 +784,68 @@ export default function ActivityFormModal({
             )}
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#E2DEEC]">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!title.trim() || createActivity.isPending}
-                onClick={(e) => handleSubmit(e as unknown as React.FormEvent, { createAnother: true })}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#403770] border border-[#C2BBD4] rounded-lg hover:bg-[#EFEDF5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Save & Create New
-              </button>
-              <button
-                type="submit"
-                disabled={!title.trim() || createActivity.isPending}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {createActivity.isPending && (
-                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-[#E2DEEC]">
+              {isEditMode && (
+                showDeleteConfirm ? (
+                  <div className="flex items-center gap-2 mr-auto">
+                    <span className="text-sm text-[#6E6390]">Delete this activity?</span>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleteActivityMutation.isPending}
+                      className="px-3 py-1.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {deleteActivityMutation.isPending ? "Deleting..." : "Confirm"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="px-3 py-1.5 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="mr-auto px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Delete
+                  </button>
+                )
+              )}
+              <div className="flex items-center gap-3 ml-auto">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                {!isEditMode && (
+                  <button
+                    type="button"
+                    disabled={!title.trim() || createActivity.isPending}
+                    onClick={(e) => handleSubmit(e as unknown as React.FormEvent, { createAnother: true })}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#403770] border border-[#C2BBD4] rounded-lg hover:bg-[#EFEDF5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Save & Create New
+                  </button>
                 )}
-                {isEditMode
-                  ? (updateActivity.isPending ? "Saving..." : "Save Changes")
-                  : (createActivity.isPending ? "Creating..." : "Create Activity")}
-              </button>
+                <button
+                  type="submit"
+                  disabled={!title.trim() || createActivity.isPending}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {createActivity.isPending && (
+                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  )}
+                  {isEditMode
+                    ? (updateActivity.isPending ? "Saving..." : "Save Changes")
+                    : (createActivity.isPending ? "Creating..." : "Create Activity")}
+                </button>
+              </div>
             </div>
           </form>
         )}
