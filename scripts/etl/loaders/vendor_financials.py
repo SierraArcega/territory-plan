@@ -158,12 +158,12 @@ def load_vendor_financials(filepath: str, dry_run: bool = False):
                 fy26_bookings,    # closed_won_bookings
                 0,                # invoicing (not in CSV)
                 fy26_scheduled,   # scheduled_revenue
-                fy26_delivered,   # delivered_revenue
+                fy26_delivered,   # completed_revenue
                 fy26_deferred,    # deferred_revenue
                 fy26_revenue,     # total_revenue
-                0,                # delivered_take
+                0,                # completed_take
                 0,                # scheduled_take
-                0,                # all_take
+                0,                # total_take
             ))
 
         # Parse FY25 metrics
@@ -178,12 +178,12 @@ def load_vendor_financials(filepath: str, dry_run: bool = False):
                 fy25_bookings,    # closed_won_bookings
                 0,                # invoicing
                 0,                # scheduled_revenue
-                0,                # delivered_revenue
+                0,                # completed_revenue
                 0,                # deferred_revenue
                 fy25_revenue,     # total_revenue
-                0,                # delivered_take
+                0,                # completed_take
                 0,                # scheduled_take
-                0,                # all_take
+                0,                # total_take
             ))
 
         # Parse FY24 metrics
@@ -198,12 +198,12 @@ def load_vendor_financials(filepath: str, dry_run: bool = False):
                 fy24_bookings,    # closed_won_bookings
                 0,                # invoicing
                 0,                # scheduled_revenue
-                0,                # delivered_revenue
+                0,                # completed_revenue
                 0,                # deferred_revenue
                 fy24_revenue,     # total_revenue
-                0,                # delivered_take
+                0,                # completed_take
                 0,                # scheduled_take
-                0,                # all_take
+                0,                # total_take
             ))
 
         # Parse FY27 metrics (pipeline only)
@@ -219,12 +219,12 @@ def load_vendor_financials(filepath: str, dry_run: bool = False):
                 0,                # closed_won_bookings
                 0,                # invoicing
                 0,                # scheduled_revenue
-                0,                # delivered_revenue
+                0,                # completed_revenue
                 0,                # deferred_revenue
                 0,                # total_revenue
-                0,                # delivered_take
+                0,                # completed_take
                 0,                # scheduled_take
-                0,                # all_take
+                0,                # total_take
             ))
 
     all_records = fy26_records + fy25_records + fy24_records + fy27_records
@@ -245,20 +245,20 @@ def load_vendor_financials(filepath: str, dry_run: bool = False):
             INSERT INTO vendor_financials (
                 leaid, vendor, fiscal_year,
                 open_pipeline, closed_won_bookings, invoicing,
-                scheduled_revenue, delivered_revenue, deferred_revenue, total_revenue,
-                delivered_take, scheduled_take, all_take
+                scheduled_revenue, completed_revenue, deferred_revenue, total_revenue,
+                completed_take, scheduled_take, total_take
             ) VALUES %s
             ON CONFLICT (leaid, vendor, fiscal_year) DO UPDATE SET
                 open_pipeline = GREATEST(vendor_financials.open_pipeline, EXCLUDED.open_pipeline),
                 closed_won_bookings = GREATEST(vendor_financials.closed_won_bookings, EXCLUDED.closed_won_bookings),
                 invoicing = GREATEST(vendor_financials.invoicing, EXCLUDED.invoicing),
                 scheduled_revenue = GREATEST(vendor_financials.scheduled_revenue, EXCLUDED.scheduled_revenue),
-                delivered_revenue = GREATEST(vendor_financials.delivered_revenue, EXCLUDED.delivered_revenue),
+                completed_revenue = GREATEST(vendor_financials.completed_revenue, EXCLUDED.completed_revenue),
                 deferred_revenue = GREATEST(vendor_financials.deferred_revenue, EXCLUDED.deferred_revenue),
                 total_revenue = GREATEST(vendor_financials.total_revenue, EXCLUDED.total_revenue),
-                delivered_take = GREATEST(vendor_financials.delivered_take, EXCLUDED.delivered_take),
+                completed_take = GREATEST(vendor_financials.completed_take, EXCLUDED.completed_take),
                 scheduled_take = GREATEST(vendor_financials.scheduled_take, EXCLUDED.scheduled_take),
-                all_take = GREATEST(vendor_financials.all_take, EXCLUDED.all_take),
+                total_take = GREATEST(vendor_financials.total_take, EXCLUDED.total_take),
                 last_updated = NOW()
             """,
             all_records,

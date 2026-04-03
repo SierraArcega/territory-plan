@@ -24,12 +24,12 @@ const EMPTY_TOTALS: SummaryTotals = {
   closedWonBookings: 0,
   invoicing: 0,
   scheduledRevenue: 0,
-  deliveredRevenue: 0,
+  completedRevenue: 0,
   deferredRevenue: 0,
   totalRevenue: 0,
-  deliveredTake: 0,
+  completedTake: 0,
   scheduledTake: 0,
-  allTake: 0,
+  totalTake: 0,
 };
 
 function sumCategories(
@@ -45,12 +45,12 @@ function sumCategories(
       totals.closedWonBookings += data.closedWonBookings;
       totals.invoicing += data.invoicing;
       totals.scheduledRevenue += data.scheduledRevenue;
-      totals.deliveredRevenue += data.deliveredRevenue;
+      totals.completedRevenue += data.completedRevenue;
       totals.deferredRevenue += data.deferredRevenue;
       totals.totalRevenue += data.totalRevenue;
-      totals.deliveredTake += data.deliveredTake;
+      totals.completedTake += data.completedTake;
       totals.scheduledTake += data.scheduledTake;
-      totals.allTake += data.allTake;
+      totals.totalTake += data.totalTake;
     }
   }
   return totals;

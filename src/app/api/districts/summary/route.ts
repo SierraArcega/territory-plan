@@ -83,12 +83,12 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(vf.closed_won_bookings), 0)::float AS closed_won_bookings,
         COALESCE(SUM(vf.invoicing), 0)::float AS invoicing,
         COALESCE(SUM(vf.scheduled_revenue), 0)::float AS scheduled_revenue,
-        COALESCE(SUM(vf.delivered_revenue), 0)::float AS delivered_revenue,
+        COALESCE(SUM(vf.completed_revenue), 0)::float AS completed_revenue,
         COALESCE(SUM(vf.deferred_revenue), 0)::float AS deferred_revenue,
         COALESCE(SUM(vf.total_revenue), 0)::float AS total_revenue,
-        COALESCE(SUM(vf.delivered_take), 0)::float AS delivered_take,
+        COALESCE(SUM(vf.completed_take), 0)::float AS completed_take,
         COALESCE(SUM(vf.scheduled_take), 0)::float AS scheduled_take,
-        COALESCE(SUM(vf.all_take), 0)::float AS all_take
+        COALESCE(SUM(vf.total_take), 0)::float AS total_take
       FROM district_map_features dmf
       JOIN dist ON dmf.leaid = dist.leaid
       LEFT JOIN vendor_financials vf ON dmf.leaid = vf.leaid
@@ -105,8 +105,8 @@ export async function GET(request: NextRequest) {
       const emptyTotals = {
         count: 0, totalEnrollment: 0,
         openPipeline: 0, closedWonBookings: 0, invoicing: 0,
-        scheduledRevenue: 0, deliveredRevenue: 0, deferredRevenue: 0, totalRevenue: 0,
-        deliveredTake: 0, scheduledTake: 0, allTake: 0,
+        scheduledRevenue: 0, completedRevenue: 0, deferredRevenue: 0, totalRevenue: 0,
+        completedTake: 0, scheduledTake: 0, totalTake: 0,
       };
 
       let combined = { ...emptyTotals };
@@ -121,12 +121,12 @@ export async function GET(request: NextRequest) {
           closedWonBookings: row.closed_won_bookings,
           invoicing: row.invoicing,
           scheduledRevenue: row.scheduled_revenue,
-          deliveredRevenue: row.delivered_revenue,
+          completedRevenue: row.completed_revenue,
           deferredRevenue: row.deferred_revenue,
           totalRevenue: row.total_revenue,
-          deliveredTake: row.delivered_take,
+          completedTake: row.completed_take,
           scheduledTake: row.scheduled_take,
-          allTake: row.all_take,
+          totalTake: row.total_take,
         };
         byCategory[cat] = entry;
         combined.count += entry.count;
@@ -135,12 +135,12 @@ export async function GET(request: NextRequest) {
         combined.closedWonBookings += entry.closedWonBookings;
         combined.invoicing += entry.invoicing;
         combined.scheduledRevenue += entry.scheduledRevenue;
-        combined.deliveredRevenue += entry.deliveredRevenue;
+        combined.completedRevenue += entry.completedRevenue;
         combined.deferredRevenue += entry.deferredRevenue;
         combined.totalRevenue += entry.totalRevenue;
-        combined.deliveredTake += entry.deliveredTake;
+        combined.completedTake += entry.completedTake;
         combined.scheduledTake += entry.scheduledTake;
-        combined.allTake += entry.allTake;
+        combined.totalTake += entry.totalTake;
       }
 
       // Per-vendor breakdown (always when vendors are active, so each
@@ -165,12 +165,12 @@ export async function GET(request: NextRequest) {
               COALESCE(SUM(vf.closed_won_bookings), 0)::float AS closed_won_bookings,
               COALESCE(SUM(vf.invoicing), 0)::float AS invoicing,
               COALESCE(SUM(vf.scheduled_revenue), 0)::float AS scheduled_revenue,
-              COALESCE(SUM(vf.delivered_revenue), 0)::float AS delivered_revenue,
+              COALESCE(SUM(vf.completed_revenue), 0)::float AS completed_revenue,
               COALESCE(SUM(vf.deferred_revenue), 0)::float AS deferred_revenue,
               COALESCE(SUM(vf.total_revenue), 0)::float AS total_revenue,
-              COALESCE(SUM(vf.delivered_take), 0)::float AS delivered_take,
+              COALESCE(SUM(vf.completed_take), 0)::float AS completed_take,
               COALESCE(SUM(vf.scheduled_take), 0)::float AS scheduled_take,
-              COALESCE(SUM(vf.all_take), 0)::float AS all_take
+              COALESCE(SUM(vf.total_take), 0)::float AS total_take
             FROM district_map_features dmf
             JOIN dist ON dmf.leaid = dist.leaid
             LEFT JOIN vendor_financials vf ON dmf.leaid = vf.leaid
@@ -197,12 +197,12 @@ export async function GET(request: NextRequest) {
               closedWonBookings: row.closed_won_bookings,
               invoicing: row.invoicing,
               scheduledRevenue: row.scheduled_revenue,
-              deliveredRevenue: row.delivered_revenue,
+              completedRevenue: row.completed_revenue,
               deferredRevenue: row.deferred_revenue,
               totalRevenue: row.total_revenue,
-              deliveredTake: row.delivered_take,
+              completedTake: row.completed_take,
               scheduledTake: row.scheduled_take,
-              allTake: row.all_take,
+              totalTake: row.total_take,
             };
             byCat[cat] = entry;
             totals.count += entry.count;
@@ -211,12 +211,12 @@ export async function GET(request: NextRequest) {
             totals.closedWonBookings += entry.closedWonBookings;
             totals.invoicing += entry.invoicing;
             totals.scheduledRevenue += entry.scheduledRevenue;
-            totals.deliveredRevenue += entry.deliveredRevenue;
+            totals.completedRevenue += entry.completedRevenue;
             totals.deferredRevenue += entry.deferredRevenue;
             totals.totalRevenue += entry.totalRevenue;
-            totals.deliveredTake += entry.deliveredTake;
+            totals.completedTake += entry.completedTake;
             totals.scheduledTake += entry.scheduledTake;
-            totals.allTake += entry.allTake;
+            totals.totalTake += entry.totalTake;
           }
           byVendor[vendor] = { ...totals, byCategory: byCat };
         }

@@ -511,12 +511,12 @@ export const ALL_METRIC_IDS = [
   "bookings",
   "invoicing",
   "scheduledRevenue",
-  "deliveredRevenue",
+  "completedRevenue",
   "deferredRevenue",
   "totalRevenue",
-  "deliveredTake",
+  "completedTake",
   "scheduledTake",
-  "allTake",
+  "totalTake",
 ] as const;
 
 export type MetricId = (typeof ALL_METRIC_IDS)[number];

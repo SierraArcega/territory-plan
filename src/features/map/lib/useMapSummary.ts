@@ -12,12 +12,12 @@ export interface SummaryTotals {
   closedWonBookings: number;
   invoicing: number;
   scheduledRevenue: number;
-  deliveredRevenue: number;
+  completedRevenue: number;
   deferredRevenue: number;
   totalRevenue: number;
-  deliveredTake: number;
+  completedTake: number;
   scheduledTake: number;
-  allTake: number;
+  totalTake: number;
 }
 
 interface SummaryResponse extends SummaryTotals {
@@ -32,12 +32,12 @@ const EMPTY_TOTALS: SummaryTotals = {
   closedWonBookings: 0,
   invoicing: 0,
   scheduledRevenue: 0,
-  deliveredRevenue: 0,
+  completedRevenue: 0,
   deferredRevenue: 0,
   totalRevenue: 0,
-  deliveredTake: 0,
+  completedTake: 0,
   scheduledTake: 0,
-  allTake: 0,
+  totalTake: 0,
 };
 
 /**
@@ -70,12 +70,12 @@ function sumCategories(
       totals.closedWonBookings += data.closedWonBookings;
       totals.invoicing += data.invoicing;
       totals.scheduledRevenue += data.scheduledRevenue;
-      totals.deliveredRevenue += data.deliveredRevenue;
+      totals.completedRevenue += data.completedRevenue;
       totals.deferredRevenue += data.deferredRevenue;
       totals.totalRevenue += data.totalRevenue;
-      totals.deliveredTake += data.deliveredTake;
+      totals.completedTake += data.completedTake;
       totals.scheduledTake += data.scheduledTake;
-      totals.allTake += data.allTake;
+      totals.totalTake += data.totalTake;
     }
   }
   return totals;
@@ -181,12 +181,12 @@ export function useMapSummary() {
         closedWonBookings: data.closedWonBookings,
         invoicing: data.invoicing,
         scheduledRevenue: data.scheduledRevenue,
-        deliveredRevenue: data.deliveredRevenue,
+        completedRevenue: data.completedRevenue,
         deferredRevenue: data.deferredRevenue,
         totalRevenue: data.totalRevenue,
-        deliveredTake: data.deliveredTake,
+        completedTake: data.completedTake,
         scheduledTake: data.scheduledTake,
-        allTake: data.allTake,
+        totalTake: data.totalTake,
       };
     }
 
@@ -205,12 +205,12 @@ export function useMapSummary() {
         combined.closedWonBookings += vt.closedWonBookings;
         combined.invoicing += vt.invoicing;
         combined.scheduledRevenue += vt.scheduledRevenue;
-        combined.deliveredRevenue += vt.deliveredRevenue;
+        combined.completedRevenue += vt.completedRevenue;
         combined.deferredRevenue += vt.deferredRevenue;
         combined.totalRevenue += vt.totalRevenue;
-        combined.deliveredTake += vt.deliveredTake;
+        combined.completedTake += vt.completedTake;
         combined.scheduledTake += vt.scheduledTake;
-        combined.allTake += vt.allTake;
+        combined.totalTake += vt.totalTake;
       }
       return combined;
     }
@@ -245,12 +245,12 @@ export function useMapSummary() {
             closedWonBookings: vendorData.closedWonBookings,
             invoicing: vendorData.invoicing,
             scheduledRevenue: vendorData.scheduledRevenue,
-            deliveredRevenue: vendorData.deliveredRevenue,
+            completedRevenue: vendorData.completedRevenue,
             deferredRevenue: vendorData.deferredRevenue,
             totalRevenue: vendorData.totalRevenue,
-            deliveredTake: vendorData.deliveredTake,
+            completedTake: vendorData.completedTake,
             scheduledTake: vendorData.scheduledTake,
-            allTake: vendorData.allTake,
+            totalTake: vendorData.totalTake,
           },
         };
       }
@@ -269,12 +269,12 @@ export function useMapSummary() {
       closedWonBookings: data.closedWonBookings,
       invoicing: data.invoicing,
       scheduledRevenue: data.scheduledRevenue,
-      deliveredRevenue: data.deliveredRevenue,
+      completedRevenue: data.completedRevenue,
       deferredRevenue: data.deferredRevenue,
       totalRevenue: data.totalRevenue,
-      deliveredTake: data.deliveredTake,
+      completedTake: data.completedTake,
       scheduledTake: data.scheduledTake,
-      allTake: data.allTake,
+      totalTake: data.totalTake,
     };
   }, [data]);
 
@@ -290,12 +290,12 @@ export function useMapSummary() {
           closedWonBookings: vendorData.closedWonBookings,
           invoicing: vendorData.invoicing,
           scheduledRevenue: vendorData.scheduledRevenue,
-          deliveredRevenue: vendorData.deliveredRevenue,
+          completedRevenue: vendorData.completedRevenue,
           deferredRevenue: vendorData.deferredRevenue,
           totalRevenue: vendorData.totalRevenue,
-          deliveredTake: vendorData.deliveredTake,
+          completedTake: vendorData.completedTake,
           scheduledTake: vendorData.scheduledTake,
-          allTake: vendorData.allTake,
+          totalTake: vendorData.totalTake,
         },
       };
     }

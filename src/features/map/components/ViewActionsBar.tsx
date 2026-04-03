@@ -259,12 +259,12 @@ const METRIC_LABELS: Record<MetricId, string> = {
   bookings: "Bookings",
   invoicing: "Invoicing",
   scheduledRevenue: "Sched Rev",
-  deliveredRevenue: "Deliv Rev",
+  completedRevenue: "Comp Rev",
   deferredRevenue: "Def Rev",
   totalRevenue: "Total Rev",
-  deliveredTake: "Deliv Take",
+  completedTake: "Comp Take",
   scheduledTake: "Sched Take",
-  allTake: "All Take",
+  totalTake: "Total Take",
 };
 
 function MetricsPopover({ onClose }: { onClose: () => void }) {

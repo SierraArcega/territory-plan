@@ -45,12 +45,12 @@ const METRIC_CONFIG: Record<MetricId, { label: string; compactLabel: string; for
   bookings: { label: "Bookings", compactLabel: "Book", format: (t) => formatCurrency(t.closedWonBookings, true) },
   invoicing: { label: "Invoicing", compactLabel: "Inv", format: (t) => formatCurrency(t.invoicing, true) },
   scheduledRevenue: { label: "Sched Rev", compactLabel: "Sched Rev", format: (t) => formatCurrency(t.scheduledRevenue, true) },
-  deliveredRevenue: { label: "Deliv Rev", compactLabel: "Deliv Rev", format: (t) => formatCurrency(t.deliveredRevenue, true) },
+  completedRevenue: { label: "Comp Rev", compactLabel: "Comp Rev", format: (t) => formatCurrency(t.completedRevenue, true) },
   deferredRevenue: { label: "Def Rev", compactLabel: "Def Rev", format: (t) => formatCurrency(t.deferredRevenue, true) },
   totalRevenue: { label: "Total Rev", compactLabel: "Tot Rev", format: (t) => formatCurrency(t.totalRevenue, true) },
-  deliveredTake: { label: "Deliv Take", compactLabel: "Deliv Take", format: (t) => formatCurrency(t.deliveredTake, true) },
+  completedTake: { label: "Comp Take", compactLabel: "Comp Take", format: (t) => formatCurrency(t.completedTake, true) },
   scheduledTake: { label: "Sched Take", compactLabel: "Sched Take", format: (t) => formatCurrency(t.scheduledTake, true) },
-  allTake: { label: "All Take", compactLabel: "All Take", format: (t) => formatCurrency(t.allTake, true) },
+  totalTake: { label: "Total Take", compactLabel: "Total Take", format: (t) => formatCurrency(t.totalTake, true) },
 };
 
 function FinancialStats({
