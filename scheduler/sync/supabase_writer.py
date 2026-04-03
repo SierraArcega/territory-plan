@@ -235,6 +235,24 @@ def refresh_map_features(conn):
     logger.info("Refreshed district_map_features materialized view")
 
 
+def refresh_fullmind_financials(conn):
+    """Refresh Fullmind vendor_financials from opportunities + sessions."""
+    logger.info("Refreshing Fullmind vendor_financials...")
+    with conn.cursor() as cur:
+        cur.execute("SELECT refresh_fullmind_financials()")
+    conn.commit()
+    logger.info("Refreshed Fullmind vendor_financials")
+
+
+def refresh_opportunity_actuals(conn):
+    """Refresh district_opportunity_actuals materialized view."""
+    logger.info("Refreshing district_opportunity_actuals...")
+    with conn.cursor() as cur:
+        cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY district_opportunity_actuals")
+    conn.commit()
+    logger.info("Refreshed district_opportunity_actuals")
+
+
 def get_last_synced_at(conn):
     """Read the last successful sync timestamp. Returns None on first run."""
     with conn.cursor() as cur:

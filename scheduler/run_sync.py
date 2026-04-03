@@ -22,6 +22,8 @@ from sync.supabase_writer import (
     remove_matched_from_unmatched,
     update_district_pipeline_aggregates,
     refresh_map_features,
+    refresh_fullmind_financials,
+    refresh_opportunity_actuals,
     get_last_synced_at,
     set_last_synced_at,
 )
@@ -161,6 +163,8 @@ def run_sync():
 
         update_district_pipeline_aggregates(conn)
         refresh_map_features(conn)
+        refresh_fullmind_financials(conn)
+        refresh_opportunity_actuals(conn)
         set_last_synced_at(conn, now)
 
         logger.info(
