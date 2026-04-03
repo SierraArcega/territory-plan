@@ -1,6 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import SequencesTab from "./SequencesTab";
+import ActiveRunsTab from "./ActiveRunsTab";
+import TemplatesTab from "./TemplatesTab";
+import HistoryTab from "./HistoryTab";
+import ExecutionPanel from "./ExecutionPanel";
+import { useExecutions } from "../lib/queries";
 
 type EngageSubTab = "sequences" | "active-runs" | "templates" | "history";
 
@@ -13,6 +19,29 @@ const SUB_TABS: { id: EngageSubTab; label: string }[] = [
 
 export default function EngageView() {
   const [activeSubTab, setActiveSubTab] = useState<EngageSubTab>("sequences");
+  const [activeExecutionId, setActiveExecutionId] = useState<number | null>(
+    null
+  );
+
+  // Badge count for active runs
+  const { data: activeRunsData } = useExecutions("active");
+  const { data: pausedRunsData } = useExecutions("paused");
+  const activeRunCount =
+    (activeRunsData?.executions?.length ?? 0) +
+    (pausedRunsData?.executions?.length ?? 0);
+
+  // If an execution is active, show the execution panel
+  if (activeExecutionId !== null) {
+    return (
+      <ExecutionPanel
+        executionId={activeExecutionId}
+        onClose={() => {
+          setActiveExecutionId(null);
+          setActiveSubTab("active-runs");
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">
@@ -37,19 +66,24 @@ export default function EngageView() {
               }`}
             >
               {tab.label}
+              {tab.id === "active-runs" && activeRunCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-xs font-semibold text-white bg-[#F37167] rounded-full">
+                  {activeRunCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* Sub-tab content — placeholder for now */}
-        <div className="text-sm text-[#6B5F8A]">
-          {activeSubTab === "sequences" && <p>Sequences tab — coming next</p>}
-          {activeSubTab === "active-runs" && (
-            <p>Active runs tab — coming next</p>
-          )}
-          {activeSubTab === "templates" && <p>Templates tab — coming next</p>}
-          {activeSubTab === "history" && <p>History tab — coming next</p>}
-        </div>
+        {/* Sub-tab content */}
+        {activeSubTab === "sequences" && <SequencesTab />}
+        {activeSubTab === "active-runs" && (
+          <ActiveRunsTab
+            onResume={(executionId) => setActiveExecutionId(executionId)}
+          />
+        )}
+        {activeSubTab === "templates" && <TemplatesTab />}
+        {activeSubTab === "history" && <HistoryTab />}
       </div>
     </div>
   );
