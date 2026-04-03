@@ -35,6 +35,7 @@ interface ActivityFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: ActivityFormData) => Promise<void>;
+  onDelete?: (activityId: string) => Promise<void>;
   // Available districts in this plan
   districts: DistrictOption[];
   // Contacts for the selected district (passed from parent)
@@ -66,6 +67,7 @@ export default function ActivityFormModal({
   isOpen,
   onClose,
   onSubmit,
+  onDelete,
   districts,
   contacts = [],
   initialData,
@@ -84,6 +86,8 @@ export default function ActivityFormModal({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showEndDate, setShowEndDate] = useState(false);
 
@@ -117,6 +121,8 @@ export default function ActivityFormModal({
         setShowEndDate(false);
       }
       setError(null);
+      setShowDeleteConfirm(false);
+      setIsDeleting(false);
     }
   }, [isOpen, initialData]);
 
@@ -139,6 +145,19 @@ export default function ActivityFormModal({
       setError(err instanceof Error ? err.message : "Failed to save activity");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete || !initialData) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(initialData.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete activity");
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -413,21 +432,53 @@ export default function ActivityFormModal({
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !formData.title.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Saving..." : initialData ? "Save Changes" : "Add Activity"}
-            </button>
+          <div className="flex items-center gap-3 pt-2">
+            {initialData && onDelete && (
+              showDeleteConfirm ? (
+                <div className="flex items-center gap-2 mr-auto">
+                  <span className="text-sm text-[#6E6390]">Delete this activity?</span>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? "Deleting..." : "Confirm"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-3 py-1.5 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="mr-auto px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  Delete
+                </button>
+              )
+            )}
+            <div className="flex gap-3 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !formData.title.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? "Saving..." : initialData ? "Save Changes" : "Add Activity"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
