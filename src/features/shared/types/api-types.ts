@@ -572,6 +572,7 @@ export interface ActivitiesParams {
   needsPlanAssociation?: boolean;
   hasUnlinkedDistricts?: boolean;
   source?: string;
+  ownerId?: string;
   limit?: number;
   offset?: number;
 }

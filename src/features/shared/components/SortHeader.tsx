@@ -20,7 +20,7 @@ export function SortHeader({ field, label, sortState, onSort, className = "", to
 
   return (
     <th
-      className={`group px-2 py-3 text-left text-[11px] font-semibold uppercase tracking-wider cursor-pointer select-none ${
+      className={`group px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider cursor-pointer select-none ${
         isActive ? "text-[#403770]" : "text-[#8A80A8]"
       } ${className}`}
       aria-sort={!isActive ? "none" : dir === "asc" ? "ascending" : "descending"}

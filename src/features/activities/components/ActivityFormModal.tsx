@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask } from "@/lib/api";
+import { useActivity, useUpdateActivity } from "@/features/activities/lib/queries";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -33,6 +34,7 @@ interface ActivityFormModalProps {
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
   embedded?: boolean;
+  editActivityId?: string;
 }
 
 type ModalStep = "pick-category" | "pick-type" | "form";
@@ -43,13 +45,18 @@ export default function ActivityFormModal({
   defaultCategory,
   defaultPlanId,
   embedded,
+  editActivityId,
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
+  const updateActivity = useUpdateActivity();
   const createTask = useCreateTask();
   const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
+  const { data: editActivity, isLoading: isLoadingEdit } = useActivity(isOpen && editActivityId ? editActivityId : null);
+  const isEditMode = !!editActivityId;
+  const isEditLoading = isEditMode && isLoadingEdit;
 
   // Step management
   const [step, setStep] = useState<ModalStep>("pick-category");
@@ -78,6 +85,8 @@ export default function ActivityFormModal({
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
   const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);
   const [relatedActivities, setRelatedActivities] = useState<RelationDraft[]>([]);
+  const [outcomeType, setOutcomeType] = useState<string | null>(null);
+  const [outcomeNote, setOutcomeNote] = useState<string | null>(null);
 
   // Navigation stack for viewing related activities
   const [viewStack, setViewStack] = useState<{ id: string; title: string }[]>([]);
@@ -87,7 +96,10 @@ export default function ActivityFormModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (defaultCategory) {
+      if (isEditMode) {
+        // Edit mode: skip picker steps, go straight to form
+        setStep("form");
+      } else if (defaultCategory) {
         setSelectedCategory(defaultCategory);
         const types = ACTIVITY_CATEGORIES[defaultCategory];
         if (types.length === 1) {
@@ -100,27 +112,74 @@ export default function ActivityFormModal({
         setStep("pick-category");
         setSelectedCategory(null);
       }
-      setType("conference");
-      setTitle("");
-      setStartDate(new Date().toISOString().split("T")[0]);
-      setEndDate("");
-      setIsMultiDay(false);
-      setNotes("");
-      setStatus("planned");
-      setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
-      setSelectedStateFips([]);
-      setMetadata({});
-      setAttendeeUserIds([]);
-      setDistrictStops([]);
-      setTaskDrafts([]);
-      setExpenses([]);
-      setRelatedActivities([]);
+      if (!isEditMode) {
+        setType("conference");
+        setTitle("");
+        setStartDate(new Date().toISOString().split("T")[0]);
+        setEndDate("");
+        setIsMultiDay(false);
+        setNotes("");
+        setStatus("planned");
+        setSelectedPlanIds(defaultPlanId ? [defaultPlanId] : []);
+        setSelectedStateFips([]);
+        setMetadata({});
+        setAttendeeUserIds([]);
+        setDistrictStops([]);
+        setTaskDrafts([]);
+        setExpenses([]);
+        setRelatedActivities([]);
+        setOutcomeType(null);
+        setOutcomeNote(null);
+      }
       setViewStack([]);
       setError(null);
       setShowNewPlanForm(false);
       setNewPlanName("");
     }
-  }, [isOpen, defaultCategory, defaultPlanId]);
+  }, [isOpen, defaultCategory, defaultPlanId, isEditMode]);
+
+  // Populate form when edit activity data loads
+  useEffect(() => {
+    if (!editActivity || !isEditMode) return;
+    const cat = getCategoryForType(editActivity.type as ActivityType);
+    setSelectedCategory(cat);
+    setType(editActivity.type as ActivityType);
+    setTitle(editActivity.title);
+    setStartDate(editActivity.startDate ? editActivity.startDate.split("T")[0] : "");
+    setEndDate(editActivity.endDate ? editActivity.endDate.split("T")[0] : "");
+    setIsMultiDay(!!editActivity.endDate);
+    setNotes(editActivity.notes || "");
+    setStatus(editActivity.status);
+    setSelectedPlanIds(editActivity.plans?.map((p) => p.planId) || []);
+    setSelectedStateFips(editActivity.states?.map((s) => s.fips) || []);
+    setMetadata((editActivity.metadata as Record<string, unknown>) || {});
+    setAttendeeUserIds(editActivity.attendees?.map((a) => a.userId) || []);
+    setDistrictStops(
+      editActivity.districts?.map((d) => ({
+        leaid: d.leaid,
+        name: d.name || d.leaid,
+        stateAbbrev: d.stateAbbrev || null,
+        visitDate: d.visitDate ? d.visitDate.split("T")[0] : "",
+        notes: d.notes || "",
+      })) || []
+    );
+    setExpenses(
+      editActivity.expenses?.map((e) => ({ description: e.description, amount: Number(e.amount) })) || []
+    );
+    setRelatedActivities(
+      editActivity.relatedActivities?.map((r) => ({
+        activityId: r.activityId,
+        title: r.title,
+        type: r.type,
+        startDate: r.startDate,
+        status: r.status,
+        relationType: r.relationType,
+      })) || []
+    );
+    setOutcomeType(editActivity.outcomeType || null);
+    setOutcomeNote(editActivity.outcome || null);
+    setStep("form");
+  }, [editActivity, isEditMode]);
 
   useEffect(() => {
     if (embedded) return; // parent modal handles escape
@@ -178,52 +237,77 @@ export default function ActivityFormModal({
 
     setError(null);
     try {
-      const activity = await createActivity.mutateAsync({
-        type,
-        title: title.trim(),
-        startDate: startDate || undefined,
-        endDate: isMultiDay && endDate ? endDate : undefined,
-        notes: notes.trim() || undefined,
-        status,
-        planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
-        stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
-        metadata: hasMetadata ? metadata : undefined,
-        attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
-        expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
-        districts: districtStops.length > 0
-          ? districtStops.map((s, index) => ({
-              leaid: s.leaid,
-              visitDate: s.visitDate || undefined,
-              position: index,
-              notes: s.notes || undefined,
-            }))
-          : undefined,
-        relatedActivityIds: relatedActivities.length > 0
-          ? relatedActivities.map((r) => ({ activityId: r.activityId, relationType: r.relationType }))
-          : undefined,
-      });
+      if (isEditMode && editActivityId) {
+        // Update existing activity
+        await updateActivity.mutateAsync({
+          activityId: editActivityId,
+          type,
+          title: title.trim(),
+          startDate: startDate ? new Date(startDate).toISOString() : null,
+          endDate: isMultiDay && endDate ? new Date(endDate).toISOString() : null,
+          notes: notes.trim() || null,
+          status,
+          outcomeType: outcomeType || null,
+          outcome: outcomeNote || null,
+          metadata: hasMetadata ? metadata : null,
+          attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : [],
+          expenses: expenses.filter((e) => e.description.trim()),
+          districts: districtStops.map((s, index) => ({
+            leaid: s.leaid,
+            visitDate: s.visitDate || null,
+            position: index,
+            notes: s.notes || null,
+          })),
+        });
+      } else {
+        // Create new activity
+        const activity = await createActivity.mutateAsync({
+          type,
+          title: title.trim(),
+          startDate: startDate || undefined,
+          endDate: isMultiDay && endDate ? endDate : undefined,
+          notes: notes.trim() || undefined,
+          status,
+          planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+          stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
+          metadata: hasMetadata ? metadata : undefined,
+          attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
+          expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
+          districts: districtStops.length > 0
+            ? districtStops.map((s, index) => ({
+                leaid: s.leaid,
+                visitDate: s.visitDate || undefined,
+                position: index,
+                notes: s.notes || undefined,
+              }))
+            : undefined,
+          relatedActivityIds: relatedActivities.length > 0
+            ? relatedActivities.map((r) => ({ activityId: r.activityId, relationType: r.relationType }))
+            : undefined,
+        });
 
-      // Create linked tasks
-      const validTasks = taskDrafts.filter((t) => t.title.trim());
-      if (validTasks.length > 0 && activity?.id) {
-        await Promise.all(
-          validTasks.map((t) =>
-            createTask.mutateAsync({
-              title: t.title.trim(),
-              priority: t.priority,
-              dueDate: t.dueDate || undefined,
-              activityIds: [activity.id],
-              planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
-            })
-          )
-        );
+        // Create linked tasks (only for new activities)
+        const validTasks = taskDrafts.filter((t) => t.title.trim());
+        if (validTasks.length > 0 && activity?.id) {
+          await Promise.all(
+            validTasks.map((t) =>
+              createTask.mutateAsync({
+                title: t.title.trim(),
+                priority: t.priority,
+                dueDate: t.dueDate || undefined,
+                activityIds: [activity.id],
+                planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
+              })
+            )
+          );
+        }
       }
 
       onClose();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create activity";
+      const message = err instanceof Error ? err.message : `Failed to ${isEditMode ? "update" : "create"} activity`;
       setError(message);
-      console.error("Failed to create activity:", err);
+      console.error(`Failed to ${isEditMode ? "update" : "create"} activity:`, err);
     }
   };
 
@@ -299,7 +383,7 @@ export default function ActivityFormModal({
                   onClick={() => handleBreadcrumbNav(-1)}
                   className="text-[#8A80A8] hover:text-[#403770] truncate max-w-[150px] transition-colors"
                 >
-                  New {ACTIVITY_TYPE_LABELS[type]}
+                  {isEditMode ? "Edit" : "New"} {ACTIVITY_TYPE_LABELS[type]}
                 </button>
                 {viewStack.map((item, i) => (
                   <span key={item.id} className="flex items-center gap-1.5 min-w-0">
@@ -327,7 +411,7 @@ export default function ActivityFormModal({
                 {step === "form" && (
                   <span className="flex items-center gap-2">
                     <span>{ACTIVITY_TYPE_ICONS[type]}</span>
-                    <span>New {ACTIVITY_TYPE_LABELS[type]}</span>
+                    <span>{isEditMode ? "Edit" : "New"} {ACTIVITY_TYPE_LABELS[type]}</span>
                   </span>
                 )}
               </h2>
@@ -390,8 +474,18 @@ export default function ActivityFormModal({
           />
         )}
 
+        {/* Loading state for edit mode */}
+        {step === "form" && isEditLoading && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <span className="w-8 h-8 border-3 border-[#403770] border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-[#8A80A8]">Loading activity...</p>
+            </div>
+          </div>
+        )}
+
         {/* Step 3: Two-panel form */}
-        {step === "form" && !isViewing && (
+        {step === "form" && !isViewing && !isEditLoading && (
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
             <div className="flex flex-1 overflow-hidden">
               {/* ── Left Panel: Event Info ── */}
@@ -517,6 +611,7 @@ export default function ActivityFormModal({
               {/* ── Right Panel: Tabs ── */}
               <div className="w-1/2 border-l border-[#E2DEEC] flex flex-col">
                 <ActivityFormTabs
+                  activityType={type}
                   taskDrafts={taskDrafts}
                   onTaskDraftsChange={setTaskDrafts}
                   expenses={expenses}
@@ -524,6 +619,10 @@ export default function ActivityFormModal({
                   relatedActivities={relatedActivities}
                   onRelatedActivitiesChange={setRelatedActivities}
                   onViewActivity={handleViewActivity}
+                  outcomeType={outcomeType}
+                  outcome={outcomeNote}
+                  onOutcomeTypeChange={setOutcomeType}
+                  onOutcomeChange={setOutcomeNote}
                 />
               </div>
             </div>
@@ -549,10 +648,12 @@ export default function ActivityFormModal({
                 disabled={!title.trim() || createActivity.isPending}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#403770] rounded-lg hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {createActivity.isPending && (
+                {(createActivity.isPending || updateActivity.isPending) && (
                   <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 )}
-                {createActivity.isPending ? "Creating..." : "Create Activity"}
+                {isEditMode
+                  ? (updateActivity.isPending ? "Saving..." : "Save Changes")
+                  : (createActivity.isPending ? "Creating..." : "Create Activity")}
               </button>
             </div>
           </form>

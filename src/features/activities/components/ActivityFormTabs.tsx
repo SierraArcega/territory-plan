@@ -4,18 +4,20 @@ import { useState } from "react";
 import TaskLineItems, { type TaskDraft } from "./event-fields/TaskLineItems";
 import ExpenseLineItems from "./event-fields/ExpenseLineItems";
 import RelatedActivitiesTab, { type RelationDraft } from "./tabs/RelatedActivitiesTab";
-import FilesTab from "./tabs/FilesTab";
+import OutcomesTab from "./tabs/OutcomesTab";
+import type { ActivityType } from "@/features/activities/types";
 
-type TabKey = "tasks" | "expenses" | "related" | "files";
+type TabKey = "expenses" | "tasks" | "related" | "outcomes";
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "expenses", label: "Expenses", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { key: "tasks", label: "Tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
   { key: "related", label: "Related Activities", icon: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" },
-  { key: "files", label: "Files", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
+  { key: "outcomes", label: "Outcomes", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
 ];
 
 interface ActivityFormTabsProps {
+  activityType: ActivityType;
   taskDrafts: TaskDraft[];
   onTaskDraftsChange: (tasks: TaskDraft[]) => void;
   expenses: { description: string; amount: number }[];
@@ -23,9 +25,14 @@ interface ActivityFormTabsProps {
   relatedActivities: RelationDraft[];
   onRelatedActivitiesChange: (relations: RelationDraft[]) => void;
   onViewActivity?: (activityId: string, title: string) => void;
+  outcomeType: string | null;
+  outcome: string | null;
+  onOutcomeTypeChange: (outcomeType: string | null) => void;
+  onOutcomeChange: (outcome: string | null) => void;
 }
 
 export default function ActivityFormTabs({
+  activityType,
   taskDrafts,
   onTaskDraftsChange,
   expenses,
@@ -33,6 +40,10 @@ export default function ActivityFormTabs({
   relatedActivities,
   onRelatedActivitiesChange,
   onViewActivity,
+  outcomeType,
+  outcome,
+  onOutcomeTypeChange,
+  onOutcomeChange,
 }: ActivityFormTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("expenses");
 
@@ -43,6 +54,7 @@ export default function ActivityFormTabs({
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           const count =
+            tab.key === "outcomes" ? (outcomeType ? 1 : 0) :
             tab.key === "tasks" ? taskDrafts.length :
             tab.key === "expenses" ? expenses.length :
             tab.key === "related" ? relatedActivities.length :
@@ -77,6 +89,15 @@ export default function ActivityFormTabs({
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === "outcomes" && (
+          <OutcomesTab
+            activityType={activityType}
+            outcomeType={outcomeType}
+            outcome={outcome}
+            onOutcomeTypeChange={onOutcomeTypeChange}
+            onOutcomeChange={onOutcomeChange}
+          />
+        )}
         {activeTab === "tasks" && (
           <TaskLineItems tasks={taskDrafts} onChange={onTaskDraftsChange} />
         )}
@@ -86,7 +107,6 @@ export default function ActivityFormTabs({
         {activeTab === "related" && (
           <RelatedActivitiesTab relations={relatedActivities} onChange={onRelatedActivitiesChange} onViewActivity={onViewActivity} />
         )}
-        {activeTab === "files" && <FilesTab />}
       </div>
     </div>
   );

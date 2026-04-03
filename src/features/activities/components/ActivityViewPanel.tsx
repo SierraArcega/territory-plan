@@ -48,6 +48,8 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
   const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);
   const [relatedActivities, setRelatedActivities] = useState<RelationDraft[]>([]);
+  const [localOutcomeType, setLocalOutcomeType] = useState<string | null>(null);
+  const [localOutcome, setLocalOutcome] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Populate form from fetched activity
@@ -65,6 +67,8 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
     setSelectedPlanIds(activity.plans.map((p) => p.planId));
     setSelectedStateFips(activity.states.map((s) => s.fips));
     setExpenses(activity.expenses.map((e) => ({ description: e.description, amount: e.amount })));
+    setLocalOutcomeType(activity.outcomeType || null);
+    setLocalOutcome(activity.outcome || null);
     setRelatedActivities(
       activity.relatedActivities.map((r) => ({
         activityId: r.activityId,
@@ -200,6 +204,7 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
         {/* Right Panel — Tabs */}
         <div className="w-1/2 border-l border-[#E2DEEC] flex flex-col">
           <ActivityFormTabs
+            activityType={type}
             taskDrafts={taskDrafts}
             onTaskDraftsChange={setTaskDrafts}
             expenses={expenses}
@@ -207,6 +212,10 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
             relatedActivities={relatedActivities}
             onRelatedActivitiesChange={(v) => { setRelatedActivities(v); markChanged(); }}
             onViewActivity={onViewRelated}
+            outcomeType={localOutcomeType}
+            outcome={localOutcome}
+            onOutcomeTypeChange={(v) => { setLocalOutcomeType(v); markChanged(); }}
+            onOutcomeChange={(v) => { setLocalOutcome(v); markChanged(); }}
           />
         </div>
       </div>

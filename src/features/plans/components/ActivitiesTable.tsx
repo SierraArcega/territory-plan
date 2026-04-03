@@ -89,13 +89,13 @@ function DeleteConfirmModal({
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-lg font-semibold text-[#403770] mb-2">Delete Activity?</h3>
-        <p className="text-gray-600 text-sm mb-6">
+        <p className="text-[#6E6390] text-sm mb-6">
           Are you sure you want to delete &ldquo;{activity.title}&rdquo;? This action cannot be undone.
         </p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
           >
             Cancel
           </button>
@@ -160,9 +160,9 @@ export default function ActivitiesTable({
   // Empty state
   if (activities.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+      <div className="text-center py-16 bg-white rounded-lg border border-[#D4CFE2]">
         <svg
-          className="w-16 h-16 mx-auto text-gray-300 mb-4"
+          className="w-12 h-12 mx-auto text-[#C2BBD4] mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -174,8 +174,8 @@ export default function ActivitiesTable({
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
         </svg>
-        <h3 className="text-lg font-medium text-gray-600 mb-2">No activities yet</h3>
-        <p className="text-sm text-gray-500 max-w-sm mx-auto">
+        <h3 className="text-base font-medium text-[#6E6390] mb-1">No activities yet</h3>
+        <p className="text-sm text-[#8A80A8] max-w-sm mx-auto">
           Create your first activity to get started.
         </p>
       </div>
@@ -183,13 +183,13 @@ export default function ActivitiesTable({
   }
 
   return (
-    <div className="overflow-hidden border border-gray-200 rounded-lg bg-white shadow-sm">
+    <div className="overflow-hidden border border-[#D4CFE2] rounded-lg bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed">
+        <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50/80">
+            <tr className="border-b border-[#E2DEEC] bg-[#F7F5FA]">
               <th
-                className="w-[28px] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider"
+                className="w-10 px-3 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider"
                 aria-label="Icon"
               >
                 {/* Icon column — not sortable */}
@@ -199,33 +199,32 @@ export default function ActivitiesTable({
                 label="Title"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[30%]"
               />
               <SortHeader
                 field="type"
                 label="Type"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[15%]"
+                className="whitespace-nowrap"
               />
               <SortHeader
                 field="status"
                 label="Status"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[12%]"
+                className="whitespace-nowrap"
               />
               <SortHeader
                 field="startDate"
                 label="Date"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[18%]"
+                className="whitespace-nowrap"
               />
-              <th className="w-[15%] px-2 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#8A80A8] uppercase tracking-wider whitespace-nowrap">
                 Scope
               </th>
-              <th className="w-20 px-3 py-3" />
+              <th className="w-12 px-3 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -241,15 +240,15 @@ export default function ActivitiesTable({
               return (
                 <tr
                   key={activity.id}
-                  className={`group transition-colors duration-100 hover:bg-gray-50/70 ${!isLast ? "border-b border-gray-100" : ""}`}
+                  className={`group transition-colors duration-100 hover:bg-[#EFEDF5] ${!isLast ? "border-b border-[#E2DEEC]" : ""}`}
                 >
                   {/* Icon */}
-                  <td className="px-2 py-1.5 text-center text-base">
+                  <td className="px-3 py-3 text-center text-base">
                     <span>{typeIcon}</span>
                   </td>
 
                   {/* Title — click to open full editor */}
-                  <td className="px-2 py-1 truncate">
+                  <td className="px-4 py-3 truncate">
                     <button
                       onClick={() => onEdit(activity)}
                       className="text-sm font-medium text-[#403770] truncate text-left w-full hover:underline cursor-pointer"
@@ -259,25 +258,25 @@ export default function ActivitiesTable({
                   </td>
 
                   {/* Type (editable select) */}
-                  <td className="px-2 py-1">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <InlineEditCell
                       type="select"
                       value={activity.type}
                       onSave={async (value) => handleFieldUpdate(activity.id, "type", value)}
                       options={TYPE_OPTIONS}
-                      className="text-xs text-gray-600"
+                      className="text-sm text-[#6E6390]"
                     />
                   </td>
 
                   {/* Status (editable select) + outcome badge if tagged */}
-                  <td className="px-2 py-1">
-                    <div className="flex items-center gap-1.5">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
                       <InlineEditCell
                         type="select"
                         value={activity.status}
                         onSave={async (value) => handleFieldUpdate(activity.id, "status", value)}
                         options={STATUS_OPTIONS}
-                        className="text-xs text-gray-600"
+                        className="text-sm text-[#6E6390]"
                       />
                       {/* Show outcome badge if activity has been tagged */}
                       {activity.outcomeType && OUTCOME_CONFIGS[activity.outcomeType as OutcomeType] && (
@@ -297,47 +296,47 @@ export default function ActivitiesTable({
                   </td>
 
                   {/* Date (editable) */}
-                  <td className="px-2 py-1">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {activity.startDate ? (
-                      <div className="flex items-center gap-0.5 text-xs text-gray-600">
+                      <div className="flex items-center gap-1 text-sm text-[#6E6390]">
                         <InlineEditCell
                           type="date"
                           value={activity.startDate}
                           onSave={async (value) => handleFieldUpdate(activity.id, "startDate", value)}
-                          className="text-xs"
+                          className="text-sm"
                         />
                         {hasDateRange && (
                           <>
-                            <span className="text-gray-400">-</span>
+                            <span className="text-[#A69DC0]">&ndash;</span>
                             <InlineEditCell
                               type="date"
                               value={activity.endDate}
                               onSave={async (value) => handleFieldUpdate(activity.id, "endDate", value)}
-                              className="text-xs"
+                              className="text-sm"
                             />
                           </>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">Unscheduled</span>
+                      <span className="text-sm text-[#A69DC0]">&mdash;</span>
                     )}
                   </td>
 
                   {/* Scope (display only) */}
-                  <td className="px-2 py-1.5 text-[13px] text-gray-600 truncate max-w-[100px]">
+                  <td className="px-4 py-3 text-sm text-[#6E6390] whitespace-nowrap">
                     {formatScope(activity.districtCount, activity.stateAbbrevs)}
                   </td>
 
                   {/* Actions — appear on hover */}
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                       <button
                         onClick={() => setActivityToDelete(activity)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
+                        className="p-1.5 text-[#A69DC0] hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
                         aria-label="Delete activity"
                         title="Delete"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
@@ -350,8 +349,8 @@ export default function ActivitiesTable({
         </table>
       </div>
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60">
-        <span className="text-[12px] font-medium text-gray-400 tracking-wide">
+      <div className="px-4 py-2.5 border-t border-[#E2DEEC] bg-[#F7F5FA]">
+        <span className="text-xs font-medium text-[#8A80A8] tracking-wide">
           {activities.length} activit{activities.length !== 1 ? "ies" : "y"}
         </span>
       </div>
