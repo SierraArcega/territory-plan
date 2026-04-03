@@ -7,7 +7,7 @@ import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "progress" | "leaderboard" | "resources" | "profile" | "admin";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "engage" | "progress" | "leaderboard" | "resources" | "profile" | "admin";
 
 interface Tab {
   id: TabId;
@@ -152,6 +152,12 @@ const ChevronDown = () => (
   </svg>
 );
 
+const EngageIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  </svg>
+);
+
 // Main navigation tabs (top section of sidebar)
 const MAIN_TABS: Tab[] = [
   { id: "home", label: "Home", icon: <HomeIcon /> },
@@ -159,6 +165,7 @@ const MAIN_TABS: Tab[] = [
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
+  { id: "engage", label: "Engage", icon: <EngageIcon /> },
   { id: "progress", label: "Progress", icon: <ProgressIcon /> },
   { id: "leaderboard", label: "Leaderboard", icon: <LeaderboardIcon /> },
   { id: "resources", label: "Resources", icon: <ResourcesIcon /> },
