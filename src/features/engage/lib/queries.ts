@@ -16,8 +16,11 @@ export function useEngageTemplates(type?: string) {
   const params = type ? `?type=${encodeURIComponent(type)}` : "";
   return useQuery<EngageTemplate[]>({
     queryKey: ["engage-templates", type],
-    queryFn: () => fetchJson(`${API}/templates${params}`),
-    staleTime: 2 * 60_000, // 2 min
+    queryFn: async () => {
+      const res = await fetchJson<{ templates: EngageTemplate[] }>(`${API}/templates${params}`);
+      return res.templates;
+    },
+    staleTime: 2 * 60_000,
   });
 }
 
@@ -76,7 +79,11 @@ export function useArchiveTemplate() {
 export function useSequences() {
   return useQuery<SequenceData[]>({
     queryKey: ["engage-sequences"],
-    queryFn: () => fetchJson(`${API}/sequences`),
+    queryFn: async () => {
+      const res = await fetchJson<{ sequences: SequenceData[] }>(`${API}/sequences`);
+      return res.sequences;
+    },
+    staleTime: 2 * 60_000,
   });
 }
 
@@ -85,18 +92,23 @@ export function useSequence(id: number | null) {
     queryKey: ["engage-sequence", id],
     queryFn: () => fetchJson(`${API}/sequences/${id}`),
     enabled: id !== null,
+    staleTime: 2 * 60_000,
   });
 }
 
 export function useCreateSequence() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; description?: string | null }) =>
-      fetchJson<SequenceData>(`${API}/sequences`, {
+    mutationFn: async (data: { name: string; description?: string | null }) => {
+      const res = await fetchJson<{ sequence: SequenceData }>(`${API}/sequences`, {
         method: "POST",
         body: JSON.stringify(data),
-      }),
-    onSuccess: () => {
+      });
+      return res.sequence;
+    },
+    onSuccess: (newSequence) => {
+      // Seed the individual sequence cache so the editor doesn't need a second fetch
+      queryClient.setQueryData(["engage-sequence", newSequence.id], newSequence);
       queryClient.invalidateQueries({ queryKey: ["engage-sequences"] });
     },
   });
@@ -204,8 +216,11 @@ export function useExecutions(status?: string) {
   const params = status ? `?status=${encodeURIComponent(status)}` : "";
   return useQuery<SequenceExecutionData[]>({
     queryKey: ["engage-executions", status],
-    queryFn: () => fetchJson(`${API}/executions${params}`),
-    staleTime: 30_000, // 30s
+    queryFn: async () => {
+      const res = await fetchJson<{ executions: SequenceExecutionData[] }>(`${API}/executions${params}`);
+      return res.executions;
+    },
+    staleTime: 30_000,
   });
 }
 

@@ -24,11 +24,9 @@ export default function EngageView() {
   );
 
   // Badge count for active runs
-  const { data: activeRunsData } = useExecutions("active");
-  const { data: pausedRunsData } = useExecutions("paused");
-  const activeRunCount =
-    (activeRunsData?.executions?.length ?? 0) +
-    (pausedRunsData?.executions?.length ?? 0);
+  const { data: activeRuns } = useExecutions("active");
+  const { data: pausedRuns } = useExecutions("paused");
+  const activeRunCount = (activeRuns?.length ?? 0) + (pausedRuns?.length ?? 0);
 
   // If an execution is active, show the execution panel
   if (activeExecutionId !== null) {
