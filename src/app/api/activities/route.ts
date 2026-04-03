@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const unscheduled = searchParams.get("unscheduled") === "true";
     const search = searchParams.get("search");
     const source = searchParams.get("source");
+    const ownerId = searchParams.get("ownerId"); // specific user ID, "all", or null (defaults to current user)
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -44,8 +45,13 @@ export async function GET(request: NextRequest) {
     if (planId) {
       // Show all activities in the plan, regardless of who created them
       where.plans = { some: { planId } };
+    } else if (ownerId === "all") {
+      // Show everyone's activities
+    } else if (ownerId) {
+      // Show a specific user's activities
+      where.createdByUserId = ownerId;
     } else {
-      // No plan filter — show only the user's own activities
+      // Default — show only the current user's activities
       where.createdByUserId = user.id;
     }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useCreateActivity, useTerritoryPlans, useCreateTerritoryPlan, useStates, useCreateTask, useUpdateActivity } from "@/lib/api";
+import { useActivity } from "@/features/activities/lib/queries";
 import {
   type ActivityCategory,
   type ActivityType,
@@ -36,6 +37,7 @@ interface ActivityFormModalProps {
   defaultCategory?: ActivityCategory;
   defaultPlanId?: string;
   embedded?: boolean;
+  editActivityId?: string;
 }
 
 type ModalStep = "pick-category" | "pick-type" | "form";
@@ -46,6 +48,7 @@ export default function ActivityFormModal({
   defaultCategory,
   defaultPlanId,
   embedded,
+  editActivityId,
 }: ActivityFormModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const createActivity = useCreateActivity();
@@ -54,6 +57,9 @@ export default function ActivityFormModal({
   const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
   const { data: states } = useStates({ enabled: isOpen });
+  const { data: editActivity, isLoading: isLoadingEdit } = useActivity(isOpen && editActivityId ? editActivityId : null);
+  const isEditMode = !!editActivityId;
+  const isEditLoading = isEditMode && isLoadingEdit;
 
   // Step management
   const [step, setStep] = useState<ModalStep>("pick-category");
@@ -143,10 +149,55 @@ export default function ActivityFormModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      resetForm();
+      if (isEditMode) {
+        setStep("form");
+      } else {
+        resetForm();
+      }
       setSuccessFlash(null);
     }
-  }, [isOpen, defaultCategory, defaultPlanId]);
+  }, [isOpen, defaultCategory, defaultPlanId, isEditMode]);
+
+  // Populate form when edit activity data loads
+  useEffect(() => {
+    if (!editActivity || !isEditMode) return;
+    const cat = getCategoryForType(editActivity.type as ActivityType);
+    setSelectedCategory(cat);
+    setType(editActivity.type as ActivityType);
+    setTitle(editActivity.title);
+    setStartDate(editActivity.startDate ? editActivity.startDate.split("T")[0] : "");
+    setEndDate(editActivity.endDate ? editActivity.endDate.split("T")[0] : "");
+    setIsMultiDay(!!editActivity.endDate);
+    setNotes(editActivity.notes || "");
+    setStatus(editActivity.status);
+    setSelectedPlanIds(editActivity.plans?.map((p) => p.planId) || []);
+    setSelectedStateFips(editActivity.states?.map((s) => s.fips) || []);
+    setMetadata((editActivity.metadata as Record<string, unknown>) || {});
+    setAttendeeUserIds(editActivity.attendees?.map((a) => a.userId) || []);
+    setDistrictStops(
+      editActivity.districts?.map((d) => ({
+        leaid: d.leaid,
+        name: d.name || d.leaid,
+        stateAbbrev: d.stateAbbrev || null,
+        visitDate: d.visitDate ? d.visitDate.split("T")[0] : "",
+        notes: d.notes || "",
+      })) || []
+    );
+    setExpenses(
+      editActivity.expenses?.map((e) => ({ description: e.description, amount: Number(e.amount) })) || []
+    );
+    setRelatedActivities(
+      editActivity.relatedActivities?.map((r) => ({
+        activityId: r.activityId,
+        title: r.title,
+        type: r.type,
+        startDate: r.startDate,
+        status: r.status,
+        relationType: r.relationType,
+      })) || []
+    );
+    setStep("form");
+  }, [editActivity, isEditMode]);
 
   useEffect(() => {
     if (embedded) return; // parent modal handles escape
@@ -204,6 +255,32 @@ export default function ActivityFormModal({
 
     setError(null);
     try {
+      if (isEditMode && editActivityId) {
+        await updateActivity.mutateAsync({
+          activityId: editActivityId,
+          type,
+          title: title.trim(),
+          startDate: startDate ? new Date(startDate).toISOString() : null,
+          endDate: isMultiDay && endDate ? new Date(endDate).toISOString() : null,
+          notes: notes.trim() || null,
+          status,
+          outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes[0] : null,
+          outcome: outcomeNote.trim() || null,
+          rating: outcomeRating > 0 ? outcomeRating : 0,
+          metadata: hasMetadata ? metadata : null,
+          attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : [],
+          expenses: expenses.filter((e) => e.description.trim()),
+          districts: districtStops.map((s, index) => ({
+            leaid: s.leaid,
+            visitDate: s.visitDate || null,
+            position: index,
+            notes: s.notes || null,
+          })),
+        });
+        onClose();
+        return;
+      }
+
       const savedTitle = title.trim();
       const activity = await createActivity.mutateAsync({
         type,
@@ -276,9 +353,9 @@ export default function ActivityFormModal({
         onClose();
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create activity";
+      const message = err instanceof Error ? err.message : `Failed to ${isEditMode ? "update" : "create"} activity`;
       setError(message);
-      console.error("Failed to create activity:", err);
+      console.error(`Failed to ${isEditMode ? "update" : "create"} activity:`, err);
     }
   };
 
@@ -354,7 +431,7 @@ export default function ActivityFormModal({
                   onClick={() => handleBreadcrumbNav(-1)}
                   className="text-[#8A80A8] hover:text-[#403770] truncate max-w-[150px] transition-colors"
                 >
-                  New {ACTIVITY_TYPE_LABELS[type]}
+                  {isEditMode ? "Edit" : "New"} {ACTIVITY_TYPE_LABELS[type]}
                 </button>
                 {viewStack.map((item, i) => (
                   <span key={item.id} className="flex items-center gap-1.5 min-w-0">
@@ -382,7 +459,7 @@ export default function ActivityFormModal({
                 {step === "form" && (
                   <span className="flex items-center gap-2">
                     <span>{ACTIVITY_TYPE_ICONS[type]}</span>
-                    <span>New {ACTIVITY_TYPE_LABELS[type]}</span>
+                    <span>{isEditMode ? "Edit" : "New"} {ACTIVITY_TYPE_LABELS[type]}</span>
                   </span>
                 )}
               </h2>
@@ -445,8 +522,18 @@ export default function ActivityFormModal({
           />
         )}
 
+        {/* Loading state for edit mode */}
+        {step === "form" && isEditLoading && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <span className="w-8 h-8 border-3 border-[#403770] border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-[#8A80A8]">Loading activity...</p>
+            </div>
+          </div>
+        )}
+
         {/* Step 3: Two-panel form */}
-        {step === "form" && !isViewing && (
+        {step === "form" && !isViewing && !isEditLoading && (
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
             <div className="flex flex-1 overflow-hidden">
               {/* ── Left Panel: Event Info ── */}
@@ -706,7 +793,9 @@ export default function ActivityFormModal({
                 {createActivity.isPending && (
                   <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 )}
-                {createActivity.isPending ? "Creating..." : "Create Activity"}
+                {isEditMode
+                  ? (updateActivity.isPending ? "Saving..." : "Save Changes")
+                  : (createActivity.isPending ? "Creating..." : "Create Activity")}
               </button>
             </div>
           </form>

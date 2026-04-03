@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import ProfileSidebar from "./ProfileSidebar";
 import HomeTabBar, { type HomeTab } from "./HomeTabBar";
 import FeedTab from "./FeedTab";
+import ActivitiesTab from "./ActivitiesTab";
 import PlansTab from "./PlansTab";
 
 // ============================================================================
@@ -36,6 +37,9 @@ export default function HomeView() {
         <div className="flex-1 overflow-y-auto px-8 py-6">
           {activeTab === "feed" && (
             <FeedTab onBadgeCountChange={handleFeedBadge} />
+          )}
+          {activeTab === "activities" && (
+            <ActivitiesTab />
           )}
           {activeTab === "plans" && (
             <PlansTab onBadgeCountChange={handlePlansBadge} />

@@ -1,8 +1,8 @@
 "use client";
 
-import { Home, FileText, BarChart3 } from "lucide-react";
+import { Home, FileText, Calendar, BarChart3 } from "lucide-react";
 
-export type HomeTab = "feed" | "plans" | "dashboard";
+export type HomeTab = "feed" | "activities" | "plans" | "dashboard";
 
 interface HomeTabBarProps {
   activeTab: HomeTab;
@@ -22,6 +22,7 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { id: "feed", label: "Feed", icon: Home },
+  { id: "activities", label: "Activities", icon: Calendar },
   { id: "plans", label: "Plans", icon: FileText },
   { id: "dashboard", label: "Dashboard", icon: BarChart3, disabled: true },
 ];
