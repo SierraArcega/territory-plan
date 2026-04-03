@@ -266,7 +266,7 @@ export default function ActivityFormModal({
           status,
           outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes[0] : null,
           outcome: outcomeNote.trim() || null,
-          rating: outcomeRating > 0 ? outcomeRating : 0,
+          rating: outcomeRating > 0 ? outcomeRating : undefined,
           metadata: hasMetadata ? metadata : null,
           attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : [],
           expenses: expenses.filter((e) => e.description.trim()),
