@@ -12,14 +12,23 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { seasonWeight, pipelineWeight, takeWeight } = body as {
-      seasonWeight: number;
+    const {
+      initiativeWeight, pipelineWeight, takeWeight, revenueWeight, revenueTargetedWeight,
+      pipelineFiscalYear, takeFiscalYear, revenueFiscalYear, revenueTargetedFiscalYear,
+    } = body as {
+      initiativeWeight: number;
       pipelineWeight: number;
       takeWeight: number;
+      revenueWeight: number;
+      revenueTargetedWeight: number;
+      pipelineFiscalYear?: string | null;
+      takeFiscalYear?: string | null;
+      revenueFiscalYear?: string | null;
+      revenueTargetedFiscalYear?: string | null;
     };
 
     // Validate sum equals 1.0 (allow small floating point tolerance)
-    const sum = seasonWeight + pipelineWeight + takeWeight;
+    const sum = initiativeWeight + pipelineWeight + takeWeight + revenueWeight + revenueTargetedWeight;
     if (Math.abs(sum - 1.0) > 0.01) {
       return NextResponse.json(
         { error: `Weights must sum to 100%. Current sum: ${(sum * 100).toFixed(1)}%` },
@@ -27,14 +36,24 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const season = await prisma.season.findFirst({ where: { isActive: true } });
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
+    const initiative = await prisma.initiative.findFirst({ where: { isActive: true } });
+    if (!initiative) {
+      return NextResponse.json({ error: "No active initiative" }, { status: 404 });
     }
 
-    await prisma.season.update({
-      where: { id: season.id },
-      data: { seasonWeight, pipelineWeight, takeWeight },
+    await prisma.initiative.update({
+      where: { id: initiative.id },
+      data: {
+        initiativeWeight,
+        pipelineWeight,
+        takeWeight,
+        revenueWeight,
+        revenueTargetedWeight,
+        ...(pipelineFiscalYear !== undefined && { pipelineFiscalYear }),
+        ...(takeFiscalYear !== undefined && { takeFiscalYear }),
+        ...(revenueFiscalYear !== undefined && { revenueFiscalYear }),
+        ...(revenueTargetedFiscalYear !== undefined && { revenueTargetedFiscalYear }),
+      },
     });
 
     return NextResponse.json({ success: true });

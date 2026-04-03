@@ -204,7 +204,6 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
         {/* Right Panel — Tabs */}
         <div className="w-1/2 border-l border-[#E2DEEC] flex flex-col">
           <ActivityFormTabs
-            activityType={type}
             taskDrafts={taskDrafts}
             onTaskDraftsChange={setTaskDrafts}
             expenses={expenses}
@@ -212,10 +211,6 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
             relatedActivities={relatedActivities}
             onRelatedActivitiesChange={(v) => { setRelatedActivities(v); markChanged(); }}
             onViewActivity={onViewRelated}
-            outcomeType={localOutcomeType}
-            outcome={localOutcome}
-            onOutcomeTypeChange={(v) => { setLocalOutcomeType(v); markChanged(); }}
-            onOutcomeChange={(v) => { setLocalOutcome(v); markChanged(); }}
           />
         </div>
       </div>

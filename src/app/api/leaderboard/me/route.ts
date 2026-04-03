@@ -12,18 +12,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const season = await prisma.season.findFirst({
+    const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
       include: { metrics: true },
     });
 
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
+    if (!initiative) {
+      return NextResponse.json({ error: "No active initiative" }, { status: 404 });
     }
 
     // Get all scores ranked by points
-    const allScores = await prisma.seasonScore.findMany({
-      where: { seasonId: season.id },
+    const allScores = await prisma.initiativeScore.findMany({
+      where: { initiativeId: initiative.id },
       include: {
         user: {
           select: { id: true, fullName: true, avatarUrl: true },
@@ -36,14 +36,14 @@ export async function GET(request: NextRequest) {
 
     if (myIndex === -1) {
       return NextResponse.json({
-        seasonName: season.showName ? season.name : "Leaderboard",
+        initiativeName: initiative.showName ? initiative.name : "Leaderboard",
         rank: allScores.length + 1,
         totalReps: allScores.length + 1,
         totalPoints: 0,
         tier: "freshman",
         above: null,
         below: null,
-        pointBreakdown: season.metrics.map((m) => ({
+        pointBreakdown: initiative.metrics.map((m) => ({
           label: m.label,
           action: m.action,
           pointValue: m.pointValue,
@@ -58,8 +58,16 @@ export async function GET(request: NextRequest) {
     const below = myIndex < allScores.length - 1 ? allScores[myIndex + 1] : null;
 
     // Calculate point breakdown per metric
+    // Attribute plans to their owner, falling back to creator when no owner is set
+    const userPlanWhere = {
+      OR: [
+        { ownerId: user.id },
+        { userId: user.id, ownerId: null },
+      ],
+    };
+
     const [planCount, activityCount] = await Promise.all([
-      prisma.territoryPlan.count({ where: { userId: user.id } }),
+      prisma.territoryPlan.count({ where: userPlanWhere }),
       prisma.activity.count({ where: { createdByUserId: user.id } }),
     ]);
 
@@ -68,7 +76,7 @@ export async function GET(request: NextRequest) {
       activity_logged: activityCount,
     };
 
-    const pointBreakdown = season.metrics.map((m) => {
+    const pointBreakdown = initiative.metrics.map((m) => {
       const count = actionCounts[m.action] ?? 0;
       return {
         label: m.label,
@@ -80,10 +88,10 @@ export async function GET(request: NextRequest) {
     });
 
     // For revenue_targeted, compute from plan district targets
-    const revMetric = season.metrics.find((m) => m.action === "revenue_targeted");
+    const revMetric = initiative.metrics.find((m) => m.action === "revenue_targeted");
     if (revMetric) {
       const plans = await prisma.territoryPlan.findMany({
-        where: { userId: user.id },
+        where: userPlanWhere,
         include: {
           districts: {
             select: {
@@ -127,7 +135,8 @@ export async function GET(request: NextRequest) {
         : null;
 
     return NextResponse.json({
-      seasonName: season.name,
+      userId: user.id,
+      initiativeName: initiative.name,
       rank: myIndex + 1,
       totalReps: allScores.length,
       totalPoints: myScore.totalPoints,

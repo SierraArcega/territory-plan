@@ -11,7 +11,7 @@ export async function POST() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    const season = await prisma.season.findFirst({
+    const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
       include: {
         scores: {
@@ -21,16 +21,16 @@ export async function POST() {
       },
     });
 
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
+    if (!initiative) {
+      return NextResponse.json({ error: "No active initiative" }, { status: 404 });
     }
 
-    await prisma.season.update({
-      where: { id: season.id },
+    await prisma.initiative.update({
+      where: { id: initiative.id },
       data: { isActive: false, endDate: new Date() },
     });
 
-    const standings = season.scores.map((s, i) => ({
+    const standings = initiative.scores.map((s, i) => ({
       rank: i + 1,
       fullName: s.user.fullName ?? "Unknown",
       totalPoints: s.totalPoints,
@@ -39,7 +39,7 @@ export async function POST() {
 
     return NextResponse.json({ success: true, standings });
   } catch (error) {
-    console.error("Error ending season:", error);
-    return NextResponse.json({ error: "Failed to end season" }, { status: 500 });
+    console.error("Error ending initiative:", error);
+    return NextResponse.json({ error: "Failed to end initiative" }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { useLeaderboardDetails } from "../lib/queries";
 import { TIER_LABELS, TIER_COLORS, parseTierRank } from "../lib/types";
 import TierBadge from "./TierBadge";
@@ -14,7 +15,7 @@ const ACTION_TAB_MAP: Record<string, string> = {
 
 export default function LeaderboardDetailView() {
   const { data, isLoading, isError } = useLeaderboardDetails();
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   if (isLoading) {
     return (
@@ -81,7 +82,7 @@ export default function LeaderboardDetailView() {
             </thead>
             <tbody>
               {entries.map((entry) => {
-                const isExpanded = expandedUser === entry.userId;
+                const isExpanded = expandedUsers.has(entry.userId);
                 const tierKey = parseTierRank(entry.tier).tier;
                 const colors = TIER_COLORS[tierKey];
 
@@ -89,12 +90,27 @@ export default function LeaderboardDetailView() {
                   <Fragment key={entry.userId}>
                     <tr
                       onClick={() =>
-                        setExpandedUser(isExpanded ? null : entry.userId)
+                        setExpandedUsers((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(entry.userId)) {
+                            next.delete(entry.userId);
+                          } else {
+                            next.add(entry.userId);
+                          }
+                          return next;
+                        })
                       }
                       className="border-t border-[#E2DEEC] hover:bg-[#EFEDF5] cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3 text-sm font-bold text-[#403770]">
-                        {entry.rank}
+                        <div className="flex items-center gap-1.5">
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-[#8A80A8]" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-[#8A80A8]" />
+                          )}
+                          {entry.rank}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">

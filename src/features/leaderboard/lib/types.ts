@@ -31,6 +31,14 @@ export function formatTierLabel(tierRank: string): string {
   return TIER_LABELS[tier];
 }
 
+export interface PointBreakdownItem {
+  action: string;
+  label: string;
+  pointValue: number;
+  count: number;
+  total: number;
+}
+
 export interface LeaderboardEntry {
   userId: string;
   fullName: string;
@@ -40,12 +48,16 @@ export interface LeaderboardEntry {
   rank: number;
   take: number;
   pipeline: number;
+  revenue: number;
+  revenueTargeted: number;
   combinedScore: number;
-  seasonScore: number;
+  initiativeScore: number;
+  pointBreakdown: PointBreakdownItem[];
 }
 
 export interface LeaderboardMyRank {
-  seasonName: string;
+  userId: string;
+  initiativeName: string;
   rank: number;
   totalReps: number;
   totalPoints: number;
@@ -67,16 +79,22 @@ export interface LeaderboardMyRank {
   pointBreakdown: { label: string; action: string; count: number; pointValue: number; total: number }[];
 }
 
-export interface SeasonInfo {
+export interface InitiativeInfo {
   id: number;
   name: string;
   startDate: string;
   endDate: string | null;
   showName: boolean;
   showDates: boolean;
-  seasonWeight: number;
+  initiativeWeight: number;
   pipelineWeight: number;
   takeWeight: number;
+  revenueWeight: number;
+  revenueTargetedWeight: number;
+  revenueTargetedFiscalYear: string | null;
+  pipelineFiscalYear: string | null;
+  takeFiscalYear: string | null;
+  revenueFiscalYear: string | null;
 }
 
-export type LeaderboardView = "combined" | "season" | "take";
+export type LeaderboardView = "combined" | "initiative" | "pipeline" | "take" | "revenue" | "revenueTargeted";

@@ -1,11 +1,11 @@
 "use client";
 
 import { useAdminLeaderboardConfig } from "@/features/admin/hooks/useAdminLeaderboard";
-import SeasonIdentity from "./leaderboard/SeasonIdentity";
+import InitiativeIdentity from "./leaderboard/InitiativeIdentity";
 import ScoringMetrics from "./leaderboard/ScoringMetrics";
 import TierThresholds from "./leaderboard/TierThresholds";
 import CombinedWeights from "./leaderboard/CombinedWeights";
-import SeasonTransition from "./leaderboard/SeasonTransition";
+
 import BottomActions from "./leaderboard/BottomActions";
 import EmptyState from "./leaderboard/EmptyState";
 
@@ -32,17 +32,16 @@ export default function LeaderboardTab() {
     );
   }
 
-  if (!data?.season) {
+  if (!data?.initiative) {
     return <EmptyState />;
   }
 
   return (
     <div className="space-y-4">
-      <SeasonIdentity config={data} />
+      <InitiativeIdentity config={data} />
       <ScoringMetrics config={data} />
       <TierThresholds config={data} />
       <CombinedWeights config={data} />
-      <SeasonTransition config={data} />
       <BottomActions />
     </div>
   );

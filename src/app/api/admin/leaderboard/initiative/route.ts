@@ -12,33 +12,35 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, startDate, endDate, showName, showDates } = body as {
+    const { name, startDate, endDate, showName, showDates, fiscalYear } = body as {
       name?: string;
       startDate?: string;
       endDate?: string | null;
       showName?: boolean;
       showDates?: boolean;
+      fiscalYear?: string | null;
     };
 
-    const season = await prisma.season.findFirst({ where: { isActive: true } });
-    if (!season) {
-      return NextResponse.json({ error: "No active season" }, { status: 404 });
+    const initiative = await prisma.initiative.findFirst({ where: { isActive: true } });
+    if (!initiative) {
+      return NextResponse.json({ error: "No active initiative" }, { status: 404 });
     }
 
-    const updated = await prisma.season.update({
-      where: { id: season.id },
+    const updated = await prisma.initiative.update({
+      where: { id: initiative.id },
       data: {
         ...(name !== undefined && { name }),
         ...(startDate !== undefined && { startDate: new Date(startDate) }),
         ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
         ...(showName !== undefined && { showName }),
         ...(showDates !== undefined && { showDates }),
+        ...(fiscalYear !== undefined && { fiscalYear }),
       },
     });
 
-    return NextResponse.json({ success: true, season: updated });
+    return NextResponse.json({ success: true, initiative: updated });
   } catch (error) {
-    console.error("Error updating season identity:", error);
-    return NextResponse.json({ error: "Failed to update season" }, { status: 500 });
+    console.error("Error updating initiative identity:", error);
+    return NextResponse.json({ error: "Failed to update initiative" }, { status: 500 });
   }
 }

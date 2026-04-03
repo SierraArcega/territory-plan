@@ -10,7 +10,7 @@ interface TierThreshold {
 /**
  * Determine the tier for a given point total.
  * @param points - the rep's total points
- * @param thresholds - tier thresholds for the season
+ * @param thresholds - tier thresholds for the initiative
  */
 export function calculateTier(
   points: number,
@@ -22,15 +22,21 @@ export function calculateTier(
 }
 
 interface CombinedScoreInput {
-  seasonPoints: number;
-  maxSeasonPoints: number;
+  initiativePoints: number;
+  maxInitiativePoints: number;
   pipeline: number;
   maxPipeline: number;
   take: number;
   maxTake: number;
-  seasonWeight: number;
+  revenue: number;
+  maxRevenue: number;
+  revenueTargeted: number;
+  maxRevenueTargeted: number;
+  initiativeWeight: number;
   pipelineWeight: number;
   takeWeight: number;
+  revenueWeight: number;
+  revenueTargetedWeight: number;
 }
 
 /**
@@ -39,14 +45,18 @@ interface CombinedScoreInput {
 export function calculateCombinedScore(input: CombinedScoreInput): number {
   const normalize = (value: number, max: number) => (max > 0 ? (value / max) * 100 : 0);
 
-  const seasonNorm = normalize(input.seasonPoints, input.maxSeasonPoints);
+  const initiativeNorm = normalize(input.initiativePoints, input.maxInitiativePoints);
   const pipelineNorm = normalize(input.pipeline, input.maxPipeline);
   const takeNorm = normalize(input.take, input.maxTake);
+  const revenueNorm = normalize(input.revenue, input.maxRevenue);
+  const revenueTargetedNorm = normalize(input.revenueTargeted, input.maxRevenueTargeted);
 
   return (
-    seasonNorm * input.seasonWeight +
+    initiativeNorm * input.initiativeWeight +
     pipelineNorm * input.pipelineWeight +
-    takeNorm * input.takeWeight
+    takeNorm * input.takeWeight +
+    revenueNorm * input.revenueWeight +
+    revenueTargetedNorm * input.revenueTargetedWeight
   );
 }
 
@@ -63,27 +73,27 @@ export function calculateEffectivePoints(
 
 /**
  * Award points to a user for a tracked action.
- * Finds the active season, checks if the action is tracked, and increments the score.
- * Returns the points awarded (0 if no active season or action not tracked).
+ * Finds the active initiative, checks if the action is tracked, and increments the score.
+ * Returns the points awarded (0 if no active initiative or action not tracked).
  */
 export async function awardPoints(userId: string, action: string): Promise<number> {
-  const season = await prisma.season.findFirst({
+  const initiative = await prisma.initiative.findFirst({
     where: { isActive: true },
     include: { metrics: true },
   });
 
-  if (!season) return 0;
+  if (!initiative) return 0;
 
-  const metric = season.metrics.find((m) => m.action === action);
+  const metric = initiative.metrics.find((m) => m.action === action);
   if (!metric) return 0;
 
   const points = calculateEffectivePoints(metric.pointValue, metric.weight);
   if (points <= 0) return 0;
 
-  await prisma.seasonScore.upsert({
-    where: { seasonId_userId: { seasonId: season.id, userId } },
+  await prisma.initiativeScore.upsert({
+    where: { initiativeId_userId: { initiativeId: initiative.id, userId } },
     create: {
-      seasonId: season.id,
+      initiativeId: initiative.id,
       userId,
       totalPoints: points,
       tier: "freshman",
@@ -104,14 +114,14 @@ export async function awardRevenueTargetedPoints(
   userId: string,
   targetAmount: number
 ): Promise<number> {
-  const season = await prisma.season.findFirst({
+  const initiative = await prisma.initiative.findFirst({
     where: { isActive: true },
     include: { metrics: true },
   });
 
-  if (!season) return 0;
+  if (!initiative) return 0;
 
-  const metric = season.metrics.find((m) => m.action === "revenue_targeted");
+  const metric = initiative.metrics.find((m) => m.action === "revenue_targeted");
   if (!metric) return 0;
 
   const units = Math.floor(targetAmount / 10000);
@@ -119,10 +129,10 @@ export async function awardRevenueTargetedPoints(
   const points = units * effectivePointValue;
   if (points <= 0) return 0;
 
-  await prisma.seasonScore.upsert({
-    where: { seasonId_userId: { seasonId: season.id, userId } },
+  await prisma.initiativeScore.upsert({
+    where: { initiativeId_userId: { initiativeId: initiative.id, userId } },
     create: {
-      seasonId: season.id,
+      initiativeId: initiative.id,
       userId,
       totalPoints: points,
       tier: "freshman",

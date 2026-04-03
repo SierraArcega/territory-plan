@@ -1,74 +1,66 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Square, Download } from "lucide-react";
+import { Square, Download, RefreshCw } from "lucide-react";
 import {
-  useCreateNewSeason,
-  useEndSeason,
+  useEndInitiative,
   useExportHistory,
+  useRecalculateScores,
 } from "@/features/admin/hooks/useAdminLeaderboard";
 
 export default function BottomActions() {
   const [confirmEnd, setConfirmEnd] = useState(false);
 
-  const newSeasonMutation = useCreateNewSeason();
-  const endSeasonMutation = useEndSeason();
+  const endInitiativeMutation = useEndInitiative();
   const exportMutation = useExportHistory();
+  const recalcMutation = useRecalculateScores();
 
-  const handleNewSeason = () => {
-    if (
-      window.confirm(
-        "Create a new season? This will end the current season and copy its config as a template."
-      )
-    ) {
-      newSeasonMutation.mutate();
-    }
-  };
-
-  const handleEndSeason = () => {
+  const handleEndInitiative = () => {
     if (confirmEnd) {
-      endSeasonMutation.mutate(undefined, { onSuccess: () => setConfirmEnd(false) });
+      endInitiativeMutation.mutate(undefined, { onSuccess: () => setConfirmEnd(false) });
     } else {
       setConfirmEnd(true);
     }
   };
 
   return (
-    <div className="flex items-center gap-3 pt-4">
-      <button
-        onClick={handleNewSeason}
-        disabled={newSeasonMutation.isPending}
-        className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors disabled:opacity-50"
-      >
-        <Plus className="w-4 h-4" />
-        {newSeasonMutation.isPending ? "Creating..." : "New Season"}
-      </button>
+    <>
+      <div className="flex items-center gap-3 pt-4">
+<button
+          onClick={handleEndInitiative}
+          disabled={endInitiativeMutation.isPending}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
+            confirmEnd
+              ? "text-white bg-[#F37167] hover:bg-[#e0635a]"
+              : "text-[#F37167] border border-[#F37167] hover:bg-[#fef1f0]"
+          }`}
+        >
+          <Square className="w-4 h-4" />
+          {confirmEnd
+            ? endInitiativeMutation.isPending
+              ? "Ending..."
+              : "Confirm End Initiative"
+            : "End Current Initiative"}
+        </button>
 
-      <button
-        onClick={handleEndSeason}
-        disabled={endSeasonMutation.isPending}
-        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
-          confirmEnd
-            ? "text-white bg-[#F37167] hover:bg-[#e0635a]"
-            : "text-[#F37167] border border-[#F37167] hover:bg-[#fef1f0]"
-        }`}
-      >
-        <Square className="w-4 h-4" />
-        {confirmEnd
-          ? endSeasonMutation.isPending
-            ? "Ending..."
-            : "Confirm End Season"
-          : "End Current Season"}
-      </button>
+        <button
+          onClick={() => recalcMutation.mutate()}
+          disabled={recalcMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#403770] border border-[#403770] hover:bg-[#F7F5FA] rounded-lg transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${recalcMutation.isPending ? "animate-spin" : ""}`} />
+          {recalcMutation.isPending ? "Recalculating..." : "Recalculate Scores"}
+        </button>
 
-      <button
-        onClick={() => exportMutation.mutate()}
-        disabled={exportMutation.isPending}
-        className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#6E6390] border border-[#D4CFE2] hover:bg-[#F7F5FA] rounded-lg transition-colors disabled:opacity-50"
-      >
-        <Download className="w-4 h-4" />
-        {exportMutation.isPending ? "Exporting..." : "Export Season History"}
-      </button>
-    </div>
+        <button
+          onClick={() => exportMutation.mutate()}
+          disabled={exportMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#6E6390] border border-[#D4CFE2] hover:bg-[#F7F5FA] rounded-lg transition-colors disabled:opacity-50"
+        >
+          <Download className="w-4 h-4" />
+          {exportMutation.isPending ? "Exporting..." : "Export Initiative History"}
+        </button>
+      </div>
+    </>
   );
 }

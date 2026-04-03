@@ -1,34 +1,34 @@
-// scripts/seed-season-0.ts
-// Seeds Season 0 with retroactive backfill for existing plans, activities, and revenue targets.
-// Run with: npx tsx scripts/seed-season-0.ts
+// scripts/seed-initiative-0.ts
+// Seeds Initiative 0 with retroactive backfill for existing plans, activities, and revenue targets.
+// Run with: npx tsx scripts/seed-initiative-0.ts
 
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding Season 0...\n");
+  console.log("Seeding Initiative 0...\n");
 
-  // 1. Create Season 0
-  const season = await prisma.season.upsert({
+  // 1. Create Initiative 0
+  const initiative = await prisma.initiative.upsert({
     where: { id: 1 },
     create: {
       id: 1,
-      name: "Season 0",
+      name: "Initiative 0",
       startDate: new Date("2026-01-01T00:00:00Z"),
       endDate: new Date("2026-06-30T23:59:59Z"),
       isActive: true,
       softResetTiers: 1,
-      seasonWeight: 0.6,
+      initiativeWeight: 0.6,
       pipelineWeight: 0.2,
       takeWeight: 0.2,
     },
     update: {
-      name: "Season 0",
+      name: "Initiative 0",
       isActive: true,
     },
   });
-  console.log(`Season created: ${season.name} (id=${season.id})`);
+  console.log(`Initiative created: ${initiative.name} (id=${initiative.id})`);
 
   // 2. Create metrics (clear and recreate for idempotency)
   const metrics = [
@@ -37,10 +37,10 @@ async function main() {
     { action: "revenue_targeted", pointValue: 1, label: "Revenue Targeted ($10K)" },
   ];
 
-  await prisma.seasonMetric.deleteMany({ where: { seasonId: season.id } });
-  await prisma.seasonMetric.createMany({
+  await prisma.initiativeMetric.deleteMany({ where: { initiativeId: initiative.id } });
+  await prisma.initiativeMetric.createMany({
     data: metrics.map((m) => ({
-      seasonId: season.id,
+      initiativeId: initiative.id,
       action: m.action,
       pointValue: m.pointValue,
       label: m.label,
@@ -56,10 +56,10 @@ async function main() {
     { tier: "valedictorian", minPoints: 900 },
   ];
 
-  await prisma.seasonTierThreshold.deleteMany({ where: { seasonId: season.id } });
-  await prisma.seasonTierThreshold.createMany({
+  await prisma.initiativeTierThreshold.deleteMany({ where: { initiativeId: initiative.id } });
+  await prisma.initiativeTierThreshold.createMany({
     data: thresholds.map((t) => ({
-      seasonId: season.id,
+      initiativeId: initiative.id,
       tier: t.tier,
       minPoints: t.minPoints,
     })),
@@ -117,12 +117,12 @@ async function main() {
       activityCount * activityMetric.pointValue +
       revenueUnits * revenueMetric.pointValue;
 
-    await prisma.seasonScore.upsert({
+    await prisma.initiativeScore.upsert({
       where: {
-        seasonId_userId: { seasonId: season.id, userId: user.id },
+        initiativeId_userId: { initiativeId: initiative.id, userId: user.id },
       },
       create: {
-        seasonId: season.id,
+        initiativeId: initiative.id,
         userId: user.id,
         totalPoints,
         tier: "freshman",
@@ -141,7 +141,7 @@ async function main() {
     );
   }
 
-  console.log("\nSeason 0 seeding complete!");
+  console.log("\nInitiative 0 seeding complete!");
 }
 
 main()

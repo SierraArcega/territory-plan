@@ -4,8 +4,17 @@ import { useState } from "react";
 import TaskLineItems, { type TaskDraft } from "./event-fields/TaskLineItems";
 import ExpenseLineItems from "./event-fields/ExpenseLineItems";
 import RelatedActivitiesTab, { type RelationDraft } from "./tabs/RelatedActivitiesTab";
-import OutcomesTab from "./tabs/OutcomesTab";
-import type { ActivityType } from "@/features/activities/types";
+
+import StarRating from "./StarRating";
+import OpportunitySearch from "./OpportunitySearch";
+import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
+import {
+  OUTCOMES_BY_CATEGORY,
+  OUTCOME_CONFIGS,
+  type OutcomeType,
+} from "@/features/activities/outcome-types";
+import type { OpportunityResult } from "@/features/activities/lib/outcome-types-api";
+import type { ActivityCategory } from "@/features/activities/types";
 
 type TabKey = "expenses" | "tasks" | "related" | "outcomes";
 
@@ -17,7 +26,6 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
 ];
 
 interface ActivityFormTabsProps {
-  activityType: ActivityType;
   taskDrafts: TaskDraft[];
   onTaskDraftsChange: (tasks: TaskDraft[]) => void;
   expenses: { description: string; amount: number }[];
@@ -25,14 +33,21 @@ interface ActivityFormTabsProps {
   relatedActivities: RelationDraft[];
   onRelatedActivitiesChange: (relations: RelationDraft[]) => void;
   onViewActivity?: (activityId: string, title: string) => void;
-  outcomeType: string | null;
-  outcome: string | null;
-  onOutcomeTypeChange: (outcomeType: string | null) => void;
-  onOutcomeChange: (outcome: string | null) => void;
+  // Outcomes (optional — only passed from create form)
+  outcomeRating?: number;
+  onOutcomeRatingChange?: (rating: number) => void;
+  selectedOutcomes?: OutcomeType[];
+  onSelectedOutcomesChange?: (outcomes: OutcomeType[]) => void;
+  outcomeNote?: string;
+  onOutcomeNoteChange?: (note: string) => void;
+  activityCategory?: ActivityCategory | null;
+  linkedOpportunities?: OpportunityResult[];
+  onLinkedOpportunitiesChange?: (opps: OpportunityResult[]) => void;
+  outcomeContacts?: SelectedContact[];
+  onOutcomeContactsChange?: (contacts: SelectedContact[]) => void;
 }
 
 export default function ActivityFormTabs({
-  activityType,
   taskDrafts,
   onTaskDraftsChange,
   expenses,
@@ -40,24 +55,35 @@ export default function ActivityFormTabs({
   relatedActivities,
   onRelatedActivitiesChange,
   onViewActivity,
-  outcomeType,
-  outcome,
-  onOutcomeTypeChange,
-  onOutcomeChange,
+  outcomeRating,
+  onOutcomeRatingChange,
+  selectedOutcomes,
+  onSelectedOutcomesChange,
+  outcomeNote,
+  onOutcomeNoteChange,
+  activityCategory,
+  linkedOpportunities,
+  onLinkedOpportunitiesChange,
+  outcomeContacts,
+  onOutcomeContactsChange,
 }: ActivityFormTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("expenses");
+
+  const hasOutcomes = onOutcomeRatingChange != null;
+  const outcomeCount = ((outcomeRating ?? 0) > 0 ? 1 : 0) + (selectedOutcomes?.length ?? 0);
+  const visibleTabs = hasOutcomes ? TABS : TABS.filter((t) => t.key !== "outcomes");
 
   return (
     <div className="flex flex-col h-full">
       {/* Tab strip */}
       <div className="flex border-b border-[#E2DEEC] px-2">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.key;
           const count =
-            tab.key === "outcomes" ? (outcomeType ? 1 : 0) :
             tab.key === "tasks" ? taskDrafts.length :
             tab.key === "expenses" ? expenses.length :
             tab.key === "related" ? relatedActivities.length :
+            tab.key === "outcomes" ? outcomeCount :
             0;
 
           return (
@@ -89,15 +115,6 @@ export default function ActivityFormTabs({
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === "outcomes" && (
-          <OutcomesTab
-            activityType={activityType}
-            outcomeType={outcomeType}
-            outcome={outcome}
-            onOutcomeTypeChange={onOutcomeTypeChange}
-            onOutcomeChange={onOutcomeChange}
-          />
-        )}
         {activeTab === "tasks" && (
           <TaskLineItems tasks={taskDrafts} onChange={onTaskDraftsChange} />
         )}
@@ -106,6 +123,78 @@ export default function ActivityFormTabs({
         )}
         {activeTab === "related" && (
           <RelatedActivitiesTab relations={relatedActivities} onChange={onRelatedActivitiesChange} onViewActivity={onViewActivity} />
+        )}
+        {activeTab === "outcomes" && hasOutcomes && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-[#8A80A8] mb-1.5">Rating</label>
+              <StarRating value={outcomeRating ?? 0} onChange={onOutcomeRatingChange} />
+            </div>
+            {activityCategory && OUTCOMES_BY_CATEGORY[activityCategory] && (
+              <div>
+                <label className="block text-xs font-medium text-[#8A80A8] mb-2">What happened?</label>
+                <div className="flex flex-wrap gap-2">
+                  {OUTCOMES_BY_CATEGORY[activityCategory].map((outcomeKey) => {
+                    const config = OUTCOME_CONFIGS[outcomeKey];
+                    const isSelected = (selectedOutcomes ?? []).includes(outcomeKey);
+                    return (
+                      <button
+                        key={outcomeKey}
+                        type="button"
+                        onClick={() => {
+                          onSelectedOutcomesChange?.(
+                            isSelected
+                              ? (selectedOutcomes ?? []).filter((o) => o !== outcomeKey)
+                              : [...(selectedOutcomes ?? []), outcomeKey]
+                          );
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-100 ${
+                          isSelected
+                            ? "ring-2 ring-offset-1 scale-[1.02]"
+                            : "hover:scale-[1.02]"
+                        }`}
+                        style={{
+                          backgroundColor: config.bgColor,
+                          color: config.color,
+                          ...(isSelected ? { outlineColor: config.color } : {}),
+                        }}
+                        title={config.description}
+                      >
+                        <span>{config.icon}</span>
+                        {config.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-[#8A80A8] mb-1">Notes</label>
+              <textarea
+                value={outcomeNote ?? ""}
+                onChange={(e) => onOutcomeNoteChange?.(e.target.value)}
+                placeholder="What resulted from this activity?"
+                rows={3}
+                className="w-full px-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent resize-none"
+              />
+            </div>
+
+            {/* Opportunity linking */}
+            {onLinkedOpportunitiesChange && (
+              <OpportunitySearch
+                value={linkedOpportunities ?? []}
+                onChange={onLinkedOpportunitiesChange}
+              />
+            )}
+
+            {/* Contacts from this activity */}
+            {onOutcomeContactsChange && (
+              <ContactSelect
+                selectedContacts={outcomeContacts ?? []}
+                onChange={onOutcomeContactsChange}
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

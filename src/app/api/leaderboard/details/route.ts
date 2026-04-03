@@ -14,7 +14,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const season = await prisma.season.findFirst({
+    const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
       include: {
         metrics: true,
@@ -25,19 +25,28 @@ export async function GET() {
       },
     });
 
-    if (!season) {
+    if (!initiative) {
       return NextResponse.json({ entries: [], metrics: [] });
     }
 
-    const userIds = season.scores.map((s) => s.userId);
+    const userIds = initiative.scores.map((s) => s.userId);
+    const sinceDate = initiative.startDate;
 
-    // Fetch actual plan and activity records for all users
+    // Fetch actual plan and activity records for all users (only since initiative start)
+    // Attribute plans to their owner, falling back to creator when no owner is set
     const [plans, activities] = await Promise.all([
       prisma.territoryPlan.findMany({
-        where: { userId: { in: userIds } },
+        where: {
+          createdAt: { gte: sinceDate },
+          OR: [
+            { ownerId: { in: userIds } },
+            { userId: { in: userIds }, ownerId: null },
+          ],
+        },
         select: {
           id: true,
           name: true,
+          ownerId: true,
           userId: true,
           createdAt: true,
           districts: {
@@ -52,7 +61,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       }),
       prisma.activity.findMany({
-        where: { createdByUserId: { in: userIds } },
+        where: { createdByUserId: { in: userIds }, createdAt: { gte: sinceDate } },
         select: {
           id: true,
           title: true,
@@ -64,13 +73,14 @@ export async function GET() {
       }),
     ]);
 
-    // Group plans and activities by userId
+    // Group plans by effective owner (ownerId, falling back to userId)
     const plansByUser = new Map<string, typeof plans>();
     for (const plan of plans) {
-      if (!plan.userId) continue;
-      const list = plansByUser.get(plan.userId) ?? [];
+      const uid = plan.ownerId ?? plan.userId;
+      if (!uid) continue;
+      const list = plansByUser.get(uid) ?? [];
       list.push(plan);
-      plansByUser.set(plan.userId, list);
+      plansByUser.set(uid, list);
     }
 
     const activitiesByUser = new Map<string, typeof activities>();
@@ -82,7 +92,7 @@ export async function GET() {
     }
 
     // Build entries with breakdowns and individual items
-    const entries = season.scores.map((score, index) => {
+    const entries = initiative.scores.map((score, index) => {
       const userId = score.userId;
       const userPlans = plansByUser.get(userId) ?? [];
       const userActivities = activitiesByUser.get(userId) ?? [];
@@ -106,7 +116,7 @@ export async function GET() {
         revenue_targeted: revenueUnits,
       };
 
-      const breakdown = season.metrics.map((m) => {
+      const breakdown = initiative.metrics.map((m) => {
         const count = actionCounts[m.action] ?? 0;
         return {
           action: m.action,
@@ -159,7 +169,7 @@ export async function GET() {
 
     return NextResponse.json({
       entries,
-      metrics: season.metrics.map((m) => ({
+      metrics: initiative.metrics.map((m) => ({
         action: m.action,
         label: m.label,
         pointValue: m.pointValue,

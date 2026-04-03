@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Check, AlertTriangle } from "lucide-react";
 import CollapsibleSection from "./CollapsibleSection";
 import PreviewConfirmModal from "./PreviewConfirmModal";
@@ -8,36 +8,63 @@ import {
   useUpdateWeights,
   usePreviewChanges,
 } from "@/features/admin/hooks/useAdminLeaderboard";
-import type { AdminSeasonConfig } from "@/features/admin/lib/leaderboard-types";
+import type { AdminInitiativeConfig } from "@/features/admin/lib/leaderboard-types";
 
 interface CombinedWeightsProps {
-  config: AdminSeasonConfig;
+  config: AdminInitiativeConfig;
 }
 
 export default function CombinedWeights({ config }: CombinedWeightsProps) {
-  const { season } = config;
+  const { initiative } = config;
 
-  const [seasonWeight, setSeasonWeight] = useState(Math.round(season.seasonWeight * 100));
-  const [pipelineWeight, setPipelineWeight] = useState(Math.round(season.pipelineWeight * 100));
-  const [takeWeight, setTakeWeight] = useState(Math.round(season.takeWeight * 100));
+  const [initiativeWeight, setInitiativeWeight] = useState(Math.round(initiative.initiativeWeight * 100));
+  const [pipelineWeight, setPipelineWeight] = useState(Math.round(initiative.pipelineWeight * 100));
+  const [takeWeight, setTakeWeight] = useState(Math.round(initiative.takeWeight * 100));
+  const [revenueWeight, setRevenueWeight] = useState(Math.round(initiative.revenueWeight * 100));
+  const [revenueTargetedWeight, setRevenueTargetedWeight] = useState(Math.round(initiative.revenueTargetedWeight * 100));
+  const [pipelineFY, setPipelineFY] = useState(initiative.pipelineFiscalYear ?? "");
+  const [takeFY, setTakeFY] = useState(initiative.takeFiscalYear ?? "");
+  const [revenueFY, setRevenueFY] = useState(initiative.revenueFiscalYear ?? "");
+  const [revenueTargetedFY, setRevenueTargetedFY] = useState(initiative.revenueTargetedFiscalYear ?? "");
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
-    setSeasonWeight(Math.round(season.seasonWeight * 100));
-    setPipelineWeight(Math.round(season.pipelineWeight * 100));
-    setTakeWeight(Math.round(season.takeWeight * 100));
-  }, [season]);
+    setInitiativeWeight(Math.round(initiative.initiativeWeight * 100));
+    setPipelineWeight(Math.round(initiative.pipelineWeight * 100));
+    setTakeWeight(Math.round(initiative.takeWeight * 100));
+    setRevenueWeight(Math.round(initiative.revenueWeight * 100));
+    setRevenueTargetedWeight(Math.round(initiative.revenueTargetedWeight * 100));
+    setPipelineFY(initiative.pipelineFiscalYear ?? "");
+    setTakeFY(initiative.takeFiscalYear ?? "");
+    setRevenueFY(initiative.revenueFiscalYear ?? "");
+    setRevenueTargetedFY(initiative.revenueTargetedFiscalYear ?? "");
+  }, [initiative]);
 
-  const sum = seasonWeight + pipelineWeight + takeWeight;
+  const fyOptions = useMemo(() => {
+    const now = new Date();
+    const currentFY = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
+    return Array.from({ length: 5 }, (_, i) => {
+      const fy = currentFY - 2 + i;
+      return { value: `${fy - 1}-${String(fy).slice(-2)}`, label: `FY${String(fy).slice(-2)}` };
+    });
+  }, []);
+
+  const sum = initiativeWeight + pipelineWeight + takeWeight + revenueWeight + revenueTargetedWeight;
   const isValid = sum === 100;
 
   const updateMutation = useUpdateWeights();
   const previewMutation = usePreviewChanges();
 
   const payload = {
-    seasonWeight: seasonWeight / 100,
+    initiativeWeight: initiativeWeight / 100,
     pipelineWeight: pipelineWeight / 100,
     takeWeight: takeWeight / 100,
+    revenueWeight: revenueWeight / 100,
+    revenueTargetedWeight: revenueTargetedWeight / 100,
+    pipelineFiscalYear: pipelineFY || null,
+    takeFiscalYear: takeFY || null,
+    revenueFiscalYear: revenueFY || null,
+    revenueTargetedFiscalYear: revenueTargetedFY || null,
   };
 
   const handleSave = () => {
@@ -51,10 +78,17 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
     updateMutation.mutate(payload, { onSuccess: () => setShowPreview(false) });
   };
 
-  const sliders = [
-    { label: "Season Points", value: seasonWeight, onChange: setSeasonWeight },
-    { label: "Pipeline", value: pipelineWeight, onChange: setPipelineWeight },
-    { label: "Take", value: takeWeight, onChange: setTakeWeight },
+  const sliders: {
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+    fy?: { value: string; onChange: (v: string) => void };
+  }[] = [
+    { label: "Initiative Points", value: initiativeWeight, onChange: setInitiativeWeight },
+    { label: "Pipeline", value: pipelineWeight, onChange: setPipelineWeight, fy: { value: pipelineFY, onChange: setPipelineFY } },
+    { label: "Take", value: takeWeight, onChange: setTakeWeight, fy: { value: takeFY, onChange: setTakeFY } },
+    { label: "Revenue", value: revenueWeight, onChange: setRevenueWeight, fy: { value: revenueFY, onChange: setRevenueFY } },
+    { label: "Revenue Targeted", value: revenueTargetedWeight, onChange: setRevenueTargetedWeight, fy: { value: revenueTargetedFY, onChange: setRevenueTargetedFY } },
   ];
 
   return (
@@ -64,7 +98,21 @@ export default function CombinedWeights({ config }: CombinedWeightsProps) {
           {sliders.map((s) => (
             <div key={s.label} className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-[#6E6390]">{s.label}</label>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-[#6E6390]">{s.label}</label>
+                  {s.fy && (
+                    <select
+                      value={s.fy.value}
+                      onChange={(e) => s.fy!.onChange(e.target.value)}
+                      className="px-2 py-0.5 text-xs border border-[#D4CFE2] rounded text-[#6E6390] bg-white focus:border-[#403770] outline-none"
+                    >
+                      <option value="">Current FY</option>
+                      {fyOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 <span className="text-sm font-semibold text-[#403770]">{s.value}%</span>
               </div>
               <input

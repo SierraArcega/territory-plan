@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/server";
 import { syncClassificationTagsForDistrict } from "@/features/shared/lib/auto-tags";
 import { syncPlanRollups } from "@/features/plans/lib/rollup-sync";
+import { awardPoints } from "@/features/leaderboard/lib/scoring";
 import {
   type FilterDef,
   buildWhereClause,
@@ -16,6 +18,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const { id: planId } = await params;
     const body = await request.json();
     const { leaids, filters, renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds } = body;
@@ -155,6 +162,13 @@ export async function POST(
     }
 
     await syncPlanRollups(planId);
+
+    // Award leaderboard points for each district added (non-blocking)
+    for (let i = 0; i < addedCount; i++) {
+      awardPoints(user.id, "district_added").catch((err) =>
+        console.error("Failed to award district_added points:", err)
+      );
+    }
 
     return NextResponse.json(
       {
