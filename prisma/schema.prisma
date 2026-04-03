@@ -257,12 +257,12 @@ model District {
   expenditurePpQuartileState       String? @map("expenditure_pp_quartile_state") @db.VarChar(15)
 
   // ===== ICP Scoring =====
-  icpCompositeScore  Int?    @map("icp_composite_score")
-  icpFitScore        Int?    @map("icp_fit_score")
-  icpValueScore      Int?    @map("icp_value_score")
-  icpReadinessScore  Int?    @map("icp_readiness_score")
-  icpStateScore      Int?    @map("icp_state_score")
-  icpTier            String? @map("icp_tier") @db.VarChar(10)
+  icpCompositeScore Int?    @map("icp_composite_score")
+  icpFitScore       Int?    @map("icp_fit_score")
+  icpValueScore     Int?    @map("icp_value_score")
+  icpReadinessScore Int?    @map("icp_readiness_score")
+  icpStateScore     Int?    @map("icp_state_score")
+  icpTier           String? @map("icp_tier") @db.VarChar(10)
 
   // ===== Relations =====
   state            State?                    @relation(fields: [stateFips], references: [fips])
@@ -271,13 +271,13 @@ model District {
   territoryPlans   TerritoryPlanDistrict[]
   competitorSpend  CompetitorSpend[]
   vendorFinancials VendorFinancials[]
-  activityLinks   ActivityDistrict[]
-  taskLinks       TaskDistrict[]
-  schools         School[]
-  dataHistory     DistrictDataHistory[]
-  gradeEnrollment DistrictGradeEnrollment[]
-  vacancyScans    VacancyScan[]
-  vacancies       Vacancy[]
+  activityLinks    ActivityDistrict[]
+  taskLinks        TaskDistrict[]
+  schools          School[]
+  dataHistory      DistrictDataHistory[]
+  gradeEnrollment  DistrictGradeEnrollment[]
+  vacancyScans     VacancyScan[]
+  vacancies        Vacancy[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -377,6 +377,7 @@ model Contact {
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
   vacancies      Vacancy[]
+  stepExecutions StepExecution[]
 
   @@index([leaid])
   @@map("contacts")
@@ -449,7 +450,7 @@ model State {
   icpAvgScore     Float? @map("icp_avg_score") @db.Real
   icpT1Count      Int    @default(0) @map("icp_t1_count")
   icpT2Count      Int    @default(0) @map("icp_t2_count")
-  icpChurnPenalty  Int    @default(0) @map("icp_churn_penalty")
+  icpChurnPenalty Int    @default(0) @map("icp_churn_penalty")
 
   // ===== Territory Management =====
   territoryOwner String? @map("territory_owner") @db.VarChar(100)
@@ -619,23 +620,24 @@ model Activity {
   // Captures what resulted from the activity (set on completion)
   outcome     String? @db.VarChar(500) // free-text outcome note
   outcomeType String? @map("outcome_type") @db.VarChar(30) // positive_progress, neutral, negative, follow_up_needed, etc.
-  rating      Int?    // 1-5 star rating for activity outcome
+  rating      Int? // 1-5 star rating for activity outcome
 
   // ===== Type-Specific Fields =====
   // JSON blob for scalar fields that vary by event type (address, urls, timezone, time, etc.)
   metadata Json? @map("metadata")
 
   // Relations (all many-to-many via junction tables)
-  plans     ActivityPlan[]
-  districts ActivityDistrict[]
-  contacts  ActivityContact[]
-  states    ActivityState[]
-  taskLinks  TaskActivity[]
-  expenses   ActivityExpense[]
-  attendees  ActivityAttendee[]
-  relations      ActivityRelation[] @relation("ActivityRelations")
-  relatedTo      ActivityRelation[] @relation("RelatedToActivities")
-  opportunities  ActivityOpportunity[]
+  plans         ActivityPlan[]
+  districts     ActivityDistrict[]
+  contacts      ActivityContact[]
+  states        ActivityState[]
+  taskLinks     TaskActivity[]
+  expenses      ActivityExpense[]
+  attendees     ActivityAttendee[]
+  relations     ActivityRelation[]    @relation("ActivityRelations")
+  relatedTo     ActivityRelation[]    @relation("RelatedToActivities")
+  opportunities ActivityOpportunity[]
+  stepExecution StepExecution?
 
   @@unique([slackChannelId, slackMessageTs])
   @@index([createdByUserId])
@@ -682,9 +684,9 @@ model ActivityContact {
 }
 
 model ActivityOpportunity {
-  activityId    String   @map("activity_id")
-  opportunityId String   @map("opportunity_id")
-  createdAt     DateTime @default(now()) @map("created_at")
+  activityId    String      @map("activity_id")
+  opportunityId String      @map("opportunity_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
   activity      Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
   opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
@@ -774,22 +776,26 @@ model UserProfile {
   lastLoginAt       DateTime? @map("last_login_at")
 
   // Relation to user's fiscal year goals
-  goals           UserGoal[]
+  goals               UserGoal[]
   // Territory plan ownership and collaboration
-  ownedPlans      TerritoryPlan[]             @relation("PlanOwner")
-  collaboratingOn TerritoryPlanCollaborator[] @relation("PlanCollaborator")
+  ownedPlans          TerritoryPlan[]             @relation("PlanOwner")
+  collaboratingOn     TerritoryPlanCollaborator[] @relation("PlanCollaborator")
   // Saved map view snapshots
-  savedMapViews      MapView[]                    @relation("MapViewOwner")
+  savedMapViews       MapView[]                   @relation("MapViewOwner")
   // Activity attendance
   activityAttendances ActivityAttendee[]
   // Tasks assigned to this user (not necessarily created by them)
-  assignedTasks   Task[] @relation("TaskAssignee")
+  assignedTasks       Task[]                      @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
-  integrations    UserIntegration[]
+  integrations        UserIntegration[]
   // Legacy calendar connection (migrating to UserIntegration)
-  calendarConnection CalendarConnection?
+  calendarConnection  CalendarConnection?
   // Initiative leaderboard scores
-  initiativeScores       InitiativeScore[]
+  initiativeScores    InitiativeScore[]
+  // Engage: email sequencer
+  engageTemplates     EngageTemplate[]            @relation("EngageTemplatesCreated")
+  sequences           Sequence[]                  @relation("SequencesCreated")
+  sequenceExecutions  SequenceExecution[]         @relation("SequenceExecutions")
 
   @@map("user_profiles")
 }
@@ -820,6 +826,136 @@ model UserIntegration {
   @@unique([userId, service])
   @@index([userId])
   @@map("user_integrations")
+}
+
+// ===== Engage: Email Sequencer =====
+// Multi-channel sequence execution tool with templates, merge fields, and analytics
+
+model EngageTemplate {
+  id              Int      @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  type            String   @db.VarChar(20) // "email", "call", "text", "linkedin"
+  subject         String?  @db.VarChar(500)
+  body            String   @db.Text
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  isArchived      Boolean  @default(false) @map("is_archived")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  createdBy UserProfile    @relation("EngageTemplatesCreated", fields: [createdByUserId], references: [id])
+  steps     SequenceStep[]
+
+  @@index([createdByUserId])
+  @@index([isArchived])
+  @@map("engage_templates")
+}
+
+model Sequence {
+  id              Int      @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  isArchived      Boolean  @default(false) @map("is_archived")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  createdBy      UserProfile            @relation("SequencesCreated", fields: [createdByUserId], references: [id])
+  steps          SequenceStep[]
+  executions     SequenceExecution[]
+  mergeFieldDefs MergeFieldDefinition[]
+
+  @@index([createdByUserId])
+  @@index([isArchived])
+  @@map("sequences")
+}
+
+model SequenceStep {
+  id         Int      @id @default(autoincrement())
+  sequenceId Int      @map("sequence_id")
+  templateId Int?     @map("template_id")
+  type       String   @db.VarChar(20) // "email", "call", "text", "linkedin"
+  subject    String?  @db.VarChar(500)
+  body       String?  @db.Text
+  position   Int
+  delayDays  Int      @default(0) @map("delay_days")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  sequence       Sequence        @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  template       EngageTemplate? @relation(fields: [templateId], references: [id])
+  stepExecutions StepExecution[]
+
+  @@unique([sequenceId, position])
+  @@index([sequenceId])
+  @@map("sequence_steps")
+}
+
+model SequenceExecution {
+  id                  Int       @id @default(autoincrement())
+  sequenceId          Int       @map("sequence_id")
+  userId              String    @map("user_id") @db.Uuid
+  status              String    @default("active") @db.VarChar(20) // "active", "paused", "completed", "cancelled"
+  currentStepPosition Int       @default(1) @map("current_step_position")
+  currentContactIndex Int       @default(0) @map("current_contact_index")
+  contactCount        Int       @map("contact_count")
+  completedCount      Int       @default(0) @map("completed_count")
+  startedAt           DateTime  @default(now()) @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  sequence       Sequence        @relation(fields: [sequenceId], references: [id])
+  user           UserProfile     @relation("SequenceExecutions", fields: [userId], references: [id])
+  stepExecutions StepExecution[]
+
+  @@index([userId])
+  @@index([sequenceId])
+  @@index([status])
+  @@map("sequence_executions")
+}
+
+model StepExecution {
+  id             Int       @id @default(autoincrement())
+  executionId    Int       @map("execution_id")
+  stepId         Int       @map("step_id")
+  contactId      Int       @map("contact_id")
+  status         String    @default("pending") @db.VarChar(20) // "pending", "completed", "skipped", "failed"
+  sentBody       String?   @map("sent_body") @db.Text
+  sentSubject    String?   @map("sent_subject") @db.VarChar(500)
+  gmailMessageId String?   @unique @map("gmail_message_id")
+  activityId     String?   @unique @map("activity_id")
+  notes          String?   @db.Text
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  execution SequenceExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  step      SequenceStep      @relation(fields: [stepId], references: [id])
+  contact   Contact           @relation(fields: [contactId], references: [id])
+  activity  Activity?         @relation(fields: [activityId], references: [id])
+
+  @@unique([executionId, stepId, contactId])
+  @@index([executionId])
+  @@index([contactId])
+  @@index([status])
+  @@map("step_executions")
+}
+
+model MergeFieldDefinition {
+  id           Int      @id @default(autoincrement())
+  sequenceId   Int      @map("sequence_id")
+  name         String   @db.VarChar(100)
+  label        String   @db.VarChar(255)
+  type         String   @db.VarChar(20) // "system", "custom"
+  sourceField  String?  @map("source_field") @db.VarChar(100)
+  defaultValue String?  @map("default_value") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  sequence Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  @@index([sequenceId])
+  @@map("merge_field_definitions")
 }
 
 enum ServiceCategory {
@@ -909,13 +1045,13 @@ model UserGoal {
 // Supports kanban board workflow with drag-and-drop reordering
 
 model Task {
-  id              String    @id @default(uuid())
-  title           String    @db.VarChar(255)
-  description     String?
-  status          String    @default("todo") @db.VarChar(20) // todo, in_progress, blocked, done
-  priority        String    @default("medium") @db.VarChar(10) // low, medium, high, urgent
-  dueDate         DateTime? @map("due_date")
-  position        Int       @default(0) // ordering within kanban column
+  id               String    @id @default(uuid())
+  title            String    @db.VarChar(255)
+  description      String?
+  status           String    @default("todo") @db.VarChar(20) // todo, in_progress, blocked, done
+  priority         String    @default("medium") @db.VarChar(10) // low, medium, high, urgent
+  dueDate          DateTime? @map("due_date")
+  position         Int       @default(0) // ordering within kanban column
   createdByUserId  String    @map("created_by_user_id") @db.Uuid
   assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at")
@@ -926,7 +1062,7 @@ model Task {
   plans      TaskPlan[]
   activities TaskActivity[]
   contacts   TaskContact[]
-  assignedTo UserProfile? @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  assignedTo UserProfile?   @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
 
   @@index([createdByUserId])
   @@index([assignedToUserId])
@@ -984,22 +1120,22 @@ model TaskContact {
 // One connection per user — enables two-way sync between activities and calendar events
 
 model CalendarConnection {
-  id                 String    @id @default(uuid())
-  userId             String    @unique @map("user_id") @db.Uuid
-  googleAccountEmail String    @map("google_account_email") @db.VarChar(255)
-  accessToken        String    @map("access_token") // encrypted at rest
-  refreshToken       String    @map("refresh_token") // encrypted at rest
-  tokenExpiresAt     DateTime  @map("token_expires_at")
-  companyDomain      String    @map("company_domain") @db.VarChar(100) // e.g. "fullmindlearning.com" — filters internal attendees
-  syncEnabled        Boolean   @default(true) @map("sync_enabled")
-  lastSyncAt         DateTime? @map("last_sync_at")
-  status             String    @default("connected") @db.VarChar(20) // connected, disconnected, error
-  syncDirection          String   @default("two_way") @map("sync_direction") @db.VarChar(20) // one_way (app→cal) or two_way
-  syncedActivityTypes    String[] @default([]) @map("synced_activity_types") // empty = all types synced
-  reminderMinutes        Int      @default(15) @map("reminder_minutes") // 0 = none
-  secondReminderMinutes  Int?     @map("second_reminder_minutes")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  userId                String    @unique @map("user_id") @db.Uuid
+  googleAccountEmail    String    @map("google_account_email") @db.VarChar(255)
+  accessToken           String    @map("access_token") // encrypted at rest
+  refreshToken          String    @map("refresh_token") // encrypted at rest
+  tokenExpiresAt        DateTime  @map("token_expires_at")
+  companyDomain         String    @map("company_domain") @db.VarChar(100) // e.g. "fullmindlearning.com" — filters internal attendees
+  syncEnabled           Boolean   @default(true) @map("sync_enabled")
+  lastSyncAt            DateTime? @map("last_sync_at")
+  status                String    @default("connected") @db.VarChar(20) // connected, disconnected, error
+  syncDirection         String    @default("two_way") @map("sync_direction") @db.VarChar(20) // one_way (app→cal) or two_way
+  syncedActivityTypes   String[]  @default([]) @map("synced_activity_types") // empty = all types synced
+  reminderMinutes       Int       @default(15) @map("reminder_minutes") // 0 = none
+  secondReminderMinutes Int?      @map("second_reminder_minutes")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   // Relations
   user   UserProfile     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1213,39 +1349,39 @@ model DistrictGradeEnrollment {
 // Synced from OpenSearch by the opportunity scheduler.
 // Contains financial metrics computed from session data.
 model Opportunity {
-  id                 String    @id @db.Text
-  name               String?   @db.Text
-  schoolYr           String?   @map("school_yr") @db.Text
-  contractType       String?   @map("contract_type") @db.Text
-  state              String?   @db.Text
-  salesRepName       String?   @map("sales_rep_name") @db.Text
-  salesRepEmail      String?   @map("sales_rep_email") @db.Text
-  districtName       String?   @map("district_name") @db.Text
-  districtLmsId      String?   @map("district_lms_id") @db.Text
-  districtNcesId     String?   @map("district_nces_id") @db.Text
-  districtLeaId      String?   @map("district_lea_id") @db.Text
-  createdAt          DateTime? @map("created_at") @db.Timestamptz
-  closeDate          DateTime? @map("close_date") @db.Timestamptz
-  brandAmbassador    String?   @map("brand_ambassador") @db.Text
-  stage              String?   @db.Text
-  netBookingAmount   Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
-  contractThrough    String?   @map("contract_through") @db.Text
-  fundingThrough     String?   @map("funding_through") @db.Text
-  paymentType        String?   @map("payment_type") @db.Text
-  paymentTerms       String?   @map("payment_terms") @db.Text
-  leadSource         String?   @map("lead_source") @db.Text
-  invoiced           Decimal?  @db.Decimal(15, 2)
-  credited           Decimal?  @db.Decimal(15, 2)
-  completedRevenue   Decimal?  @map("completed_revenue") @db.Decimal(15, 2)
-  completedTake      Decimal?  @map("completed_take") @db.Decimal(15, 2)
-  scheduledSessions  Int?      @map("scheduled_sessions")
-  scheduledRevenue   Decimal?  @map("scheduled_revenue") @db.Decimal(15, 2)
-  scheduledTake      Decimal?  @map("scheduled_take") @db.Decimal(15, 2)
-  totalRevenue       Decimal?  @map("total_revenue") @db.Decimal(15, 2)
-  totalTake          Decimal?  @map("total_take") @db.Decimal(15, 2)
-  averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
-  serviceTypes       Json      @default("[]") @map("service_types")
-  syncedAt           DateTime? @map("synced_at") @db.Timestamptz
+  id                String    @id @db.Text
+  name              String?   @db.Text
+  schoolYr          String?   @map("school_yr") @db.Text
+  contractType      String?   @map("contract_type") @db.Text
+  state             String?   @db.Text
+  salesRepName      String?   @map("sales_rep_name") @db.Text
+  salesRepEmail     String?   @map("sales_rep_email") @db.Text
+  districtName      String?   @map("district_name") @db.Text
+  districtLmsId     String?   @map("district_lms_id") @db.Text
+  districtNcesId    String?   @map("district_nces_id") @db.Text
+  districtLeaId     String?   @map("district_lea_id") @db.Text
+  createdAt         DateTime? @map("created_at") @db.Timestamptz
+  closeDate         DateTime? @map("close_date") @db.Timestamptz
+  brandAmbassador   String?   @map("brand_ambassador") @db.Text
+  stage             String?   @db.Text
+  netBookingAmount  Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  contractThrough   String?   @map("contract_through") @db.Text
+  fundingThrough    String?   @map("funding_through") @db.Text
+  paymentType       String?   @map("payment_type") @db.Text
+  paymentTerms      String?   @map("payment_terms") @db.Text
+  leadSource        String?   @map("lead_source") @db.Text
+  invoiced          Decimal?  @db.Decimal(15, 2)
+  credited          Decimal?  @db.Decimal(15, 2)
+  completedRevenue  Decimal?  @map("completed_revenue") @db.Decimal(15, 2)
+  completedTake     Decimal?  @map("completed_take") @db.Decimal(15, 2)
+  scheduledSessions Int?      @map("scheduled_sessions")
+  scheduledRevenue  Decimal?  @map("scheduled_revenue") @db.Decimal(15, 2)
+  scheduledTake     Decimal?  @map("scheduled_take") @db.Decimal(15, 2)
+  totalRevenue      Decimal?  @map("total_revenue") @db.Decimal(15, 2)
+  totalTake         Decimal?  @map("total_take") @db.Decimal(15, 2)
+  averageTakeRate   Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
+  serviceTypes      Json      @default("[]") @map("service_types")
+  syncedAt          DateTime? @map("synced_at") @db.Timestamptz
 
   activityLinks ActivityOpportunity[]
 
@@ -1351,10 +1487,10 @@ model Vacancy {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  district District  @relation(fields: [leaid], references: [leaid])
+  district District    @relation(fields: [leaid], references: [leaid])
   scan     VacancyScan @relation(fields: [scanId], references: [id])
-  school   School?   @relation(fields: [schoolNcessch], references: [ncessch])
-  contact  Contact?  @relation(fields: [contactId], references: [id])
+  school   School?     @relation(fields: [schoolNcessch], references: [ncessch])
+  contact  Contact?    @relation(fields: [contactId], references: [id])
 
   @@unique([fingerprint])
   @@index([leaid])
@@ -1382,26 +1518,26 @@ model VacancyKeywordConfig {
 // Gamified point system with tiered rankings and initiative-based rotation.
 
 model Initiative {
-  id               Int       @id @default(autoincrement())
-  name             String    @db.VarChar(100)
-  initiativeUid    String?   @unique @map("initiative_uid") @db.VarChar(30)
-  startDate        DateTime  @map("start_date") @db.Timestamptz
-  endDate          DateTime? @map("end_date") @db.Timestamptz
-  isActive         Boolean   @default(false) @map("is_active")
-  showName         Boolean   @default(true) @map("show_name")
-  showDates        Boolean   @default(true) @map("show_dates")
-  softResetTiers   Int       @default(1) @map("soft_reset_tiers")
-  initiativeWeight   Decimal   @default(0.4) @map("initiative_weight") @db.Decimal(3, 2)
-  pipelineWeight     Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
-  pipelineFiscalYear String?   @map("pipeline_fiscal_year") @db.VarChar(10)
-  takeWeight         Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
-  takeFiscalYear     String?   @map("take_fiscal_year") @db.VarChar(10)
-  revenueWeight           Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
-  revenueFiscalYear       String?   @map("revenue_fiscal_year") @db.VarChar(10)
-  revenueTargetedWeight   Decimal   @default(0.0) @map("revenue_targeted_weight") @db.Decimal(3, 2)
-  revenueTargetedFiscalYear String? @map("revenue_targeted_fiscal_year") @db.VarChar(10)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id                        Int       @id @default(autoincrement())
+  name                      String    @db.VarChar(100)
+  initiativeUid             String?   @unique @map("initiative_uid") @db.VarChar(30)
+  startDate                 DateTime  @map("start_date") @db.Timestamptz
+  endDate                   DateTime? @map("end_date") @db.Timestamptz
+  isActive                  Boolean   @default(false) @map("is_active")
+  showName                  Boolean   @default(true) @map("show_name")
+  showDates                 Boolean   @default(true) @map("show_dates")
+  softResetTiers            Int       @default(1) @map("soft_reset_tiers")
+  initiativeWeight          Decimal   @default(0.4) @map("initiative_weight") @db.Decimal(3, 2)
+  pipelineWeight            Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
+  pipelineFiscalYear        String?   @map("pipeline_fiscal_year") @db.VarChar(10)
+  takeWeight                Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
+  takeFiscalYear            String?   @map("take_fiscal_year") @db.VarChar(10)
+  revenueWeight             Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
+  revenueFiscalYear         String?   @map("revenue_fiscal_year") @db.VarChar(10)
+  revenueTargetedWeight     Decimal   @default(0.0) @map("revenue_targeted_weight") @db.Decimal(3, 2)
+  revenueTargetedFiscalYear String?   @map("revenue_targeted_fiscal_year") @db.VarChar(10)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   metrics    InitiativeMetric[]
   scores     InitiativeScore[]
@@ -1425,15 +1561,15 @@ model InitiativeMetric {
 }
 
 model InitiativeScore {
-  id          Int      @id @default(autoincrement())
-  initiativeId Int     @map("initiative_id")
-  userId      String   @map("user_id") @db.Uuid
-  totalPoints Int      @default(0) @map("total_points")
-  tier        String   @default("freshman") @db.VarChar(20)
-  rank        Int      @default(0)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id           Int      @id @default(autoincrement())
+  initiativeId Int      @map("initiative_id")
+  userId       String   @map("user_id") @db.Uuid
+  totalPoints  Int      @default(0) @map("total_points")
+  tier         String   @default("freshman") @db.VarChar(20)
+  rank         Int      @default(0)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  initiative Initiative  @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
   user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([initiativeId, userId])
