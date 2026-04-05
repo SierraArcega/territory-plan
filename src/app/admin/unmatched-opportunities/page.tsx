@@ -225,6 +225,22 @@ async function resolveOpportunity(
   return res.json();
 }
 
+async function dismissOpportunity(
+  id: string,
+  dismissAll: boolean,
+): Promise<{ dismissedCount: number; accountName: string | null }> {
+  const res = await fetch(`/api/admin/unmatched-opportunities/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dismiss: true, dismissAll }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || `Failed to dismiss (${res.status})`);
+  }
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Currency formatter (no decimals per project preference)
 // ---------------------------------------------------------------------------
@@ -476,7 +492,14 @@ function ReasonDropdown({
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ resolved }: { resolved: boolean }) {
+function StatusBadge({ resolved, resolvedDistrictLeaid }: { resolved: boolean; resolvedDistrictLeaid?: string | null }) {
+  if (resolved && !resolvedDistrictLeaid) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F5F4F7] text-[#8A80A8] border border-[#A69DC0]/30">
+        Dismissed
+      </span>
+    );
+  }
   if (resolved) {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F7FFF2] text-[#69B34A] border border-[#8AC670]/30">
@@ -1194,6 +1217,7 @@ export default function UnmatchedOpportunitiesPage() {
 
   const [activeCard, setActiveCard] = useState<CardKey | null>(null);
   const [resolvingOpp, setResolvingOpp] = useState<UnmatchedOpportunity | null>(null);
+  const [dismissingOpp, setDismissingOpp] = useState<UnmatchedOpportunity | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1289,6 +1313,23 @@ export default function UnmatchedOpportunitiesPage() {
     },
   });
 
+  const dismissMutation = useMutation({
+    mutationFn: ({ id, dismissAll }: { id: string; dismissAll: boolean }) =>
+      dismissOpportunity(id, dismissAll),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["unmatched-opportunities-summary"] });
+      const count = data.dismissedCount ?? 1;
+      const countLabel = count > 1 ? `${count} opportunities` : "1 opportunity";
+      setToast(`Dismissed ${countLabel}${data.accountName ? ` for ${data.accountName}` : ""}`);
+      setDismissingOpp(null);
+    },
+    onError: (error) => {
+      setToast(error.message || "Failed to dismiss opportunity");
+      setDismissingOpp(null);
+    },
+  });
+
   const handleReasonUpdate = useCallback(
     (id: string, reason: string | null) => {
       reasonMutation.mutate({ id, reason });
@@ -1348,9 +1389,10 @@ export default function UnmatchedOpportunitiesPage() {
       if (!leaid) return <span className="text-[#A69DC0]">&mdash;</span>;
       return <span className="tabular-nums font-medium text-[#6E6390]">{leaid}</span>;
     },
-    resolved: ({ value }) => {
+    resolved: ({ value, row }) => {
       const isResolved = value as boolean;
-      return <StatusBadge resolved={isResolved} />;
+      const leaid = row.resolvedDistrictLeaid as string | null;
+      return <StatusBadge resolved={isResolved} resolvedDistrictLeaid={leaid} />;
     },
     reason: ({ value, row }) => (
       <ReasonDropdown
@@ -1367,27 +1409,38 @@ export default function UnmatchedOpportunitiesPage() {
   const renderRowAction = useCallback((row: Record<string, unknown>) => {
     const isResolved = row.resolved as boolean;
     if (isResolved) return null;
+
+    const oppData: UnmatchedOpportunity = {
+      id: row.id as string,
+      name: row.name as string | null,
+      accountName: row.accountName as string | null,
+      state: row.state as string | null,
+      schoolYr: row.schoolYr as string | null,
+      stage: row.stage as string | null,
+      netBookingAmount: row.netBookingAmount as string | null,
+      reason: row.reason as string | null,
+      resolved: row.resolved as boolean,
+      resolvedDistrictLeaid: row.resolvedDistrictLeaid as string | null,
+    };
+
     return (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setResolvingOpp({
-            id: row.id as string,
-            name: row.name as string | null,
-            accountName: row.accountName as string | null,
-            state: row.state as string | null,
-            schoolYr: row.schoolYr as string | null,
-            stage: row.stage as string | null,
-            netBookingAmount: row.netBookingAmount as string | null,
-            reason: row.reason as string | null,
-            resolved: row.resolved as boolean,
-            resolvedDistrictLeaid: row.resolvedDistrictLeaid as string | null,
-          });
-        }}
-        className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
-      >
-        Resolve
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); setResolvingOpp(oppData); }}
+          className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
+        >
+          Resolve
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setDismissingOpp(oppData); }}
+          className="px-2 py-1 text-xs font-medium text-[#8A80A8] hover:text-[#F37167] hover:bg-[#fef1f0] rounded-lg transition-colors"
+          title="Dismiss — stop syncing this opportunity"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     );
   }, []);
 
@@ -1458,6 +1511,45 @@ export default function UnmatchedOpportunitiesPage() {
           onSelect={handleResolve}
           onClose={() => setResolvingOpp(null)}
         />
+      )}
+
+      {/* Dismiss confirmation dialog */}
+      {dismissingOpp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDismissingOpp(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[#403770] mb-2">Dismiss opportunity?</h3>
+            <p className="text-sm text-[#6E6390] mb-1">
+              <span className="font-semibold">{dismissingOpp.accountName ?? "Unknown account"}</span>
+            </p>
+            <p className="text-sm text-[#8A80A8] mb-5">
+              Dismissed opportunities will stop syncing into the planning tool.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDismissingOpp(null)}
+                className="px-3 py-1.5 text-sm font-medium text-[#6E6390] hover:bg-[#F5F4F7] rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => dismissMutation.mutate({ id: dismissingOpp.id, dismissAll: false })}
+                disabled={dismissMutation.isPending}
+                className="px-3 py-1.5 text-sm font-medium text-[#F37167] border border-[#f58d85]/40 hover:bg-[#fef1f0] rounded-lg transition-colors disabled:opacity-50"
+              >
+                {dismissMutation.isPending ? "Dismissing..." : "Dismiss this opp"}
+              </button>
+              {dismissingOpp.accountName && (
+                <button
+                  onClick={() => dismissMutation.mutate({ id: dismissingOpp.id, dismissAll: true })}
+                  disabled={dismissMutation.isPending}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-[#F37167] hover:bg-[#e0615a] rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {dismissMutation.isPending ? "Dismissing..." : "Dismiss all for account"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Success toast */}
