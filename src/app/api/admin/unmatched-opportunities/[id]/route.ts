@@ -17,10 +17,43 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { resolvedDistrictLeaid, reason } = body as {
+    const { resolvedDistrictLeaid, reason, dismiss, dismissAll } = body as {
       resolvedDistrictLeaid?: string;
       reason?: string | null;
+      dismiss?: boolean;
+      dismissAll?: boolean;
     };
+
+    // Dismiss operation — mark as resolved without a district
+    if (dismiss === true) {
+      const source = await prisma.unmatchedOpportunity.findUnique({
+        where: { id },
+        select: { accountName: true },
+      });
+      if (!source) {
+        return NextResponse.json({ error: "Opportunity not found" }, { status: 404 });
+      }
+
+      // Bulk dismiss all for same accountName, or just this one
+      const where =
+        dismissAll && source.accountName
+          ? {
+              accountName: { equals: source.accountName, mode: "insensitive" as const },
+              resolved: false,
+            }
+          : { id };
+
+      const { count } = await prisma.unmatchedOpportunity.updateMany({
+        where,
+        data: { resolved: true },
+      });
+
+      return NextResponse.json({
+        dismissed: true,
+        dismissedCount: count,
+        accountName: source.accountName,
+      });
+    }
 
     // Reason-only update (no resolution)
     if (reason !== undefined && !resolvedDistrictLeaid) {

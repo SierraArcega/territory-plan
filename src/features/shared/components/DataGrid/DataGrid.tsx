@@ -174,7 +174,7 @@ export function DataGrid({
         id: "__actions",
         header: () => null,
         cell: () => null,
-        size: 80,
+        size: 112,
       });
     }
 
@@ -276,7 +276,7 @@ export function DataGrid({
                       return (
                         <th
                           key={header.id}
-                          className="w-20 bg-[#F7F5FA] sticky top-0 z-10"
+                          className="w-28 bg-[#F7F5FA] sticky top-0 z-10"
                         />
                       );
                     }
@@ -558,8 +558,10 @@ export function DataGrid({
                           // Actions cell
                           if (cell.column.id === "__actions" && renderRowAction) {
                             return (
-                              <td key={cell.id} className="w-20 px-3 py-3 text-right">
-                                {renderRowAction(row.original)}
+                              <td key={cell.id} className="w-28 px-3 py-3">
+                                <div className="flex items-center justify-end">
+                                  {renderRowAction(row.original)}
+                                </div>
                               </td>
                             );
                           }
