@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type {
@@ -179,6 +180,106 @@ export function useBatchConfirmCalendarEvents() {
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
       queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// --- Backfill / Auto-sync Hooks ---
+
+// Fires a single incremental sync on mount once the user has completed backfill.
+// Returns a callback-ref setter so a parent (e.g. HomeView) can subscribe to
+// "new events arrived" events and show a toast.
+export interface AutoSyncController {
+  setOnNewEvents: (cb: (newEventCount: number) => void) => void;
+}
+
+export function useAutoSyncCalendarOnMount(): AutoSyncController {
+  const { data } = useCalendarConnection();
+  const sync = useTriggerCalendarSync();
+  const ranRef = useRef(false);
+  const onNewEventsRef = useRef<((n: number) => void) | null>(null);
+
+  useEffect(() => {
+    if (ranRef.current) return;
+    if (!data?.connected) return;
+    if (!data.connection?.syncEnabled) return;
+    // Skip auto-sync while backfill is still pending — the wizard owns sync
+    if (!data.connection?.backfillCompletedAt) return;
+
+    ranRef.current = true;
+    sync.mutate(undefined, {
+      onSuccess: (result) => {
+        if (result.newEvents > 0 && onNewEventsRef.current) {
+          onNewEventsRef.current(result.newEvents);
+        }
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync is a stable mutation object; we only care about the guard refs + connection data
+  }, [data]);
+
+  return {
+    setOnNewEvents: (cb: (n: number) => void) => {
+      onNewEventsRef.current = cb;
+    },
+  };
+}
+
+// Derives whether the user needs to set up or resume the backfill wizard.
+export interface BackfillStatus {
+  isLoading: boolean;
+  connected: boolean;
+  needsSetup: boolean;
+  needsResume: boolean;
+  backfillCompletedAt: string | null;
+}
+
+export function useBackfillStatus(): BackfillStatus {
+  const { data, isLoading } = useCalendarConnection();
+  const connection = data?.connection ?? null;
+  const connected = !!data?.connected;
+  return {
+    isLoading,
+    connected,
+    needsSetup:
+      connected && !connection?.backfillStartDate && !connection?.backfillCompletedAt,
+    needsResume:
+      connected && !!connection?.backfillStartDate && !connection?.backfillCompletedAt,
+    backfillCompletedAt: connection?.backfillCompletedAt ?? null,
+  };
+}
+
+// Start the backfill wizard: sets backfillStartDate = now - days and syncs.
+export type BackfillDays = 7 | 30 | 60 | 90;
+
+export interface BackfillStartResult extends CalendarSyncResult {
+  pendingCount: number;
+}
+
+export function useStartBackfill() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (days: BackfillDays) =>
+      fetchJson<BackfillStartResult>(`${API_BASE}/calendar/backfill/start`, {
+        method: "POST",
+        body: JSON.stringify({ days }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+    },
+  });
+}
+
+// Mark the backfill wizard complete — sets backfillCompletedAt = now.
+export function useCompleteBackfill() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<{ success: boolean }>(`${API_BASE}/calendar/backfill/complete`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendarConnection"] });
     },
   });
 }
