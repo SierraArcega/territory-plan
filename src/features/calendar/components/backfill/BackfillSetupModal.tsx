@@ -13,6 +13,7 @@ import {
   useStartBackfill,
   type BackfillDays,
 } from "@/features/calendar/lib/queries";
+import type { CalendarEvent } from "@/features/shared/types/api-types";
 import BackfillWindowPicker from "./BackfillWindowPicker";
 import BackfillWizard from "./BackfillWizard";
 import BackfillCompletionScreen from "./BackfillCompletionScreen";
@@ -60,12 +61,32 @@ export default function BackfillSetupModal({
     step === "wizard" ? "pending" : undefined
   );
 
+  // Snapshot the inbox events the first time they arrive in the wizard step.
+  // After that, we render the wizard against this stable list — mid-wizard
+  // query invalidations (from confirm/dismiss mutations) won't swap the view
+  // out from under the user. Cleared when the modal leaves the wizard step.
+  //
+  // Implemented as a setState-during-render latch so the capture happens on
+  // the same render that first sees non-empty inbox data (synchronous for
+  // tests and for the resume flow where inbox is already cached).
+  const [wizardEvents, setWizardEvents] = useState<CalendarEvent[]>([]);
+
+  const inboxEvents = inboxData?.events ?? [];
+
+  if (step === "wizard" && wizardEvents.length === 0 && inboxEvents.length > 0) {
+    setWizardEvents(inboxEvents);
+  }
+  if (step !== "wizard" && wizardEvents.length > 0) {
+    setWizardEvents([]);
+  }
+
   // Reset step and errors whenever the modal re-opens
   useEffect(() => {
     if (isOpen) {
       setStep(initialStep === "wizard" ? "wizard" : "picker");
       setErrorMessage(null);
       setCounts({ confirmed: 0, dismissed: 0, skipped: 0 });
+      setWizardEvents([]);
     }
   }, [isOpen, initialStep]);
 
@@ -138,7 +159,6 @@ export default function BackfillSetupModal({
 
   if (!isOpen) return null;
 
-  const inboxEvents = inboxData?.events ?? [];
   const isStarting = startMutation.isPending || step === "loading";
 
   return (
@@ -210,7 +230,16 @@ export default function BackfillSetupModal({
 
         {step === "wizard" && (
           <>
-            {inboxLoading && inboxEvents.length === 0 ? (
+            {wizardEvents.length > 0 ? (
+              // Once the wizard has events, it owns the view until step changes.
+              // Mid-wizard inbox refetches won't unmount this branch, so the
+              // wizard's internal state stays intact through the whole flow.
+              <BackfillWizard
+                events={wizardEvents}
+                onComplete={handleWizardComplete}
+                onClose={onClose}
+              />
+            ) : inboxLoading ? (
               <div className="flex flex-col items-center justify-center px-8 py-16 text-center">
                 <svg
                   className="w-8 h-8 animate-spin text-[#F37167]"
@@ -235,14 +264,8 @@ export default function BackfillSetupModal({
                 </svg>
                 <p className="mt-4 text-sm text-[#6E6390]">Loading events...</p>
               </div>
-            ) : inboxEvents.length === 0 ? (
-              <EmptyState onClose={onClose} />
             ) : (
-              <BackfillWizard
-                events={inboxEvents}
-                onComplete={handleWizardComplete}
-                onClose={onClose}
-              />
+              <EmptyState onClose={onClose} />
             )}
           </>
         )}

@@ -33,6 +33,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export default function BackfillWizard({ events, onComplete, onClose }: BackfillWizardProps) {
+  // Freeze the events array at mount time. The inbox query gets invalidated
+  // on every confirm/dismiss mutation, which shrinks the live `events` prop
+  // mid-wizard and causes currentIndex to go out of bounds (skipping events
+  // or rendering null). Work against a stable snapshot so the user can walk
+  // their whole list exactly once.
+  const [frozenEvents] = useState<CalendarEvent[]>(() => events);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(() => new Set());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
@@ -42,14 +49,14 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
   const confirmMutation = useConfirmCalendarEvent();
   const dismissMutation = useDismissCalendarEvent();
 
-  const currentEvent: CalendarEvent | undefined = events[currentIndex];
-  const total = events.length;
+  const currentEvent: CalendarEvent | undefined = frozenEvents[currentIndex];
+  const total = frozenEvents.length;
   const progressPct = total === 0 ? 0 : Math.min(100, Math.round((currentIndex / total) * 100));
 
   // Card edit state lives here so keyboard shortcuts (Y/Enter) can access the
   // user's latest edits before submitting. Controlled BackfillEventCard below.
   const [cardValues, setCardValues] = useState<BackfillCardValues>(() =>
-    events[0] ? initialValuesFromEvent(events[0]) : {
+    frozenEvents[0] ? initialValuesFromEvent(frozenEvents[0]) : {
       title: "",
       activityType: "program_check_in" as ActivityType,
       planIds: [],
