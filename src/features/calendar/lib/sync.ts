@@ -331,13 +331,18 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
         externalAttendees.length
       );
 
-      // Check if this event already exists in our staging table
-      const existingEvent = await prisma.calendarEvent.findUnique({
+      // Check if this event already exists in our staging table.
+      // Lookup is scoped to (userId, googleEventId), NOT (connectionId,
+      // googleEventId): legacy rows from before connection_id was re-added
+      // have connection_id = NULL, and an OAuth reconnect can produce a new
+      // connection_id. The user-scoped key is the only one that reliably
+      // dedupes against a prior dismissed/confirmed row for the same Google
+      // event. See sync.test.ts "dedupe against prior status" for the bug
+      // this guards against.
+      const existingEvent = await prisma.calendarEvent.findFirst({
         where: {
-          connectionId_googleEventId: {
-            connectionId: calendarConnection.id,
-            googleEventId: event.id,
-          },
+          userId,
+          googleEventId: event.id,
         },
       });
 

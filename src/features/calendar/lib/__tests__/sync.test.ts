@@ -16,6 +16,7 @@ vi.mock("@/lib/prisma", () => {
       },
       calendarEvent: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
         findMany: vi.fn(),
@@ -155,6 +156,7 @@ function primeValidSyncPath(
 
   // No pre-existing staged CalendarEvent rows — everything is "new".
   vi.mocked(prisma.calendarEvent.findUnique).mockResolvedValue(null as never);
+  vi.mocked(prisma.calendarEvent.findFirst).mockResolvedValue(null as never);
   vi.mocked(prisma.calendarEvent.create).mockResolvedValue({} as never);
   vi.mocked(prisma.calendarEvent.update).mockResolvedValue({} as never);
   vi.mocked(prisma.calendarEvent.findMany).mockResolvedValue([] as never);
@@ -402,6 +404,61 @@ describe("syncCalendarEvents — lastSyncAt propagation", () => {
       .lastSyncAt;
     const connTs = (connectionCall?.[0].data as { lastSyncAt: Date }).lastSyncAt;
     expect(userTs.getTime()).toBe(connTs.getTime());
+  });
+});
+
+describe("syncCalendarEvents — dedupe against prior status", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not re-stage an event previously dismissed for the same user, even when the prior row has a null connection_id", async () => {
+    // Historical context: before the 2026-04 sync rework, CalendarEvent rows
+    // were user-scoped and had no connection_id. When connection_id was
+    // re-introduced as nullable, legacy rows were left with connection_id =
+    // NULL. Dedupe that keys on (connection_id, google_event_id) misses them
+    // and happily stages a duplicate `pending` row — users reported their
+    // dismissed meetings "popping back" in the Home feed.
+    const events = [makeGoogleEvent("legacy-dismissed")];
+    primeValidSyncPath(makeConnection(), events);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    // The dedupe lookup must find the existing dismissed row by
+    // (userId, googleEventId), not by (connectionId, googleEventId).
+    vi.mocked(prisma.calendarEvent.findFirst).mockResolvedValue({
+      id: "legacy-row",
+      userId: USER_ID,
+      connectionId: null,
+      googleEventId: "legacy-dismissed",
+      status: "dismissed",
+    } as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    expect(prisma.calendarEvent.create).not.toHaveBeenCalled();
+    expect(prisma.calendarEvent.update).not.toHaveBeenCalled();
+  });
+
+  it("does not re-stage an event previously confirmed under a different connection", async () => {
+    // Defense in depth: if an OAuth reconnect ever created a row under a new
+    // connection_id while the old confirmed row still exists (cascade delete
+    // missed it, or activity.googleEventId was cleared), we still shouldn't
+    // revive it as pending.
+    const events = [makeGoogleEvent("confirmed-elsewhere")];
+    primeValidSyncPath(makeConnection({ id: "conn-new" }), events);
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    vi.mocked(prisma.calendarEvent.findFirst).mockResolvedValue({
+      id: "old-row",
+      userId: USER_ID,
+      connectionId: "conn-old",
+      googleEventId: "confirmed-elsewhere",
+      status: "confirmed",
+    } as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    expect(prisma.calendarEvent.create).not.toHaveBeenCalled();
   });
 });
 
