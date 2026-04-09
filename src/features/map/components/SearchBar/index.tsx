@@ -11,6 +11,7 @@ import {
   isVacanciesFiltered,
   isActivitiesFiltered,
 } from "@/features/map/lib/filter-utils";
+import { useGeographyPrefetch } from "@/features/map/lib/queries";
 
 interface DistrictSuggestion {
   leaid: string;
@@ -109,6 +110,7 @@ function countByDomain(filters: ExploreFilter[], domain: string): number {
 }
 
 export default function SearchBar() {
+  useGeographyPrefetch();
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
