@@ -6,14 +6,16 @@
 
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { CalendarEvent } from "@/features/shared/types/api-types";
+import type { ActivityType } from "@/features/activities/types";
 import {
   useConfirmCalendarEvent,
   useDismissCalendarEvent,
 } from "@/features/calendar/lib/queries";
 import BackfillEventCard, {
-  type BackfillConfirmOverrides,
+  type BackfillCardValues,
+  initialValuesFromEvent,
 } from "./BackfillEventCard";
 
 interface BackfillWizardProps {
@@ -35,6 +37,7 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(() => new Set());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const confirmMutation = useConfirmCalendarEvent();
   const dismissMutation = useDismissCalendarEvent();
@@ -43,67 +46,152 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
   const total = events.length;
   const progressPct = total === 0 ? 0 : Math.min(100, Math.round((currentIndex / total) * 100));
 
-  const counts = useMemo(
-    () => ({
-      confirmed: confirmedIds.size,
-      skipped: skippedIds.size,
-      dismissed: dismissedIds.size,
-    }),
-    [confirmedIds, skippedIds, dismissedIds]
+  // Card edit state lives here so keyboard shortcuts (Y/Enter) can access the
+  // user's latest edits before submitting. Controlled BackfillEventCard below.
+  const [cardValues, setCardValues] = useState<BackfillCardValues>(() =>
+    events[0] ? initialValuesFromEvent(events[0]) : {
+      title: "",
+      activityType: "program_check_in" as ActivityType,
+      planIds: [],
+      districtLeaids: [],
+      notes: "",
+    }
   );
 
+  // Reset card state (and clear inline errors) whenever the current event changes
+  useEffect(() => {
+    if (currentEvent) {
+      setCardValues(initialValuesFromEvent(currentEvent));
+    }
+    setErrorMessage(null);
+  }, [currentIndex, currentEvent]);
+
+  // Advance to the next event. Only call this when NOT on the last event —
+  // completion is handled by the individual setters below so the final counts
+  // reflect the *just-applied* state, not a stale memo.
   const advance = useCallback(() => {
-    setCurrentIndex((idx) => {
-      const next = idx + 1;
-      if (next >= total) {
-        // Defer onComplete until after the state update settles
-        queueMicrotask(() => onComplete(counts));
-        return idx;
-      }
-      return next;
-    });
-  }, [total, onComplete, counts]);
+    setCurrentIndex((idx) => Math.min(idx + 1, total - 1));
+  }, [total]);
+
+  const isLastEvent = currentIndex + 1 >= total;
 
   const handleConfirm = useCallback(
-    (overrides: BackfillConfirmOverrides) => {
+    (overrides: BackfillCardValues) => {
       if (!currentEvent) return;
       const eventId = currentEvent.id;
+      setErrorMessage(null);
       confirmMutation.mutate(
         {
           eventId,
           activityType: overrides.activityType,
-          title: overrides.title,
+          title: overrides.title.trim() || currentEvent.title,
           planIds: overrides.planIds,
           districtLeaids: overrides.districtLeaids,
-          notes: overrides.notes ?? undefined,
+          notes: overrides.notes.trim() ? overrides.notes.trim() : undefined,
         },
         {
           onSuccess: () => {
-            setConfirmedIds((prev) => new Set(prev).add(eventId));
-            advance();
+            setConfirmedIds((prev) => {
+              const next = new Set(prev).add(eventId);
+              if (isLastEvent) {
+                queueMicrotask(() =>
+                  onComplete({
+                    confirmed: next.size,
+                    skipped: skippedIds.size,
+                    dismissed: dismissedIds.size,
+                  })
+                );
+              }
+              return next;
+            });
+            if (!isLastEvent) advance();
+          },
+          onError: (err) => {
+            setErrorMessage(
+              err instanceof Error
+                ? err.message
+                : "We couldn't save this one. Try again?"
+            );
           },
         }
       );
     },
-    [currentEvent, confirmMutation, advance]
+    [
+      currentEvent,
+      confirmMutation,
+      advance,
+      isLastEvent,
+      onComplete,
+      skippedIds,
+      dismissedIds,
+    ]
   );
 
   const handleDismiss = useCallback(() => {
     if (!currentEvent) return;
     const eventId = currentEvent.id;
+    setErrorMessage(null);
     dismissMutation.mutate(eventId, {
       onSuccess: () => {
-        setDismissedIds((prev) => new Set(prev).add(eventId));
-        advance();
+        setDismissedIds((prev) => {
+          const next = new Set(prev).add(eventId);
+          if (isLastEvent) {
+            queueMicrotask(() =>
+              onComplete({
+                confirmed: confirmedIds.size,
+                skipped: skippedIds.size,
+                dismissed: next.size,
+              })
+            );
+          }
+          return next;
+        });
+        if (!isLastEvent) advance();
+      },
+      onError: (err) => {
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "We couldn't dismiss this one. Try again?"
+        );
       },
     });
-  }, [currentEvent, dismissMutation, advance]);
+  }, [
+    currentEvent,
+    dismissMutation,
+    advance,
+    isLastEvent,
+    onComplete,
+    confirmedIds,
+    skippedIds,
+  ]);
 
   const handleSkip = useCallback(() => {
     if (!currentEvent) return;
-    setSkippedIds((prev) => new Set(prev).add(currentEvent.id));
-    advance();
-  }, [currentEvent, advance]);
+    const eventId = currentEvent.id;
+    setErrorMessage(null);
+    setSkippedIds((prev) => {
+      const next = new Set(prev).add(eventId);
+      if (isLastEvent) {
+        queueMicrotask(() =>
+          onComplete({
+            confirmed: confirmedIds.size,
+            skipped: next.size,
+            dismissed: dismissedIds.size,
+          })
+        );
+      }
+      return next;
+    });
+    if (!isLastEvent) advance();
+  }, [
+    currentEvent,
+    advance,
+    isLastEvent,
+    onComplete,
+    confirmedIds,
+    dismissedIds,
+  ]);
 
   const handlePrev = useCallback(() => {
     setCurrentIndex((idx) => Math.max(0, idx - 1));
@@ -135,22 +223,10 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
         case "Y":
         case "Enter":
           e.preventDefault();
-          // Fire confirm with the *current* card state. Since the card owns
-          // its edit state we can't reach into it, so keyboard confirm uses
-          // the suggestions directly. The user can still click Save & Next
-          // after editing to send edited values.
+          // Confirm with the *current* edited card values (not the raw
+          // suggestions) so keyboard confirm respects user edits.
           if (currentEvent) {
-            handleConfirm({
-              activityType:
-                (currentEvent.suggestedActivityType as BackfillConfirmOverrides["activityType"]) ??
-                "program_check_in",
-              title: currentEvent.title,
-              planIds: currentEvent.suggestedPlanId ? [currentEvent.suggestedPlanId] : [],
-              districtLeaids: currentEvent.suggestedDistrictId
-                ? [currentEvent.suggestedDistrictId]
-                : [],
-              notes: currentEvent.description ?? null,
-            });
+            handleConfirm(cardValues);
           }
           break;
         case "s":
@@ -169,11 +245,17 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [currentEvent, handleConfirm, handleDismiss, handleSkip, handlePrev, onClose]);
+  }, [currentEvent, cardValues, handleConfirm, handleDismiss, handleSkip, handlePrev, onClose]);
 
   if (total === 0 || !currentEvent) {
     return null;
   }
+
+  const displayCounts = {
+    confirmed: confirmedIds.size,
+    skipped: skippedIds.size,
+    dismissed: dismissedIds.size,
+  };
 
   return (
     <div className="flex flex-col h-full" data-testid="backfill-wizard">
@@ -186,8 +268,8 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
               <span className="ml-2 text-[#8A80A8] font-normal">· {progressPct}%</span>
             </div>
             <div className="mt-0.5 text-xs text-[#6E6390]">
-              {counts.confirmed} confirmed · {counts.skipped} skipped · {counts.dismissed}{" "}
-              dismissed
+              {displayCounts.confirmed} confirmed · {displayCounts.skipped} skipped ·{" "}
+              {displayCounts.dismissed} dismissed
             </div>
           </div>
           <button
@@ -219,10 +301,13 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
         <BackfillEventCard
           key={currentEvent.id}
           event={currentEvent}
+          values={cardValues}
+          onValuesChange={setCardValues}
           onConfirm={handleConfirm}
           onSkip={handleSkip}
           onDismiss={handleDismiss}
           isSaving={isSaving}
+          errorMessage={errorMessage}
         />
       </div>
 

@@ -138,15 +138,129 @@ describe("BackfillWizard", () => {
     });
   });
 
-  it("onComplete fires after the last event", async () => {
+  it("onComplete fires after the last event with the final counts", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    render(
+      <BackfillWizard
+        events={[makeEvent("a"), makeEvent("b"), makeEvent("c"), makeEvent("d")]}
+        onComplete={onComplete}
+        onClose={vi.fn()}
+      />
+    );
+
+    // Event a: confirm
+    await user.click(screen.getByRole("button", { name: /save & next/i }));
+    // Event b: confirm
+    await user.click(screen.getByRole("button", { name: /save & next/i }));
+    // Event c: skip
+    await user.click(screen.getByRole("button", { name: /^skip$/i }));
+    // Event d: dismiss (this is the last event, should trigger onComplete)
+    await user.click(screen.getByRole("button", { name: /^dismiss$/i }));
+
+    // onComplete is queued with queueMicrotask and should receive fresh counts
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith({
+      confirmed: 2,
+      skipped: 1,
+      dismissed: 1,
+    });
+  });
+
+  it("onComplete reports correct counts when the last event is a confirm", async () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
     render(
       <BackfillWizard events={[makeEvent("a")]} onComplete={onComplete} onClose={vi.fn()} />
     );
     await user.click(screen.getByRole("button", { name: /save & next/i }));
-    // onComplete is queued with queueMicrotask
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(onComplete).toHaveBeenCalledWith({
+      confirmed: 1,
+      skipped: 0,
+      dismissed: 0,
+    });
+  });
+
+  it("does not advance and shows an inline error banner when confirm fails", async () => {
+    const user = userEvent.setup();
+    // Mock confirm to call onError instead of onSuccess
+    mockConfirm.mockImplementation((_vars, opts) => {
+      opts?.onError?.(new Error("Server exploded"));
+    });
+    render(
+      <BackfillWizard
+        events={[makeEvent("a"), makeEvent("b")]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /save & next/i }));
+
+    // Wizard stays on event 1
+    expect(screen.getByText("Event 1 of 2")).toBeInTheDocument();
+    // Inline error banner appears with the server error
+    const banner = await screen.findByTestId("backfill-event-error");
+    expect(banner).toHaveTextContent(/server exploded/i);
+  });
+
+  it("does not advance and shows an inline error banner when dismiss fails", async () => {
+    const user = userEvent.setup();
+    mockDismiss.mockImplementation((_id, opts) => {
+      opts?.onError?.(new Error("Nope"));
+    });
+    render(
+      <BackfillWizard
+        events={[makeEvent("a"), makeEvent("b")]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /^dismiss$/i }));
+
+    expect(screen.getByText("Event 1 of 2")).toBeInTheDocument();
+    const banner = await screen.findByTestId("backfill-event-error");
+    expect(banner).toHaveTextContent(/nope/i);
+  });
+
+  it("keyboard Y confirms with the user's edited values, not the event suggestions", async () => {
+    const user = userEvent.setup();
+    render(
+      <BackfillWizard
+        events={[makeEvent("a", { suggestedActivityType: "program_check_in" })]}
+        onComplete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    // User changes the activity type dropdown to "proposal_review"
+    const typeSelect = screen.getByLabelText<HTMLSelectElement>(/activity type/i);
+    await user.selectOptions(typeSelect, "proposal_review");
+    expect(typeSelect.value).toBe("proposal_review");
+
+    // User also edits the title
+    const titleInput = screen.getByLabelText<HTMLInputElement>(/meeting title/i);
+    await user.clear(titleInput);
+    await user.type(titleInput, "New edited title");
+
+    // User presses Y — dispatch on document since focus moves around inputs.
+    // The keyboard handler ignores events whose target is a form input, so we
+    // move focus away first before firing.
+    act(() => {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "y", bubbles: true }));
+    });
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
+    expect(mockConfirm.mock.calls[0][0]).toMatchObject({
+      eventId: "a",
+      activityType: "proposal_review",
+      title: "New edited title",
+    });
   });
 
   it("keyboard: Y confirms", async () => {

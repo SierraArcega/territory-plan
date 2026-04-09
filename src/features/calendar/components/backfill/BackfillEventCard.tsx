@@ -1,11 +1,13 @@
 // BackfillEventCard — The rich inline-edit card used inside the backfill wizard.
-// Shows the event with a confidence banner, then editable Type / Plan / District /
-// Notes fields, and a read-only attendees list. Local state resets when a new
-// event id arrives from props.
+// Controlled component: the parent BackfillWizard owns the edit state so that
+// keyboard shortcuts (Y/Enter) can send the user's latest edits, not the raw
+// event suggestions. Shows the event with a confidence banner, editable Type /
+// Plan / District / Notes fields, a read-only attendees list, and an optional
+// inline error banner when a save attempt fails mid-wizard.
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { format } from "date-fns";
 import type { CalendarEvent } from "@/features/shared/types/api-types";
 import {
@@ -17,20 +19,41 @@ import {
 import { MultiSelect } from "@/features/shared/components/MultiSelect";
 import { useTerritoryPlans } from "@/features/plans/lib/queries";
 
-export interface BackfillConfirmOverrides {
-  activityType: ActivityType;
+// Edited, in-flight values for a single event card. The wizard holds this
+// state so keyboard shortcuts can read the user's latest edits.
+export interface BackfillCardValues {
   title: string;
+  activityType: ActivityType;
   planIds: string[];
   districtLeaids: string[];
-  notes: string | null;
+  notes: string;
+}
+
+// Back-compat alias for the old props name. Keep for external callers that
+// may still reference BackfillConfirmOverrides.
+export type BackfillConfirmOverrides = BackfillCardValues;
+
+// Derive the initial card values from a CalendarEvent's suggestions.
+export function initialValuesFromEvent(event: CalendarEvent): BackfillCardValues {
+  return {
+    title: event.title,
+    activityType:
+      (event.suggestedActivityType as ActivityType | null) ?? "program_check_in",
+    planIds: event.suggestedPlanId ? [event.suggestedPlanId] : [],
+    districtLeaids: event.suggestedDistrictId ? [event.suggestedDistrictId] : [],
+    notes: event.description ?? "",
+  };
 }
 
 interface BackfillEventCardProps {
   event: CalendarEvent;
-  onConfirm: (overrides: BackfillConfirmOverrides) => void;
+  values: BackfillCardValues;
+  onValuesChange: (next: BackfillCardValues) => void;
+  onConfirm: (overrides: BackfillCardValues) => void;
   onSkip: () => void;
   onDismiss: () => void;
   isSaving: boolean;
+  errorMessage?: string | null;
 }
 
 type ConfidenceVariant = "high" | "medium" | "low" | "none";
@@ -53,9 +76,11 @@ const CONFIDENCE_STYLES: Record<ConfidenceVariant, ConfidenceStyle> = {
     className: "bg-[#E8F1F5] text-[#4E7C94] border-[#8bb5cb]/30",
   },
   low: {
+    // Warning tokens from Documentation/UI Framework/tokens.md §Semantic Colors:
+    // bg #fffaf1, border #ffd98d, accent #FFCF70 (golden).
     label: "No match found",
     icon: "❔",
-    className: "bg-[#FFF8EC] text-[#8A6A00] border-[#E8C77A]/40",
+    className: "bg-[#fffaf1] text-[#8A6A00] border-[#ffd98d]",
   },
   none: { label: "", icon: "", className: "" },
 };
@@ -73,43 +98,21 @@ function formatTimeRange(event: CalendarEvent): { date: string; time: string; du
 
 export default function BackfillEventCard({
   event,
+  values,
+  onValuesChange,
   onConfirm,
   onSkip,
   onDismiss,
   isSaving,
+  errorMessage,
 }: BackfillEventCardProps) {
   const { data: plans } = useTerritoryPlans();
 
-  const initialType: ActivityType =
-    (event.suggestedActivityType as ActivityType | null) ?? "program_check_in";
-  const initialPlanIds = useMemo(
-    () => (event.suggestedPlanId ? [event.suggestedPlanId] : []),
-    [event.suggestedPlanId]
-  );
-  const initialDistrictLeaids = useMemo(
-    () => (event.suggestedDistrictId ? [event.suggestedDistrictId] : []),
-    [event.suggestedDistrictId]
-  );
-  const initialNotes = event.description ?? "";
+  const { title, activityType, planIds, districtLeaids, notes } = values;
 
-  // Local state — resets whenever a new event.id is passed in
-  const [title, setTitle] = useState(event.title);
-  const [activityType, setActivityType] = useState<ActivityType>(initialType);
-  const [planIds, setPlanIds] = useState<string[]>(initialPlanIds);
-  const [districtLeaids, setDistrictLeaids] = useState<string[]>(initialDistrictLeaids);
-  const [notes, setNotes] = useState<string>(initialNotes);
-
-  useEffect(() => {
-    setTitle(event.title);
-    setActivityType(
-      (event.suggestedActivityType as ActivityType | null) ?? "program_check_in"
-    );
-    setPlanIds(event.suggestedPlanId ? [event.suggestedPlanId] : []);
-    setDistrictLeaids(event.suggestedDistrictId ? [event.suggestedDistrictId] : []);
-    setNotes(event.description ?? "");
-    // We intentionally only reset when event.id changes, not on every render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
+  const setField = <K extends keyof BackfillCardValues>(key: K, value: BackfillCardValues[K]) => {
+    onValuesChange({ ...values, [key]: value });
+  };
 
   // Build plan options from all active plans + guarantee the suggested plan is present
   const planOptions = useMemo(() => {
@@ -155,13 +158,7 @@ export default function BackfillEventCard({
 
   const handleSave = () => {
     if (isSaving) return;
-    onConfirm({
-      activityType,
-      title: title.trim() || event.title,
-      planIds,
-      districtLeaids,
-      notes: notes.trim() ? notes.trim() : null,
-    });
+    onConfirm(values);
   };
 
   const cardClasses = `
@@ -188,6 +185,17 @@ export default function BackfillEventCard({
       )}
 
       <div className="p-6 space-y-5">
+        {/* Inline error banner — shown when a save or dismiss attempt fails */}
+        {errorMessage && (
+          <div
+            role="alert"
+            data-testid="backfill-event-error"
+            className="px-3 py-2 rounded-lg bg-[#fef1f0] border border-[#f58d85] text-xs text-[#F37167]"
+          >
+            {errorMessage}
+          </div>
+        )}
+
         {/* Title */}
         <div>
           <label className="sr-only" htmlFor="backfill-title">
@@ -197,7 +205,7 @@ export default function BackfillEventCard({
             id="backfill-title"
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => setField("title", e.target.value)}
             className="w-full text-xl font-semibold text-[#403770] bg-transparent focus:outline-none focus:ring-2 focus:ring-[#F37167] rounded px-1 -mx-1"
           />
           <div className="mt-1 flex items-center gap-2 text-xs text-[#8A80A8]">
@@ -222,7 +230,7 @@ export default function BackfillEventCard({
             <select
               id="backfill-type"
               value={activityType}
-              onChange={(e) => setActivityType(e.target.value as ActivityType)}
+              onChange={(e) => setField("activityType", e.target.value as ActivityType)}
               className="w-full bg-white border border-[#C2BBD4] rounded-lg px-3 py-2 text-sm text-[#403770] focus:ring-2 focus:ring-[#F37167] focus:border-[#F37167] focus:outline-none"
             >
               {typeOptions.map((opt) => (
@@ -242,7 +250,7 @@ export default function BackfillEventCard({
               label="Territory plan"
               options={planOptions}
               selected={planIds}
-              onChange={setPlanIds}
+              onChange={(next) => setField("planIds", next)}
               placeholder="Select plan..."
               countLabel="plans"
             />
@@ -262,7 +270,7 @@ export default function BackfillEventCard({
                 label="District"
                 options={districtOptions}
                 selected={districtLeaids}
-                onChange={setDistrictLeaids}
+                onChange={(next) => setField("districtLeaids", next)}
                 placeholder="Select district..."
                 countLabel="districts"
               />
@@ -316,7 +324,7 @@ export default function BackfillEventCard({
           <textarea
             id="backfill-notes"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => setField("notes", e.target.value)}
             rows={3}
             placeholder="Anything to remember from this meeting?"
             className="w-full bg-white border border-[#C2BBD4] rounded-lg px-3 py-2 text-sm text-[#403770] focus:ring-2 focus:ring-[#F37167] focus:border-[#F37167] focus:outline-none resize-none"

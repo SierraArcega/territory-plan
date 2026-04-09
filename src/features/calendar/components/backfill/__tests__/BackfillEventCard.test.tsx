@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { CalendarEvent } from "@/features/shared/types/api-types";
@@ -14,7 +15,10 @@ vi.mock("@/features/plans/lib/queries", () => ({
   }),
 }));
 
-import BackfillEventCard from "../BackfillEventCard";
+import BackfillEventCard, {
+  initialValuesFromEvent,
+  type BackfillCardValues,
+} from "../BackfillEventCard";
 
 function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
@@ -48,6 +52,44 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   };
 }
 
+// Tiny controlled wrapper — mimics how BackfillWizard owns card state so the
+// card can stay focused on rendering + edit dispatch.
+interface HarnessProps {
+  event: CalendarEvent;
+  onConfirm?: (values: BackfillCardValues) => void;
+  onSkip?: () => void;
+  onDismiss?: () => void;
+  isSaving?: boolean;
+  errorMessage?: string | null;
+  initialValues?: BackfillCardValues;
+}
+
+function Harness({
+  event,
+  onConfirm = vi.fn(),
+  onSkip = vi.fn(),
+  onDismiss = vi.fn(),
+  isSaving = false,
+  errorMessage = null,
+  initialValues,
+}: HarnessProps) {
+  const [values, setValues] = useState<BackfillCardValues>(
+    initialValues ?? initialValuesFromEvent(event)
+  );
+  return (
+    <BackfillEventCard
+      event={event}
+      values={values}
+      onValuesChange={setValues}
+      onConfirm={onConfirm}
+      onSkip={onSkip}
+      onDismiss={onDismiss}
+      isSaving={isSaving}
+      errorMessage={errorMessage}
+    />
+  );
+}
+
 describe("BackfillEventCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,15 +97,7 @@ describe("BackfillEventCard", () => {
 
   it("pre-fills title, type and notes from event suggestions", () => {
     const event = makeEvent();
-    render(
-      <BackfillEventCard
-        event={event}
-        onConfirm={vi.fn()}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+    render(<Harness event={event} />);
 
     const titleInput = screen.getByLabelText<HTMLInputElement>(/meeting title/i);
     expect(titleInput.value).toBe("Quarterly review with Ada County");
@@ -76,28 +110,12 @@ describe("BackfillEventCard", () => {
   });
 
   it("shows the high-confidence banner", () => {
-    render(
-      <BackfillEventCard
-        event={makeEvent()}
-        onConfirm={vi.fn()}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+    render(<Harness event={makeEvent()} />);
     expect(screen.getByText("Strong match")).toBeInTheDocument();
   });
 
   it("does not render a banner for confidence=none", () => {
-    render(
-      <BackfillEventCard
-        event={makeEvent({ matchConfidence: "none" })}
-        onConfirm={vi.fn()}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+    render(<Harness event={makeEvent({ matchConfidence: "none" })} />);
     expect(screen.queryByText("Strong match")).not.toBeInTheDocument();
     expect(screen.queryByText("Possible match")).not.toBeInTheDocument();
   });
@@ -105,15 +123,7 @@ describe("BackfillEventCard", () => {
   it("updates local state without calling onConfirm while editing", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
-    render(
-      <BackfillEventCard
-        event={makeEvent()}
-        onConfirm={onConfirm}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+    render(<Harness event={makeEvent()} onConfirm={onConfirm} />);
 
     const notesInput = screen.getByLabelText(/notes/i);
     await user.clear(notesInput);
@@ -124,15 +134,7 @@ describe("BackfillEventCard", () => {
   it("calls onConfirm with edited values when Save & Next is clicked", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
-    render(
-      <BackfillEventCard
-        event={makeEvent()}
-        onConfirm={onConfirm}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+    render(<Harness event={makeEvent()} onConfirm={onConfirm} />);
 
     const notesInput = screen.getByLabelText(/notes/i);
     await user.clear(notesInput);
@@ -152,38 +154,25 @@ describe("BackfillEventCard", () => {
     );
   });
 
-  it("resets local state when a new event.id is passed in", () => {
-    const onConfirm = vi.fn();
-    const { rerender } = render(
-      <BackfillEventCard
-        event={makeEvent()}
-        onConfirm={onConfirm}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+  it("re-derives values from a new event when the parent swaps the event prop", () => {
+    // The wizard re-initializes cardValues when currentIndex changes, so when
+    // a new event arrives with new initialValues the displayed fields follow.
+    const { rerender } = render(<Harness event={makeEvent()} />);
     expect(
       screen.getByLabelText<HTMLInputElement>(/meeting title/i).value
     ).toBe("Quarterly review with Ada County");
 
-    rerender(
-      <BackfillEventCard
-        event={makeEvent({
-          id: "evt-2",
-          title: "Onboarding call with Boise ISD",
-          description: "Kickoff",
-          suggestedPlanId: null,
-          suggestedDistrictId: null,
-          suggestedDistrictName: null,
-          suggestedDistrictState: null,
-        })}
-        onConfirm={onConfirm}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
-      />
-    );
+    const nextEvent = makeEvent({
+      id: "evt-2",
+      title: "Onboarding call with Boise ISD",
+      description: "Kickoff",
+      suggestedPlanId: null,
+      suggestedDistrictId: null,
+      suggestedDistrictName: null,
+      suggestedDistrictState: null,
+    });
+    // Re-mount the harness with a new key so it re-runs useState(() => initial)
+    rerender(<Harness key="evt-2" event={nextEvent} />);
 
     expect(
       screen.getByLabelText<HTMLInputElement>(/meeting title/i).value
@@ -199,12 +188,11 @@ describe("BackfillEventCard", () => {
     const onSkip = vi.fn();
     const onDismiss = vi.fn();
     render(
-      <BackfillEventCard
+      <Harness
         event={makeEvent()}
         onConfirm={onConfirm}
         onSkip={onSkip}
         onDismiss={onDismiss}
-        isSaving={false}
       />
     );
 
@@ -217,15 +205,7 @@ describe("BackfillEventCard", () => {
   });
 
   it("disables buttons and shows spinner when isSaving is true", () => {
-    render(
-      <BackfillEventCard
-        event={makeEvent()}
-        onConfirm={vi.fn()}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={true}
-      />
-    );
+    render(<Harness event={makeEvent()} isSaving={true} />);
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^skip$/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^dismiss$/i })).toBeDisabled();
@@ -234,18 +214,26 @@ describe("BackfillEventCard", () => {
 
   it("renders 'No district match' fallback when there is no suggested district", () => {
     render(
-      <BackfillEventCard
+      <Harness
         event={makeEvent({
           suggestedDistrictId: null,
           suggestedDistrictName: null,
           suggestedDistrictState: null,
         })}
-        onConfirm={vi.fn()}
-        onSkip={vi.fn()}
-        onDismiss={vi.fn()}
-        isSaving={false}
       />
     );
     expect(screen.getByText(/no district match/i)).toBeInTheDocument();
+  });
+
+  it("renders an inline error banner when errorMessage is provided", () => {
+    render(
+      <Harness
+        event={makeEvent()}
+        errorMessage="We couldn't save this one. Try again?"
+      />
+    );
+    const banner = screen.getByTestId("backfill-event-error");
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent(/couldn't save this one/i);
   });
 });
