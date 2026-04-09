@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useDisconnectCalendar, useTriggerCalendarSync } from "@/features/calendar/lib/queries";
 import type { CalendarConnection } from "@/features/shared/types/api-types";
 
@@ -25,6 +26,10 @@ interface ConnectionStatusCardProps {
 export default function ConnectionStatusCard({ connection }: ConnectionStatusCardProps) {
   const disconnectMutation = useDisconnectCalendar();
   const syncMutation = useTriggerCalendarSync();
+  const router = useRouter();
+
+  const needsResume =
+    !!connection.backfillStartDate && !connection.backfillCompletedAt;
 
   return (
     <div className="bg-white rounded-xl border border-[#D4CFE2] p-5">
@@ -74,6 +79,16 @@ export default function ConnectionStatusCard({ connection }: ConnectionStatusCar
           {disconnectMutation.isPending ? "Disconnecting..." : "Disconnect"}
         </button>
       </div>
+
+      {needsResume && (
+        <button
+          type="button"
+          onClick={() => router.push("/?tab=home&resumeBackfill=true")}
+          className="mt-3 text-xs font-medium text-[#F37167] hover:text-[#e0564c] transition-colors"
+        >
+          Resume calendar setup →
+        </button>
+      )}
     </div>
   );
 }
