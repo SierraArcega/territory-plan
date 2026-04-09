@@ -19,18 +19,16 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  console.log("[calendar-callback] hit — params:", { code: code ? "present" : "missing", state: state ? "present" : "missing", error, origin });
-
   // If the user denied access, redirect back with a message
   if (error) {
-    console.log("[calendar-callback] → error from Google:", error);
+    console.warn("[calendar-callback] user denied access:", error);
     return NextResponse.redirect(
       `${origin}/?calendarError=access_denied`
     );
   }
 
   if (!code) {
-    console.log("[calendar-callback] → no code param");
+    console.warn("[calendar-callback] missing code param");
     return NextResponse.redirect(
       `${origin}/?calendarError=no_code`
     );
@@ -38,7 +36,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const user = await getUser();
-    console.log("[calendar-callback] getUser:", user ? user.id : "null");
     if (!user) {
       return NextResponse.redirect(`${origin}/login`);
     }
@@ -51,7 +48,7 @@ export async function GET(request: NextRequest) {
           Buffer.from(state, "base64url").toString()
         );
         if (stateData.userId !== user.id) {
-          console.log("[calendar-callback] → state mismatch:", { stateUserId: stateData.userId, sessionUserId: user.id });
+          console.warn("[calendar-callback] state/user mismatch");
           return NextResponse.redirect(
             `${origin}/?calendarError=state_mismatch`
           );
@@ -65,9 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Exchange the auth code for access + refresh tokens
     const redirectUri = `${origin}/api/calendar/callback`;
-    console.log("[calendar-callback] exchanging code, redirectUri:", redirectUri);
     const tokens = await exchangeCodeForTokens(code, redirectUri);
-    console.log("[calendar-callback] token exchange succeeded, email:", tokens.email);
 
     // Extract the company domain from the user's email
     // This is used to filter out internal attendees when syncing calendar events
@@ -133,15 +128,12 @@ export async function GET(request: NextRequest) {
 
     // Defer the initial sync. The BackfillSetupModal on HomeView will trigger
     // it via POST /api/calendar/backfill/start once the user picks a window.
-    console.log(
-      "[calendar-callback] → SUCCESS, redirecting to home for backfill wizard"
-    );
     const fromSettings = returnTo === "settings" ? "&from=settings" : "";
     return NextResponse.redirect(
       `${origin}/?tab=home&calendarJustConnected=true${fromSettings}`
     );
   } catch (err) {
-    console.error("[calendar-callback] → FAILED. Error:", err);
+    console.error("[calendar-callback] token exchange failed:", err);
     return NextResponse.redirect(
       `${origin}/?calendarError=token_exchange_failed`
     );
