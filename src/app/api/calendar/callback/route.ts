@@ -5,7 +5,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { exchangeCodeForTokens } from "@/features/calendar/lib/google";
-import { syncCalendarEvents } from "@/features/calendar/lib/sync";
 import { encrypt } from "@/features/integrations/lib/encryption";
 import prisma from "@/lib/prisma";
 
@@ -77,12 +76,15 @@ export async function GET(request: NextRequest) {
 
     // Upsert the calendar integration — one per user per service
     // If the user re-connects, we update the existing integration with new tokens
+    const encryptedAccessToken = encrypt(tokens.accessToken);
+    const encryptedRefreshToken = encrypt(tokens.refreshToken);
+
     await prisma.userIntegration.upsert({
       where: { userId_service: { userId: user.id, service: "google_calendar" } },
       update: {
         accountEmail: tokens.email,
-        accessToken: encrypt(tokens.accessToken),
-        refreshToken: encrypt(tokens.refreshToken),
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
         tokenExpiresAt: tokens.expiresAt,
         metadata: { companyDomain },
         status: "connected",
@@ -92,8 +94,8 @@ export async function GET(request: NextRequest) {
         userId: user.id,
         service: "google_calendar",
         accountEmail: tokens.email,
-        accessToken: encrypt(tokens.accessToken),
-        refreshToken: encrypt(tokens.refreshToken),
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
         tokenExpiresAt: tokens.expiresAt,
         metadata: { companyDomain },
         status: "connected",
@@ -101,25 +103,42 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Auto-sync calendar events so the inbox is populated immediately
-    try {
-      await syncCalendarEvents(user.id);
-    } catch (syncErr) {
-      // Non-fatal — the user can manually sync later
-      console.error("Auto-sync after connection failed:", syncErr);
-    }
+    // Upsert the CalendarConnection row — the sync engine reads connection-level
+    // fields (syncDirection, companyDomain, backfillStartDate, etc.) from this
+    // table. Without this upsert, first-time users hit "No calendar connection
+    // found" on sync. On create, backfillStartDate and backfillCompletedAt are
+    // left NULL; the wizard sets them when the user picks a window.
+    await prisma.calendarConnection.upsert({
+      where: { userId: user.id },
+      update: {
+        googleAccountEmail: tokens.email,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        tokenExpiresAt: tokens.expiresAt,
+        companyDomain,
+        status: "connected",
+        syncEnabled: true,
+      },
+      create: {
+        userId: user.id,
+        googleAccountEmail: tokens.email,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        tokenExpiresAt: tokens.expiresAt,
+        companyDomain,
+        status: "connected",
+        syncEnabled: true,
+      },
+    });
 
-    // Redirect back to where the user started the flow
-    if (returnTo === "settings") {
-      console.log("[calendar-callback] → SUCCESS, redirecting to settings");
-      return NextResponse.redirect(
-        `${origin}/?tab=profile&section=calendar-sync&calendarConnected=true`
-      );
-    }
-
-    console.log("[calendar-callback] → SUCCESS, redirecting to activities");
+    // Defer the initial sync. The BackfillSetupModal on HomeView will trigger
+    // it via POST /api/calendar/backfill/start once the user picks a window.
+    console.log(
+      "[calendar-callback] → SUCCESS, redirecting to home for backfill wizard"
+    );
+    const fromSettings = returnTo === "settings" ? "&from=settings" : "";
     return NextResponse.redirect(
-      `${origin}/?tab=activities&calendarConnected=true`
+      `${origin}/?tab=home&calendarJustConnected=true${fromSettings}`
     );
   } catch (err) {
     console.error("[calendar-callback] → FAILED. Error:", err);
