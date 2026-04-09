@@ -48,6 +48,7 @@ function makeStatus(
     createdAt: new Date().toISOString(),
     backfillStartDate: null,
     backfillCompletedAt: null,
+    backfillWindowDays: null,
   };
   return {
     connected: opts.connected ?? true,

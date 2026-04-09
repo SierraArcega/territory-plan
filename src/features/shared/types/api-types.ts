@@ -946,6 +946,7 @@ export interface CalendarConnection {
   createdAt: string;
   backfillStartDate: string | null;
   backfillCompletedAt: string | null;
+  backfillWindowDays: number | null;
 }
 
 export interface CalendarStatusResponse {

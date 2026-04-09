@@ -94,7 +94,7 @@ describe("BackfillSetupModal", () => {
 
   it("renders the picker step by default", () => {
     render(<BackfillSetupModal isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByText(/get your calendar caught up/i)).toBeInTheDocument();
+    expect(screen.getByText(/sync your calendar/i)).toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(4);
   });
 
@@ -173,7 +173,7 @@ describe("BackfillSetupModal", () => {
     render(
       <BackfillSetupModal isOpen={true} onClose={vi.fn()} initialStep="wizard" />
     );
-    expect(screen.queryByText(/get your calendar caught up/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sync your calendar/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("backfill-wizard")).toBeInTheDocument();
   });
 

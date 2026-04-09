@@ -99,6 +99,7 @@ function makeConnection(overrides: Record<string, unknown> = {}) {
     secondReminderMinutes: null,
     backfillStartDate: null as Date | null,
     backfillCompletedAt: null as Date | null,
+    backfillWindowDays: null as number | null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -266,6 +267,45 @@ describe("syncCalendarEvents — window selection", () => {
     const [, timeMin] = vi.mocked(fetchCalendarEvents).mock.calls[0];
     const expected = new Date(NOW.getTime() - 7 * DAY_MS);
     expect(Math.abs(timeMin.getTime() - expected.getTime())).toBeLessThan(1000);
+  });
+
+  it("uses backfillWindowDays as the forward horizon (timeMax)", async () => {
+    primeValidSyncPath(
+      makeConnection({
+        backfillStartDate: new Date(NOW.getTime() - 30 * DAY_MS),
+        backfillCompletedAt: null,
+        backfillWindowDays: 30,
+        lastSyncAt: null,
+      }),
+      []
+    );
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    const [, , timeMax] = vi.mocked(fetchCalendarEvents).mock.calls[0];
+    // timeMax = now + backfillWindowDays (30), not the old hardcoded 14
+    const expected = new Date(NOW.getTime() + 30 * DAY_MS);
+    expect(Math.abs(timeMax.getTime() - expected.getTime())).toBeLessThan(1000);
+  });
+
+  it("falls back to 14-day forward window when backfillWindowDays is null", async () => {
+    primeValidSyncPath(
+      makeConnection({
+        backfillStartDate: null,
+        backfillCompletedAt: null,
+        backfillWindowDays: null,
+        lastSyncAt: null,
+      }),
+      []
+    );
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
+
+    await syncCalendarEvents(USER_ID);
+
+    const [, , timeMax] = vi.mocked(fetchCalendarEvents).mock.calls[0];
+    const expected = new Date(NOW.getTime() + 14 * DAY_MS);
+    expect(Math.abs(timeMax.getTime() - expected.getTime())).toBeLessThan(1000);
   });
 });
 

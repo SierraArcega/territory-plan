@@ -17,16 +17,20 @@ interface BackfillWindowPickerProps {
 interface PresetCard {
   days: BackfillDays;
   label: string;
+  split: string;
   range: string;
   subtitle: string;
   isDefault: boolean;
 }
 
+// Each preset is SYMMETRIC around today: the wizard pulls the same number of
+// days before and after "now", so picking 30 means "past 30 days + next 30 days".
+// Event-count ranges are doubled from the historic past-only estimates.
 const PRESETS: PresetCard[] = [
-  { days: 7,  label: "Last 7 days",  range: "~5-15 events",   subtitle: "Just this week",      isDefault: false },
-  { days: 30, label: "Last 30 days", range: "~20-40 events",  subtitle: "Monthly review",      isDefault: true  },
-  { days: 60, label: "Last 60 days", range: "~40-80 events",  subtitle: "Quarterly check-in",  isDefault: false },
-  { days: 90, label: "Last 90 days", range: "~60-120 events", subtitle: "Full fiscal quarter", isDefault: false },
+  { days: 7,  label: "± 7 days",  split: "7 days back + 7 days forward",   range: "~10-30 events",   subtitle: "This week and next",    isDefault: false },
+  { days: 30, label: "± 30 days", split: "30 days back + 30 days forward", range: "~40-80 events",   subtitle: "Monthly view",          isDefault: true  },
+  { days: 60, label: "± 60 days", split: "60 days back + 60 days forward", range: "~80-160 events",  subtitle: "Two-month horizon",     isDefault: false },
+  { days: 90, label: "± 90 days", split: "90 days back + 90 days forward", range: "~120-240 events", subtitle: "Full fiscal quarter",   isDefault: false },
 ];
 
 export default function BackfillWindowPicker({
@@ -64,11 +68,13 @@ export default function BackfillWindowPicker({
     <div className="p-8">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-[#403770]">
-          Get your calendar caught up
+          Sync your calendar
         </h2>
         <p className="mt-2 text-sm text-[#6E6390]">
-          Choose how far back you want to sync events. We&apos;ll walk you
-          through each meeting so you can log it as an activity.
+          Pick how much of your calendar to bring in. We&apos;ll pull the same
+          number of days{" "}
+          <span className="font-semibold text-[#403770]">before and after today</span>{" "}
+          so you can log past meetings and plan for upcoming ones in one pass.
         </p>
       </div>
 
@@ -88,7 +94,7 @@ export default function BackfillWindowPicker({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              aria-label={`${preset.label} — ${preset.subtitle}`}
+              aria-label={`${preset.label} — ${preset.split}`}
               onClick={() => setSelected(preset.days)}
               onKeyDown={(e) => handleCardKeyDown(e, index)}
               className={`
@@ -113,8 +119,11 @@ export default function BackfillWindowPicker({
               <div className="text-base font-semibold text-[#403770]">
                 {preset.label}
               </div>
-              <div className="mt-1 text-xs text-[#8A80A8]">{preset.range}</div>
-              <div className="mt-2 text-xs text-[#6E6390]">{preset.subtitle}</div>
+              <div className="mt-1 text-xs font-medium text-[#544A78]">
+                {preset.split}
+              </div>
+              <div className="mt-2 text-xs text-[#8A80A8]">{preset.range}</div>
+              <div className="mt-1 text-xs text-[#6E6390]">{preset.subtitle}</div>
             </button>
           );
         })}

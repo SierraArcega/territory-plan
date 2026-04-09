@@ -4,22 +4,28 @@ import userEvent from "@testing-library/user-event";
 import BackfillWindowPicker from "../BackfillWindowPicker";
 
 describe("BackfillWindowPicker", () => {
-  it("renders 4 preset cards", () => {
+  it("renders 4 preset cards with symmetric past+future labels", () => {
     render(
       <BackfillWindowPicker onStart={vi.fn()} onCancel={vi.fn()} isLoading={false} />
     );
     expect(screen.getAllByRole("radio")).toHaveLength(4);
-    expect(screen.getByText("Last 7 days")).toBeInTheDocument();
-    expect(screen.getByText("Last 30 days")).toBeInTheDocument();
-    expect(screen.getByText("Last 60 days")).toBeInTheDocument();
-    expect(screen.getByText("Last 90 days")).toBeInTheDocument();
+    expect(screen.getByText("± 7 days")).toBeInTheDocument();
+    expect(screen.getByText("± 30 days")).toBeInTheDocument();
+    expect(screen.getByText("± 60 days")).toBeInTheDocument();
+    expect(screen.getByText("± 90 days")).toBeInTheDocument();
+    // The "back + forward" split must appear on every card so users aren't
+    // surprised by future events in the wizard.
+    expect(screen.getByText("7 days back + 7 days forward")).toBeInTheDocument();
+    expect(screen.getByText("30 days back + 30 days forward")).toBeInTheDocument();
+    expect(screen.getByText("60 days back + 60 days forward")).toBeInTheDocument();
+    expect(screen.getByText("90 days back + 90 days forward")).toBeInTheDocument();
   });
 
   it("pre-selects the 30-day card with a Recommended badge", () => {
     render(
       <BackfillWindowPicker onStart={vi.fn()} onCancel={vi.fn()} isLoading={false} />
     );
-    const thirty = screen.getByRole("radio", { name: /last 30 days/i });
+    const thirty = screen.getByRole("radio", { name: /± 30 days/i });
     expect(thirty).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText("Recommended")).toBeInTheDocument();
   });
@@ -29,10 +35,10 @@ describe("BackfillWindowPicker", () => {
     render(
       <BackfillWindowPicker onStart={vi.fn()} onCancel={vi.fn()} isLoading={false} />
     );
-    const ninety = screen.getByRole("radio", { name: /last 90 days/i });
+    const ninety = screen.getByRole("radio", { name: /± 90 days/i });
     await user.click(ninety);
     expect(ninety).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: /last 30 days/i })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: /± 30 days/i })).toHaveAttribute(
       "aria-checked",
       "false"
     );
@@ -44,7 +50,7 @@ describe("BackfillWindowPicker", () => {
     render(
       <BackfillWindowPicker onStart={onStart} onCancel={vi.fn()} isLoading={false} />
     );
-    await user.click(screen.getByRole("radio", { name: /last 60 days/i }));
+    await user.click(screen.getByRole("radio", { name: /± 60 days/i }));
     await user.click(screen.getByRole("button", { name: /start sync/i }));
     expect(onStart).toHaveBeenCalledWith(60);
   });

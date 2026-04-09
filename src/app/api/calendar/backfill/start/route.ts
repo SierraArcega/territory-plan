@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       data: {
         backfillStartDate,
         backfillCompletedAt: null,
+        backfillWindowDays: days, // drives forward window on every subsequent sync
       },
     });
 

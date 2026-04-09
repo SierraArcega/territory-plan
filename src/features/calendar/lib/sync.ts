@@ -250,12 +250,16 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
   }
 
   // Step 2: Fetch events from Google Calendar
-  // Window: timeMax is always now + 14 days; timeMin depends on backfill/sync state
-  // - If the user picked a backfill window and hasn't finished the wizard → use backfillStartDate
-  // - Else if we have a prior sync → lastSyncAt minus a 2-day buffer (catches late updates)
-  // - Else → 7 days in the past (fallback preserves the old behavior for fresh connections)
+  // Window is symmetric around "now" based on the user's chosen backfillWindowDays:
+  // - timeMax = now + backfillWindowDays (forward horizon — new meetings get picked up)
+  // - timeMin depends on backfill/sync state:
+  //     - If the user picked a backfill window and hasn't finished the wizard → use backfillStartDate
+  //     - Else if we have a prior sync → lastSyncAt minus a 2-day buffer (catches late updates)
+  //     - Else → 7 days in the past (fallback preserves the old behavior for fresh connections)
+  // - Legacy fallback: if backfillWindowDays is null (older connections), use the old 14-day forward.
+  const windowDays = calendarConnection.backfillWindowDays ?? 14;
   const timeMax = new Date();
-  timeMax.setDate(timeMax.getDate() + 14);
+  timeMax.setDate(timeMax.getDate() + windowDays);
 
   let timeMin: Date;
   if (
