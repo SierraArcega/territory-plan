@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import HomeView from "../HomeView";
 
 // ---------------------------------------------------------------------------
@@ -80,14 +81,30 @@ vi.mock("@/features/progress/components/LaggingIndicatorsPanel", () => ({
   default: () => <div data-testid="lagging-panel" />,
 }));
 
-// Backfill modal + toast — stubbed out so we can assert on props
+// Backfill modal + toast — stubbed out so we can assert on props. The stub
+// renders a "close" button so tests can simulate the user dismissing the
+// modal (e.g. "Maybe later") and verify it stays closed on re-render.
 vi.mock("@/features/calendar/components/backfill/BackfillSetupModal", () => ({
-  default: (props: { isOpen: boolean; initialStep: string }) => (
+  default: (props: {
+    isOpen: boolean;
+    initialStep: string;
+    onClose: () => void;
+    onGoToActivities?: () => void;
+  }) => (
     <div
       data-testid="backfill-modal"
       data-open={props.isOpen ? "true" : "false"}
       data-initial-step={props.initialStep}
-    />
+      data-has-go-to-activities={props.onGoToActivities ? "true" : "false"}
+    >
+      <button
+        type="button"
+        data-testid="backfill-modal-close"
+        onClick={props.onClose}
+      >
+        Close
+      </button>
+    </div>
   ),
 }));
 
@@ -223,5 +240,31 @@ describe("HomeView — calendar sync integration", () => {
     expect(modal.dataset.open).toBe("true");
     expect(modal.dataset.initialStep).toBe("wizard");
     expect(mockRouterReplace).toHaveBeenCalled();
+  });
+
+  it("does not re-open the backfill modal after the user dismisses it via 'Maybe later'", async () => {
+    const user = userEvent.setup();
+    mockBackfillStatus.needsSetup = true;
+    const { rerender } = render(<HomeView />);
+
+    // Auto-opens on mount
+    const modal = screen.getByTestId("backfill-modal");
+    expect(modal.dataset.open).toBe("true");
+
+    // User dismisses the modal via the close (Maybe later) button
+    await user.click(screen.getByTestId("backfill-modal-close"));
+    expect(screen.getByTestId("backfill-modal").dataset.open).toBe("false");
+
+    // Force a re-render — nothing about the backfill status has changed and
+    // no explicit query param intent is set, so the modal must stay closed.
+    rerender(<HomeView />);
+    expect(screen.getByTestId("backfill-modal").dataset.open).toBe("false");
+  });
+
+  it("passes onGoToActivities to the backfill modal", () => {
+    mockBackfillStatus.needsSetup = true;
+    render(<HomeView />);
+    const modal = screen.getByTestId("backfill-modal");
+    expect(modal.dataset.hasGoToActivities).toBe("true");
   });
 });

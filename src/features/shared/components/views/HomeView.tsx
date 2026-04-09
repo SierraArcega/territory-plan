@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   useProfile,
@@ -301,17 +301,23 @@ export default function HomeView() {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastCount, setToastCount] = useState(0);
 
-  // Open the backfill modal on the right triggers and strip transient flags
+  // Open the backfill modal on the right triggers and strip transient flags.
+  // Explicit user intent (query params) always opens. Implicit open based on
+  // backfill status only fires AT MOST ONCE per HomeView mount — so closing
+  // the modal via "Maybe later" sticks instead of bouncing back open on the
+  // next render.
+  const hasAutoOpenedRef = useRef(false);
   useEffect(() => {
     const justConnected = searchParams?.get("calendarJustConnected") === "true";
     const resumeBackfill = searchParams?.get("resumeBackfill") === "true";
 
-    if (
-      justConnected ||
-      resumeBackfill ||
-      backfillStatus.needsSetup ||
-      backfillStatus.needsResume
+    if (justConnected || resumeBackfill) {
+      setBackfillModalOpen(true);
+    } else if (
+      !hasAutoOpenedRef.current &&
+      (backfillStatus.needsSetup || backfillStatus.needsResume)
     ) {
+      hasAutoOpenedRef.current = true;
       setBackfillModalOpen(true);
     }
 
@@ -323,6 +329,13 @@ export default function HomeView() {
       router.replace(qs ? `?${qs}` : "?tab=home", { scroll: false });
     }
   }, [searchParams, router, backfillStatus.needsSetup, backfillStatus.needsResume]);
+
+  // Navigation handler used by the backfill completion screen CTA — closes the
+  // modal and routes the rep to the Activities tab so they can see what landed.
+  const handleGoToActivities = () => {
+    setBackfillModalOpen(false);
+    router.push("?tab=activities");
+  };
 
   // Hook the auto-sync "new events arrived" callback up to the toast
   useEffect(() => {
@@ -767,6 +780,7 @@ export default function HomeView() {
         isOpen={backfillModalOpen}
         onClose={() => setBackfillModalOpen(false)}
         initialStep={backfillStatus.needsResume ? "wizard" : "picker"}
+        onGoToActivities={handleGoToActivities}
       />
       <CalendarSyncToast
         visible={toastVisible}

@@ -1,6 +1,7 @@
 // BackfillCompletionScreen — the "you're all caught up" finale for the
 // backfill wizard. Shows a big celebration emoji, summary counts, and a
-// CTA button. Auto-closes after 3 seconds via onClose.
+// CTA button that navigates the user to the Activities tab. Auto-forwards
+// to Activities after 3 seconds via onGoToActivities.
 
 "use client";
 
@@ -10,21 +11,26 @@ interface BackfillCompletionScreenProps {
   confirmed: number;
   dismissed: number;
   skipped: number;
-  onClose: () => void;
+  // Called when the user clicks the CTA or the auto-forward timer fires.
+  // Typically closes the modal and routes to ?tab=activities.
+  onGoToActivities: () => void;
+  // Still accepted for back-compat — not used directly by this component but
+  // the parent modal may want it for stray close paths.
+  onClose?: () => void;
 }
 
 export default function BackfillCompletionScreen({
   confirmed,
   dismissed,
   skipped,
-  onClose,
+  onGoToActivities,
 }: BackfillCompletionScreenProps) {
-  // Auto-close after 3s so the user doesn't have to click anything on the
-  // happy path. Clicking the CTA closes immediately.
+  // Auto-forward to Activities after 3s so the user doesn't have to click
+  // anything on the happy path. Clicking the CTA forwards immediately.
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
+    const timer = setTimeout(onGoToActivities, 3000);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [onGoToActivities]);
 
   const totalReviewed = confirmed + dismissed + skipped;
 
@@ -48,7 +54,7 @@ export default function BackfillCompletionScreen({
       )}
       <button
         type="button"
-        onClick={onClose}
+        onClick={onGoToActivities}
         className="mt-8 inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-[#F37167] rounded-lg hover:bg-[#e0564c] transition-colors"
       >
         Go to Activities

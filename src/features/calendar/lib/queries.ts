@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type {
@@ -217,11 +217,17 @@ export function useAutoSyncCalendarOnMount(): AutoSyncController {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync is a stable mutation object; we only care about the guard refs + connection data
   }, [data]);
 
-  return {
-    setOnNewEvents: (cb: (n: number) => void) => {
-      onNewEventsRef.current = cb;
-    },
-  };
+  // Memoize the returned controller so consumers (e.g. HomeView) that depend
+  // on it in a useEffect don't re-run the effect every render. The callback
+  // only touches a ref, so it never needs to change identity.
+  return useMemo(
+    () => ({
+      setOnNewEvents: (cb: (n: number) => void) => {
+        onNewEventsRef.current = cb;
+      },
+    }),
+    []
+  );
 }
 
 // Derives whether the user needs to set up or resume the backfill wizard.

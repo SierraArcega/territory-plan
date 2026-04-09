@@ -23,6 +23,10 @@ interface BackfillSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialStep?: "picker" | "wizard";
+  // Optional CTA from the completion screen. When provided, the "Go to
+  // Activities" button navigates the user to the Activities tab instead of
+  // merely closing the modal. Falls back to onClose when not supplied.
+  onGoToActivities?: () => void;
 }
 
 interface WizardCounts {
@@ -35,6 +39,7 @@ export default function BackfillSetupModal({
   isOpen,
   onClose,
   initialStep = "picker",
+  onGoToActivities,
 }: BackfillSetupModalProps) {
   const [step, setStep] = useState<Step>(initialStep === "wizard" ? "wizard" : "picker");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -250,6 +255,7 @@ export default function BackfillSetupModal({
             dismissed={counts.dismissed}
             skipped={counts.skipped}
             onClose={onClose}
+            onGoToActivities={onGoToActivities ?? onClose}
           />
         )}
 
