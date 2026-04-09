@@ -63,6 +63,12 @@ export function useCounties() {
   });
 }
 
+// Prefetch geography data on page load so dropdowns open instantly
+export function useGeographyPrefetch() {
+  useStates();
+  useCounties();
+}
+
 // State detail hook
 export function useStateDetail(stateCode: string | null) {
   return useQuery({

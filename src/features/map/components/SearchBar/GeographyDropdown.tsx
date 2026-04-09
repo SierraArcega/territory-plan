@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
-import { useCounties } from "@/features/map/lib/queries";
+import { useCounties, useStates } from "@/features/map/lib/queries";
 import type { CountyOption } from "@/features/map/lib/queries";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
 
@@ -17,13 +17,19 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const ref = useRef<HTMLDivElement>(null);
 
-  const [states, setStates] = useState<Array<{ abbrev: string; name: string }>>([]);
   const [zip, setZip] = useState("");
   const [radius, setRadius] = useState("25");
   const [zipLoading, setZipLoading] = useState(false);
 
+  // Fetch states via TanStack Query (cached 24h, prefetched on page load)
+  const { data: rawStates = [], isLoading: isLoadingStates } = useStates();
+  const states = useMemo(
+    () => rawStates.slice().sort((a, b) => a.name.localeCompare(b.name)),
+    [rawStates]
+  );
+
   // Fetch counties via TanStack Query (cached for the session)
-  const { data: counties = [] } = useCounties();
+  const { data: counties = [], isLoading: isLoadingCounties } = useCounties();
 
   // Get currently selected state abbreviations from the state filter (if any)
   const selectedStates = useMemo(() => {
@@ -43,19 +49,6 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
       label: `${c.countyName} (${c.stateAbbrev})`,
     }));
   }, [counties, selectedStates]);
-
-  useEffect(() => {
-    fetch("/api/states")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) =>
-        setStates(
-          (data as Array<{ abbrev: string; name: string }>).sort((a, b) =>
-            a.name.localeCompare(b.name)
-          )
-        )
-      )
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -173,24 +166,23 @@ export default function GeographyDropdown({ onClose }: GeographyDropdownProps) {
         </div>
 
         {/* State */}
-        {states.length > 0 && (
-          <FilterMultiSelect
-            label="State"
-            column="state"
-            options={states.map((s) => ({ value: s.abbrev, label: `${s.name} (${s.abbrev})` }))}
-            onApply={(col, vals) => addFilter(col, "in", vals)}
-          />
-        )}
+        <FilterMultiSelect
+          label="State"
+          column="state"
+          options={states.map((s) => ({ value: s.abbrev, label: `${s.name} (${s.abbrev})` }))}
+          onApply={(col, vals) => addFilter(col, "in", vals)}
+          loading={isLoadingStates}
+        />
 
         {/* County */}
-        {countyOptions.length > 0 && (
-          <FilterMultiSelect
-            label="County"
-            column="countyName"
-            options={countyOptions}
-            onApply={handleCountyApply}
-          />
-        )}
+        <FilterMultiSelect
+          label="County"
+          column="countyName"
+          options={countyOptions}
+          onApply={handleCountyApply}
+          loading={isLoadingCounties}
+          virtualize
+        />
 
       </div>
     </div>
