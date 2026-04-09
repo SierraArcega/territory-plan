@@ -37,6 +37,10 @@ vi.mock("@/features/map/lib/ref", () => ({
   mapV2Ref: { current: null },
 }));
 
+vi.mock("@/features/map/lib/queries", () => ({
+  useGeographyPrefetch: vi.fn(),
+}));
+
 vi.mock("../GeographyDropdown", () => ({ default: () => null }));
 vi.mock("../FullmindDropdown", () => ({ default: () => null }));
 vi.mock("../CompetitorsDropdown", () => ({ default: () => null }));
