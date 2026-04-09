@@ -12,9 +12,6 @@ vi.mock("@/features/map/lib/store", () => {
   return { useMapV2Store };
 });
 
-// Grab the mock after module is set up
-const mockRemoveSearchFilter = vi.fn();
-
 // Mock useVirtualizer to render all items in tests (jsdom has no layout engine)
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
@@ -69,7 +66,7 @@ describe("FilterMultiSelect — non-virtualized", () => {
 describe("FilterMultiSelect — virtualized with 3000 options", () => {
   const bigOptions = makeOptions(3000);
 
-  it("renders fewer than 50 DOM nodes with role=option (virtualization)", () => {
+  it("renders the virtualized listbox container", () => {
     // Without the mock this would render 3001 options; with mock it renders all,
     // so we verify the virtualized path is used (role=listbox present) and the
     // Select All button is rendered outside the scrollable container.

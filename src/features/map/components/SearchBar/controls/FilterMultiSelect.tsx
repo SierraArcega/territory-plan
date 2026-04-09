@@ -94,18 +94,18 @@ export default function FilterMultiSelect({ label, column, options, onApply, loa
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      const next = Math.min(activeIndex + 1, filtered.length); // 0=selectAll, 1..N=items
-      setActiveIndex(next);
-      if (virtualize && next > 0) {
-        rowVirtualizer.scrollToIndex(next - 1);
-      }
+      setActiveIndex((prev) => {
+        const next = Math.min(prev + 1, filtered.length);
+        if (virtualize && next > 0) rowVirtualizer.scrollToIndex(next - 1, { align: "auto" });
+        return next;
+      });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      const next = Math.max(activeIndex - 1, 0);
-      setActiveIndex(next);
-      if (virtualize && next > 0) {
-        rowVirtualizer.scrollToIndex(next - 1);
-      }
+      setActiveIndex((prev) => {
+        const next = Math.max(prev - 1, 0);
+        if (virtualize && next > 0) rowVirtualizer.scrollToIndex(next - 1, { align: "auto" });
+        return next;
+      });
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (activeIndex === 0) {
@@ -193,7 +193,7 @@ export default function FilterMultiSelect({ label, column, options, onApply, loa
           </div>
         ) : virtualize ? (
           /* Virtualized options list */
-          <div>
+          <div role="listbox" id="multiselect-listbox">
             {/* Select All button — fixed above virtualized list */}
             <button
               id="multiselect-select-all"
@@ -219,7 +219,7 @@ export default function FilterMultiSelect({ label, column, options, onApply, loa
             </button>
 
             {/* Virtualized scrollable area */}
-            <div ref={scrollRef} className="max-h-36 overflow-y-auto" role="listbox" id="multiselect-listbox">
+            <div ref={scrollRef} className="max-h-36 overflow-y-auto">
               {filtered.length === 0 ? (
                 <div className="px-2.5 py-2 text-xs text-[#A69DC0] italic">
                   No matches for &ldquo;{search}&rdquo;
