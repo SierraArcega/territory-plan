@@ -339,17 +339,18 @@ export async function PATCH(
       }
     }
 
-    // Update district visit dates, position, and notes if provided
+    // Update districts if provided (replace all)
     if (districtUpdates !== undefined) {
-      for (const du of districtUpdates as { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[]) {
-        await prisma.activityDistrict.updateMany({
-          where: { activityId: id, districtLeaid: du.leaid },
-          data: {
-            visitDate: du.visitDate ? new Date(du.visitDate) : null,
-            visitEndDate: du.visitEndDate ? new Date(du.visitEndDate) : null,
-            ...(du.position !== undefined && { position: du.position }),
-            ...(du.notes !== undefined && { notes: du.notes?.trim() || null }),
-          },
+      await prisma.activityDistrict.deleteMany({ where: { activityId: id } });
+      const districts = districtUpdates as { leaid: string; position?: number }[];
+      if (districts.length > 0) {
+        await prisma.activityDistrict.createMany({
+          data: districts.map((du, i) => ({
+            activityId: id,
+            districtLeaid: du.leaid,
+            position: du.position ?? i,
+            warningDismissed: false,
+          })),
         });
       }
     }
