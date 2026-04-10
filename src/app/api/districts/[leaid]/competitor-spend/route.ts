@@ -24,22 +24,39 @@ export async function GET(
   try {
     const { leaid } = await params;
 
-    // Fetch all competitor spend records for this district
-    const competitorSpend = await prisma.competitorSpend.findMany({
-      where: { leaid },
+    // Vendor slug → display name mapping
+    const VENDOR_DISPLAY_NAMES: Record<string, string> = {
+      proximity: "Proximity Learning",
+      elevate: "Elevate K12",
+      tbt: "Tutored By Teachers",
+      educere: "Educere",
+    };
+
+    // Fetch competitor financial data from district_financials (non-fullmind vendors)
+    const competitorFinancials = await prisma.districtFinancials.findMany({
+      where: {
+        leaid,
+        vendor: { not: "fullmind" },
+      },
+      select: {
+        vendor: true,
+        fiscalYear: true,
+        totalRevenue: true,
+        poCount: true,
+      },
       orderBy: [
-        { competitor: "asc" },
+        { vendor: "asc" },
         { fiscalYear: "desc" },
       ],
     });
 
-    // Transform to response format
-    const spendData = competitorSpend.map((record) => ({
-      competitor: record.competitor,
+    // Transform to response format (keep same shape as before)
+    const spendData = competitorFinancials.map((record) => ({
+      competitor: VENDOR_DISPLAY_NAMES[record.vendor] || record.vendor,
       fiscalYear: record.fiscalYear.toLowerCase(), // e.g., "fy26"
-      totalSpend: toNumber(record.totalSpend),
+      totalSpend: toNumber(record.totalRevenue),
       poCount: record.poCount,
-      color: COMPETITOR_COLORS[record.competitor] || "#6B7280",
+      color: COMPETITOR_COLORS[VENDOR_DISPLAY_NAMES[record.vendor] || record.vendor] || "#6B7280",
     }));
 
     // Calculate total across all competitors
