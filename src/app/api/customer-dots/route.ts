@@ -33,20 +33,24 @@ export async function GET() {
             ST_X(ST_Centroid(d.geometry)) as lng,
             ST_Y(ST_Centroid(d.geometry)) as lat,
             CASE
-              WHEN (d.fy25_net_invoicing > 0 OR d.fy25_sessions_revenue > 0)
-                AND (d.fy26_net_invoicing > 0 OR d.fy26_sessions_revenue > 0)
+              WHEN (COALESCE(df25.invoicing, 0) > 0 OR COALESCE(df25.total_revenue, 0) > 0)
+                AND (COALESCE(df26.invoicing, 0) > 0 OR COALESCE(df26.total_revenue, 0) > 0)
               THEN 'multi_year'
-              WHEN (d.fy26_net_invoicing > 0 OR d.fy26_sessions_revenue > 0)
-                AND NOT (d.fy25_net_invoicing > 0 OR d.fy25_sessions_revenue > 0)
+              WHEN (COALESCE(df26.invoicing, 0) > 0 OR COALESCE(df26.total_revenue, 0) > 0)
+                AND NOT (COALESCE(df25.invoicing, 0) > 0 OR COALESCE(df25.total_revenue, 0) > 0)
               THEN 'new'
-              WHEN (d.fy25_net_invoicing > 0 OR d.fy25_sessions_revenue > 0)
-                AND NOT (d.fy26_net_invoicing > 0 OR d.fy26_sessions_revenue > 0)
+              WHEN (COALESCE(df25.invoicing, 0) > 0 OR COALESCE(df25.total_revenue, 0) > 0)
+                AND NOT (COALESCE(df26.invoicing, 0) > 0 OR COALESCE(df26.total_revenue, 0) > 0)
               THEN 'lapsed'
               WHEN d.has_open_pipeline = true
               THEN 'pipeline'
               ELSE NULL
             END as category
           FROM districts d
+          LEFT JOIN district_financials df25 ON df25.leaid = d.leaid
+            AND df25.vendor = 'fullmind' AND df25.fiscal_year = 'FY25'
+          LEFT JOIN district_financials df26 ON df26.leaid = d.leaid
+            AND df26.vendor = 'fullmind' AND df26.fiscal_year = 'FY26'
           WHERE d.geometry IS NOT NULL
             AND (d.is_customer = true OR d.has_open_pipeline = true)
         ),
