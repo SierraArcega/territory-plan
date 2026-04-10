@@ -10,22 +10,26 @@ export async function PUT(
   try {
     const { leaid } = await params;
     const body = await request.json();
-    const { notes, owner } = body;
+    const { notes, ownerId } = body;
 
-    // Update notes and owner directly on the district
     const district = await prisma.district.update({
       where: { leaid },
       data: {
         notes: notes !== undefined ? notes : undefined,
-        owner: owner !== undefined ? owner : undefined,
+        ownerId: ownerId !== undefined ? (ownerId || null) : undefined,
         notesUpdatedAt: new Date(),
+      },
+      include: {
+        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
       },
     });
 
     return NextResponse.json({
       leaid: district.leaid,
       notes: district.notes,
-      owner: district.owner,
+      owner: district.ownerUser
+        ? { id: district.ownerUser.id, fullName: district.ownerUser.fullName, avatarUrl: district.ownerUser.avatarUrl }
+        : null,
       updatedAt: district.notesUpdatedAt?.toISOString() ?? null,
     });
   } catch (error) {

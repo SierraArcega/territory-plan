@@ -278,11 +278,14 @@ export async function PUT(
     const { code } = await params;
     const stateCode = code.toUpperCase();
     const body = await request.json();
-    const { notes, territoryOwner } = body;
+    const { notes, territoryOwnerId } = body;
 
     // Check if state exists
     let state = await prisma.state.findUnique({
       where: { abbrev: stateCode },
+      include: {
+        territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
     });
 
     // Get the state FIPS code from districts if state doesn't exist
@@ -306,7 +309,10 @@ export async function PUT(
           abbrev: stateCode,
           name: STATE_NAMES[stateCode] || stateCode,
           notes: notes ?? undefined,
-          territoryOwner: territoryOwner ?? undefined,
+          territoryOwnerId: territoryOwnerId ?? undefined,
+        },
+        include: {
+          territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         },
       });
     } else {
@@ -315,7 +321,10 @@ export async function PUT(
         where: { abbrev: stateCode },
         data: {
           ...(notes !== undefined && { notes }),
-          ...(territoryOwner !== undefined && { territoryOwner }),
+          ...(territoryOwnerId !== undefined && { territoryOwnerId: territoryOwnerId || null }),
+        },
+        include: {
+          territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         },
       });
     }
@@ -323,7 +332,9 @@ export async function PUT(
     return NextResponse.json({
       code: state.abbrev,
       notes: state.notes,
-      territoryOwner: state.territoryOwner,
+      territoryOwner: state.territoryOwnerUser
+        ? { id: state.territoryOwnerUser.id, fullName: state.territoryOwnerUser.fullName, avatarUrl: state.territoryOwnerUser.avatarUrl }
+        : null,
     });
   } catch (error) {
     console.error("Error updating state:", error);

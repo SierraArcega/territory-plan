@@ -11,10 +11,10 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { leaids, filters, owner, notes } = body as {
+    const { leaids, filters, ownerId, notes } = body as {
       leaids?: string[];
       filters?: FilterDef[];
-      owner?: string;
+      ownerId?: string;
       notes?: string;
     };
 
@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (owner === undefined && notes === undefined) {
+    if (ownerId === undefined && notes === undefined) {
       return NextResponse.json(
-        { error: "At least one of owner or notes must be provided" },
+        { error: "At least one of ownerId or notes must be provided" },
         { status: 400 }
       );
     }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       : { leaid: { in: leaids } };
 
     const data: Record<string, unknown> = { notesUpdatedAt: new Date() };
-    if (owner !== undefined) data.owner = owner || null;
+    if (ownerId !== undefined) data.ownerId = ownerId || null;
     if (notes !== undefined) data.notes = notes || null;
 
     const result = await prisma.district.updateMany({ where, data });
