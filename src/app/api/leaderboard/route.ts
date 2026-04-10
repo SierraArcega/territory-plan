@@ -7,12 +7,17 @@ import { getRepActuals } from "@/lib/opportunity-actuals";
 export const dynamic = "force-dynamic";
 
 // GET /api/leaderboard — full leaderboard for active initiative
+// Optional query params: ?pipelineFY=2026-27&targetedFY=2026-27 (override initiative FY settings)
 export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const url = new URL(request.url);
+    const pipelineFYOverride = url.searchParams.get("pipelineFY");
+    const targetedFYOverride = url.searchParams.get("targetedFY");
 
     const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
@@ -49,7 +54,7 @@ export async function GET(request: NextRequest) {
     const priorFY = currentFY - 1;
     const priorSchoolYr = `${priorFY - 1}-${String(priorFY).slice(-2)}`;
 
-    const pipelineSchoolYr = initiative.pipelineFiscalYear ?? defaultSchoolYr;
+    const pipelineSchoolYr = pipelineFYOverride ?? initiative.pipelineFiscalYear ?? defaultSchoolYr;
     const takeSchoolYr = initiative.takeFiscalYear ?? defaultSchoolYr;
     const revenueSchoolYr = initiative.revenueFiscalYear ?? defaultSchoolYr;
 
@@ -153,7 +158,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate revenue targeted per user — queries ALL plans by ownership and fiscal year,
     // independent of initiative start date (targets are FY goals, not initiative-period activities)
-    const revenueTargetedFYStr = initiative.revenueTargetedFiscalYear ?? null;
+    const revenueTargetedFYStr = targetedFYOverride ?? initiative.revenueTargetedFiscalYear ?? null;
     // Parse school-year string "2025-26" → ending calendar year 2026 (matches TerritoryPlan.fiscalYear Int)
     const revenueTargetedFY = revenueTargetedFYStr
       ? parseInt(revenueTargetedFYStr.split("-")[0], 10) + 1
@@ -271,6 +276,13 @@ export async function GET(request: NextRequest) {
         takeFiscalYear: initiative.takeFiscalYear,
         revenueFiscalYear: initiative.revenueFiscalYear,
         revenueTargetedFiscalYear: initiative.revenueTargetedFiscalYear,
+      },
+      resolvedFiscalYears: {
+        pipeline: pipelineSchoolYr,
+        targeted: revenueTargetedFYStr,
+        revenue: revenueSchoolYr,
+        priorYear: priorSchoolYr,
+        defaultSchoolYr,
       },
       entries,
       metrics: initiative.metrics.map((m) => ({
