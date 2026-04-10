@@ -146,15 +146,13 @@ export async function GET(
     }
 
     // Fallback: compute aggregates from districts if state not in states table
-    const [aggregates, customerCount, pipelineCount] = await Promise.all([
+    const [aggregates, customerCount, pipelineCount, pipelineAgg] = await Promise.all([
       prisma.district.aggregate({
         where: { stateAbbrev: stateCode },
         _count: { leaid: true },
         _sum: {
           enrollment: true,
           numberOfSchools: true,
-          fy26OpenPipeline: true,
-          fy27OpenPipeline: true,
         },
         _avg: {
           expenditurePerPupil: true,
@@ -168,6 +166,16 @@ export async function GET(
       prisma.district.count({
         where: { stateAbbrev: stateCode, hasOpenPipeline: true },
       }),
+      prisma.$queryRaw<[{ fy26_pipeline: number; fy27_pipeline: number }]>`
+        SELECT
+          COALESCE(SUM(CASE WHEN df.fiscal_year = 'FY26' THEN df.open_pipeline END), 0)::float AS fy26_pipeline,
+          COALESCE(SUM(CASE WHEN df.fiscal_year = 'FY27' THEN df.open_pipeline END), 0)::float AS fy27_pipeline
+        FROM district_financials df
+        JOIN districts d ON d.leaid = df.leaid
+        WHERE d.state_abbrev = ${stateCode}
+          AND df.vendor = 'fullmind'
+          AND df.fiscal_year IN ('FY26', 'FY27')
+      `,
     ]);
 
     // Get territory plans and assessments for this state
@@ -196,8 +204,8 @@ export async function GET(
         })
       : [];
 
-    const pipelineValue = (toNumber(aggregates._sum.fy26OpenPipeline) ?? 0) +
-      (toNumber(aggregates._sum.fy27OpenPipeline) ?? 0);
+    const pipelineValue = (pipelineAgg[0]?.fy26_pipeline ?? 0) +
+      (pipelineAgg[0]?.fy27_pipeline ?? 0);
 
     // Look up assessments using FIPS from first district
     const fallbackFips = districtLeaids[0]?.stateFips;
