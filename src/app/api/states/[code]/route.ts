@@ -82,6 +82,9 @@ export async function GET(
     // Try to find state in the states table first
     const state = await prisma.state.findUnique({
       where: { abbrev: stateCode },
+      include: {
+        territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
     });
 
     // If state exists in the states table, fetch related data and return
@@ -129,7 +132,11 @@ export async function GET(
           avgGraduationRate: toNumber(state.avgGraduationRate),
           avgPovertyRate: toNumber(state.avgPovertyRate),
         },
-        territoryOwner: state.territoryOwner,
+        territoryOwner: state.territoryOwnerUser
+          ? { id: state.territoryOwnerUser.id, fullName: state.territoryOwnerUser.fullName, avatarUrl: state.territoryOwnerUser.avatarUrl }
+          : state.territoryOwner
+          ? { id: null, fullName: state.territoryOwner, avatarUrl: null }
+          : null,
         notes: state.notes,
         assessments,
         territoryPlans: plans.map((p) => ({

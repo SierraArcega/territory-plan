@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
         lograde: true,
         higrade: true,
         owner: true,
+        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         schoolStatus: true,
         district: {
           select: { name: true },
@@ -94,7 +95,9 @@ export async function GET(request: NextRequest) {
       stateAbbrev: s.stateAbbrev,
       lograde: s.lograde,
       higrade: s.higrade,
-      owner: s.owner,
+      owner: s.ownerUser
+        ? { id: s.ownerUser.id, fullName: s.ownerUser.fullName, avatarUrl: s.ownerUser.avatarUrl }
+        : null,
       schoolStatus: s.schoolStatus,
     }));
 

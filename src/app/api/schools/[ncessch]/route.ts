@@ -22,6 +22,7 @@ export async function GET(
         enrollmentHistory: {
           orderBy: { year: "asc" },
         },
+        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         schoolTags: {
           include: { tag: true },
         },
@@ -62,7 +63,9 @@ export async function GET(
       urbanCentricLocale: school.urbanCentricLocale,
       enrollment: school.enrollment,
       directoryDataYear: school.directoryDataYear,
-      owner: school.owner,
+      owner: school.ownerUser
+        ? { id: school.ownerUser.id, fullName: school.ownerUser.fullName, avatarUrl: school.ownerUser.avatarUrl }
+        : null,
       notes: school.notes,
       notesUpdatedAt: school.notesUpdatedAt?.toISOString() ?? null,
       createdAt: school.createdAt.toISOString(),
