@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { LeaderboardEntry, LeaderboardMyRank, InitiativeInfo } from "./types";
 
-interface LeaderboardResponse {
+export interface LeaderboardResponse {
   initiative: InitiativeInfo;
   entries: LeaderboardEntry[];
   metrics: { action: string; label: string; pointValue: number }[];
