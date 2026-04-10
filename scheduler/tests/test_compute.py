@@ -85,6 +85,12 @@ def test_build_opportunity_record():
         "payment_type": "invoice",
         "payment_terms": "net30",
         "lead_source": "referral",
+        "minimum_purchase_amount": 1000.0,
+        "maximum_budget": 10000.0,
+        "detailsLink": "https://lms.example.com/opp/opp1",
+        "stage_history": [{"stage": "1 - Lead", "date": "2026-01-01"}],
+        "start_date": "2026-02-01",
+        "expiration": "2026-12-31",
     }
     district_mapping = {
         "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "Test District", "type": "district"}
@@ -97,6 +103,12 @@ def test_build_opportunity_record():
     assert record["district_nces_id"] == "0601234"
     assert record["district_lea_id"] == "0601234"
     assert record["sales_rep_name"] == "Jane"
+    assert record["minimum_purchase_amount"] == Decimal("1000.00")
+    assert record["maximum_budget"] == Decimal("10000.00")
+    assert record["details_link"] == "https://lms.example.com/opp/opp1"
+    assert record["stage_history"] == '[{"stage": "1 - Lead", "date": "2026-01-01"}]'
+    assert record["start_date"] == "2026-02-01"
+    assert record["expiration"] == "2026-12-31"
 
 
 def test_build_opportunity_record_computes_service_types():
@@ -111,6 +123,9 @@ def test_build_opportunity_record_computes_service_types():
         "referring_contact_name": None, "contracting_through": None,
         "funding_through": None, "payment_type": None,
         "payment_terms": None, "lead_source": None,
+        "minimum_purchase_amount": None, "maximum_budget": None,
+        "detailsLink": None, "stage_history": None,
+        "start_date": None, "expiration": None,
     }
     district_mapping = {
         "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "Test District", "type": "district"}
@@ -139,6 +154,9 @@ def test_build_opportunity_record_service_types_empty_sessions():
         "referring_contact_name": None, "contracting_through": None,
         "funding_through": None, "payment_type": None,
         "payment_terms": None, "lead_source": None,
+        "minimum_purchase_amount": None, "maximum_budget": None,
+        "detailsLink": None, "stage_history": None,
+        "start_date": None, "expiration": None,
     }
     district_mapping = {
         "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "D1", "type": "district"}
@@ -159,6 +177,9 @@ def test_build_opportunity_record_service_types_filters_nulls():
         "referring_contact_name": None, "contracting_through": None,
         "funding_through": None, "payment_type": None,
         "payment_terms": None, "lead_source": None,
+        "minimum_purchase_amount": None, "maximum_budget": None,
+        "detailsLink": None, "stage_history": None,
+        "start_date": None, "expiration": None,
     }
     district_mapping = {
         "acc1": {"nces_id": "0601234", "leaid": "0601234", "name": "D1", "type": "district"}
