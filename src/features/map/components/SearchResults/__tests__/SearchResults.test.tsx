@@ -51,6 +51,7 @@ vi.mock("@/features/map/lib/store", () => {
 vi.mock("@/features/plans/lib/queries", () => ({
   useTerritoryPlans: () => ({ data: [] }),
   useAddDistrictsToPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateTerritoryPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@/features/shared/lib/queries", () => ({
