@@ -588,10 +588,10 @@ export default function ActivityFormModal({
                   />
                   {/* Auto-linked districts & states as chips */}
                   {selectedContacts.length > 0 && (() => {
-                    const stopLeaids = new Set(selectedDistricts.map((d) => d.leaid));
+                    const explicitLeaids = new Set(selectedDistricts.map((d) => d.leaid));
                     const autoDistricts = [...new Map(
                       selectedContacts
-                        .filter((c) => !stopLeaids.has(c.leaid) && c.districtName)
+                        .filter((c) => !explicitLeaids.has(c.leaid) && c.districtName)
                         .map((c) => [c.leaid, c.districtName] as const)
                     ).entries()];
                     const stateAbbrevMap = new Map((states ?? []).map((s) => [s.fips, s.abbrev]));

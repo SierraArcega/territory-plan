@@ -129,7 +129,6 @@ export default function DistrictSearchInput({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search districts..."
           className="w-full pl-8 pr-3 py-2 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-          autoFocus
         />
         {isLoading && (
           <span className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#A69DC0] border-t-transparent rounded-full animate-spin" />
