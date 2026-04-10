@@ -1,25 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
-    const query = `
-      SELECT DISTINCT sales_executive
-      FROM districts
-      WHERE sales_executive IS NOT NULL AND sales_executive != ''
-      ORDER BY sales_executive
-    `;
+    const users = await prisma.userProfile.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+      },
+      orderBy: { fullName: "asc" },
+    });
 
-    const client = await pool.connect();
-    try {
-      const result = await client.query(query);
-      const executives = result.rows.map((row) => row.sales_executive);
-      return NextResponse.json(executives);
-    } finally {
-      client.release();
-    }
+    return NextResponse.json(users);
   } catch (error) {
     console.error("Error fetching sales executives:", error);
     return NextResponse.json(
