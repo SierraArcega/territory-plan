@@ -67,15 +67,15 @@ export function useUpdateDistrictEdits() {
     mutationFn: ({
       leaid,
       notes,
-      owner,
+      ownerId,
     }: {
       leaid: string;
       notes?: string;
-      owner?: string;
+      ownerId?: string;
     }) =>
       fetchJson<DistrictEdits>(`${API_BASE}/districts/${leaid}/edits`, {
         method: "PUT",
-        body: JSON.stringify({ notes, owner }),
+        body: JSON.stringify({ notes, ownerId }),
       }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["district", variables.leaid] });
@@ -87,7 +87,7 @@ export function useUpdateDistrictEdits() {
 interface BatchEditParams {
   leaids?: string[];
   filters?: { column: string; op: string; value?: unknown }[];
-  owner?: string;
+  ownerId?: string;
   notes?: string;
 }
 
@@ -95,10 +95,10 @@ export function useBatchEditDistricts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ leaids, filters, owner, notes }: BatchEditParams) =>
+    mutationFn: ({ leaids, filters, ownerId, notes }: BatchEditParams) =>
       fetchJson<{ updated: number }>(`${API_BASE}/districts/batch-edits`, {
         method: "POST",
-        body: JSON.stringify({ leaids, filters, owner, notes }),
+        body: JSON.stringify({ leaids, filters, ownerId, notes }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["explore"] });
@@ -236,7 +236,7 @@ export function useCreateAccount() {
       city?: string;
       state?: string;
       zip?: string;
-      salesExecutive?: string;
+      salesExecutiveId?: string;
       phone?: string;
       websiteUrl?: string;
     }) => {

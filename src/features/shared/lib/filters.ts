@@ -30,7 +30,7 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   enrollment: "enrollment",
   urbanicity: "urbanCentricLocale",
   accountType: "accountType",
-  owner: "owner",
+  owner: "ownerId",
   notes: "notes",
   // Location
   countyName: "countyName",
@@ -41,7 +41,7 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   // CRM / Revenue
   isCustomer: "isCustomer",
   hasOpenPipeline: "hasOpenPipeline",
-  salesExecutive: "salesExecutive",
+  salesExecutive: "salesExecutiveId",
   // FY25 Revenue
   fy25_closed_won_net_booking: "fy25ClosedWonNetBooking",
   fy25_net_invoicing: "fy25NetInvoicing",

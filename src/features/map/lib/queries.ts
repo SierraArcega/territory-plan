@@ -8,6 +8,7 @@ import type {
   StateDetail,
   StateDistrictsResponse,
   FocusModeData,
+  PersonRef,
 } from "@/features/shared/types/api-types";
 import type {
   ContactLayerFilter,
@@ -112,17 +113,17 @@ export function useUpdateState() {
     mutationFn: ({
       stateCode,
       notes,
-      territoryOwner,
+      territoryOwnerId,
     }: {
       stateCode: string;
       notes?: string;
-      territoryOwner?: string;
+      territoryOwnerId?: string;
     }) =>
-      fetchJson<{ code: string; notes: string | null; territoryOwner: string | null }>(
+      fetchJson<{ code: string; notes: string | null; territoryOwner: PersonRef | null }>(
         `${API_BASE}/states/${stateCode}`,
         {
           method: "PUT",
-          body: JSON.stringify({ notes, territoryOwner }),
+          body: JSON.stringify({ notes, territoryOwnerId }),
         }
       ),
     onSuccess: (_, variables) => {
