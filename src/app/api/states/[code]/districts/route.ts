@@ -63,7 +63,7 @@ export async function GET(
         enrollment: true,
         isCustomer: true,
         hasOpenPipeline: true,
-        salesExecutive: true,
+        salesExecutiveUser: { select: { id: true, fullName: true, avatarUrl: true } },
         districtFinancials: {
           where: { vendor: "fullmind", fiscalYear: { in: ["FY26", "FY27"] } },
           select: { fiscalYear: true, vendor: true, invoicing: true, openPipeline: true },
@@ -91,7 +91,9 @@ export async function GET(
         enrollment: d.enrollment,
         isCustomer: d.isCustomer ?? false,
         hasOpenPipeline: d.hasOpenPipeline ?? false,
-        salesExecutive: d.salesExecutive,
+        salesExecutive: d.salesExecutiveUser
+          ? { id: d.salesExecutiveUser.id, fullName: d.salesExecutiveUser.fullName, avatarUrl: d.salesExecutiveUser.avatarUrl }
+          : null,
         fy26NetInvoicing: getFinancialValue(d.districtFinancials, "fullmind", "FY26", "invoicing"),
         fy26OpenPipeline: getFinancialValue(d.districtFinancials, "fullmind", "FY26", "openPipeline"),
         fy27OpenPipeline: getFinancialValue(d.districtFinancials, "fullmind", "FY27", "openPipeline"),

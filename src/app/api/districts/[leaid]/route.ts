@@ -37,6 +37,8 @@ export async function GET(
           where: { vendor: "fullmind" },
           select: FULLMIND_FINANCIALS_SELECT,
         },
+        ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+        salesExecutiveUser: { select: { id: true, fullName: true, avatarUrl: true } },
       },
     });
 
@@ -89,7 +91,11 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
       fullmindData: district.isCustomer != null ? {
         leaid: district.leaid,
         accountName: district.accountName,
-        salesExecutive: district.salesExecutive,
+        salesExecutive: district.salesExecutiveUser
+          ? { id: district.salesExecutiveUser.id, fullName: district.salesExecutiveUser.fullName, avatarUrl: district.salesExecutiveUser.avatarUrl }
+          : district.salesExecutive
+          ? { id: null, fullName: district.salesExecutive, avatarUrl: null }
+          : null,
         lmsid: district.lmsid,
         ...extractFullmindFinancials(district.districtFinancials),
         isCustomer: district.isCustomer ?? false,
@@ -97,10 +103,12 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
       } : null,
 
       // User edits (now on district)
-      edits: district.notes != null || district.owner != null ? {
+      edits: district.notes != null || district.ownerId != null ? {
         leaid: district.leaid,
         notes: district.notes,
-        owner: district.owner,
+        owner: district.ownerUser
+          ? { id: district.ownerUser.id, fullName: district.ownerUser.fullName, avatarUrl: district.ownerUser.avatarUrl }
+          : null,
         updatedAt: district.notesUpdatedAt?.toISOString() ?? null,
       } : null,
 

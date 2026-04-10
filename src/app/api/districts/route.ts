@@ -109,9 +109,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sales executive filter - now directly on district
+    // Sales executive filter - now uses FK column
     if (salesExec) {
-      where.salesExecutive = salesExec;
+      where.salesExecutiveId = salesExec;
     }
 
     // Get total count
