@@ -16,9 +16,9 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify activity ownership
+    // Verify activity exists (any user can link activities to their plans)
     const activity = await prisma.activity.findUnique({
-      where: { id, createdByUserId: user.id },
+      where: { id },
     });
 
     if (!activity) {
@@ -35,15 +35,15 @@ export async function POST(
       );
     }
 
-    // Verify plans belong to user
+    // Verify plans exist
     const plans = await prisma.territoryPlan.findMany({
-      where: { id: { in: planIds }, userId: user.id },
+      where: { id: { in: planIds } },
       select: { id: true },
     });
 
     if (plans.length !== planIds.length) {
       return NextResponse.json(
-        { error: "One or more plans not found or not owned by user" },
+        { error: "One or more plans not found" },
         { status: 400 }
       );
     }

@@ -4,7 +4,7 @@
 // Features: Tab navigation with dashed line accent, view toggle per tab,
 // filter bar with saved views support
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { TerritoryPlanDistrict, ActivityListItem, Contact } from "@/lib/api";
 import { useTasks, useDistrictWebsites } from "@/lib/api";
 import { PERSONAS, SENIORITY_LEVELS } from "@/features/shared/types/contact-types";
@@ -14,6 +14,7 @@ import DistrictsTable from "./DistrictsTable";
 import DistrictCard from "./DistrictCard";
 import ActivitiesTable from "./ActivitiesTable";
 import ActivityCard from "./ActivityCard";
+import ActivitySearchModal from "./ActivitySearchModal";
 import ContactsTable from "./ContactsTable";
 import ContactCard from "./ContactCard";
 import TaskList from "@/features/tasks/components/TaskList";
@@ -39,6 +40,8 @@ interface PlanTabsProps {
   isRemovingDistrict?: boolean;
   onEditActivity: (activity: ActivityListItem) => void;
   onDeleteActivity: (activityId: string) => void;
+  onUnlinkActivity?: (activityId: string) => void;
+  onAddActivity?: () => void;
   isDeletingActivity?: boolean;
   onEditContact?: (contact: Contact) => void;
   onDeleteContact?: (contactId: number) => void;
@@ -229,6 +232,8 @@ export default function PlanTabs({
   isRemovingDistrict,
   onEditActivity,
   onDeleteActivity,
+  onUnlinkActivity,
+  onAddActivity,
   isDeletingActivity,
   onEditContact,
   onDeleteContact,
@@ -284,6 +289,28 @@ export default function PlanTabs({
     tasks: "none",
     vacancies: "none",
   });
+
+  // Activity search modal + add dropdown
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
+  const addDropdownRef = useRef<HTMLDivElement>(null);
+
+  const linkedActivityIds = useMemo(
+    () => new Set(activities.map((a) => a.id)),
+    [activities]
+  );
+
+  // Close add dropdown on outside click
+  useEffect(() => {
+    if (!showAddDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (addDropdownRef.current && !addDropdownRef.current.contains(e.target as Node)) {
+        setShowAddDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAddDropdown]);
 
   // Fetch task count for the tab badge
   const { data: tasksData } = useTasks({ planId });
@@ -761,6 +788,7 @@ export default function PlanTabs({
               activities={filtered}
               onEdit={onEditActivity}
               onDelete={onDeleteActivity}
+              onUnlink={onUnlinkActivity}
               isDeleting={isDeletingActivity}
             />
           );
@@ -792,6 +820,7 @@ export default function PlanTabs({
                         activity={activity}
                         onEdit={() => onEditActivity(activity)}
                         onDelete={() => onDeleteActivity(activity.id)}
+                        onUnlink={onUnlinkActivity ? () => onUnlinkActivity(activity.id) : undefined}
                       />
                     ))}
                   </div>
@@ -970,13 +999,62 @@ export default function PlanTabs({
           })}
         </nav>
 
-        {/* View Toggle — hidden on Tasks and Vacancies tabs (table-only) */}
+        {/* View Toggle + Add button — hidden on Tasks and Vacancies tabs (table-only) */}
         {activeTab !== "tasks" && activeTab !== "vacancies" && (
-          <div className="pb-3">
+          <div className="pb-3 flex items-center gap-2">
             <ViewToggle
               view={views[activeTab]}
               onViewChange={(view) => setViews(prev => ({ ...prev, [activeTab]: view as "cards" | "table" }))}
             />
+            {/* Add Activity dropdown — only on Activities tab */}
+            {activeTab === "activities" && (
+              <div ref={addDropdownRef} className="relative">
+                <button
+                  onClick={() => setShowAddDropdown((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add
+                  <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showAddDropdown && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white border border-[#D4CFE2] rounded-xl shadow-lg overflow-hidden z-20">
+                    <button
+                      onClick={() => {
+                        setShowAddDropdown(false);
+                        setShowSearchModal(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#403770] hover:bg-[#F7F5FA] transition-colors text-left"
+                    >
+                      <svg className="w-4 h-4 text-[#8A80A8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                        <path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                      Link Existing
+                    </button>
+                    {onAddActivity && (
+                      <button
+                        onClick={() => {
+                          setShowAddDropdown(false);
+                          onAddActivity();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#403770] hover:bg-[#F7F5FA] transition-colors text-left border-t border-[#F7F5FA]"
+                      >
+                        <svg className="w-4 h-4 text-[#8A80A8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Create New
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1006,6 +1084,15 @@ export default function PlanTabs({
       <div className="min-h-[200px]">
         {renderGroupedContent()}
       </div>
+
+      {/* Activity Search Modal */}
+      <ActivitySearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        planId={planId}
+        planName={planName}
+        linkedActivityIds={linkedActivityIds}
+      />
     </div>
   );
 }

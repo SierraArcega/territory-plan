@@ -31,6 +31,7 @@ interface ActivitiesTableProps {
   activities: ActivityListItem[];
   onEdit: (activity: ActivityListItem) => void;
   onDelete: (activityId: string) => void;
+  onUnlink?: (activityId: string) => void;
   isDeleting?: boolean;
 }
 
@@ -116,6 +117,7 @@ export default function ActivitiesTable({
   activities,
   onEdit,
   onDelete,
+  onUnlink,
   isDeleting = false,
 }: ActivitiesTableProps) {
   const [activityToDelete, setActivityToDelete] = useState<ActivityListItem | null>(null);
@@ -330,6 +332,19 @@ export default function ActivitiesTable({
                   {/* Actions — appear on hover */}
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                      {onUnlink && (
+                        <button
+                          onClick={() => onUnlink(activity.id)}
+                          className="p-1.5 text-[#A69DC0] hover:text-[#F37167] rounded-lg hover:bg-[#F37167]/5 transition-colors"
+                          aria-label="Remove from plan"
+                          title="Remove from plan"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.181 8.68a4 4 0 00-5.3.5l-2.5 2.5a4 4 0 005.6 5.6l.9-.9M10.82 15.32a4 4 0 005.3-.5l2.5-2.5a4 4 0 00-5.6-5.6l-.9.9" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8l8 8" />
+                          </svg>
+                        </button>
+                      )}
                       <button
                         onClick={() => setActivityToDelete(activity)}
                         className="p-1.5 text-[#A69DC0] hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"

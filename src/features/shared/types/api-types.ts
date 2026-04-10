@@ -573,6 +573,7 @@ export interface ActivitiesParams {
   hasUnlinkedDistricts?: boolean;
   source?: string;
   ownerId?: string;
+  search?: string;
   limit?: number;
   offset?: number;
 }
