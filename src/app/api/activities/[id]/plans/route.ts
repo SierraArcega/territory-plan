@@ -16,9 +16,9 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify activity ownership
+    // Verify activity exists (any user can link activities to their plans)
     const activity = await prisma.activity.findUnique({
-      where: { id, createdByUserId: user.id },
+      where: { id },
     });
 
     if (!activity) {

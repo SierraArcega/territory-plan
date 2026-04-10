@@ -49,6 +49,7 @@ export default function ActivitySearchModal({
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [isLinking, setIsLinking] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -108,16 +109,28 @@ export default function ActivitySearchModal({
   const handleLinkSelected = async () => {
     if (selectedIds.size === 0) return;
     setIsLinking(true);
+    setErrorMessage(null);
 
     try {
-      // Link each selected activity to this plan
-      const promises = Array.from(selectedIds).map((activityId) =>
-        linkActivityPlans.mutateAsync({ activityId, planIds: [planId] })
-      );
-      await Promise.all(promises);
-      onClose();
-    } catch {
-      // Errors handled by TanStack Query
+      // Link each selected activity to this plan one at a time
+      // so partial successes still count
+      let linked = 0;
+      for (const activityId of selectedIds) {
+        try {
+          await linkActivityPlans.mutateAsync({ activityId, planIds: [planId] });
+          linked++;
+        } catch (err) {
+          console.error(`Failed to link activity ${activityId}:`, err);
+        }
+      }
+      if (linked > 0) {
+        onClose();
+      } else {
+        setErrorMessage("Failed to link activities. You may not have permission to modify these activities.");
+      }
+    } catch (err) {
+      console.error("Failed to link activities:", err);
+      setErrorMessage("Something went wrong. Please try again.");
     } finally {
       setIsLinking(false);
     }
@@ -379,7 +392,11 @@ export default function ActivitySearchModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-[#E2DEEC] bg-[#F7F5FA] rounded-b-xl">
+        <div className="px-6 py-4 border-t border-[#E2DEEC] bg-[#F7F5FA] rounded-b-xl space-y-2">
+          {errorMessage && (
+            <p className="text-xs text-[#F37167] font-medium">{errorMessage}</p>
+          )}
+          <div className="flex items-center justify-between">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-[#6E6390] hover:bg-[#EFEDF5] rounded-lg transition-colors"
@@ -397,6 +414,7 @@ export default function ActivitySearchModal({
                 ? "Select activities"
                 : `Add ${newSelectionCount} activit${newSelectionCount !== 1 ? "ies" : "y"}`}
           </button>
+          </div>
         </div>
       </div>
     </div>
