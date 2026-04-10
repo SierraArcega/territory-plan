@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getUser } from "@/lib/supabase/server";
+import { getUser, isAdmin } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +16,19 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify activity ownership
+    // Verify activity exists and user can modify it
     const activity = await prisma.activity.findUnique({
-      where: { id, createdByUserId: user.id },
+      where: { id },
     });
 
     if (!activity) {
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
+    }
+
+    if (activity.createdByUserId && activity.createdByUserId !== user.id) {
+      if (!(await isAdmin(user.id))) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
     }
 
     // Get the district link with its state

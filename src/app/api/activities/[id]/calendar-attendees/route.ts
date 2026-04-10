@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import prisma from "@/lib/prisma";
-import { getUser } from "@/lib/supabase/server";
+import { getUser, isAdmin } from "@/lib/supabase/server";
 import { decrypt } from "@/features/integrations/lib/encryption";
 import { getValidAccessToken } from "@/features/calendar/lib/google";
 
@@ -43,7 +43,9 @@ export async function GET(
     }
 
     if (activity.createdByUserId && activity.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      if (!(await isAdmin(user.id))) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
     }
 
     // No Google event linked — return empty

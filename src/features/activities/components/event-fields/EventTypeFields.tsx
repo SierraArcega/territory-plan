@@ -23,16 +23,16 @@ interface DistrictStop {
   leaid: string;
   name: string;
   stateAbbrev: string | null;
-  visitDate: string;
-  notes: string;
+  visitDate?: string;
+  notes?: string;
 }
 
 interface EventTypeFieldsProps {
   type: ActivityType;
   metadata: Record<string, unknown>;
   onMetadataChange: (metadata: Record<string, unknown>) => void;
-  districtStops: DistrictStop[];
-  onDistrictStopsChange: (stops: DistrictStop[]) => void;
+  districtStops?: DistrictStop[];
+  onDistrictStopsChange?: (stops: DistrictStop[]) => void;
 }
 
 export default function EventTypeFields({
@@ -52,12 +52,12 @@ export default function EventTypeFields({
       );
 
     case "road_trip":
-      return (
+      return districtStops && onDistrictStopsChange ? (
         <RoadTripFields
           districtStops={districtStops}
           onDistrictStopsChange={onDistrictStopsChange}
         />
-      );
+      ) : null;
 
     case "dinner":
     case "happy_hour":

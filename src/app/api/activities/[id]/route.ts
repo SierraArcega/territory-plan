@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getUser } from "@/lib/supabase/server";
+import { getUser, isAdmin } from "@/lib/supabase/server";
 import { getCategoryForType, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityType } from "@/features/activities/types";
 import { updateActivityOnCalendar, deleteActivityFromCalendar } from "@/features/calendar/lib/push";
 
@@ -69,13 +69,14 @@ export async function GET(
     }
 
     // Allow viewing if user owns it, if it has no owner (backwards compatibility),
-    // or if the activity is linked to any plan (plan activities are visible to all)
+    // if the activity is linked to any plan (plan activities are visible to all),
+    // or if the user is an admin
     if (activity.createdByUserId && activity.createdByUserId !== user.id) {
       const linkedToPlan = await prisma.activityPlan.findFirst({
         where: { activityId: id },
         select: { planId: true },
       });
-      if (!linkedToPlan) {
+      if (!linkedToPlan && !(await isAdmin(user.id))) {
         return NextResponse.json({ error: "Not authorized to view this activity" }, { status: 403 });
       }
     }
@@ -225,9 +226,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow editing if user owns it OR if it has no owner (backwards compatibility)
+    // Allow editing if user owns it, if it has no owner (backwards compatibility), or if user is admin
     if (existing.createdByUserId && existing.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to edit this activity" }, { status: 403 });
+      if (!(await isAdmin(user.id))) {
+        return NextResponse.json({ error: "Not authorized to edit this activity" }, { status: 403 });
+      }
     }
 
     const body = await request.json();
@@ -237,8 +240,9 @@ export async function PATCH(
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
-    // Validate type if provided
-    if (type && !ALL_ACTIVITY_TYPES.includes(type)) {
+    // Validate type if provided — allow keeping the existing type even if it's
+    // a legacy value not in the current enum (e.g. customer_check_in)
+    if (type && type !== existing.type && !ALL_ACTIVITY_TYPES.includes(type)) {
       return NextResponse.json(
         { error: `Invalid activity type: ${type}` },
         { status: 400 }
@@ -336,17 +340,20 @@ export async function PATCH(
       }
     }
 
-    // Update district visit dates, position, and notes if provided
+    // Update districts if provided (replace all)
     if (districtUpdates !== undefined) {
-      for (const du of districtUpdates as { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[]) {
-        await prisma.activityDistrict.updateMany({
-          where: { activityId: id, districtLeaid: du.leaid },
-          data: {
+      await prisma.activityDistrict.deleteMany({ where: { activityId: id } });
+      const districts = districtUpdates as { leaid: string; position?: number; visitDate?: string | null; notes?: string | null }[];
+      if (districts.length > 0) {
+        await prisma.activityDistrict.createMany({
+          data: districts.map((du, i) => ({
+            activityId: id,
+            districtLeaid: du.leaid,
+            position: du.position ?? i,
             visitDate: du.visitDate ? new Date(du.visitDate) : null,
-            visitEndDate: du.visitEndDate ? new Date(du.visitEndDate) : null,
-            ...(du.position !== undefined && { position: du.position }),
-            ...(du.notes !== undefined && { notes: du.notes?.trim() || null }),
-          },
+            notes: du.notes?.trim() || null,
+            warningDismissed: false,
+          })),
         });
       }
     }
@@ -434,9 +441,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Activity not found" }, { status: 404 });
     }
 
-    // Allow deleting if user owns it OR if it has no owner (backwards compatibility)
+    // Allow deleting if user owns it, if it has no owner (backwards compatibility), or if user is admin
     if (activity.createdByUserId && activity.createdByUserId !== user.id) {
-      return NextResponse.json({ error: "Not authorized to delete this activity" }, { status: 403 });
+      if (!(await isAdmin(user.id))) {
+        return NextResponse.json({ error: "Not authorized to delete this activity" }, { status: 403 });
+      }
     }
 
     await prisma.activity.delete({ where: { id } });

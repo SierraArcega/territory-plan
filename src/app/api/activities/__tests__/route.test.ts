@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-// Mock getUser
+// Mock getUser and isAdmin
 const mockGetUser = vi.fn();
+const mockIsAdmin = vi.fn().mockResolvedValue(false);
 vi.mock("@/lib/supabase/server", () => ({
   getUser: (...args: unknown[]) => mockGetUser(...args),
+  isAdmin: (...args: unknown[]) => mockIsAdmin(...args),
 }));
 
 // Mock Prisma
@@ -18,6 +20,7 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    activityPlan: { findFirst: vi.fn() },
     district: { findMany: vi.fn() },
     territoryPlanDistrict: { findMany: vi.fn() },
   },
@@ -461,6 +464,7 @@ describe("GET /api/activities/[id]", () => {
     mockPrisma.activity.findUnique.mockResolvedValue(
       makeDetailActivity({ createdByUserId: "other-user" }) as never
     );
+    mockPrisma.activityPlan.findFirst.mockResolvedValue(null);
 
     const req = makeRequest("/api/activities/activity-1");
     const res = await getActivity(req, {
@@ -470,6 +474,27 @@ describe("GET /api/activities/[id]", () => {
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toBe("Not authorized to view this activity");
+  });
+
+  it("allows admin to view another user's activity", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockIsAdmin.mockResolvedValueOnce(true);
+    mockPrisma.activity.findUnique.mockResolvedValue(
+      makeDetailActivity({ createdByUserId: "other-user" }) as never
+    );
+    mockPrisma.activityPlan.findFirst.mockResolvedValue(null);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([
+      { planId: "plan-1", districtLeaid: "1234567" },
+    ] as never);
+
+    const req = makeRequest("/api/activities/activity-1");
+    const res = await getActivity(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe("activity-1");
   });
 
   it("returns activity detail with computed flags", async () => {
@@ -559,6 +584,36 @@ describe("PATCH /api/activities/[id]", () => {
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toBe("Not authorized to edit this activity");
+  });
+
+  it("allows admin to edit another user's activity", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockIsAdmin.mockResolvedValueOnce(true);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "other-user",
+    } as never);
+
+    const updatedActivity = {
+      id: "activity-1",
+      type: "conference",
+      title: "Admin Updated",
+      updatedAt: new Date("2026-02-23T12:00:00Z"),
+      rating: null,
+    };
+    mockPrisma.activity.update.mockResolvedValue(updatedActivity as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ title: "Admin Updated" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.title).toBe("Admin Updated");
   });
 
   it("returns 400 for invalid type", async () => {
@@ -703,6 +758,28 @@ describe("DELETE /api/activities/[id]", () => {
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toBe("Not authorized to delete this activity");
+  });
+
+  it("allows admin to delete another user's activity", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockIsAdmin.mockResolvedValueOnce(true);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "other-user",
+      googleEventId: null,
+    } as never);
+    mockPrisma.activity.delete.mockResolvedValue({} as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "DELETE",
+    });
+    const res = await DELETE(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
   });
 
   it("deletes activity successfully", async () => {

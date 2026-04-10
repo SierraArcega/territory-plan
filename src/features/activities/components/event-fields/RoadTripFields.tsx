@@ -7,8 +7,8 @@ interface DistrictStop {
   leaid: string;
   name: string;
   stateAbbrev: string | null;
-  visitDate: string;
-  notes: string;
+  visitDate?: string;
+  notes?: string;
 }
 
 interface RoadTripFieldsProps {
@@ -173,13 +173,13 @@ export default function RoadTripFields({
                 <div className="flex items-center gap-2 mt-2">
                   <input
                     type="date"
-                    value={stop.visitDate}
+                    value={stop.visitDate || ""}
                     onChange={(e) => updateStop(i, "visitDate", e.target.value)}
                     className="w-36 px-2 py-1.5 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
                   />
                   <input
                     type="text"
-                    value={stop.notes}
+                    value={stop.notes || ""}
                     onChange={(e) => updateStop(i, "notes", e.target.value)}
                     placeholder="Add notes..."
                     className="flex-1 px-2 py-1.5 border border-[#C2BBD4] rounded-lg text-sm text-[#403770] placeholder:text-[#A69DC0] focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
