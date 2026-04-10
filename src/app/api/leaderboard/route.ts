@@ -151,31 +151,38 @@ export async function GET(request: NextRequest) {
       revenueByUser.set(uid, (revenueByUser.get(uid) ?? 0) + total);
     }
 
-    // Calculate revenue targeted per user (filterable by plan fiscal year)
+    // Calculate revenue targeted per user — queries ALL plans by ownership and fiscal year,
+    // independent of initiative start date (targets are FY goals, not initiative-period activities)
     const revenueTargetedFYStr = initiative.revenueTargetedFiscalYear ?? null;
     // Parse school-year string "2025-26" → ending calendar year 2026 (matches TerritoryPlan.fiscalYear Int)
     const revenueTargetedFY = revenueTargetedFYStr
       ? parseInt(revenueTargetedFYStr.split("-")[0], 10) + 1
       : null;
+    // Current FY as int (for fallback when no initiative FY is set)
+    const currentFYInt = currentFY;
+    const nextFYInt = currentFY + 1;
     const revenueTargetedByUser = new Map<string, number>();
-    const planDistrictData = revenueTargetedFY
-      ? await prisma.territoryPlanDistrict.findMany({
-          where: {
-            plan: {
-              id: { in: planIds },
-              fiscalYear: revenueTargetedFY,
-            },
-          },
-          select: {
-            renewalTarget: true,
-            winbackTarget: true,
-            expansionTarget: true,
-            newBusinessTarget: true,
-            plan: { select: { ownerId: true, userId: true } },
-          },
-        })
-      : planDistricts; // Reuse if no FY filter
-    for (const d of planDistrictData) {
+    const targetedPlanDistricts = await prisma.territoryPlanDistrict.findMany({
+      where: {
+        plan: {
+          OR: [
+            { ownerId: { in: userIds } },
+            { userId: { in: userIds }, ownerId: null },
+          ],
+          fiscalYear: revenueTargetedFY
+            ? revenueTargetedFY
+            : { in: [currentFYInt, nextFYInt] },
+        },
+      },
+      select: {
+        renewalTarget: true,
+        winbackTarget: true,
+        expansionTarget: true,
+        newBusinessTarget: true,
+        plan: { select: { ownerId: true, userId: true } },
+      },
+    });
+    for (const d of targetedPlanDistricts) {
       const uid = d.plan.ownerId ?? d.plan.userId;
       if (!uid) continue;
       const total = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) + Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
