@@ -13,6 +13,7 @@ from sync.supabase_writer import (
     upsert_sessions,
     STAGE_WEIGHTS,
     OPPORTUNITY_COLUMNS,
+    SESSION_COLUMNS,
 )
 
 
@@ -107,6 +108,9 @@ def test_upsert_sessions_deletes_then_inserts():
                 "educator_price": Decimal("60.00"),
                 "educator_approved_price": None,
                 "start_time": "2026-01-01T10:00:00+00:00",
+                "type": "live",
+                "status": "completed",
+                "service_name": "Math Tutoring",
                 "synced_at": datetime(2026, 3, 16, tzinfo=timezone.utc),
             },
             {
@@ -117,6 +121,9 @@ def test_upsert_sessions_deletes_then_inserts():
                 "educator_price": Decimal("80.00"),
                 "educator_approved_price": Decimal("50.00"),
                 "start_time": "2026-06-01T10:00:00+00:00",
+                "type": "virtual",
+                "status": "scheduled",
+                "service_name": "Virtual Staffing",
                 "synced_at": datetime(2026, 3, 16, tzinfo=timezone.utc),
             },
         ],

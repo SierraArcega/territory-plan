@@ -67,7 +67,7 @@ def upsert_opportunities(conn, records):
 SESSION_COLUMNS = [
     "id", "opportunity_id", "service_type",
     "session_price", "educator_price", "educator_approved_price",
-    "start_time", "synced_at",
+    "start_time", "type", "status", "service_name", "synced_at",
 ]
 
 
