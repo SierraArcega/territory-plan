@@ -14,6 +14,7 @@ interface ActivityCardProps {
   activity: ActivityListItem;
   onEdit: () => void;
   onDelete: () => void;
+  onUnlink?: () => void;
   isDeleting?: boolean;
 }
 
@@ -21,6 +22,7 @@ export default function ActivityCard({
   activity,
   onEdit,
   onDelete,
+  onUnlink,
   isDeleting = false,
 }: ActivityCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -123,6 +125,19 @@ export default function ActivityCard({
 
       {/* Actions row */}
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+        {onUnlink && (
+          <button
+            onClick={onUnlink}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-[#F37167] hover:bg-[#F37167]/5 rounded transition-colors"
+            title="Remove from plan"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.181 8.68a4 4 0 00-5.3.5l-2.5 2.5a4 4 0 005.6 5.6l.9-.9M10.82 15.32a4 4 0 005.3-.5l2.5-2.5a4 4 0 00-5.6-5.6l-.9.9" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8l8 8" />
+            </svg>
+            Unlink
+          </button>
+        )}
         <button
           onClick={onEdit}
           className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-[#403770] hover:bg-gray-100 rounded transition-colors"

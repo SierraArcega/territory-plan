@@ -13,6 +13,7 @@ import {
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
+  useUnlinkActivityPlan,
   type ActivityListItem,
   usePlanEngagement,
   type TerritoryPlan,
@@ -682,6 +683,7 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
+  const unlinkActivityPlan = useUnlinkActivityPlan();
 
   // Plan navigation — prev/next arrows
   const { data: allPlans } = useTerritoryPlans();
@@ -722,6 +724,15 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
 
   const handleDeleteActivity = async (activityId: string) => {
     await deleteActivity.mutateAsync(activityId);
+  };
+
+  const handleUnlinkActivity = async (activityId: string) => {
+    await unlinkActivityPlan.mutateAsync({ activityId, planId });
+  };
+
+  const handleAddActivityClick = () => {
+    setEditingActivity(null);
+    setShowActivityModal(true);
   };
 
   const handleActivityModalClose = () => {
@@ -999,6 +1010,8 @@ function PlanDetailView({ planId, onBack, onNavigate }: PlanDetailViewProps) {
                         isRemovingDistrict={removeDistrict.isPending}
                         onEditActivity={handleEditActivity}
                         onDeleteActivity={handleDeleteActivity}
+                        onUnlinkActivity={handleUnlinkActivity}
+                        onAddActivity={handleAddActivityClick}
                         isDeletingActivity={deleteActivity.isPending}
                         onDistrictClick={handleDistrictClick}
                         onContactClick={handleContactClick}

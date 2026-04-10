@@ -1,32 +1,38 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   useActivities,
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
+  useUnlinkActivityPlan,
   useDistrictDetail,
   type ActivityListItem,
   type TerritoryPlanDistrict,
 } from "@/lib/api";
 import ActivityCard from "./ActivityCard";
 import ActivityFormModal, { type ActivityFormData } from "./ActivityFormModal";
+import ActivitySearchModal from "./ActivitySearchModal";
 import ViewToggle from "@/features/shared/components/ViewToggle";
 import ActivitiesTable from "./ActivitiesTable";
 
 interface ActivitiesPanelProps {
   planId: string;
+  planName?: string;
   // Districts in this plan (for the activity form dropdown)
   districts: TerritoryPlanDistrict[];
 }
 
-export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelProps) {
+export default function ActivitiesPanel({ planId, planName, districts }: ActivitiesPanelProps) {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [editingActivity, setEditingActivity] = useState<ActivityListItem | null>(null);
   // Track which district is selected in the form to fetch its contacts
   const [selectedDistrictLeaid, setSelectedDistrictLeaid] = useState<string | null>(null);
   const [view, setView] = useState<"cards" | "table">("cards");
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch activities for this plan using the new Activity system
   const { data: activitiesResponse, isLoading } = useActivities({ planId });
@@ -36,6 +42,7 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
+  const unlinkActivityPlan = useUnlinkActivityPlan();
 
   // Fetch contacts for the selected district (for the form)
   const { data: districtDetail } = useDistrictDetail(selectedDistrictLeaid);
@@ -50,6 +57,12 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
         stateAbbrev: d.stateAbbrev,
       })),
     [districts]
+  );
+
+  // Set of activity IDs already linked to this plan
+  const linkedActivityIds = useMemo(
+    () => new Set(activities?.map((a) => a.id) ?? []),
+    [activities]
   );
 
   // Calculate stats
@@ -94,19 +107,20 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
     await deleteActivity.mutateAsync(activityId);
   };
 
+  // Handle unlinking an activity from this plan
+  const handleUnlinkActivity = useCallback(
+    async (activityId: string) => {
+      await unlinkActivityPlan.mutateAsync({ activityId, planId });
+    },
+    [unlinkActivityPlan, planId]
+  );
+
   // Open edit modal with selected activity
   const handleEditClick = (activity: ActivityListItem) => {
     // Note: ActivityListItem doesn't include district details, so we clear selection
     // The form will show the activity data but districts are handled separately in the new system
     setSelectedDistrictLeaid(null);
     setEditingActivity(activity);
-  };
-
-  // Open add modal
-  const handleAddClick = () => {
-    setSelectedDistrictLeaid(null);
-    setEditingActivity(null);
-    setShowAddModal(true);
   };
 
   // Close modals
@@ -120,6 +134,18 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
   const handleDistrictChange = (leaid: string | null) => {
     setSelectedDistrictLeaid(leaid);
   };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showDropdown]);
 
   return (
     <div className="flex flex-col h-full">
@@ -143,15 +169,54 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
         <div className="flex items-center gap-3">
           {/* View toggle */}
           <ViewToggle view={view} onViewChange={(v) => setView(v as "cards" | "table")} />
-          <button
-            onClick={handleAddClick}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add
-          </button>
+
+          {/* Add dropdown */}
+          <div ref={dropdownRef} className="relative">
+            <button
+              onClick={() => setShowDropdown((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#352d5c] rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add
+              <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showDropdown && (
+              <div className="absolute right-0 mt-1 w-48 bg-white border border-[#D4CFE2] rounded-xl shadow-lg overflow-hidden z-20">
+                <button
+                  onClick={() => {
+                    setShowDropdown(false);
+                    setShowSearchModal(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#403770] hover:bg-[#F7F5FA] transition-colors text-left"
+                >
+                  <svg className="w-4 h-4 text-[#8A80A8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" strokeWidth="2" />
+                    <path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  Link Existing
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDropdown(false);
+                    setSelectedDistrictLeaid(null);
+                    setEditingActivity(null);
+                    setShowAddModal(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#403770] hover:bg-[#F7F5FA] transition-colors text-left border-t border-[#F7F5FA]"
+                >
+                  <svg className="w-4 h-4 text-[#8A80A8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create New
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -169,6 +234,7 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
                 activity={activity}
                 onEdit={() => handleEditClick(activity)}
                 onDelete={() => handleDeleteActivity(activity.id)}
+                onUnlink={() => handleUnlinkActivity(activity.id)}
                 isDeleting={deleteActivity.isPending}
               />
             ))
@@ -177,6 +243,7 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
               activities={activities}
               onEdit={handleEditClick}
               onDelete={handleDeleteActivity}
+              onUnlink={handleUnlinkActivity}
               isDeleting={deleteActivity.isPending}
             />
           )
@@ -226,6 +293,15 @@ export default function ActivitiesPanel({ planId, districts }: ActivitiesPanelPr
           title="Edit Activity"
         />
       )}
+
+      {/* Activity Search Modal */}
+      <ActivitySearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        planId={planId}
+        planName={planName}
+        linkedActivityIds={linkedActivityIds}
+      />
     </div>
   );
 }
