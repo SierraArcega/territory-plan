@@ -240,8 +240,9 @@ export async function PATCH(
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
-    // Validate type if provided
-    if (type && !ALL_ACTIVITY_TYPES.includes(type)) {
+    // Validate type if provided — allow keeping the existing type even if it's
+    // a legacy value not in the current enum (e.g. customer_check_in)
+    if (type && type !== existing.type && !ALL_ACTIVITY_TYPES.includes(type)) {
       return NextResponse.json(
         { error: `Invalid activity type: ${type}` },
         { status: 400 }
