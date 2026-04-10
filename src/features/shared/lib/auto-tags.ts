@@ -19,7 +19,7 @@ export const AUTO_TAGS = {
   SUBURB: { name: "Suburb", color: "#48bb78" },
   TOWN: { name: "Town", color: "#EC4899" },
   RURAL: { name: "Rural", color: "#A16207" },
-  // Competitor tags - auto-applied based on competitor_spend data
+  // Competitor tags - auto-applied based on district_financials data (non-fullmind vendors)
   PROXIMITY_LEARNING_FY24: { name: "Proximity Learning FY24", color: "#6EA3BE" },
   PROXIMITY_LEARNING_FY25: { name: "Proximity Learning FY25", color: "#6EA3BE" },
   PROXIMITY_LEARNING_FY26: { name: "Proximity Learning FY26", color: "#6EA3BE" },
@@ -31,19 +31,19 @@ export const AUTO_TAGS = {
   TUTORED_BY_TEACHERS_FY26: { name: "Tutored By Teachers FY26", color: "#7C3AED" },
 } as const;
 
-// Competitor tag mapping: competitor name + FY -> tag key
+// Competitor tag mapping: vendor slug + FY -> tag key
 export const COMPETITOR_TAG_MAP: Record<string, Record<string, keyof typeof AUTO_TAGS>> = {
-  "Proximity Learning": {
+  proximity: {
     FY24: "PROXIMITY_LEARNING_FY24",
     FY25: "PROXIMITY_LEARNING_FY25",
     FY26: "PROXIMITY_LEARNING_FY26",
   },
-  "Elevate K12": {
+  elevate: {
     FY24: "ELEVATE_K12_FY24",
     FY25: "ELEVATE_K12_FY25",
     FY26: "ELEVATE_K12_FY26",
   },
-  "Tutored By Teachers": {
+  tbt: {
     FY24: "TUTORED_BY_TEACHERS_FY24",
     FY25: "TUTORED_BY_TEACHERS_FY25",
     FY26: "TUTORED_BY_TEACHERS_FY26",
@@ -115,50 +115,52 @@ const CLASSIFICATION_TAG_NAMES = [
 /**
  * Syncs classification tags for a single district based on revenue data.
  *
- * Fullmind (from districts table):
- *   - Fullmind Return: FY26 invoicing > 0 OR sessions revenue > 0
- *   - Churn Risk: FY26 bookings > 0 but NO FY26 invoicing/sessions revenue
+ * Fullmind (from district_financials table, vendor = "fullmind"):
+ *   - Fullmind Return: FY26 invoicing > 0 OR totalRevenue > 0
+ *   - Churn Risk: FY26 bookings > 0 but NO FY26 invoicing/totalRevenue
  *   - Fullmind Win Back FY25: had FY25 revenue signal, no FY26 signal at all
  *
- * EK12 (from competitor_spend table, competitor = "Elevate K12"):
- *   - EK12 Return: FY26 spend > 0
- *   - EK12 Win Back FY25: FY25 spend > 0 but NOT FY26
- *   - EK12 Win Back FY24: FY24 spend > 0 but NOT FY25 or FY26
+ * EK12 (from district_financials table, vendor = "elevate"):
+ *   - EK12 Return: FY26 totalRevenue > 0
+ *   - EK12 Win Back FY25: FY25 totalRevenue > 0 but NOT FY26
+ *   - EK12 Win Back FY24: FY24 totalRevenue > 0 but NOT FY25 or FY26
  */
 export async function syncClassificationTagsForDistrict(leaid: string): Promise<void> {
-  // Fetch Fullmind revenue data from districts table
-  const district = await prisma.district.findUnique({
+  // Fetch both Fullmind and EK12 data from district_financials in a single query
+  const financials = await prisma.districtFinancials.findMany({
     where: { leaid },
-    select: {
-      fy25NetInvoicing: true,
-      fy25ClosedWonNetBooking: true,
-      fy25SessionsRevenue: true,
-      fy26NetInvoicing: true,
-      fy26ClosedWonNetBooking: true,
-      fy26SessionsRevenue: true,
-    },
+    select: { vendor: true, fiscalYear: true, totalRevenue: true, invoicing: true, closedWonBookings: true },
   });
 
-  if (!district) return;
+  if (financials.length === 0) {
+    // Check if district exists at all before returning early
+    const exists = await prisma.district.count({ where: { leaid } });
+    if (!exists) return;
+  }
 
-  // Fetch EK12 competitor spend
-  const ek12Spend = await prisma.competitorSpend.findMany({
-    where: { leaid, competitor: "Elevate K12" },
-    select: { fiscalYear: true, totalSpend: true },
-  });
-
+  // Split into Fullmind and EK12 maps keyed by fiscal year
+  const fmByFY: Record<string, { invoicing: number; totalRevenue: number; closedWonBookings: number }> = {};
   const ek12ByFY: Record<string, number> = {};
-  for (const s of ek12Spend) {
-    ek12ByFY[s.fiscalYear] = Number(s.totalSpend);
+
+  for (const row of financials) {
+    if (row.vendor === "fullmind") {
+      fmByFY[row.fiscalYear] = {
+        invoicing: Number(row.invoicing ?? 0),
+        totalRevenue: Number(row.totalRevenue ?? 0),
+        closedWonBookings: Number(row.closedWonBookings ?? 0),
+      };
+    } else if (row.vendor === "elevate") {
+      ek12ByFY[row.fiscalYear] = Number(row.totalRevenue ?? 0);
+    }
   }
 
   // Fullmind revenue signals per FY
-  const fm25Invoicing = Number(district.fy25NetInvoicing ?? 0);
-  const fm25Sessions = Number(district.fy25SessionsRevenue ?? 0);
-  const fm25Bookings = Number(district.fy25ClosedWonNetBooking ?? 0);
-  const fm26Invoicing = Number(district.fy26NetInvoicing ?? 0);
-  const fm26Sessions = Number(district.fy26SessionsRevenue ?? 0);
-  const fm26Bookings = Number(district.fy26ClosedWonNetBooking ?? 0);
+  const fm25Invoicing = fmByFY["FY25"]?.invoicing ?? 0;
+  const fm25Sessions = fmByFY["FY25"]?.totalRevenue ?? 0;
+  const fm25Bookings = fmByFY["FY25"]?.closedWonBookings ?? 0;
+  const fm26Invoicing = fmByFY["FY26"]?.invoicing ?? 0;
+  const fm26Sessions = fmByFY["FY26"]?.totalRevenue ?? 0;
+  const fm26Bookings = fmByFY["FY26"]?.closedWonBookings ?? 0;
 
   const fm25HasRevenue = fm25Invoicing > 0 || fm25Sessions > 0;
   const fm25HasAnySignal = fm25HasRevenue || fm25Bookings > 0;
@@ -233,68 +235,72 @@ export async function syncAllClassificationTags(): Promise<number> {
   const ek12WbFy25Id = tagMap.get(AUTO_TAGS.EK12_WIN_BACK_FY25.name);
   const ek12WbFy24Id = tagMap.get(AUTO_TAGS.EK12_WIN_BACK_FY24.name);
 
-  // 2. Fetch all Fullmind revenue data in one query
-  const districts = await prisma.district.findMany({
-    select: {
-      leaid: true,
-      fy25NetInvoicing: true,
-      fy25ClosedWonNetBooking: true,
-      fy25SessionsRevenue: true,
-      fy26NetInvoicing: true,
-      fy26ClosedWonNetBooking: true,
-      fy26SessionsRevenue: true,
-    },
+  // 2. Fetch all Fullmind and EK12 data from district_financials in one query
+  const allFinancials = await prisma.districtFinancials.findMany({
+    where: { vendor: { in: ["fullmind", "elevate"] } },
+    select: { leaid: true, vendor: true, fiscalYear: true, totalRevenue: true, invoicing: true, closedWonBookings: true },
   });
-  console.log(`Loaded ${districts.length} districts.`);
 
-  // 3. Fetch all EK12 competitor spend in one query
-  const ek12Rows = await prisma.competitorSpend.findMany({
-    where: { competitor: "Elevate K12" },
-    select: { leaid: true, fiscalYear: true, totalSpend: true },
-  });
+  // Build Fullmind and EK12 maps keyed by leaid
+  const fmMap = new Map<string, Record<string, { invoicing: number; totalRevenue: number; closedWonBookings: number }>>();
   const ek12Map = new Map<string, Record<string, number>>();
-  for (const row of ek12Rows) {
-    if (!ek12Map.has(row.leaid)) ek12Map.set(row.leaid, {});
-    ek12Map.get(row.leaid)![row.fiscalYear] = Number(row.totalSpend);
-  }
-  console.log(`Loaded EK12 spend for ${ek12Map.size} districts.`);
+  const allLeaids = new Set<string>();
 
-  // 4. Compute tags per district
+  for (const row of allFinancials) {
+    if (!row.leaid) continue;
+    allLeaids.add(row.leaid);
+
+    if (row.vendor === "fullmind") {
+      if (!fmMap.has(row.leaid)) fmMap.set(row.leaid, {});
+      fmMap.get(row.leaid)![row.fiscalYear] = {
+        invoicing: Number(row.invoicing ?? 0),
+        totalRevenue: Number(row.totalRevenue ?? 0),
+        closedWonBookings: Number(row.closedWonBookings ?? 0),
+      };
+    } else if (row.vendor === "elevate") {
+      if (!ek12Map.has(row.leaid)) ek12Map.set(row.leaid, {});
+      ek12Map.get(row.leaid)![row.fiscalYear] = Number(row.totalRevenue ?? 0);
+    }
+  }
+  console.log(`Loaded financials for ${allLeaids.size} districts (${fmMap.size} Fullmind, ${ek12Map.size} EK12).`);
+
+  // 3. Compute tags per district
   const inserts: Array<{ districtLeaid: string; tagId: number }> = [];
 
-  for (const d of districts) {
-    const fm25Inv = Number(d.fy25NetInvoicing ?? 0);
-    const fm25Sess = Number(d.fy25SessionsRevenue ?? 0);
-    const fm25Book = Number(d.fy25ClosedWonNetBooking ?? 0);
-    const fm26Inv = Number(d.fy26NetInvoicing ?? 0);
-    const fm26Sess = Number(d.fy26SessionsRevenue ?? 0);
-    const fm26Book = Number(d.fy26ClosedWonNetBooking ?? 0);
+  for (const leaid of allLeaids) {
+    const fm = fmMap.get(leaid);
+    const fm25Inv = fm?.["FY25"]?.invoicing ?? 0;
+    const fm25Sess = fm?.["FY25"]?.totalRevenue ?? 0;
+    const fm25Book = fm?.["FY25"]?.closedWonBookings ?? 0;
+    const fm26Inv = fm?.["FY26"]?.invoicing ?? 0;
+    const fm26Sess = fm?.["FY26"]?.totalRevenue ?? 0;
+    const fm26Book = fm?.["FY26"]?.closedWonBookings ?? 0;
 
     const fm26HasRevenue = fm26Inv > 0 || fm26Sess > 0;
     const fm25HasAny = fm25Inv > 0 || fm25Sess > 0 || fm25Book > 0;
 
     // Fullmind classification
     if (fm26HasRevenue && fullmindReturnId) {
-      inserts.push({ districtLeaid: d.leaid, tagId: fullmindReturnId });
+      inserts.push({ districtLeaid: leaid, tagId: fullmindReturnId });
     } else if (fm26Book > 0 && churnRiskId) {
-      inserts.push({ districtLeaid: d.leaid, tagId: churnRiskId });
+      inserts.push({ districtLeaid: leaid, tagId: churnRiskId });
     } else if (fm25HasAny && fmWinBackFy25Id) {
-      inserts.push({ districtLeaid: d.leaid, tagId: fmWinBackFy25Id });
+      inserts.push({ districtLeaid: leaid, tagId: fmWinBackFy25Id });
     }
 
     // EK12 classification
-    const ek12 = ek12Map.get(d.leaid);
+    const ek12 = ek12Map.get(leaid);
     if (ek12) {
       const fy24 = (ek12["FY24"] ?? 0) > 0;
       const fy25 = (ek12["FY25"] ?? 0) > 0;
       const fy26 = (ek12["FY26"] ?? 0) > 0;
 
       if (fy26 && ek12ReturnId) {
-        inserts.push({ districtLeaid: d.leaid, tagId: ek12ReturnId });
+        inserts.push({ districtLeaid: leaid, tagId: ek12ReturnId });
       } else if (fy25 && ek12WbFy25Id) {
-        inserts.push({ districtLeaid: d.leaid, tagId: ek12WbFy25Id });
+        inserts.push({ districtLeaid: leaid, tagId: ek12WbFy25Id });
       } else if (fy24 && ek12WbFy24Id) {
-        inserts.push({ districtLeaid: d.leaid, tagId: ek12WbFy24Id });
+        inserts.push({ districtLeaid: leaid, tagId: ek12WbFy24Id });
       }
     }
   }
@@ -323,7 +329,7 @@ export async function syncAllClassificationTags(): Promise<number> {
   });
 
   console.log(`Applied ${inserts.length} classification tags.`);
-  return districts.length;
+  return allLeaids.size;
 }
 
 /**
@@ -391,24 +397,24 @@ export async function syncLocaleTagForDistrict(leaid: string): Promise<void> {
 }
 
 /**
- * Syncs competitor tags for a district based on competitor_spend data.
- * Tags are added when spend > 0 for a competitor-FY combination.
- * Tags are removed when no spend exists.
+ * Syncs competitor tags for a district based on district_financials data (non-fullmind vendors).
+ * Tags are added when totalRevenue > 0 for a vendor-FY combination.
+ * Tags are removed when no revenue exists.
  */
 export async function syncCompetitorTagsForDistrict(leaid: string): Promise<void> {
-  // Fetch competitor spend data for this district
-  const competitorSpend = await prisma.competitorSpend.findMany({
-    where: { leaid },
-    select: { competitor: true, fiscalYear: true, totalSpend: true },
+  // Fetch non-fullmind financials for this district
+  const competitorFinancials = await prisma.districtFinancials.findMany({
+    where: { leaid, vendor: { not: "fullmind" } },
+    select: { vendor: true, fiscalYear: true, totalRevenue: true },
   });
 
   // Build set of tag names that should be applied
   const tagsToApply = new Set<string>();
-  for (const spend of competitorSpend) {
-    if (Number(spend.totalSpend) > 0) {
-      const competitorMap = COMPETITOR_TAG_MAP[spend.competitor];
+  for (const row of competitorFinancials) {
+    if (Number(row.totalRevenue) > 0) {
+      const competitorMap = COMPETITOR_TAG_MAP[row.vendor];
       if (competitorMap) {
-        const tagKey = competitorMap[spend.fiscalYear];
+        const tagKey = competitorMap[row.fiscalYear];
         if (tagKey) {
           tagsToApply.add(AUTO_TAGS[tagKey].name);
         }
@@ -449,8 +455,9 @@ export async function syncCompetitorTagsForDistrict(leaid: string): Promise<void
  * Call this after running the competitor spend ETL.
  */
 export async function syncAllCompetitorTags(): Promise<number> {
-  // Get all distinct LEAIDs with competitor spend
-  const distinctLeaids = await prisma.competitorSpend.findMany({
+  // Get all distinct LEAIDs with non-fullmind financials
+  const distinctLeaids = await prisma.districtFinancials.findMany({
+    where: { vendor: { not: "fullmind" }, leaid: { not: null } },
     select: { leaid: true },
     distinct: ["leaid"],
   });
@@ -458,7 +465,7 @@ export async function syncAllCompetitorTags(): Promise<number> {
   console.log(`Syncing competitor tags for ${distinctLeaids.length} districts...`);
 
   for (const { leaid } of distinctLeaids) {
-    await syncCompetitorTagsForDistrict(leaid);
+    if (leaid) await syncCompetitorTagsForDistrict(leaid);
   }
 
   return distinctLeaids.length;

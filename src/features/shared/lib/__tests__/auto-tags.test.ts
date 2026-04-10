@@ -6,8 +6,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => {
   return {
     default: {
-      district: { findUnique: vi.fn(), findMany: vi.fn() },
-      competitorSpend: { findMany: vi.fn() },
+      district: { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn() },
+      districtFinancials: { findMany: vi.fn() },
       tag: { findMany: vi.fn(), upsert: vi.fn() },
       districtTag: { deleteMany: vi.fn(), create: vi.fn(), createMany: vi.fn() },
       $transaction: vi.fn(),
@@ -69,15 +69,14 @@ function mockCompetitorTagLookup() {
   );
 }
 
-/** Returns a zero-revenue district record with the given overrides */
-function makeDistrict(overrides: Record<string, unknown> = {}) {
+/** Creates a Fullmind districtFinancials row for a given FY */
+function makeFullmindRow(fiscalYear: string, overrides: Record<string, unknown> = {}) {
   return {
-    fy25NetInvoicing: 0,
-    fy25ClosedWonNetBooking: 0,
-    fy25SessionsRevenue: 0,
-    fy26NetInvoicing: 0,
-    fy26ClosedWonNetBooking: 0,
-    fy26SessionsRevenue: 0,
+    vendor: "fullmind",
+    fiscalYear,
+    invoicing: 0,
+    totalRevenue: 0,
+    closedWonBookings: 0,
     ...overrides,
   };
 }
@@ -154,26 +153,26 @@ describe("AUTO_TAGS constant", () => {
 });
 
 describe("COMPETITOR_TAG_MAP constant", () => {
-  const EXPECTED_COMPETITORS = ["Proximity Learning", "Elevate K12", "Tutored By Teachers"];
+  const EXPECTED_VENDORS = ["proximity", "elevate", "tbt"];
   const EXPECTED_FYS = ["FY24", "FY25", "FY26"];
 
-  it("covers all 3 competitors", () => {
-    expect(Object.keys(COMPETITOR_TAG_MAP)).toEqual(expect.arrayContaining(EXPECTED_COMPETITORS));
-    expect(Object.keys(COMPETITOR_TAG_MAP)).toHaveLength(EXPECTED_COMPETITORS.length);
+  it("covers all 3 vendors", () => {
+    expect(Object.keys(COMPETITOR_TAG_MAP)).toEqual(expect.arrayContaining(EXPECTED_VENDORS));
+    expect(Object.keys(COMPETITOR_TAG_MAP)).toHaveLength(EXPECTED_VENDORS.length);
   });
 
-  it("maps each competitor to FY24, FY25, and FY26", () => {
-    for (const competitor of EXPECTED_COMPETITORS) {
-      const map = COMPETITOR_TAG_MAP[competitor];
+  it("maps each vendor to FY24, FY25, and FY26", () => {
+    for (const vendor of EXPECTED_VENDORS) {
+      const map = COMPETITOR_TAG_MAP[vendor];
       expect(Object.keys(map)).toEqual(expect.arrayContaining(EXPECTED_FYS));
       expect(Object.keys(map)).toHaveLength(EXPECTED_FYS.length);
     }
   });
 
   it("maps to valid AUTO_TAGS keys", () => {
-    for (const competitor of EXPECTED_COMPETITORS) {
+    for (const vendor of EXPECTED_VENDORS) {
       for (const fy of EXPECTED_FYS) {
-        const tagKey = COMPETITOR_TAG_MAP[competitor][fy];
+        const tagKey = COMPETITOR_TAG_MAP[vendor][fy];
         expect(AUTO_TAGS).toHaveProperty(tagKey);
       }
     }
@@ -278,10 +277,9 @@ describe("syncClassificationTagsForDistrict", () => {
 
   describe("Fullmind tags", () => {
     it("applies 'Fullmind Return' when FY26 invoicing > 0", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy26NetInvoicing: 50000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { invoicing: 50000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -301,11 +299,10 @@ describe("syncClassificationTagsForDistrict", () => {
       expect(createCalls).not.toContain(churnId);
     });
 
-    it("applies 'Fullmind Return' when FY26 sessions revenue > 0 (no invoicing)", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy26SessionsRevenue: 12000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+    it("applies 'Fullmind Return' when FY26 totalRevenue > 0 (no invoicing)", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { totalRevenue: 12000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -318,11 +315,10 @@ describe("syncClassificationTagsForDistrict", () => {
       });
     });
 
-    it("applies 'Churn Risk' when FY26 bookings > 0 but no invoicing or sessions", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy26ClosedWonNetBooking: 10000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+    it("applies 'Churn Risk' when FY26 bookings > 0 but no invoicing or totalRevenue", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { closedWonBookings: 10000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -336,10 +332,9 @@ describe("syncClassificationTagsForDistrict", () => {
     });
 
     it("applies 'Fullmind Win Back - FY25' when FY25 had any signal but no FY26 signal", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy25NetInvoicing: 30000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY25", { invoicing: 30000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -353,10 +348,9 @@ describe("syncClassificationTagsForDistrict", () => {
     });
 
     it("applies 'Fullmind Win Back - FY25' when only FY25 bookings existed", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy25ClosedWonNetBooking: 5000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY25", { closedWonBookings: 5000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -369,11 +363,10 @@ describe("syncClassificationTagsForDistrict", () => {
       });
     });
 
-    it("applies 'Fullmind Win Back - FY25' when only FY25 sessions existed", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy25SessionsRevenue: 8000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+    it("applies 'Fullmind Win Back - FY25' when only FY25 totalRevenue existed", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY25", { totalRevenue: 8000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -387,8 +380,8 @@ describe("syncClassificationTagsForDistrict", () => {
     });
 
     it("applies no Fullmind tag when there is no FY25 or FY26 signal", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(makeDistrict() as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.district.count).mockResolvedValue(1);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -397,13 +390,9 @@ describe("syncClassificationTagsForDistrict", () => {
     });
 
     it("Fullmind Return takes priority over Churn Risk when both invoicing and bookings exist in FY26", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({
-          fy26NetInvoicing: 20000,
-          fy26ClosedWonNetBooking: 15000,
-        }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { invoicing: 20000, closedWonBookings: 15000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -426,10 +415,9 @@ describe("syncClassificationTagsForDistrict", () => {
   // ----- EK12 tag logic -----
 
   describe("EK12 tags", () => {
-    it("applies 'EK12 Return' when FY26 spend > 0", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(makeDistrict() as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-        { fiscalYear: "FY26", totalSpend: 25000 },
+    it("applies 'EK12 Return' when FY26 totalRevenue > 0", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        { vendor: "elevate", fiscalYear: "FY26", totalRevenue: 25000, invoicing: 0, closedWonBookings: 0 },
       ] as any);
       mockClassificationTagLookup();
 
@@ -443,10 +431,9 @@ describe("syncClassificationTagsForDistrict", () => {
       });
     });
 
-    it("applies 'EK12 Win Back - FY25' when FY25 spend > 0 but no FY26", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(makeDistrict() as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-        { fiscalYear: "FY25", totalSpend: 18000 },
+    it("applies 'EK12 Win Back - FY25' when FY25 totalRevenue > 0 but no FY26", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        { vendor: "elevate", fiscalYear: "FY25", totalRevenue: 18000, invoicing: 0, closedWonBookings: 0 },
       ] as any);
       mockClassificationTagLookup();
 
@@ -460,10 +447,9 @@ describe("syncClassificationTagsForDistrict", () => {
       });
     });
 
-    it("applies 'EK12 Win Back - FY24' when only FY24 spend > 0", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(makeDistrict() as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-        { fiscalYear: "FY24", totalSpend: 10000 },
+    it("applies 'EK12 Win Back - FY24' when only FY24 totalRevenue > 0", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        { vendor: "elevate", fiscalYear: "FY24", totalRevenue: 10000, invoicing: 0, closedWonBookings: 0 },
       ] as any);
       mockClassificationTagLookup();
 
@@ -477,12 +463,11 @@ describe("syncClassificationTagsForDistrict", () => {
       });
     });
 
-    it("EK12 Return takes priority over Win Back when multiple FYs have spend", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(makeDistrict() as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-        { fiscalYear: "FY24", totalSpend: 5000 },
-        { fiscalYear: "FY25", totalSpend: 8000 },
-        { fiscalYear: "FY26", totalSpend: 12000 },
+    it("EK12 Return takes priority over Win Back when multiple FYs have revenue", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        { vendor: "elevate", fiscalYear: "FY24", totalRevenue: 5000, invoicing: 0, closedWonBookings: 0 },
+        { vendor: "elevate", fiscalYear: "FY25", totalRevenue: 8000, invoicing: 0, closedWonBookings: 0 },
+        { vendor: "elevate", fiscalYear: "FY26", totalRevenue: 12000, invoicing: 0, closedWonBookings: 0 },
       ] as any);
       mockClassificationTagLookup();
 
@@ -506,9 +491,9 @@ describe("syncClassificationTagsForDistrict", () => {
       expect(createdTagIds).not.toContain(ek12Wb24Id);
     });
 
-    it("applies no EK12 tag when competitor spend is empty", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(makeDistrict() as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+    it("applies no EK12 tag when financials are empty", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.district.count).mockResolvedValue(1);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -521,11 +506,9 @@ describe("syncClassificationTagsForDistrict", () => {
 
   describe("combined Fullmind + EK12 tags", () => {
     it("applies both Fullmind Return and EK12 Return simultaneously", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy26NetInvoicing: 40000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-        { fiscalYear: "FY26", totalSpend: 20000 },
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { invoicing: 40000 }),
+        { vendor: "elevate", fiscalYear: "FY26", totalRevenue: 20000, invoicing: 0, closedWonBookings: 0 },
       ] as any);
       mockClassificationTagLookup();
 
@@ -547,11 +530,9 @@ describe("syncClassificationTagsForDistrict", () => {
     });
 
     it("applies Churn Risk + EK12 Win Back FY25 simultaneously", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy26ClosedWonNetBooking: 7000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-        { fiscalYear: "FY25", totalSpend: 15000 },
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { closedWonBookings: 7000 }),
+        { vendor: "elevate", fiscalYear: "FY25", totalRevenue: 15000, invoicing: 0, closedWonBookings: 0 },
       ] as any);
       mockClassificationTagLookup();
 
@@ -576,21 +557,20 @@ describe("syncClassificationTagsForDistrict", () => {
   // ----- Edge cases -----
 
   describe("edge cases", () => {
-    it("returns early when district is not found", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(null);
+    it("returns early when district does not exist and no financials found", async () => {
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.district.count).mockResolvedValue(0);
 
       await syncClassificationTagsForDistrict(LEAID);
 
-      expect(prisma.competitorSpend.findMany).not.toHaveBeenCalled();
       expect(prisma.tag.findMany).not.toHaveBeenCalled();
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it("clears existing classification tags before adding new ones", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue(
-        makeDistrict({ fy26NetInvoicing: 10000 }) as any,
-      );
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        makeFullmindRow("FY26", { invoicing: 10000 }),
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -613,15 +593,10 @@ describe("syncClassificationTagsForDistrict", () => {
     });
 
     it("handles null revenue fields gracefully (treats as 0)", async () => {
-      vi.mocked(prisma.district.findUnique).mockResolvedValue({
-        fy25NetInvoicing: null,
-        fy25ClosedWonNetBooking: null,
-        fy25SessionsRevenue: null,
-        fy26NetInvoicing: null,
-        fy26ClosedWonNetBooking: null,
-        fy26SessionsRevenue: null,
-      } as any);
-      vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+      vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+        { vendor: "fullmind", fiscalYear: "FY25", invoicing: null, totalRevenue: null, closedWonBookings: null },
+        { vendor: "fullmind", fiscalYear: "FY26", invoicing: null, totalRevenue: null, closedWonBookings: null },
+      ] as any);
       mockClassificationTagLookup();
 
       await syncClassificationTagsForDistrict(LEAID);
@@ -777,9 +752,9 @@ describe("syncLocaleTagForDistrict", () => {
 describe("syncCompetitorTagsForDistrict", () => {
   const LEAID = "0100003";
 
-  it("applies tags when competitor spend > 0", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Proximity Learning", fiscalYear: "FY25", totalSpend: 30000 },
+  it("applies tags when totalRevenue > 0", async () => {
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "proximity", fiscalYear: "FY25", totalRevenue: 30000 },
     ] as any);
     mockCompetitorTagLookup();
 
@@ -793,10 +768,10 @@ describe("syncCompetitorTagsForDistrict", () => {
     });
   });
 
-  it("does not apply tags when competitor spend is 0", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Proximity Learning", fiscalYear: "FY25", totalSpend: 0 },
-      { competitor: "Elevate K12", fiscalYear: "FY26", totalSpend: 0 },
+  it("does not apply tags when totalRevenue is 0", async () => {
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "proximity", fiscalYear: "FY25", totalRevenue: 0 },
+      { vendor: "elevate", fiscalYear: "FY26", totalRevenue: 0 },
     ] as any);
     mockCompetitorTagLookup();
 
@@ -805,12 +780,12 @@ describe("syncCompetitorTagsForDistrict", () => {
     expect(mockTx.districtTag.create).not.toHaveBeenCalled();
   });
 
-  it("applies multiple competitor FY tags simultaneously", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Proximity Learning", fiscalYear: "FY24", totalSpend: 10000 },
-      { competitor: "Proximity Learning", fiscalYear: "FY25", totalSpend: 15000 },
-      { competitor: "Elevate K12", fiscalYear: "FY26", totalSpend: 20000 },
-      { competitor: "Tutored By Teachers", fiscalYear: "FY24", totalSpend: 5000 },
+  it("applies multiple vendor FY tags simultaneously", async () => {
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "proximity", fiscalYear: "FY24", totalRevenue: 10000 },
+      { vendor: "proximity", fiscalYear: "FY25", totalRevenue: 15000 },
+      { vendor: "elevate", fiscalYear: "FY26", totalRevenue: 20000 },
+      { vendor: "tbt", fiscalYear: "FY24", totalRevenue: 5000 },
     ] as any);
     mockCompetitorTagLookup();
 
@@ -834,9 +809,9 @@ describe("syncCompetitorTagsForDistrict", () => {
     }
   });
 
-  it("ignores unknown competitor names not in COMPETITOR_TAG_MAP", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Unknown Company", fiscalYear: "FY25", totalSpend: 50000 },
+  it("ignores unknown vendor slugs not in COMPETITOR_TAG_MAP", async () => {
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "unknown_vendor", fiscalYear: "FY25", totalRevenue: 50000 },
     ] as any);
     mockCompetitorTagLookup();
 
@@ -846,8 +821,8 @@ describe("syncCompetitorTagsForDistrict", () => {
   });
 
   it("ignores unknown fiscal years not in COMPETITOR_TAG_MAP", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Proximity Learning", fiscalYear: "FY23", totalSpend: 50000 },
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "proximity", fiscalYear: "FY23", totalRevenue: 50000 },
     ] as any);
     mockCompetitorTagLookup();
 
@@ -857,8 +832,8 @@ describe("syncCompetitorTagsForDistrict", () => {
   });
 
   it("clears all competitor tags before adding new ones", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Elevate K12", fiscalYear: "FY26", totalSpend: 9000 },
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "elevate", fiscalYear: "FY26", totalRevenue: 9000 },
     ] as any);
     mockCompetitorTagLookup();
 
@@ -877,8 +852,8 @@ describe("syncCompetitorTagsForDistrict", () => {
     expect(deleteOrder).toBeLessThan(createOrder);
   });
 
-  it("handles empty competitor spend list", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([]);
+  it("handles empty financials list", async () => {
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([]);
     mockCompetitorTagLookup();
 
     await syncCompetitorTagsForDistrict(LEAID);
@@ -889,11 +864,11 @@ describe("syncCompetitorTagsForDistrict", () => {
     expect(mockTx.districtTag.create).not.toHaveBeenCalled();
   });
 
-  it("applies all tags for a single competitor across all FYs", async () => {
-    vi.mocked(prisma.competitorSpend.findMany).mockResolvedValue([
-      { competitor: "Tutored By Teachers", fiscalYear: "FY24", totalSpend: 1000 },
-      { competitor: "Tutored By Teachers", fiscalYear: "FY25", totalSpend: 2000 },
-      { competitor: "Tutored By Teachers", fiscalYear: "FY26", totalSpend: 3000 },
+  it("applies all tags for a single vendor across all FYs", async () => {
+    vi.mocked(prisma.districtFinancials.findMany).mockResolvedValue([
+      { vendor: "tbt", fiscalYear: "FY24", totalRevenue: 1000 },
+      { vendor: "tbt", fiscalYear: "FY25", totalRevenue: 2000 },
+      { vendor: "tbt", fiscalYear: "FY26", totalRevenue: 3000 },
     ] as any);
     mockCompetitorTagLookup();
 
