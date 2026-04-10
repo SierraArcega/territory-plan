@@ -6,7 +6,9 @@ import RevenuePodium from "./RevenuePodium";
 import RevenueTable from "./RevenueTable";
 import type { RevenueSortColumn } from "./RevenueTable";
 import { useLeaderboard } from "../lib/queries";
-import type { ResolvedFiscalYears } from "../lib/queries";
+import type { LeaderboardEntry } from "../lib/types";
+
+type FYSelection = "current" | "next" | "both";
 
 /** Convert school year "2025-26" to display "FY26" */
 function formatFYLabel(schoolYr: string): string {
@@ -14,39 +16,44 @@ function formatFYLabel(schoolYr: string): string {
   return `FY${parts[1] ?? schoolYr}`;
 }
 
-/** Build FY options: current FY and next FY based on resolved defaults */
-function buildFYOptions(resolved: ResolvedFiscalYears): { value: string; label: string }[] {
-  const defaultYr = resolved.defaultSchoolYr;
-  const parts = defaultYr.split("-");
-  const startYear = parseInt(parts[0], 10);
-  const nextYr = `${startYear + 1}-${String(startYear + 2).slice(-2)}`;
+/** Compute the display value for pipeline based on FY selection */
+function getPipelineValue(entry: LeaderboardEntry, fy: FYSelection): number {
+  if (fy === "current") return entry.pipelineCurrentFY;
+  if (fy === "next") return entry.pipelineNextFY;
+  return entry.pipelineCurrentFY + entry.pipelineNextFY;
+}
 
-  return [
-    { value: defaultYr, label: formatFYLabel(defaultYr) },
-    { value: nextYr, label: formatFYLabel(nextYr) },
-  ];
+/** Compute the display value for targeted based on FY selection */
+function getTargetedValue(entry: LeaderboardEntry, fy: FYSelection): number {
+  if (fy === "current") return entry.targetedCurrentFY;
+  if (fy === "next") return entry.targetedNextFY;
+  return entry.targetedCurrentFY + entry.targetedNextFY;
 }
 
 export default function RevenueOverviewTab() {
-  const [pipelineFY, setPipelineFY] = useState<string | undefined>();
-  const [targetedFY, setTargetedFY] = useState<string | undefined>();
+  const [pipelineFY, setPipelineFY] = useState<FYSelection>("both");
+  const [targetedFY, setTargetedFY] = useState<FYSelection>("both");
   const [sortColumn, setSortColumn] = useState<RevenueSortColumn>("revenue");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  const { data: leaderboard, isLoading } = useLeaderboard(
-    pipelineFY || targetedFY ? { pipelineFY, targetedFY } : undefined
-  );
+  const { data: leaderboard, isLoading } = useLeaderboard();
 
-  const entries = leaderboard?.entries ?? [];
-  const resolved = leaderboard?.resolvedFiscalYears;
+  // Project entries with computed pipeline/targeted values based on FY selection
+  const projectedEntries = useMemo(() => {
+    return (leaderboard?.entries ?? []).map((entry) => ({
+      ...entry,
+      pipeline: getPipelineValue(entry, pipelineFY),
+      revenueTargeted: getTargetedValue(entry, targetedFY),
+    }));
+  }, [leaderboard?.entries, pipelineFY, targetedFY]);
 
   const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) => {
+    return [...projectedEntries].sort((a, b) => {
       const aVal = a[sortColumn];
       const bVal = b[sortColumn];
       return sortDirection === "desc" ? bVal - aVal : aVal - bVal;
     });
-  }, [entries, sortColumn, sortDirection]);
+  }, [projectedEntries, sortColumn, sortDirection]);
 
   const handleSort = (column: RevenueSortColumn) => {
     if (column === sortColumn) {
@@ -65,29 +72,31 @@ export default function RevenueOverviewTab() {
     );
   }
 
-  const fyOptions = resolved ? buildFYOptions(resolved) : [];
-  const activePipelineFY = pipelineFY ?? resolved?.pipeline ?? "";
-  const activeTargetedFY = targetedFY ?? resolved?.targeted ?? "";
+  const fy = leaderboard?.fiscalYears;
+  const fyOptions: { value: FYSelection; label: string }[] = fy
+    ? [
+        { value: "current", label: formatFYLabel(fy.currentFY) },
+        { value: "next", label: formatFYLabel(fy.nextFY) },
+        { value: "both", label: "Both" },
+      ]
+    : [];
 
   return (
     <div>
       {/* FY selectors */}
-      {resolved && (
+      {fy && (
         <div className="flex items-center gap-4 px-4 py-2.5 bg-[#F7F5FA] border-b border-[#EFEDF5]">
           <FYSelect
             label="Pipeline"
-            value={activePipelineFY}
+            value={pipelineFY}
             options={fyOptions}
-            onChange={setPipelineFY}
+            onChange={(v) => setPipelineFY(v as FYSelection)}
           />
           <FYSelect
             label="Targeted"
-            value={activeTargetedFY}
-            options={[
-              ...fyOptions,
-              { value: "", label: "Both" },
-            ]}
-            onChange={(v) => setTargetedFY(v || undefined)}
+            value={targetedFY}
+            options={fyOptions}
+            onChange={(v) => setTargetedFY(v as FYSelection)}
           />
         </div>
       )}
