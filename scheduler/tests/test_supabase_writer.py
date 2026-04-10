@@ -45,6 +45,13 @@ def test_upsert_opportunities_builds_correct_sql():
         "scheduled_sessions": 0, "scheduled_revenue": Decimal("0"),
         "scheduled_take": Decimal("0"), "total_revenue": Decimal("0"),
         "total_take": Decimal("0"), "average_take_rate": None,
+        "service_types": '["tutoring"]',
+        "minimum_purchase_amount": Decimal("1000.00"),
+        "maximum_budget": Decimal("10000.00"),
+        "details_link": "https://lms.example.com/opp/opp1",
+        "stage_history": '[{"stage": "1 - Lead"}]',
+        "start_date": "2026-02-01",
+        "expiration": "2026-12-31",
         "synced_at": datetime(2026, 3, 12, tzinfo=timezone.utc),
     }]
 
@@ -137,3 +144,12 @@ def test_upsert_sessions_empty_dict():
 
 def test_opportunity_columns_includes_service_types():
     assert "service_types" in OPPORTUNITY_COLUMNS
+
+
+def test_opportunity_columns_includes_new_sync_fields():
+    assert "minimum_purchase_amount" in OPPORTUNITY_COLUMNS
+    assert "maximum_budget" in OPPORTUNITY_COLUMNS
+    assert "details_link" in OPPORTUNITY_COLUMNS
+    assert "stage_history" in OPPORTUNITY_COLUMNS
+    assert "start_date" in OPPORTUNITY_COLUMNS
+    assert "expiration" in OPPORTUNITY_COLUMNS
