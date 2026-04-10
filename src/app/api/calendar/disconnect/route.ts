@@ -34,14 +34,25 @@ export async function POST() {
       );
     }
 
-    // Delete pending calendar events, the CalendarConnection (which cascades
-    // any remaining CalendarEvent rows via onDelete: Cascade), and the
-    // UserIntegration — all in one transaction so partial failures leave
-    // nothing half-disconnected.
+    // Preserve dismissed/confirmed CalendarEvent rows so the user's prior
+    // triage decisions survive a disconnect→reconnect cycle. The sync engine
+    // dedupes by (userId, googleEventId) and will skip any event the user
+    // already handled — but only if the row still exists. Detach them from
+    // the connection (set connection_id = NULL) so the CASCADE DELETE on
+    // CalendarConnection doesn't destroy them.
+    //
+    // Pending rows are throwaway — delete them outright.
     await prisma.$transaction([
+      // 1. Detach non-pending rows so they survive the cascade
+      prisma.calendarEvent.updateMany({
+        where: { userId: user.id, status: { not: "pending" } },
+        data: { connectionId: null },
+      }),
+      // 2. Delete pending rows (inbox clutter the user hasn't acted on)
       prisma.calendarEvent.deleteMany({
         where: { userId: user.id, status: "pending" },
       }),
+      // 3. Delete the connection (cascade now only hits rows still linked — none)
       ...(calendarConnection
         ? [prisma.calendarConnection.delete({ where: { userId: user.id } })]
         : []),

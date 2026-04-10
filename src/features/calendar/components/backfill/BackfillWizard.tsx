@@ -279,16 +279,7 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
               {displayCounts.dismissed} dismissed
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors"
-            aria-label="Close wizard"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {/* Close button lives in the parent BackfillSetupModal (absolute top-right). */}
         </div>
         <div className="h-1.5 rounded-full bg-[#EFEDF5] overflow-hidden">
           <div
@@ -328,8 +319,8 @@ export default function BackfillWizard({ events, onComplete, onClose }: Backfill
         >
           <span aria-hidden="true">‹</span> Prev
         </button>
-        <div className="flex-1 text-center text-[11px] text-[#A69DC0]">
-          Y / Enter = confirm · S = skip · X = dismiss · ← → prev/next · Esc = close
+        <div className="flex-1 text-center text-[10px] text-[#A69DC0] whitespace-nowrap">
+          Y confirm · S skip · X dismiss · ← → nav · Esc close
         </div>
         <button
           type="button"
