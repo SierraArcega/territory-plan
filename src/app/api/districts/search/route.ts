@@ -13,7 +13,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Competitor vendor IDs → competitor names in the database
+// Competitor vendor slugs → display names (used for validation)
 const COMPETITOR_NAMES: Record<string, string> = {
   proximity: "Proximity Learning",
   elevate: "Elevate K12",
@@ -195,29 +195,28 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // competitor_proximity, competitor_elevate, etc. → "has competitor spend"
+    // competitor_proximity, competitor_elevate, etc. → "has vendor financials"
     if (f.column.startsWith("competitor_")) {
-      const vendorId = f.column.replace("competitor_", "");
-      const competitorName = COMPETITOR_NAMES[vendorId];
-      if (!competitorName) continue;
+      const vendorSlug = f.column.replace("competitor_", "");
+      if (!COMPETITOR_NAMES[vendorSlug]) continue;
 
       if (f.op === "is_not_empty") {
         if (!relationWhere.AND) relationWhere.AND = [];
         (relationWhere.AND as unknown[]).push({
-          competitorSpend: { some: { competitor: competitorName } },
+          districtFinancials: { some: { vendor: vendorSlug } },
         });
       } else if (f.op === "is_empty") {
         if (!relationWhere.AND) relationWhere.AND = [];
         (relationWhere.AND as unknown[]).push({
-          competitorSpend: { none: { competitor: competitorName } },
+          districtFinancials: { none: { vendor: vendorSlug } },
         });
       }
     }
 
-    // competitorEngagement → has any competitor spend at all
+    // competitorEngagement → has any non-fullmind vendor financials
     if (f.column === "competitorEngagement") {
       if (f.op === "is_not_empty") {
-        relationWhere.competitorSpend = { some: {} };
+        relationWhere.districtFinancials = { some: { vendor: { not: "fullmind" } } };
       }
     }
 
