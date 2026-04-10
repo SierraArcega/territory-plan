@@ -280,8 +280,8 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
                   <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
                   <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
-                  {fullmindData?.salesExecutive && (
-                    <SidebarStat label="Owner" value={fullmindData.salesExecutive} small />
+                  {fullmindData?.salesExecutive?.fullName && (
+                    <SidebarStat label="Owner" value={fullmindData.salesExecutive.fullName} small />
                   )}
                 </div>
 

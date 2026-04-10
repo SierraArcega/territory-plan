@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import { useCreateAccount, useDuplicateCheck } from "@/lib/api";
+import { useCreateAccount, useDuplicateCheck, useUsers } from "@/lib/api";
 import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 import { getAccountTypeLabel } from "@/features/shared/types/account-types";
 import { US_STATES } from "@/lib/states";
@@ -22,12 +22,13 @@ export default function AccountForm() {
   const [city, setCity] = useState("");
   const [mailingState, setMailingState] = useState("");
   const [zip, setZip] = useState("");
-  const [salesExecutive, setSalesExecutive] = useState("");
+  const [salesExecutiveId, setSalesExecutiveId] = useState("");
   const [phone, setPhone] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [showOptional, setShowOptional] = useState(false);
 
   const createMutation = useCreateAccount();
+  const { data: users } = useUsers();
 
   // Debounced duplicate check — uses the name when 3+ chars
   const trimmedName = useMemo(() => name.trim(), [name]);
@@ -51,7 +52,7 @@ export default function AccountForm() {
         city: city || undefined,
         state: mailingState || undefined,
         zip: zip || undefined,
-        salesExecutive: salesExecutive || undefined,
+        salesExecutiveId: salesExecutiveId || undefined,
         phone: phone || undefined,
         websiteUrl: websiteUrl || undefined,
       });
@@ -250,13 +251,18 @@ export default function AccountForm() {
               <label className="block text-xs font-medium text-gray-500 mb-1">
                 Sales Executive
               </label>
-              <input
-                type="text"
-                value={salesExecutive}
-                onChange={(e) => setSalesExecutive(e.target.value)}
-                placeholder="e.g., Jane Smith"
-                className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 placeholder:text-gray-400"
-              />
+              <select
+                value={salesExecutiveId}
+                onChange={(e) => setSalesExecutiveId(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-plum/20 focus:border-plum/30 text-gray-700"
+              >
+                <option value="">Select sales executive...</option>
+                {(users || []).map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.fullName || u.email}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Phone */}

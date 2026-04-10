@@ -136,9 +136,9 @@ export default function DistrictHeader({
       </div>
 
       {/* Sales Executive */}
-      {fullmindData?.salesExecutive && (
+      {fullmindData?.salesExecutive?.fullName && (
         <div className="mt-1.5 text-xs text-gray-500">
-          SE: <span className="font-medium text-[#403770]">{fullmindData.salesExecutive}</span>
+          SE: <span className="font-medium text-[#403770]">{fullmindData.salesExecutive.fullName}</span>
         </div>
       )}
     </div>

@@ -80,13 +80,13 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(new Set(["fullmind"]));
 
   // Fullmind data
-  const [owners, setOwners] = useState<string[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     fetch("/api/sales-executives")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setOwners(data.map?.((d: any) => d.name || d) || []))
+      .then((data) => setOwners((data || []).map((d: { id: string; fullName: string | null; email: string }) => ({ id: d.id, name: d.fullName || d.email }))))
       .catch(() => {});
     fetch("/api/tags")
       .then((r) => (r.ok ? r.json() : []))
@@ -252,7 +252,7 @@ function FullmindContent({
   handleRangeApply: (column: string, min: number, max: number) => void;
   fyLabel: string;
   selectedFY: string;
-  owners: string[];
+  owners: { id: string; name: string }[];
   tags: Array<{ id: string; name: string }>;
 }) {
   return (
@@ -279,7 +279,7 @@ function FullmindContent({
         <FilterMultiSelect
           label="Sales Executive"
           column="salesExecutive"
-          options={owners.map((o) => ({ value: o, label: o }))}
+          options={owners.map((o) => ({ value: o.id, label: o.name }))}
           onApply={(col, vals) => addFilter(col, "in", vals)}
         />
       )}

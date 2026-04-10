@@ -27,7 +27,7 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
   const isMapTab = activeTab === "map";
 
   // Fetch filter options
-  const [owners, setOwners] = useState<string[]>([]);
+  const [salesExecs, setSalesExecs] = useState<{ id: string; fullName: string | null; email: string }[]>([]);
   const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
   const [states, setStates] = useState<
     Array<{ abbrev: string; name: string }>
@@ -36,11 +36,7 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
   useEffect(() => {
     fetch("/api/sales-executives")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) =>
-        setOwners(
-          data.map?.((d: Record<string, unknown>) => d.name || d) || [],
-        ),
-      )
+      .then((data) => setSalesExecs(Array.isArray(data) ? data : []))
       .catch(() => {});
     fetch("/api/territory-plans")
       .then((r) => (r.ok ? r.json() : []))
@@ -354,9 +350,9 @@ export default function FilterBar({ activeTab }: FilterBarProps) {
               className={selectStyle}
             >
               <option value="">All Sales Execs</option>
-              {owners.map((owner) => (
-                <option key={owner} value={owner}>
-                  {owner}
+              {salesExecs.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName || user.email}
                 </option>
               ))}
             </select>
