@@ -11,6 +11,7 @@ import type {
   SponsorshipMetadata,
 } from "@/features/activities/types";
 import ConferenceFields from "./ConferenceFields";
+import RoadTripFields from "./RoadTripFields";
 import DinnerFields from "./DinnerFields";
 import WebinarFields from "./WebinarFields";
 import SpeakingEngagementFields from "./SpeakingEngagementFields";
@@ -18,16 +19,28 @@ import ProfessionalDevelopmentFields from "./ProfessionalDevelopmentFields";
 import CourseFields from "./CourseFields";
 import SponsorshipFields from "./SponsorshipFields";
 
+interface DistrictStop {
+  leaid: string;
+  name: string;
+  stateAbbrev: string | null;
+  visitDate?: string;
+  notes?: string;
+}
+
 interface EventTypeFieldsProps {
   type: ActivityType;
   metadata: Record<string, unknown>;
   onMetadataChange: (metadata: Record<string, unknown>) => void;
+  districtStops?: DistrictStop[];
+  onDistrictStopsChange?: (stops: DistrictStop[]) => void;
 }
 
 export default function EventTypeFields({
   type,
   metadata,
   onMetadataChange,
+  districtStops,
+  onDistrictStopsChange,
 }: EventTypeFieldsProps) {
   switch (type) {
     case "conference":
@@ -39,7 +52,12 @@ export default function EventTypeFields({
       );
 
     case "road_trip":
-      return null;
+      return districtStops && onDistrictStopsChange ? (
+        <RoadTripFields
+          districtStops={districtStops}
+          onDistrictStopsChange={onDistrictStopsChange}
+        />
+      ) : null;
 
     case "dinner":
     case "happy_hour":

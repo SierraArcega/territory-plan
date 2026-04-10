@@ -85,7 +85,7 @@ export default function ActivityFormModal({
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
   const [selectedDistricts, setSelectedDistricts] = useState<
-    { leaid: string; name: string; stateAbbrev: string | null }[]
+    { leaid: string; name: string; stateAbbrev: string | null; visitDate?: string; notes?: string }[]
   >([]);
 
   // Outcome state
@@ -184,6 +184,8 @@ export default function ActivityFormModal({
         leaid: d.leaid,
         name: d.name || d.leaid,
         stateAbbrev: d.stateAbbrev || null,
+        visitDate: d.visitDate ? d.visitDate.split("T")[0] : "",
+        notes: d.notes || "",
       })) || []
     );
     setExpenses(
@@ -287,6 +289,8 @@ export default function ActivityFormModal({
           districts: selectedDistricts.map((d, index) => ({
             leaid: d.leaid,
             position: index,
+            visitDate: d.visitDate || null,
+            notes: d.notes || null,
           })),
         });
         onClose();
@@ -318,6 +322,8 @@ export default function ActivityFormModal({
           const explicit = selectedDistricts.map((d, i) => ({
             leaid: d.leaid,
             position: i,
+            visitDate: d.visitDate || undefined,
+            notes: d.notes || undefined,
           }));
           const all = [...explicit, ...contactDistricts];
           return all.length > 0 ? all : undefined;
@@ -638,37 +644,39 @@ export default function ActivityFormModal({
                   })()}
                 </div>
 
-                {/* Districts */}
-                <div>
-                  <label className="block text-xs font-medium text-[#8A80A8] mb-1">Districts</label>
-                  {selectedDistricts.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {selectedDistricts.map((d) => (
-                        <span
-                          key={d.leaid}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFEDF5] text-[#544A78] rounded-md text-[11px]"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                          {d.name}
-                          {d.stateAbbrev && <span className="text-[#8A80A8]">· {d.stateAbbrev}</span>}
-                          <button
-                            type="button"
-                            onClick={() => setSelectedDistricts((prev) => prev.filter((x) => x.leaid !== d.leaid))}
-                            className="ml-0.5 text-[#A69DC0] hover:text-[#F37167] transition-colors"
+                {/* Districts — compact chips for non-road-trip types; road trips use the stops UI in Details */}
+                {type !== "road_trip" && (
+                  <div>
+                    <label className="block text-xs font-medium text-[#8A80A8] mb-1">Districts</label>
+                    {selectedDistricts.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {selectedDistricts.map((d) => (
+                          <span
+                            key={d.leaid}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFEDF5] text-[#544A78] rounded-md text-[11px]"
                           >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <DistrictSearchInput
-                    excludeLeaids={selectedDistricts.map((d) => d.leaid)}
-                    onSelect={(d) => setSelectedDistricts((prev) => [...prev, { leaid: d.leaid, name: d.name, stateAbbrev: d.stateAbbrev }])}
-                  />
-                </div>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            {d.name}
+                            {d.stateAbbrev && <span className="text-[#8A80A8]">· {d.stateAbbrev}</span>}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDistricts((prev) => prev.filter((x) => x.leaid !== d.leaid))}
+                              className="ml-0.5 text-[#A69DC0] hover:text-[#F37167] transition-colors"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <DistrictSearchInput
+                      excludeLeaids={selectedDistricts.map((d) => d.leaid)}
+                      onSelect={(d) => setSelectedDistricts((prev) => [...prev, { leaid: d.leaid, name: d.name, stateAbbrev: d.stateAbbrev }])}
+                    />
+                  </div>
+                )}
 
                 {/* Fullmind Attendees — team members on this activity */}
                 {isEventCategory && (
@@ -689,6 +697,8 @@ export default function ActivityFormModal({
                       type={type}
                       metadata={metadata}
                       onMetadataChange={setMetadata}
+                      districtStops={type === "road_trip" ? selectedDistricts : undefined}
+                      onDistrictStopsChange={type === "road_trip" ? setSelectedDistricts : undefined}
                     />
                   </div>
                 )}

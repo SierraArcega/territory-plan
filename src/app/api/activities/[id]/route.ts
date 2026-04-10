@@ -343,13 +343,15 @@ export async function PATCH(
     // Update districts if provided (replace all)
     if (districtUpdates !== undefined) {
       await prisma.activityDistrict.deleteMany({ where: { activityId: id } });
-      const districts = districtUpdates as { leaid: string; position?: number }[];
+      const districts = districtUpdates as { leaid: string; position?: number; visitDate?: string | null; notes?: string | null }[];
       if (districts.length > 0) {
         await prisma.activityDistrict.createMany({
           data: districts.map((du, i) => ({
             activityId: id,
             districtLeaid: du.leaid,
             position: du.position ?? i,
+            visitDate: du.visitDate ? new Date(du.visitDate) : null,
+            notes: du.notes?.trim() || null,
             warningDismissed: false,
           })),
         });
