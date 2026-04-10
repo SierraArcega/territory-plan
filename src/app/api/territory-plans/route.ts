@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { awardPoints } from "@/features/leaderboard/lib/scoring";
+import { getFinancialValue } from "@/features/shared/lib/financial-helpers";
 export const dynamic = "force-dynamic";
 
 // GET /api/territory-plans - List all plans with district counts
@@ -29,8 +30,10 @@ export async function GET() {
               select: {
                 enrollment: true,
                 stateAbbrev: true,
-                fy26OpenPipeline: true,
-                fy27OpenPipeline: true,
+                districtFinancials: {
+                  where: { vendor: "fullmind" },
+                  select: { fiscalYear: true, openPipeline: true },
+                },
               },
             },
           },
@@ -67,14 +70,12 @@ export async function GET() {
       );
 
       // Aggregate open pipeline for the plan's fiscal year
+      const fy = `FY${plan.fiscalYear - 2000}`; // 2026 → "FY26"
       const pipelineTotal = plan.districts.reduce((sum, d) => {
-        const pipeline =
-          plan.fiscalYear === 2026
-            ? Number(d.district.fy26OpenPipeline ?? 0)
-            : plan.fiscalYear === 2027
-              ? Number(d.district.fy27OpenPipeline ?? 0)
-              : 0;
-        return sum + pipeline;
+        const record = d.district.districtFinancials.find(
+          (f) => f.fiscalYear === fy
+        );
+        return sum + (record ? Number(record.openPipeline ?? 0) : 0);
       }, 0);
 
       const taskCount = plan.taskLinks.length;
