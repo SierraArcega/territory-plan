@@ -1,8 +1,8 @@
--- Seed vendor_financials from existing district + competitor_spend data
+-- Seed district_financials from existing district + competitor_spend data
 -- Run once after migration to backfill existing data
 
 -- Fullmind FY25
-INSERT INTO vendor_financials (leaid, vendor, fiscal_year, open_pipeline, closed_won_bookings, invoicing, total_revenue, all_take)
+INSERT INTO district_financials (leaid, vendor, fiscal_year, open_pipeline, closed_won_bookings, invoicing, total_revenue, all_take)
 SELECT
   d.leaid,
   'fullmind',
@@ -24,7 +24,7 @@ ON CONFLICT (leaid, vendor, fiscal_year) DO UPDATE SET
   last_updated = NOW();
 
 -- Fullmind FY26
-INSERT INTO vendor_financials (leaid, vendor, fiscal_year, open_pipeline, closed_won_bookings, invoicing, total_revenue, all_take)
+INSERT INTO district_financials (leaid, vendor, fiscal_year, open_pipeline, closed_won_bookings, invoicing, total_revenue, all_take)
 SELECT
   d.leaid,
   'fullmind',
@@ -48,7 +48,7 @@ ON CONFLICT (leaid, vendor, fiscal_year) DO UPDATE SET
   last_updated = NOW();
 
 -- Competitors (from competitor_spend -> total_spend maps to total_revenue)
-INSERT INTO vendor_financials (leaid, vendor, fiscal_year, total_revenue)
+INSERT INTO district_financials (leaid, vendor, fiscal_year, total_revenue)
 SELECT
   cs.leaid,
   CASE cs.competitor

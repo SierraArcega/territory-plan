@@ -276,7 +276,7 @@ model District {
   districtTags     DistrictTag[]
   territoryPlans   TerritoryPlanDistrict[]
   competitorSpend  CompetitorSpend[]
-  vendorFinancials VendorFinancials[]
+  districtFinancials DistrictFinancials[]
   activityLinks   ActivityDistrict[]
   taskLinks       TaskDistrict[]
   schools         School[]
@@ -338,10 +338,10 @@ model CompetitorSpend {
   @@map("competitor_spend")
 }
 
-// ===== Vendor Financials =====
+// ===== District Financials =====
 // Normalized financial metrics for all vendors (Fullmind + competitors)
 // Source: Fullmind CSV, GovSpend PO data, user-provided CSV
-model VendorFinancials {
+model DistrictFinancials {
   id                Int      @id @default(autoincrement())
   leaid             String?  @db.VarChar(7)
   vendor            String   @db.VarChar(20)
@@ -374,7 +374,7 @@ model VendorFinancials {
   @@unique([unmatchedAccountId, vendor, fiscalYear])
   @@index([leaid])
   @@index([vendor, fiscalYear])
-  @@map("vendor_financials")
+  @@map("district_financials")
 }
 
 model Contact {
@@ -419,7 +419,7 @@ model UnmatchedAccount {
   hasOpenPipeline    Boolean  @default(false) @map("has_open_pipeline")
   createdAt          DateTime @default(now()) @map("created_at")
 
-  financials VendorFinancials[]
+  districtFinancials DistrictFinancials[]
 
   @@index([stateAbbrev])
   @@index([stateFips])

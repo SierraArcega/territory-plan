@@ -1,4 +1,4 @@
--- Verification queries for vendor_financials data integrity
+-- Verification queries for district_financials data integrity
 -- Run against Supabase after ETL to confirm EK12 + Fullmind data loaded correctly.
 --
 -- Usage: psql $DATABASE_URL -f scripts/verify-vendor-financials.sql
@@ -14,7 +14,7 @@ SELECT
   COUNT(*) FILTER (WHERE delivered_revenue > 0) AS has_delivered,
   COUNT(*) FILTER (WHERE scheduled_revenue > 0) AS has_scheduled,
   COUNT(*) FILTER (WHERE deferred_revenue > 0) AS has_deferred
-FROM vendor_financials
+FROM district_financials
 GROUP BY vendor, fiscal_year
 ORDER BY vendor, fiscal_year;
 
@@ -30,7 +30,7 @@ SELECT
   SUM(deferred_revenue)::numeric(15,2) AS def_rev,
   SUM(total_revenue)::numeric(15,2) AS total_rev,
   SUM(all_take)::numeric(15,2) AS all_take
-FROM vendor_financials
+FROM district_financials
 GROUP BY vendor, fiscal_year
 ORDER BY vendor, fiscal_year;
 
@@ -40,7 +40,7 @@ SELECT
   COUNT(*) AS districts,
   SUM(total_revenue)::numeric(15,2) AS total_revenue,
   SUM(open_pipeline)::numeric(15,2) AS pipeline
-FROM vendor_financials
+FROM district_financials
 WHERE fiscal_year = 'FY26'
   AND vendor IN ('fullmind', 'elevate')
 GROUP BY vendor;
@@ -50,7 +50,7 @@ SELECT
   fiscal_year,
   COUNT(*) AS rows,
   COUNT(DISTINCT vendor) AS vendors
-FROM vendor_financials
+FROM district_financials
 WHERE fiscal_year IN ('FY24', 'FY27')
 GROUP BY fiscal_year
 ORDER BY fiscal_year;

@@ -220,11 +220,11 @@ export async function GET(req: NextRequest) {
     }
 
     // competitorChurned → had competitor revenue in prior FY but not current
-    // vendor_financials uses lowercase vendor names ('proximity', 'elevate', etc.)
+    // district_financials uses lowercase vendor names ('proximity', 'elevate', etc.)
     if (f.column === "competitorChurned" && f.op === "is_true") {
       if (!relationWhere.AND) relationWhere.AND = [];
       (relationWhere.AND as unknown[]).push({
-        vendorFinancials: {
+        districtFinancials: {
           some: {
             vendor: { not: "fullmind" },
             fiscalYear: "FY25",
@@ -233,7 +233,7 @@ export async function GET(req: NextRequest) {
         },
       });
       (relationWhere.AND as unknown[]).push({
-        vendorFinancials: {
+        districtFinancials: {
           none: {
             vendor: { not: "fullmind" },
             fiscalYear: "FY26",

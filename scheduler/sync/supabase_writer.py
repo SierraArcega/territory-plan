@@ -238,12 +238,12 @@ def refresh_map_features(conn):
 
 
 def refresh_fullmind_financials(conn):
-    """Refresh Fullmind vendor_financials from opportunities + sessions."""
-    logger.info("Refreshing Fullmind vendor_financials...")
+    """Refresh Fullmind district_financials from opportunities + sessions."""
+    logger.info("Refreshing Fullmind district_financials...")
     with conn.cursor() as cur:
         cur.execute("SELECT refresh_fullmind_financials()")
     conn.commit()
-    logger.info("Refreshed Fullmind vendor_financials")
+    logger.info("Refreshed Fullmind district_financials")
 
 
 def refresh_opportunity_actuals(conn):

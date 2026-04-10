@@ -1,4 +1,4 @@
--- Refresh Fullmind vendor_financials from opportunities + sessions
+-- Refresh Fullmind district_financials from opportunities + sessions
 -- Called after each Railway sync cycle
 --
 -- Revenue/take/bookings/pipeline: from opportunities (Railway pre-computed)
@@ -77,8 +77,8 @@ BEGIN
     AND s.start_time IS NOT NULL
   GROUP BY o.district_lea_id, fiscal_year;
 
-  -- Upsert combined results into vendor_financials
-  INSERT INTO vendor_financials (
+  -- Upsert combined results into district_financials
+  INSERT INTO district_financials (
     leaid, vendor, fiscal_year,
     completed_revenue, scheduled_revenue, total_revenue,
     completed_take, scheduled_take, total_take,

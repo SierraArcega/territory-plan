@@ -20,7 +20,7 @@ in_plan AS (
 ),
 -- FY27 Fullmind categories: FY26→FY27 comparison
 -- No fy27 revenue data yet, only fy27_open_pipeline.
--- Prior-year revenue from vendor_financials FY26.
+-- Prior-year revenue from district_financials FY26.
 fullmind_fy27 AS (
   SELECT
     d.leaid,
@@ -37,7 +37,7 @@ fullmind_fy27 AS (
       WHEN COALESCE(d.fy27_open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
         AND EXISTS (
-          SELECT 1 FROM vendor_financials vf
+          SELECT 1 FROM district_financials vf
           WHERE vf.leaid = d.leaid AND vf.vendor = 'fullmind' AND vf.total_revenue > 0
         )
       THEN 'winback_pipeline'
@@ -53,10 +53,10 @@ fullmind_fy27 AS (
     END AS fy27_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
-  LEFT JOIN vendor_financials vf26 ON d.leaid = vf26.leaid
+  LEFT JOIN district_financials vf26 ON d.leaid = vf26.leaid
     AND vf26.vendor = 'fullmind' AND vf26.fiscal_year = 'FY26'
 ),
--- FY26 Fullmind categories: FY25→FY26 comparison (revenue-based via vendor_financials)
+-- FY26 Fullmind categories: FY25→FY26 comparison (revenue-based via district_financials)
 fullmind_fy26 AS (
   SELECT
     d.leaid,
@@ -93,7 +93,7 @@ fullmind_fy26 AS (
       WHEN COALESCE(d.fy26_open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
         AND EXISTS (
-          SELECT 1 FROM vendor_financials vf
+          SELECT 1 FROM district_financials vf
           WHERE vf.leaid = d.leaid AND vf.vendor = 'fullmind' AND vf.total_revenue > 0
         )
       THEN 'winback_pipeline'
@@ -114,12 +114,12 @@ fullmind_fy26 AS (
     END AS fy26_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
-  LEFT JOIN vendor_financials vf25 ON d.leaid = vf25.leaid
+  LEFT JOIN district_financials vf25 ON d.leaid = vf25.leaid
     AND vf25.vendor = 'fullmind' AND vf25.fiscal_year = 'FY25'
-  LEFT JOIN vendor_financials vf26 ON d.leaid = vf26.leaid
+  LEFT JOIN district_financials vf26 ON d.leaid = vf26.leaid
     AND vf26.vendor = 'fullmind' AND vf26.fiscal_year = 'FY26'
 ),
--- FY25 Fullmind categories: FY24→FY25 comparison (revenue-based via vendor_financials)
+-- FY25 Fullmind categories: FY24→FY25 comparison (revenue-based via district_financials)
 -- No fy25_open_pipeline column exists, so pipeline categories are omitted.
 fullmind_fy25 AS (
   SELECT
@@ -157,9 +157,9 @@ fullmind_fy25 AS (
     END AS fy25_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
-  LEFT JOIN vendor_financials vf24 ON d.leaid = vf24.leaid
+  LEFT JOIN district_financials vf24 ON d.leaid = vf24.leaid
     AND vf24.vendor = 'fullmind' AND vf24.fiscal_year = 'FY24'
-  LEFT JOIN vendor_financials vf25 ON d.leaid = vf25.leaid
+  LEFT JOIN district_financials vf25 ON d.leaid = vf25.leaid
     AND vf25.vendor = 'fullmind' AND vf25.fiscal_year = 'FY25'
 ),
 -- FY24 Fullmind categories: degraded — no fy24 revenue columns exist at all.
@@ -242,7 +242,7 @@ vendor_fy27 AS (
         WHEN 'educere' THEN 'Educere'
       END AS competitor,
       open_pipeline AS pipeline
-    FROM vendor_financials
+    FROM district_financials
     WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
       AND fiscal_year = 'FY27'
       AND open_pipeline > 0
@@ -316,7 +316,7 @@ vendor_fy26 AS (
         WHEN 'educere' THEN 'Educere'
       END AS competitor,
       open_pipeline AS pipeline
-    FROM vendor_financials
+    FROM district_financials
     WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
       AND fiscal_year = 'FY26'
       AND open_pipeline > 0

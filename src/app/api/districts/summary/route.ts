@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const fyParam = searchParams.get("fy") || "fy26";
     const validFys = ["fy24", "fy25", "fy26", "fy27"] as const;
     const fy = validFys.includes(fyParam as any) ? fyParam : "fy26";
-    const fiscalYear = fy.toUpperCase(); // 'FY25' or 'FY26' for vendor_financials
+    const fiscalYear = fy.toUpperCase(); // 'FY25' or 'FY26' for district_financials
     const states = searchParams.get("states");
     const owner = searchParams.get("owner");
     const planId = searchParams.get("planId");
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     const fullmindCatCol = `${fy}_fullmind_category`;
 
-    // Combined query: JOIN vendor_financials for all active vendors, group by fullmind category
+    // Combined query: JOIN district_financials for all active vendors, group by fullmind category
     // We pass vendorList as an array param for the vf.vendor filter
     const vendorParamIdx = paramIdx;
     const fyParamIdx = paramIdx + 1;
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         COALESCE(SUM(vf.total_take), 0)::float AS total_take
       FROM district_map_features dmf
       JOIN dist ON dmf.leaid = dist.leaid
-      LEFT JOIN vendor_financials vf ON dmf.leaid = vf.leaid
+      LEFT JOIN district_financials vf ON dmf.leaid = vf.leaid
         AND vf.vendor = ANY($${vendorParamIdx})
         AND vf.fiscal_year = $${fyParamIdx}
       ${combinedWhere}
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
               COALESCE(SUM(vf.total_take), 0)::float AS total_take
             FROM district_map_features dmf
             JOIN dist ON dmf.leaid = dist.leaid
-            LEFT JOIN vendor_financials vf ON dmf.leaid = vf.leaid
+            LEFT JOIN district_financials vf ON dmf.leaid = vf.leaid
               AND vf.vendor = $${paramIdx}
               AND vf.fiscal_year = $${paramIdx + 1}
             ${vWhere}
