@@ -39,7 +39,7 @@ export interface District {
 export interface FullmindData {
   leaid: string;
   accountName: string | null;
-  salesExecutive: string | null;
+  salesExecutive: PersonRef | null;
   lmsid: string | null;
   // FY25 Sessions
   fy25SessionsRevenue: number;
@@ -73,7 +73,7 @@ export interface FullmindData {
 export interface DistrictEdits {
   leaid: string;
   notes: string | null;
-  owner: string | null;
+  owner: PersonRef | null;
   updatedAt: string;
 }
 
@@ -403,6 +403,12 @@ export interface ClayLookupResponse {
 
 // ===== User Types =====
 
+export interface PersonRef {
+  id: string | null;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
 export interface UserSummary {
   id: string;
   fullName: string | null;
@@ -715,7 +721,7 @@ export interface StateDetail {
   fips: string | null;
   name: string;
   aggregates: StateAggregates;
-  territoryOwner: string | null;
+  territoryOwner: PersonRef | null;
   notes: string | null;
   territoryPlans: StateTerritoryPlan[];
 }
