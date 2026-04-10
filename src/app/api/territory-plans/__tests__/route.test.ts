@@ -87,8 +87,8 @@ describe("Territory Plans API", () => {
           updatedAt: new Date("2024-01-15"),
           _count: { districts: 5 },
           districts: [
-            { district: { enrollment: 500, stateAbbrev: "CA" } },
-            { district: { enrollment: 300, stateAbbrev: "CA" } },
+            { districtLeaid: "0601234", district: { enrollment: 500, stateAbbrev: "CA", districtFinancials: [] } },
+            { districtLeaid: "0605678", district: { enrollment: 300, stateAbbrev: "CA", districtFinancials: [] } },
           ],
           taskLinks: [
             { task: { status: "done" } },
