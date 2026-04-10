@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { LeaderboardEntry } from "../lib/types";
+import { formatRevenue, getInitials } from "../lib/format";
 
 export type RevenueSortColumn = "revenue" | "priorYearRevenue" | "pipeline" | "revenueTargeted";
 
@@ -10,18 +11,6 @@ interface RevenueTableProps {
   sortColumn: RevenueSortColumn;
   sortDirection: "asc" | "desc";
   onSort: (column: RevenueSortColumn) => void;
-}
-
-function formatRevenue(n: number): string {
-  return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2);
 }
 
 const COLUMNS: { key: RevenueSortColumn; label: string }[] = [

@@ -161,8 +161,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
             </p>
           )}
 
-          {/* Initiative summary — always visible regardless of active tab */}
-          {initiative && (
+          {/* Initiative summary — only visible on initiative tab */}
+          {initiative && activeTab === "initiative" && (
             <p className="text-xs text-[#6E6390] leading-relaxed mt-2 ml-7.5">
               Ranked by a weighted blend of{" "}
               {[
