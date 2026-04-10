@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
+import {
+  extractFullmindFinancials,
+  FULLMIND_FINANCIALS_SELECT,
+} from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +32,10 @@ export async function GET(
         },
         territoryPlans: {
           select: { planId: true },
+        },
+        districtFinancials: {
+          where: { vendor: "fullmind" },
+          select: FULLMIND_FINANCIALS_SELECT,
         },
       },
     });
@@ -77,30 +85,13 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
         accountType: district.accountType || "district",
       },
 
-      // Fullmind CRM data (now on district)
+      // Fullmind CRM data (from district_financials relation)
       fullmindData: district.isCustomer != null ? {
         leaid: district.leaid,
         accountName: district.accountName,
         salesExecutive: district.salesExecutive,
         lmsid: district.lmsid,
-        fy25SessionsRevenue: toNumber(district.fy25SessionsRevenue) ?? 0,
-        fy25SessionsTake: toNumber(district.fy25SessionsTake) ?? 0,
-        fy25SessionsCount: district.fy25SessionsCount ?? 0,
-        fy26SessionsRevenue: toNumber(district.fy26SessionsRevenue) ?? 0,
-        fy26SessionsTake: toNumber(district.fy26SessionsTake) ?? 0,
-        fy26SessionsCount: district.fy26SessionsCount ?? 0,
-        fy25ClosedWonOppCount: district.fy25ClosedWonOppCount ?? 0,
-        fy25ClosedWonNetBooking: toNumber(district.fy25ClosedWonNetBooking) ?? 0,
-        fy25NetInvoicing: toNumber(district.fy25NetInvoicing) ?? 0,
-        fy26ClosedWonOppCount: district.fy26ClosedWonOppCount ?? 0,
-        fy26ClosedWonNetBooking: toNumber(district.fy26ClosedWonNetBooking) ?? 0,
-        fy26NetInvoicing: toNumber(district.fy26NetInvoicing) ?? 0,
-        fy26OpenPipelineOppCount: district.fy26OpenPipelineOppCount ?? 0,
-        fy26OpenPipeline: toNumber(district.fy26OpenPipeline) ?? 0,
-        fy26OpenPipelineWeighted: toNumber(district.fy26OpenPipelineWeighted) ?? 0,
-        fy27OpenPipelineOppCount: district.fy27OpenPipelineOppCount ?? 0,
-        fy27OpenPipeline: toNumber(district.fy27OpenPipeline) ?? 0,
-        fy27OpenPipelineWeighted: toNumber(district.fy27OpenPipelineWeighted) ?? 0,
+        ...extractFullmindFinancials(district.districtFinancials),
         isCustomer: district.isCustomer ?? false,
         hasOpenPipeline: district.hasOpenPipeline ?? false,
       } : null,
