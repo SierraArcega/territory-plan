@@ -29,6 +29,8 @@ OPPORTUNITY_COLUMNS = [
     "scheduled_sessions", "scheduled_revenue", "scheduled_take",
     "total_revenue", "total_take", "average_take_rate",
     "service_types",
+    "minimum_purchase_amount", "maximum_budget", "details_link",
+    "stage_history", "start_date", "expiration",
     "synced_at",
 ]
 
@@ -65,7 +67,7 @@ def upsert_opportunities(conn, records):
 SESSION_COLUMNS = [
     "id", "opportunity_id", "service_type",
     "session_price", "educator_price", "educator_approved_price",
-    "start_time", "synced_at",
+    "start_time", "type", "status", "service_name", "synced_at",
 ]
 
 

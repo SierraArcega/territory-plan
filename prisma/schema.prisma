@@ -1286,8 +1286,14 @@ model Opportunity {
   totalRevenue       Decimal?  @map("total_revenue") @db.Decimal(15, 2)
   totalTake          Decimal?  @map("total_take") @db.Decimal(15, 2)
   averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
-  serviceTypes       Json      @default("[]") @map("service_types")
-  syncedAt           DateTime? @map("synced_at") @db.Timestamptz
+  serviceTypes          Json      @default("[]") @map("service_types")
+  minimumPurchaseAmount Decimal?  @map("minimum_purchase_amount") @db.Decimal(15, 2)
+  maximumBudget         Decimal?  @map("maximum_budget") @db.Decimal(15, 2)
+  detailsLink           String?   @map("details_link") @db.Text
+  stageHistory          Json      @default("[]") @map("stage_history")
+  startDate             DateTime? @map("start_date") @db.Timestamptz
+  expiration            DateTime? @map("expiration") @db.Timestamptz
+  syncedAt              DateTime? @map("synced_at") @db.Timestamptz
 
   activityLinks ActivityOpportunity[]
 
@@ -1311,6 +1317,9 @@ model Session {
   educatorPrice         Decimal?  @map("educator_price") @db.Decimal(15, 2)
   educatorApprovedPrice Decimal?  @map("educator_approved_price") @db.Decimal(15, 2)
   startTime             DateTime? @map("start_time") @db.Timestamptz
+  type                  String?   @db.Text
+  status                String?   @db.Text
+  serviceName           String?   @map("service_name") @db.Text
   syncedAt              DateTime? @map("synced_at") @db.Timestamptz
 
   @@index([opportunityId])

@@ -148,6 +148,9 @@ def run_sync():
                     "educator_price": _to_decimal(s.get("educatorPrice")),
                     "educator_approved_price": _to_decimal(s.get("educatorApprovedPrice")),
                     "start_time": s.get("startTime"),
+                    "type": s.get("type"),
+                    "status": s.get("status"),
+                    "service_name": s.get("serviceName"),
                     "synced_at": now,
                 }
                 for s in opp_sessions
