@@ -1031,6 +1031,9 @@ model CalendarConnection {
   syncedActivityTypes    String[] @default([]) @map("synced_activity_types") // empty = all types synced
   reminderMinutes        Int      @default(15) @map("reminder_minutes") // 0 = none
   secondReminderMinutes  Int?     @map("second_reminder_minutes")
+  backfillStartDate      DateTime? @map("backfill_start_date") // user-chosen timeMin for initial backfill sync; NULL once backfill pass is done
+  backfillCompletedAt    DateTime? @map("backfill_completed_at") // set when first-time logging wizard finishes; NULL = wizard still pending
+  backfillWindowDays     Int?      @map("backfill_window_days") // symmetric window (7/30/60/90) — drives both timeMin (initial) and timeMax (all syncs)
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 

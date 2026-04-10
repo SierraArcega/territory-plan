@@ -32,6 +32,9 @@ export async function GET() {
         reminderMinutes: true,
         secondReminderMinutes: true,
         createdAt: true,
+        backfillStartDate: true,
+        backfillCompletedAt: true,
+        backfillWindowDays: true,
       },
     });
 
@@ -61,6 +64,9 @@ export async function GET() {
         reminderMinutes: connection.reminderMinutes,
         secondReminderMinutes: connection.secondReminderMinutes,
         createdAt: connection.createdAt.toISOString(),
+        backfillStartDate: connection.backfillStartDate?.toISOString() || null,
+        backfillCompletedAt: connection.backfillCompletedAt?.toISOString() || null,
+        backfillWindowDays: connection.backfillWindowDays,
       },
       pendingCount,
     });
@@ -165,6 +171,9 @@ export async function PATCH(request: Request) {
         reminderMinutes: true,
         secondReminderMinutes: true,
         createdAt: true,
+        backfillStartDate: true,
+        backfillCompletedAt: true,
+        backfillWindowDays: true,
       },
     });
 
@@ -172,6 +181,10 @@ export async function PATCH(request: Request) {
       connection: {
         ...updated,
         lastSyncAt: updated.lastSyncAt?.toISOString() || null,
+        createdAt: updated.createdAt.toISOString(),
+        backfillStartDate: updated.backfillStartDate?.toISOString() || null,
+        backfillCompletedAt: updated.backfillCompletedAt?.toISOString() || null,
+        backfillWindowDays: updated.backfillWindowDays,
       },
     });
   } catch (error) {

@@ -160,6 +160,8 @@ Used for:
 /api/calendar/events        — List staged calendar events (inbox)
 /api/calendar/events/[id]   — Confirm/dismiss a calendar event
 /api/calendar/events/batch-confirm — Bulk-confirm high-confidence events
+/api/calendar/backfill/start    — Start first-time backfill with user-chosen window (7/30/60/90 days)
+/api/calendar/backfill/complete — Mark backfill logging exercise as finished
 
 /api/progress/activities    — Activity metrics (counts, trends, coverage)
 /api/progress/outcomes      — Outcome metrics (funnel, distribution)

@@ -944,6 +944,9 @@ export interface CalendarConnection {
   reminderMinutes: number;
   secondReminderMinutes: number | null;
   createdAt: string;
+  backfillStartDate: string | null;
+  backfillCompletedAt: string | null;
+  backfillWindowDays: number | null;
 }
 
 export interface CalendarStatusResponse {

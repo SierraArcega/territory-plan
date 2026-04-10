@@ -250,11 +250,30 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
   }
 
   // Step 2: Fetch events from Google Calendar
-  // Window: 7 days in the past + 14 days in the future
-  const timeMin = new Date();
-  timeMin.setDate(timeMin.getDate() - 7);
+  // Window is symmetric around "now" based on the user's chosen backfillWindowDays:
+  // - timeMax = now + backfillWindowDays (forward horizon — new meetings get picked up)
+  // - timeMin depends on backfill/sync state:
+  //     - If the user picked a backfill window and hasn't finished the wizard → use backfillStartDate
+  //     - Else if we have a prior sync → lastSyncAt minus a 2-day buffer (catches late updates)
+  //     - Else → 7 days in the past (fallback preserves the old behavior for fresh connections)
+  // - Legacy fallback: if backfillWindowDays is null (older connections), use the old 14-day forward.
+  const windowDays = calendarConnection.backfillWindowDays ?? 14;
   const timeMax = new Date();
-  timeMax.setDate(timeMax.getDate() + 14);
+  timeMax.setDate(timeMax.getDate() + windowDays);
+
+  let timeMin: Date;
+  if (
+    calendarConnection.backfillStartDate &&
+    !calendarConnection.backfillCompletedAt
+  ) {
+    timeMin = new Date(calendarConnection.backfillStartDate);
+  } else if (calendarConnection.lastSyncAt) {
+    timeMin = new Date(calendarConnection.lastSyncAt);
+    timeMin.setDate(timeMin.getDate() - 2);
+  } else {
+    timeMin = new Date();
+    timeMin.setDate(timeMin.getDate() - 7);
+  }
 
   let googleEvents;
   try {
@@ -273,8 +292,25 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
   const syncTimestamp = new Date();
   const companyDomain = (integration.metadata as Record<string, unknown>)?.companyDomain as string || "";
 
+  // Batch dedupe: events the user already logged manually (Activity.googleEventId is @unique)
+  // should never be re-staged. Single batch query against the unique index keeps this cheap.
+  const googleIds = googleEvents.map((e) => e.id);
+  const alreadyLogged = new Set(
+    googleIds.length === 0
+      ? []
+      : (
+          await prisma.activity.findMany({
+            where: { googleEventId: { in: googleIds } },
+            select: { googleEventId: true },
+          })
+        )
+          .map((a) => a.googleEventId)
+          .filter((id): id is string => id !== null)
+  );
+
   for (const event of googleEvents) {
     result.eventsProcessed++;
+    if (alreadyLogged.has(event.id)) continue;
 
     try {
       // Filter to only external attendees using the company domain
@@ -295,13 +331,18 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
         externalAttendees.length
       );
 
-      // Check if this event already exists in our staging table
-      const existingEvent = await prisma.calendarEvent.findUnique({
+      // Check if this event already exists in our staging table.
+      // Lookup is scoped to (userId, googleEventId), NOT (connectionId,
+      // googleEventId): legacy rows from before connection_id was re-added
+      // have connection_id = NULL, and an OAuth reconnect can produce a new
+      // connection_id. The user-scoped key is the only one that reliably
+      // dedupes against a prior dismissed/confirmed row for the same Google
+      // event. See sync.test.ts "dedupe against prior status" for the bug
+      // this guards against.
+      const existingEvent = await prisma.calendarEvent.findFirst({
         where: {
-          connectionId_googleEventId: {
-            connectionId: calendarConnection.id,
-            googleEventId: event.id,
-          },
+          userId,
+          googleEventId: event.id,
         },
       });
 
@@ -381,9 +422,15 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     }
   }
 
-  // Step 5: Update the last sync timestamp
+  // Step 5: Update the last sync timestamp on BOTH token store + connection
+  // The status route reads lastSyncAt from CalendarConnection; UserIntegration
+  // mirrors it so the shared integrations dashboard stays in sync too.
   await prisma.userIntegration.update({
     where: { userId_service: { userId, service: "google_calendar" } },
+    data: { lastSyncAt: syncTimestamp },
+  });
+  await prisma.calendarConnection.update({
+    where: { id: calendarConnection.id },
     data: { lastSyncAt: syncTimestamp },
   });
 
