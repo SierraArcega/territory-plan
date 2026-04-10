@@ -929,6 +929,12 @@ export interface PlanOpportunityRow {
   completedRevenue: number;
   scheduledRevenue: number;
   closeDate: string | null;
+  minimumPurchaseAmount: number | null;
+  maximumBudget: number | null;
+  detailsLink: string | null;
+  stageHistory: unknown[];
+  startDate: string | null;
+  expiration: string | null;
 }
 
 // ===== Calendar Types =====
