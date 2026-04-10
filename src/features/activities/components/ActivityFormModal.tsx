@@ -28,6 +28,7 @@ import ActivityFormTabs from "./ActivityFormTabs";
 import StatusSelect from "./event-fields/StatusSelect";
 import { type RelationDraft } from "./tabs/RelatedActivitiesTab";
 import ContactSelect, { type SelectedContact } from "./event-fields/ContactSelect";
+import DistrictSearchInput from "./event-fields/DistrictSearchInput";
 import ActivityViewPanel from "./ActivityViewPanel";
 import { type OutcomeType } from "@/features/activities/outcome-types";
 import type { OpportunityResult } from "@/features/activities/lib/outcome-types-api";
@@ -83,8 +84,8 @@ export default function ActivityFormModal({
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
-  const [districtStops, setDistrictStops] = useState<
-    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
+  const [selectedDistricts, setSelectedDistricts] = useState<
+    { leaid: string; name: string; stateAbbrev: string | null }[]
   >([]);
 
   // Outcome state
@@ -139,7 +140,7 @@ export default function ActivityFormModal({
     setOutcomeNote("");
     setLinkedOpportunities([]);
     setOutcomeContacts([]);
-    setDistrictStops([]);
+    setSelectedDistricts([]);
     setTaskDrafts([]);
     setExpenses([]);
     setRelatedActivities([]);
@@ -178,13 +179,11 @@ export default function ActivityFormModal({
     setSelectedStateFips(editActivity.states?.map((s) => s.fips) || []);
     setMetadata((editActivity.metadata as Record<string, unknown>) || {});
     setAttendeeUserIds(editActivity.attendees?.map((a) => a.userId) || []);
-    setDistrictStops(
+    setSelectedDistricts(
       editActivity.districts?.map((d) => ({
         leaid: d.leaid,
         name: d.name || d.leaid,
         stateAbbrev: d.stateAbbrev || null,
-        visitDate: d.visitDate ? d.visitDate.split("T")[0] : "",
-        notes: d.notes || "",
       })) || []
     );
     setExpenses(
@@ -285,11 +284,9 @@ export default function ActivityFormModal({
           metadata: hasMetadata ? metadata : null,
           attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : [],
           expenses: expenses.filter((e) => e.description.trim()),
-          districts: districtStops.map((s, index) => ({
-            leaid: s.leaid,
-            visitDate: s.visitDate || null,
+          districts: selectedDistricts.map((d, index) => ({
+            leaid: d.leaid,
             position: index,
-            notes: s.notes || null,
           })),
         });
         onClose();
@@ -314,18 +311,15 @@ export default function ActivityFormModal({
         })(),
         expenses: expenses.length > 0 ? expenses.filter((e) => e.description.trim()) : undefined,
         districts: (() => {
-          // Merge district stops with auto-linked districts from contacts
-          const stopLeaids = new Set(districtStops.map((s) => s.leaid));
+          const explicitLeaids = new Set(selectedDistricts.map((d) => d.leaid));
           const contactDistricts = selectedContacts
-            .filter((c) => !stopLeaids.has(c.leaid))
-            .map((c, i) => ({ leaid: c.leaid, position: districtStops.length + i }));
-          const stops = districtStops.map((s, i) => ({
-            leaid: s.leaid,
-            visitDate: s.visitDate || undefined,
+            .filter((c) => !explicitLeaids.has(c.leaid))
+            .map((c, i) => ({ leaid: c.leaid, position: selectedDistricts.length + i }));
+          const explicit = selectedDistricts.map((d, i) => ({
+            leaid: d.leaid,
             position: i,
-            notes: s.notes || undefined,
           }));
-          const all = [...stops, ...contactDistricts];
+          const all = [...explicit, ...contactDistricts];
           return all.length > 0 ? all : undefined;
         })(),
         relatedActivityIds: relatedActivities.length > 0
@@ -594,7 +588,7 @@ export default function ActivityFormModal({
                   />
                   {/* Auto-linked districts & states as chips */}
                   {selectedContacts.length > 0 && (() => {
-                    const stopLeaids = new Set(districtStops.map((s) => s.leaid));
+                    const stopLeaids = new Set(selectedDistricts.map((d) => d.leaid));
                     const autoDistricts = [...new Map(
                       selectedContacts
                         .filter((c) => !stopLeaids.has(c.leaid) && c.districtName)
@@ -644,6 +638,38 @@ export default function ActivityFormModal({
                   })()}
                 </div>
 
+                {/* Districts */}
+                <div>
+                  <label className="block text-xs font-medium text-[#8A80A8] mb-1">Districts</label>
+                  {selectedDistricts.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {selectedDistricts.map((d) => (
+                        <span
+                          key={d.leaid}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#EFEDF5] text-[#544A78] rounded-md text-[11px]"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                          {d.name}
+                          {d.stateAbbrev && <span className="text-[#8A80A8]">· {d.stateAbbrev}</span>}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDistricts((prev) => prev.filter((x) => x.leaid !== d.leaid))}
+                            className="ml-0.5 text-[#A69DC0] hover:text-[#F37167] transition-colors"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <DistrictSearchInput
+                    excludeLeaids={selectedDistricts.map((d) => d.leaid)}
+                    onSelect={(d) => setSelectedDistricts((prev) => [...prev, { leaid: d.leaid, name: d.name, stateAbbrev: d.stateAbbrev }])}
+                  />
+                </div>
+
                 {/* Fullmind Attendees — team members on this activity */}
                 {isEventCategory && (
                   <div>
@@ -663,8 +689,6 @@ export default function ActivityFormModal({
                       type={type}
                       metadata={metadata}
                       onMetadataChange={setMetadata}
-                      districtStops={districtStops}
-                      onDistrictStopsChange={setDistrictStops}
                     />
                   </div>
                 )}

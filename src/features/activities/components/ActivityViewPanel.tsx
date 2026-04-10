@@ -42,9 +42,6 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
   const [attendeeUserIds, setAttendeeUserIds] = useState<string[]>([]);
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
   const [selectedStateFips, setSelectedStateFips] = useState<string[]>([]);
-  const [districtStops, setDistrictStops] = useState<
-    { leaid: string; name: string; stateAbbrev: string | null; visitDate: string; notes: string }[]
-  >([]);
   const [taskDrafts, setTaskDrafts] = useState<TaskDraft[]>([]);
   const [expenses, setExpenses] = useState<{ description: string; amount: number }[]>([]);
   const [relatedActivities, setRelatedActivities] = useState<RelationDraft[]>([]);
@@ -164,8 +161,6 @@ export default function ActivityViewPanel({ activityId, onViewRelated }: Activit
                 type={type}
                 metadata={metadata}
                 onMetadataChange={(v) => { setMetadata(v); markChanged(); }}
-                districtStops={districtStops}
-                onDistrictStopsChange={(v) => { setDistrictStops(v); markChanged(); }}
               />
             </div>
           )}
