@@ -263,7 +263,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
         {/* Content — scrollable area */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {activeTab === "revenue" ? (
-            <RevenueOverviewTab entries={leaderboard?.entries ?? []} isLoading={lbLoading} />
+            <RevenueOverviewTab />
           ) : lbLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-[#403770] border-t-transparent rounded-full animate-spin" />

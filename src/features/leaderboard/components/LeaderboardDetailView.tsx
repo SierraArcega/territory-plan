@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { useLeaderboardDetails, useLeaderboard } from "../lib/queries";
+import { useLeaderboardDetails } from "../lib/queries";
 import { TIER_LABELS, TIER_COLORS, parseTierRank } from "../lib/types";
 import TierBadge from "./TierBadge";
 import RevenueOverviewTab from "./RevenueOverviewTab";
@@ -16,7 +16,6 @@ const ACTION_TAB_MAP: Record<string, string> = {
 
 export default function LeaderboardDetailView() {
   const { data, isLoading, isError } = useLeaderboardDetails();
-  const { data: leaderboard, isLoading: lbLoading } = useLeaderboard();
   const [activeTab, setActiveTab] = useState<"revenue" | "initiative">("revenue");
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
@@ -58,10 +57,7 @@ export default function LeaderboardDetailView() {
         </div>
 
         {activeTab === "revenue" ? (
-          <RevenueOverviewTab
-            entries={leaderboard?.entries ?? []}
-            isLoading={lbLoading}
-          />
+          <RevenueOverviewTab />
         ) : isLoading ? (
           <div className="space-y-4">
             <div className="h-8 w-48 bg-[#E2DEEC]/40 rounded animate-pulse" />
