@@ -6,11 +6,14 @@ OPPORTUNITY_SOURCE_FIELDS = [
     "payment_type", "contractType", "lead_source", "net_booking_amount",
     "sales_rep", "accounts", "invoices", "credit_memos",
     "referring_contact_name", "contracting_through", "funding_through", "payment_terms",
+    "minimum_purchase_amount", "maximum_budget", "detailsLink",
+    "stage_history", "start_date", "expiration",
 ]
 
 SESSION_SOURCE_FIELDS = [
     "opportunityId", "sessionPrice", "educatorPrice", "educatorApprovedPrice",
     "startTime", "status", "doNotBill", "serviceType",
+    "type", "serviceName",
 ]
 
 
