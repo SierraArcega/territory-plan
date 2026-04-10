@@ -87,6 +87,18 @@ export async function getUser() {
 }
 
 /**
+ * Checks whether the given user ID belongs to a user with the admin role.
+ */
+export async function isAdmin(userId: string): Promise<boolean> {
+  const { default: prisma } = await import('@/lib/prisma')
+  const profile = await prisma.userProfile.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  })
+  return profile?.role === 'admin'
+}
+
+/**
  * Returns the authenticated user AND their profile if they have the admin role.
  * Uses getRealUser() to bypass impersonation — admin checks always use real identity.
  */
