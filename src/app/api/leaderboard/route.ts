@@ -46,12 +46,14 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const currentFY = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
     const defaultSchoolYr = `${currentFY - 1}-${String(currentFY).slice(-2)}`;
+    const priorFY = currentFY - 1;
+    const priorSchoolYr = `${priorFY - 1}-${String(priorFY).slice(-2)}`;
 
     const pipelineSchoolYr = initiative.pipelineFiscalYear ?? defaultSchoolYr;
     const takeSchoolYr = initiative.takeFiscalYear ?? defaultSchoolYr;
     const revenueSchoolYr = initiative.revenueFiscalYear ?? defaultSchoolYr;
 
-    const uniqueYears = [...new Set([pipelineSchoolYr, takeSchoolYr, revenueSchoolYr])];
+    const uniqueYears = [...new Set([pipelineSchoolYr, takeSchoolYr, revenueSchoolYr, priorSchoolYr])];
 
     const repActuals = await Promise.all(
       scores.map(async (score) => {
@@ -71,9 +73,10 @@ export async function GET(request: NextRequest) {
             pipeline: yearActuals.get(pipelineSchoolYr)?.openPipeline ?? 0,
             take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
             revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
+            priorYearRevenue: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
           };
         } catch {
-          return { userId: score.userId, take: 0, pipeline: 0, revenue: 0 };
+          return { userId: score.userId, take: 0, pipeline: 0, revenue: 0, priorYearRevenue: 0 };
         }
       })
     );
@@ -189,7 +192,7 @@ export async function GET(request: NextRequest) {
 
     // Build leaderboard entries
     const entries = scores.map((score, index) => {
-      const actuals = actualsMap.get(score.userId) ?? { take: 0, pipeline: 0, revenue: 0 };
+      const actuals = actualsMap.get(score.userId) ?? { take: 0, pipeline: 0, revenue: 0, priorYearRevenue: 0 };
 
       const tier = calculateTier(score.totalPoints, thresholdData);
 
@@ -236,6 +239,7 @@ export async function GET(request: NextRequest) {
         take: actuals.take,
         pipeline: actuals.pipeline,
         revenue: actuals.revenue,
+        priorYearRevenue: actuals.priorYearRevenue,
         revenueTargeted: revenueTargetedByUser.get(score.userId) ?? 0,
         combinedScore: Math.round(combinedScore * 10) / 10,
         initiativeScore: Math.round(initiativeScore * 10) / 10,
