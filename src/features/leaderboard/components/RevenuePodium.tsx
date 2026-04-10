@@ -6,17 +6,7 @@ interface RevenuePodiumProps {
   entries: LeaderboardEntry[];
 }
 
-function formatRevenue(n: number): string {
-  return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2);
-}
+import { formatRevenue, getInitials } from "../lib/format";
 
 const PODIUM_STYLES = {
   first: {
@@ -52,14 +42,14 @@ export default function RevenuePodium({ entries }: RevenuePodiumProps) {
 
   // Render order: 2nd, 1st, 3rd (visual podium layout)
   const podiumOrder = [
-    { entry: second, place: "second" as const },
-    { entry: first, place: "first" as const },
-    { entry: third, place: "third" as const },
+    { entry: second, place: "second" as const, rank: 2 },
+    { entry: first, place: "first" as const, rank: 1 },
+    { entry: third, place: "third" as const, rank: 3 },
   ];
 
   return (
     <div className="flex justify-center items-end gap-5 py-8 px-10">
-      {podiumOrder.map(({ entry, place }) => {
+      {podiumOrder.map(({ entry, place, rank }) => {
         const style = PODIUM_STYLES[place];
         return (
           <div
@@ -67,7 +57,7 @@ export default function RevenuePodium({ entries }: RevenuePodiumProps) {
             className={`flex flex-col items-center px-4 pt-5 pb-4 rounded-xl border w-[200px] transition-transform ${style.bg} ${style.border} ${style.shadow} ${style.lift}`}
           >
             <span className={`text-[13px] font-bold mb-2 ${style.rankColor}`}>
-              #{entry.rank}
+              #{rank}
             </span>
             {entry.avatarUrl ? (
               <img
