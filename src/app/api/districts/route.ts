@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { normalizeState } from "@/lib/states";
+import {
+  extractFullmindFinancials,
+  FULLMIND_FINANCIALS_SELECT,
+} from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +20,8 @@ type MetricType =
   | "open_pipeline_weighted";
 type FiscalYear = "fy25" | "fy26" | "fy27";
 
-// Maps metric + year to the actual column name on the district model
-function getMetricColumn(metric: MetricType, year: FiscalYear): string {
+// Maps metric + year to the key in extractFullmindFinancials output
+function getFinancialKey(metric: MetricType, year: FiscalYear): string {
   const metricMap: Record<MetricType, Record<FiscalYear, string>> = {
     sessions_revenue: {
       fy25: "fy25SessionsRevenue",
@@ -113,7 +117,7 @@ export async function GET(request: NextRequest) {
     // Get total count
     const total = await prisma.district.count({ where });
 
-    // Get districts - no more include needed, all data is on the district
+    // Get districts with financial data from districtFinancials relation
     const districts = await prisma.district.findMany({
       where,
       select: {
@@ -122,23 +126,13 @@ export async function GET(request: NextRequest) {
         stateAbbrev: true,
         isCustomer: true,
         hasOpenPipeline: true,
-        fy25SessionsRevenue: true,
-        fy25SessionsTake: true,
-        fy25SessionsCount: true,
-        fy26SessionsRevenue: true,
-        fy26SessionsTake: true,
-        fy26SessionsCount: true,
-        fy25ClosedWonNetBooking: true,
-        fy25NetInvoicing: true,
-        fy26ClosedWonNetBooking: true,
-        fy26NetInvoicing: true,
-        fy26OpenPipeline: true,
-        fy26OpenPipelineWeighted: true,
-        fy27OpenPipeline: true,
-        fy27OpenPipelineWeighted: true,
         accountType: true,
         cityLocation: true,
         stateLocation: true,
+        districtFinancials: {
+          where: { vendor: "fullmind" },
+          select: FULLMIND_FINANCIALS_SELECT,
+        },
       },
       take: limit,
       skip: offset,
@@ -146,9 +140,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to list items
-    const metricColumn = getMetricColumn(metric, year);
+    const financialKey = getFinancialKey(metric, year);
     const districtList = districts.map((d) => {
-      const metricValue = Number(d[metricColumn as keyof typeof d] || 0);
+      const fin = extractFullmindFinancials(d.districtFinancials);
+      const metricValue = Number(fin[financialKey as keyof typeof fin] || 0);
 
       return {
         leaid: d.leaid,
