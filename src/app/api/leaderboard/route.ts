@@ -7,7 +7,6 @@ import { getRepActuals } from "@/lib/opportunity-actuals";
 export const dynamic = "force-dynamic";
 
 // GET /api/leaderboard — full leaderboard for active initiative
-// Optional query params: ?pipelineFY=2026-27&targetedFY=2026-27 (override initiative FY settings)
 export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
@@ -15,9 +14,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const url = new URL(request.url);
-    const pipelineFYOverride = url.searchParams.get("pipelineFY");
-    const targetedFYOverride = url.searchParams.get("targetedFY");
 
     const initiative = await prisma.initiative.findFirst({
       where: { isActive: true },
@@ -54,11 +50,14 @@ export async function GET(request: NextRequest) {
     const priorFY = currentFY - 1;
     const priorSchoolYr = `${priorFY - 1}-${String(priorFY).slice(-2)}`;
 
-    const pipelineSchoolYr = pipelineFYOverride ?? initiative.pipelineFiscalYear ?? defaultSchoolYr;
+    const nextFYSchoolYr = `${currentFY}-${String(currentFY + 1).slice(-2)}`;
+
+    const pipelineSchoolYr = initiative.pipelineFiscalYear ?? defaultSchoolYr;
     const takeSchoolYr = initiative.takeFiscalYear ?? defaultSchoolYr;
     const revenueSchoolYr = initiative.revenueFiscalYear ?? defaultSchoolYr;
 
-    const uniqueYears = [...new Set([pipelineSchoolYr, takeSchoolYr, revenueSchoolYr, priorSchoolYr])];
+    // Always fetch current + next FY for pipeline (Revenue Overview needs both)
+    const uniqueYears = [...new Set([pipelineSchoolYr, takeSchoolYr, revenueSchoolYr, priorSchoolYr, defaultSchoolYr, nextFYSchoolYr])];
 
     const repActuals = await Promise.all(
       scores.map(async (score) => {
@@ -76,12 +75,14 @@ export async function GET(request: NextRequest) {
           return {
             userId: score.userId,
             pipeline: yearActuals.get(pipelineSchoolYr)?.openPipeline ?? 0,
+            pipelineCurrentFY: yearActuals.get(defaultSchoolYr)?.openPipeline ?? 0,
+            pipelineNextFY: yearActuals.get(nextFYSchoolYr)?.openPipeline ?? 0,
             take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
             revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
             priorYearRevenue: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
           };
         } catch {
-          return { userId: score.userId, take: 0, pipeline: 0, revenue: 0, priorYearRevenue: 0 };
+          return { userId: score.userId, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, revenue: 0, priorYearRevenue: 0 };
         }
       })
     );
@@ -158,40 +159,51 @@ export async function GET(request: NextRequest) {
 
     // Calculate revenue targeted per user — queries ALL plans by ownership and fiscal year,
     // independent of initiative start date (targets are FY goals, not initiative-period activities)
-    const revenueTargetedFYStr = targetedFYOverride ?? initiative.revenueTargetedFiscalYear ?? null;
-    // Parse school-year string "2025-26" → ending calendar year 2026 (matches TerritoryPlan.fiscalYear Int)
-    const revenueTargetedFY = revenueTargetedFYStr
-      ? parseInt(revenueTargetedFYStr.split("-")[0], 10) + 1
-      : null;
-    // Current FY as int (for fallback when no initiative FY is set)
+    // Always fetch both current and next FY separately for client-side toggling
     const currentFYInt = currentFY;
     const nextFYInt = currentFY + 1;
-    const revenueTargetedByUser = new Map<string, number>();
-    const targetedPlanDistricts = await prisma.territoryPlanDistrict.findMany({
-      where: {
-        plan: {
-          OR: [
-            { ownerId: { in: userIds } },
-            { userId: { in: userIds }, ownerId: null },
-          ],
-          fiscalYear: revenueTargetedFY
-            ? revenueTargetedFY
-            : { in: [currentFYInt, nextFYInt] },
+
+    const ownerFilter = {
+      OR: [
+        { ownerId: { in: userIds } },
+        { userId: { in: userIds }, ownerId: null },
+      ],
+    } as const;
+
+    const [targetedCurrentFYDistricts, targetedNextFYDistricts] = await Promise.all([
+      prisma.territoryPlanDistrict.findMany({
+        where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
+        select: {
+          renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
+          plan: { select: { ownerId: true, userId: true } },
         },
-      },
-      select: {
-        renewalTarget: true,
-        winbackTarget: true,
-        expansionTarget: true,
-        newBusinessTarget: true,
-        plan: { select: { ownerId: true, userId: true } },
-      },
-    });
-    for (const d of targetedPlanDistricts) {
-      const uid = d.plan.ownerId ?? d.plan.userId;
-      if (!uid) continue;
-      const total = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) + Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
-      revenueTargetedByUser.set(uid, (revenueTargetedByUser.get(uid) ?? 0) + total);
+      }),
+      prisma.territoryPlanDistrict.findMany({
+        where: { plan: { ...ownerFilter, fiscalYear: nextFYInt } },
+        select: {
+          renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
+          plan: { select: { ownerId: true, userId: true } },
+        },
+      }),
+    ]);
+
+    function sumTargets(districts: typeof targetedCurrentFYDistricts): Map<string, number> {
+      const map = new Map<string, number>();
+      for (const d of districts) {
+        const uid = d.plan.ownerId ?? d.plan.userId;
+        if (!uid) continue;
+        const total = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) + Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
+        map.set(uid, (map.get(uid) ?? 0) + total);
+      }
+      return map;
+    }
+
+    const targetedCurrentFYByUser = sumTargets(targetedCurrentFYDistricts);
+    const targetedNextFYByUser = sumTargets(targetedNextFYDistricts);
+    // Combined for initiative scoring (uses initiative FY setting or both)
+    const revenueTargetedByUser = new Map<string, number>();
+    for (const uid of userIds) {
+      revenueTargetedByUser.set(uid, (targetedCurrentFYByUser.get(uid) ?? 0) + (targetedNextFYByUser.get(uid) ?? 0));
     }
     const maxRevenueTargeted = Math.max(...[...revenueTargetedByUser.values()], 0);
 
@@ -250,9 +262,13 @@ export async function GET(request: NextRequest) {
         rank: index + 1,
         take: actuals.take,
         pipeline: actuals.pipeline,
+        pipelineCurrentFY: actuals.pipelineCurrentFY,
+        pipelineNextFY: actuals.pipelineNextFY,
         revenue: actuals.revenue,
         priorYearRevenue: actuals.priorYearRevenue,
         revenueTargeted: revenueTargetedByUser.get(score.userId) ?? 0,
+        targetedCurrentFY: targetedCurrentFYByUser.get(score.userId) ?? 0,
+        targetedNextFY: targetedNextFYByUser.get(score.userId) ?? 0,
         combinedScore: Math.round(combinedScore * 10) / 10,
         initiativeScore: Math.round(initiativeScore * 10) / 10,
         pointBreakdown,
@@ -277,12 +293,9 @@ export async function GET(request: NextRequest) {
         revenueFiscalYear: initiative.revenueFiscalYear,
         revenueTargetedFiscalYear: initiative.revenueTargetedFiscalYear,
       },
-      resolvedFiscalYears: {
-        pipeline: pipelineSchoolYr,
-        targeted: revenueTargetedFYStr,
-        revenue: revenueSchoolYr,
-        priorYear: priorSchoolYr,
-        defaultSchoolYr,
+      fiscalYears: {
+        currentFY: defaultSchoolYr,
+        nextFY: nextFYSchoolYr,
       },
       entries,
       metrics: initiative.metrics.map((m) => ({
