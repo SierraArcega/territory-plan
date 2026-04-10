@@ -37,8 +37,10 @@ const CARD_SELECT = {
   medianHouseholdIncome: true,
   expenditurePerPupil: true,
   urbanCentricLocale: true,
-  fy26OpenPipeline: true,
-  fy26ClosedWonNetBooking: true,
+  districtFinancials: {
+    where: { vendor: "fullmind", fiscalYear: "FY26" },
+    select: { openPipeline: true, closedWonBookings: true },
+  },
   territoryPlans: {
     select: { plan: { select: { id: true, name: true, color: true } } },
   },
@@ -352,8 +354,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Transform districtFinancials relation back to flat FY fields for frontend compatibility
+  const data = districts.map((d) => {
+    const { districtFinancials, ...rest } = d as typeof d & { districtFinancials?: { openPipeline: unknown; closedWonBookings: unknown }[] };
+    const fy26 = districtFinancials?.[0];
+    return {
+      ...rest,
+      fy26OpenPipeline: fy26?.openPipeline ? Number(fy26.openPipeline) : 0,
+      fy26ClosedWonNetBooking: fy26?.closedWonBookings ? Number(fy26.closedWonBookings) : 0,
+    };
+  });
+
   return NextResponse.json({
-    data: districts,
+    data,
     matchingLeaids,
     matchingCentroids,
     pagination: {
