@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
 import {
-  extractFullmindFinancials,
+  serializeFinancials,
   FULLMIND_FINANCIALS_SELECT,
 } from "@/features/shared/lib/financial-helpers";
 
@@ -97,7 +97,7 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
           ? { id: null, fullName: district.salesExecutive, avatarUrl: null }
           : null,
         lmsid: district.lmsid,
-        ...extractFullmindFinancials(district.districtFinancials),
+        districtFinancials: serializeFinancials(district.districtFinancials),
         isCustomer: district.isCustomer ?? false,
         hasOpenPipeline: district.hasOpenPipeline ?? false,
       } : null,
