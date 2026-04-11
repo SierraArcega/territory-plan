@@ -27,7 +27,6 @@ model District {
   phone              String?  @db.VarChar(20)
   streetLocation     String?  @map("street_location") @db.VarChar(255)
   cityLocation       String?  @map("city_location") @db.VarChar(100)
-  stateLocation      String?  @map("state_location") @db.VarChar(2)
   zipLocation        String?  @map("zip_location") @db.VarChar(10)
   countyName         String?  @map("county_name") @db.VarChar(100)
   urbanCentricLocale Int?     @map("urban_centric_locale")
@@ -49,32 +48,7 @@ model District {
   // ===== Fullmind CRM Data =====
   // Source: Fullmind CSV import via ETL
   accountName              String?  @map("account_name") @db.VarChar(255)
-  salesExecutive           String?  @map("sales_executive") @db.VarChar(100)
   lmsid                    String?  @db.VarChar(50)
-  // FY25 Sessions
-  fy25SessionsRevenue      Decimal? @default(0) @map("fy25_sessions_revenue") @db.Decimal(15, 2)
-  fy25SessionsTake         Decimal? @default(0) @map("fy25_sessions_take") @db.Decimal(15, 2)
-  fy25SessionsCount        Int?     @default(0) @map("fy25_sessions_count")
-  // FY26 Sessions
-  fy26SessionsRevenue      Decimal? @default(0) @map("fy26_sessions_revenue") @db.Decimal(15, 2)
-  fy26SessionsTake         Decimal? @default(0) @map("fy26_sessions_take") @db.Decimal(15, 2)
-  fy26SessionsCount        Int?     @default(0) @map("fy26_sessions_count")
-  // FY25 Bookings
-  fy25ClosedWonOppCount    Int?     @default(0) @map("fy25_closed_won_opp_count")
-  fy25ClosedWonNetBooking  Decimal? @default(0) @map("fy25_closed_won_net_booking") @db.Decimal(15, 2)
-  fy25NetInvoicing         Decimal? @default(0) @map("fy25_net_invoicing") @db.Decimal(15, 2)
-  // FY26 Bookings
-  fy26ClosedWonOppCount    Int?     @default(0) @map("fy26_closed_won_opp_count")
-  fy26ClosedWonNetBooking  Decimal? @default(0) @map("fy26_closed_won_net_booking") @db.Decimal(15, 2)
-  fy26NetInvoicing         Decimal? @default(0) @map("fy26_net_invoicing") @db.Decimal(15, 2)
-  // FY26 Pipeline
-  fy26OpenPipelineOppCount Int?     @default(0) @map("fy26_open_pipeline_opp_count")
-  fy26OpenPipeline         Decimal? @default(0) @map("fy26_open_pipeline") @db.Decimal(15, 2)
-  fy26OpenPipelineWeighted Decimal? @default(0) @map("fy26_open_pipeline_weighted") @db.Decimal(15, 2)
-  // FY27 Pipeline
-  fy27OpenPipelineOppCount Int?     @default(0) @map("fy27_open_pipeline_opp_count")
-  fy27OpenPipeline         Decimal? @default(0) @map("fy27_open_pipeline") @db.Decimal(15, 2)
-  fy27OpenPipelineWeighted Decimal? @default(0) @map("fy27_open_pipeline_weighted") @db.Decimal(15, 2)
   // Computed flags
   isCustomer               Boolean? @default(false) @map("is_customer")
   hasOpenPipeline          Boolean? @default(false) @map("has_open_pipeline")
@@ -158,7 +132,6 @@ model District {
   // ===== User Edits =====
   // Source: App users (shared across team)
   notes          String?
-  owner          String?   @db.VarChar(100)
   notesUpdatedAt DateTime? @map("notes_updated_at")
 
   // Normalized person references (Phase 1: populated from string names)
@@ -275,7 +248,6 @@ model District {
   contacts         Contact[]
   districtTags     DistrictTag[]
   territoryPlans   TerritoryPlanDistrict[]
-  competitorSpend  CompetitorSpend[]
   districtFinancials DistrictFinancials[]
   activityLinks   ActivityDistrict[]
   taskLinks       TaskDistrict[]
@@ -290,7 +262,6 @@ model District {
   @@index([stateAbbrev])
   @@index([stateAbbrev, isCustomer])
   @@index([stateAbbrev, hasOpenPipeline])
-  @@index([salesExecutive])
   @@index([studentTeacherRatio])
   @@index([vacancyPressureSignal])
   @@index([ownerId])
