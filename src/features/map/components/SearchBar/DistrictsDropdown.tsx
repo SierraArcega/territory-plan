@@ -13,7 +13,7 @@ const SECTION_COLUMNS: Record<string, Set<string>> = {
   ]),
   fullmind: new Set([
     "isCustomer", "hasOpenPipeline", "salesExecutive", "owner",
-    "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "fy26_net_invoicing",
+    "open_pipeline", "closed_won_bookings", "invoicing",
     "tags",
   ]),
   competitors: new Set([
@@ -40,7 +40,6 @@ function countSectionFilters(filters: ExploreFilter[], section: string): number 
   // Also match FY-prefixed columns for fullmind
   return filters.filter((f) => {
     if (cols.has(f.column)) return true;
-    if (section === "fullmind" && /^fy\d+_/.test(f.column)) return true;
     return false;
   }).length;
 }
@@ -197,7 +196,7 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
               {isOpen && (
                 <div className="px-4 pb-3 pt-1 space-y-3">
                   {key === "attributes" && <DistrictAttributesContent addFilter={addFilter} />}
-                  {key === "fullmind" && <FullmindContent addFilter={addFilter} handleRangeApply={handleRangeApply} fyLabel={fyLabel} selectedFY={selectedFY} owners={owners} tags={tags} />}
+                  {key === "fullmind" && <FullmindContent addFilter={addFilter} handleRangeApply={handleRangeApply} fyLabel={fyLabel} owners={owners} tags={tags} />}
                   {key === "competitors" && <CompetitorsContent addFilter={addFilter} getExistingFilter={getExistingFilter} removeSearchFilter={removeSearchFilter} />}
                   {key === "finance" && <FinanceContent handleRangeApply={handleRangeApply} />}
                   {key === "demographics" && <DemographicsContent handleRangeApply={handleRangeApply} />}
@@ -244,14 +243,12 @@ function FullmindContent({
   addFilter,
   handleRangeApply,
   fyLabel,
-  selectedFY,
   owners,
   tags,
 }: {
   addFilter: (column: string, op: string, value: any, label?: string) => void;
   handleRangeApply: (column: string, min: number, max: number) => void;
   fyLabel: string;
-  selectedFY: string;
   owners: { id: string; name: string }[];
   tags: Array<{ id: string; name: string }>;
 }) {
@@ -287,9 +284,9 @@ function FullmindContent({
         />
       )}
 
-      <RangeFilter label={`${fyLabel} Pipeline Value`} column={`${selectedFY}_open_pipeline_value`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label={`${fyLabel} Bookings`} column={`${selectedFY}_closed_won_net_booking`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label={`${fyLabel} Invoicing`} column={`${selectedFY}_net_invoicing`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
+      <RangeFilter label={`Pipeline (${fyLabel})`} column="open_pipeline" min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
+      <RangeFilter label={`Bookings (${fyLabel})`} column="closed_won_bookings" min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
+      <RangeFilter label={`Invoicing (${fyLabel})`} column="invoicing" min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
 
       {tags.length > 0 && (
         <FilterMultiSelect
