@@ -56,31 +56,7 @@ export interface FullmindData {
   accountName: string | null;
   salesExecutive: PersonRef | null;
   lmsid: string | null;
-  // FY25 Sessions
-  fy25SessionsRevenue: number;
-  fy25SessionsTake: number;
-  fy25SessionsCount: number;
-  // FY26 Sessions
-  fy26SessionsRevenue: number;
-  fy26SessionsTake: number;
-  fy26SessionsCount: number;
-  // FY25 Bookings
-  fy25ClosedWonOppCount: number;
-  fy25ClosedWonNetBooking: number;
-  fy25NetInvoicing: number;
-  // FY26 Bookings
-  fy26ClosedWonOppCount: number;
-  fy26ClosedWonNetBooking: number;
-  fy26NetInvoicing: number;
-  // FY26 Pipeline
-  fy26OpenPipelineOppCount: number;
-  fy26OpenPipeline: number;
-  fy26OpenPipelineWeighted: number;
-  // FY27 Pipeline
-  fy27OpenPipelineOppCount: number;
-  fy27OpenPipeline: number;
-  fy27OpenPipelineWeighted: number;
-  // Computed
+  districtFinancials: DistrictFinancial[];
   isCustomer: boolean;
   hasOpenPipeline: boolean;
 }
@@ -252,15 +228,12 @@ export interface DistrictListItem {
 export interface UnmatchedAccount {
   id: number;
   accountName: string;
-  salesExecutive: string | null;
+  salesExecutive: PersonRef | null;
   stateAbbrev: string;
   lmsid: string | null;
   leaidRaw: string | null;
   matchFailureReason: string;
-  fy25NetInvoicing: number;
-  fy26NetInvoicing: number;
-  fy26OpenPipeline: number;
-  fy27OpenPipeline: number;
+  districtFinancials: DistrictFinancial[];
   isCustomer: boolean;
   hasOpenPipeline: boolean;
 }
@@ -747,10 +720,8 @@ export interface StateDistrictListItem {
   enrollment: number | null;
   isCustomer: boolean;
   hasOpenPipeline: boolean;
-  salesExecutive: string | null;
-  fy26NetInvoicing: number;
-  fy26OpenPipeline: number;
-  fy27OpenPipeline: number;
+  salesExecutive: PersonRef | null;
+  districtFinancials: DistrictFinancial[];
   tags: Array<{ id: number; name: string; color: string }>;
 }
 
@@ -1036,27 +1007,17 @@ export interface FocusModeStateData {
     totalDistricts: number;
     totalCustomers: number;
     totalWithPipeline: number;
-    fy25ClosedWon: number;
-    fy25Invoicing: number;
-    fy26ClosedWon: number;
-    fy26Invoicing: number;
-    fy26Pipeline: number;
-    fy27Pipeline: number;
+    districtFinancials: DistrictFinancial[];
   };
   plan: {
     districtCount: number;
     customerCount: number;
-    fy25ClosedWon: number;
-    fy25Invoicing: number;
-    fy26ClosedWon: number;
-    fy26Invoicing: number;
-    fy26Pipeline: number;
-    fy27Pipeline: number;
+    districtFinancials: DistrictFinancial[];
   };
   topDistricts: Array<{
     leaid: string;
     name: string;
-    fy26Invoicing: number;
+    districtFinancials: DistrictFinancial[];
   }>;
 }
 
