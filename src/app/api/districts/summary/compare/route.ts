@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (owner) {
-      conditions.push(`dmf.sales_executive = $${paramIdx}`);
+      conditions.push(`dmf.sales_executive_id = $${paramIdx}`);
       params.push(owner);
       paramIdx++;
     }
