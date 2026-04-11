@@ -30,7 +30,7 @@ export default function DistrictInfo({ district }: DistrictInfoProps) {
   const hasAddress =
     district.streetLocation ||
     district.cityLocation ||
-    district.stateLocation ||
+    district.stateAbbrev ||
     district.zipLocation;
   const hasAnyData =
     hasAddress ||
@@ -80,13 +80,13 @@ export default function DistrictInfo({ district }: DistrictInfoProps) {
                 <p className="text-gray-700">{district.streetLocation}</p>
               )}
               {(district.cityLocation ||
-                district.stateLocation ||
+                district.stateAbbrev ||
                 district.zipLocation) && (
                 <p className="text-gray-700">
                   {[
                     district.cityLocation,
-                    district.stateLocation
-                      ? `${district.stateLocation} ${district.zipLocation || ""}`
+                    district.stateAbbrev
+                      ? `${district.stateAbbrev} ${district.zipLocation || ""}`
                       : district.zipLocation,
                   ]
                     .filter(Boolean)

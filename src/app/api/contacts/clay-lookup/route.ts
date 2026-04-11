@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
         stateAbbrev: true,
         cityLocation: true,
         streetLocation: true,
-        stateLocation: true,
         zipLocation: true,
         websiteUrl: true,
       },
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest) {
         state: district.stateAbbrev,
         city: district.cityLocation,
         street: district.streetLocation,
-        state_full: district.stateLocation,
+        state_full: district.stateAbbrev,
         zip: district.zipLocation,
         website_url: district.websiteUrl,
         // Include our webhook URL for Clay to send results back

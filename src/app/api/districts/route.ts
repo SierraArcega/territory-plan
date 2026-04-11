@@ -100,7 +100,6 @@ export async function GET(request: NextRequest) {
         hasOpenPipeline: true,
         accountType: true,
         cityLocation: true,
-        stateLocation: true,
         districtFinancials: {
           where: { vendor: "fullmind" },
           select: FULLMIND_FINANCIALS_SELECT,
@@ -124,7 +123,6 @@ export async function GET(request: NextRequest) {
         hasOpenPipeline: d.hasOpenPipeline || false,
         accountType: d.accountType || "district",
         cityLocation: d.cityLocation,
-        stateLocation: d.stateLocation,
         metricValue,
       };
     });

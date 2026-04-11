@@ -73,7 +73,6 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
         phone: district.phone,
         streetLocation: district.streetLocation,
         cityLocation: district.cityLocation,
-        stateLocation: district.stateLocation,
         zipLocation: district.zipLocation,
         countyName: district.countyName,
         urbanCentricLocale: district.urbanCentricLocale,

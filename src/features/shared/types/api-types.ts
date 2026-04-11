@@ -17,7 +17,6 @@ export interface District {
   phone: string | null;
   streetLocation: string | null;
   cityLocation: string | null;
-  stateLocation: string | null;
   zipLocation: string | null;
   // Geographic context
   countyName: string | null;

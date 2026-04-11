@@ -18,7 +18,6 @@ interface DistrictSuggestion {
   name: string;
   stateAbbrev: string | null;
   cityLocation?: string | null;
-  stateLocation?: string | null;
 }
 import GeographyDropdown from "./GeographyDropdown";
 import DistrictsDropdown from "./DistrictsDropdown";
@@ -181,7 +180,7 @@ export default function SearchBar() {
 
     // Fly to district location using city + state
     const city = district.cityLocation || district.name.replace(/\s*(School District|Community School District|Unified School District|Independent School District|Public Schools|Public School District|City School District|County School District|County Schools|Schools|SD)$/i, "");
-    const locationQuery = `${city}, ${district.stateLocation || district.stateAbbrev || ""}`;
+    const locationQuery = `${city}, ${district.stateAbbrev || ""}`;
     const results = await searchLocations(locationQuery);
     const map = mapV2Ref.current;
     if (map && results.length > 0) {

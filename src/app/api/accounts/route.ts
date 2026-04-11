@@ -90,7 +90,6 @@ export async function POST(request: NextRequest) {
         stateFips,
         streetLocation: street || null,
         cityLocation: city || null,
-        stateLocation: state || null,
         zipLocation: zip || null,
         salesExecutiveId: salesExecutiveId || null,
         phone: phone || null,
