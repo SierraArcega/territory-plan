@@ -1,5 +1,5 @@
 -- Multi-vendor layer materialized view
--- Replaces district_customer_categories and district_vendor_comparison
+-- Replaces legacy district_customer_categories and district_vendor_comparison views
 -- Exports all filter + vendor category fields for vector tiles
 
 DROP MATERIALIZED VIEW IF EXISTS district_map_features;

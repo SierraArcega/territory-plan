@@ -8,8 +8,8 @@ def refresh_map_features(connection_string: str):
     Refresh the district_map_features materialized view.
 
     Call this after any ETL that modifies data used by the view:
-    - competitor_spend (vendor categories)
-    - districts (fullmind revenue, geometry, ownership)
+    - district_financials (vendor revenue, competitor spend)
+    - districts (geometry, ownership)
     - territory_plan_districts (plan memberships)
     """
     conn = psycopg2.connect(connection_string)

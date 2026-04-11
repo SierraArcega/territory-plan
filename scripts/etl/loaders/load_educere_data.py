@@ -1,7 +1,7 @@
 """
 Educere Competitor Spend CSV Data Loader
 
-Parses the Educere unique PO CSV export and populates the competitor_spend table.
+Parses the Educere unique PO CSV export and populates the district_financials table.
 Aggregates spend by district and fiscal year.
 
 The CSV contains columns: Agency NCES ID, Competitor, PO Number, PO Amount,
@@ -139,6 +139,9 @@ def get_valid_leaids(connection_string: str) -> set:
     return leaids
 
 
+VENDOR = "educere"
+
+
 def insert_educere_spend(
     connection_string: str,
     records: List[Dict],
@@ -146,10 +149,10 @@ def insert_educere_spend(
     batch_size: int = 500
 ) -> Dict:
     """
-    Insert Educere spend records into the database.
+    Insert Educere spend records into district_financials.
 
     Only inserts records for districts that exist in the districts table.
-    Deletes only Educere rows before inserting (targeted delete, not truncate).
+    Deletes only Educere vendor rows before inserting (targeted delete).
 
     Returns dict with counts: matched, unmatched, inserted.
     """
@@ -171,23 +174,22 @@ def insert_educere_spend(
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
 
-    # Targeted delete: only Educere rows
-    print("Deleting existing Educere competitor_spend rows...")
-    cur.execute("DELETE FROM competitor_spend WHERE competitor = %s", (COMPETITOR,))
+    # Targeted delete: only Educere vendor rows
+    print("Deleting existing Educere district_financials rows...")
+    cur.execute("DELETE FROM district_financials WHERE vendor = %s", (VENDOR,))
     deleted = cur.rowcount
     print(f"  Deleted {deleted} existing rows")
 
-    # Insert all matched records
     insert_sql = """
-        INSERT INTO competitor_spend (
-            leaid, competitor, fiscal_year, total_spend, po_count, last_updated
+        INSERT INTO district_financials (
+            leaid, vendor, fiscal_year, total_revenue, po_count, last_updated
         ) VALUES %s
     """
 
     values = [
         (
             r["leaid"],
-            r["competitor"],
+            VENDOR,
             r["fiscal_year"],
             r["total_spend"],
             r["po_count"],
@@ -196,7 +198,7 @@ def insert_educere_spend(
         for r in matched
     ]
 
-    print(f"Inserting {len(values)} Educere competitor spend records...")
+    print(f"Inserting {len(values)} Educere spend records into district_financials...")
     for i in range(0, len(values), batch_size):
         batch = values[i:i + batch_size]
         execute_values(cur, insert_sql, batch)
