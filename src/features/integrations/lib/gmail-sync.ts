@@ -13,8 +13,6 @@ import {
   refreshGmailToken,
   isTokenExpired,
 } from "@/features/integrations/lib/google-gmail";
-import { enrichActivitiesWithMixmax } from "@/features/integrations/lib/mixmax-enrichment";
-
 // ===== Types =====
 
 export interface GmailSyncResult {
@@ -23,7 +21,6 @@ export interface GmailSyncResult {
   updatedMessages: number;
   contactMatches: number;
   errors: string[];
-  mixmaxEnriched?: number;
 }
 
 interface ContactMatchResult {
@@ -419,20 +416,6 @@ export async function syncGmailMessages(
       },
     },
   });
-
-  // Step 7: Enrich newly created activities with Mixmax sequence data (if integration exists)
-  if (newMessageIds.length > 0) {
-    const mixmaxIntegration = await prisma.userIntegration.findUnique({
-      where: { userId_service: { userId, service: "mixmax" } },
-    });
-    if (mixmaxIntegration) {
-      const enrichResult = await enrichActivitiesWithMixmax(userId, newMessageIds);
-      result.mixmaxEnriched = enrichResult.enriched;
-      if (enrichResult.errors.length > 0) {
-        result.errors.push(...enrichResult.errors);
-      }
-    }
-  }
 
   return result;
 }

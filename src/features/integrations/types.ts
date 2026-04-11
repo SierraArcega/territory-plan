@@ -1,4 +1,4 @@
-export type IntegrationService = "gmail" | "google_calendar" | "slack" | "mixmax";
+export type IntegrationService = "gmail" | "google_calendar" | "slack";
 
 export type IntegrationStatus = "connected" | "expired" | "disconnected" | "error";
 
@@ -42,12 +42,5 @@ export const INTEGRATION_SERVICES: Record<IntegrationService, {
     color: "#4A154B",
     icon: "S",
     isOAuth: true,
-  },
-  mixmax: {
-    label: "Mixmax",
-    description: "Track email sequences and engagement",
-    color: "#FF6B4A",
-    icon: "Mx",
-    isOAuth: false,
   },
 };

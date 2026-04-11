@@ -23,20 +23,6 @@ export function useDisconnectIntegration() {
   });
 }
 
-export function useConnectMixmax() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (apiKey: string) =>
-      fetchJson(`${API}/mixmax/connect`, {
-        method: "POST",
-        body: JSON.stringify({ apiKey }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["integrations"] });
-    },
-  });
-}
-
 // ===== Outreach Action Hooks =====
 
 export function useSendEmail() {
@@ -85,22 +71,3 @@ export function useSlackChannels() {
   });
 }
 
-export function useMixmaxCampaigns() {
-  return useQuery<{
-    sequences: Array<{ _id: string; name: string; numStages: number }>;
-  }>({
-    queryKey: ["mixmaxCampaigns"],
-    queryFn: () => fetchJson(`${API}/mixmax/campaigns`),
-    staleTime: 5 * 60_000,
-  });
-}
-
-export function useAddToCampaign() {
-  return useMutation({
-    mutationFn: (data: { sequenceId: string; contactEmail: string }) =>
-      fetchJson(`${API}/mixmax/campaigns`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-  });
-}

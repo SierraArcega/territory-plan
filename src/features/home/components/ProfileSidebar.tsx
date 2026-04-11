@@ -16,7 +16,6 @@ import {
   Calendar,
   Clock,
   Mail,
-  Zap,
   MessageSquare,
   CircleDollarSign,
   Phone,
@@ -42,7 +41,6 @@ interface Integration {
 const INTEGRATIONS: Integration[] = [
   { name: "Calendar", icon: Calendar, status: "connected" },
   { name: "Gmail", icon: Mail, status: "setup" },
-  { name: "Mixmax", icon: Zap, status: "setup" },
   { name: "Slack", icon: MessageSquare, status: "connected" },
   { name: "Rippling", icon: CircleDollarSign, status: "setup" },
 ];

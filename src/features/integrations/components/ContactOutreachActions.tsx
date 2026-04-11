@@ -1,13 +1,12 @@
 "use client";
 
-// ContactOutreachActions — Horizontal row of outreach action buttons (Email, Slack, Mixmax)
+// ContactOutreachActions — Horizontal row of outreach action buttons (Email, Slack)
 // Checks integration connection status and disables buttons accordingly
 
 import { useState } from "react";
 import { useIntegrations } from "../lib/queries";
 import ComposeEmailPanel from "./ComposeEmailPanel";
 import ComposeSlackPanel from "./ComposeSlackPanel";
-import MixmaxCampaignModal from "./MixmaxCampaignModal";
 
 interface ContactOutreachActionsProps {
   contactEmail: string | null;
@@ -16,7 +15,7 @@ interface ContactOutreachActionsProps {
   districtLeaid: string;
 }
 
-type ActivePanel = "email" | "slack" | "mixmax" | null;
+type ActivePanel = "email" | "slack" | null;
 
 export default function ContactOutreachActions({
   contactEmail,
@@ -32,9 +31,6 @@ export default function ContactOutreachActions({
   );
   const slackConnected = integrations?.some(
     (i) => i.service === "slack" && i.status === "connected"
-  );
-  const mixmaxConnected = integrations?.some(
-    (i) => i.service === "mixmax" && i.status === "connected"
   );
 
   const closePanel = () => setActivePanel(null);
@@ -82,33 +78,6 @@ export default function ContactOutreachActions({
           </svg>
         </ActionButton>
 
-        {/* Mixmax button */}
-        <ActionButton
-          label="Mixmax"
-          disabled={!mixmaxConnected || !contactEmail}
-          tooltip={
-            !mixmaxConnected
-              ? "Connect Mixmax in Settings"
-              : !contactEmail
-                ? "No email address"
-                : "Add to sequence"
-          }
-          onClick={() => setActivePanel("mixmax")}
-        >
-          <svg
-            className="w-3.5 h-3.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
-        </ActionButton>
       </div>
 
       {/* Panels / Modals */}
@@ -130,13 +99,6 @@ export default function ContactOutreachActions({
         />
       )}
 
-      {activePanel === "mixmax" && contactEmail && (
-        <MixmaxCampaignModal
-          contactEmail={contactEmail}
-          contactName={contactName}
-          onClose={closePanel}
-        />
-      )}
     </>
   );
 }

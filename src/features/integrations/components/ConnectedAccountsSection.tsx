@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useIntegrations, useDisconnectIntegration } from "../lib/queries";
 import { INTEGRATION_SERVICES, type IntegrationService, type IntegrationConnection } from "../types";
-import MixmaxConnectModal from "./MixmaxConnectModal";
 
 /** Maps service keys to their OAuth connect URL */
 const CONNECT_URLS: Partial<Record<IntegrationService, string>> = {
@@ -12,12 +10,11 @@ const CONNECT_URLS: Partial<Record<IntegrationService, string>> = {
   slack: "/api/integrations/slack/connect",
 };
 
-const SERVICE_ORDER: IntegrationService[] = ["gmail", "google_calendar", "slack", "mixmax"];
+const SERVICE_ORDER: IntegrationService[] = ["gmail", "google_calendar", "slack"];
 
 export default function ConnectedAccountsSection() {
   const { data: connections, isLoading } = useIntegrations();
   const disconnectMutation = useDisconnectIntegration();
-  const [showMixmaxModal, setShowMixmaxModal] = useState(false);
 
   const connectionMap = new Map<IntegrationService, IntegrationConnection>();
   if (connections) {
@@ -47,7 +44,7 @@ export default function ConnectedAccountsSection() {
 
         {isLoading ? (
           <div className="space-y-4">
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2].map((i) => (
               <div key={i} className="flex items-center gap-4 animate-pulse">
                 <div className="w-10 h-10 rounded-full bg-gray-200" />
                 <div className="flex-1 space-y-2">
@@ -81,9 +78,6 @@ export default function ConnectedAccountsSection() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-[#403770]">{meta.label}</p>
-                      {service === "mixmax" && (
-                        <span className="text-xs text-gray-400">Gmail enhancement</span>
-                      )}
                     </div>
                     {isConnected ? (
                       <div className="flex items-center gap-1.5">
@@ -107,20 +101,13 @@ export default function ConnectedAccountsSection() {
                       >
                         Disconnect
                       </button>
-                    ) : meta.isOAuth ? (
+                    ) : (
                       <a
                         href={CONNECT_URLS[service]}
                         className="inline-block px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
                       >
                         Connect
                       </a>
-                    ) : (
-                      <button
-                        onClick={() => setShowMixmaxModal(true)}
-                        className="px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg transition-colors"
-                      >
-                        Connect
-                      </button>
                     )}
                   </div>
                 </div>
@@ -130,7 +117,6 @@ export default function ConnectedAccountsSection() {
         )}
       </div>
 
-      {showMixmaxModal && <MixmaxConnectModal onClose={() => setShowMixmaxModal(false)} />}
     </>
   );
 }
