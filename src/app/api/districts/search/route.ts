@@ -10,6 +10,7 @@ import {
   buildWhereClause,
   DISTRICT_FIELD_MAP,
 } from "@/features/shared/lib/filters";
+import { serializeFinancials } from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -353,14 +354,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Transform districtFinancials relation back to flat FY fields for frontend compatibility
+  // Transform districtFinancials relation to serialized array for frontend
   const data = districts.map((d) => {
-    const { districtFinancials, ...rest } = d as typeof d & { districtFinancials?: { openPipeline: unknown; closedWonBookings: unknown }[] };
-    const fy26 = districtFinancials?.[0];
+    const { districtFinancials, ...rest } = d as typeof d & { districtFinancials?: Parameters<typeof serializeFinancials>[0] };
     return {
       ...rest,
-      fy26OpenPipeline: fy26?.openPipeline ? Number(fy26.openPipeline) : 0,
-      fy26ClosedWonNetBooking: fy26?.closedWonBookings ? Number(fy26.closedWonBookings) : 0,
+      districtFinancials: serializeFinancials(districtFinancials ?? []),
     };
   });
 
