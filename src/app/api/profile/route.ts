@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { Decimal } from "@prisma/client/runtime/library";
-import { extractFullmindFinancials, FULLMIND_FINANCIALS_SELECT } from "@/features/shared/lib/financial-helpers";
+import { getFinancialValue, FULLMIND_FINANCIALS_SELECT } from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +36,13 @@ async function calculateActuals(userId: string) {
   // Aggregate actuals from districtFinancials
   const totals = userDistricts.reduce(
     (acc, d) => {
-      const fin = extractFullmindFinancials(d.district.districtFinancials);
-      acc.fy25Revenue += fin.fy25NetInvoicing;
-      acc.fy25Take += fin.fy25SessionsTake;
-      acc.fy26Revenue += fin.fy26NetInvoicing;
-      acc.fy26Take += fin.fy26SessionsTake;
-      acc.fy26Pipeline += fin.fy26OpenPipeline;
-      acc.fy27Pipeline += fin.fy27OpenPipeline;
+      const fin = d.district.districtFinancials;
+      acc.fy25Revenue += getFinancialValue(fin, "fullmind", "FY25", "invoicing");
+      acc.fy25Take += getFinancialValue(fin, "fullmind", "FY25", "totalTake");
+      acc.fy26Revenue += getFinancialValue(fin, "fullmind", "FY26", "invoicing");
+      acc.fy26Take += getFinancialValue(fin, "fullmind", "FY26", "totalTake");
+      acc.fy26Pipeline += getFinancialValue(fin, "fullmind", "FY26", "openPipeline");
+      acc.fy27Pipeline += getFinancialValue(fin, "fullmind", "FY27", "openPipeline");
       return acc;
     },
     { fy25Revenue: 0, fy25Take: 0, fy26Revenue: 0, fy26Take: 0, fy26Pipeline: 0, fy27Pipeline: 0 }
