@@ -1,8 +1,8 @@
 """
 Competitor Spend CSV Data Loader
 
-Parses the GovSpend competitor PO data CSV and populates the competitor_spend table.
-Aggregates spend by district, competitor, and fiscal year.
+Parses the GovSpend competitor PO data CSV and populates the district_financials table.
+Aggregates spend by district, vendor, and fiscal year.
 
 Fiscal Year Logic:
 - FY runs July 1 - June 30
@@ -174,6 +174,15 @@ def get_valid_leaids(connection_string: str) -> set:
     return leaids
 
 
+COMPETITOR_TO_VENDOR = {
+    "Proximity Learning": "proximity",
+    "Elevate K12": "elevate",
+    "Tutored By Teachers": "tbt",
+}
+
+GOVSPEND_VENDORS = list(COMPETITOR_TO_VENDOR.values())
+
+
 def upsert_competitor_spend(
     connection_string: str,
     records: List[Dict],
@@ -181,9 +190,10 @@ def upsert_competitor_spend(
     batch_size: int = 500
 ) -> Dict:
     """
-    Upsert competitor spend records into the database.
+    Upsert competitor spend records into district_financials.
 
     Only inserts records for districts that exist in the districts table.
+    Maps competitor names to short vendor IDs (e.g. "Proximity Learning" → "proximity").
 
     Returns dict with counts: matched, unmatched, upserted.
     """
@@ -200,21 +210,23 @@ def upsert_competitor_spend(
     conn = psycopg2.connect(connection_string)
     cur = conn.cursor()
 
-    # Clear existing data for GovSpend competitors only (targeted delete)
-    print("Clearing existing GovSpend competitor_spend data...")
-    cur.execute("DELETE FROM competitor_spend WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers')")
+    # Clear existing GovSpend vendor rows from district_financials
+    print("Clearing existing GovSpend district_financials data...")
+    cur.execute(
+        "DELETE FROM district_financials WHERE vendor = ANY(%s)",
+        (GOVSPEND_VENDORS,)
+    )
 
-    # Insert all records
     insert_sql = """
-        INSERT INTO competitor_spend (
-            leaid, competitor, fiscal_year, total_spend, po_count, last_updated
+        INSERT INTO district_financials (
+            leaid, vendor, fiscal_year, total_revenue, po_count, last_updated
         ) VALUES %s
     """
 
     values = [
         (
             r["leaid"],
-            r["competitor"],
+            COMPETITOR_TO_VENDOR.get(r["competitor"], r["competitor"].lower().replace(" ", "_")),
             r["fiscal_year"],
             r["total_spend"],
             r["po_count"],
@@ -223,7 +235,7 @@ def upsert_competitor_spend(
         for r in matched
     ]
 
-    print(f"Inserting {len(values)} competitor spend records...")
+    print(f"Inserting {len(values)} competitor spend records into district_financials...")
     for i in tqdm(range(0, len(values), batch_size), desc="Inserting"):
         batch = values[i:i+batch_size]
         execute_values(cur, insert_sql, batch)
@@ -255,7 +267,7 @@ def log_data_refresh(
             data_source, records_updated, records_failed, status, error_message, started_at, completed_at
         ) VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
-        "competitor_spend",
+        "competitor_spend_etl",
         records_updated,
         records_failed,
         status,

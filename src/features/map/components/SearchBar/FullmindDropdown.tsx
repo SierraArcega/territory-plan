@@ -18,14 +18,14 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
   const fyLabel = selectedFY.toUpperCase().replace("FY", "FY");
   const ref = useRef<HTMLDivElement>(null);
 
-  const [owners, setOwners] = useState<string[]>([]);
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
   const [plans, setPlans] = useState<Array<{ id: string; name: string }>>([]);
   const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     fetch("/api/sales-executives")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setOwners(data.map?.((d: any) => d.name || d) || []))
+      .then((data) => setOwners((data || []).map((d: { id: string; fullName: string | null; email: string }) => ({ id: d.id, name: d.fullName || d.email }))))
       .catch(() => {});
     fetch("/api/territory-plans")
       .then((r) => (r.ok ? r.json() : []))
@@ -47,8 +47,8 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
-  const addFilter = (column: string, op: string, value: any) => {
-    addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value });
+  const addFilter = (column: string, op: string, value: any, label?: string) => {
+    addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value, ...(label && { label }) });
   };
 
   return (
@@ -85,8 +85,11 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
           <FilterMultiSelect
             label="Sales Executive"
             column="salesExecutive"
-            options={owners.map((o) => ({ value: o, label: o }))}
-            onApply={(col, vals) => addFilter(col, "in", vals)}
+            options={owners.map((o) => ({ value: o.id, label: o.name }))}
+            onApply={(col, vals) => {
+              const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);
+              addFilter(col, "in", vals, names.join(", "));
+            }}
           />
         )}
 

@@ -2,7 +2,7 @@
 
 import type { DistrictDetail } from "@/lib/api";
 import FullmindMetrics from "@/features/districts/components/FullmindMetrics";
-import CompetitorSpend from "@/features/districts/components/CompetitorSpend";
+import Competitors from "@/features/districts/components/Competitors";
 import AddToPlanButton from "./AddToPlanButton";
 import FindSimilarDistricts from "./FindSimilarDistricts";
 import SchoolsCard from "./SchoolsCard";
@@ -24,8 +24,8 @@ export default function DistrictInfoTab({ data, leaid }: DistrictInfoTabProps) {
         <FullmindMetrics fullmindData={data.fullmindData} />
       )}
 
-      {/* Competitor Spend */}
-      <CompetitorSpend leaid={leaid} />
+      {/* Competitors */}
+      <Competitors leaid={leaid} />
 
       {/* Action Buttons */}
       <div className="px-3 py-3 border-b border-gray-100 bg-gray-50/50 flex gap-2">

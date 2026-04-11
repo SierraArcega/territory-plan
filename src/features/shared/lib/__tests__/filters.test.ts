@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   buildWhereClause,
   DISTRICT_FIELD_MAP,
+  FINANCIAL_FIELD_MAP,
+  FINANCIAL_COLUMNS,
   PLANS_FIELD_MAP,
 } from "../filters";
 import type { FilterDef } from "../filters";
@@ -267,12 +269,13 @@ describe("buildWhereClause", () => {
       });
     });
 
-    it("maps 'fy25_closed_won_net_booking' to 'fy25ClosedWonNetBooking'", () => {
+    it("skips financial columns (handled separately via FINANCIAL_FIELD_MAP)", () => {
       const filters: FilterDef[] = [
-        { column: "fy25_closed_won_net_booking", op: "gt", value: 10000 },
+        { column: "open_pipeline", op: "gt", value: 10000 },
       ];
+      // Financial columns are not in DISTRICT_FIELD_MAP — they're handled via relation filters
       const result = buildWhereClause(filters, DISTRICT_FIELD_MAP);
-      expect(result).toEqual({ fy25ClosedWonNetBooking: { gt: 10000 } });
+      expect(result).toEqual({});
     });
 
     it("maps 'graduationRate' to 'graduationRateTotal'", () => {
@@ -403,10 +406,10 @@ describe("DISTRICT_FIELD_MAP", () => {
     expect(DISTRICT_FIELD_MAP.leaid).toBe("leaid");
   });
 
-  it("contains revenue mappings", () => {
-    expect(DISTRICT_FIELD_MAP.fy25_closed_won_net_booking).toBe("fy25ClosedWonNetBooking");
-    expect(DISTRICT_FIELD_MAP.fy26_open_pipeline_value).toBe("fy26OpenPipeline");
-    expect(DISTRICT_FIELD_MAP.fy27_open_pipeline_value).toBe("fy27OpenPipeline");
+  it("does not contain FY-specific revenue columns (moved to FINANCIAL_FIELD_MAP)", () => {
+    expect(DISTRICT_FIELD_MAP.fy25_closed_won_net_booking).toBeUndefined();
+    expect(DISTRICT_FIELD_MAP.fy26_open_pipeline_value).toBeUndefined();
+    expect(DISTRICT_FIELD_MAP.fy27_open_pipeline_value).toBeUndefined();
   });
 
   it("contains demographic mappings", () => {
@@ -434,8 +437,33 @@ describe("DISTRICT_FIELD_MAP", () => {
     expect(DISTRICT_FIELD_MAP.techSpending).toBe("techSpending");
   });
 
-  it("has more than 100 entries", () => {
-    expect(Object.keys(DISTRICT_FIELD_MAP).length).toBeGreaterThan(100);
+  it("has more than 80 entries (FY columns moved to FINANCIAL_FIELD_MAP)", () => {
+    expect(Object.keys(DISTRICT_FIELD_MAP).length).toBeGreaterThan(80);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  FINANCIAL_FIELD_MAP shape                                         */
+/* ------------------------------------------------------------------ */
+
+describe("FINANCIAL_FIELD_MAP", () => {
+  it("contains all 8 FY-agnostic financial keys", () => {
+    expect(FINANCIAL_FIELD_MAP.open_pipeline).toBe("openPipeline");
+    expect(FINANCIAL_FIELD_MAP.weighted_pipeline).toBe("weightedPipeline");
+    expect(FINANCIAL_FIELD_MAP.closed_won_bookings).toBe("closedWonBookings");
+    expect(FINANCIAL_FIELD_MAP.invoicing).toBe("invoicing");
+    expect(FINANCIAL_FIELD_MAP.closed_won_opp_count).toBe("closedWonOppCount");
+    expect(FINANCIAL_FIELD_MAP.sessions_revenue).toBe("totalRevenue");
+    expect(FINANCIAL_FIELD_MAP.sessions_take).toBe("totalTake");
+    expect(FINANCIAL_FIELD_MAP.sessions_count).toBe("sessionCount");
+    expect(Object.keys(FINANCIAL_FIELD_MAP).length).toBe(8);
+  });
+
+  it("FINANCIAL_COLUMNS set matches FINANCIAL_FIELD_MAP keys", () => {
+    for (const key of Object.keys(FINANCIAL_FIELD_MAP)) {
+      expect(FINANCIAL_COLUMNS.has(key)).toBe(true);
+    }
+    expect(FINANCIAL_COLUMNS.size).toBe(Object.keys(FINANCIAL_FIELD_MAP).length);
   });
 });
 

@@ -3,44 +3,26 @@ import pool from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// Metric column mapping
-const METRIC_COLUMNS: Record<string, Record<string, string>> = {
-  sessions_revenue: {
-    fy25: "fy25_sessions_revenue",
-    fy26: "fy26_sessions_revenue",
-    fy27: "fy26_sessions_revenue",
-  },
-  sessions_take: {
-    fy25: "fy25_sessions_take",
-    fy26: "fy26_sessions_take",
-    fy27: "fy26_sessions_take",
-  },
-  sessions_count: {
-    fy25: "fy25_sessions_count",
-    fy26: "fy26_sessions_count",
-    fy27: "fy26_sessions_count",
-  },
-  closed_won_net_booking: {
-    fy25: "fy25_closed_won_net_booking",
-    fy26: "fy26_closed_won_net_booking",
-    fy27: "fy26_closed_won_net_booking",
-  },
-  net_invoicing: {
-    fy25: "fy25_net_invoicing",
-    fy26: "fy26_net_invoicing",
-    fy27: "fy26_net_invoicing",
-  },
-  open_pipeline: {
-    fy25: "fy26_open_pipeline",
-    fy26: "fy26_open_pipeline",
-    fy27: "fy27_open_pipeline",
-  },
-  open_pipeline_weighted: {
-    fy25: "fy26_open_pipeline_weighted",
-    fy26: "fy26_open_pipeline_weighted",
-    fy27: "fy27_open_pipeline_weighted",
-  },
+// Map metric names to district_financials column names
+const DF_COLUMN_MAP: Record<string, string> = {
+  sessions_revenue: "total_revenue",
+  sessions_take: "total_take",
+  sessions_count: "session_count",
+  closed_won_net_booking: "closed_won_bookings",
+  net_invoicing: "invoicing",
+  open_pipeline: "open_pipeline",
+  open_pipeline_weighted: "weighted_pipeline",
 };
+
+// Map FY year param to district_financials fiscal_year value
+// For metrics without specific FY data (e.g. FY27 sessions), fall back to FY26
+function resolveFiscalYear(metric: string, year: string): string {
+  const fy = year.toUpperCase(); // "fy26" → "FY26"
+  // Pipeline metrics exist for FY27, other metrics don't
+  if (fy === "FY27" && !metric.startsWith("open_pipeline")) return "FY26";
+  if (fy === "FY25" && metric.startsWith("open_pipeline")) return "FY26";
+  return fy;
+}
 
 // Choropleth color ramp (blue sequential)
 const CHOROPLETH_COLORS = [
@@ -57,15 +39,18 @@ export async function GET(request: NextRequest) {
     const metric = searchParams.get("metric") || "net_invoicing";
     const year = searchParams.get("year") || "fy26";
 
-    const metricColumn = METRIC_COLUMNS[metric]?.[year] || "fy26_net_invoicing";
+    const dfColumn = DF_COLUMN_MAP[metric] || "invoicing";
+    const fiscalYear = resolveFiscalYear(metric, year);
 
     // Calculate quantile breaks using PostgreSQL's percentile_cont
     // We want 5 classes, so we need 4 break points (20%, 40%, 60%, 80%)
     const query = `
       WITH metric_values AS (
-        SELECT ${metricColumn}::float AS value
-        FROM districts
-        WHERE ${metricColumn} > 0
+        SELECT COALESCE(df.${dfColumn}, 0)::float AS value
+        FROM districts d
+        LEFT JOIN district_financials df ON df.leaid = d.leaid
+          AND df.vendor = 'fullmind' AND df.fiscal_year = $1
+        WHERE COALESCE(df.${dfColumn}, 0) > 0
       )
       SELECT
         percentile_cont(0.2) WITHIN GROUP (ORDER BY value) AS p20,
@@ -80,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     const client = await pool.connect();
     try {
-      const result = await client.query(query);
+      const result = await client.query(query, [fiscalYear]);
       const row = result.rows[0];
 
       if (!row || row.count === 0) {

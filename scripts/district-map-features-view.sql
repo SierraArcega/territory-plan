@@ -1,5 +1,5 @@
 -- Multi-vendor layer materialized view
--- Replaces district_customer_categories and district_vendor_comparison
+-- Replaces legacy district_customer_categories and district_vendor_comparison views
 -- Exports all filter + vendor category fields for vector tiles
 
 DROP MATERIALIZED VIEW IF EXISTS district_map_features;
@@ -19,30 +19,29 @@ in_plan AS (
   FROM territory_plan_districts
 ),
 -- FY27 Fullmind categories: FY26→FY27 comparison
--- No fy27 revenue data yet, only fy27_open_pipeline.
--- Prior-year revenue from vendor_financials FY26.
+-- Pipeline from district_financials FY27, prior-year revenue from FY26.
 fullmind_fy27 AS (
   SELECT
     d.leaid,
     CASE
-      -- Pipeline stages using fy27_open_pipeline vs FY26 total_revenue
+      -- Pipeline stages using FY27 pipeline vs FY26 total_revenue
       WHEN COALESCE(vf26.total_revenue, 0) > 0
-        AND COALESCE(d.fy27_open_pipeline, 0) > COALESCE(vf26.total_revenue, 0)
+        AND COALESCE(df27.open_pipeline, 0) > COALESCE(vf26.total_revenue, 0)
       THEN 'expansion_pipeline'
 
       WHEN COALESCE(vf26.total_revenue, 0) > 0
-        AND COALESCE(d.fy27_open_pipeline, 0) > 0
+        AND COALESCE(df27.open_pipeline, 0) > 0
       THEN 'renewal_pipeline'
 
-      WHEN COALESCE(d.fy27_open_pipeline, 0) > 0
+      WHEN COALESCE(df27.open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
         AND EXISTS (
-          SELECT 1 FROM vendor_financials vf
+          SELECT 1 FROM district_financials vf
           WHERE vf.leaid = d.leaid AND vf.vendor = 'fullmind' AND vf.total_revenue > 0
         )
       THEN 'winback_pipeline'
 
-      WHEN COALESCE(d.fy27_open_pipeline, 0) > 0
+      WHEN COALESCE(df27.open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
       THEN 'new_business_pipeline'
 
@@ -53,10 +52,12 @@ fullmind_fy27 AS (
     END AS fy27_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
-  LEFT JOIN vendor_financials vf26 ON d.leaid = vf26.leaid
+  LEFT JOIN district_financials vf26 ON d.leaid = vf26.leaid
     AND vf26.vendor = 'fullmind' AND vf26.fiscal_year = 'FY26'
+  LEFT JOIN district_financials df27 ON d.leaid = df27.leaid
+    AND df27.vendor = 'fullmind' AND df27.fiscal_year = 'FY27'
 ),
--- FY26 Fullmind categories: FY25→FY26 comparison (revenue-based via vendor_financials)
+-- FY26 Fullmind categories: FY25→FY26 comparison (revenue-based via district_financials)
 fullmind_fy26 AS (
   SELECT
     d.leaid,
@@ -83,22 +84,22 @@ fullmind_fy26 AS (
 
       -- Pipeline (checked BEFORE lapsed — active pipeline trumps churn)
       WHEN COALESCE(vf25.total_revenue, 0) > 0
-        AND COALESCE(d.fy26_open_pipeline, 0) > COALESCE(vf25.total_revenue, 0)
+        AND COALESCE(vf26.open_pipeline, 0) > COALESCE(vf25.total_revenue, 0)
       THEN 'expansion_pipeline'
 
       WHEN COALESCE(vf25.total_revenue, 0) > 0
-        AND COALESCE(d.fy26_open_pipeline, 0) > 0
+        AND COALESCE(vf26.open_pipeline, 0) > 0
       THEN 'renewal_pipeline'
 
-      WHEN COALESCE(d.fy26_open_pipeline, 0) > 0
+      WHEN COALESCE(vf26.open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
         AND EXISTS (
-          SELECT 1 FROM vendor_financials vf
+          SELECT 1 FROM district_financials vf
           WHERE vf.leaid = d.leaid AND vf.vendor = 'fullmind' AND vf.total_revenue > 0
         )
       THEN 'winback_pipeline'
 
-      WHEN COALESCE(d.fy26_open_pipeline, 0) > 0
+      WHEN COALESCE(vf26.open_pipeline, 0) > 0
         AND ip.leaid IS NOT NULL
       THEN 'new_business_pipeline'
 
@@ -114,12 +115,12 @@ fullmind_fy26 AS (
     END AS fy26_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
-  LEFT JOIN vendor_financials vf25 ON d.leaid = vf25.leaid
+  LEFT JOIN district_financials vf25 ON d.leaid = vf25.leaid
     AND vf25.vendor = 'fullmind' AND vf25.fiscal_year = 'FY25'
-  LEFT JOIN vendor_financials vf26 ON d.leaid = vf26.leaid
+  LEFT JOIN district_financials vf26 ON d.leaid = vf26.leaid
     AND vf26.vendor = 'fullmind' AND vf26.fiscal_year = 'FY26'
 ),
--- FY25 Fullmind categories: FY24→FY25 comparison (revenue-based via vendor_financials)
+-- FY25 Fullmind categories: FY24→FY25 comparison (revenue-based via district_financials)
 -- No fy25_open_pipeline column exists, so pipeline categories are omitted.
 fullmind_fy25 AS (
   SELECT
@@ -157,9 +158,9 @@ fullmind_fy25 AS (
     END AS fy25_fullmind_category
   FROM districts d
   LEFT JOIN in_plan ip ON d.leaid = ip.leaid
-  LEFT JOIN vendor_financials vf24 ON d.leaid = vf24.leaid
+  LEFT JOIN district_financials vf24 ON d.leaid = vf24.leaid
     AND vf24.vendor = 'fullmind' AND vf24.fiscal_year = 'FY24'
-  LEFT JOIN vendor_financials vf25 ON d.leaid = vf25.leaid
+  LEFT JOIN district_financials vf25 ON d.leaid = vf25.leaid
     AND vf25.vendor = 'fullmind' AND vf25.fiscal_year = 'FY25'
 ),
 -- FY24 Fullmind categories: degraded — no fy24 revenue columns exist at all.
@@ -209,10 +210,17 @@ vendor_fy27 AS (
 
       WHEN COALESCE(vp.pipeline, 0) > 0
         AND EXISTS (
-          SELECT 1 FROM competitor_spend cs2
-          WHERE cs2.leaid = COALESCE(cs_agg.leaid, vp.leaid)
-            AND cs2.competitor = COALESCE(cs_agg.competitor, vp.competitor)
-            AND cs2.total_spend > 0
+          SELECT 1 FROM district_financials df2
+          WHERE df2.leaid = COALESCE(cs_agg.leaid, vp.leaid)
+            AND df2.vendor = (
+              CASE COALESCE(cs_agg.competitor, vp.competitor)
+                WHEN 'Proximity Learning' THEN 'proximity'
+                WHEN 'Elevate K12' THEN 'elevate'
+                WHEN 'Tutored By Teachers' THEN 'tbt'
+                WHEN 'Educere' THEN 'educere'
+              END
+            )
+            AND df2.total_revenue > 0
         )
       THEN 'winback_pipeline'
 
@@ -226,12 +234,19 @@ vendor_fy27 AS (
       ELSE NULL
     END AS category
   FROM (
-    SELECT leaid, competitor,
-      SUM(CASE WHEN fiscal_year = 'FY26' THEN total_spend ELSE 0 END) AS fy26_spend,
-      SUM(CASE WHEN fiscal_year = 'FY27' THEN total_spend ELSE 0 END) AS fy27_spend
-    FROM competitor_spend
-    WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
-    GROUP BY leaid, competitor
+    SELECT leaid,
+      CASE vendor
+        WHEN 'proximity' THEN 'Proximity Learning'
+        WHEN 'elevate' THEN 'Elevate K12'
+        WHEN 'tbt' THEN 'Tutored By Teachers'
+        WHEN 'educere' THEN 'Educere'
+      END AS competitor,
+      SUM(CASE WHEN fiscal_year = 'FY26' THEN total_revenue ELSE 0 END) AS fy26_spend,
+      SUM(CASE WHEN fiscal_year = 'FY27' THEN total_revenue ELSE 0 END) AS fy27_spend
+    FROM district_financials
+    WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
+      AND fiscal_year IN ('FY26', 'FY27')
+    GROUP BY leaid, vendor
   ) cs_agg
   FULL OUTER JOIN (
     SELECT leaid,
@@ -242,7 +257,7 @@ vendor_fy27 AS (
         WHEN 'educere' THEN 'Educere'
       END AS competitor,
       open_pipeline AS pipeline
-    FROM vendor_financials
+    FROM district_financials
     WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
       AND fiscal_year = 'FY27'
       AND open_pipeline > 0
@@ -272,7 +287,7 @@ vendor_fy26 AS (
       WHEN COALESCE(cs_agg.fy26_spend, 0) > 0
       THEN 'new'
 
-      -- Pipeline categories: prior spend + FY26 pipeline (no FY26 spend yet)
+      -- Pipeline categories: prior spend + FY26 pipeline
       WHEN COALESCE(cs_agg.fy25_spend, 0) > 0
         AND COALESCE(vp.pipeline, 0) > COALESCE(cs_agg.fy25_spend, 0)
       THEN 'expansion_pipeline'
@@ -283,10 +298,17 @@ vendor_fy26 AS (
 
       WHEN COALESCE(vp.pipeline, 0) > 0
         AND EXISTS (
-          SELECT 1 FROM competitor_spend cs2
-          WHERE cs2.leaid = COALESCE(cs_agg.leaid, vp.leaid)
-            AND cs2.competitor = COALESCE(cs_agg.competitor, vp.competitor)
-            AND cs2.total_spend > 0
+          SELECT 1 FROM district_financials df2
+          WHERE df2.leaid = COALESCE(cs_agg.leaid, vp.leaid)
+            AND df2.vendor = (
+              CASE COALESCE(cs_agg.competitor, vp.competitor)
+                WHEN 'Proximity Learning' THEN 'proximity'
+                WHEN 'Elevate K12' THEN 'elevate'
+                WHEN 'Tutored By Teachers' THEN 'tbt'
+                WHEN 'Educere' THEN 'educere'
+              END
+            )
+            AND df2.total_revenue > 0
         )
       THEN 'winback_pipeline'
 
@@ -300,12 +322,19 @@ vendor_fy26 AS (
       ELSE NULL
     END AS category
   FROM (
-    SELECT leaid, competitor,
-      SUM(CASE WHEN fiscal_year = 'FY25' THEN total_spend ELSE 0 END) AS fy25_spend,
-      SUM(CASE WHEN fiscal_year = 'FY26' THEN total_spend ELSE 0 END) AS fy26_spend
-    FROM competitor_spend
-    WHERE competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
-    GROUP BY leaid, competitor
+    SELECT leaid,
+      CASE vendor
+        WHEN 'proximity' THEN 'Proximity Learning'
+        WHEN 'elevate' THEN 'Elevate K12'
+        WHEN 'tbt' THEN 'Tutored By Teachers'
+        WHEN 'educere' THEN 'Educere'
+      END AS competitor,
+      SUM(CASE WHEN fiscal_year = 'FY25' THEN total_revenue ELSE 0 END) AS fy25_spend,
+      SUM(CASE WHEN fiscal_year = 'FY26' THEN total_revenue ELSE 0 END) AS fy26_spend
+    FROM district_financials
+    WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
+      AND fiscal_year IN ('FY25', 'FY26')
+    GROUP BY leaid, vendor
   ) cs_agg
   FULL OUTER JOIN (
     SELECT leaid,
@@ -316,7 +345,7 @@ vendor_fy26 AS (
         WHEN 'educere' THEN 'Educere'
       END AS competitor,
       open_pipeline AS pipeline
-    FROM vendor_financials
+    FROM district_financials
     WHERE vendor IN ('proximity', 'elevate', 'tbt', 'educere')
       AND fiscal_year = 'FY26'
       AND open_pipeline > 0
@@ -325,66 +354,79 @@ vendor_fy26 AS (
 -- Per-vendor competitor categories: FY25 (FY24→FY25 spend)
 vendor_fy25 AS (
   SELECT
-    cs.leaid,
-    cs.competitor,
+    df.leaid,
+    CASE df.vendor
+      WHEN 'proximity' THEN 'Proximity Learning'
+      WHEN 'elevate' THEN 'Elevate K12'
+      WHEN 'tbt' THEN 'Tutored By Teachers'
+      WHEN 'educere' THEN 'Educere'
+    END AS competitor,
     CASE
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END)
-          > SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END)
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue ELSE 0 END)
+          > SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END)
       THEN 'multi_year_growing'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END)
-          < SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END)
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue ELSE 0 END)
+          < SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END)
       THEN 'multi_year_shrinking'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue ELSE 0 END) > 0
       THEN 'multi_year_flat'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY25' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue ELSE 0 END) > 0
       THEN 'new'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
       THEN 'churned'
       ELSE NULL
     END AS category
-  FROM competitor_spend cs
-  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
-  GROUP BY cs.leaid, cs.competitor
+  FROM district_financials df
+  WHERE df.vendor IN ('proximity', 'elevate', 'tbt', 'educere')
+    AND df.fiscal_year IN ('FY24', 'FY25')
+  GROUP BY df.leaid, df.vendor
 ),
 -- Per-vendor competitor categories: FY24 (FY23→FY24 spend)
 vendor_fy24 AS (
   SELECT
-    cs.leaid,
-    cs.competitor,
+    df.leaid,
+    CASE df.vendor
+      WHEN 'proximity' THEN 'Proximity Learning'
+      WHEN 'elevate' THEN 'Elevate K12'
+      WHEN 'tbt' THEN 'Tutored By Teachers'
+      WHEN 'educere' THEN 'Educere'
+    END AS competitor,
     CASE
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY23' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END)
-          > SUM(CASE WHEN cs.fiscal_year = 'FY23' THEN cs.total_spend ELSE 0 END)
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY23' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END)
+          > SUM(CASE WHEN df.fiscal_year = 'FY23' THEN df.total_revenue ELSE 0 END)
       THEN 'multi_year_growing'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY23' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END)
-          < SUM(CASE WHEN cs.fiscal_year = 'FY23' THEN cs.total_spend ELSE 0 END)
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY23' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END)
+          < SUM(CASE WHEN df.fiscal_year = 'FY23' THEN df.total_revenue ELSE 0 END)
       THEN 'multi_year_shrinking'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY23' THEN cs.total_spend ELSE 0 END) > 0
-        AND SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY23' THEN df.total_revenue ELSE 0 END) > 0
+        AND SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
       THEN 'multi_year_flat'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY24' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue ELSE 0 END) > 0
       THEN 'new'
-      WHEN SUM(CASE WHEN cs.fiscal_year = 'FY23' THEN cs.total_spend ELSE 0 END) > 0
+      WHEN SUM(CASE WHEN df.fiscal_year = 'FY23' THEN df.total_revenue ELSE 0 END) > 0
       THEN 'churned'
       ELSE NULL
     END AS category
-  FROM competitor_spend cs
-  WHERE cs.competitor IN ('Proximity Learning', 'Elevate K12', 'Tutored By Teachers', 'Educere')
-  GROUP BY cs.leaid, cs.competitor
+  FROM district_financials df
+  WHERE df.vendor IN ('proximity', 'elevate', 'tbt', 'educere')
+    AND df.fiscal_year IN ('FY23', 'FY24')
+  GROUP BY df.leaid, df.vendor
 )
 SELECT
   d.leaid,
   d.name,
   d.state_abbrev,
-  d.sales_executive,
+  d.sales_executive_id,
+  up.full_name AS sales_executive_name,
   pm.plan_ids,
   f27.fy27_fullmind_category,
   f26.fy26_fullmind_category,
@@ -445,6 +487,7 @@ SELECT
   d.point_location,
   COALESCE(d.geometry, d.point_location) AS render_geometry
 FROM districts d
+LEFT JOIN user_profiles up ON d.sales_executive_id = up.id
 LEFT JOIN plan_memberships pm ON d.leaid = pm.leaid
 LEFT JOIN fullmind_fy27 f27 ON d.leaid = f27.leaid
 LEFT JOIN fullmind_fy26 f26 ON d.leaid = f26.leaid
@@ -455,7 +498,7 @@ LEFT JOIN vendor_fy26 v26 ON d.leaid = v26.leaid
 LEFT JOIN vendor_fy25 v25 ON d.leaid = v25.leaid
 LEFT JOIN vendor_fy24 v24 ON d.leaid = v24.leaid
 WHERE d.geometry IS NOT NULL OR d.point_location IS NOT NULL
-GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive,
+GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive_id, up.full_name,
          pm.plan_ids, f27.fy27_fullmind_category, f26.fy26_fullmind_category,
          f25.fy25_fullmind_category, f24.fy24_fullmind_category,
          d.geometry, d.account_type, d.point_location;
@@ -463,7 +506,7 @@ GROUP BY d.leaid, d.name, d.state_abbrev, d.sales_executive,
 -- Indexes
 CREATE INDEX idx_dmf_leaid ON district_map_features(leaid);
 CREATE INDEX idx_dmf_state ON district_map_features(state_abbrev);
-CREATE INDEX idx_dmf_owner ON district_map_features(sales_executive);
+CREATE INDEX idx_dmf_owner ON district_map_features(sales_executive_id);
 CREATE INDEX idx_dmf_geometry ON district_map_features USING GIST(geometry);
 CREATE INDEX IF NOT EXISTS idx_dmf_render_geometry ON district_map_features USING GIST (render_geometry);
 CREATE INDEX idx_dmf_has_data_fy27 ON district_map_features(fy27_fullmind_category)

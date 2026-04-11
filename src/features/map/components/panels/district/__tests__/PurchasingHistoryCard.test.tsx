@@ -9,34 +9,39 @@ import type { FullmindData } from "@/lib/api";
 // ---------------------------------------------------------------------------
 
 const mockFullmindData: FullmindData = {
-  leaid: "3400001",
+  leaid: "123456",
   accountName: "Test District",
-  salesExecutive: "Jane Doe",
+  salesExecutive: null,
   lmsid: null,
-  fy25SessionsRevenue: 100000,
-  fy25SessionsTake: 50000,
-  fy25SessionsCount: 120,
-  fy26SessionsRevenue: 142500,
-  fy26SessionsTake: 70000,
-  fy26SessionsCount: 180,
-  fy25ClosedWonOppCount: 3,
-  fy25ClosedWonNetBooking: 85000,
-  fy25NetInvoicing: 98000,
-  fy26ClosedWonOppCount: 5,
-  fy26ClosedWonNetBooking: 120000,
-  fy26NetInvoicing: 130000,
-  fy26OpenPipelineOppCount: 2,
-  fy26OpenPipeline: 50000,
-  fy26OpenPipelineWeighted: 30000,
-  fy27OpenPipelineOppCount: 1,
-  fy27OpenPipeline: 25000,
-  fy27OpenPipelineWeighted: 15000,
+  districtFinancials: [
+    {
+      vendor: "fullmind", fiscalYear: "FY25",
+      totalRevenue: 100000, allTake: 50000, sessionCount: 120,
+      closedWonOppCount: 3, closedWonBookings: 85000, invoicing: 98000,
+      openPipelineOppCount: null, openPipeline: null, weightedPipeline: null,
+      poCount: null,
+    },
+    {
+      vendor: "fullmind", fiscalYear: "FY26",
+      totalRevenue: 142500, allTake: 70000, sessionCount: 180,
+      closedWonOppCount: 5, closedWonBookings: 120000, invoicing: 130000,
+      openPipelineOppCount: 2, openPipeline: 50000, weightedPipeline: 30000,
+      poCount: null,
+    },
+    {
+      vendor: "fullmind", fiscalYear: "FY27",
+      totalRevenue: null, allTake: null, sessionCount: null,
+      closedWonOppCount: null, closedWonBookings: null, invoicing: null,
+      openPipelineOppCount: 1, openPipeline: 25000, weightedPipeline: 15000,
+      poCount: null,
+    },
+  ],
   isCustomer: true,
   hasOpenPipeline: true,
 };
 
-const mockCompetitorSpendResponse = {
-  competitorSpend: [
+const mockCompetitorsResponse = {
+  competitors: [
     {
       competitor: "Educere",
       fiscalYear: "fy26",
@@ -63,7 +68,7 @@ const mockCompetitorSpendResponse = {
 };
 
 const emptyCompetitorResponse = {
-  competitorSpend: [],
+  competitors: [],
   totalAllCompetitors: 0,
 };
 
@@ -101,7 +106,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("renders competitor section when competitor data exists", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={mockFullmindData} leaid="3400001" />,
@@ -138,7 +143,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("renders when only competitor data exists and no Fullmind data", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={null} leaid="3400001" />,
@@ -164,7 +169,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("shows Educere with correct color dot", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={mockFullmindData} leaid="3400001" />,
@@ -221,7 +226,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("sorts competitors by total spend descending", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={mockFullmindData} leaid="3400001" />,
@@ -260,7 +265,7 @@ describe("PurchasingHistoryCard", () => {
 
   it("shows PO count with correct singular/plural label", async () => {
     mockFetchResponse({
-      competitorSpend: [
+      competitors: [
         {
           competitor: "Educere",
           fiscalYear: "fy26",

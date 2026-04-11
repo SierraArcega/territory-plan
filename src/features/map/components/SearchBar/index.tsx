@@ -18,8 +18,8 @@ interface DistrictSuggestion {
   name: string;
   stateAbbrev: string | null;
   cityLocation?: string | null;
-  stateLocation?: string | null;
 }
+import { Info } from "lucide-react";
 import GeographyDropdown from "./GeographyDropdown";
 import DistrictsDropdown from "./DistrictsDropdown";
 import ContactsDropdown from "./ContactsDropdown";
@@ -77,7 +77,7 @@ const DOMAIN_COLUMNS: Record<string, Set<string>> = {
   ]),
   fullmind: new Set([
     "isCustomer", "hasOpenPipeline", "salesExecutive", "owner",
-    "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "fy26_net_invoicing",
+    "open_pipeline", "closed_won_bookings", "invoicing",
     "planNames", "tags",
   ]),
   competitors: new Set([
@@ -181,7 +181,7 @@ export default function SearchBar() {
 
     // Fly to district location using city + state
     const city = district.cityLocation || district.name.replace(/\s*(School District|Community School District|Unified School District|Independent School District|Public Schools|Public School District|City School District|County School District|County Schools|Schools|SD)$/i, "");
-    const locationQuery = `${city}, ${district.stateLocation || district.stateAbbrev || ""}`;
+    const locationQuery = `${city}, ${district.stateAbbrev || ""}`;
     const results = await searchLocations(locationQuery);
     const map = mapV2Ref.current;
     if (map && results.length > 0) {
@@ -448,6 +448,21 @@ export default function SearchBar() {
             >
               Compare
             </button>
+            {/* FY info tooltip */}
+            <div className="relative group">
+              <button
+                className="flex items-center justify-center w-5 h-5 rounded-full text-[#A69DC0] hover:text-[#544A78] hover:bg-[#EFEDF5] transition-colors"
+                aria-label="Fiscal year info"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+              <div className="absolute right-0 top-full mt-1 w-56 p-2.5 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 text-xs text-[#6E6390] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+                <p className="font-semibold text-[#544A78] mb-1">Fiscal Year</p>
+                <p>Auto-detected from today&apos;s date. The fiscal year runs Jul 1 &ndash; Jun 30.</p>
+                <p className="mt-1 text-[#8A80A8]">Before July: current calendar year (e.g., FY26 in April 2026). After June: next year.</p>
+                <p className="mt-1 text-[#8A80A8]">Controls which financial data appears in filters, sort, and district cards.</p>
+              </div>
+            </div>
           </div>
         )}
 

@@ -108,7 +108,7 @@ describe("GET /api/districts/summary", () => {
     expect(sql).toContain("fy26_fullmind_category");
   });
 
-  it("queries vendor_financials table", async () => {
+  it("queries district_financials table", async () => {
     mockQuery.mockResolvedValue({ rows: [] });
 
     const req = new NextRequest(
@@ -117,7 +117,7 @@ describe("GET /api/districts/summary", () => {
     await GET(req);
 
     const [sql] = mockQuery.mock.calls[0];
-    expect(sql).toContain("vendor_financials");
+    expect(sql).toContain("district_financials");
     expect(sql).toContain("vf.total_revenue");
     expect(sql).toContain("vf.open_pipeline");
   });

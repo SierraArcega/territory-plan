@@ -1,6 +1,8 @@
 "use client";
 
 import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
 
 interface DistrictCardData {
   leaid: string;
@@ -10,15 +12,14 @@ interface DistrictCardData {
   enrollment: number | null;
   isCustomer: boolean | null;
   accountType: string | null;
-  owner: string | null;
+  ownerUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   ellPct: number | null;
   swdPct: number | null;
   childrenPovertyPercent: number | null;
   medianHouseholdIncome: number | null;
   expenditurePerPupil: number | null;
   urbanCentricLocale: number | null;
-  fy26OpenPipeline: number | null;
-  fy26ClosedWonNetBooking: number | null;
+  districtFinancials: DistrictFinancial[];
   territoryPlans: Array<{ plan: { id: string; name: string; color: string } }>;
 }
 
@@ -82,9 +83,9 @@ export default function DistrictSearchCard({
               <span className="font-medium">{district.enrollment.toLocaleString()}</span>
             </span>
           )}
-          {district.owner && (
+          {district.ownerUser && (
             <span className="text-xs text-[#8A80A8] truncate max-w-[100px]">
-              {district.owner}
+              {district.ownerUser.fullName}
             </span>
           )}
         </div>
@@ -165,8 +166,9 @@ function getAdaptiveMetrics(
     if (district.expenditurePerPupil != null) {
       metrics.push({ label: "$/Pupil", value: `$${(Number(district.expenditurePerPupil) / 1000).toFixed(1)}k` });
     }
-    if (district.fy26OpenPipeline != null && Number(district.fy26OpenPipeline) > 0) {
-      metrics.push({ label: "Pipeline", value: `$${(Number(district.fy26OpenPipeline) / 1000).toFixed(0)}k` });
+    const pipeline = getFinancial(district.districtFinancials, "fullmind", "FY26", "openPipeline");
+    if (pipeline != null && pipeline > 0) {
+      metrics.push({ label: "Pipeline", value: `$${(pipeline / 1000).toFixed(0)}k` });
     }
   }
 

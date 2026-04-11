@@ -39,7 +39,7 @@ export default function DistrictDetailsCard({ data, leaid }: DistrictDetailsCard
             {hasAddress && (
               <p className="text-gray-600">
                 {d.streetLocation && <>{d.streetLocation}<br /></>}
-                {d.cityLocation}, {d.stateLocation} {d.zipLocation}
+                {d.cityLocation}, {d.stateAbbrev} {d.zipLocation}
               </p>
             )}
             {formatted && (

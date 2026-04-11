@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useUpdateDistrictEdits, type DistrictEdits } from "@/lib/api";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useUpdateDistrictEdits, useUsers, type DistrictEdits } from "@/lib/api";
 
 interface NotesEditorProps {
   leaid: string;
@@ -10,22 +10,39 @@ interface NotesEditorProps {
 
 export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
   const [notes, setNotes] = useState(edits?.notes || "");
-  const [owner, setOwner] = useState(edits?.owner || "");
+  const [ownerId, setOwnerId] = useState(edits?.owner?.id || "");
   const [isEditing, setIsEditing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [ownerDropdownOpen, setOwnerDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const updateMutation = useUpdateDistrictEdits();
+  const { data: users } = useUsers();
 
   // Reset when edits change
   useEffect(() => {
     setNotes(edits?.notes || "");
-    setOwner(edits?.owner || "");
+    setOwnerId(edits?.owner?.id || "");
     setIsDirty(false);
   }, [edits]);
 
+  // Close dropdown on outside click
+  const handleOutsideClick = useCallback((e: MouseEvent) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      setOwnerDropdownOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (ownerDropdownOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [ownerDropdownOpen, handleOutsideClick]);
+
   const handleSave = async () => {
     try {
-      await updateMutation.mutateAsync({ leaid, notes, owner });
+      await updateMutation.mutateAsync({ leaid, notes, ownerId: ownerId || undefined });
       setIsEditing(false);
       setIsDirty(false);
     } catch (error) {
@@ -35,10 +52,23 @@ export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
 
   const handleCancel = () => {
     setNotes(edits?.notes || "");
-    setOwner(edits?.owner || "");
+    setOwnerId(edits?.owner?.id || "");
     setIsEditing(false);
     setIsDirty(false);
+    setOwnerDropdownOpen(false);
   };
+
+  // Resolve display name from ownerId
+  const ownerDisplayName = (() => {
+    if (!ownerId) return null;
+    // First check if edits.owner matches
+    if (edits?.owner?.id === ownerId && edits?.owner?.fullName) {
+      return edits.owner.fullName;
+    }
+    // Otherwise look up from users list
+    const user = users?.find((u) => u.id === ownerId);
+    return user?.fullName || user?.email || null;
+  })();
 
   return (
     <div>
@@ -56,24 +86,56 @@ export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
 
       {isEditing ? (
         <div className="space-y-3">
-          {/* Owner */}
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Owner</label>
-            <input
-              type="text"
-              value={owner}
-              onChange={(e) => {
-                setOwner(e.target.value);
-                setIsDirty(true);
-              }}
-              placeholder="Assign an owner..."
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent"
-            />
+          {/* Owner Dropdown */}
+          <div ref={dropdownRef} className="relative">
+            <label className="block text-xs text-[#8A80A8] mb-1">Owner</label>
+            <button
+              type="button"
+              onClick={() => setOwnerDropdownOpen((o) => !o)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F37167] focus:border-transparent bg-white text-left"
+            >
+              <span className={ownerId ? "text-[#403770]" : "text-[#A69DC0]"}>
+                {ownerDisplayName || "Select an owner..."}
+              </span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="shrink-0 text-[#A69DC0]">
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {ownerDropdownOpen && (
+              <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                <div className="max-h-48 overflow-y-auto py-1">
+                  <button
+                    onClick={() => { setOwnerId(""); setOwnerDropdownOpen(false); setIsDirty(true); }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      !ownerId ? "bg-[#403770]/5 text-[#403770] font-medium" : "text-[#A69DC0] italic hover:bg-[#F7F5FA]"
+                    }`}
+                  >
+                    &mdash; Unassigned &mdash;
+                  </button>
+                  {(users || []).map((u) => {
+                    const display = u.fullName || u.email;
+                    const selected = ownerId === u.id;
+                    return (
+                      <button
+                        key={u.id}
+                        onClick={() => { setOwnerId(u.id); setOwnerDropdownOpen(false); setIsDirty(true); }}
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                          selected ? "bg-[#403770]/5 text-[#403770] font-medium" : "text-gray-700 hover:bg-[#F7F5FA]"
+                        }`}
+                      >
+                        {display}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Notes</label>
+            <label className="block text-xs text-[#8A80A8] mb-1">Notes</label>
             <textarea
               value={notes}
               onChange={(e) => {
@@ -107,29 +169,29 @@ export default function NotesEditor({ leaid, edits }: NotesEditorProps) {
         <div className="space-y-2">
           {/* Owner Display */}
           <div>
-            <span className="text-xs text-gray-500">Owner</span>
+            <span className="text-xs text-[#8A80A8]">Owner</span>
             <p className="text-sm text-[#403770]">
-              {owner || (
-                <span className="text-gray-400 italic">No owner assigned</span>
+              {edits?.owner?.fullName || (
+                <span className="text-[#A69DC0] italic">No owner assigned</span>
               )}
             </p>
           </div>
 
           {/* Notes Display */}
           <div>
-            <span className="text-xs text-gray-500">Notes</span>
+            <span className="text-xs text-[#8A80A8]">Notes</span>
             {notes ? (
               <p className="text-sm text-[#403770] whitespace-pre-wrap">
                 {notes}
               </p>
             ) : (
-              <p className="text-sm text-gray-400 italic">No notes</p>
+              <p className="text-sm text-[#A69DC0] italic">No notes</p>
             )}
           </div>
 
           {/* Last updated */}
           {edits?.updatedAt && (
-            <p className="text-xs text-gray-400 mt-2" suppressHydrationWarning>
+            <p className="text-xs text-[#A69DC0] mt-2" suppressHydrationWarning>
               Last updated:{" "}
               {new Date(edits.updatedAt).toLocaleDateString("en-US", {
                 month: "short",

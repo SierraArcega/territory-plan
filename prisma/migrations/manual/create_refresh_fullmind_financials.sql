@@ -1,5 +1,9 @@
--- Refresh Fullmind vendor_financials from opportunities + sessions
+-- Refresh Fullmind district_financials from opportunities + sessions
 -- Called after each Railway sync cycle
+--
+-- TODO: Consider consolidating with district_opportunity_actuals mat view.
+-- Both aggregate from the same opportunities source but at different grain.
+-- See Docs/superpowers/specs/2026-04-11-phase3-schema-cleanup-design.md "Deferred consideration"
 --
 -- Revenue/take/bookings/pipeline: from opportunities (Railway pre-computed)
 -- Session counts: from sessions table (actual count by start_time school year)
@@ -77,8 +81,8 @@ BEGIN
     AND s.start_time IS NOT NULL
   GROUP BY o.district_lea_id, fiscal_year;
 
-  -- Upsert combined results into vendor_financials
-  INSERT INTO vendor_financials (
+  -- Upsert combined results into district_financials
+  INSERT INTO district_financials (
     leaid, vendor, fiscal_year,
     completed_revenue, scheduled_revenue, total_revenue,
     completed_take, scheduled_take, total_take,

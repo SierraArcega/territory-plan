@@ -1007,7 +1007,7 @@ export default function MapV2Container({
               name: props?.name || "Unknown",
               stateAbbrev: props?.state_abbrev,
               enrollment: props?.enrollment,
-              salesExecutive: props?.sales_executive,
+              salesExecutive: props?.sales_executive_name,
             };
 
             if (tooltipPropertyMap) {

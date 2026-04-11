@@ -5,7 +5,7 @@
 //   2. Creates or matches territory plans by name + fiscal year
 //   3. Sets per-district targets (renewal, expansion, winback, new business)
 //   4. Updates FY27 pipeline on the district record
-//   5. Upserts vendor_financials (bookings, revenue, pipeline, etc.) for FY24-FY27
+//   5. Upserts district_financials (bookings, revenue, pipeline, etc.) for FY24-FY27
 //   6. Refreshes the district_map_features materialized view
 //
 // Usage:
@@ -90,7 +90,7 @@ interface CSVRow {
 }
 
 // ── Vendor mapping ──────────────────────────────────────────────────
-// Maps the "Company" column from the CSV to a vendor_financials vendor ID
+// Maps the "Company" column from the CSV to a district_financials vendor ID
 function mapCompanyToVendor(company: string): string | null {
   const lower = company.toLowerCase();
   if (lower.includes("elevate")) return "elevate";
@@ -362,7 +362,7 @@ async function main() {
         const fyEntries = buildFinancialEntries(row);
         financialsUpserted += fyEntries.length;
         if (fyEntries.length > 0) {
-          console.log(`  [dry-run] Would upsert ${fyEntries.length} vendor_financials rows for ${row.leaid} (${vendorId})`);
+          console.log(`  [dry-run] Would upsert ${fyEntries.length} district_financials rows for ${row.leaid} (${vendorId})`);
         }
       }
       continue;
@@ -429,12 +429,12 @@ async function main() {
         pipelineUpdated++;
       }
 
-      // 5e. Upsert vendor_financials for each FY with non-zero data
+      // 5e. Upsert district_financials for each FY with non-zero data
       const vendorId = mapCompanyToVendor(row.company);
       if (vendorId) {
         const fyEntries = buildFinancialEntries(row);
         for (const entry of fyEntries) {
-          await prisma.vendorFinancials.upsert({
+          await prisma.districtFinancials.upsert({
             where: {
               leaid_vendor_fiscalYear: {
                 leaid: row.leaid,

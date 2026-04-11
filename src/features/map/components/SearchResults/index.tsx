@@ -14,6 +14,8 @@ import {
   useMapPlans,
 } from "@/features/map/lib/queries";
 import type { LayerType } from "@/features/map/lib/layers";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
 import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import DistrictSearchCard from "./DistrictSearchCard";
 import DistrictExploreModal from "./DistrictExploreModal";
@@ -31,15 +33,14 @@ interface SearchResultDistrict {
   enrollment: number | null;
   isCustomer: boolean | null;
   accountType: string | null;
-  owner: string | null;
+  ownerUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   ellPct: number | null;
   swdPct: number | null;
   childrenPovertyPercent: number | null;
   medianHouseholdIncome: number | null;
   expenditurePerPupil: number | null;
   urbanCentricLocale: number | null;
-  fy26OpenPipeline: number | null;
-  fy26ClosedWonNetBooking: number | null;
+  districtFinancials: DistrictFinancial[];
   territoryPlans: Array<{ plan: { id: string; name: string; color: string } }>;
 }
 
@@ -76,6 +77,7 @@ export default function SearchResults() {
   const searchSort = useMapV2Store((s) => s.searchSort);
   const isSearchActive = useMapV2Store((s) => s.isSearchActive);
   const searchResultsVisible = useMapV2Store((s) => s.searchResultsVisible);
+  const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const toggleSearchResults = useMapV2Store((s) => s.toggleSearchResults);
   const selectedDistrictLeaids = useMapV2Store((s) => s.selectedDistrictLeaids);
   const toggleDistrictSelection = useMapV2Store((s) => s.toggleDistrictSelection);
@@ -194,6 +196,7 @@ export default function SearchResults() {
       }
       params.set("sort", state.searchSort.column);
       params.set("order", state.searchSort.direction);
+      params.set("fy", state.selectedFiscalYear.toUpperCase());
       params.set("page", String(pageNum));
       params.set("limit", "25");
 
@@ -257,7 +260,7 @@ export default function SearchResults() {
     setPage(1);
     fetchResults(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchFilters, searchSort, isSearchActive]);
+  }, [searchFilters, searchSort, isSearchActive, selectedFiscalYear]);
 
   // Fetch districts from overlay-derived leaids (when no explicit search is active)
   useEffect(() => {
@@ -308,7 +311,8 @@ export default function SearchResults() {
     { column: "enrollment", label: "Enrollment" },
     { column: "name", label: "Name" },
     { column: "expenditurePerPupil", label: "Expenditure/Pupil" },
-    { column: "fy26_open_pipeline_value", label: "Pipeline Value" },
+    { column: "open_pipeline", label: "Pipeline" },
+    { column: "invoicing", label: "Invoicing" },
   ];
 
   // Close add-all dropdown on outside click
@@ -389,6 +393,7 @@ export default function SearchResults() {
       if (state.searchFilters.length > 0) params.set("filters", JSON.stringify(state.searchFilters));
       params.set("sort", state.searchSort.column);
       params.set("order", state.searchSort.direction);
+      params.set("fy", state.selectedFiscalYear.toUpperCase());
       params.set("page", "1");
       params.set("limit", "10000");
 
@@ -398,7 +403,7 @@ export default function SearchResults() {
       const rows = json.data as SearchResultDistrict[];
 
       // Build CSV
-      const headers = ["LEAID", "Name", "State", "County", "Enrollment", "Customer", "Owner", "ELL %", "SWD %", "Poverty %", "Median Income", "$/Pupil", "FY26 Pipeline", "FY26 Bookings", "Plans"];
+      const headers = ["LEAID", "Name", "State", "County", "Enrollment", "Customer", "Owner", "ELL %", "SWD %", "Poverty %", "Median Income", "$/Pupil", "Pipeline", "Bookings", "Plans"];
       const csvRows = rows.map((d) => [
         d.leaid,
         `"${(d.name || "").replace(/"/g, '""')}"`,
@@ -406,14 +411,14 @@ export default function SearchResults() {
         d.countyName || "",
         d.enrollment ?? "",
         d.isCustomer ? "Yes" : "No",
-        d.owner || "",
+        d.ownerUser?.fullName || "",
         d.ellPct != null ? `${Number(d.ellPct).toFixed(1)}%` : "",
         d.swdPct != null ? `${Number(d.swdPct).toFixed(1)}%` : "",
         d.childrenPovertyPercent != null ? `${Number(d.childrenPovertyPercent).toFixed(1)}%` : "",
         d.medianHouseholdIncome ?? "",
         d.expenditurePerPupil ?? "",
-        d.fy26OpenPipeline ?? "",
-        d.fy26ClosedWonNetBooking ?? "",
+        getFinancial(d.districtFinancials, "fullmind", "FY26", "openPipeline") ?? "",
+        getFinancial(d.districtFinancials, "fullmind", "FY26", "closedWonBookings") ?? "",
         `"${(d.territoryPlans || []).map((tp) => tp.plan.name).join(", ")}"`,
       ].join(","));
 

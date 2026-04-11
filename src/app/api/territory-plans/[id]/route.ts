@@ -29,7 +29,7 @@ export async function GET(
                 name: true,
                 stateAbbrev: true,
                 enrollment: true,
-                owner: true,
+                ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
                 districtTags: {
                   select: {
                     tag: { select: { id: true, name: true, color: true } },
@@ -276,7 +276,9 @@ export async function GET(
           name: pd.district.name,
           stateAbbrev: pd.district.stateAbbrev,
           enrollment: pd.district.enrollment,
-          owner: pd.district.owner ?? null,
+          owner: pd.district.ownerUser
+            ? { id: pd.district.ownerUser.id, fullName: pd.district.ownerUser.fullName, avatarUrl: pd.district.ownerUser.avatarUrl }
+            : null,
           renewalTarget: pd.renewalTarget ? Number(pd.renewalTarget) : null,
           winbackTarget: pd.winbackTarget ? Number(pd.winbackTarget) : null,
           expansionTarget: pd.expansionTarget ? Number(pd.expansionTarget) : null,

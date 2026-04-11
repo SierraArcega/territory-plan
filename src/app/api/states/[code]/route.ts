@@ -82,6 +82,9 @@ export async function GET(
     // Try to find state in the states table first
     const state = await prisma.state.findUnique({
       where: { abbrev: stateCode },
+      include: {
+        territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
     });
 
     // If state exists in the states table, fetch related data and return
@@ -129,7 +132,9 @@ export async function GET(
           avgGraduationRate: toNumber(state.avgGraduationRate),
           avgPovertyRate: toNumber(state.avgPovertyRate),
         },
-        territoryOwner: state.territoryOwner,
+        territoryOwner: state.territoryOwnerUser
+          ? { id: state.territoryOwnerUser.id, fullName: state.territoryOwnerUser.fullName, avatarUrl: state.territoryOwnerUser.avatarUrl }
+          : null,
         notes: state.notes,
         assessments,
         territoryPlans: plans.map((p) => ({
@@ -146,15 +151,13 @@ export async function GET(
     }
 
     // Fallback: compute aggregates from districts if state not in states table
-    const [aggregates, customerCount, pipelineCount] = await Promise.all([
+    const [aggregates, customerCount, pipelineCount, pipelineAgg] = await Promise.all([
       prisma.district.aggregate({
         where: { stateAbbrev: stateCode },
         _count: { leaid: true },
         _sum: {
           enrollment: true,
           numberOfSchools: true,
-          fy26OpenPipeline: true,
-          fy27OpenPipeline: true,
         },
         _avg: {
           expenditurePerPupil: true,
@@ -168,6 +171,16 @@ export async function GET(
       prisma.district.count({
         where: { stateAbbrev: stateCode, hasOpenPipeline: true },
       }),
+      prisma.$queryRaw<[{ fy26_pipeline: number; fy27_pipeline: number }]>`
+        SELECT
+          COALESCE(SUM(CASE WHEN df.fiscal_year = 'FY26' THEN df.open_pipeline END), 0)::float AS fy26_pipeline,
+          COALESCE(SUM(CASE WHEN df.fiscal_year = 'FY27' THEN df.open_pipeline END), 0)::float AS fy27_pipeline
+        FROM district_financials df
+        JOIN districts d ON d.leaid = df.leaid
+        WHERE d.state_abbrev = ${stateCode}
+          AND df.vendor = 'fullmind'
+          AND df.fiscal_year IN ('FY26', 'FY27')
+      `,
     ]);
 
     // Get territory plans and assessments for this state
@@ -196,8 +209,8 @@ export async function GET(
         })
       : [];
 
-    const pipelineValue = (toNumber(aggregates._sum.fy26OpenPipeline) ?? 0) +
-      (toNumber(aggregates._sum.fy27OpenPipeline) ?? 0);
+    const pipelineValue = (pipelineAgg[0]?.fy26_pipeline ?? 0) +
+      (pipelineAgg[0]?.fy27_pipeline ?? 0);
 
     // Look up assessments using FIPS from first district
     const fallbackFips = districtLeaids[0]?.stateFips;
@@ -263,11 +276,14 @@ export async function PUT(
     const { code } = await params;
     const stateCode = code.toUpperCase();
     const body = await request.json();
-    const { notes, territoryOwner } = body;
+    const { notes, territoryOwnerId } = body;
 
     // Check if state exists
     let state = await prisma.state.findUnique({
       where: { abbrev: stateCode },
+      include: {
+        territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
     });
 
     // Get the state FIPS code from districts if state doesn't exist
@@ -291,7 +307,10 @@ export async function PUT(
           abbrev: stateCode,
           name: STATE_NAMES[stateCode] || stateCode,
           notes: notes ?? undefined,
-          territoryOwner: territoryOwner ?? undefined,
+          territoryOwnerId: territoryOwnerId ?? undefined,
+        },
+        include: {
+          territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         },
       });
     } else {
@@ -300,7 +319,10 @@ export async function PUT(
         where: { abbrev: stateCode },
         data: {
           ...(notes !== undefined && { notes }),
-          ...(territoryOwner !== undefined && { territoryOwner }),
+          ...(territoryOwnerId !== undefined && { territoryOwnerId: territoryOwnerId || null }),
+        },
+        include: {
+          territoryOwnerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         },
       });
     }
@@ -308,7 +330,9 @@ export async function PUT(
     return NextResponse.json({
       code: state.abbrev,
       notes: state.notes,
-      territoryOwner: state.territoryOwner,
+      territoryOwner: state.territoryOwnerUser
+        ? { id: state.territoryOwnerUser.id, fullName: state.territoryOwnerUser.fullName, avatarUrl: state.territoryOwnerUser.avatarUrl }
+        : null,
     });
   } catch (error) {
     console.error("Error updating state:", error);

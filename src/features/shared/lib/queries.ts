@@ -152,7 +152,7 @@ export function useTriggerClayLookup() {
 export function useSalesExecutives() {
   return useQuery({
     queryKey: ["salesExecutives"],
-    queryFn: () => fetchJson<string[]>(`${API_BASE}/sales-executives`),
+    queryFn: () => fetchJson<{ id: string; fullName: string | null; email: string }[]>(`${API_BASE}/sales-executives`),
     staleTime: 60 * 60 * 1000, // 1 hour - sales execs rarely change
   });
 }

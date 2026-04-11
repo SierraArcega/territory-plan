@@ -3,6 +3,7 @@ import type { VendorId, SignalId, LocaleId, LayerType, ColorDimension } from "@/
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import type { TransitionBucket } from "@/features/map/lib/comparison";
+import { getDefaultFiscalYearKey } from "@/features/shared/lib/fiscal-year";
 
 export type FiscalYear = "fy24" | "fy25" | "fy26" | "fy27";
 export type CompareView = "side_by_side" | "changes";
@@ -89,6 +90,8 @@ export interface ExploreFilter {
   column: string;
   op: FilterOp;
   value: string | number | boolean | string[] | [number, number];
+  label?: string; // Display label for pill (e.g., user name instead of UUID)
+  fy?: string;    // Per-filter fiscal year override (e.g., "fy27") — financial filters only
 }
 
 /** Serialized map view state for saving/loading named views */
@@ -533,13 +536,13 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     "lapsed",
   ],
   competitorEngagement: {},
-  selectedFiscalYear: "fy26" as FiscalYear,
+  selectedFiscalYear: getDefaultFiscalYearKey(),
 
   // Comparison mode defaults
   compareMode: false,
   compareView: "changes" as CompareView,
   compareFyA: "fy25" as FiscalYear,
-  compareFyB: "fy26" as FiscalYear,
+  compareFyB: getDefaultFiscalYearKey(),
   vendorPalettes: { ...DEFAULT_VENDOR_PALETTE },
   signalPalette: DEFAULT_SIGNAL_PALETTE,
   vendorOpacities: { fullmind: 0.75, proximity: 0.75, elevate: 0.8, tbt: 0.75, educere: 0.75 },

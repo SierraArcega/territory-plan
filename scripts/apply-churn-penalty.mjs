@@ -1,7 +1,7 @@
 /**
  * Apply state-level churn penalty to district ICP scores.
  *
- * Computes churn from Fullmind + Elevate K12 vendor_financials
+ * Computes churn from Fullmind + Elevate K12 district_financials
  * (FY24-25 → FY26-27), blends customer churn rate (30%) with
  * revenue churn rate (70%), and applies a 0 to -15 point penalty
  * on each district's state_score. Recomputes composite + tier.
@@ -41,14 +41,14 @@ async function computeStateChurn() {
   const rows = await prisma.$queryRaw`
     WITH fy_prior AS (
       SELECT d.state_abbrev, vf.leaid, SUM(vf.total_revenue) AS rev
-      FROM vendor_financials vf JOIN districts d ON d.leaid = vf.leaid
+      FROM district_financials vf JOIN districts d ON d.leaid = vf.leaid
       WHERE vf.vendor IN ('fullmind', 'elevate')
         AND vf.fiscal_year IN ('FY24','FY25') AND vf.total_revenue > 0
       GROUP BY d.state_abbrev, vf.leaid
     ),
     fy_current AS (
       SELECT d.state_abbrev, vf.leaid, SUM(vf.total_revenue) AS rev
-      FROM vendor_financials vf JOIN districts d ON d.leaid = vf.leaid
+      FROM district_financials vf JOIN districts d ON d.leaid = vf.leaid
       WHERE vf.vendor IN ('fullmind', 'elevate')
         AND vf.fiscal_year IN ('FY26','FY27') AND vf.total_revenue > 0
       GROUP BY d.state_abbrev, vf.leaid

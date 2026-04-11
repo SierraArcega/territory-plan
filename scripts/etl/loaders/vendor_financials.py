@@ -2,7 +2,7 @@
 Vendor Financials CSV Loader
 
 Loads vendor financial data from the Customer Book Consolidation CSV
-into the vendor_financials table.
+into the district_financials table.
 
 Handles:
 - Fullmind and Elevate K12 data
@@ -11,8 +11,8 @@ Handles:
 - Multi-FY loading: FY24, FY25, FY26 metrics and FY27 pipeline from a single row
 
 Usage:
-    python3 vendor_financials.py /path/to/customer-book.csv
-    python3 vendor_financials.py  # defaults to data/Customer Book Consolidation - Combined Targets + Pipeline (1).csv
+    python3 district_financials.py /path/to/customer-book.csv
+    python3 district_financials.py  # defaults to data/Customer Book Consolidation - Combined Targets + Pipeline (1).csv
 """
 
 import os
@@ -87,7 +87,7 @@ def parse_csv(filepath: str) -> List[Dict]:
     return rows
 
 
-def load_vendor_financials(filepath: str, dry_run: bool = False):
+def load_district_financials(filepath: str, dry_run: bool = False):
     """Load vendor financials from Customer Book CSV."""
     rows = parse_csv(filepath)
     print(f"Parsed {len(rows)} rows from CSV")
@@ -237,42 +237,42 @@ def load_vendor_financials(filepath: str, dry_run: bool = False):
         conn.close()
         return
 
-    # Upsert into vendor_financials
+    # Upsert into district_financials
     if all_records:
         execute_values(
             cur,
             """
-            INSERT INTO vendor_financials (
+            INSERT INTO district_financials (
                 leaid, vendor, fiscal_year,
                 open_pipeline, closed_won_bookings, invoicing,
                 scheduled_revenue, completed_revenue, deferred_revenue, total_revenue,
                 completed_take, scheduled_take, total_take
             ) VALUES %s
             ON CONFLICT (leaid, vendor, fiscal_year) DO UPDATE SET
-                open_pipeline = GREATEST(vendor_financials.open_pipeline, EXCLUDED.open_pipeline),
-                closed_won_bookings = GREATEST(vendor_financials.closed_won_bookings, EXCLUDED.closed_won_bookings),
-                invoicing = GREATEST(vendor_financials.invoicing, EXCLUDED.invoicing),
-                scheduled_revenue = GREATEST(vendor_financials.scheduled_revenue, EXCLUDED.scheduled_revenue),
-                completed_revenue = GREATEST(vendor_financials.completed_revenue, EXCLUDED.completed_revenue),
-                deferred_revenue = GREATEST(vendor_financials.deferred_revenue, EXCLUDED.deferred_revenue),
-                total_revenue = GREATEST(vendor_financials.total_revenue, EXCLUDED.total_revenue),
-                completed_take = GREATEST(vendor_financials.completed_take, EXCLUDED.completed_take),
-                scheduled_take = GREATEST(vendor_financials.scheduled_take, EXCLUDED.scheduled_take),
-                total_take = GREATEST(vendor_financials.total_take, EXCLUDED.total_take),
+                open_pipeline = GREATEST(district_financials.open_pipeline, EXCLUDED.open_pipeline),
+                closed_won_bookings = GREATEST(district_financials.closed_won_bookings, EXCLUDED.closed_won_bookings),
+                invoicing = GREATEST(district_financials.invoicing, EXCLUDED.invoicing),
+                scheduled_revenue = GREATEST(district_financials.scheduled_revenue, EXCLUDED.scheduled_revenue),
+                completed_revenue = GREATEST(district_financials.completed_revenue, EXCLUDED.completed_revenue),
+                deferred_revenue = GREATEST(district_financials.deferred_revenue, EXCLUDED.deferred_revenue),
+                total_revenue = GREATEST(district_financials.total_revenue, EXCLUDED.total_revenue),
+                completed_take = GREATEST(district_financials.completed_take, EXCLUDED.completed_take),
+                scheduled_take = GREATEST(district_financials.scheduled_take, EXCLUDED.scheduled_take),
+                total_take = GREATEST(district_financials.total_take, EXCLUDED.total_take),
                 last_updated = NOW()
             """,
             all_records,
         )
 
     conn.commit()
-    print(f"Loaded {len(all_records)} vendor_financials records")
+    print(f"Loaded {len(all_records)} district_financials records")
 
     # Log to data_refresh_logs
     try:
         cur.execute(
             """
             INSERT INTO data_refresh_logs (source, records_processed, status, details)
-            VALUES ('vendor_financials_csv', %s, 'success', %s)
+            VALUES ('district_financials_csv', %s, 'success', %s)
             """,
             (len(all_records), f"FY26: {len(fy26_records)}, FY25: {len(fy25_records)}, FY24: {len(fy24_records)}, FY27: {len(fy27_records)}, generated LEAIDs: {generated}"),
         )
@@ -294,4 +294,4 @@ if __name__ == "__main__":
                         help="Parse CSV without writing to database")
     args = parser.parse_args()
 
-    load_vendor_financials(args.csv_path, dry_run=args.dry_run)
+    load_district_financials(args.csv_path, dry_run=args.dry_run)

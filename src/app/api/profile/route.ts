@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { Decimal } from "@prisma/client/runtime/library";
+import { getFinancialValue, FULLMIND_FINANCIALS_SELECT } from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -14,67 +15,61 @@ function toNumber(val: Decimal | null | undefined): number {
 // Calculate actual progress from user's territory plan districts
 // Aggregates revenue, take, pipeline, and new district counts by fiscal year
 async function calculateActuals(userId: string) {
-  // Get all districts in the user's territory plans
+  // Get all districts in the user's territory plans with financial data
   const userDistricts = await prisma.territoryPlanDistrict.findMany({
     where: {
       plan: { userId },
     },
     include: {
-      district: true,
+      district: {
+        select: {
+          isCustomer: true,
+          districtFinancials: {
+            where: { vendor: "fullmind" },
+            select: FULLMIND_FINANCIALS_SELECT,
+          },
+        },
+      },
     },
   });
 
-  // Calculate FY26 actuals (current year)
-  const fy26Revenue = userDistricts.reduce(
-    (sum, d) => sum + toNumber(d.district.fy26NetInvoicing),
-    0
+  // Aggregate actuals from districtFinancials
+  const totals = userDistricts.reduce(
+    (acc, d) => {
+      const fin = d.district.districtFinancials;
+      acc.fy25Revenue += getFinancialValue(fin, "fullmind", "FY25", "invoicing");
+      acc.fy25Take += getFinancialValue(fin, "fullmind", "FY25", "totalTake");
+      acc.fy26Revenue += getFinancialValue(fin, "fullmind", "FY26", "invoicing");
+      acc.fy26Take += getFinancialValue(fin, "fullmind", "FY26", "totalTake");
+      acc.fy26Pipeline += getFinancialValue(fin, "fullmind", "FY26", "openPipeline");
+      acc.fy27Pipeline += getFinancialValue(fin, "fullmind", "FY27", "openPipeline");
+      return acc;
+    },
+    { fy25Revenue: 0, fy25Take: 0, fy26Revenue: 0, fy26Take: 0, fy26Pipeline: 0, fy27Pipeline: 0 }
   );
-  const fy26Take = userDistricts.reduce(
-    (sum, d) => sum + toNumber(d.district.fy26SessionsTake),
-    0
-  );
-  const fy26Pipeline = userDistricts.reduce(
-    (sum, d) => sum + toNumber(d.district.fy26OpenPipeline),
-    0
-  );
+
   // New districts = non-customers in plan (potential new business)
   const fy26NewDistricts = userDistricts.filter(
     (d) => !d.district.isCustomer
   ).length;
 
-  // Calculate FY25 actuals (previous year for reference)
-  const fy25Revenue = userDistricts.reduce(
-    (sum, d) => sum + toNumber(d.district.fy25NetInvoicing),
-    0
-  );
-  const fy25Take = userDistricts.reduce(
-    (sum, d) => sum + toNumber(d.district.fy25SessionsTake),
-    0
-  );
-
-  // Calculate FY27 pipeline (future year)
-  const fy27Pipeline = userDistricts.reduce(
-    (sum, d) => sum + toNumber(d.district.fy27OpenPipeline),
-    0
-  );
-
   return {
     2025: {
-      revenueActual: fy25Revenue,
-      takeActual: fy25Take,
+      revenueActual: totals.fy25Revenue,
+      takeActual: totals.fy25Take,
       pipelineActual: 0, // No FY25 pipeline data
       newDistrictsActual: 0, // Historical, not tracked
     },
     2026: {
-      revenueActual: fy26Revenue,
-      takeActual: fy26Take,
-      pipelineActual: fy26Pipeline,
+      revenueActual: totals.fy26Revenue,
+      takeActual: totals.fy26Take,
+      pipelineActual: totals.fy26Pipeline,
       newDistrictsActual: fy26NewDistricts,
     },
     2027: {
       revenueActual: 0, // Future year
       takeActual: 0,
-      pipelineActual: fy27Pipeline,
+      pipelineActual: totals.fy27Pipeline,
       newDistrictsActual: 0,
     },
   };

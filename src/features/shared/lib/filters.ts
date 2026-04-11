@@ -30,7 +30,7 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   enrollment: "enrollment",
   urbanicity: "urbanCentricLocale",
   accountType: "accountType",
-  owner: "owner",
+  owner: "ownerId",
   notes: "notes",
   // Location
   countyName: "countyName",
@@ -41,26 +41,7 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   // CRM / Revenue
   isCustomer: "isCustomer",
   hasOpenPipeline: "hasOpenPipeline",
-  salesExecutive: "salesExecutive",
-  // FY25 Revenue
-  fy25_closed_won_net_booking: "fy25ClosedWonNetBooking",
-  fy25_net_invoicing: "fy25NetInvoicing",
-  fy25_closed_won_opp_count: "fy25ClosedWonOppCount",
-  fy25_sessions_revenue: "fy25SessionsRevenue",
-  fy25_sessions_take: "fy25SessionsTake",
-  fy25_sessions_count: "fy25SessionsCount",
-  // FY26 Revenue
-  fy26_open_pipeline_value: "fy26OpenPipeline",
-  fy26_open_pipeline_weighted: "fy26OpenPipelineWeighted",
-  fy26_closed_won_net_booking: "fy26ClosedWonNetBooking",
-  fy26_net_invoicing: "fy26NetInvoicing",
-  fy26_closed_won_opp_count: "fy26ClosedWonOppCount",
-  fy26_sessions_revenue: "fy26SessionsRevenue",
-  fy26_sessions_take: "fy26SessionsTake",
-  fy26_sessions_count: "fy26SessionsCount",
-  // FY27 Pipeline
-  fy27_open_pipeline_value: "fy27OpenPipeline",
-  fy27_open_pipeline_weighted: "fy27OpenPipelineWeighted",
+  salesExecutive: "salesExecutiveId",
   // Education
   graduationRate: "graduationRateTotal",
   mathProficiency: "mathProficiencyPct",
@@ -154,6 +135,23 @@ export const DISTRICT_FIELD_MAP: Record<string, string> = {
   jobBoardUrl: "jobBoardUrl",
 };
 
+// FY-agnostic filter key → DistrictFinancials Prisma field name
+// These are handled separately from scalar District filters — they require
+// a relation filter against district_financials for the selected fiscal year.
+export const FINANCIAL_FIELD_MAP: Record<string, string> = {
+  open_pipeline: "openPipeline",
+  weighted_pipeline: "weightedPipeline",
+  closed_won_bookings: "closedWonBookings",
+  invoicing: "invoicing",
+  closed_won_opp_count: "closedWonOppCount",
+  sessions_revenue: "totalRevenue",    // DistrictFinancials.totalRevenue (vendor revenue, not education finance)
+  sessions_take: "totalTake",
+  sessions_count: "sessionCount",
+};
+
+/** Set of filter column keys that target district_financials (not districts). */
+export const FINANCIAL_COLUMNS = new Set(Object.keys(FINANCIAL_FIELD_MAP));
+
 export function buildWhereClause(
   filters: FilterDef[],
   fieldMap?: Record<string, string>
@@ -198,7 +196,7 @@ export function buildWhereClause(
   return where;
 }
 
-function buildCondition(f: FilterDef): unknown {
+export function buildCondition(f: FilterDef): unknown {
   switch (f.op) {
     case "eq": return f.value;
     case "neq": return { not: f.value };

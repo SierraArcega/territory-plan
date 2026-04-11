@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
+import { serializeFinancials, FULLMIND_FINANCIALS_SELECT } from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,11 @@ export async function GET(
         enrollment: true,
         isCustomer: true,
         hasOpenPipeline: true,
-        salesExecutive: true,
-        fy26NetInvoicing: true,
-        fy26OpenPipeline: true,
-        fy27OpenPipeline: true,
+        salesExecutiveUser: { select: { id: true, fullName: true, avatarUrl: true } },
+        districtFinancials: {
+          where: { vendor: "fullmind" },
+          select: FULLMIND_FINANCIALS_SELECT,
+        },
         districtTags: {
           select: {
             tag: { select: { id: true, name: true, color: true } },
@@ -89,10 +91,10 @@ export async function GET(
         enrollment: d.enrollment,
         isCustomer: d.isCustomer ?? false,
         hasOpenPipeline: d.hasOpenPipeline ?? false,
-        salesExecutive: d.salesExecutive,
-        fy26NetInvoicing: toNumber(d.fy26NetInvoicing) ?? 0,
-        fy26OpenPipeline: toNumber(d.fy26OpenPipeline) ?? 0,
-        fy27OpenPipeline: toNumber(d.fy27OpenPipeline) ?? 0,
+        salesExecutive: d.salesExecutiveUser
+          ? { id: d.salesExecutiveUser.id, fullName: d.salesExecutiveUser.fullName, avatarUrl: d.salesExecutiveUser.avatarUrl }
+          : null,
+        districtFinancials: serializeFinancials(d.districtFinancials),
         tags: d.districtTags.map((dt) => ({
           id: dt.tag.id,
           name: dt.tag.name,

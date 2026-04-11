@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { normalizeState } from "@/lib/states";
+import {
+  getFinancialValue,
+  FULLMIND_FINANCIALS_SELECT,
+} from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -16,46 +20,18 @@ type MetricType =
   | "open_pipeline_weighted";
 type FiscalYear = "fy25" | "fy26" | "fy27";
 
-// Maps metric + year to the actual column name on the district model
-function getMetricColumn(metric: MetricType, year: FiscalYear): string {
-  const metricMap: Record<MetricType, Record<FiscalYear, string>> = {
-    sessions_revenue: {
-      fy25: "fy25SessionsRevenue",
-      fy26: "fy26SessionsRevenue",
-      fy27: "fy26SessionsRevenue", // FY27 sessions not tracked
-    },
-    sessions_take: {
-      fy25: "fy25SessionsTake",
-      fy26: "fy26SessionsTake",
-      fy27: "fy26SessionsTake",
-    },
-    sessions_count: {
-      fy25: "fy25SessionsCount",
-      fy26: "fy26SessionsCount",
-      fy27: "fy26SessionsCount",
-    },
-    closed_won_net_booking: {
-      fy25: "fy25ClosedWonNetBooking",
-      fy26: "fy26ClosedWonNetBooking",
-      fy27: "fy26ClosedWonNetBooking", // FY27 closed won not tracked
-    },
-    net_invoicing: {
-      fy25: "fy25NetInvoicing",
-      fy26: "fy26NetInvoicing",
-      fy27: "fy26NetInvoicing",
-    },
-    open_pipeline: {
-      fy25: "fy26OpenPipeline", // FY25 pipeline not tracked
-      fy26: "fy26OpenPipeline",
-      fy27: "fy27OpenPipeline",
-    },
-    open_pipeline_weighted: {
-      fy25: "fy26OpenPipelineWeighted",
-      fy26: "fy26OpenPipelineWeighted",
-      fy27: "fy27OpenPipelineWeighted",
-    },
+function getFinancialLookup(metric: MetricType, year: FiscalYear): { fiscalYear: string; field: "totalRevenue" | "totalTake" | "sessionCount" | "closedWonBookings" | "invoicing" | "openPipeline" | "weightedPipeline" } {
+  const fyMap: Record<FiscalYear, string> = { fy25: "FY25", fy26: "FY26", fy27: "FY27" };
+  const fieldMap: Record<MetricType, "totalRevenue" | "totalTake" | "sessionCount" | "closedWonBookings" | "invoicing" | "openPipeline" | "weightedPipeline"> = {
+    sessions_revenue: "totalRevenue",
+    sessions_take: "totalTake",
+    sessions_count: "sessionCount",
+    closed_won_net_booking: "closedWonBookings",
+    net_invoicing: "invoicing",
+    open_pipeline: "openPipeline",
+    open_pipeline_weighted: "weightedPipeline",
   };
-  return metricMap[metric]?.[year] || "fy26NetInvoicing";
+  return { fiscalYear: fyMap[year], field: fieldMap[metric] };
 }
 
 export async function GET(request: NextRequest) {
@@ -105,15 +81,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sales executive filter - now directly on district
+    // Sales executive filter - now uses FK column
     if (salesExec) {
-      where.salesExecutive = salesExec;
+      where.salesExecutiveId = salesExec;
     }
 
     // Get total count
     const total = await prisma.district.count({ where });
 
-    // Get districts - no more include needed, all data is on the district
+    // Get districts with financial data from districtFinancials relation
     const districts = await prisma.district.findMany({
       where,
       select: {
@@ -122,23 +98,12 @@ export async function GET(request: NextRequest) {
         stateAbbrev: true,
         isCustomer: true,
         hasOpenPipeline: true,
-        fy25SessionsRevenue: true,
-        fy25SessionsTake: true,
-        fy25SessionsCount: true,
-        fy26SessionsRevenue: true,
-        fy26SessionsTake: true,
-        fy26SessionsCount: true,
-        fy25ClosedWonNetBooking: true,
-        fy25NetInvoicing: true,
-        fy26ClosedWonNetBooking: true,
-        fy26NetInvoicing: true,
-        fy26OpenPipeline: true,
-        fy26OpenPipelineWeighted: true,
-        fy27OpenPipeline: true,
-        fy27OpenPipelineWeighted: true,
         accountType: true,
         cityLocation: true,
-        stateLocation: true,
+        districtFinancials: {
+          where: { vendor: "fullmind" },
+          select: FULLMIND_FINANCIALS_SELECT,
+        },
       },
       take: limit,
       skip: offset,
@@ -146,9 +111,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to list items
-    const metricColumn = getMetricColumn(metric, year);
+    const lookup = getFinancialLookup(metric, year);
     const districtList = districts.map((d) => {
-      const metricValue = Number(d[metricColumn as keyof typeof d] || 0);
+      const metricValue = getFinancialValue(d.districtFinancials, "fullmind", lookup.fiscalYear, lookup.field);
 
       return {
         leaid: d.leaid,
@@ -158,7 +123,6 @@ export async function GET(request: NextRequest) {
         hasOpenPipeline: d.hasOpenPipeline || false,
         accountType: d.accountType || "district",
         cityLocation: d.cityLocation,
-        stateLocation: d.stateLocation,
         metricValue,
       };
     });

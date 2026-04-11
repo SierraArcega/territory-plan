@@ -4,16 +4,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getUser } from "@/lib/supabase/server";
 import {
   type FilterDef,
   buildWhereClause,
+  buildCondition,
   DISTRICT_FIELD_MAP,
+  FINANCIAL_FIELD_MAP,
+  FINANCIAL_COLUMNS,
 } from "@/features/shared/lib/filters";
+import { getDefaultFiscalYearKey } from "@/features/shared/lib/fiscal-year";
+import { serializeFinancials } from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
-// Competitor vendor IDs → competitor names in the database
+// Competitor vendor slugs → display names (used for validation)
 const COMPETITOR_NAMES: Record<string, string> = {
   proximity: "Proximity Learning",
   elevate: "Elevate K12",
@@ -21,28 +27,32 @@ const COMPETITOR_NAMES: Record<string, string> = {
   educere: "Educere",
 };
 
-// Fields returned per district card
-const CARD_SELECT = {
-  leaid: true,
-  name: true,
-  stateAbbrev: true,
-  countyName: true,
-  enrollment: true,
-  isCustomer: true,
-  accountType: true,
-  owner: true,
-  ellPct: true,
-  swdPct: true,
-  childrenPovertyPercent: true,
-  medianHouseholdIncome: true,
-  expenditurePerPupil: true,
-  urbanCentricLocale: true,
-  fy26OpenPipeline: true,
-  fy26ClosedWonNetBooking: true,
-  territoryPlans: {
-    select: { plan: { select: { id: true, name: true, color: true } } },
-  },
-} as const;
+// Fields returned per district card — FY-dynamic
+function getCardSelect(fiscalYear: string) {
+  return {
+    leaid: true,
+    name: true,
+    stateAbbrev: true,
+    countyName: true,
+    enrollment: true,
+    isCustomer: true,
+    accountType: true,
+    ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
+    ellPct: true,
+    swdPct: true,
+    childrenPovertyPercent: true,
+    medianHouseholdIncome: true,
+    expenditurePerPupil: true,
+    urbanCentricLocale: true,
+    districtFinancials: {
+      where: { vendor: "fullmind", fiscalYear },
+      select: { openPipeline: true, closedWonBookings: true, invoicing: true, weightedPipeline: true },
+    },
+    territoryPlans: {
+      select: { plan: { select: { id: true, name: true, color: true } } },
+    },
+  };
+}
 
 // Map client sort keys to Prisma fields
 const SORT_FIELD_MAP: Record<string, string> = {
@@ -103,6 +113,16 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "1", 10));
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") ?? "50", 10)));
 
+  // Fiscal year for financial filters/sort (default: auto-detect from current date)
+  const VALID_FYS = ["FY24", "FY25", "FY26", "FY27"] as const;
+  const fyParam = url.searchParams.get("fy") || getDefaultFiscalYearKey();
+  const fiscalYear = fyParam.toUpperCase();
+  if (!(VALID_FYS as readonly string[]).includes(fiscalYear)) {
+    return NextResponse.json({ error: "Invalid fiscal year" }, { status: 400 });
+  }
+
+  const cardSelect = getCardSelect(fiscalYear);
+
   // Extract compound county+state filter (structured objects, not plain strings)
   // Before splitting into scalar/relation filters, pull out countyName and handle
   // it separately since it needs a compound (countyName + stateAbbrev) WHERE clause.
@@ -126,12 +146,16 @@ export async function GET(req: NextRequest) {
 
   // Separate relation/special filters from scalar filters
   // Scalar filters map directly to District columns via DISTRICT_FIELD_MAP.
+  // Financial filters target district_financials for the selected FY.
   // Relation filters need custom Prisma where clauses (tags, plans, competitors).
   const RELATION_COLUMNS = new Set(["tags", "planNames", "competitorChurned", "competitorEngagement"]);
   const scalarFilters: FilterDef[] = [];
+  const financialFilters: FilterDef[] = [];
   const relationFilters: FilterDef[] = [];
   for (const f of filters) {
-    if (f.column.startsWith("competitor_") || RELATION_COLUMNS.has(f.column)) {
+    if (FINANCIAL_COLUMNS.has(f.column)) {
+      financialFilters.push(f);
+    } else if (f.column.startsWith("competitor_") || RELATION_COLUMNS.has(f.column)) {
       relationFilters.push(f);
     } else {
       scalarFilters.push(f);
@@ -193,38 +217,37 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // competitor_proximity, competitor_elevate, etc. → "has competitor spend"
+    // competitor_proximity, competitor_elevate, etc. → "has vendor financials"
     if (f.column.startsWith("competitor_")) {
-      const vendorId = f.column.replace("competitor_", "");
-      const competitorName = COMPETITOR_NAMES[vendorId];
-      if (!competitorName) continue;
+      const vendorSlug = f.column.replace("competitor_", "");
+      if (!COMPETITOR_NAMES[vendorSlug]) continue;
 
       if (f.op === "is_not_empty") {
         if (!relationWhere.AND) relationWhere.AND = [];
         (relationWhere.AND as unknown[]).push({
-          competitorSpend: { some: { competitor: competitorName } },
+          districtFinancials: { some: { vendor: vendorSlug } },
         });
       } else if (f.op === "is_empty") {
         if (!relationWhere.AND) relationWhere.AND = [];
         (relationWhere.AND as unknown[]).push({
-          competitorSpend: { none: { competitor: competitorName } },
+          districtFinancials: { none: { vendor: vendorSlug } },
         });
       }
     }
 
-    // competitorEngagement → has any competitor spend at all
+    // competitorEngagement → has any non-fullmind vendor financials
     if (f.column === "competitorEngagement") {
       if (f.op === "is_not_empty") {
-        relationWhere.competitorSpend = { some: {} };
+        relationWhere.districtFinancials = { some: { vendor: { not: "fullmind" } } };
       }
     }
 
     // competitorChurned → had competitor revenue in prior FY but not current
-    // vendor_financials uses lowercase vendor names ('proximity', 'elevate', etc.)
+    // district_financials uses lowercase vendor names ('proximity', 'elevate', etc.)
     if (f.column === "competitorChurned" && f.op === "is_true") {
       if (!relationWhere.AND) relationWhere.AND = [];
       (relationWhere.AND as unknown[]).push({
-        vendorFinancials: {
+        districtFinancials: {
           some: {
             vendor: { not: "fullmind" },
             fiscalYear: "FY25",
@@ -233,7 +256,7 @@ export async function GET(req: NextRequest) {
         },
       });
       (relationWhere.AND as unknown[]).push({
-        vendorFinancials: {
+        districtFinancials: {
           none: {
             vendor: { not: "fullmind" },
             fiscalYear: "FY26",
@@ -242,6 +265,24 @@ export async function GET(req: NextRequest) {
         },
       });
     }
+  }
+
+  // Financial filters → Prisma relation filter on districtFinancials
+  // Each filter can specify its own FY (e.g., FY27 pipeline + FY26 bookings)
+  for (const f of financialFilters) {
+    const prismaField = FINANCIAL_FIELD_MAP[f.column];
+    if (!prismaField) continue;
+    const filterFy = (f as any).fy ? (f as any).fy.toUpperCase() : fiscalYear;
+    if (!relationWhere.AND) relationWhere.AND = [];
+    (relationWhere.AND as unknown[]).push({
+      districtFinancials: {
+        some: {
+          vendor: "fullmind",
+          fiscalYear: filterFy,
+          [prismaField]: buildCondition(f),
+        },
+      },
+    });
   }
 
   // ZIP + radius: find districts within X miles of a point using PostGIS
@@ -263,7 +304,7 @@ export async function GET(req: NextRequest) {
   // are active. When attribute filters narrow the result set, we show ALL matching
   // districts regardless of viewport (many districts lack geometry and would be
   // silently excluded by a bounds query).
-  const hasAttributeFilters = scalarFilters.length > 0 || relationFilters.length > 0 || countyWhere !== null;
+  const hasAttributeFilters = scalarFilters.length > 0 || financialFilters.length > 0 || relationFilters.length > 0 || countyWhere !== null;
   let boundsLeaids: string[] | null = null;
   if (!zipRadius && bounds && !hasAttributeFilters) {
     const [west, south, east, north] = bounds;
@@ -298,27 +339,70 @@ export async function GET(req: NextRequest) {
     where.leaid = { in: boundsLeaids };
   }
 
-  // Sort
-  const prismaSort = SORT_FIELD_MAP[sortCol] ?? "enrollment";
-  const orderBy = { [prismaSort]: sortDir };
+  // Sort — check if sorting by a financial column
+  const isFinancialSort = FINANCIAL_COLUMNS.has(sortCol);
+  const prismaSort = !isFinancialSort ? (SORT_FIELD_MAP[sortCol] ?? "enrollment") : "enrollment";
+  const orderBy = !isFinancialSort ? { [prismaSort]: sortDir } : undefined;
 
-  // Count + fetch in parallel
-  const [total, districts] = await Promise.all([
-    prisma.district.count({ where }),
-    prisma.district.findMany({
+  // Count + fetch
+  let total: number;
+  let districts: any[];
+
+  if (isFinancialSort) {
+    // Financial sort: raw SQL to get ordered leaids, then Prisma for card data
+    // First get all matching leaids via Prisma (respects all filters)
+    const allMatching = await prisma.district.findMany({
       where,
-      select: CARD_SELECT,
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-  ]);
+      select: { leaid: true },
+    });
+    total = allMatching.length;
+    const allLeaids = allMatching.map((d) => d.leaid);
+
+    if (allLeaids.length === 0) {
+      districts = [];
+    } else {
+      // Sort by financial column via raw SQL
+      const dfColumn = FINANCIAL_FIELD_MAP[sortCol]!;
+      // Convert camelCase to snake_case for raw SQL
+      const snakeCol = dfColumn.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+      const sortedLeaids = await prisma.$queryRaw<{ leaid: string }[]>`
+        SELECT d.leaid
+        FROM districts d
+        LEFT JOIN district_financials df ON df.leaid = d.leaid
+          AND df.vendor = 'fullmind' AND df.fiscal_year = ${fiscalYear}
+        WHERE d.leaid = ANY(${allLeaids})
+        ORDER BY COALESCE(df.${Prisma.raw(snakeCol)}, 0) ${Prisma.raw(sortDir === "asc" ? "ASC" : "DESC")}
+        LIMIT ${limit} OFFSET ${(page - 1) * limit}
+      `;
+      const pageLeaids = sortedLeaids.map((r) => r.leaid);
+
+      // Fetch card data preserving sort order
+      const unsorted = await prisma.district.findMany({
+        where: { leaid: { in: pageLeaids } },
+        select: cardSelect,
+      });
+      const byLeaid = new Map(unsorted.map((d) => [d.leaid, d]));
+      districts = pageLeaids.map((l) => byLeaid.get(l)).filter(Boolean);
+    }
+  } else {
+    // Scalar sort: standard Prisma query
+    [total, districts] = await Promise.all([
+      prisma.district.count({ where }),
+      prisma.district.findMany({
+        where,
+        select: cardSelect,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+  }
 
   // Return all matching leaids + centroids for map highlighting
   // Fetch when we have any filters active (attribute or spatial)
   let matchingLeaids: string[] | undefined;
   let matchingCentroids: Array<{ leaid: string; lat: number; lng: number }> = [];
-  const hasActiveFilters = scalarFilters.length > 0 || relationFilters.length > 0 || zipRadiusLeaids !== null;
+  const hasActiveFilters = scalarFilters.length > 0 || financialFilters.length > 0 || relationFilters.length > 0 || zipRadiusLeaids !== null;
   if (hasActiveFilters) {
     // For map dimming we want all matches regardless of viewport
     const matchWhere: Record<string, unknown> = { ...filterWhere, ...relationWhere };
@@ -352,8 +436,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Transform districtFinancials relation to serialized array for frontend
+  const data = districts.map((d) => {
+    const { districtFinancials, ...rest } = d as typeof d & { districtFinancials?: Parameters<typeof serializeFinancials>[0] };
+    return {
+      ...rest,
+      districtFinancials: serializeFinancials(districtFinancials ?? []),
+    };
+  });
+
   return NextResponse.json({
-    data: districts,
+    data,
     matchingLeaids,
     matchingCentroids,
     pagination: {

@@ -11,12 +11,17 @@ const COLUMN_LABELS: Record<string, string> = {
   titleISchoolCount: "Title I Schools",
   // Fullmind
   isCustomer: "Customer",
-  hasOpenPipeline: "Pipeline",
+  hasOpenPipeline: "Has Pipeline",
   salesExecutive: "Sales Exec",
   owner: "Owner",
-  fy26_open_pipeline_value: "FY26 Pipeline",
-  fy26_closed_won_net_booking: "FY26 Bookings",
-  fy26_net_invoicing: "FY26 Invoicing",
+  open_pipeline: "Pipeline",
+  closed_won_bookings: "Bookings",
+  invoicing: "Invoicing",
+  weighted_pipeline: "Wtd Pipeline",
+  closed_won_opp_count: "Closed Won Opps",
+  sessions_revenue: "Sessions Revenue",
+  sessions_take: "Sessions Take",
+  sessions_count: "Session Count",
   // Finance
   expenditurePerPupil: "Expend/Pupil",
   totalRevenue: "Total Revenue",
@@ -46,7 +51,8 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 const MONEY_COLUMNS = new Set([
-  "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "fy26_net_invoicing",
+  "open_pipeline", "closed_won_bookings", "invoicing", "weighted_pipeline",
+  "sessions_revenue", "sessions_take",
   "expenditurePerPupil", "totalRevenue", "federalRevenue", "stateRevenue", "localRevenue",
   "techSpending", "titleIRevenue", "esserFundingTotal", "capitalOutlayTotal", "debtOutstanding",
   "medianHouseholdIncome", "spedExpenditurePerStudent",
@@ -86,6 +92,7 @@ function formatFilterValue(f: ExploreFilter): string {
   }
 
   if (f.op === "in" && Array.isArray(f.value)) {
+    if (f.label) return f.label;
     if (f.column === "urbanicity") {
       const vals = f.value as string[];
       if (vals.every((v) => v.startsWith("1"))) return "City";
@@ -101,6 +108,8 @@ function formatFilterValue(f: ExploreFilter): string {
     const zr = f.value as unknown as { zip: string; miles: number };
     return `${zr.zip} + ${zr.miles} mi`;
   }
+
+  if (f.label) return f.label;
 
   if (f.op === "eq") return String(f.value);
 
@@ -121,7 +130,7 @@ export default function FilterPills() {
           key={f.id}
           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#e8f4f4] text-[#403770] border border-[#C4E7E6] text-xs font-medium shadow-sm"
         >
-          <span className="text-[#403770]/60">{COLUMN_LABELS[f.column] || f.column}</span>
+          <span className="text-[#403770]/60">{COLUMN_LABELS[f.column] || f.column}{f.fy ? ` (${f.fy.toUpperCase()})` : ""}</span>
           <span>{formatFilterValue(f)}</span>
           <button
             onClick={() => removeSearchFilter(f.id)}
