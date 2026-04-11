@@ -14,9 +14,14 @@ const COLUMN_LABELS: Record<string, string> = {
   hasOpenPipeline: "Pipeline",
   salesExecutive: "Sales Exec",
   owner: "Owner",
-  fy26_open_pipeline_value: "FY26 Pipeline",
-  fy26_closed_won_net_booking: "FY26 Bookings",
-  fy26_net_invoicing: "FY26 Invoicing",
+  open_pipeline: "Pipeline",
+  closed_won_bookings: "Bookings",
+  invoicing: "Invoicing",
+  weighted_pipeline: "Wtd Pipeline",
+  closed_won_opp_count: "Closed Won Opps",
+  sessions_revenue: "Sessions Revenue",
+  sessions_take: "Sessions Take",
+  sessions_count: "Session Count",
   // Finance
   expenditurePerPupil: "Expend/Pupil",
   totalRevenue: "Total Revenue",
@@ -46,7 +51,8 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 const MONEY_COLUMNS = new Set([
-  "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "fy26_net_invoicing",
+  "open_pipeline", "closed_won_bookings", "invoicing", "weighted_pipeline",
+  "sessions_revenue", "sessions_take",
   "expenditurePerPupil", "totalRevenue", "federalRevenue", "stateRevenue", "localRevenue",
   "techSpending", "titleIRevenue", "esserFundingTotal", "capitalOutlayTotal", "debtOutstanding",
   "medianHouseholdIncome", "spedExpenditurePerStudent",
