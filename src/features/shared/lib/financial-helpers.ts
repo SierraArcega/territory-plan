@@ -1,3 +1,5 @@
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
+
 /**
  * Financial data from the DistrictFinancials relation.
  * Matches the shape returned by Prisma select on the model.
@@ -82,8 +84,6 @@ export function extractFullmindFinancials(financials: FinancialRecord[]) {
   };
 }
 
-import type { DistrictFinancial } from "@/features/shared/types/api-types";
-
 /**
  * Get a single financial metric from a DistrictFinancial[] array.
  * Returns null if no matching record or if the field is null.
@@ -117,4 +117,50 @@ export function getFinancialValue(
   if (!record) return 0;
   const value = record[field];
   return typeof value === "number" ? value : toNum(value);
+}
+
+/** Convert Prisma Decimal or number to plain number | null */
+function toNumOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === "number") return v;
+  if (typeof v === "object" && "toNumber" in (v as Record<string, unknown>)) {
+    return (v as { toNumber: () => number }).toNumber();
+  }
+  return Number(v) || null;
+}
+
+/**
+ * Convert Prisma districtFinancials relation data to plain DistrictFinancial[].
+ * Handles Decimal → number conversion and renames totalTake → allTake.
+ */
+export function serializeFinancials(
+  prismaRecords: Array<{
+    vendor: string;
+    fiscalYear: string;
+    totalRevenue: unknown;
+    totalTake: unknown;
+    sessionCount: number | null;
+    closedWonOppCount: number | null;
+    closedWonBookings: unknown;
+    invoicing: unknown;
+    openPipelineOppCount: number | null;
+    openPipeline: unknown;
+    weightedPipeline: unknown;
+    poCount?: number | null;
+  }>
+): DistrictFinancial[] {
+  return prismaRecords.map((r) => ({
+    vendor: r.vendor,
+    fiscalYear: r.fiscalYear,
+    totalRevenue: toNumOrNull(r.totalRevenue),
+    allTake: toNumOrNull(r.totalTake),
+    sessionCount: r.sessionCount,
+    closedWonOppCount: r.closedWonOppCount,
+    closedWonBookings: toNumOrNull(r.closedWonBookings),
+    invoicing: toNumOrNull(r.invoicing),
+    openPipelineOppCount: r.openPipelineOppCount,
+    openPipeline: toNumOrNull(r.openPipeline),
+    weightedPipeline: toNumOrNull(r.weightedPipeline),
+    poCount: r.poCount ?? null,
+  }));
 }
