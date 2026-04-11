@@ -1,6 +1,8 @@
 "use client";
 
 import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
 
 interface DistrictCardData {
   leaid: string;
@@ -17,8 +19,7 @@ interface DistrictCardData {
   medianHouseholdIncome: number | null;
   expenditurePerPupil: number | null;
   urbanCentricLocale: number | null;
-  fy26OpenPipeline: number | null;
-  fy26ClosedWonNetBooking: number | null;
+  districtFinancials: DistrictFinancial[];
   territoryPlans: Array<{ plan: { id: string; name: string; color: string } }>;
 }
 
@@ -165,8 +166,9 @@ function getAdaptiveMetrics(
     if (district.expenditurePerPupil != null) {
       metrics.push({ label: "$/Pupil", value: `$${(Number(district.expenditurePerPupil) / 1000).toFixed(1)}k` });
     }
-    if (district.fy26OpenPipeline != null && Number(district.fy26OpenPipeline) > 0) {
-      metrics.push({ label: "Pipeline", value: `$${(Number(district.fy26OpenPipeline) / 1000).toFixed(0)}k` });
+    const pipeline = getFinancial(district.districtFinancials, "fullmind", "FY26", "openPipeline");
+    if (pipeline != null && pipeline > 0) {
+      metrics.push({ label: "Pipeline", value: `$${(pipeline / 1000).toFixed(0)}k` });
     }
   }
 

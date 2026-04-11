@@ -14,6 +14,8 @@ import {
   useMapPlans,
 } from "@/features/map/lib/queries";
 import type { LayerType } from "@/features/map/lib/layers";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
 import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import DistrictSearchCard from "./DistrictSearchCard";
 import DistrictExploreModal from "./DistrictExploreModal";
@@ -38,8 +40,7 @@ interface SearchResultDistrict {
   medianHouseholdIncome: number | null;
   expenditurePerPupil: number | null;
   urbanCentricLocale: number | null;
-  fy26OpenPipeline: number | null;
-  fy26ClosedWonNetBooking: number | null;
+  districtFinancials: DistrictFinancial[];
   territoryPlans: Array<{ plan: { id: string; name: string; color: string } }>;
 }
 
@@ -412,8 +413,8 @@ export default function SearchResults() {
         d.childrenPovertyPercent != null ? `${Number(d.childrenPovertyPercent).toFixed(1)}%` : "",
         d.medianHouseholdIncome ?? "",
         d.expenditurePerPupil ?? "",
-        d.fy26OpenPipeline ?? "",
-        d.fy26ClosedWonNetBooking ?? "",
+        getFinancial(d.districtFinancials, "fullmind", "FY26", "openPipeline") ?? "",
+        getFinancial(d.districtFinancials, "fullmind", "FY26", "closedWonBookings") ?? "",
         `"${(d.territoryPlans || []).map((tp) => tp.plan.name).join(", ")}"`,
       ].join(","));
 
