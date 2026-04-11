@@ -12,7 +12,7 @@ interface DistrictCardData {
   enrollment: number | null;
   isCustomer: boolean | null;
   accountType: string | null;
-  owner: string | null;
+  ownerUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   ellPct: number | null;
   swdPct: number | null;
   childrenPovertyPercent: number | null;
@@ -83,9 +83,9 @@ export default function DistrictSearchCard({
               <span className="font-medium">{district.enrollment.toLocaleString()}</span>
             </span>
           )}
-          {district.owner && (
+          {district.ownerUser && (
             <span className="text-xs text-[#8A80A8] truncate max-w-[100px]">
-              {district.owner}
+              {district.ownerUser.fullName}
             </span>
           )}
         </div>

@@ -33,7 +33,7 @@ interface SearchResultDistrict {
   enrollment: number | null;
   isCustomer: boolean | null;
   accountType: string | null;
-  owner: string | null;
+  ownerUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   ellPct: number | null;
   swdPct: number | null;
   childrenPovertyPercent: number | null;
@@ -407,7 +407,7 @@ export default function SearchResults() {
         d.countyName || "",
         d.enrollment ?? "",
         d.isCustomer ? "Yes" : "No",
-        d.owner || "",
+        d.ownerUser?.fullName || "",
         d.ellPct != null ? `${Number(d.ellPct).toFixed(1)}%` : "",
         d.swdPct != null ? `${Number(d.swdPct).toFixed(1)}%` : "",
         d.childrenPovertyPercent != null ? `${Number(d.childrenPovertyPercent).toFixed(1)}%` : "",

@@ -31,7 +31,7 @@ const CARD_SELECT = {
   enrollment: true,
   isCustomer: true,
   accountType: true,
-  owner: true,
+  ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
   ellPct: true,
   swdPct: true,
   childrenPovertyPercent: true,
