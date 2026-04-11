@@ -36,6 +36,21 @@ export interface District {
   accountType: string;
 }
 
+export interface DistrictFinancial {
+  vendor: string;
+  fiscalYear: string;
+  totalRevenue: number | null;
+  allTake: number | null;
+  sessionCount: number | null;
+  closedWonOppCount: number | null;
+  closedWonBookings: number | null;
+  invoicing: number | null;
+  openPipelineOppCount: number | null;
+  openPipeline: number | null;
+  weightedPipeline: number | null;
+  poCount: number | null;
+}
+
 export interface FullmindData {
   leaid: string;
   accountName: string | null;

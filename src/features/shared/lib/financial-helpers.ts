@@ -82,6 +82,25 @@ export function extractFullmindFinancials(financials: FinancialRecord[]) {
   };
 }
 
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
+
+/**
+ * Get a single financial metric from a DistrictFinancial[] array.
+ * Returns null if no matching record or if the field is null.
+ */
+export function getFinancial(
+  financials: DistrictFinancial[],
+  vendor: string,
+  fiscalYear: string,
+  field: keyof Omit<DistrictFinancial, "vendor" | "fiscalYear">
+): number | null {
+  const record = financials.find(
+    (f) => f.vendor === vendor && f.fiscalYear === fiscalYear
+  );
+  if (!record) return null;
+  return record[field];
+}
+
 /**
  * Get a single financial metric for a given vendor and fiscal year.
  * Useful for routes that need one specific value (e.g., pipeline for a plan's FY).
