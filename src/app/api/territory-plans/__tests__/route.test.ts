@@ -15,7 +15,7 @@ vi.mock("@/features/plans/lib/rollup-sync", () => ({
   syncPlanRollups: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/features/explore/lib/filters", () => ({
+vi.mock("@/features/shared/lib/filters", () => ({
   buildWhereClause: vi.fn().mockReturnValue({}),
   DISTRICT_FIELD_MAP: {},
 }));
