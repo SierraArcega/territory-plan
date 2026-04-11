@@ -134,8 +134,6 @@ export async function GET(
         },
         territoryOwner: state.territoryOwnerUser
           ? { id: state.territoryOwnerUser.id, fullName: state.territoryOwnerUser.fullName, avatarUrl: state.territoryOwnerUser.avatarUrl }
-          : state.territoryOwner
-          ? { id: null, fullName: state.territoryOwner, avatarUrl: null }
           : null,
         notes: state.notes,
         assessments,

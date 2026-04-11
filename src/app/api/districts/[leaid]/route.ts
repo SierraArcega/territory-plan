@@ -92,8 +92,6 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
         accountName: district.accountName,
         salesExecutive: district.salesExecutiveUser
           ? { id: district.salesExecutiveUser.id, fullName: district.salesExecutiveUser.fullName, avatarUrl: district.salesExecutiveUser.avatarUrl }
-          : district.salesExecutive
-          ? { id: null, fullName: district.salesExecutive, avatarUrl: null }
           : null,
         lmsid: district.lmsid,
         districtFinancials: serializeFinancials(district.districtFinancials),
