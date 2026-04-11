@@ -69,7 +69,6 @@ export async function GET(request: NextRequest) {
         stateAbbrev: true,
         lograde: true,
         higrade: true,
-        owner: true,
         ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
         schoolStatus: true,
         district: {

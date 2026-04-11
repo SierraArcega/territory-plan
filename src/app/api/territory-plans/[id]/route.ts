@@ -29,7 +29,6 @@ export async function GET(
                 name: true,
                 stateAbbrev: true,
                 enrollment: true,
-                owner: true,
                 ownerUser: { select: { id: true, fullName: true, avatarUrl: true } },
                 districtTags: {
                   select: {
