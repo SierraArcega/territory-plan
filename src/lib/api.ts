@@ -11,6 +11,5 @@ export * from "@/features/tasks/lib/queries";
 export * from "@/features/activities/lib/queries";
 export * from "@/features/calendar/lib/queries";
 export * from "@/features/map/lib/queries";
-export * from "@/features/explore/lib/queries";
 export * from "@/features/shared/lib/queries";
 export * from "@/features/integrations/lib/queries";
