@@ -7,7 +7,7 @@ import SignalCard from "./signals/SignalCard";
 import { getFinancial } from "@/features/shared/lib/financial-helpers";
 import type { DistrictFinancial } from "@/features/shared/types/api-types";
 
-interface CompetitorSpendRecord {
+interface CompetitorRecord {
   competitor: string;
   fiscalYear: string;
   totalSpend: number;
@@ -15,8 +15,8 @@ interface CompetitorSpendRecord {
   color: string;
 }
 
-interface CompetitorSpendResponse {
-  competitorSpend: CompetitorSpendRecord[];
+interface CompetitorsResponse {
+  competitors: CompetitorRecord[];
   totalAllCompetitors: number;
 }
 
@@ -109,22 +109,22 @@ export default function PurchasingHistoryCard({ fullmindData, leaid }: Purchasin
     return Math.max(...all, 1);
   }, [fy25Metrics, fy26Metrics, fy27Metrics]);
 
-  // Fetch competitor spend data
-  const { data: competitorData } = useQuery<CompetitorSpendResponse>({
-    queryKey: ["competitorSpend", leaid],
+  // Fetch competitor data
+  const { data: competitorData } = useQuery<CompetitorsResponse>({
+    queryKey: ["competitors", leaid],
     queryFn: async () => {
       const res = await fetch(`/api/districts/${leaid}/competitor-spend`);
-      if (!res.ok) throw new Error("Failed to fetch competitor spend");
+      if (!res.ok) throw new Error("Failed to fetch competitors");
       return res.json();
     },
     staleTime: 10 * 60 * 1000,
   });
 
-  // Group competitor spend by competitor, sorted by total descending
+  // Group competitors by name, sorted by total descending
   const sortedCompetitors = useMemo(() => {
-    if (!competitorData?.competitorSpend?.length) return [];
-    const map = new Map<string, { color: string; total: number; records: CompetitorSpendRecord[] }>();
-    for (const r of competitorData.competitorSpend) {
+    if (!competitorData?.competitors?.length) return [];
+    const map = new Map<string, { color: string; total: number; records: CompetitorRecord[] }>();
+    for (const r of competitorData.competitors) {
       if (!map.has(r.competitor)) {
         map.set(r.competitor, { color: r.color, total: 0, records: [] });
       }

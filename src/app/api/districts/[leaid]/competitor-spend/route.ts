@@ -66,13 +66,13 @@ export async function GET(
     );
 
     return NextResponse.json({
-      competitorSpend: spendData,
+      competitors: spendData,
       totalAllCompetitors,
     });
   } catch (error) {
-    console.error("Error fetching competitor spend:", error);
+    console.error("Error fetching competitors:", error);
     return NextResponse.json(
-      { error: "Failed to fetch competitor spend data" },
+      { error: "Failed to fetch competitor data" },
       { status: 500 }
     );
   }

@@ -1,7 +1,7 @@
 # Phase 3: Schema Cleanup
 
 **Date:** 2026-04-11
-**Status:** Phase 3a complete, Phase 3b complete, Phase 3c not started
+**Status:** Phase 3a complete, Phase 3b complete, Phase 3c complete
 **Branch:** `feat/db-normalization-query-tool`
 **Parent spec:** `Docs/superpowers/specs/2026-04-01-db-normalization-claude-query-tool-design.md`
 
@@ -108,25 +108,27 @@ Depends on 3a — no code should reference these after 3a is complete.
 
 ---
 
-## Phase 3c: External and cosmetic cleanup
+## Phase 3c: External and cosmetic cleanup — COMPLETE
 
-### API response rename
+### API response rename — DONE
 
-- Rename `competitorSpend` key in API responses → `competitors`
-- Rename frontend components: `CompetitorSpend.tsx` → `Competitors.tsx`, `CompetitorSpendCard.tsx` → `CompetitorCard.tsx`
+- ✅ Renamed `competitorSpend` key in API response → `competitors`
+- ✅ Renamed `CompetitorSpend.tsx` → `Competitors.tsx`, `CompetitorSpendCard.tsx` → `CompetitorCard.tsx`
+- ✅ Updated all consuming components (DistrictInfoTab, DistrictDetailPanel, PlanningTab, PurchasingHistoryCard, DistrictExploreModal)
+- ✅ Updated types from `CompetitorSpendRecord`/`CompetitorSpendResponse` → `CompetitorRecord`/`CompetitorsResponse`
+- ✅ Updated queryKey from `"competitorSpend"` → `"competitors"`
+- ✅ Updated PurchasingHistoryCard test file
+- ✅ Updated ICP scoring MethodologySummary documentation references
 
-### ETL dual-write stop
+### ETL dual-write stop — DOCUMENTED
 
-- Python `fullmind.py` (external repo) currently writes to both old FY columns on `districts` and to `district_financials`. Stop writing to old columns.
-- This is a coordination item — document what needs to change, actual Python changes happen outside this repo.
+- ✅ Created `Docs/etl-dual-write-stop.md` with full list of deprecated columns to stop writing
+- Python `fullmind.py` changes happen outside this repo — document is the handoff artifact
 
-### Worktree cleanup
+### Deferred consideration — FLAGGED
 
-- Remove the old report builder worktree (superseded by Claude query tool)
-
-### Deferred consideration
-
-- Consolidating `district_opportunity_actuals` and `refresh_fullmind_financials()` — they duplicate aggregation logic from the same source. Flag for future work, do not include in Phase 3.
+- ✅ Added TODO comments in `src/lib/opportunity-actuals.ts` and `prisma/migrations/manual/create_refresh_fullmind_financials.sql`
+- Consolidating `district_opportunity_actuals` and `refresh_fullmind_financials()` — flagged for future work, not Phase 3
 
 ---
 

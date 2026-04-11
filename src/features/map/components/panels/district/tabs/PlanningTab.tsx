@@ -12,7 +12,7 @@ import {
   type TerritoryPlan,
 } from "@/lib/api";
 import PurchasingHistoryCard from "../PurchasingHistoryCard";
-import CompetitorSpendCard from "../CompetitorSpendCard";
+import CompetitorCard from "../CompetitorCard";
 import AddToPlanButton from "../AddToPlanButton";
 import DistrictPerformanceSection from "@/features/plans/components/DistrictPerformanceSection";
 
@@ -81,7 +81,7 @@ export default function PlanningTab({ data, leaid, planId: planIdProp }: Plannin
       )}
 
       <PurchasingHistoryCard fullmindData={data.fullmindData} leaid={leaid} />
-      <CompetitorSpendCard leaid={leaid} />
+      <CompetitorCard leaid={leaid} />
     </div>
   );
 }

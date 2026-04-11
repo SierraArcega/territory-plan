@@ -1,4 +1,7 @@
 // src/lib/opportunity-actuals.ts
+// TODO: Consider consolidating district_opportunity_actuals with refresh_fullmind_financials().
+// Both aggregate from the same opportunities source — the mat view aggregates by rep+category
+// while the DB function aggregates by district+vendor+FY. Potential to unify into one pipeline.
 import prisma from "@/lib/prisma";
 
 /**

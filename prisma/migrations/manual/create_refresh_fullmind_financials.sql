@@ -1,6 +1,10 @@
 -- Refresh Fullmind district_financials from opportunities + sessions
 -- Called after each Railway sync cycle
 --
+-- TODO: Consider consolidating with district_opportunity_actuals mat view.
+-- Both aggregate from the same opportunities source but at different grain.
+-- See Docs/superpowers/specs/2026-04-11-phase3-schema-cleanup-design.md "Deferred consideration"
+--
 -- Revenue/take/bookings/pipeline: from opportunities (Railway pre-computed)
 -- Session counts: from sessions table (actual count by start_time school year)
 -- Only includes opps that join to a valid district in the districts table

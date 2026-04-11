@@ -351,12 +351,11 @@ Branch: `feat/db-normalization-query-tool` (same PR #106). Implementation plan: 
 - ✅ Remove FY field names from frontend types (`api-types.ts`)
 - ✅ Remove string person column fallback patterns from routes
 
-### Phase 3c: External and cosmetic cleanup — NOT STARTED
+### Phase 3c: External and cosmetic cleanup — COMPLETE
 
-- Rename frontend `competitorSpend` API response key → `competitors` (cosmetic)
-- Stop ETL dual-write (Python `fullmind.py` stops writing districts FY columns)
-- Clean up report builder worktree (superseded by Claude query tool)
-- Consider consolidating `district_opportunity_actuals` and `refresh_fullmind_financials()` — they duplicate aggregation logic from the same source
+- ✅ Renamed `competitorSpend` API response key → `competitors`, renamed component files
+- ✅ ETL dual-write stop documented (`Docs/etl-dual-write-stop.md`) — Python changes happen externally
+- ✅ Flagged `district_opportunity_actuals` / `refresh_fullmind_financials()` consolidation for future work
 
 **Only after Phase 2b is fully validated in production.**
 

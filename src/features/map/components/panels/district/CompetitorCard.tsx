@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import SignalCard from "./signals/SignalCard";
 
-interface CompetitorSpendRecord {
+interface CompetitorRecord {
   competitor: string;
   fiscalYear: string;
   totalSpend: number;
@@ -12,8 +12,8 @@ interface CompetitorSpendRecord {
   color: string;
 }
 
-interface CompetitorSpendResponse {
-  competitorSpend: CompetitorSpendRecord[];
+interface CompetitorsResponse {
+  competitors: CompetitorRecord[];
   totalAllCompetitors: number;
 }
 
@@ -23,25 +23,25 @@ function formatCurrency(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
-interface CompetitorSpendCardProps {
+interface CompetitorCardProps {
   leaid: string;
 }
 
-export default function CompetitorSpendCard({ leaid }: CompetitorSpendCardProps) {
-  const { data, isLoading } = useQuery<CompetitorSpendResponse>({
-    queryKey: ["competitorSpend", leaid],
+export default function CompetitorCard({ leaid }: CompetitorCardProps) {
+  const { data, isLoading } = useQuery<CompetitorsResponse>({
+    queryKey: ["competitors", leaid],
     queryFn: async () => {
       const res = await fetch(`/api/districts/${leaid}/competitor-spend`);
-      if (!res.ok) throw new Error("Failed to fetch competitor spend");
+      if (!res.ok) throw new Error("Failed to fetch competitors");
       return res.json();
     },
     staleTime: 10 * 60 * 1000,
   });
 
   const grouped = useMemo(() => {
-    if (!data?.competitorSpend?.length) return new Map<string, { color: string; total: number; records: CompetitorSpendRecord[] }>();
-    const map = new Map<string, { color: string; total: number; records: CompetitorSpendRecord[] }>();
-    for (const r of data.competitorSpend) {
+    if (!data?.competitors?.length) return new Map<string, { color: string; total: number; records: CompetitorRecord[] }>();
+    const map = new Map<string, { color: string; total: number; records: CompetitorRecord[] }>();
+    for (const r of data.competitors) {
       if (!map.has(r.competitor)) {
         map.set(r.competitor, { color: r.color, total: 0, records: [] });
       }
@@ -60,7 +60,7 @@ export default function CompetitorSpendCard({ leaid }: CompetitorSpendCardProps)
     return Array.from(grouped.entries()).sort((a, b) => b[1].total - a[1].total);
   }, [grouped]);
 
-  if (isLoading || !data || data.competitorSpend.length === 0) return null;
+  if (isLoading || !data || data.competitors.length === 0) return null;
 
   const totalSpend = data.totalAllCompetitors;
   const competitorCount = grouped.size;

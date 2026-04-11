@@ -27,7 +27,7 @@ const SUB_SCORES = [
       { name: "District Total Revenue", points: "0-25", metric: "Total revenue from all sources (federal + state + local) from NCES F-33 Annual Finance Survey. Quartiled within state to normalize for cost-of-living.", finding: "Q4 districts (top quartile in their state) have the largest budgets and highest deal potential." },
       { name: "Enrollment (deal size)", points: "0-20", metric: "Total student headcount from NCES CCD.", finding: "Larger districts buy larger contracts. 50K+ districts average $4.4M lifetime revenue vs $95K for <500." },
       { name: "Expenditure per Pupil", points: "0-15", metric: "Total expenditure divided by enrollment from NCES F-33.", finding: "Higher per-pupil spend indicates more budget capacity for supplemental services. >$20K/pupil scores maximum." },
-      { name: "Existing Vendor Revenue", points: "0-25", metric: "Lifetime total revenue across all 5 vendors (Fullmind, Elevate, Proximity, TBT, Educere) from DistrictFinancials + CompetitorSpend tables.", finding: "Districts already spending on virtual instruction are proven buyers with established procurement paths." },
+      { name: "Existing Vendor Revenue", points: "0-25", metric: "Lifetime total revenue across all 5 vendors (Fullmind, Elevate, Proximity, TBT, Educere) from DistrictFinancials table (all vendors).", finding: "Districts already spending on virtual instruction are proven buyers with established procurement paths." },
       { name: "Number of Schools", points: "0-15", metric: "Count of schools in the district from NCES CCD.", finding: "More schools = more classrooms to staff = larger potential contract size." },
     ],
   },
@@ -39,7 +39,7 @@ const SUB_SCORES = [
     factors: [
       { name: "Charter Tuition Outflow", points: "0-15", metric: "Dollar amount the district transfers to charter schools when students leave. Per-pupil funding (~$8-15K/student) follows the student. From NCES F-33 (FY2020); scored as % of total expenditure to reduce staleness.", finding: "Districts transferring >$1M have 17.3% penetration (vs 3.8%) \u2014 a 4.5x lift. They're losing students to alternatives and already have budget flowing to external instructional providers." },
       { name: "SPED Private Placement", points: "0-10", metric: "What districts pay private special ed schools when they can't serve a student's IEP needs internally. From NCES F-33 (FY2020).", finding: "High spend signals staffing gaps the district can't fill internally, plus existing budget mechanisms for outsourcing instruction." },
-      { name: "Existing Competitor Spend", points: "0-20", metric: "Count of distinct vendors with revenue > $0 across all 5 vendors, from DistrictFinancials + CompetitorSpend (GovSpend PO data).", finding: "The strongest behavioral signal. Multi-vendor districts spend 7.3x more on average ($772K vs $106K). If they're buying virtual instruction from anyone, they're a proven market participant." },
+      { name: "Existing Competitor Spend", points: "0-20", metric: "Count of distinct vendors with revenue > $0 across all 5 vendors, from DistrictFinancials (GovSpend PO data).", finding: "The strongest behavioral signal. Multi-vendor districts spend 7.3x more on average ($772K vs $106K). If they're buying virtual instruction from anyone, they're a proven market participant." },
       { name: "Charter Enrollment %", points: "0-10", metric: "Charter school enrollment as % of total district enrollment from NCES CCD.", finding: "Moderate charter competition (5-30%) has 13-15% penetration \u2014 these districts are losing students but still fighting. Above 30%, the district itself is often hollowed out." },
       { name: "Enrollment Trend (3yr)", points: "0-10", metric: "3-year % change in total enrollment from Urban Institute API.", finding: "Slightly declining districts buy the most (8.0% penetration). The 'worried but not desperate' sweet spot. Growing districts barely buy (2.7%)." },
       { name: "Staffing Trend (3yr)", points: "0-10", metric: "3-year % change in staff FTE from Urban Institute API.", finding: "Moderate staff decline signals active teacher loss being replaced with virtual. $1.3M avg revenue for moderate-decline districts." },
@@ -55,8 +55,8 @@ const SUB_SCORES = [
     question: "Is the state environment favorable for selling?",
     factors: [
       { name: "District Consolidation", points: "0-30", metric: "Median district enrollment in the state, computed from NCES CCD. Measures whether the state has fewer large districts or many small ones.", finding: "Consolidated states (SC, MD, FL, GA) have 11% avg penetration. Fragmented states (CA, AZ, MT) have 1.7%. Larger districts = bigger budgets, centralized decisions, more staffing complexity." },
-      { name: "Existing Penetration", points: "0-25", metric: "% of districts in the state with any vendor revenue, computed from DistrictFinancials + CompetitorSpend.", finding: "Higher penetration means a proven sales motion, reference customers, and market awareness. SC leads at 34.1%." },
-      { name: "Existing Revenue in State", points: "0-15", metric: "Total lifetime vendor revenue from all districts in the state, from DistrictFinancials + CompetitorSpend.", finding: "Higher existing revenue signals proven demand and referenceable customers." },
+      { name: "Existing Penetration", points: "0-25", metric: "% of districts in the state with any vendor revenue, computed from DistrictFinancials.", finding: "Higher penetration means a proven sales motion, reference customers, and market awareness. SC leads at 34.1%." },
+      { name: "Existing Revenue in State", points: "0-15", metric: "Total lifetime vendor revenue from all districts in the state, from DistrictFinancials.", finding: "Higher existing revenue signals proven demand and referenceable customers." },
       { name: "Churn Penalty", points: "0 to -15", metric: "Blended customer churn (30% weight) and revenue churn (70% weight) computed from Fullmind + Elevate K12 district_financials, comparing FY24-25 customers to FY26-27 retention.", finding: "Penalizes states where the sales motion may be broken despite historical success. E.g., SC lost $20M in revenue (78.5% rev churn) despite retaining 14 of 30 customers. States with no FM/EK12 presence are unaffected." },
     ],
   },
@@ -74,7 +74,7 @@ const DATA_SOURCES = [
   { name: "NCES F-33", desc: "Revenue, expenditure, per-pupil spend, charter/private payments, debt (FY2020)" },
   { name: "Urban Institute API", desc: "FRPL, ELL/SWD %, absenteeism, proficiency, graduation, enrollment & staffing trends" },
   { name: "DistrictFinancials", desc: "Fullmind + Elevate K12 revenue by fiscal year (OpenSearch sync)" },
-  { name: "CompetitorSpend", desc: "Proximity, Elevate, TBT, Educere PO data (GovSpend)" },
+  { name: "DistrictFinancials (competitors)", desc: "Proximity, Elevate, TBT, Educere PO data (GovSpend) — merged into DistrictFinancials" },
   { name: "Fullmind CRM", desc: "Customer status, open pipeline, territory owner (OpenSearch sync)" },
 ];
 

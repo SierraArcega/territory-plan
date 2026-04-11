@@ -9,7 +9,7 @@ import StudentPopulationsCard from "./StudentPopulationsCard";
 import AcademicCard from "./AcademicCard";
 import FinanceCard from "./FinanceCard";
 import PurchasingHistoryCard from "./PurchasingHistoryCard";
-import CompetitorSpendCard from "./CompetitorSpendCard";
+import CompetitorCard from "./CompetitorCard";
 import FullmindCard from "./FullmindCard";
 import DistrictDetailsCard from "./DistrictDetailsCard";
 import VacanciesCard from "@/features/vacancies/components/VacanciesCard";
@@ -86,7 +86,7 @@ export default function DistrictDetailPanel() {
             <div className="p-3 space-y-3">
               <PurchasingHistoryCard fullmindData={data.fullmindData} leaid={selectedLeaid!} />
 
-              <CompetitorSpendCard leaid={selectedLeaid!} />
+              <CompetitorCard leaid={selectedLeaid!} />
 
               <FullmindCard data={data} leaid={selectedLeaid!} />
 

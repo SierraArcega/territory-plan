@@ -12,7 +12,7 @@ import type { ActivityStatus } from "@/features/activities/types";
 import VacancyList from "@/features/vacancies/components/VacancyList";
 import { useMapV2Store } from "@/features/map/lib/store";
 
-interface CompetitorSpendRecord {
+interface CompetitorRecord {
   competitor: string;
   fiscalYear: string;
   totalSpend: number;
@@ -20,8 +20,8 @@ interface CompetitorSpendRecord {
   color: string;
 }
 
-interface CompetitorSpendResponse {
-  competitorSpend: CompetitorSpendRecord[];
+interface CompetitorsResponse {
+  competitors: CompetitorRecord[];
   totalAllCompetitors: number;
 }
 
@@ -79,11 +79,11 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
   const { data: activitiesData } = useActivities({ districtLeaid: leaid, limit: 10 });
 
   // Competitor spend
-  const { data: competitorData } = useQuery<CompetitorSpendResponse>({
-    queryKey: ["competitorSpend", leaid],
+  const { data: competitorData } = useQuery<CompetitorsResponse>({
+    queryKey: ["competitors", leaid],
     queryFn: async () => {
       const res = await fetch(`/api/districts/${leaid}/competitor-spend`);
-      if (!res.ok) throw new Error("Failed to fetch competitor spend");
+      if (!res.ok) throw new Error("Failed to fetch competitors");
       return res.json();
     },
     staleTime: 10 * 60 * 1000,
@@ -557,8 +557,8 @@ function FullmindTab({
 }
 
 // ─── Tab: Competitors ───────────────────────────────────────────────
-function CompetitorsTab({ competitorData }: { competitorData: CompetitorSpendResponse | null }) {
-  if (!competitorData || competitorData.competitorSpend.length === 0) {
+function CompetitorsTab({ competitorData }: { competitorData: CompetitorsResponse | null }) {
+  if (!competitorData || competitorData.competitors.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-sm text-[#A69DC0]">No competitor data for this district.</p>
@@ -567,8 +567,8 @@ function CompetitorsTab({ competitorData }: { competitorData: CompetitorSpendRes
   }
 
   // Group by competitor
-  const grouped = new Map<string, { color: string; total: number; records: CompetitorSpendRecord[] }>();
-  for (const r of competitorData.competitorSpend) {
+  const grouped = new Map<string, { color: string; total: number; records: CompetitorRecord[] }>();
+  for (const r of competitorData.competitors) {
     if (!grouped.has(r.competitor)) {
       grouped.set(r.competitor, { color: r.color, total: 0, records: [] });
     }

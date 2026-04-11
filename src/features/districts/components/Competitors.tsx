@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-interface CompetitorSpendRecord {
+interface CompetitorRecord {
   competitor: string;
   fiscalYear: string;
   totalSpend: number;
@@ -11,12 +11,12 @@ interface CompetitorSpendRecord {
   color: string;
 }
 
-interface CompetitorSpendResponse {
-  competitorSpend: CompetitorSpendRecord[];
+interface CompetitorsResponse {
+  competitors: CompetitorRecord[];
   totalAllCompetitors: number;
 }
 
-interface CompetitorSpendProps {
+interface CompetitorsProps {
   leaid: string;
 }
 
@@ -31,11 +31,11 @@ function formatCurrency(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
-// Group spend records by competitor
+// Group records by competitor
 function groupByCompetitor(
-  records: CompetitorSpendRecord[]
-): Map<string, { color: string; records: CompetitorSpendRecord[] }> {
-  const grouped = new Map<string, { color: string; records: CompetitorSpendRecord[] }>();
+  records: CompetitorRecord[]
+): Map<string, { color: string; records: CompetitorRecord[] }> {
+  const grouped = new Map<string, { color: string; records: CompetitorRecord[] }>();
 
   for (const record of records) {
     if (!grouped.has(record.competitor)) {
@@ -52,14 +52,14 @@ function groupByCompetitor(
   return grouped;
 }
 
-export default function CompetitorSpend({ leaid }: CompetitorSpendProps) {
+export default function Competitors({ leaid }: CompetitorsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const { data, isLoading, error } = useQuery<CompetitorSpendResponse>({
-    queryKey: ["competitorSpend", leaid],
+  const { data, isLoading, error } = useQuery<CompetitorsResponse>({
+    queryKey: ["competitors", leaid],
     queryFn: async () => {
       const res = await fetch(`/api/districts/${leaid}/competitor-spend`);
-      if (!res.ok) throw new Error("Failed to fetch competitor spend");
+      if (!res.ok) throw new Error("Failed to fetch competitors");
       return res.json();
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -70,12 +70,12 @@ export default function CompetitorSpend({ leaid }: CompetitorSpendProps) {
     return null;
   }
 
-  // Don't render if no competitor spend
-  if (data.competitorSpend.length === 0) {
+  // Don't render if no competitors
+  if (data.competitors.length === 0) {
     return null;
   }
 
-  const groupedData = groupByCompetitor(data.competitorSpend);
+  const groupedData = groupByCompetitor(data.competitors);
 
   return (
     <div className="px-6 py-4 border-b border-gray-100">

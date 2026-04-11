@@ -40,8 +40,8 @@ const mockFullmindData: FullmindData = {
   hasOpenPipeline: true,
 };
 
-const mockCompetitorSpendResponse = {
-  competitorSpend: [
+const mockCompetitorsResponse = {
+  competitors: [
     {
       competitor: "Educere",
       fiscalYear: "fy26",
@@ -68,7 +68,7 @@ const mockCompetitorSpendResponse = {
 };
 
 const emptyCompetitorResponse = {
-  competitorSpend: [],
+  competitors: [],
   totalAllCompetitors: 0,
 };
 
@@ -106,7 +106,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("renders competitor section when competitor data exists", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={mockFullmindData} leaid="3400001" />,
@@ -143,7 +143,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("renders when only competitor data exists and no Fullmind data", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={null} leaid="3400001" />,
@@ -169,7 +169,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("shows Educere with correct color dot", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={mockFullmindData} leaid="3400001" />,
@@ -226,7 +226,7 @@ describe("PurchasingHistoryCard", () => {
   });
 
   it("sorts competitors by total spend descending", async () => {
-    mockFetchResponse(mockCompetitorSpendResponse);
+    mockFetchResponse(mockCompetitorsResponse);
 
     renderWithProviders(
       <PurchasingHistoryCard fullmindData={mockFullmindData} leaid="3400001" />,
@@ -265,7 +265,7 @@ describe("PurchasingHistoryCard", () => {
 
   it("shows PO count with correct singular/plural label", async () => {
     mockFetchResponse({
-      competitorSpend: [
+      competitors: [
         {
           competitor: "Educere",
           fiscalYear: "fy26",
