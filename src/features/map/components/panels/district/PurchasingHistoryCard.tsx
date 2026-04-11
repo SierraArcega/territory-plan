@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FullmindData } from "@/lib/api";
 import SignalCard from "./signals/SignalCard";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
 
 interface CompetitorSpendRecord {
   competitor: string;
@@ -62,8 +64,11 @@ const COLORS = {
 };
 
 export default function PurchasingHistoryCard({ fullmindData, leaid }: PurchasingHistoryCardProps) {
-  const fy25Revenue = Number(fullmindData?.fy25SessionsRevenue ?? 0);
-  const fy26Revenue = Number(fullmindData?.fy26SessionsRevenue ?? 0);
+  const g = (fy: string, field: keyof Omit<DistrictFinancial, "vendor" | "fiscalYear">) =>
+    getFinancial(fullmindData?.districtFinancials ?? [], "fullmind", fy, field) ?? 0;
+
+  const fy25Revenue = g("FY25", "totalRevenue");
+  const fy26Revenue = g("FY26", "totalRevenue");
 
   const yoyChange = useMemo(() => {
     if (fy25Revenue <= 0) return null;
@@ -73,27 +78,30 @@ export default function PurchasingHistoryCard({ fullmindData, leaid }: Purchasin
   const fy26Metrics = useMemo(() => {
     if (!fullmindData) return [];
     return [
-      { label: "Sessions Revenue", value: Number(fullmindData.fy26SessionsRevenue), color: COLORS.revenue },
-      { label: "Net Invoicing", value: Number(fullmindData.fy26NetInvoicing), color: COLORS.invoicing },
-      { label: "Closed Won", value: Number(fullmindData.fy26ClosedWonNetBooking), color: COLORS.closedWon },
-      { label: "Open Pipeline", value: Number(fullmindData.fy26OpenPipeline), color: COLORS.pipeline },
+      { label: "Sessions Revenue", value: g("FY26", "totalRevenue"), color: COLORS.revenue },
+      { label: "Net Invoicing", value: g("FY26", "invoicing"), color: COLORS.invoicing },
+      { label: "Closed Won", value: g("FY26", "closedWonBookings"), color: COLORS.closedWon },
+      { label: "Open Pipeline", value: g("FY26", "openPipeline"), color: COLORS.pipeline },
     ].filter((m) => m.value > 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullmindData]);
 
   const fy25Metrics = useMemo(() => {
     if (!fullmindData) return [];
     return [
-      { label: "Sessions Revenue", value: Number(fullmindData.fy25SessionsRevenue), color: COLORS.revenue },
-      { label: "Net Invoicing", value: Number(fullmindData.fy25NetInvoicing), color: COLORS.invoicing },
-      { label: "Closed Won", value: Number(fullmindData.fy25ClosedWonNetBooking), color: COLORS.closedWon },
+      { label: "Sessions Revenue", value: g("FY25", "totalRevenue"), color: COLORS.revenue },
+      { label: "Net Invoicing", value: g("FY25", "invoicing"), color: COLORS.invoicing },
+      { label: "Closed Won", value: g("FY25", "closedWonBookings"), color: COLORS.closedWon },
     ].filter((m) => m.value > 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullmindData]);
 
   const fy27Metrics = useMemo(() => {
     if (!fullmindData) return [];
     return [
-      { label: "Open Pipeline", value: Number(fullmindData.fy27OpenPipeline), color: COLORS.pipeline },
+      { label: "Open Pipeline", value: g("FY27", "openPipeline"), color: COLORS.pipeline },
     ].filter((m) => m.value > 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullmindData]);
 
   const maxValue = useMemo(() => {
@@ -183,9 +191,9 @@ export default function PurchasingHistoryCard({ fullmindData, leaid }: Purchasin
               </div>
             </div>
           )}
-          {fullmindData && fullmindData.fy26SessionsCount > 0 && (
+          {fullmindData && g("FY26", "sessionCount") > 0 && (
             <div className="text-xs text-gray-500">
-              {fullmindData.fy26SessionsCount.toLocaleString()} sessions delivered (FY26)
+              {g("FY26", "sessionCount").toLocaleString()} sessions delivered (FY26)
             </div>
           )}
 
