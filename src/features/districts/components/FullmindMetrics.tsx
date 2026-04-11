@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { FullmindData } from "@/lib/api";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
+import type { DistrictFinancial } from "@/features/shared/types/api-types";
 
 interface FullmindMetricsProps {
   fullmindData: FullmindData;
@@ -103,20 +105,23 @@ export default function FullmindMetrics({ fullmindData }: FullmindMetricsProps) 
 
   // Build data for each fiscal year
   const fyData = useMemo(() => {
+    const g = (fy: string, field: keyof Omit<DistrictFinancial, "vendor" | "fiscalYear">) =>
+      getFinancial(fullmindData.districtFinancials, "fullmind", fy, field) ?? 0;
+
     return {
       fy25: [
-        { def: METRICS[0], value: Number(fullmindData.fy25SessionsRevenue) },
-        { def: METRICS[1], value: Number(fullmindData.fy25NetInvoicing) },
-        { def: METRICS[2], value: Number(fullmindData.fy25ClosedWonNetBooking) },
+        { def: METRICS[0], value: g("FY25", "totalRevenue") },
+        { def: METRICS[1], value: g("FY25", "invoicing") },
+        { def: METRICS[2], value: g("FY25", "closedWonBookings") },
       ],
       fy26: [
-        { def: METRICS[0], value: Number(fullmindData.fy26SessionsRevenue) },
-        { def: METRICS[1], value: Number(fullmindData.fy26NetInvoicing) },
-        { def: METRICS[2], value: Number(fullmindData.fy26ClosedWonNetBooking) },
-        { def: METRICS[3], value: Number(fullmindData.fy26OpenPipeline) },
+        { def: METRICS[0], value: g("FY26", "totalRevenue") },
+        { def: METRICS[1], value: g("FY26", "invoicing") },
+        { def: METRICS[2], value: g("FY26", "closedWonBookings") },
+        { def: METRICS[3], value: g("FY26", "openPipeline") },
       ],
       fy27: [
-        { def: METRICS[3], value: Number(fullmindData.fy27OpenPipeline) },
+        { def: METRICS[3], value: g("FY27", "openPipeline") },
       ],
     };
   }, [fullmindData]);
