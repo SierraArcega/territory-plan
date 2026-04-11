@@ -7,7 +7,7 @@ import {
   useCreateTerritoryPlan,
   type TerritoryPlan,
 } from "@/lib/api";
-import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
+import { getDefaultFiscalYear } from "@/features/shared/lib/fiscal-year";
 import PlanFormModal, {
   type PlanFormData,
 } from "@/features/plans/components/PlanFormModal";
