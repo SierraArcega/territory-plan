@@ -8,6 +8,7 @@ import type {
   UserSummary,
   UserProfile,
   Service,
+  GoalDashboard,
 } from "@/features/shared/types/api-types";
 
 // ===== Tags =====
@@ -241,5 +242,16 @@ export function useRemoveSchoolTag() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["school", variables.ncessch] });
     },
+  });
+}
+
+// Goal Dashboard — used by ProfileSidebar FiscalYearSummary
+export function useGoalDashboard(fiscalYear: number | null) {
+  return useQuery({
+    queryKey: ["goalDashboard", fiscalYear],
+    queryFn: () =>
+      fetchJson<GoalDashboard>(`${API_BASE}/profile/goals/${fiscalYear}/dashboard`),
+    enabled: !!fiscalYear,
+    staleTime: 2 * 60 * 1000,
   });
 }

@@ -8,7 +8,6 @@ const tabs: Array<{ id: IconBarTab; icon: string; label: string }> = [
   { id: "selection", icon: "selection", label: "Selection" },
   { id: "home", icon: "home", label: "Home" },
   { id: "plans", icon: "plans", label: "Plans" },
-  { id: "explore", icon: "explore", label: "Explore" },
   { id: "settings", icon: "settings", label: "Settings" },
 ];
 
@@ -72,17 +71,6 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
           />
           <path
             d="M7 7H13M7 10H13M7 13H10"
-            stroke={color}
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      );
-    case "explore":
-      return (
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M4 16V10M8 16V6M12 16V8M16 16V4"
             stroke={color}
             strokeWidth="1.5"
             strokeLinecap="round"

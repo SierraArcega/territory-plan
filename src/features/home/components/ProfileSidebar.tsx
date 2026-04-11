@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useProfile } from "@/lib/api";
 import { useCalendarConnection } from "@/features/calendar/lib/queries";
-import { useGoalDashboard } from "@/features/goals/lib/queries";
-import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
+import { useGoalDashboard } from "@/features/shared/lib/queries";
+import { getDefaultFiscalYear } from "@/features/shared/lib/fiscal-year";
 import PlanFormModal, { type PlanFormData } from "@/features/plans/components/PlanFormModal";
 import { useCreateTerritoryPlan } from "@/lib/api";
 import { useMapStore } from "@/features/shared/lib/app-store";
@@ -16,7 +16,6 @@ import {
   Calendar,
   Clock,
   Mail,
-  Zap,
   MessageSquare,
   CircleDollarSign,
   Phone,
@@ -42,7 +41,6 @@ interface Integration {
 const INTEGRATIONS: Integration[] = [
   { name: "Calendar", icon: Calendar, status: "connected" },
   { name: "Gmail", icon: Mail, status: "setup" },
-  { name: "Mixmax", icon: Zap, status: "setup" },
   { name: "Slack", icon: MessageSquare, status: "connected" },
   { name: "Rippling", icon: CircleDollarSign, status: "setup" },
 ];

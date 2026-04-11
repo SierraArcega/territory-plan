@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
-import ExploreOverlay from "./explore/ExploreOverlay";
 import ComparisonMapShell from "./ComparisonMapShell";
 import SearchBar from "./SearchBar";
 import SearchResults from "./SearchResults";
@@ -82,9 +81,6 @@ export default function MapV2Shell() {
 
         {/* District styles bubble (bottom-left) */}
         <StylesBubble />
-
-        {/* Explore data overlay (covers map when active) */}
-        <ExploreOverlay />
 
         {/* Plan highlight banner (shown when navigating from Plans tab) */}
         {planHighlight && (

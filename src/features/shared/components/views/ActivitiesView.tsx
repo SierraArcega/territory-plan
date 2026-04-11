@@ -11,7 +11,6 @@ import {
 import {
   useActivities,
   useDeleteActivity,
-  useActivityMetrics,
   useCalendarConnection,
   useTriggerCalendarSync,
   useProfile,
@@ -140,8 +139,8 @@ export default function ActivitiesView() {
   const calendarSyncMutation = useTriggerCalendarSync();
   const isCalendarConnected = calendarConnectionData?.connected;
 
-  // Activity metrics for the summary bar (month view)
-  const { data: metrics } = useActivityMetrics("month");
+  // Activity metrics stub (hook was never implemented)
+  const metrics = null as { totalActivities: number; bySource: { calendar_sync: number; manual: number }; byStatus: { completed: number } } | null;
 
   // Client-side search filtering
   const filteredActivities = useMemo(() => {

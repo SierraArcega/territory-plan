@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { FilterDef } from "@/features/explore/lib/filters";
+import type { FilterDef } from "@/features/shared/lib/filters";
 
 /**
  * Extracts county filter objects from the filters array and returns:

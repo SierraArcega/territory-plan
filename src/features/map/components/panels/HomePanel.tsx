@@ -5,14 +5,9 @@ import {
   useProfile,
   useUpdateProfile,
   useTerritoryPlans,
-  useGoalDashboard,
 } from "@/lib/api";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { searchLocations, type GeocodeSuggestion } from "@/features/map/lib/geocode";
-import { getDefaultFiscalYear } from "@/features/goals/components/ProgressCard";
-import GoalEditorModal from "@/features/goals/components/GoalEditorModal";
-import DonutChart from "@/features/goals/components/DonutChart";
-import DonutMetricPopover from "@/features/goals/components/DonutMetricPopover";
 import FlippablePlanCard from "@/features/plans/components/FlippablePlanCard";
 import PlanCardFilters, {
   filterAndSortPlans,
@@ -49,7 +44,6 @@ export default function HomePanel() {
   const { data: profile } = useProfile();
   const updateProfile = useUpdateProfile();
   const { data: plans } = useTerritoryPlans();
-  const { data: dashboard } = useGoalDashboard(selectedFY);
 
   const viewPlan = useMapV2Store((s) => s.viewPlan);
   const startNewPlan = useMapV2Store((s) => s.startNewPlan);
@@ -65,25 +59,6 @@ export default function HomePanel() {
     () => filterAndSortPlans(fyPlans, selectedOwnerId, sortBy),
     [fyPlans, selectedOwnerId, sortBy],
   );
-
-  // Goal metrics for selected FY
-  const goalMetrics = useMemo(() => {
-    if (!dashboard?.goals) return null;
-    const g = dashboard.goals;
-    const a = dashboard.actuals;
-    const totalTarget =
-      (g.renewalTarget || 0) +
-      (g.winbackTarget || 0) +
-      (g.expansionTarget || 0) +
-      (g.newBusinessTarget || 0);
-    const totalCurrent = a.revenue + a.pipeline;
-    return [
-      { label: "Earnings", current: a.earnings, target: g.earningsTarget, color: "#F37167", format: "currency" as const },
-      { label: "Take", current: a.take, target: g.takeTarget, color: "#6EA3BE", format: "currency" as const },
-      { label: "Total Target", current: totalCurrent, target: totalTarget || null, color: "#403770", format: "currency" as const },
-      { label: "New Districts", current: a.newDistricts, target: g.newDistrictsTarget, color: "#403770", format: "number" as const },
-    ];
-  }, [dashboard]);
 
   // --- Edit handlers ---
 
@@ -163,13 +138,6 @@ export default function HomePanel() {
   }, []);
 
   const [avatarError, setAvatarError] = useState(false);
-  const [showGoalEditor, setShowGoalEditor] = useState(false);
-  const [openPopoverIndex, setOpenPopoverIndex] = useState<number | null>(null);
-
-  // Close popover when FY tab changes
-  useEffect(() => {
-    setOpenPopoverIndex(null);
-  }, [selectedFY]);
 
   const initials = profile
     ? (() => {
@@ -433,76 +401,6 @@ export default function HomePanel() {
         </div>
       </div>
 
-      {/* ── Goals ── */}
-      <div className="px-4 mt-3">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-            Goals
-          </h3>
-          <button
-            onClick={() => setShowGoalEditor(true)}
-            className="text-[10px] text-gray-400 hover:text-plum transition-colors"
-          >
-            {dashboard?.goals ? "Edit" : "Set goals"}
-          </button>
-        </div>
-        {goalMetrics ? (
-          <div className="grid grid-cols-2 gap-3">
-            {goalMetrics.map((m, i) => {
-              const pct =
-                m.target && m.target > 0
-                  ? Math.min((m.current / m.target) * 100, 100)
-                  : 0;
-              return (
-                <div
-                  key={m.label}
-                  className="relative flex flex-col items-center text-center"
-                >
-                  <button
-                    type="button"
-                    className="flex flex-col items-center text-center bg-transparent border-none p-0 cursor-pointer"
-                    onClick={() =>
-                      setOpenPopoverIndex(openPopoverIndex === i ? null : i)
-                    }
-                  >
-                    <DonutChart
-                      percent={pct}
-                      color={m.color}
-                      size={48}
-                      strokeWidth={5}
-                      fontSize="text-[10px]"
-                      ariaLabel={m.label}
-                    />
-                    <span className="text-[10px] font-medium text-gray-500 mt-1 truncate w-full">
-                      {m.label}
-                    </span>
-                  </button>
-                  {openPopoverIndex === i && (
-                    <DonutMetricPopover
-                      label={m.label}
-                      current={m.current}
-                      target={m.target}
-                      format={m.format}
-                      color={m.color}
-                      onClose={() => setOpenPopoverIndex(null)}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-lg bg-gray-50 py-4 text-center">
-            <p className="text-[11px] text-gray-400">
-              No goals set for FY{String(selectedFY).slice(-2)}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Divider ── */}
-      <div className="h-px bg-gray-100 mx-4 mt-3" />
-
       {/* ── Plans for selected FY ── */}
       <div className="px-4 mt-3 pb-4">
         <div className="flex items-center justify-between mb-2">
@@ -563,13 +461,6 @@ export default function HomePanel() {
         </button>
       </div>
 
-      {/* ── Goal Editor Modal ── */}
-      <GoalEditorModal
-        isOpen={showGoalEditor}
-        onClose={() => setShowGoalEditor(false)}
-        fiscalYear={selectedFY}
-        currentGoals={dashboard?.goals || null}
-      />
     </div>
   );
 }

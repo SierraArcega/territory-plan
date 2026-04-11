@@ -75,37 +75,20 @@ export type PanelState =
   | "PLAN_PERF";
 
 // Icon bar navigation
-export type IconBarTab = "selection" | "home" | "plans" | "explore" | "settings";
+export type IconBarTab = "selection" | "home" | "plans" | "settings";
 
 // Plan workspace sections
 export type PlanSection = "districts" | "activities" | "tasks" | "contacts" | "performance";
 
-// Explore Data entity tabs
-export type ExploreEntity = "districts" | "activities" | "tasks" | "contacts" | "plans";
-
 // Filter operator types — single source of truth in explore-filters.ts
-import type { FilterOp } from "@/features/explore/lib/filters";
-export type { FilterOp } from "@/features/explore/lib/filters";
+import type { FilterOp } from "@/features/shared/lib/filters";
+export type { FilterOp } from "@/features/shared/lib/filters";
 
 export interface ExploreFilter {
   id: string;
   column: string;
   op: FilterOp;
   value: string | number | boolean | string[] | [number, number];
-}
-
-export interface ExploreSortConfig {
-  column: string;
-  direction: "asc" | "desc";
-}
-
-export interface ExploreSavedView {
-  id: string;
-  name: string;
-  entity: ExploreEntity;
-  filters: ExploreFilter[];
-  sorts: ExploreSortConfig[];
-  columns: string[];
 }
 
 /** Serialized map view state for saving/loading named views */
@@ -259,18 +242,7 @@ interface MapV2State {
   showAccountForm: boolean;
   accountFormDefaults: { name?: string } | null;
 
-  // Explore Data
-  isExploreActive: boolean;
-  exploreEntity: ExploreEntity;
-  exploreColumns: Record<ExploreEntity, string[]>;
-  exploreFilters: Record<ExploreEntity, ExploreFilter[]>;
-  exploreSort: Record<ExploreEntity, ExploreSortConfig[]>;
-  explorePage: number;
   filteredDistrictLeaids: string[];
-
-  // Saved views
-  exploreSavedViews: Record<ExploreEntity, ExploreSavedView[]>;
-  activeViewId: Record<ExploreEntity, string | null>;
 
   // Bulk selection
   selectedDistrictLeaids: Set<string>;
@@ -431,25 +403,7 @@ interface MapV2Actions {
   openAccountForm: (defaults?: { name?: string }) => void;
   closeAccountForm: () => void;
 
-  // Explore Data
-  setExploreEntity: (entity: ExploreEntity) => void;
-  setExploreColumns: (entity: ExploreEntity, columns: string[]) => void;
-  addExploreFilter: (entity: ExploreEntity, filter: ExploreFilter) => void;
-  removeExploreFilter: (entity: ExploreEntity, filterId: string) => void;
-  updateExploreFilter: (entity: ExploreEntity, filterId: string, updates: Partial<ExploreFilter>) => void;
-  clearExploreFilters: (entity: ExploreEntity) => void;
-  setExploreSort: (entity: ExploreEntity, sort: ExploreSortConfig[]) => void;
-  addSortRule: (entity: ExploreEntity, rule: ExploreSortConfig) => void;
-  removeSortRule: (entity: ExploreEntity, column: string) => void;
-  reorderSortRules: (entity: ExploreEntity, rules: ExploreSortConfig[]) => void;
-  setExplorePage: (page: number) => void;
   setFilteredDistrictLeaids: (leaids: string[]) => void;
-
-  // Saved views
-  saveView: (entity: ExploreEntity, view: ExploreSavedView) => void;
-  loadView: (entity: ExploreEntity, viewId: string) => void;
-  deleteView: (entity: ExploreEntity, viewId: string) => void;
-  setActiveViewId: (entity: ExploreEntity, viewId: string | null) => void;
 
   // Bulk selection
   toggleDistrictSelection: (leaid: string) => void;
@@ -596,47 +550,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   lastSavedSnapshot: null,
   showAccountForm: false,
   accountFormDefaults: null,
-  isExploreActive: false,
-  exploreEntity: "districts" as ExploreEntity,
-  exploreColumns: {
-    districts: ["name", "state", "enrollment", "isCustomer", "fy26_open_pipeline_value", "fy26_closed_won_net_booking", "owner", "notes", "planNames", "lastActivity", "tags"],
-    activities: ["title", "type", "status", "startDate", "outcomeType", "districtNames", "planNames"],
-    tasks: ["title", "status", "priority", "dueDate", "districtNames", "planNames"],
-    contacts: ["name", "title", "email", "phone", "districtName", "isPrimary", "lastActivity"],
-    plans: ["name", "status", "fiscalYear", "ownerName", "districtCount", "totalTargets", "renewalRollup", "expansionRollup", "winbackRollup", "newBusinessRollup", "createdAt", "updatedAt"],
-  } as Record<ExploreEntity, string[]>,
-  exploreFilters: {
-    districts: [],
-    activities: [],
-    tasks: [],
-    contacts: [],
-    plans: [],
-  } as Record<ExploreEntity, ExploreFilter[]>,
-  exploreSort: {
-    districts: [],
-    activities: [],
-    tasks: [],
-    contacts: [],
-    plans: [],
-  } as Record<ExploreEntity, ExploreSortConfig[]>,
-  explorePage: 1,
   filteredDistrictLeaids: [],
-
-  // Saved views
-  exploreSavedViews: {
-    districts: [],
-    activities: [],
-    tasks: [],
-    contacts: [],
-    plans: [],
-  } as Record<ExploreEntity, ExploreSavedView[]>,
-  activeViewId: {
-    districts: null,
-    activities: null,
-    tasks: null,
-    contacts: null,
-    plans: null,
-  } as Record<ExploreEntity, string | null>,
 
   // Bulk selection
   selectedDistrictLeaids: new Set<string>(),
@@ -734,9 +648,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       // Only reset to browse when switching to home; selection tab preserves panelState
       panelState: tab === "home" ? "BROWSE" : s.panelState,
       panelHistory: tab === "home" ? [] : s.panelHistory,
-      isExploreActive: tab === "explore",
-      // Clear filtered districts when leaving explore
-      ...(tab !== "explore" ? { filteredDistrictLeaids: [] } : {}),
+      filteredDistrictLeaids: [],
       // Clear any lingering map tooltip when switching tabs
       tooltip: { visible: false, exiting: false, x: 0, y: 0, data: null },
     })),
@@ -1118,140 +1030,7 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   openAccountForm: (defaults) => set({ showAccountForm: true, accountFormDefaults: defaults || null }),
   closeAccountForm: () => set({ showAccountForm: false, accountFormDefaults: null }),
 
-  // Explore Data
-  setExploreEntity: (entity) =>
-    set({ exploreEntity: entity, explorePage: 1, selectedDistrictLeaids: new Set<string>(), selectAllMatchingFilters: false }),
-
-  setExploreColumns: (entity, columns) =>
-    set((s) => ({
-      exploreColumns: { ...s.exploreColumns, [entity]: columns },
-    })),
-
-  addExploreFilter: (entity, filter) =>
-    set((s) => ({
-      exploreFilters: {
-        ...s.exploreFilters,
-        [entity]: [...s.exploreFilters[entity], filter],
-      },
-      explorePage: 1,
-      selectedDistrictLeaids: new Set<string>(),
-      selectAllMatchingFilters: false,
-    })),
-
-  removeExploreFilter: (entity, filterId) =>
-    set((s) => ({
-      exploreFilters: {
-        ...s.exploreFilters,
-        [entity]: s.exploreFilters[entity].filter((f) => f.id !== filterId),
-      },
-      explorePage: 1,
-      selectedDistrictLeaids: new Set<string>(),
-      selectAllMatchingFilters: false,
-    })),
-
-  updateExploreFilter: (entity, filterId, updates) =>
-    set((s) => ({
-      exploreFilters: {
-        ...s.exploreFilters,
-        [entity]: s.exploreFilters[entity].map((f) =>
-          f.id === filterId ? { ...f, ...updates } : f
-        ),
-      },
-      explorePage: 1,
-    })),
-
-  clearExploreFilters: (entity) =>
-    set((s) => ({
-      exploreFilters: { ...s.exploreFilters, [entity]: [] },
-      explorePage: 1,
-      selectedDistrictLeaids: new Set<string>(),
-      selectAllMatchingFilters: false,
-    })),
-
-  setExploreSort: (entity, sort) =>
-    set((s) => ({
-      exploreSort: { ...s.exploreSort, [entity]: sort },
-      explorePage: 1,
-    })),
-
-  addSortRule: (entity, rule) =>
-    set((s) => {
-      const existing = s.exploreSort[entity];
-      const idx = existing.findIndex((r) => r.column === rule.column);
-      let next: ExploreSortConfig[];
-      if (idx >= 0) {
-        next = existing.map((r, i) => (i === idx ? rule : r));
-      } else {
-        next = [...existing, rule];
-      }
-      return {
-        exploreSort: { ...s.exploreSort, [entity]: next },
-        explorePage: 1,
-      };
-    }),
-
-  removeSortRule: (entity, column) =>
-    set((s) => ({
-      exploreSort: {
-        ...s.exploreSort,
-        [entity]: s.exploreSort[entity].filter((r) => r.column !== column),
-      },
-      explorePage: 1,
-    })),
-
-  reorderSortRules: (entity, rules) =>
-    set((s) => ({
-      exploreSort: { ...s.exploreSort, [entity]: rules },
-      explorePage: 1,
-    })),
-
-  setExplorePage: (page) => set({ explorePage: page }),
-
   setFilteredDistrictLeaids: (leaids) => set({ filteredDistrictLeaids: leaids }),
-
-  // Saved views
-  saveView: (entity, view) =>
-    set((s) => {
-      const existing = s.exploreSavedViews[entity];
-      const idx = existing.findIndex((v) => v.id === view.id);
-      const updated = idx >= 0
-        ? existing.map((v) => (v.id === view.id ? view : v))
-        : [...existing, view];
-      return {
-        exploreSavedViews: { ...s.exploreSavedViews, [entity]: updated },
-        activeViewId: { ...s.activeViewId, [entity]: view.id },
-      };
-    }),
-
-  loadView: (entity, viewId) =>
-    set((s) => {
-      const view = s.exploreSavedViews[entity].find((v) => v.id === viewId);
-      if (!view) return s;
-      return {
-        exploreFilters: { ...s.exploreFilters, [entity]: view.filters },
-        exploreSort: { ...s.exploreSort, [entity]: view.sorts },
-        exploreColumns: { ...s.exploreColumns, [entity]: view.columns },
-        activeViewId: { ...s.activeViewId, [entity]: viewId },
-        explorePage: 1,
-      };
-    }),
-
-  deleteView: (entity, viewId) =>
-    set((s) => ({
-      exploreSavedViews: {
-        ...s.exploreSavedViews,
-        [entity]: s.exploreSavedViews[entity].filter((v) => v.id !== viewId),
-      },
-      activeViewId: {
-        ...s.activeViewId,
-        [entity]: s.activeViewId[entity] === viewId ? null : s.activeViewId[entity],
-      },
-    })),
-
-  setActiveViewId: (entity, viewId) =>
-    set((s) => ({
-      activeViewId: { ...s.activeViewId, [entity]: viewId },
-    })),
 
   // Bulk selection
   toggleDistrictSelection: (leaid) =>
