@@ -329,20 +329,30 @@ Branch: `feat/db-normalization-query-tool` (same PR #106). Implementation plan: 
 - Build chat UI
 - Deferred to separate implementation plan
 
-### Phase 3: Cleanup
+### Phase 3a: Remove extractFullmindFinancials shim — COMPLETE
 
-After Phase 2b is validated in production:
+- ✅ Added `DistrictFinancial` type and `getFinancial()` / `serializeFinancials()` helpers
+- ✅ Replaced 18 flat FY fields with `districtFinancials: DistrictFinancial[]` on all API types
+- ✅ Migrated all 6 API routes off `extractFullmindFinancials`
+- ✅ Migrated all 5 frontend components to `getFinancial()`
+- ✅ Deleted `extractFullmindFinancials` shim
 
-- Drop 18 FY columns from `districts` table
-- Drop `CompetitorSpend` model and `competitor_spend` table
-- Drop string `owner`, `sales_executive` columns from `districts` (replaced by UUID FKs)
-- Drop string `owner` from `schools` (replaced by UUID FK)
-- Drop string `territory_owner` from `states` (replaced by UUID FK)
-- Drop string `sales_executive` from `unmatched_accounts` (replaced by UUID FK)
-- Drop `state_location` from `districts` (redundant with `state_abbrev`)
-- Drop FY columns from `unmatched_accounts`
-- Drop `district_vendor_comparison` materialized view
-- Remove FY field names from frontend types (`api-types.ts`) — consume relation data directly
+### Phase 3b: Drop deprecated columns and tables — COMPLETE
+
+- ✅ Drop 18 FY columns from `districts` table
+- ✅ Drop `CompetitorSpend` model and `competitor_spend` table
+- ✅ Drop string `owner`, `sales_executive` columns from `districts` (replaced by UUID FKs)
+- ✅ Drop string `owner` from `schools` (replaced by UUID FK)
+- ✅ Drop string `territory_owner` from `states` (replaced by UUID FK)
+- ✅ Drop string `sales_executive` from `unmatched_accounts` (replaced by UUID FK)
+- ✅ Drop `state_location` from `districts` (redundant with `state_abbrev`)
+- ✅ Drop FY columns from `unmatched_accounts`
+- ✅ Drop `district_vendor_comparison` materialized view script
+- ✅ Remove FY field names from frontend types (`api-types.ts`)
+- ✅ Remove string person column fallback patterns from routes
+
+### Phase 3c: External and cosmetic cleanup — NOT STARTED
+
 - Rename frontend `competitorSpend` API response key → `competitors` (cosmetic)
 - Stop ETL dual-write (Python `fullmind.py` stops writing districts FY columns)
 - Clean up report builder worktree (superseded by Claude query tool)
