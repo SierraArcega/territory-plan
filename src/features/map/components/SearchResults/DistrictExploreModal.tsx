@@ -5,7 +5,8 @@ import { useDistrictDetail } from "@/features/districts/lib/queries";
 import { useQuery } from "@tanstack/react-query";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/lib/api";
 import { useActivities } from "@/features/activities/lib/queries";
-import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrollmentDemographics, District, Tag, TerritoryPlan, ActivityListItem } from "@/features/shared/types/api-types";
+import type { FullmindData, DistrictEducationData, DistrictTrends, DistrictEnrollmentDemographics, District, Tag, TerritoryPlan, ActivityListItem, DistrictFinancial } from "@/features/shared/types/api-types";
+import { getFinancial } from "@/features/shared/lib/financial-helpers";
 import { ACTIVITY_STATUS_CONFIG, formatStatusLabel } from "@/features/activities/types";
 import type { ActivityStatus } from "@/features/activities/types";
 import VacancyList from "@/features/vacancies/components/VacancyList";
@@ -468,6 +469,9 @@ function FullmindTab({
   const fmtMoney = (n: number) => (n > 0 ? `$${n.toLocaleString()}` : "—");
   const memberPlans = plans.filter((p) => territoryPlanIds.includes(p.id));
 
+  const g = (fy: string, field: keyof Omit<DistrictFinancial, "vendor" | "fiscalYear">) =>
+    getFinancial(fullmindData?.districtFinancials ?? [], "fullmind", fy, field) ?? 0;
+
   return (
     <>
       {/* Pipeline & Revenue */}
@@ -475,27 +479,27 @@ function FullmindTab({
         <div className="mb-6">
           <SectionLabel>Pipeline &amp; Revenue</SectionLabel>
           <div className="flex flex-col">
-            <DataRow label="FY27 Open Pipeline" value={fmtMoney(fullmindData.fy27OpenPipeline)} sub={fullmindData.fy27OpenPipelineOppCount > 0 ? `(${fullmindData.fy27OpenPipelineOppCount} opps)` : undefined} />
-            <DataRow label="FY26 Open Pipeline" value={fmtMoney(fullmindData.fy26OpenPipeline)} sub={fullmindData.fy26OpenPipelineOppCount > 0 ? `(${fullmindData.fy26OpenPipelineOppCount} opps)` : undefined} />
-            <DataRow label="FY26 Weighted Pipeline" value={fmtMoney(fullmindData.fy26OpenPipelineWeighted)} />
-            <DataRow label="FY26 Closed Won" value={fmtMoney(fullmindData.fy26ClosedWonNetBooking)} />
-            <DataRow label="FY26 Net Invoicing" value={fmtMoney(fullmindData.fy26NetInvoicing)} />
-            <DataRow label="FY25 Closed Won" value={fmtMoney(fullmindData.fy25ClosedWonNetBooking)} />
-            <DataRow label="FY25 Net Invoicing" value={fmtMoney(fullmindData.fy25NetInvoicing)} last />
+            <DataRow label="FY27 Open Pipeline" value={fmtMoney(g("FY27", "openPipeline"))} sub={g("FY27", "openPipelineOppCount") > 0 ? `(${g("FY27", "openPipelineOppCount")} opps)` : undefined} />
+            <DataRow label="FY26 Open Pipeline" value={fmtMoney(g("FY26", "openPipeline"))} sub={g("FY26", "openPipelineOppCount") > 0 ? `(${g("FY26", "openPipelineOppCount")} opps)` : undefined} />
+            <DataRow label="FY26 Weighted Pipeline" value={fmtMoney(g("FY26", "weightedPipeline"))} />
+            <DataRow label="FY26 Closed Won" value={fmtMoney(g("FY26", "closedWonBookings"))} />
+            <DataRow label="FY26 Net Invoicing" value={fmtMoney(g("FY26", "invoicing"))} />
+            <DataRow label="FY25 Closed Won" value={fmtMoney(g("FY25", "closedWonBookings"))} />
+            <DataRow label="FY25 Net Invoicing" value={fmtMoney(g("FY25", "invoicing"))} last />
           </div>
         </div>
       )}
 
       {/* Sessions */}
-      {fullmindData && (fullmindData.fy26SessionsCount > 0 || fullmindData.fy25SessionsCount > 0) && (
+      {fullmindData && (g("FY26", "sessionCount") > 0 || g("FY25", "sessionCount") > 0) && (
         <div className="mb-6">
           <SectionLabel>Sessions</SectionLabel>
           <div className="flex flex-col">
-            {fullmindData.fy26SessionsCount > 0 && (
-              <DataRow label="FY26 Sessions" value={`${fullmindData.fy26SessionsCount}`} sub={`($${fullmindData.fy26SessionsRevenue.toLocaleString()} rev)`} />
+            {g("FY26", "sessionCount") > 0 && (
+              <DataRow label="FY26 Sessions" value={`${g("FY26", "sessionCount")}`} sub={`($${g("FY26", "totalRevenue").toLocaleString()} rev)`} />
             )}
-            {fullmindData.fy25SessionsCount > 0 && (
-              <DataRow label="FY25 Sessions" value={`${fullmindData.fy25SessionsCount}`} sub={`($${fullmindData.fy25SessionsRevenue.toLocaleString()} rev)`} last />
+            {g("FY25", "sessionCount") > 0 && (
+              <DataRow label="FY25 Sessions" value={`${g("FY25", "sessionCount")}`} sub={`($${g("FY25", "totalRevenue").toLocaleString()} rev)`} last />
             )}
           </div>
         </div>
