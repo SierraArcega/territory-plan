@@ -355,17 +355,12 @@ model Contact {
 model UnmatchedAccount {
   id                 Int      @id @default(autoincrement())
   accountName        String   @map("account_name") @db.VarChar(255)
-  salesExecutive     String?  @map("sales_executive") @db.VarChar(100)
   salesExecutiveId String?     @map("sales_executive_id") @db.Uuid
   stateAbbrev        String   @map("state_abbrev") @db.VarChar(2)
   stateFips          String?  @map("state_fips") @db.VarChar(2)
   lmsid              String?  @db.VarChar(50)
   leaidRaw           String?  @map("leaid_raw") @db.VarChar(50)
   matchFailureReason String   @map("match_failure_reason") @db.VarChar(100)
-  fy25NetInvoicing   Decimal  @default(0) @map("fy25_net_invoicing") @db.Decimal(15, 2)
-  fy26NetInvoicing   Decimal  @default(0) @map("fy26_net_invoicing") @db.Decimal(15, 2)
-  fy26OpenPipeline   Decimal  @default(0) @map("fy26_open_pipeline") @db.Decimal(15, 2)
-  fy27OpenPipeline   Decimal  @default(0) @map("fy27_open_pipeline") @db.Decimal(15, 2)
   isCustomer         Boolean  @default(false) @map("is_customer")
   hasOpenPipeline    Boolean  @default(false) @map("has_open_pipeline")
   createdAt          DateTime @default(now()) @map("created_at")
@@ -427,7 +422,6 @@ model State {
   icpChurnPenalty  Int    @default(0) @map("icp_churn_penalty")
 
   // ===== Territory Management =====
-  territoryOwner String? @map("territory_owner") @db.VarChar(100)
   territoryOwnerId String?     @map("territory_owner_id") @db.Uuid
   territoryOwnerUser UserProfile? @relation("StateOwner", fields: [territoryOwnerId], references: [id])
   notes          String?
@@ -1084,7 +1078,6 @@ model School {
   demographicsDataYear      Int? @map("demographics_data_year")
 
   // ===== Lightweight CRM Fields =====
-  owner          String?   @db.VarChar(100)
   ownerId        String?      @map("owner_id") @db.Uuid
   ownerUser      UserProfile? @relation("SchoolOwner", fields: [ownerId], references: [id])
   notes          String?
