@@ -1,8 +1,8 @@
 # Database Normalization & Claude Query Tool
 
 **Date:** 2026-04-01
-**Status:** Design approved
-**Branch:** TBD
+**Status:** Phase 2a complete (query migration), Phase 2b planned (person FK + competitor migration), Query tool not started
+**Branch:** `feat/db-normalization-query-tool`
 
 ## Summary
 
@@ -123,9 +123,9 @@ GovSpend POs ───────→ district_financials (competitors, via exis
 - These are not 1:1 mappings. The semantic schema reference (Part 2) bridges the conceptual gap for Claude.
 
 **Materialized views after normalization:**
-- `district_opportunity_actuals` — **drop.** Claude generates equivalent SQL on demand.
+- `district_opportunity_actuals` — **keep (revised).** Originally planned to drop, but this view aggregates raw opportunities by rep + category (renewal/expansion/winback/new) — data that `district_financials` can't provide because it has no `sales_rep_email` or deal-level category columns. Used by profile goals, leaderboard rank, and team-progress dashboards. Long-term, consider consolidating the duplicate aggregation logic between this view and `refresh_fullmind_financials()` (both compute from the same source with the same stage weighting).
 - `district_vendor_comparison` — **drop.** Claude generates equivalent SQL on demand.
-- `district_map_features` — **keep** but update to join `district_financials`. This serves MapLibre tile rendering, which needs pre-computed geometry data for performance.
+- `district_map_features` — **keep** but update to join `district_financials`. This serves MapLibre tile rendering, which needs pre-computed geometry data for performance. **Done (Phase 2a).**
 
 ## Part 2: Claude Query Tool
 
@@ -261,46 +261,72 @@ The same query engine powers an MCP tool later. The MCP tool calls the same vali
 
 ## Part 3: Migration Strategy
 
-### Phase 1: Schema changes (additive only)
+### Phase 1: Schema changes (additive only) — COMPLETE
 
-- Rename `vendor_financials` → `district_financials`
-- Add new columns to `district_financials` (`session_count`, `closed_won_opp_count`, `open_pipeline_opp_count`, `weighted_pipeline`, `po_count`)
-- Add `crm_name` to `user_profiles`
-- Add UUID FK columns alongside existing string columns (`districts.owner_id`, `districts.sales_executive_id`, `states.territory_owner_id`, `schools.owner_id`)
-- Add `state_fips` FK to `schools`, `unmatched_accounts`, `opportunities`
-- Add `unmatched_account_id` FK to `district_financials`
-- Rename inconsistent columns on `district_data_history`
-- Rename `districts.graduation_rate_total` → `graduation_rate`
-- Migrate `competitor_spend` data into `district_financials` rows
-- Migrate FY column data from `districts` into `district_financials` rows
-- Migrate FY column data from `unmatched_accounts` into `district_financials` rows
-- Populate new UUID FK columns from string name matching
+Merged via PR #97. All schema changes applied:
 
-**Nothing is deleted. Old columns stay. App keeps working.**
+- ✅ Add new columns to `vendor_financials` (`session_count`, `closed_won_opp_count`, `open_pipeline_opp_count`, `weighted_pipeline`, `po_count`)
+- ✅ Add `crm_name` to `user_profiles`
+- ✅ Add UUID FK columns (`districts.owner_id`, `districts.sales_executive_id`, `states.territory_owner_id`, `schools.owner_id`)
+- ✅ Add `state_fips` FK to `schools`, `unmatched_accounts`, `opportunities`
+- ✅ Add `unmatched_account_id` FK to `district_financials`
+- ✅ Rename inconsistent columns on `district_data_history`
+- ✅ Rename `districts.graduation_rate_total` → `graduation_rate`
+- ✅ Migrate `competitor_spend` data into `vendor_financials` rows
+- ✅ Migrate FY column data from `districts` into `vendor_financials` rows
+- ✅ Migrate FY column data from `unmatched_accounts` into `vendor_financials` rows
+- ✅ Populate new UUID FK columns from string name matching
 
-### Phase 2: Dual-write + query migration
+### Phase 2a: Query migration — COMPLETE
 
-- Update Customer Book ETL to write to `district_financials` only (stop writing FY columns on districts)
-- Update app queries one by one to read from `district_financials` instead of districts FY columns
-- Update owner/sales_executive lookups to use UUID FKs
-- Update state_abbrev lookups to use state_fips FKs
-- Update `district_map_features` materialized view to join `district_financials`
-- Build the Claude query tool (schema reference + API + UI)
+Branch: `feat/db-normalization-query-tool`. All API routes now read from `district_financials` instead of districts FY columns:
 
-**Both old and new paths exist. Each query swap is a small, testable change.**
+- ✅ Rename Prisma model `VendorFinancials` → `DistrictFinancials`, physical table `vendor_financials` → `district_financials`
+- ✅ Create shared `extractFullmindFinancials` helper (converts relation data to flat FY field shape)
+- ✅ Update `district_map_features` view — no more `d.fy*` columns or `competitor_spend` references
+- ✅ Swap `/api/districts` list route
+- ✅ Swap `/api/districts/[leaid]` detail route
+- ✅ Swap `/api/territory-plans` list route (dynamic FY pipeline lookup)
+- ✅ Swap `/api/explore/[entity]` — LTV, aggregates, competitor sort, plan entity
+- ✅ Swap `/api/profile` and `/api/profile/goals/[fiscalYear]`
+- ✅ Swap `/api/states/[code]` and `/api/states/[code]/districts`
+- ✅ Swap `/api/customer-dots` and `/api/metrics/quantiles` (raw SQL)
+- ✅ Swap `/api/districts/search` (relation + response flatten)
+- ✅ Swap `/api/districts/[leaid]/competitor-spend` and `/api/explore/competitor-meta`
+- ✅ Update `refresh_fullmind_financials()` DB function to reference new table name
+- ✅ Customer Book ETL (`import-customer-book.ts`) already dual-writes
+
+**Not migrated (intentionally deferred):**
+- `district_opportunity_actuals` mat view queries — these aggregate raw opportunities by rep + category, which `district_financials` can't provide (no `sales_rep_email`). See materialized views note above.
+- Person FK migration (owner → owner_id lookups) — independent work
+- State FK migration (state_abbrev → state_fips lookups) — independent work
+
+**Still using `CompetitorSpend` model (Phase 3 cleanup):**
+- `auto-tags.ts` — 4 calls to `prisma.competitorSpend.findMany()` for competitor engagement tagging
+- `districts/search/route.ts` — `competitorSpend` relation in Prisma where filters for "has competitor" chips
+
+### Phase 2b: Claude query tool — NOT STARTED
+
+- Build semantic schema reference YAML
+- Build `/api/ai/query` endpoint
+- Build chat UI
+- Deferred to separate implementation plan
 
 ### Phase 3: Cleanup
 
 - Drop FY columns from `districts` (18 columns)
-- Drop `competitor_spend` table
+- Drop `CompetitorSpend` model and `competitor_spend` table
+- Migrate `auto-tags.ts` and search route competitor filters from `competitorSpend` → `districtFinancials`
 - Drop `state_location` from `districts` (state_abbrev stays as denormalized cache)
 - Drop string owner/sales_executive columns (replaced by UUID FKs)
 - Drop FY columns from `unmatched_accounts`
-- Drop `district_opportunity_actuals` materialized view
 - Drop `district_vendor_comparison` materialized view
+- Remove FY field names from frontend types (`api-types.ts`) — consume relation data directly
+- Stop ETL dual-write (Python `fullmind.py` stops writing districts FY columns)
 - Clean up report builder worktree (superseded by Claude query tool)
+- Consider consolidating `district_opportunity_actuals` and `refresh_fullmind_financials()` — they duplicate aggregation logic from the same source
 
-**Only after Phase 2 is fully validated in production.**
+**Only after Phase 2a is fully validated in production.**
 
 ## Out of Scope
 
