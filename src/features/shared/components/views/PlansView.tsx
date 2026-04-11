@@ -15,7 +15,7 @@ import {
   useDeleteActivity,
   useUnlinkActivityPlan,
   type ActivityListItem,
-  usePlanEngagement,
+  type PlanEngagement,
   type TerritoryPlan,
 } from "@/lib/api";
 import { type ActivityFormData } from "@/features/plans/components/ActivityFormModal";
@@ -186,7 +186,8 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   const [view, setView] = useState<"cards" | "table">("table");
   const [planToEdit, setPlanToEdit] = useState<TerritoryPlan | null>(null);
   const { data: plans, isLoading, error } = useTerritoryPlans();
-  const { data: engagementData } = usePlanEngagement();
+  // usePlanEngagement hook was never implemented — stub as empty
+  const engagementData = null as PlanEngagement[] | null;
   const createPlan = useCreateTerritoryPlan();
   const updatePlan = useUpdateTerritoryPlan();
   const setActiveTab = useMapStore((s) => s.setActiveTab);
