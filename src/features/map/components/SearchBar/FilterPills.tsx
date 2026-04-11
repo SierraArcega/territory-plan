@@ -130,7 +130,7 @@ export default function FilterPills() {
           key={f.id}
           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#e8f4f4] text-[#403770] border border-[#C4E7E6] text-xs font-medium shadow-sm"
         >
-          <span className="text-[#403770]/60">{COLUMN_LABELS[f.column] || f.column}</span>
+          <span className="text-[#403770]/60">{COLUMN_LABELS[f.column] || f.column}{f.fy ? ` (${f.fy.toUpperCase()})` : ""}</span>
           <span>{formatFilterValue(f)}</span>
           <button
             onClick={() => removeSearchFilter(f.id)}

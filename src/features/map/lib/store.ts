@@ -91,6 +91,7 @@ export interface ExploreFilter {
   op: FilterOp;
   value: string | number | boolean | string[] | [number, number];
   label?: string; // Display label for pill (e.g., user name instead of UUID)
+  fy?: string;    // Per-filter fiscal year override (e.g., "fy27") — financial filters only
 }
 
 /** Serialized map view state for saving/loading named views */

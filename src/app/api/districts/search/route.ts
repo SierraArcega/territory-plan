@@ -268,15 +268,17 @@ export async function GET(req: NextRequest) {
   }
 
   // Financial filters → Prisma relation filter on districtFinancials
+  // Each filter can specify its own FY (e.g., FY27 pipeline + FY26 bookings)
   for (const f of financialFilters) {
     const prismaField = FINANCIAL_FIELD_MAP[f.column];
     if (!prismaField) continue;
+    const filterFy = (f as any).fy ? (f as any).fy.toUpperCase() : fiscalYear;
     if (!relationWhere.AND) relationWhere.AND = [];
     (relationWhere.AND as unknown[]).push({
       districtFinancials: {
         some: {
           vendor: "fullmind",
-          fiscalYear,
+          fiscalYear: filterFy,
           [prismaField]: buildCondition(f),
         },
       },

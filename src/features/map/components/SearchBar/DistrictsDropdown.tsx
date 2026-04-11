@@ -72,7 +72,6 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
   const updateSearchFilter = useMapV2Store((s) => s.updateSearchFilter);
   const removeSearchFilter = useMapV2Store((s) => s.removeSearchFilter);
   const selectedFY = useMapV2Store((s) => s.selectedFiscalYear);
-  const fyLabel = selectedFY.toUpperCase();
   const ref = useRef<HTMLDivElement>(null);
 
   // Collapsible section state — start with first section open
@@ -132,6 +131,15 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
       updateSearchFilter(existing.id, { value: [min, max] });
     } else {
       addSearchFilter({ id: crypto.randomUUID(), column, op: "between", value: [min, max] });
+    }
+  };
+
+  const handleFinancialRangeApply = (column: string, min: number, max: number, fy: string) => {
+    const existing = searchFilters.find((f) => f.column === column && f.op === "between");
+    if (existing) {
+      updateSearchFilter(existing.id, { value: [min, max], fy });
+    } else {
+      addSearchFilter({ id: crypto.randomUUID(), column, op: "between", value: [min, max], fy });
     }
   };
 
@@ -196,7 +204,7 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
               {isOpen && (
                 <div className="px-4 pb-3 pt-1 space-y-3">
                   {key === "attributes" && <DistrictAttributesContent addFilter={addFilter} />}
-                  {key === "fullmind" && <FullmindContent addFilter={addFilter} handleRangeApply={handleRangeApply} fyLabel={fyLabel} owners={owners} tags={tags} />}
+                  {key === "fullmind" && <FullmindContent addFilter={addFilter} handleFinancialRangeApply={handleFinancialRangeApply} defaultFy={selectedFY} owners={owners} tags={tags} />}
                   {key === "competitors" && <CompetitorsContent addFilter={addFilter} getExistingFilter={getExistingFilter} removeSearchFilter={removeSearchFilter} />}
                   {key === "finance" && <FinanceContent handleRangeApply={handleRangeApply} />}
                   {key === "demographics" && <DemographicsContent handleRangeApply={handleRangeApply} />}
@@ -239,16 +247,64 @@ function DistrictAttributesContent({ addFilter }: { addFilter: (column: string, 
   );
 }
 
+/** Financial range filter with per-filter FY picker */
+function FinancialRangeFilter({
+  label,
+  column,
+  defaultFy,
+  min,
+  max,
+  step,
+  formatValue,
+  onApply,
+}: {
+  label: string;
+  column: string;
+  defaultFy: string;
+  min: number;
+  max: number;
+  step: number;
+  formatValue: (v: number) => string;
+  onApply: (column: string, min: number, max: number, fy: string) => void;
+}) {
+  const [fy, setFy] = useState(defaultFy);
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <span className="text-xs font-medium text-[#8A80A8]">{label}</span>
+        <select
+          value={fy}
+          onChange={(e) => setFy(e.target.value)}
+          className="px-1 py-0.5 text-[10px] font-semibold rounded border border-[#D4CFE2] bg-white text-[#544A78] focus:outline-none focus:ring-1 focus:ring-plum/30"
+        >
+          {(["fy25", "fy26", "fy27"] as const).map((f) => (
+            <option key={f} value={f}>{f.toUpperCase()}</option>
+          ))}
+        </select>
+      </div>
+      <RangeFilter
+        label=""
+        column={column}
+        min={min}
+        max={max}
+        step={step}
+        formatValue={formatValue}
+        onApply={(col, lo, hi) => onApply(col, lo, hi, fy)}
+      />
+    </div>
+  );
+}
+
 function FullmindContent({
   addFilter,
-  handleRangeApply,
-  fyLabel,
+  handleFinancialRangeApply,
+  defaultFy,
   owners,
   tags,
 }: {
   addFilter: (column: string, op: string, value: any, label?: string) => void;
-  handleRangeApply: (column: string, min: number, max: number) => void;
-  fyLabel: string;
+  handleFinancialRangeApply: (column: string, min: number, max: number, fy: string) => void;
+  defaultFy: string;
   owners: { id: string; name: string }[];
   tags: Array<{ id: string; name: string }>;
 }) {
@@ -284,9 +340,9 @@ function FullmindContent({
         />
       )}
 
-      <RangeFilter label={`Pipeline (${fyLabel})`} column="open_pipeline" min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label={`Bookings (${fyLabel})`} column="closed_won_bookings" min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label={`Invoicing (${fyLabel})`} column="invoicing" min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
+      <FinancialRangeFilter label="Pipeline" column="open_pipeline" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
+      <FinancialRangeFilter label="Bookings" column="closed_won_bookings" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
+      <FinancialRangeFilter label="Invoicing" column="invoicing" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
 
       {tags.length > 0 && (
         <FilterMultiSelect
