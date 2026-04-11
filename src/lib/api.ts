@@ -10,8 +10,6 @@ export * from "@/features/plans/lib/queries";
 export * from "@/features/tasks/lib/queries";
 export * from "@/features/activities/lib/queries";
 export * from "@/features/calendar/lib/queries";
-export { useUpsertUserGoal, useDeleteUserGoal } from "@/features/goals/lib/queries";
-export * from "@/features/progress/lib/queries";
 export * from "@/features/map/lib/queries";
 export * from "@/features/explore/lib/queries";
 export * from "@/features/shared/lib/queries";
