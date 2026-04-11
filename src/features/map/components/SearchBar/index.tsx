@@ -19,6 +19,7 @@ interface DistrictSuggestion {
   stateAbbrev: string | null;
   cityLocation?: string | null;
 }
+import { Info } from "lucide-react";
 import GeographyDropdown from "./GeographyDropdown";
 import DistrictsDropdown from "./DistrictsDropdown";
 import ContactsDropdown from "./ContactsDropdown";
@@ -453,11 +454,9 @@ export default function SearchBar() {
                 className="flex items-center justify-center w-5 h-5 rounded-full text-[#A69DC0] hover:text-[#544A78] hover:bg-[#EFEDF5] transition-colors"
                 aria-label="Fiscal year info"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <Info className="w-3.5 h-3.5" />
               </button>
-              <div className="absolute right-0 top-full mt-1 w-56 p-2.5 bg-white rounded-lg shadow-lg border border-[#D4CFE2] text-xs text-[#6E6390] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+              <div className="absolute right-0 top-full mt-1 w-56 p-2.5 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 text-xs text-[#6E6390] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
                 <p className="font-semibold text-[#544A78] mb-1">Fiscal Year</p>
                 <p>Auto-detected from today&apos;s date. The fiscal year runs Jul 1 &ndash; Jun 30.</p>
                 <p className="mt-1 text-[#8A80A8]">Before July: current calendar year (e.g., FY26 in April 2026). After June: next year.</p>

@@ -11,7 +11,7 @@ const COLUMN_LABELS: Record<string, string> = {
   titleISchoolCount: "Title I Schools",
   // Fullmind
   isCustomer: "Customer",
-  hasOpenPipeline: "Pipeline",
+  hasOpenPipeline: "Has Pipeline",
   salesExecutive: "Sales Exec",
   owner: "Owner",
   open_pipeline: "Pipeline",
