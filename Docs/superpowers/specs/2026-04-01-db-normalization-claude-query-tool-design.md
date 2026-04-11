@@ -298,14 +298,31 @@ Branch: `feat/db-normalization-query-tool`. All API routes now read from `distri
 
 **Not migrated (intentionally deferred):**
 - `district_opportunity_actuals` mat view queries — these aggregate raw opportunities by rep + category, which `district_financials` can't provide (no `sales_rep_email`). See materialized views note above.
-- Person FK migration (owner → owner_id lookups) — independent work
-- State FK migration (state_abbrev → state_fips lookups) — independent work
+- State FK migration (state_abbrev → state_fips lookups) — `state_abbrev` stays as denormalized cache on districts; FKs are populated but queries still use abbrev for performance. No migration needed.
+- `opportunities.sales_rep_id` FK — column exists but no Prisma relation to UserProfile. Deferred since opportunity queries are handled by a separate sync pipeline.
 
-**Still using `CompetitorSpend` model (Phase 3 cleanup):**
-- `auto-tags.ts` — 4 calls to `prisma.competitorSpend.findMany()` for competitor engagement tagging
-- `districts/search/route.ts` — `competitorSpend` relation in Prisma where filters for "has competitor" chips
+### Phase 2b: Person FK + CompetitorSpend migration — COMPLETE
 
-### Phase 2b: Claude query tool — NOT STARTED
+Branch: `feat/db-normalization-query-tool` (same PR #106). Implementation plan: `docs/superpowers/plans/2026-04-10-phase2b-person-fk-competitor-migration.md`
+
+**CompetitorSpend → DistrictFinancials:**
+- ✅ Migrate `auto-tags.ts` — 4 `competitorSpend.findMany()` calls → `districtFinancials.findMany()`, FY column reads → districtFinancials
+- ✅ Migrate `districts/search/route.ts` — competitor presence/absence filters → `districtFinancials` relation
+- Zero `competitorSpend` Prisma queries remain in app code (frontend components still reference the API response key `competitorSpend` — Phase 3 cleanup)
+
+**Person FK migration (approach C — clean break to UUIDs):**
+- ✅ Add `PersonRef` type (`{ id, fullName, avatarUrl }`) to `api-types.ts`
+- ✅ All read routes return `PersonRef` for owner/salesExecutive/territoryOwner via UUID FK relations
+- ✅ All write routes accept `ownerId`/`salesExecutiveId`/`territoryOwnerId` UUIDs
+- ✅ `/api/sales-executives` queries `user_profiles` instead of distinct district strings
+- ✅ Frontend owner picker sends UUID (NotesEditor dropdown, EditableOwnerCell, BulkActionBar)
+- ✅ Frontend sales exec filter sends UUID (FilterBar, SearchBar dropdowns)
+- ✅ AccountForm sends `salesExecutiveId` via user dropdown
+- ✅ Filter pills display user names instead of UUIDs
+- ✅ FullmindCard, DistrictHeader render `salesExecutive.fullName`
+- ✅ All 1380 tests passing
+
+### Claude query tool — NOT STARTED
 
 - Build semantic schema reference YAML
 - Build `/api/ai/query` endpoint
@@ -314,19 +331,24 @@ Branch: `feat/db-normalization-query-tool`. All API routes now read from `distri
 
 ### Phase 3: Cleanup
 
-- Drop FY columns from `districts` (18 columns)
+After Phase 2b is validated in production:
+
+- Drop 18 FY columns from `districts` table
 - Drop `CompetitorSpend` model and `competitor_spend` table
-- Migrate `auto-tags.ts` and search route competitor filters from `competitorSpend` → `districtFinancials`
-- Drop `state_location` from `districts` (state_abbrev stays as denormalized cache)
-- Drop string owner/sales_executive columns (replaced by UUID FKs)
+- Drop string `owner`, `sales_executive` columns from `districts` (replaced by UUID FKs)
+- Drop string `owner` from `schools` (replaced by UUID FK)
+- Drop string `territory_owner` from `states` (replaced by UUID FK)
+- Drop string `sales_executive` from `unmatched_accounts` (replaced by UUID FK)
+- Drop `state_location` from `districts` (redundant with `state_abbrev`)
 - Drop FY columns from `unmatched_accounts`
 - Drop `district_vendor_comparison` materialized view
 - Remove FY field names from frontend types (`api-types.ts`) — consume relation data directly
+- Rename frontend `competitorSpend` API response key → `competitors` (cosmetic)
 - Stop ETL dual-write (Python `fullmind.py` stops writing districts FY columns)
 - Clean up report builder worktree (superseded by Claude query tool)
 - Consider consolidating `district_opportunity_actuals` and `refresh_fullmind_financials()` — they duplicate aggregation logic from the same source
 
-**Only after Phase 2a is fully validated in production.**
+**Only after Phase 2b is fully validated in production.**
 
 ## Out of Scope
 
