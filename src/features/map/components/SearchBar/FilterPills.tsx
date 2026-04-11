@@ -86,6 +86,7 @@ function formatFilterValue(f: ExploreFilter): string {
   }
 
   if (f.op === "in" && Array.isArray(f.value)) {
+    if (f.label) return f.label;
     if (f.column === "urbanicity") {
       const vals = f.value as string[];
       if (vals.every((v) => v.startsWith("1"))) return "City";
@@ -101,6 +102,8 @@ function formatFilterValue(f: ExploreFilter): string {
     const zr = f.value as unknown as { zip: string; miles: number };
     return `${zr.zip} + ${zr.miles} mi`;
   }
+
+  if (f.label) return f.label;
 
   if (f.op === "eq") return String(f.value);
 

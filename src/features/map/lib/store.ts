@@ -89,6 +89,7 @@ export interface ExploreFilter {
   column: string;
   op: FilterOp;
   value: string | number | boolean | string[] | [number, number];
+  label?: string; // Display label for pill (e.g., user name instead of UUID)
 }
 
 /** Serialized map view state for saving/loading named views */

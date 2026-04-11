@@ -123,8 +123,8 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
     });
   };
 
-  const addFilter = (column: string, op: string, value: any) => {
-    addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value });
+  const addFilter = (column: string, op: string, value: any, label?: string) => {
+    addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value, ...(label && { label }) });
   };
 
   const handleRangeApply = (column: string, min: number, max: number) => {
@@ -214,7 +214,7 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
 
 /* ─── Section content components ─── */
 
-function DistrictAttributesContent({ addFilter }: { addFilter: (column: string, op: string, value: any) => void }) {
+function DistrictAttributesContent({ addFilter }: { addFilter: (column: string, op: string, value: any, label?: string) => void }) {
   return (
     <>
       <ToggleChips
@@ -248,7 +248,7 @@ function FullmindContent({
   owners,
   tags,
 }: {
-  addFilter: (column: string, op: string, value: any) => void;
+  addFilter: (column: string, op: string, value: any, label?: string) => void;
   handleRangeApply: (column: string, min: number, max: number) => void;
   fyLabel: string;
   selectedFY: string;
@@ -280,7 +280,10 @@ function FullmindContent({
           label="Sales Executive"
           column="salesExecutive"
           options={owners.map((o) => ({ value: o.id, label: o.name }))}
-          onApply={(col, vals) => addFilter(col, "in", vals)}
+          onApply={(col, vals) => {
+            const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);
+            addFilter(col, "in", vals, names.join(", "));
+          }}
         />
       )}
 

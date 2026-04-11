@@ -47,8 +47,8 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
-  const addFilter = (column: string, op: string, value: any) => {
-    addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value });
+  const addFilter = (column: string, op: string, value: any, label?: string) => {
+    addSearchFilter({ id: crypto.randomUUID(), column, op: op as any, value, ...(label && { label }) });
   };
 
   return (
@@ -86,7 +86,10 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
             label="Sales Executive"
             column="salesExecutive"
             options={owners.map((o) => ({ value: o.id, label: o.name }))}
-            onApply={(col, vals) => addFilter(col, "in", vals)}
+            onApply={(col, vals) => {
+              const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);
+              addFilter(col, "in", vals, names.join(", "));
+            }}
           />
         )}
 
