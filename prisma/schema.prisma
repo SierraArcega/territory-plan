@@ -256,6 +256,7 @@ model District {
   gradeEnrollment DistrictGradeEnrollment[]
   vacancyScans    VacancyScan[]
   vacancies       Vacancy[]
+  opportunities   Opportunity[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -1218,7 +1219,8 @@ model Opportunity {
   districtName       String?   @map("district_name") @db.Text
   districtLmsId      String?   @map("district_lms_id") @db.Text
   districtNcesId     String?   @map("district_nces_id") @db.Text
-  districtLeaId      String?   @map("district_lea_id") @db.Text
+  districtLeaId      String?   @map("district_lea_id") @db.VarChar(7)
+  district           District? @relation(fields: [districtLeaId], references: [leaid])
   createdAt          DateTime? @map("created_at") @db.Timestamptz
   closeDate          DateTime? @map("close_date") @db.Timestamptz
   brandAmbassador    String?   @map("brand_ambassador") @db.Text
@@ -1249,6 +1251,7 @@ model Opportunity {
   syncedAt              DateTime? @map("synced_at") @db.Timestamptz
 
   activityLinks ActivityOpportunity[]
+  sessions      Session[]
 
   @@index([schoolYr])
   @@index([districtNcesId])
@@ -1261,10 +1264,11 @@ model Opportunity {
 
 // ===== Sessions =====
 // Individual session records synced from OpenSearch.
-// Linked to opportunities by opportunity_id (no FK constraint).
+// Linked to opportunities by opportunity_id.
 model Session {
   id                    String    @id @db.Text
-  opportunityId         String    @map("opportunity_id") @db.Text
+  opportunityId         String?   @map("opportunity_id") @db.Text
+  opportunity           Opportunity? @relation(fields: [opportunityId], references: [id])
   serviceType           String?   @map("service_type") @db.Text
   sessionPrice          Decimal?  @map("session_price") @db.Decimal(15, 2)
   educatorPrice         Decimal?  @map("educator_price") @db.Decimal(15, 2)
