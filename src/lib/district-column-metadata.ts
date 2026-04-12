@@ -1306,6 +1306,99 @@ export const FINANCIALS_QUERYABLE_COLUMNS = DISTRICT_FINANCIALS_COLUMNS.filter(
 export const KNOWN_VENDORS = ["fullmind", "elevate", "proximity", "tbt"] as const;
 export type KnownVendor = (typeof KNOWN_VENDORS)[number];
 
+// ============================================================================
+// Table Registry & Semantic Context
+// ============================================================================
+// Consumed by the Claude query engine (MAP-5) and MCP server (MAP-4) to
+// generate system-prompt context for natural-language-to-SQL translation.
+// See Docs/superpowers/specs/2026-04-11-db-readiness-query-tool.md.
+
+export interface TableRelationship {
+  /** Target table (physical table name) */
+  toTable: string;
+  /** Cardinality */
+  type: "one-to-many" | "many-to-one" | "many-to-many";
+  /** Literal SQL fragment Claude can drop into a JOIN clause */
+  joinSql: string;
+  /** One-line human description */
+  description: string;
+}
+
+export interface TableMetadata {
+  /** Physical table name (matches @@map in Prisma schema) */
+  table: string;
+  /** One-line table purpose */
+  description: string;
+  /** Primary key field(s). Single string for scalar PK, array for composite */
+  primaryKey: string | string[];
+  /** Reference to the per-table columns array (empty [] for pure-FK junction tables) */
+  columns: ColumnMetadata[];
+  /** Columns excluded from the Claude-facing schema (e.g., geometry, PII) */
+  excludedColumns?: string[];
+  /** Joins out of this table */
+  relationships: TableRelationship[];
+  /** Table-specific warnings (in addition to cross-table warnings in SEMANTIC_CONTEXT) */
+  warnings?: string[];
+}
+
+export interface ConceptMapping {
+  /** The canonical aggregated expression (preferred) */
+  aggregated?: string;
+  /** The deal-level / raw-table expression (fallback when aggregation isn't granular enough) */
+  dealLevel?: string;
+  /** Free-form notes */
+  note?: string;
+}
+
+export interface FormatMismatch {
+  /** The concept that has inconsistent formats across tables (e.g., "fiscal year") */
+  concept: string;
+  /** Per-table format descriptions */
+  tables?: Record<string, string>;
+  /** SQL expression for converting between formats, if straightforward */
+  conversionSql?: string;
+  /** Additional notes */
+  note?: string;
+}
+
+export interface Warning {
+  /** Tables whose presence in a query triggers this warning */
+  triggerTables: string[];
+  /** "mandatory" warnings MUST be injected into Claude's system prompt verbatim */
+  severity: "mandatory" | "informational";
+  /** The warning text Claude sees */
+  message: string;
+}
+
+export interface SemanticContext {
+  /** Named business concepts → SQL expressions */
+  conceptMappings: Record<string, ConceptMapping>;
+  /** Cross-table format inconsistencies */
+  formatMismatches: FormatMismatch[];
+  /** Trigger-based warnings */
+  warnings: Warning[];
+  /** Tables NOT exposed to the query tool */
+  excludedTables: string[];
+}
+
+/**
+ * Registry of every queryable table. Populated table-by-table.
+ * Every Prisma model must be either in this registry or in
+ * SEMANTIC_CONTEXT.excludedTables (enforced by the schema coverage test).
+ */
+export const TABLE_REGISTRY: Record<string, TableMetadata> = {};
+
+/**
+ * Cross-table semantic knowledge — concept mappings, format mismatches, and
+ * warnings that are too broad for per-column description fields.
+ */
+export const SEMANTIC_CONTEXT: SemanticContext = {
+  conceptMappings: {},
+  formatMismatches: [],
+  warnings: [],
+  excludedTables: [],
+};
+
 /** Format fiscal year string for queries — vendor_financials uses 'FY' prefix */
 export function formatFiscalYear(year: number | string): string {
   const numStr = String(year).replace(/^FY/, "");
