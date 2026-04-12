@@ -69,6 +69,12 @@ export default function PurchasingHistoryCard({ fullmindData, leaid }: Purchasin
 
   const fy25Revenue = g("FY25", "totalRevenue");
   const fy26Revenue = g("FY26", "totalRevenue");
+  // Elevate K12 subscription line items rolled into the Fullmind totals
+  // (post-merger acquired contracts). When > 0, we surface a provenance line
+  // beneath the headline so the merger origin is acknowledged even though
+  // the revenue itself is mixed in with native Fullmind sessions revenue.
+  const fy25SubCount = g("FY25", "subscriptionCount");
+  const fy26SubCount = g("FY26", "subscriptionCount");
 
   const yoyChange = useMemo(() => {
     if (fy25Revenue <= 0) return null;
@@ -243,6 +249,11 @@ export default function PurchasingHistoryCard({ fullmindData, leaid }: Purchasin
               <span className="text-2xl font-bold text-[#403770]">{formatCurrency(fy26Revenue)}</span>
               <span className="text-xs text-gray-500">FY26 Revenue</span>
             </div>
+            {fy26SubCount > 0 && (
+              <div className="text-xs text-[#8A80A8]">
+                incl. {fy26SubCount.toLocaleString()} Elevate K12 subscription{fy26SubCount === 1 ? "" : "s"} (acquired)
+              </div>
+            )}
             {fy26Metrics.length > 0 && (
               <div className="space-y-1.5 pt-1">
                 {fy26Metrics.map((m) => (
@@ -252,10 +263,17 @@ export default function PurchasingHistoryCard({ fullmindData, leaid }: Purchasin
             )}
           </>
         ) : fy25Revenue > 0 ? (
-          <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-bold text-[#403770]">{formatCurrency(fy25Revenue)}</span>
-            <span className="text-xs text-gray-500">FY25 Revenue</span>
-          </div>
+          <>
+            <div className="flex items-baseline gap-3">
+              <span className="text-2xl font-bold text-[#403770]">{formatCurrency(fy25Revenue)}</span>
+              <span className="text-xs text-gray-500">FY25 Revenue</span>
+            </div>
+            {fy25SubCount > 0 && (
+              <div className="text-xs text-[#8A80A8]">
+                incl. {fy25SubCount.toLocaleString()} Elevate K12 subscription{fy25SubCount === 1 ? "" : "s"} (acquired)
+              </div>
+            )}
+          </>
         ) : (
           <span className="text-sm text-gray-400">No purchasing history</span>
         )}

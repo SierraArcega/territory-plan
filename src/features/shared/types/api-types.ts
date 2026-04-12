@@ -41,6 +41,9 @@ export interface DistrictFinancial {
   totalRevenue: number | null;
   allTake: number | null;
   sessionCount: number | null;
+  // Count of Elevate K12 subscription line items rolled into this row
+  // (post-merger acquired contracts; their revenue is in totalRevenue)
+  subscriptionCount: number | null;
   closedWonOppCount: number | null;
   closedWonBookings: number | null;
   invoicing: number | null;

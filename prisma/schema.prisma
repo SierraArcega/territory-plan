@@ -312,6 +312,8 @@ model DistrictFinancials {
   totalTake         Decimal  @default(0) @map("total_take") @db.Decimal(15, 2)
   // New columns for FY data migration (from districts table)
   sessionCount        Int?     @default(0) @map("session_count")
+  // Count of Elevate K12 subscription line items rolled into this row
+  subscriptionCount   Int?     @default(0) @map("subscription_count")
   closedWonOppCount   Int?     @default(0) @map("closed_won_opp_count")
   openPipelineOppCount Int?    @default(0) @map("open_pipeline_opp_count")
   weightedPipeline    Decimal? @default(0) @map("weighted_pipeline") @db.Decimal(15, 2)
@@ -1223,6 +1225,7 @@ model Opportunity {
 
   activityLinks ActivityOpportunity[]
   sessions      Session[]
+  subscriptions Subscription[]
 
   @@index([schoolYr])
   @@index([districtNcesId])
@@ -1254,6 +1257,39 @@ model Session {
   @@index([opportunityId, serviceType])
   @@index([startTime])
   @@map("sessions")
+}
+
+// ===== Subscriptions =====
+// Elevate K12 subscription line items, acquired post-merger.
+// Linked to opportunities by opportunity_id (LMS Opp ID).
+// Parallel to Session — both feed refresh_fullmind_financials() so revenue
+// rolls into vendor='fullmind' rows in district_financials.
+model Subscription {
+  id                       String       @id @db.Text                                  // "SUB-0005591"
+  opportunityId            String       @map("opportunity_id") @db.Text
+  opportunity              Opportunity  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  contractNumber           String?      @map("contract_number") @db.Text
+  netPrice                 Decimal?     @map("net_price") @db.Decimal(15, 2)
+  quantity                 Int?                                                       // can be negative (credits)
+  netTotal                 Decimal?     @map("net_total") @db.Decimal(15, 2)          // signed; sums account for credits
+  product                  String?      @db.Text
+  productType              String?      @map("product_type") @db.Text
+  subProduct               String?      @map("sub_product") @db.Text
+  courseName               String?      @map("course_name") @db.Text
+  curriculumProvider       String?      @map("curriculum_provider") @db.Text
+  schoolName               String?      @map("school_name") @db.Text
+  grade                    String?      @db.Text
+  officeHours              String?      @map("office_hours") @db.Text
+  ccTeacherCollabMeetings  String?      @map("cc_teacher_collab_meetings") @db.Text
+  startDate                DateTime?    @map("start_date") @db.Date
+  deliveryEndDate          DateTime?    @map("delivery_end_date") @db.Date
+  subscriptionCreatedDate  DateTime?    @map("subscription_created_date") @db.Date
+  contractCreatedDate      DateTime?    @map("contract_created_date") @db.Date
+  contractOwnerName        String?      @map("contract_owner_name") @db.Text          // informational only, not a FK
+  syncedAt                 DateTime?    @default(now()) @map("synced_at") @db.Timestamptz
+
+  @@index([opportunityId])
+  @@map("subscriptions")
 }
 
 // ===== Unmatched Opportunities =====

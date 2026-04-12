@@ -1,22 +1,50 @@
--- Refresh Fullmind district_financials from opportunities + sessions + subscriptions
--- Called after each Railway sync cycle, and also by load_elevate_subscriptions.py
---
--- TODO: Consider consolidating with district_opportunity_actuals mat view.
--- Both aggregate from the same opportunities source but at different grain.
--- See Docs/superpowers/specs/2026-04-11-phase3-schema-cleanup-design.md "Deferred consideration"
---
--- Revenue/take/bookings/pipeline: from opportunities (Railway pre-computed)
--- Session counts: from sessions table (actual count by start_time school year)
--- Subscription revenue + counts: from subscriptions table (Elevate K12 line items
---   acquired post-merger; live in opportunities just like sessions, but per
---   subscription line, with net_total as the signed dollar amount)
--- Only includes opps that join to a valid district in the districts table
---
--- Stage mapping:
---   Numeric prefix (0-5): open pipeline, with weighted probability
---   Numeric prefix (6+): closed won
---   "Closed Won", "Active", "Position Purchased", etc.: treated as closed won (6)
---   "Closed Lost": excluded from bookings/pipeline
+-- Subscriptions: Elevate K12 line items, acquired post-merger.
+-- Linked to opportunities via opportunity_id (LMS Opp ID), parallel to sessions.
+-- Both feed refresh_fullmind_financials() so revenue rolls into vendor='fullmind'
+-- rows in district_financials. The new subscription_count column on
+-- district_financials counts these line items per (leaid, fiscal_year).
+
+CREATE TABLE "subscriptions" (
+  "id"                          TEXT PRIMARY KEY,
+  "opportunity_id"              TEXT NOT NULL,
+  "contract_number"             TEXT,
+  "net_price"                   DECIMAL(15, 2),
+  "quantity"                    INTEGER,
+  "net_total"                   DECIMAL(15, 2),
+  "product"                     TEXT,
+  "product_type"                TEXT,
+  "sub_product"                 TEXT,
+  "course_name"                 TEXT,
+  "curriculum_provider"         TEXT,
+  "school_name"                 TEXT,
+  "grade"                       TEXT,
+  "office_hours"                TEXT,
+  "cc_teacher_collab_meetings"  TEXT,
+  "start_date"                  DATE,
+  "delivery_end_date"           DATE,
+  "subscription_created_date"   DATE,
+  "contract_created_date"       DATE,
+  "contract_owner_name"         TEXT,
+  "synced_at"                   TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT "subscriptions_opportunity_id_fkey"
+    FOREIGN KEY ("opportunity_id")
+    REFERENCES "opportunities"("id")
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
+
+CREATE INDEX "subscriptions_opportunity_id_idx" ON "subscriptions" ("opportunity_id");
+
+-- Add subscription_count column to district_financials so the rollup function
+-- can carry per-(district, FY) subscription counts alongside session_count.
+ALTER TABLE "district_financials"
+  ADD COLUMN "subscription_count" INTEGER DEFAULT 0;
+
+-- Replace refresh_fullmind_financials() with a version that also rolls in
+-- subscription revenue + counts. The canonical source for this function is
+-- prisma/migrations/manual/create_refresh_fullmind_financials.sql; this
+-- migration applies the same definition automatically so prisma migrate dev
+-- leaves the DB in a working state.
 
 CREATE OR REPLACE FUNCTION refresh_fullmind_financials()
 RETURNS void AS $$
@@ -67,7 +95,6 @@ BEGIN
   WHERE ows.stage_num IS NOT NULL AND ows.stage_num >= 0
   GROUP BY ows.district_lea_id, ows.school_yr;
 
-  -- Session counts by district + school year (derived from start_time)
   CREATE TEMP TABLE _session_counts AS
   SELECT
     o.district_lea_id AS leaid,
@@ -84,13 +111,6 @@ BEGIN
     AND s.start_time IS NOT NULL
   GROUP BY o.district_lea_id, fiscal_year;
 
-  -- Subscription aggregates (Elevate K12 line items acquired post-merger).
-  -- FY is derived from opportunity.school_yr, NOT from subscription.start_date,
-  -- because school_yr is the source of truth for which fiscal year a contract
-  -- belongs to (and matches how the opportunities CTE buckets them).
-  -- net_total is summed signed so credits/cancellations offset positives.
-  -- No stage filter — if subscriptions exist on an opportunity, the revenue
-  -- is real regardless of whether the LMS stage looks closed-won.
   CREATE TEMP TABLE _sub_agg AS
   SELECT
     o.district_lea_id AS leaid,
@@ -104,12 +124,6 @@ BEGIN
     AND o.school_yr IS NOT NULL
   GROUP BY o.district_lea_id, RIGHT(o.school_yr, 2);
 
-  -- Upsert combined results into district_financials.
-  -- Subscription revenue is added to completed_revenue and total_revenue
-  -- (subs are committed/delivered, mirroring how sessions whose start_time < now
-  -- are treated). Bookings/pipeline are NOT touched by _sub_agg because the
-  -- parent opportunities' net_booking_amount already flows through _opp_agg —
-  -- adding subscription revenue there would double-count.
   INSERT INTO district_financials (
     leaid, vendor, fiscal_year,
     completed_revenue, scheduled_revenue, total_revenue,
