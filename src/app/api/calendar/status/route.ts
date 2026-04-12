@@ -1,5 +1,9 @@
 // GET /api/calendar/status — Returns the current calendar connection status
 // Used by the UI to show "Connected as jane@gmail.com" or "Connect Calendar" CTA
+//
+// All calendar settings (companyDomain, syncDirection, syncedActivityTypes,
+// reminderMinutes, secondReminderMinutes, backfillStartDate, backfillCompletedAt,
+// backfillWindowDays) are stored in user_integrations.metadata as JSON.
 
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
@@ -8,6 +12,21 @@ import { ALL_ACTIVITY_TYPES } from "@/features/activities/types";
 
 const VALID_SYNC_DIRECTIONS = ["one_way", "two_way"] as const;
 const VALID_REMINDER_MINUTES = [0, 5, 10, 15, 30, 60, 1440] as const;
+
+type CalendarMetadata = {
+  companyDomain?: string;
+  syncDirection?: string;
+  syncedActivityTypes?: string[];
+  reminderMinutes?: number;
+  secondReminderMinutes?: number | null;
+  backfillStartDate?: string | null;
+  backfillCompletedAt?: string | null;
+  backfillWindowDays?: number | null;
+};
+
+function getCalendarMetadata(integration: { metadata: unknown }): CalendarMetadata {
+  return (integration.metadata ?? {}) as CalendarMetadata;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -18,29 +37,24 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const connection = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
+    const integration = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
       select: {
         id: true,
-        googleAccountEmail: true,
-        companyDomain: true,
+        accountEmail: true,
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
-        syncDirection: true,
-        syncedActivityTypes: true,
-        reminderMinutes: true,
-        secondReminderMinutes: true,
         createdAt: true,
-        backfillStartDate: true,
-        backfillCompletedAt: true,
-        backfillWindowDays: true,
+        metadata: true,
       },
     });
 
-    if (!connection) {
+    if (!integration) {
       return NextResponse.json({ connected: false, connection: null });
     }
+
+    const meta = getCalendarMetadata(integration);
 
     // Also get the count of pending calendar events for badge display
     const pendingCount = await prisma.calendarEvent.count({
@@ -53,20 +67,20 @@ export async function GET() {
     return NextResponse.json({
       connected: true,
       connection: {
-        id: connection.id,
-        googleAccountEmail: connection.googleAccountEmail,
-        companyDomain: connection.companyDomain,
-        syncEnabled: connection.syncEnabled,
-        lastSyncAt: connection.lastSyncAt?.toISOString() || null,
-        status: connection.status,
-        syncDirection: connection.syncDirection,
-        syncedActivityTypes: connection.syncedActivityTypes,
-        reminderMinutes: connection.reminderMinutes,
-        secondReminderMinutes: connection.secondReminderMinutes,
-        createdAt: connection.createdAt.toISOString(),
-        backfillStartDate: connection.backfillStartDate?.toISOString() || null,
-        backfillCompletedAt: connection.backfillCompletedAt?.toISOString() || null,
-        backfillWindowDays: connection.backfillWindowDays,
+        id: integration.id,
+        googleAccountEmail: integration.accountEmail ?? "",
+        companyDomain: meta.companyDomain ?? "",
+        syncEnabled: integration.syncEnabled,
+        lastSyncAt: integration.lastSyncAt?.toISOString() || null,
+        status: integration.status,
+        syncDirection: meta.syncDirection ?? "two_way",
+        syncedActivityTypes: meta.syncedActivityTypes ?? [],
+        reminderMinutes: meta.reminderMinutes ?? 15,
+        secondReminderMinutes: meta.secondReminderMinutes ?? null,
+        createdAt: integration.createdAt.toISOString(),
+        backfillStartDate: meta.backfillStartDate ?? null,
+        backfillCompletedAt: meta.backfillCompletedAt ?? null,
+        backfillWindowDays: meta.backfillWindowDays ?? null,
       },
       pendingCount,
     });
@@ -91,8 +105,9 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { syncEnabled, companyDomain, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
 
-    const existing = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
+    const existing = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      select: { id: true, metadata: true },
     });
 
     if (!existing) {
@@ -102,9 +117,12 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const updateData: Record<string, unknown> = {};
-    if (typeof syncEnabled === "boolean") updateData.syncEnabled = syncEnabled;
-    if (typeof companyDomain === "string") updateData.companyDomain = companyDomain;
+    const existingMeta = getCalendarMetadata(existing);
+    const updatedMeta: CalendarMetadata = { ...existingMeta };
+
+    const integrationUpdate: Record<string, unknown> = {};
+    if (typeof syncEnabled === "boolean") integrationUpdate.syncEnabled = syncEnabled;
+    if (typeof companyDomain === "string") updatedMeta.companyDomain = companyDomain;
 
     // Sync direction validation
     if (syncDirection !== undefined) {
@@ -114,7 +132,7 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      updateData.syncDirection = syncDirection;
+      updatedMeta.syncDirection = syncDirection;
     }
 
     // Synced activity types validation
@@ -125,7 +143,7 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      updateData.syncedActivityTypes = syncedActivityTypes;
+      updatedMeta.syncedActivityTypes = syncedActivityTypes;
     }
 
     // Reminder minutes validation
@@ -136,7 +154,7 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      updateData.reminderMinutes = reminderMinutes;
+      updatedMeta.reminderMinutes = reminderMinutes;
     }
 
     // Second reminder validation
@@ -147,44 +165,50 @@ export async function PATCH(request: Request) {
           { status: 400 }
         );
       }
-      if (secondReminderMinutes !== null && secondReminderMinutes === (updateData.reminderMinutes ?? existing.reminderMinutes)) {
+      const effectiveReminder = updatedMeta.reminderMinutes ?? existingMeta.reminderMinutes ?? 15;
+      if (secondReminderMinutes !== null && secondReminderMinutes === effectiveReminder) {
         return NextResponse.json(
           { error: "secondReminderMinutes must differ from reminderMinutes" },
           { status: 400 }
         );
       }
-      updateData.secondReminderMinutes = secondReminderMinutes;
+      updatedMeta.secondReminderMinutes = secondReminderMinutes;
     }
 
-    const updated = await prisma.calendarConnection.update({
-      where: { userId: user.id },
-      data: updateData,
+    integrationUpdate.metadata = updatedMeta;
+
+    const updated = await prisma.userIntegration.update({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      data: integrationUpdate,
       select: {
         id: true,
-        googleAccountEmail: true,
-        companyDomain: true,
+        accountEmail: true,
         syncEnabled: true,
         lastSyncAt: true,
         status: true,
-        syncDirection: true,
-        syncedActivityTypes: true,
-        reminderMinutes: true,
-        secondReminderMinutes: true,
         createdAt: true,
-        backfillStartDate: true,
-        backfillCompletedAt: true,
-        backfillWindowDays: true,
+        metadata: true,
       },
     });
 
+    const updatedFinalMeta = getCalendarMetadata(updated);
+
     return NextResponse.json({
       connection: {
-        ...updated,
+        id: updated.id,
+        googleAccountEmail: updated.accountEmail ?? "",
+        companyDomain: updatedFinalMeta.companyDomain ?? "",
+        syncEnabled: updated.syncEnabled,
         lastSyncAt: updated.lastSyncAt?.toISOString() || null,
+        status: updated.status,
+        syncDirection: updatedFinalMeta.syncDirection ?? "two_way",
+        syncedActivityTypes: updatedFinalMeta.syncedActivityTypes ?? [],
+        reminderMinutes: updatedFinalMeta.reminderMinutes ?? 15,
+        secondReminderMinutes: updatedFinalMeta.secondReminderMinutes ?? null,
         createdAt: updated.createdAt.toISOString(),
-        backfillStartDate: updated.backfillStartDate?.toISOString() || null,
-        backfillCompletedAt: updated.backfillCompletedAt?.toISOString() || null,
-        backfillWindowDays: updated.backfillWindowDays,
+        backfillStartDate: updatedFinalMeta.backfillStartDate ?? null,
+        backfillCompletedAt: updatedFinalMeta.backfillCompletedAt ?? null,
+        backfillWindowDays: updatedFinalMeta.backfillWindowDays ?? null,
       },
     });
   } catch (error) {

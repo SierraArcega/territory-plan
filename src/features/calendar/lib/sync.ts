@@ -186,7 +186,10 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     errors: [],
   };
 
-  // Step 1: Get the user's calendar integration and validate tokens
+  // Step 1: Get the user's calendar integration and validate tokens.
+  // All calendar settings (syncDirection, companyDomain, backfillStartDate,
+  // backfillCompletedAt, backfillWindowDays) live in metadata JSON on the
+  // single user_integrations row.
   const integration = await prisma.userIntegration.findUnique({
     where: { userId_service: { userId, service: "google_calendar" } },
   });
@@ -201,18 +204,16 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     return result;
   }
 
-  // Get the CalendarConnection for connection-specific fields (syncDirection, connectionId)
-  const calendarConnection = await prisma.calendarConnection.findUnique({
-    where: { userId },
-  });
-
-  if (!calendarConnection) {
-    result.errors.push("No calendar connection found");
-    return result;
-  }
+  const meta = (integration.metadata ?? {}) as {
+    companyDomain?: string;
+    syncDirection?: string;
+    backfillStartDate?: string | null;
+    backfillCompletedAt?: string | null;
+    backfillWindowDays?: number | null;
+  };
 
   // One-way = app→calendar only (push). Skip pull sync entirely.
-  if (calendarConnection.syncDirection === "one_way") {
+  if (meta.syncDirection === "one_way") {
     return result;
   }
 
@@ -257,18 +258,15 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
   //     - Else if we have a prior sync → lastSyncAt minus a 2-day buffer (catches late updates)
   //     - Else → 7 days in the past (fallback preserves the old behavior for fresh connections)
   // - Legacy fallback: if backfillWindowDays is null (older connections), use the old 14-day forward.
-  const windowDays = calendarConnection.backfillWindowDays ?? 14;
+  const windowDays = meta.backfillWindowDays ?? 14;
   const timeMax = new Date();
   timeMax.setDate(timeMax.getDate() + windowDays);
 
   let timeMin: Date;
-  if (
-    calendarConnection.backfillStartDate &&
-    !calendarConnection.backfillCompletedAt
-  ) {
-    timeMin = new Date(calendarConnection.backfillStartDate);
-  } else if (calendarConnection.lastSyncAt) {
-    timeMin = new Date(calendarConnection.lastSyncAt);
+  if (meta.backfillStartDate && !meta.backfillCompletedAt) {
+    timeMin = new Date(meta.backfillStartDate);
+  } else if (integration.lastSyncAt) {
+    timeMin = new Date(integration.lastSyncAt);
     timeMin.setDate(timeMin.getDate() - 2);
   } else {
     timeMin = new Date();
@@ -290,7 +288,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
 
   // Step 3: Process each event
   const syncTimestamp = new Date();
-  const companyDomain = (integration.metadata as Record<string, unknown>)?.companyDomain as string || "";
+  const companyDomain = meta.companyDomain ?? "";
 
   // Batch dedupe: events the user already logged manually (Activity.googleEventId is @unique)
   // should never be re-staged. Single batch query against the unique index keeps this cheap.
@@ -374,7 +372,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
         await prisma.calendarEvent.create({
           data: {
             userId,
-            connectionId: calendarConnection.id,
+            connectionId: integration.id,
             googleEventId: event.id,
             title: event.summary,
             description: event.description,
@@ -422,15 +420,9 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     }
   }
 
-  // Step 5: Update the last sync timestamp on BOTH token store + connection
-  // The status route reads lastSyncAt from CalendarConnection; UserIntegration
-  // mirrors it so the shared integrations dashboard stays in sync too.
+  // Step 5: Update the last sync timestamp on the calendar integration.
   await prisma.userIntegration.update({
     where: { userId_service: { userId, service: "google_calendar" } },
-    data: { lastSyncAt: syncTimestamp },
-  });
-  await prisma.calendarConnection.update({
-    where: { id: calendarConnection.id },
     data: { lastSyncAt: syncTimestamp },
   });
 

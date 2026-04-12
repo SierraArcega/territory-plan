@@ -1,7 +1,7 @@
 // POST /api/calendar/backfill/start — Kicks off the first-connect backfill pass
-// Sets the user-chosen timeMin window on CalendarConnection, runs a single
-// sync, and returns the sync result plus the total pending count so the
-// wizard can show progress.
+// Sets the user-chosen timeMin window in the calendar integration metadata,
+// runs a single sync, and returns the sync result plus the total pending count
+// so the wizard can show progress.
 
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
@@ -36,12 +36,12 @@ export async function POST(request: Request) {
 
     const backfillStartDate = new Date(Date.now() - days * 86_400_000);
 
-    // Ensure the connection exists before we attempt a sync. If the user
+    // Ensure the integration exists before we attempt a sync. If the user
     // never completed OAuth (or the row was deleted), bail early with 404 so
     // the UI can prompt them to reconnect.
-    const existing = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
-      select: { id: true },
+    const existing = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      select: { id: true, metadata: true },
     });
     if (!existing) {
       return NextResponse.json(
@@ -50,12 +50,16 @@ export async function POST(request: Request) {
       );
     }
 
-    await prisma.calendarConnection.update({
-      where: { userId: user.id },
+    const existingMetadata = (existing.metadata ?? {}) as Record<string, unknown>;
+    await prisma.userIntegration.update({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
       data: {
-        backfillStartDate,
-        backfillCompletedAt: null,
-        backfillWindowDays: days, // drives forward window on every subsequent sync
+        metadata: {
+          ...existingMetadata,
+          backfillStartDate: backfillStartDate.toISOString(),
+          backfillCompletedAt: null,
+          backfillWindowDays: days, // drives forward window on every subsequent sync
+        },
       },
     });
 

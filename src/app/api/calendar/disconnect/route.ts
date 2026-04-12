@@ -1,7 +1,6 @@
 // POST /api/calendar/disconnect — Removes the Google Calendar connection
-// Deletes the stored tokens, the calendar connection record, and pending
-// calendar events. Does NOT delete activities that were already created
-// from calendar events.
+// Deletes the stored tokens and pending calendar events. Does NOT delete
+// activities that were already created from calendar events.
 
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
@@ -16,18 +15,11 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find either half of the connection (UserIntegration or CalendarConnection).
-    // If neither exists, there's nothing to disconnect.
-    const [integration, calendarConnection] = await Promise.all([
-      prisma.userIntegration.findUnique({
-        where: { userId_service: { userId: user.id, service: "google_calendar" } },
-      }),
-      prisma.calendarConnection.findUnique({
-        where: { userId: user.id },
-      }),
-    ]);
+    const integration = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+    });
 
-    if (!integration && !calendarConnection) {
+    if (!integration) {
       return NextResponse.json(
         { error: "No calendar connection found" },
         { status: 404 }
@@ -38,8 +30,8 @@ export async function POST() {
     // triage decisions survive a disconnect→reconnect cycle. The sync engine
     // dedupes by (userId, googleEventId) and will skip any event the user
     // already handled — but only if the row still exists. Detach them from
-    // the connection (set connection_id = NULL) so the CASCADE DELETE on
-    // CalendarConnection doesn't destroy them.
+    // the integration (set connection_id = NULL) so the CASCADE DELETE on
+    // UserIntegration doesn't destroy them.
     //
     // Pending rows are throwaway — delete them outright.
     await prisma.$transaction([
@@ -52,19 +44,12 @@ export async function POST() {
       prisma.calendarEvent.deleteMany({
         where: { userId: user.id, status: "pending" },
       }),
-      // 3. Delete the connection (cascade now only hits rows still linked — none)
-      ...(calendarConnection
-        ? [prisma.calendarConnection.delete({ where: { userId: user.id } })]
-        : []),
-      ...(integration
-        ? [
-            prisma.userIntegration.delete({
-              where: {
-                userId_service: { userId: user.id, service: "google_calendar" },
-              },
-            }),
-          ]
-        : []),
+      // 3. Delete the integration (cascade now only hits rows still linked — none)
+      prisma.userIntegration.delete({
+        where: {
+          userId_service: { userId: user.id, service: "google_calendar" },
+        },
+      }),
     ]);
 
     return NextResponse.json({ success: true });

@@ -765,8 +765,6 @@ model UserProfile {
   assignedTasks   Task[] @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
   integrations    UserIntegration[]
-  // Legacy calendar connection (migrating to UserIntegration)
-  calendarConnection CalendarConnection?
   // Initiative leaderboard scores
   initiativeScores       InitiativeScore[]
   // Inverse relations for normalized person FKs
@@ -800,6 +798,7 @@ model UserIntegration {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEvents CalendarEvent[]
 
   @@unique([userId, service])
   @@index([userId])
@@ -963,42 +962,13 @@ model TaskContact {
   @@map("task_contacts")
 }
 
-// ===== Google Calendar Integration =====
-// Stores OAuth tokens for a user's Google Calendar connection
-// One connection per user — enables two-way sync between activities and calendar events
-
-model CalendarConnection {
-  id                 String    @id @default(uuid())
-  userId             String    @unique @map("user_id") @db.Uuid
-  googleAccountEmail String    @map("google_account_email") @db.VarChar(255)
-  accessToken        String    @map("access_token") // encrypted at rest
-  refreshToken       String    @map("refresh_token") // encrypted at rest
-  tokenExpiresAt     DateTime  @map("token_expires_at")
-  companyDomain      String    @map("company_domain") @db.VarChar(100) // e.g. "fullmindlearning.com" — filters internal attendees
-  syncEnabled        Boolean   @default(true) @map("sync_enabled")
-  lastSyncAt         DateTime? @map("last_sync_at")
-  status             String    @default("connected") @db.VarChar(20) // connected, disconnected, error
-  syncDirection          String   @default("two_way") @map("sync_direction") @db.VarChar(20) // one_way (app→cal) or two_way
-  syncedActivityTypes    String[] @default([]) @map("synced_activity_types") // empty = all types synced
-  reminderMinutes        Int      @default(15) @map("reminder_minutes") // 0 = none
-  secondReminderMinutes  Int?     @map("second_reminder_minutes")
-  backfillStartDate      DateTime? @map("backfill_start_date") // user-chosen timeMin for initial backfill sync; NULL once backfill pass is done
-  backfillCompletedAt    DateTime? @map("backfill_completed_at") // set when first-time logging wizard finishes; NULL = wizard still pending
-  backfillWindowDays     Int?      @map("backfill_window_days") // symmetric window (7/30/60/90) — drives both timeMin (initial) and timeMax (all syncs)
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  user   UserProfile     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events CalendarEvent[]
-
-  @@map("calendar_connections")
-}
-
 // ===== Calendar Event Staging =====
 // Incoming Google Calendar events land here for rep review before becoming Activities
 // Smart matching suggests district/contact/plan associations based on attendee emails
-// Calendar OAuth tokens are now stored in UserIntegration (service = "google_calendar")
+// Calendar OAuth tokens are stored in UserIntegration (service = "google_calendar")
+// — including calendar-specific settings (companyDomain, syncDirection,
+// syncedActivityTypes, reminderMinutes, backfillStartDate, etc.) which live
+// in UserIntegration.metadata as JSON.
 
 model CalendarEvent {
   id                    String   @id @default(uuid())
@@ -1022,8 +992,9 @@ model CalendarEvent {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  connection CalendarConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  // Relations — connection_id now references user_integrations.id
+  // (was calendar_connections.id; the table was dropped in 20260411_drop_calendar_connections)
+  integration UserIntegration? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@unique([connectionId, googleEventId])
   @@index([userId, status])
