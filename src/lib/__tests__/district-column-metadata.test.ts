@@ -122,4 +122,71 @@ describe("district-column-metadata", () => {
       expect(errors, `Column existence errors:\n${errors.join("\n")}`).toEqual([]);
     });
   });
+
+  describe("relationship integrity", () => {
+    it("every TableRelationship.toTable is in TABLE_REGISTRY", () => {
+      const errors: string[] = [];
+      for (const [from, meta] of Object.entries(TABLE_REGISTRY)) {
+        for (const rel of meta.relationships) {
+          if (!TABLE_REGISTRY[rel.toTable]) {
+            errors.push(`${from} → ${rel.toTable}: target table not in TABLE_REGISTRY`);
+          }
+        }
+      }
+      expect(errors, errors.join("\n")).toEqual([]);
+    });
+  });
+
+  describe("warning triggers", () => {
+    it("every Warning.triggerTables entry exists in TABLE_REGISTRY", () => {
+      const errors: string[] = [];
+      for (const warning of SEMANTIC_CONTEXT.warnings) {
+        for (const t of warning.triggerTables) {
+          if (!TABLE_REGISTRY[t]) {
+            errors.push(`Warning trigger '${t}' not in TABLE_REGISTRY`);
+          }
+        }
+      }
+      expect(errors, errors.join("\n")).toEqual([]);
+    });
+  });
+
+  describe("excluded tables don't overlap with registry", () => {
+    it("no table appears in both TABLE_REGISTRY and excludedTables", () => {
+      const registered = new Set(Object.keys(TABLE_REGISTRY));
+      const overlap = SEMANTIC_CONTEXT.excludedTables.filter((t) => registered.has(t));
+      expect(
+        overlap,
+        `Tables in both registry and excluded: ${overlap.join(", ")}`,
+      ).toEqual([]);
+    });
+  });
+
+  describe("existing exports still work", () => {
+    it("DISTRICT_COLUMNS contains the 'leaid' column", () => {
+      expect(DISTRICT_COLUMNS.find((c) => c.field === "leaid")).toBeDefined();
+    });
+
+    it("DISTRICT_FINANCIALS_COLUMNS contains both sessionCount and subscriptionCount", () => {
+      expect(DISTRICT_FINANCIALS_COLUMNS.find((c) => c.field === "sessionCount")).toBeDefined();
+      expect(
+        DISTRICT_FINANCIALS_COLUMNS.find((c) => c.field === "subscriptionCount"),
+      ).toBeDefined();
+    });
+
+    it("COLUMN_BY_FIELD and FINANCIALS_COLUMN_BY_FIELD are populated", () => {
+      expect(COLUMN_BY_FIELD.get("leaid")).toBeDefined();
+      expect(FINANCIALS_COLUMN_BY_FIELD.get("totalRevenue")).toBeDefined();
+    });
+
+    it("KNOWN_VENDORS includes fullmind", () => {
+      expect(KNOWN_VENDORS).toContain("fullmind");
+    });
+
+    it("formatFiscalYear pads single-digit years", () => {
+      expect(formatFiscalYear(26)).toBe("FY26");
+      expect(formatFiscalYear("5")).toBe("FY05");
+      expect(formatFiscalYear("FY26")).toBe("FY26");
+    });
+  });
 });
