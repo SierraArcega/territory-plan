@@ -774,6 +774,9 @@ model UserProfile {
   assignedDistricts    District[] @relation("DistrictSalesExec")
   ownedStates          State[]    @relation("StateOwner")
   ownedSchools         School[]   @relation("SchoolOwner")
+  // Query tool audit + saved reports
+  queryLogs            QueryLog[]    @relation("UserQueryLogs")
+  savedReports         SavedReport[] @relation("UserSavedReports")
 
   @@map("user_profiles")
 }
@@ -1478,4 +1481,52 @@ model MetricRegistry {
   category    String @db.VarChar(50)
 
   @@map("metric_registry")
+}
+
+// ===== Query Tool Audit & Saved Reports =====
+// Added for the Claude query tool (MAP-5), agentic actions (MAP-3), and MCP (MAP-4).
+// query_log records every natural-language query, generated SQL, and action execution.
+// saved_reports stores user-saved and team-pinned reports with stored SQL for re-run.
+
+model QueryLog {
+  id              Int       @id @default(autoincrement())
+  userId          String    @map("user_id") @db.Uuid
+  conversationId  String    @default(dbgenerated("gen_random_uuid()")) @map("conversation_id") @db.Uuid
+  question        String
+  sql             String?
+  rowCount        Int?      @map("row_count")
+  executionTimeMs Int?      @map("execution_time_ms")
+  error           String?
+  action          String?
+  actionParams    Json?     @map("action_params")
+  actionSuccess   Boolean?  @map("action_success")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user UserProfile @relation("UserQueryLogs", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([createdAt(sort: Desc)])
+  @@index([action])
+  @@map("query_log")
+}
+
+model SavedReport {
+  id           Int       @id @default(autoincrement())
+  userId       String    @map("user_id") @db.Uuid
+  title        String
+  question     String
+  sql          String
+  isTeamPinned Boolean   @default(false) @map("is_team_pinned")
+  pinnedBy     String?   @map("pinned_by") @db.Uuid
+  lastRunAt    DateTime? @map("last_run_at")
+  runCount     Int       @default(0) @map("run_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user UserProfile @relation("UserSavedReports", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isTeamPinned])
+  @@map("saved_reports")
 }
