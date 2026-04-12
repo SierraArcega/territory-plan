@@ -4,6 +4,7 @@
  */
 
 export type ColumnDomain =
+  // District-specific domains (existing)
   | "core"
   | "crm"
   | "finance"
@@ -21,7 +22,21 @@ export type ColumnDomain =
   | "benchmarks"
   | "icp"
   | "links"
-  | "user_edits";
+  | "user_edits"
+  // Cross-table domains (new for TABLE_REGISTRY)
+  | "opportunity"
+  | "session"
+  | "subscription"
+  | "activity"
+  | "plan"
+  | "contact"
+  | "task"
+  | "vacancy"
+  | "school"
+  | "state"
+  | "history"
+  | "unmatched"
+  | "audit";
 
 export type DataFormat =
   | "text"
@@ -42,7 +57,12 @@ export type DataSource =
   | "computed"
   | "user"
   | "govspend"
-  | "etl_link";
+  | "etl_link"
+  // New sources
+  | "opensearch"        // opportunities, sessions (Railway scheduler sync)
+  | "elevate_k12"       // subscriptions (Elevate import pipeline)
+  | "scraper"           // vacancies, vacancy_scans
+  | "query_tool";       // query_log, saved_reports
 
 export interface ColumnMetadata {
   /** Prisma camelCase field name */
