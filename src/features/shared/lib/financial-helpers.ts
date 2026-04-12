@@ -10,6 +10,7 @@ interface FinancialRecord {
   totalRevenue: unknown; // Prisma Decimal
   totalTake: unknown;
   sessionCount: number | null;
+  subscriptionCount: number | null;
   closedWonOppCount: number | null;
   closedWonBookings: unknown;
   invoicing: unknown;
@@ -38,6 +39,7 @@ export const FULLMIND_FINANCIALS_SELECT = {
   totalRevenue: true,
   totalTake: true,
   sessionCount: true,
+  subscriptionCount: true,
   closedWonOppCount: true,
   closedWonBookings: true,
   invoicing: true,
@@ -102,6 +104,7 @@ export function serializeFinancials(
     totalRevenue: unknown;
     totalTake: unknown;
     sessionCount: number | null;
+    subscriptionCount?: number | null;
     closedWonOppCount: number | null;
     closedWonBookings: unknown;
     invoicing: unknown;
@@ -117,6 +120,7 @@ export function serializeFinancials(
     totalRevenue: toNumOrNull(r.totalRevenue),
     allTake: toNumOrNull(r.totalTake),
     sessionCount: r.sessionCount,
+    subscriptionCount: r.subscriptionCount ?? null,
     closedWonOppCount: r.closedWonOppCount,
     closedWonBookings: toNumOrNull(r.closedWonBookings),
     invoicing: toNumOrNull(r.invoicing),
