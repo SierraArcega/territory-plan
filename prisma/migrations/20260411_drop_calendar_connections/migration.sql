@@ -76,7 +76,13 @@ SET metadata = jsonb_build_object(
 FROM calendar_connections cc
 WHERE ui.user_id = cc.user_id AND ui.service = 'google_calendar';
 
--- Step 3: Re-point calendar_events.connection_id from calendar_connections.id
+-- Step 3: Drop the old FK constraint on calendar_events.connection_id BEFORE
+-- we re-point the connection_ids — otherwise the UPDATE fails because the new
+-- ui.id values don't exist in calendar_connections yet.
+ALTER TABLE calendar_events
+  DROP CONSTRAINT IF EXISTS calendar_events_connection_id_fkey;
+
+-- Step 4: Re-point calendar_events.connection_id from calendar_connections.id
 -- to the matching user_integrations.id. Map by user_id since each user has at
 -- most one row in each table for calendar.
 UPDATE calendar_events ce
@@ -85,11 +91,6 @@ FROM calendar_connections cc, user_integrations ui
 WHERE ce.connection_id = cc.id
 AND cc.user_id = ui.user_id
 AND ui.service = 'google_calendar';
-
--- Step 4: Drop the old FK constraint on calendar_events.connection_id (if any)
--- so the cascade chain doesn't fire when we drop calendar_connections.
-ALTER TABLE calendar_events
-  DROP CONSTRAINT IF EXISTS calendar_events_connection_id_fkey;
 
 -- Step 5: Drop calendar_connections table.
 DROP TABLE IF EXISTS calendar_connections CASCADE;
