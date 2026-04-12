@@ -1502,6 +1502,28 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
       },
     ],
   },
+
+  district_financials: {
+    table: "district_financials",
+    description:
+      "Aggregated financial metrics per district per vendor per fiscal year. Single source of truth for Fullmind revenue/pipeline/bookings AND competitor PO spend. The table the query tool should default to for any 'how much' question, because refresh_fullmind_financials() rolls in BOTH session-derived revenue (from opportunities + sessions) AND Elevate K12 subscription revenue (from subscriptions). Querying opportunities or sessions directly will undercount EK12. One row per (leaid, vendor, fiscal_year). Vendor is one of: 'fullmind' (us), 'elevate'/'proximity'/'tbt' (competitors, sourced from GovSpend PO data — estimated, not actual).",
+    primaryKey: "id",
+    columns: DISTRICT_FINANCIALS_COLUMNS,
+    relationships: [
+      {
+        toTable: "districts",
+        type: "many-to-one",
+        joinSql: "district_financials.leaid = districts.leaid",
+        description: "Parent district",
+      },
+      {
+        toTable: "unmatched_accounts",
+        type: "many-to-one",
+        joinSql: "district_financials.unmatched_account_id = unmatched_accounts.id",
+        description: "ETL-unmatched account (alternative to leaid for accounts that didn't match a district during import)",
+      },
+    ],
+  },
 };
 
 /**
@@ -1509,9 +1531,64 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
  * warnings that are too broad for per-column description fields.
  */
 export const SEMANTIC_CONTEXT: SemanticContext = {
-  conceptMappings: {},
+  conceptMappings: {
+    bookings: {
+      aggregated:
+        "district_financials.closed_won_bookings WHERE vendor='fullmind'",
+      dealLevel:
+        "SUM(opportunities.net_booking_amount) filtered by closed-won stage convention (see formatMismatches → 'opportunity stage')",
+      note: "Always prefer the aggregated path. The deal-level path requires the dual-stage-convention CASE expression and will undercount if you use only numeric stage prefixes.",
+    },
+    pipeline: {
+      aggregated: "district_financials.open_pipeline WHERE vendor='fullmind'",
+      dealLevel:
+        "SUM(opportunities.net_booking_amount) WHERE numeric stage prefix BETWEEN 0 AND 5",
+      note: "Aggregated is safer. For weighted pipeline (deals × stage probability), use district_financials.weighted_pipeline.",
+    },
+    weighted_pipeline: {
+      aggregated: "district_financials.weighted_pipeline WHERE vendor='fullmind'",
+      note: "Pre-computed by refresh_fullmind_financials() using stage probability weights: 0→0.05, 1→0.10, 2→0.25, 3→0.50, 4→0.75, 5→0.90. Closed-won deals are excluded from weighted pipeline (they're in closed_won_bookings instead).",
+    },
+    revenue: {
+      aggregated: "district_financials.total_revenue WHERE vendor='fullmind'",
+      dealLevel:
+        "For native Fullmind: opportunities.completed_revenue + opportunities.scheduled_revenue. For Elevate K12: SUM(subscriptions.net_total) joined via subscriptions.opportunity_id → opportunities.id → o.district_lea_id.",
+      note: "STRONGLY prefer the aggregated path. The deal-level path is split across opportunities and subscriptions and will silently miss EK12 revenue if you only query opportunities. district_financials.total_revenue rolls in BOTH sources via refresh_fullmind_financials().",
+    },
+    take: {
+      aggregated: "district_financials.total_take WHERE vendor='fullmind'",
+      dealLevel:
+        "opportunities.completed_take + opportunities.scheduled_take",
+      note: "IMPORTANT: 'take' (Fullmind margin) is a session-derived concept only. There is no take rate for EK12 subscription revenue. When answering take questions for an EK12-heavy rep or district, surface a caveat that the take figure reflects session-derived deals only and excludes subscription contribution.",
+    },
+    competitor_revenue: {
+      aggregated:
+        "district_financials.total_revenue WHERE vendor IN ('elevate','proximity','tbt')",
+      note: "These are competitor estimates from GovSpend PO data, not Fullmind revenue. Treat as 'estimated competitor spend' rather than 'actual competitor revenue' — the data is purchase-order-based and lossy.",
+    },
+    our_data: {
+      note: "When the user says 'our' or 'Fullmind', filter district_financials WHERE vendor='fullmind'. Both EK12 and native Fullmind deals live there, rolled together by refresh_fullmind_financials(). Querying opportunities directly will MISS EK12 subscription revenue.",
+    },
+    customers: {
+      aggregated: "districts.is_customer = TRUE",
+      note: "districts.is_customer is a denormalized boolean computed from district_financials presence. Indexed for fast filtering. May lag the source by one ETL refresh cycle.",
+    },
+  },
   formatMismatches: [],
-  warnings: [],
+  warnings: [
+    {
+      triggerTables: ["district_financials", "opportunities"],
+      severity: "mandatory",
+      message:
+        "DOUBLE-COUNT TRAP: When joining district_financials to opportunities, every district_financials column gets multiplied by the number of matching opportunity rows. For example, `SELECT df.open_pipeline, o.* FROM district_financials df JOIN opportunities o ON o.district_lea_id = df.leaid WHERE df.vendor='fullmind'` returns the same df.open_pipeline value once per opportunity row, so SUM(df.open_pipeline) gives a wildly inflated number. Two safe patterns: (1) query district_financials alone if you only need aggregated metrics, or (2) use a CTE/subquery to fetch the financials separately and join in the deal-level rows for context only — never sum them together.",
+    },
+    {
+      triggerTables: ["opportunities"],
+      severity: "mandatory",
+      message:
+        "EK12 MASTER/ADD-ON DATA GAP: Elevate K12 deals follow a master-renewal-contract + add-ons structure that the data model does NOT yet capture. A master contract opportunity has minimum_purchase_amount and maximum_budget; add-on opportunities are separate rows in the same table and consume budget against the master's max — but there is NO parent_opportunity_id linking them. Implications: SUM(maximum_budget) and SUM(minimum_purchase_amount) across opportunities will roughly DOUBLE-COUNT the EK12 ceiling because both the master max and the add-on maxes are summed independently. SUM(net_booking_amount) is safe because add-ons add real incremental signed dollars. MAX(maximum_budget) per district is also misleading. When the user asks about 'upside', 'ceiling', 'potential', 'max FY26 pipeline', or any aggregation of minimum_purchase_amount or maximum_budget, you MUST either refuse or surface a heavy caveat that the answer overcounts because we cannot distinguish master contracts from add-ons. Per-deal questions (single opportunity's min/max/budget) are fine. Tracked in Docs/superpowers/followups/2026-04-12-ek12-master-addon-data-gap.md — to be fixed before reps rely on these queries.",
+    },
+  ],
   excludedTables: [],
 };
 
