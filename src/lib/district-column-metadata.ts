@@ -1060,6 +1060,33 @@ export const DISTRICT_COLUMNS: ColumnMetadata[] = [
     source: "user",
     queryable: false,
   },
+
+  // ===== Geo (PostGIS) =====
+  // Managed outside Prisma — included here so the query tool can write
+  // ST_DWithin / ST_Distance queries. The 'geometry' MultiPolygon column
+  // is intentionally excluded (too large to ever return as a result).
+  {
+    field: "centroid",
+    column: "centroid",
+    label: "Centroid",
+    description:
+      "PostGIS Point (EPSG:4326) computed from the district polygon. Use for radius / distance queries. CRITICAL: 4326 is lon/lat in DEGREES, not meters — always cast to ::geography for distance math: ST_DWithin(d.centroid::geography, other_point::geography, meters). For maximum coverage when some districts lack a polygon, use COALESCE(d.centroid, d.point_location). Do NOT include in SELECT * — it's a binary geometry blob; if you need to return a location, wrap with ST_Y(centroid) AS lat, ST_X(centroid) AS lon.",
+    domain: "core",
+    format: "text",
+    source: "computed",
+    queryable: true,
+  },
+  {
+    field: "pointLocation",
+    column: "point_location",
+    label: "Point Location",
+    description:
+      "PostGIS Point (EPSG:4326) — geocoded address point used as a fallback when the polygon-derived centroid is NULL. Same usage rules as centroid (cast to ::geography for meter-based distance). Prefer COALESCE(d.centroid, d.point_location) for radius queries to maximize coverage.",
+    domain: "core",
+    format: "text",
+    source: "computed",
+    queryable: true,
+  },
 ];
 
 /** Lookup helpers */
@@ -1386,7 +1413,96 @@ export interface SemanticContext {
  * Every Prisma model must be either in this registry or in
  * SEMANTIC_CONTEXT.excludedTables (enforced by the schema coverage test).
  */
-export const TABLE_REGISTRY: Record<string, TableMetadata> = {};
+export const TABLE_REGISTRY: Record<string, TableMetadata> = {
+  districts: {
+    table: "districts",
+    description:
+      "~13K US school districts with demographics, education metrics, staffing, ICP scores, and Fullmind CRM state. The hub of nearly every revenue/account question — joins out to district_financials, opportunities, contacts, schools, vacancies, activities, plans, and history.",
+    primaryKey: "leaid",
+    columns: DISTRICT_COLUMNS,
+    excludedColumns: ["geometry"],
+    relationships: [
+      {
+        toTable: "district_financials",
+        type: "one-to-many",
+        joinSql: "district_financials.leaid = districts.leaid",
+        description: "Financial data by vendor and fiscal year",
+      },
+      {
+        toTable: "opportunities",
+        type: "one-to-many",
+        joinSql: "opportunities.district_lea_id = districts.leaid",
+        description: "Individual Fullmind deal records (FK added in PR #108)",
+      },
+      {
+        toTable: "contacts",
+        type: "one-to-many",
+        joinSql: "contacts.leaid = districts.leaid",
+        description: "People at the district",
+      },
+      {
+        toTable: "activity_districts",
+        type: "one-to-many",
+        joinSql: "activity_districts.district_leaid = districts.leaid",
+        description: "Junction to activities (join activities via activity_id)",
+      },
+      {
+        toTable: "task_districts",
+        type: "one-to-many",
+        joinSql: "task_districts.district_leaid = districts.leaid",
+        description: "Junction to tasks (join tasks via task_id)",
+      },
+      {
+        toTable: "territory_plan_districts",
+        type: "one-to-many",
+        joinSql: "territory_plan_districts.district_leaid = districts.leaid",
+        description: "Junction to territory plans (join territory_plans via plan_id)",
+      },
+      {
+        toTable: "schools",
+        type: "one-to-many",
+        joinSql: "schools.leaid = districts.leaid",
+        description: "Schools in this district",
+      },
+      {
+        toTable: "district_data_history",
+        type: "one-to-many",
+        joinSql: "district_data_history.leaid = districts.leaid",
+        description: "Year-over-year historical snapshots",
+      },
+      {
+        toTable: "district_grade_enrollment",
+        type: "one-to-many",
+        joinSql: "district_grade_enrollment.leaid = districts.leaid",
+        description: "Grade-level enrollment per year",
+      },
+      {
+        toTable: "vacancies",
+        type: "one-to-many",
+        joinSql: "vacancies.leaid = districts.leaid",
+        description: "Scraped job postings",
+      },
+      {
+        toTable: "vacancy_scans",
+        type: "one-to-many",
+        joinSql: "vacancy_scans.leaid = districts.leaid",
+        description: "Vacancy scan run history",
+      },
+      {
+        toTable: "states",
+        type: "many-to-one",
+        joinSql: "states.fips = districts.state_fips",
+        description: "State name, abbreviation, and aggregates",
+      },
+      {
+        toTable: "district_tags",
+        type: "one-to-many",
+        joinSql: "district_tags.district_leaid = districts.leaid",
+        description: "Junction to tags",
+      },
+    ],
+  },
+};
 
 /**
  * Cross-table semantic knowledge — concept mappings, format mismatches, and
