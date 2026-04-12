@@ -1,6 +1,6 @@
 // POST /api/calendar/backfill/complete — Marks the first-connect backfill wizard finished
-// Sets CalendarConnection.backfillCompletedAt to now so HomeView stops
-// reopening the setup modal on subsequent mounts.
+// Sets backfillCompletedAt in the calendar integration metadata so HomeView
+// stops reopening the setup modal on subsequent mounts.
 
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
@@ -15,17 +15,23 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const existing = await prisma.calendarConnection.findUnique({
-      where: { userId: user.id },
-      select: { id: true },
+    const existing = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      select: { id: true, metadata: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Not connected" }, { status: 404 });
     }
 
-    await prisma.calendarConnection.update({
-      where: { userId: user.id },
-      data: { backfillCompletedAt: new Date() },
+    const existingMetadata = (existing.metadata ?? {}) as Record<string, unknown>;
+    await prisma.userIntegration.update({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      data: {
+        metadata: {
+          ...existingMetadata,
+          backfillCompletedAt: new Date().toISOString(),
+        },
+      },
     });
 
     return NextResponse.json({ success: true });

@@ -74,6 +74,16 @@ export async function GET(request: NextRequest) {
     const encryptedAccessToken = encrypt(tokens.accessToken);
     const encryptedRefreshToken = encrypt(tokens.refreshToken);
 
+    // On reconnect, fetch any existing metadata so we don't blow away the
+    // user's previous backfill settings, sync direction, reminder preferences,
+    // etc. Only the OAuth fields (tokens, expiry, accountEmail, status) get
+    // overwritten; calendar settings persist across reconnect.
+    const existing = await prisma.userIntegration.findUnique({
+      where: { userId_service: { userId: user.id, service: "google_calendar" } },
+      select: { metadata: true },
+    });
+    const existingMetadata = (existing?.metadata ?? {}) as Record<string, unknown>;
+
     await prisma.userIntegration.upsert({
       where: { userId_service: { userId: user.id, service: "google_calendar" } },
       update: {
@@ -81,7 +91,10 @@ export async function GET(request: NextRequest) {
         accessToken: encryptedAccessToken,
         refreshToken: encryptedRefreshToken,
         tokenExpiresAt: tokens.expiresAt,
-        metadata: { companyDomain },
+        // Preserve existing metadata (backfill state, sync prefs); update companyDomain
+        // in case the user's email domain changed (e.g. they reconnected with a
+        // different account).
+        metadata: { ...existingMetadata, companyDomain },
         status: "connected",
         syncEnabled: true,
       },
@@ -93,34 +106,6 @@ export async function GET(request: NextRequest) {
         refreshToken: encryptedRefreshToken,
         tokenExpiresAt: tokens.expiresAt,
         metadata: { companyDomain },
-        status: "connected",
-        syncEnabled: true,
-      },
-    });
-
-    // Upsert the CalendarConnection row — the sync engine reads connection-level
-    // fields (syncDirection, companyDomain, backfillStartDate, etc.) from this
-    // table. Without this upsert, first-time users hit "No calendar connection
-    // found" on sync. On create, backfillStartDate and backfillCompletedAt are
-    // left NULL; the wizard sets them when the user picks a window.
-    await prisma.calendarConnection.upsert({
-      where: { userId: user.id },
-      update: {
-        googleAccountEmail: tokens.email,
-        accessToken: encryptedAccessToken,
-        refreshToken: encryptedRefreshToken,
-        tokenExpiresAt: tokens.expiresAt,
-        companyDomain,
-        status: "connected",
-        syncEnabled: true,
-      },
-      create: {
-        userId: user.id,
-        googleAccountEmail: tokens.email,
-        accessToken: encryptedAccessToken,
-        refreshToken: encryptedRefreshToken,
-        tokenExpiresAt: tokens.expiresAt,
-        companyDomain,
         status: "connected",
         syncEnabled: true,
       },

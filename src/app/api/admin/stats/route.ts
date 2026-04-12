@@ -34,8 +34,8 @@ export async function GET() {
       prisma.userProfile.count({
         where: { lastLoginAt: { gte: todayStart } },
       }),
-      prisma.calendarConnection.count({ where: { status: "connected" } }),
-      prisma.calendarConnection.count({ where: { status: "error" } }),
+      prisma.userIntegration.count({ where: { service: "google_calendar", status: "connected" } }),
+      prisma.userIntegration.count({ where: { service: "google_calendar", status: "error" } }),
       prisma.dataRefreshLog.findFirst({ orderBy: { completedAt: "desc" } }),
       prisma.dataRefreshLog.count({
         where: { status: "error", completedAt: { gte: oneWeekAgo } },

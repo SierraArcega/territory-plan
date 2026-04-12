@@ -10,10 +10,6 @@ vi.mock("@/lib/prisma", () => {
         findUnique: vi.fn(),
         update: vi.fn(),
       },
-      calendarConnection: {
-        findUnique: vi.fn(),
-        update: vi.fn(),
-      },
       calendarEvent: {
         findUnique: vi.fn(),
         findFirst: vi.fn(),
@@ -63,9 +59,47 @@ const USER_ID = "user-123";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function makeIntegration(overrides: Record<string, unknown> = {}) {
+interface CalendarMetaOverrides {
+  companyDomain?: string;
+  syncDirection?: "one_way" | "two_way";
+  syncedActivityTypes?: string[];
+  reminderMinutes?: number;
+  secondReminderMinutes?: number | null;
+  backfillStartDate?: Date | string | null;
+  backfillCompletedAt?: Date | string | null;
+  backfillWindowDays?: number | null;
+}
+
+interface IntegrationOverrides {
+  id?: string;
+  lastSyncAt?: Date | null;
+  metadata?: CalendarMetaOverrides;
+}
+
+function makeIntegration(overrides: IntegrationOverrides = {}) {
+  const meta: CalendarMetaOverrides = {
+    companyDomain: "fullmindlearning.com",
+    syncDirection: "two_way",
+    syncedActivityTypes: [],
+    reminderMinutes: 15,
+    secondReminderMinutes: null,
+    backfillStartDate: null,
+    backfillCompletedAt: null,
+    backfillWindowDays: null,
+    ...overrides.metadata,
+  };
+  // Date fields in the metadata JSON are stored as ISO strings (because JSON
+  // can't represent Date directly). The sync code reads them via new Date(...)
+  // so the test fixtures should mirror that storage shape.
+  if (meta.backfillStartDate instanceof Date) {
+    meta.backfillStartDate = meta.backfillStartDate.toISOString();
+  }
+  if (meta.backfillCompletedAt instanceof Date) {
+    meta.backfillCompletedAt = meta.backfillCompletedAt.toISOString();
+  }
+
   return {
-    id: "int-1",
+    id: overrides.id ?? "int-1",
     userId: USER_ID,
     service: "google_calendar",
     accountEmail: "rep@fullmindlearning.com",
@@ -74,36 +108,10 @@ function makeIntegration(overrides: Record<string, unknown> = {}) {
     refreshToken: "enc-refresh",
     tokenExpiresAt: new Date(Date.now() + 3_600_000),
     scopes: [],
-    metadata: { companyDomain: "fullmindlearning.com" },
+    metadata: meta,
     syncEnabled: true,
     status: "connected",
-    lastSyncAt: null,
-    ...overrides,
-  };
-}
-
-function makeConnection(overrides: Record<string, unknown> = {}) {
-  return {
-    id: "conn-1",
-    userId: USER_ID,
-    googleAccountEmail: "rep@fullmindlearning.com",
-    accessToken: "enc-access",
-    refreshToken: "enc-refresh",
-    tokenExpiresAt: new Date(Date.now() + 3_600_000),
-    companyDomain: "fullmindlearning.com",
-    syncEnabled: true,
-    lastSyncAt: null as Date | null,
-    status: "connected",
-    syncDirection: "two_way",
-    syncedActivityTypes: [],
-    reminderMinutes: 15,
-    secondReminderMinutes: null,
-    backfillStartDate: null as Date | null,
-    backfillCompletedAt: null as Date | null,
-    backfillWindowDays: null as number | null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
+    lastSyncAt: overrides.lastSyncAt ?? null,
   };
 }
 
@@ -130,14 +138,11 @@ function makeGoogleEvent(id: string, overrides: Record<string, unknown> = {}) {
 }
 
 function primeValidSyncPath(
-  connection: ReturnType<typeof makeConnection>,
+  integration: ReturnType<typeof makeIntegration>,
   googleEvents: ReturnType<typeof makeGoogleEvent>[]
 ) {
   vi.mocked(prisma.userIntegration.findUnique).mockResolvedValue(
-    makeIntegration() as never
-  );
-  vi.mocked(prisma.calendarConnection.findUnique).mockResolvedValue(
-    connection as never
+    integration as never
   );
   vi.mocked(getValidAccessToken).mockResolvedValue({
     accessToken: "decrypted_enc-access",
@@ -169,7 +174,6 @@ function primeValidSyncPath(
   );
 
   vi.mocked(prisma.userIntegration.update).mockResolvedValue({} as never);
-  vi.mocked(prisma.calendarConnection.update).mockResolvedValue({} as never);
 }
 
 // ---------------------------------------------------------------------------
@@ -192,9 +196,11 @@ describe("syncCalendarEvents — window selection", () => {
   it("uses backfillStartDate as timeMin when backfill is pending", async () => {
     const backfillStart = new Date(NOW.getTime() - 30 * DAY_MS);
     primeValidSyncPath(
-      makeConnection({
-        backfillStartDate: backfillStart,
-        backfillCompletedAt: null,
+      makeIntegration({
+        metadata: {
+          backfillStartDate: backfillStart,
+          backfillCompletedAt: null,
+        },
         lastSyncAt: null,
       }),
       []
@@ -218,9 +224,11 @@ describe("syncCalendarEvents — window selection", () => {
     const lastSyncAt = new Date(NOW.getTime() - 1 * DAY_MS);
     const backfillStart = new Date(NOW.getTime() - 30 * DAY_MS);
     primeValidSyncPath(
-      makeConnection({
-        backfillStartDate: backfillStart,
-        backfillCompletedAt: new Date(NOW.getTime() - 1 * DAY_MS),
+      makeIntegration({
+        metadata: {
+          backfillStartDate: backfillStart,
+          backfillCompletedAt: new Date(NOW.getTime() - 1 * DAY_MS),
+        },
         lastSyncAt,
       }),
       []
@@ -237,9 +245,11 @@ describe("syncCalendarEvents — window selection", () => {
   it("uses lastSyncAt - 2d when there is no backfill at all", async () => {
     const lastSyncAt = new Date(NOW.getTime() - 1 * DAY_MS);
     primeValidSyncPath(
-      makeConnection({
-        backfillStartDate: null,
-        backfillCompletedAt: null,
+      makeIntegration({
+        metadata: {
+          backfillStartDate: null,
+          backfillCompletedAt: null,
+        },
         lastSyncAt,
       }),
       []
@@ -255,9 +265,11 @@ describe("syncCalendarEvents — window selection", () => {
 
   it("falls back to now - 7d when there is no backfill and no prior sync", async () => {
     primeValidSyncPath(
-      makeConnection({
-        backfillStartDate: null,
-        backfillCompletedAt: null,
+      makeIntegration({
+        metadata: {
+          backfillStartDate: null,
+          backfillCompletedAt: null,
+        },
         lastSyncAt: null,
       }),
       []
@@ -273,10 +285,12 @@ describe("syncCalendarEvents — window selection", () => {
 
   it("uses backfillWindowDays as the forward horizon (timeMax)", async () => {
     primeValidSyncPath(
-      makeConnection({
-        backfillStartDate: new Date(NOW.getTime() - 30 * DAY_MS),
-        backfillCompletedAt: null,
-        backfillWindowDays: 30,
+      makeIntegration({
+        metadata: {
+          backfillStartDate: new Date(NOW.getTime() - 30 * DAY_MS),
+          backfillCompletedAt: null,
+          backfillWindowDays: 30,
+        },
         lastSyncAt: null,
       }),
       []
@@ -293,10 +307,12 @@ describe("syncCalendarEvents — window selection", () => {
 
   it("falls back to 14-day forward window when backfillWindowDays is null", async () => {
     primeValidSyncPath(
-      makeConnection({
-        backfillStartDate: null,
-        backfillCompletedAt: null,
-        backfillWindowDays: null,
+      makeIntegration({
+        metadata: {
+          backfillStartDate: null,
+          backfillCompletedAt: null,
+          backfillWindowDays: null,
+        },
         lastSyncAt: null,
       }),
       []
@@ -322,7 +338,7 @@ describe("syncCalendarEvents — Activity dedupe", () => {
       makeGoogleEvent("evt-2"),
       makeGoogleEvent("evt-3"),
     ];
-    primeValidSyncPath(makeConnection(), events);
+    primeValidSyncPath(makeIntegration(), events);
     vi.mocked(prisma.activity.findMany).mockResolvedValue([
       { googleEventId: "evt-2" },
     ] as never);
@@ -349,7 +365,7 @@ describe("syncCalendarEvents — Activity dedupe", () => {
       makeGoogleEvent("evt-2"),
       makeGoogleEvent("evt-3"),
     ];
-    primeValidSyncPath(makeConnection(), events);
+    primeValidSyncPath(makeIntegration(), events);
     vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
 
     const result = await syncCalendarEvents(USER_ID);
@@ -359,7 +375,7 @@ describe("syncCalendarEvents — Activity dedupe", () => {
   });
 
   it("skips the Activity dedupe query when Google returns no events", async () => {
-    primeValidSyncPath(makeConnection(), []);
+    primeValidSyncPath(makeIntegration(), []);
 
     const result = await syncCalendarEvents(USER_ID);
 
@@ -374,8 +390,8 @@ describe("syncCalendarEvents — lastSyncAt propagation", () => {
     vi.clearAllMocks();
   });
 
-  it("updates lastSyncAt on both UserIntegration and CalendarConnection", async () => {
-    primeValidSyncPath(makeConnection(), []);
+  it("updates lastSyncAt on the user_integrations row", async () => {
+    primeValidSyncPath(makeIntegration(), []);
     vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
 
     await syncCalendarEvents(USER_ID);
@@ -386,24 +402,14 @@ describe("syncCalendarEvents — lastSyncAt propagation", () => {
         data: expect.objectContaining({ lastSyncAt: expect.any(Date) }),
       })
     );
-    expect(prisma.calendarConnection.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "conn-1" },
-        data: expect.objectContaining({ lastSyncAt: expect.any(Date) }),
-      })
-    );
 
-    const userIntegrationCall = vi
+    const lastSyncCall = vi
       .mocked(prisma.userIntegration.update)
       .mock.calls.find((call) => "lastSyncAt" in (call[0].data ?? {}));
-    const connectionCall = vi
-      .mocked(prisma.calendarConnection.update)
-      .mock.calls.find((call) => "lastSyncAt" in (call[0].data ?? {}));
 
-    const userTs = (userIntegrationCall?.[0].data as { lastSyncAt: Date })
-      .lastSyncAt;
-    const connTs = (connectionCall?.[0].data as { lastSyncAt: Date }).lastSyncAt;
-    expect(userTs.getTime()).toBe(connTs.getTime());
+    expect(lastSyncCall).toBeDefined();
+    const ts = (lastSyncCall![0].data as { lastSyncAt: Date }).lastSyncAt;
+    expect(ts).toBeInstanceOf(Date);
   });
 });
 
@@ -420,7 +426,7 @@ describe("syncCalendarEvents — dedupe against prior status", () => {
     // and happily stages a duplicate `pending` row — users reported their
     // dismissed meetings "popping back" in the Home feed.
     const events = [makeGoogleEvent("legacy-dismissed")];
-    primeValidSyncPath(makeConnection(), events);
+    primeValidSyncPath(makeIntegration(), events);
     vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
 
     // The dedupe lookup must find the existing dismissed row by
@@ -445,13 +451,13 @@ describe("syncCalendarEvents — dedupe against prior status", () => {
     // missed it, or activity.googleEventId was cleared), we still shouldn't
     // revive it as pending.
     const events = [makeGoogleEvent("confirmed-elsewhere")];
-    primeValidSyncPath(makeConnection({ id: "conn-new" }), events);
+    primeValidSyncPath(makeIntegration({ id: "int-new" }), events);
     vi.mocked(prisma.activity.findMany).mockResolvedValue([] as never);
 
     vi.mocked(prisma.calendarEvent.findFirst).mockResolvedValue({
       id: "old-row",
       userId: USER_ID,
-      connectionId: "conn-old",
+      connectionId: "int-old",
       googleEventId: "confirmed-elsewhere",
       status: "confirmed",
     } as never);
@@ -469,10 +475,9 @@ describe("syncCalendarEvents — regression guards", () => {
 
   it("short-circuits for syncDirection === 'one_way' without fetching", async () => {
     vi.mocked(prisma.userIntegration.findUnique).mockResolvedValue(
-      makeIntegration() as never
-    );
-    vi.mocked(prisma.calendarConnection.findUnique).mockResolvedValue(
-      makeConnection({ syncDirection: "one_way" }) as never
+      makeIntegration({
+        metadata: { syncDirection: "one_way" },
+      }) as never
     );
 
     const result = await syncCalendarEvents(USER_ID);
@@ -481,7 +486,6 @@ describe("syncCalendarEvents — regression guards", () => {
     expect(prisma.activity.findMany).not.toHaveBeenCalled();
     expect(prisma.calendarEvent.create).not.toHaveBeenCalled();
     expect(prisma.userIntegration.update).not.toHaveBeenCalled();
-    expect(prisma.calendarConnection.update).not.toHaveBeenCalled();
     expect(result).toEqual({
       eventsProcessed: 0,
       newEvents: 0,

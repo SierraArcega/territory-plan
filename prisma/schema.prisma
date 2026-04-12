@@ -256,6 +256,7 @@ model District {
   gradeEnrollment DistrictGradeEnrollment[]
   vacancyScans    VacancyScan[]
   vacancies       Vacancy[]
+  opportunities   Opportunity[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -266,6 +267,8 @@ model District {
   @@index([vacancyPressureSignal])
   @@index([ownerId])
   @@index([salesExecutiveId])
+  @@index([icpTier])
+  @@index([accountType])
   @@map("districts")
 }
 
@@ -325,6 +328,7 @@ model DistrictFinancials {
   @@unique([unmatchedAccountId, vendor, fiscalYear])
   @@index([leaid])
   @@index([vendor, fiscalYear])
+  @@index([fiscalYear])
   @@map("district_financials")
 }
 
@@ -364,6 +368,7 @@ model UnmatchedAccount {
   isCustomer         Boolean  @default(false) @map("is_customer")
   hasOpenPipeline    Boolean  @default(false) @map("has_open_pipeline")
   createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   districtFinancials DistrictFinancials[]
 
@@ -613,6 +618,7 @@ model Activity {
   @@index([createdByUserId])
   @@index([type])
   @@index([startDate])
+  @@index([type, startDate])
   @@map("activities")
 }
 
@@ -759,8 +765,6 @@ model UserProfile {
   assignedTasks   Task[] @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
   integrations    UserIntegration[]
-  // Legacy calendar connection (migrating to UserIntegration)
-  calendarConnection CalendarConnection?
   // Initiative leaderboard scores
   initiativeScores       InitiativeScore[]
   // Inverse relations for normalized person FKs
@@ -794,6 +798,7 @@ model UserIntegration {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarEvents CalendarEvent[]
 
   @@unique([userId, service])
   @@index([userId])
@@ -957,42 +962,13 @@ model TaskContact {
   @@map("task_contacts")
 }
 
-// ===== Google Calendar Integration =====
-// Stores OAuth tokens for a user's Google Calendar connection
-// One connection per user — enables two-way sync between activities and calendar events
-
-model CalendarConnection {
-  id                 String    @id @default(uuid())
-  userId             String    @unique @map("user_id") @db.Uuid
-  googleAccountEmail String    @map("google_account_email") @db.VarChar(255)
-  accessToken        String    @map("access_token") // encrypted at rest
-  refreshToken       String    @map("refresh_token") // encrypted at rest
-  tokenExpiresAt     DateTime  @map("token_expires_at")
-  companyDomain      String    @map("company_domain") @db.VarChar(100) // e.g. "fullmindlearning.com" — filters internal attendees
-  syncEnabled        Boolean   @default(true) @map("sync_enabled")
-  lastSyncAt         DateTime? @map("last_sync_at")
-  status             String    @default("connected") @db.VarChar(20) // connected, disconnected, error
-  syncDirection          String   @default("two_way") @map("sync_direction") @db.VarChar(20) // one_way (app→cal) or two_way
-  syncedActivityTypes    String[] @default([]) @map("synced_activity_types") // empty = all types synced
-  reminderMinutes        Int      @default(15) @map("reminder_minutes") // 0 = none
-  secondReminderMinutes  Int?     @map("second_reminder_minutes")
-  backfillStartDate      DateTime? @map("backfill_start_date") // user-chosen timeMin for initial backfill sync; NULL once backfill pass is done
-  backfillCompletedAt    DateTime? @map("backfill_completed_at") // set when first-time logging wizard finishes; NULL = wizard still pending
-  backfillWindowDays     Int?      @map("backfill_window_days") // symmetric window (7/30/60/90) — drives both timeMin (initial) and timeMax (all syncs)
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  user   UserProfile     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events CalendarEvent[]
-
-  @@map("calendar_connections")
-}
-
 // ===== Calendar Event Staging =====
 // Incoming Google Calendar events land here for rep review before becoming Activities
 // Smart matching suggests district/contact/plan associations based on attendee emails
-// Calendar OAuth tokens are now stored in UserIntegration (service = "google_calendar")
+// Calendar OAuth tokens are stored in UserIntegration (service = "google_calendar")
+// — including calendar-specific settings (companyDomain, syncDirection,
+// syncedActivityTypes, reminderMinutes, backfillStartDate, etc.) which live
+// in UserIntegration.metadata as JSON.
 
 model CalendarEvent {
   id                    String   @id @default(uuid())
@@ -1016,8 +992,9 @@ model CalendarEvent {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  connection CalendarConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  // Relations — connection_id now references user_integrations.id
+  // (was calendar_connections.id; the table was dropped in 20260411_drop_calendar_connections)
+  integration UserIntegration? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@unique([connectionId, googleEventId])
   @@index([userId, status])
@@ -1165,6 +1142,7 @@ model DistrictDataHistory {
   readProficiency Decimal? @map("read_proficiency_pct") @db.Decimal(5, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   district District @relation(fields: [leaid], references: [leaid])
 
@@ -1184,6 +1162,9 @@ model DistrictGradeEnrollment {
   year       Int
   grade      String @db.VarChar(10) // K, 01, 02, ... 12, PK, UG
   enrollment Int?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   district District @relation(fields: [leaid], references: [leaid])
 
@@ -1209,7 +1190,8 @@ model Opportunity {
   districtName       String?   @map("district_name") @db.Text
   districtLmsId      String?   @map("district_lms_id") @db.Text
   districtNcesId     String?   @map("district_nces_id") @db.Text
-  districtLeaId      String?   @map("district_lea_id") @db.Text
+  districtLeaId      String?   @map("district_lea_id") @db.VarChar(7)
+  district           District? @relation(fields: [districtLeaId], references: [leaid])
   createdAt          DateTime? @map("created_at") @db.Timestamptz
   closeDate          DateTime? @map("close_date") @db.Timestamptz
   brandAmbassador    String?   @map("brand_ambassador") @db.Text
@@ -1240,6 +1222,7 @@ model Opportunity {
   syncedAt              DateTime? @map("synced_at") @db.Timestamptz
 
   activityLinks ActivityOpportunity[]
+  sessions      Session[]
 
   @@index([schoolYr])
   @@index([districtNcesId])
@@ -1252,10 +1235,11 @@ model Opportunity {
 
 // ===== Sessions =====
 // Individual session records synced from OpenSearch.
-// Linked to opportunities by opportunity_id (no FK constraint).
+// Linked to opportunities by opportunity_id.
 model Session {
   id                    String    @id @db.Text
-  opportunityId         String    @map("opportunity_id") @db.Text
+  opportunityId         String?   @map("opportunity_id") @db.Text
+  opportunity           Opportunity? @relation(fields: [opportunityId], references: [id])
   serviceType           String?   @map("service_type") @db.Text
   sessionPrice          Decimal?  @map("session_price") @db.Decimal(15, 2)
   educatorPrice         Decimal?  @map("educator_price") @db.Decimal(15, 2)

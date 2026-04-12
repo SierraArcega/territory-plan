@@ -14,14 +14,14 @@ export async function GET() {
 
     const totalUsers = await prisma.userProfile.count();
 
-    // Google Calendar integration status
+    // Google Calendar integration status (stored in user_integrations where service='google_calendar')
     const [calendarConnected, calendarError, calendarDisconnected, calendarLastSync] =
       await Promise.all([
-        prisma.calendarConnection.count({ where: { status: "connected" } }),
-        prisma.calendarConnection.count({ where: { status: "error" } }),
-        prisma.calendarConnection.count({ where: { status: "disconnected" } }),
-        prisma.calendarConnection.findFirst({
-          where: { status: "connected" },
+        prisma.userIntegration.count({ where: { service: "google_calendar", status: "connected" } }),
+        prisma.userIntegration.count({ where: { service: "google_calendar", status: "error" } }),
+        prisma.userIntegration.count({ where: { service: "google_calendar", status: "disconnected" } }),
+        prisma.userIntegration.findFirst({
+          where: { service: "google_calendar", status: "connected" },
           orderBy: { lastSyncAt: "desc" },
           select: { lastSyncAt: true },
         }),
