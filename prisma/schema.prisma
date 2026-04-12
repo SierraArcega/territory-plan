@@ -266,6 +266,8 @@ model District {
   @@index([vacancyPressureSignal])
   @@index([ownerId])
   @@index([salesExecutiveId])
+  @@index([icpTier])
+  @@index([accountType])
   @@map("districts")
 }
 
@@ -325,6 +327,7 @@ model DistrictFinancials {
   @@unique([unmatchedAccountId, vendor, fiscalYear])
   @@index([leaid])
   @@index([vendor, fiscalYear])
+  @@index([fiscalYear])
   @@map("district_financials")
 }
 
@@ -364,6 +367,7 @@ model UnmatchedAccount {
   isCustomer         Boolean  @default(false) @map("is_customer")
   hasOpenPipeline    Boolean  @default(false) @map("has_open_pipeline")
   createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   districtFinancials DistrictFinancials[]
 
@@ -613,6 +617,7 @@ model Activity {
   @@index([createdByUserId])
   @@index([type])
   @@index([startDate])
+  @@index([type, startDate])
   @@map("activities")
 }
 
@@ -1165,6 +1170,7 @@ model DistrictDataHistory {
   readProficiency Decimal? @map("read_proficiency_pct") @db.Decimal(5, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   district District @relation(fields: [leaid], references: [leaid])
 
@@ -1184,6 +1190,9 @@ model DistrictGradeEnrollment {
   year       Int
   grade      String @db.VarChar(10) // K, 01, 02, ... 12, PK, UG
   enrollment Int?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   district District @relation(fields: [leaid], references: [leaid])
 
