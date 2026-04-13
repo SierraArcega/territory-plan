@@ -161,7 +161,7 @@ model SavedReport {
 
 `UserProfile` gets two new inverse relations: `queryLogs QueryLog[] @relation("UserQueryLogs")` and `savedReports SavedReport[] @relation("UserSavedReports")`.
 
-### 3. Read-only role SQL: `prisma/manual/create-readonly-role.sql`
+### 3. Read-only role SQL: `prisma/migrations/manual/create-readonly-role.sql`
 
 Run-once script the user executes in Supabase SQL editor. Lives in `prisma/manual/` because Prisma cannot manage its own connection role's grants — the same pattern as the existing `prisma/migrations/MANUAL_RUN_IN_SUPABASE.sql`.
 
@@ -241,7 +241,7 @@ Append:
 
 ```
 # Read-only DB role for the Claude query tool (MAP-5).
-# Created via prisma/manual/create-readonly-role.sql.
+# Created via prisma/migrations/manual/create-readonly-role.sql.
 DATABASE_READONLY_URL=postgresql://query_tool_readonly:PASSWORD@HOST:PORT/postgres
 ```
 
@@ -468,7 +468,7 @@ Patch `Docs/superpowers/specs/2026-04-03-claude-query-tool-design.md`:
 - Replace `src/features/reports/lib/schema-reference.yaml` with `src/lib/district-column-metadata.ts` (the `TABLE_REGISTRY` + `SEMANTIC_CONTEXT` exports)
 - Drop the YAML loader from the architecture diagram
 - Add a paragraph on the warning-injection requirement
-- Note that the read-only role is provisioned via `prisma/manual/create-readonly-role.sql`
+- Note that the read-only role is provisioned via `prisma/migrations/manual/create-readonly-role.sql`
 
 ## Testing
 
@@ -491,7 +491,7 @@ Vitest run confirms existing 1380 tests still pass.
 |---|---|---|
 | `prisma/migrations/20260411_query_tool_tables/migration.sql` | Create | Adds query_log + saved_reports tables |
 | `prisma/schema.prisma` | Modify | Adds QueryLog + SavedReport models, UserProfile inverse relations |
-| `prisma/manual/create-readonly-role.sql` | Create | One-time Supabase role provisioning script |
+| `prisma/migrations/manual/create-readonly-role.sql` | Create | One-time Supabase role provisioning script |
 | `src/lib/db-readonly.ts` | Create | Read-only `pg.Pool` for query tool |
 | `.env.example` | Modify | Document `DATABASE_READONLY_URL` |
 | `src/lib/district-column-metadata.ts` | Modify | Add `subscriptionCount` to `DISTRICT_FINANCIALS_COLUMNS` (missed in PR #109). Extend type unions. Add 15 new column arrays (opportunity, session, subscription, activity, territory_plan, territory_plan_district, contact, task, vacancy, school, state, district_data_history, unmatched_account, unmatched_opportunity, query_log, saved_report) + TABLE_REGISTRY + SEMANTIC_CONTEXT. |
