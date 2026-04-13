@@ -37,3 +37,20 @@ def normalize_district_name(name: Optional[str]) -> str:
         return ""
     stripped = _SUFFIX_PATTERN.sub(" ", name.lower())
     return _NON_ALNUM.sub("", stripped)
+
+
+def names_match(opp_name: Optional[str], district_name: Optional[str]) -> bool:
+    """Return True if the two names agree after normalization.
+
+    Empty or missing sides are treated as agreement (we don't reject when
+    we simply have no information). Substring matches in either direction
+    count as agreement — "Onamia Public Schools" and "Onamia Public School
+    District" should both pass.
+    """
+    norm_a = normalize_district_name(opp_name)
+    norm_b = normalize_district_name(district_name)
+    if not norm_a or not norm_b:
+        return True
+    if norm_a == norm_b:
+        return True
+    return norm_a in norm_b or norm_b in norm_a

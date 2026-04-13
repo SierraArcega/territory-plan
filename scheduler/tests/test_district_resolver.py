@@ -1,5 +1,5 @@
 """Tests for sync.district_resolver."""
-from sync.district_resolver import normalize_district_name
+from sync.district_resolver import names_match, normalize_district_name
 
 
 def test_normalize_strips_common_suffixes():
@@ -27,3 +27,24 @@ def test_normalize_matches_postgres_output():
     assert normalize_district_name("Yuba City Unified School District") == "yuba"
     assert normalize_district_name("Woodville Elementary School District") == "woodville"
     assert normalize_district_name("Onamia Public School District") == "onamia"
+
+
+def test_names_match_exact():
+    assert names_match("Richland School District 1",
+                       "Richland County School District 1") is True
+
+
+def test_names_match_substring():
+    assert names_match("Onamia Public School District",
+                       "Onamia Public Schools") is True
+
+
+def test_names_mismatch_blocks_yuba_woodville():
+    assert names_match("Yuba City Unified School District",
+                       "Woodville Elementary School District") is False
+
+
+def test_names_match_allows_empty_side():
+    assert names_match(None, "Some District") is True
+    assert names_match("Some District", "") is True
+    assert names_match(None, None) is True
