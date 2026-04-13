@@ -52,10 +52,6 @@ export default function FilterMultiSelect({ label, column, options, onApply, loa
     enabled: !!virtualize,
   });
 
-  // Auto-focus search on mount
-  useEffect(() => {
-    requestAnimationFrame(() => searchRef.current?.focus());
-  }, []);
 
   // Apply the current selection to the store immediately — remove the existing filter
   // for this column (if any) then add a new one if the selection is non-empty.

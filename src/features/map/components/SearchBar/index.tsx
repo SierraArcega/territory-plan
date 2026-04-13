@@ -13,6 +13,25 @@ import {
 } from "@/features/map/lib/filter-utils";
 import { useGeographyPrefetch } from "@/features/map/lib/queries";
 
+// Pre-fetched dropdown data — loaded once at SearchBar mount so Districts dropdown opens instantly
+function useDropdownData() {
+  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+  const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    fetch("/api/sales-executives")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setOwners((data || []).map((d: { id: string; fullName: string | null; email: string }) => ({ id: d.id, name: d.fullName || d.email }))))
+      .catch(() => {});
+    fetch("/api/tags")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setTags(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
+  return { owners, tags };
+}
+
 interface DistrictSuggestion {
   leaid: string;
   name: string;
@@ -111,6 +130,7 @@ function countByDomain(filters: ExploreFilter[], domain: string): number {
 
 export default function SearchBar() {
   useGeographyPrefetch();
+  const { owners, tags } = useDropdownData();
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const selectedFiscalYear = useMapV2Store((s) => s.selectedFiscalYear);
   const setSelectedFiscalYear = useMapV2Store((s) => s.setSelectedFiscalYear);
@@ -479,7 +499,7 @@ export default function SearchBar() {
       {openDropdown && (
         <div className="absolute top-full left-0 z-50 px-3 pt-2">
           {openDropdown === "geography" && <GeographyDropdown onClose={() => setOpenDropdown(null)} />}
-          {openDropdown === "districts" && <DistrictsDropdown onClose={() => setOpenDropdown(null)} />}
+          {openDropdown === "districts" && <DistrictsDropdown onClose={() => setOpenDropdown(null)} owners={owners} tags={tags} />}
           {openDropdown === "contacts" && <ContactsDropdown onClose={() => setOpenDropdown(null)} />}
           {openDropdown === "vacancies" && <VacanciesDropdown onClose={() => setOpenDropdown(null)} />}
           {openDropdown === "activities" && <ActivitiesDropdown onClose={() => setOpenDropdown(null)} />}
