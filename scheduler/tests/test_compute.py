@@ -193,3 +193,78 @@ def test_build_opportunity_record_service_types_filters_nulls():
     record = build_opportunity_record(opp_source, sessions, district_mapping, now=NOW)
     import json
     assert json.loads(record["service_types"]) == ["tutoring"]
+
+
+def _minimal_opp(accounts, **overrides):
+    """Minimal opportunity dict for bug-a/bug-b hardening tests."""
+    base = {
+        "id": "OPP-1",
+        "name": "Test",
+        "school_yr": "2026-27",
+        "accounts": accounts,
+        "invoices": [],
+        "credit_memos": [],
+        "sales_rep": {},
+        "stage": "1 - Discovery",
+    }
+    base.update(overrides)
+    return base
+
+
+def test_build_strips_trailing_whitespace_from_nces():
+    """Bug (a): CRM mapping comes in with trailing whitespace on the NCES ID;
+    we must canonicalize it before storing."""
+    mapping = {"ACC-1": {
+        "nces_id": "4503360 ",   # trailing space, like the historical data
+        "leaid":   "4503360 ",
+        "name":    "Richland School District 1",
+        "type":    "district",
+    }}
+    record = build_opportunity_record(
+        _minimal_opp([{"id": "ACC-1", "name": "Richland County School District 1"}]),
+        sessions=[],
+        district_mapping=mapping,
+        now=NOW,
+    )
+    assert record["district_nces_id"] == "4503360"
+    assert record["district_lea_id"] == "4503360"
+
+
+def test_build_rejects_name_mismatch_and_nulls_the_link():
+    """Bug (b): the CRM mapping disagrees with the opp's own district_name
+    (Yuba City → Woodville case). We refuse to trust the mapping and leave
+    lea_id NULL so the opp flows into the unmatched path instead of being
+    silently mis-linked."""
+    mapping = {"ACC-2": {
+        "nces_id": "0643170",
+        "leaid":   "0643170",
+        "name":    "Woodville Elementary School District",
+        "type":    "district",
+    }}
+    record = build_opportunity_record(
+        _minimal_opp([{"id": "ACC-2", "name": "Yuba City Unified School District"}]),
+        sessions=[],
+        district_mapping=mapping,
+        now=NOW,
+    )
+    assert record["district_lea_id"] is None
+    assert record["district_nces_id"] is None
+    assert record["_match_status"] == "name_mismatch"
+
+
+def test_build_happy_path_matching_names_still_works():
+    """Regression check: legitimate district mappings still resolve."""
+    mapping = {"ACC-3": {
+        "nces_id": "1304410",
+        "leaid":   "1304410",
+        "name":    "Rockdale County Public Schools",
+        "type":    "district",
+    }}
+    record = build_opportunity_record(
+        _minimal_opp([{"id": "ACC-3", "name": "Rockdale County School District"}]),
+        sessions=[],
+        district_mapping=mapping,
+        now=NOW,
+    )
+    assert record["district_lea_id"] == "1304410"
+    assert record["_match_status"] == "matched"
