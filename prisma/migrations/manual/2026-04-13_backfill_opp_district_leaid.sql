@@ -3,6 +3,14 @@
 -- district_nces_id populated (bug a), with name-match guardrail against
 -- typo'd leaids (bug b).
 --
+-- Candidate normalization:
+--   * 7-digit NCES IDs (e.g., '4503360') are used as-is after TRIM
+--   * 6-digit NCES IDs (e.g., '611110') are LPAD'd with a leading zero
+--     — they're state-fips-01..09 leaids whose leading zero got stripped
+--     during CRM import (California, Alabama, Arizona, Colorado, etc.)
+--   * Anything else (14-digit LMS account IDs mis-stored in this column,
+--     non-numeric values) is OUT OF SCOPE for this backfill.
+--
 -- This file is split into a DRY-RUN SELECT and an APPLY UPDATE.
 -- Run the dry-run first, review the rejection list, then run the apply block.
 
@@ -17,15 +25,26 @@ WITH candidates AS (
     o.name                                                    AS opp_name,
     o.district_name                                           AS opp_district_name,
     TRIM(o.district_nces_id)                                  AS trimmed_nces_id,
+    CASE
+      WHEN TRIM(o.district_nces_id) ~ '^[0-9]{7}$' THEN TRIM(o.district_nces_id)
+      WHEN TRIM(o.district_nces_id) ~ '^[0-9]{6}$' THEN LPAD(TRIM(o.district_nces_id), 7, '0')
+    END                                                       AS candidate_leaid,
     d.leaid                                                   AS resolved_leaid,
     d.name                                                    AS resolved_district_name,
     normalize_district_name(o.district_name)                  AS norm_opp_name,
-    normalize_district_name(d.name)                           AS norm_resolved_name
+    normalize_district_name(d.name)                           AS norm_resolved_name,
+    o.net_booking_amount
   FROM opportunities o
-  LEFT JOIN districts d ON d.leaid = TRIM(o.district_nces_id)
+  LEFT JOIN districts d ON d.leaid = CASE
+    WHEN TRIM(o.district_nces_id) ~ '^[0-9]{7}$' THEN TRIM(o.district_nces_id)
+    WHEN TRIM(o.district_nces_id) ~ '^[0-9]{6}$' THEN LPAD(TRIM(o.district_nces_id), 7, '0')
+  END
   WHERE o.district_lea_id IS NULL
     AND o.district_nces_id IS NOT NULL
-    AND TRIM(o.district_nces_id) ~ '^[0-9]{7}$'
+    AND (
+      TRIM(o.district_nces_id) ~ '^[0-9]{7}$'
+      OR TRIM(o.district_nces_id) ~ '^[0-9]{6}$'
+    )
 )
 SELECT
   CASE
@@ -38,8 +57,7 @@ SELECT
   END AS outcome,
   COUNT(*) AS count,
   SUM(net_booking_amount)::numeric(15,2) AS total_booking
-FROM candidates c
-LEFT JOIN opportunities o2 ON o2.id = c.opp_id
+FROM candidates
 GROUP BY outcome
 ORDER BY outcome;
 
@@ -50,17 +68,27 @@ WITH candidates AS (
     o.name                                                    AS opp_name,
     o.district_name                                           AS opp_district_name,
     TRIM(o.district_nces_id)                                  AS trimmed_nces_id,
+    CASE
+      WHEN TRIM(o.district_nces_id) ~ '^[0-9]{7}$' THEN TRIM(o.district_nces_id)
+      WHEN TRIM(o.district_nces_id) ~ '^[0-9]{6}$' THEN LPAD(TRIM(o.district_nces_id), 7, '0')
+    END                                                       AS candidate_leaid,
     d.leaid                                                   AS resolved_leaid,
     d.name                                                    AS resolved_district_name,
     normalize_district_name(o.district_name)                  AS norm_opp_name,
     normalize_district_name(d.name)                           AS norm_resolved_name
   FROM opportunities o
-  LEFT JOIN districts d ON d.leaid = TRIM(o.district_nces_id)
+  LEFT JOIN districts d ON d.leaid = CASE
+    WHEN TRIM(o.district_nces_id) ~ '^[0-9]{7}$' THEN TRIM(o.district_nces_id)
+    WHEN TRIM(o.district_nces_id) ~ '^[0-9]{6}$' THEN LPAD(TRIM(o.district_nces_id), 7, '0')
+  END
   WHERE o.district_lea_id IS NULL
     AND o.district_nces_id IS NOT NULL
-    AND TRIM(o.district_nces_id) ~ '^[0-9]{7}$'
+    AND (
+      TRIM(o.district_nces_id) ~ '^[0-9]{7}$'
+      OR TRIM(o.district_nces_id) ~ '^[0-9]{6}$'
+    )
 )
-SELECT opp_id, opp_name, opp_district_name, trimmed_nces_id, resolved_district_name
+SELECT opp_id, opp_name, opp_district_name, trimmed_nces_id, candidate_leaid, resolved_district_name
 FROM candidates
 WHERE resolved_leaid IS NULL
    OR (norm_opp_name <> '' AND norm_resolved_name <> ''
