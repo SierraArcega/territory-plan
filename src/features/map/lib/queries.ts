@@ -238,7 +238,7 @@ export function useMapContacts(
   });
 
   return useQuery({
-    queryKey: ["mapContacts", qBounds, filters, geoStates],
+    queryKey: ["mapContacts", queryString],
     queryFn: () =>
       fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/contacts${queryString}`),
     enabled: enabled && qBounds !== null,
@@ -271,7 +271,7 @@ export function useMapVacancies(
   );
 
   return useQuery({
-    queryKey: ["mapVacancies", qBounds, filters, dateRange, geoStates],
+    queryKey: ["mapVacancies", queryString],
     queryFn: () =>
       fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/vacancies${queryString}`),
     enabled: enabled && qBounds !== null,
@@ -307,7 +307,7 @@ export function useMapActivities(
   );
 
   return useQuery({
-    queryKey: ["mapActivities", qBounds, filters, dateRange, geoStates],
+    queryKey: ["mapActivities", queryString],
     queryFn: () =>
       fetchJson<FeatureCollection<Point>>(`${API_BASE}/map/activities${queryString}`),
     enabled: enabled && qBounds !== null,
@@ -335,7 +335,7 @@ export function useMapPlans(
   const queryString = qs ? `?${qs}` : "";
 
   return useQuery({
-    queryKey: ["mapPlans", filters],
+    queryKey: ["mapPlans", queryString],
     queryFn: () =>
       fetchJson<FeatureCollection<Geometry>>(`${API_BASE}/map/plans${queryString}`),
     enabled,
