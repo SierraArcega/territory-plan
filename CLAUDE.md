@@ -30,6 +30,26 @@ TanStack Query. Vitest for testing.
 - Never use Tailwind grays — use plum-derived neutrals (#F7F5FA, #EFEDF5)
 - Icons: Lucide only, `currentColor`, semantic sizing
 
+### Performance
+This is a daily-use tool for sales reps. It must feel smooth — no user action
+should cause a dramatic slowdown. Apply these rules to every new feature:
+
+- **Paginate lists** — never render more than 50 items at once. Use "Show more"
+  or scroll-based loading. Show a filter hint banner at 200+ results.
+- **Stable query keys** — TanStack Query keys must use serialized primitives
+  (strings, numbers), never raw objects. Object spreads create new references
+  that trigger phantom refetches.
+- **Batch store mutations** — when a user action requires multiple Zustand
+  `set()` calls, combine them into a single `set()` to avoid cascading re-renders.
+- **Isolate subscriptions** — components should subscribe to the narrowest
+  store slice they need (e.g., `s.layerFilters.vacancies` not `s.layerFilters`).
+  Broad subscriptions cause unrelated state changes to trigger re-renders.
+- **Conditional rendering over conditional fetching** — prefer mounting/unmounting
+  components (which own their own queries) over running all queries and gating
+  with `enabled` flags. TanStack Query caches survive unmounts via `gcTime`.
+- **Clean up on unmount** — useEffect hooks that write to shared state (store,
+  context) must return a cleanup function to prevent stale data.
+
 ### Testing
 - Vitest + Testing Library + jsdom
 - Tests co-located in `__tests__/` directories next to source
