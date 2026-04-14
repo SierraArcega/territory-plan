@@ -46,3 +46,21 @@ def test_fetch_district_mappings():
         assert "12345" in result
         assert result["12345"]["leaid"] == "0100001"
         assert result["12345"]["nces_id"] == "0100001"
+
+
+def test_fetch_district_mappings_rejects_non_seven_digit_ncesid():
+    with patch("sync.queries.scroll_all") as mock_scroll:
+        mock_scroll.return_value = [
+            {"_source": {"id": 1, "ncesId": "0100001", "name": "Good District"}},
+            {"_source": {"id": 2, "ncesId": "010000100123", "name": "School Row"}},
+            {"_source": {"id": 3, "ncesId": "abc1234", "name": "Non-numeric"}},
+            {"_source": {"id": 4, "ncesId": None, "name": "Null ncesId"}},
+        ]
+        result = fetch_district_mappings(MagicMock(), [1, 2, 3, 4])
+
+        assert result["1"]["leaid"] == "0100001"
+        assert result["2"]["leaid"] is None
+        assert result["2"]["nces_id"] is None
+        assert result["3"]["leaid"] is None
+        assert result["3"]["nces_id"] is None
+        assert result["4"]["leaid"] is None

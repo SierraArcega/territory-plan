@@ -109,15 +109,31 @@ def fetch_district_mappings(client, account_ids):
         ["id", "ncesId", "name", "state", "hasParent", "asDistrict"],
     )
     mapping = {}
+    rejected = 0
     for hit in hits:
         src = hit["_source"]
         account_id = str(src["id"])
         nces_id = src.get("ncesId")
+        # NCES district LEAIDs are exactly 7 digits. Anything else (e.g. a
+        # 12-digit school-level NCES ID) would blow up the VARCHAR(7) constraint
+        # on opportunities.district_lea_id — reject here so the opp falls
+        # through to unmatched instead of poisoning the whole batch.
+        if nces_id is not None and (len(nces_id) != 7 or not nces_id.isdigit()):
+            logger.warning(
+                "Rejecting district mapping: account_id=%s ncesId=%r len=%d "
+                "asDistrict=%s name=%r — expected 7-digit LEAID",
+                account_id, nces_id, len(nces_id),
+                src.get("asDistrict"), src.get("name"),
+            )
+            nces_id = None
+            rejected += 1
         mapping[account_id] = {
             "nces_id": nces_id,
             "leaid": nces_id,  # ncesId and leaid are the same
             "name": src.get("name"),
             "type": "district",
         }
+    if rejected:
+        logger.warning(f"Rejected {rejected} district mappings with invalid ncesId")
     logger.info(f"Resolved {len(mapping)} district mappings")
     return mapping
