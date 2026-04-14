@@ -19,8 +19,10 @@ export default function ActivitiesTabContainer({ filteredData, geoStates }: Acti
 
   const { data, isLoading } = useMapActivities(mapBounds, filters, dateRange, true, geoStates);
 
+  // Report raw GeoJSON to store for cross-filtering; clear on unmount
   useEffect(() => {
     setOverlayGeoJSON("activities", data ?? null);
+    return () => setOverlayGeoJSON("activities", null);
   }, [data, setOverlayGeoJSON]);
 
   return <ActivitiesTab data={filteredData} isLoading={isLoading} />;

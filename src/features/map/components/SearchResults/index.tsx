@@ -799,7 +799,7 @@ export default function SearchResults() {
       {/* Overlay tab content — each container owns its own store subscriptions & queries */}
       {showingOverlayTab && activeResultsTab === "plans" && (
         activeLayers.has("plans")
-          ? <PlansTabContainer geoStates={geoStates} />
+          ? <PlansTabContainer />
           : <LayerOffPrompt layer="Plans" />
       )}
       {showingOverlayTab && activeResultsTab === "contacts" && (

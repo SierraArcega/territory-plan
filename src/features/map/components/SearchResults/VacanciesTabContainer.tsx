@@ -19,8 +19,10 @@ export default function VacanciesTabContainer({ filteredData, geoStates }: Vacan
 
   const { data, isLoading } = useMapVacancies(mapBounds, filters, dateRange, true, geoStates);
 
+  // Report raw GeoJSON to store for cross-filtering; clear on unmount
   useEffect(() => {
     setOverlayGeoJSON("vacancies", data ?? null);
+    return () => setOverlayGeoJSON("vacancies", null);
   }, [data, setOverlayGeoJSON]);
 
   return <VacanciesTab data={filteredData} isLoading={isLoading} />;

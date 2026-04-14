@@ -18,9 +18,10 @@ export default function ContactsTabContainer({ filteredData, geoStates }: Contac
 
   const { data, isLoading } = useMapContacts(mapBounds, filters, true, geoStates);
 
-  // Report raw GeoJSON to store for cross-filtering
+  // Report raw GeoJSON to store for cross-filtering; clear on unmount
   useEffect(() => {
     setOverlayGeoJSON("contacts", data ?? null);
+    return () => setOverlayGeoJSON("contacts", null);
   }, [data, setOverlayGeoJSON]);
 
   return <ContactsTab data={filteredData} isLoading={isLoading} />;
