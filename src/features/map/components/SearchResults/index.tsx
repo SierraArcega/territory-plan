@@ -7,12 +7,10 @@ import { useMapV2Store } from "@/features/map/lib/store";
 import { mapV2Ref } from "@/features/map/lib/ref";
 import { useTerritoryPlans, useAddDistrictsToPlan, useCreateTerritoryPlan } from "@/features/plans/lib/queries";
 import { useProfile } from "@/features/shared/lib/queries";
-import {
-  useMapContacts,
-  useMapVacancies,
-  useMapActivities,
-  useMapPlans,
-} from "@/features/map/lib/queries";
+import ContactsTabContainer from "./ContactsTabContainer";
+import VacanciesTabContainer from "./VacanciesTabContainer";
+import ActivitiesTabContainer from "./ActivitiesTabContainer";
+import PlansTabContainer from "./PlansTabContainer";
 import type { LayerType } from "@/features/map/lib/layers";
 import { getFinancial } from "@/features/shared/lib/financial-helpers";
 import type { DistrictFinancial } from "@/features/shared/types/api-types";
@@ -20,10 +18,6 @@ import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import DistrictSearchCard from "./DistrictSearchCard";
 import DistrictExploreModal from "./DistrictExploreModal";
 import ResultsTabStrip from "./ResultsTabStrip";
-import PlansTab from "./PlansTab";
-import ContactsTab from "./ContactsTab";
-import VacanciesTab from "./VacanciesTab";
-import ActivitiesTab from "./ActivitiesTab";
 
 interface SearchResultDistrict {
   leaid: string;
@@ -86,9 +80,7 @@ export default function SearchResults() {
 
   const activeLayers = useMapV2Store((s) => s.activeLayers);
   const activeResultsTab = useMapV2Store((s) => s.activeResultsTab);
-  const layerFilters = useMapV2Store((s) => s.layerFilters);
-  const dateRange = useMapV2Store((s) => s.dateRange);
-  const mapBounds = useMapV2Store((s) => s.mapBounds);
+  const overlayGeoJSON = useMapV2Store((s) => s.overlayGeoJSON);
 
   const { data: plans } = useTerritoryPlans();
   const { data: profile } = useProfile();
@@ -112,43 +104,17 @@ export default function SearchResults() {
     return undefined;
   }, [searchFilters]);
 
-  // Overlay query hooks — enabled when layer is active
-  const contactsQuery = useMapContacts(
-    mapBounds,
-    layerFilters.contacts,
-    activeLayers.has("contacts"),
-    geoStates,
-  );
-  const vacanciesQuery = useMapVacancies(
-    mapBounds,
-    layerFilters.vacancies,
-    dateRange.vacancies,
-    activeLayers.has("vacancies"),
-    geoStates,
-  );
-  const activitiesQuery = useMapActivities(
-    mapBounds,
-    layerFilters.activities,
-    dateRange.activities,
-    activeLayers.has("activities"),
-    geoStates,
-  );
-  const plansQuery = useMapPlans(
-    layerFilters.plans,
-    activeLayers.has("plans"),
-  );
-
-  // Cross-filter — single source of truth
+  // Cross-filter — single source of truth (reads from store, populated by tab containers)
   const {
     overlayDerivedLeaids,
     filteredContacts,
     filteredVacancies,
     filteredActivities,
   } = useCrossFilter({
-    plansGeoJSON: plansQuery.data,
-    contactsGeoJSON: contactsQuery.data,
-    vacanciesGeoJSON: vacanciesQuery.data,
-    activitiesGeoJSON: activitiesQuery.data,
+    plansGeoJSON: overlayGeoJSON.plans,
+    contactsGeoJSON: overlayGeoJSON.contacts,
+    vacanciesGeoJSON: overlayGeoJSON.vacancies,
+    activitiesGeoJSON: overlayGeoJSON.activities,
   });
 
   const [districts, setDistricts] = useState<SearchResultDistrict[]>([]);
@@ -483,10 +449,9 @@ export default function SearchResults() {
   const tabCounts = useMemo((): Partial<Record<LayerType, number>> => {
     const counts: Partial<Record<LayerType, number>> = {};
     counts.districts = total;
-    if (activeLayers.has("plans") && plansQuery.data) {
-      // Deduplicate by planId
+    if (activeLayers.has("plans") && overlayGeoJSON.plans) {
       const planIds = new Set<string>();
-      for (const f of plansQuery.data.features) {
+      for (const f of overlayGeoJSON.plans.features) {
         const pid = f.properties?.planId;
         if (pid) planIds.add(pid);
       }
@@ -502,7 +467,7 @@ export default function SearchResults() {
       counts.activities = filteredActivities.features.length;
     }
     return counts;
-  }, [total, activeLayers, plansQuery.data, filteredContacts, filteredVacancies, filteredActivities]);
+  }, [total, activeLayers, overlayGeoJSON.plans, filteredContacts, filteredVacancies, filteredActivities]);
 
   const showingOverlayTab = activeResultsTab !== "districts";
   const hasDistrictResults = isSearchActive || overlayDerivedLeaids != null || selectedDistrictLeaids.size > 0;
@@ -831,25 +796,25 @@ export default function SearchResults() {
         </div>
       )}
 
-      {/* Overlay tab content */}
+      {/* Overlay tab content — each container owns its own store subscriptions & queries */}
       {showingOverlayTab && activeResultsTab === "plans" && (
         activeLayers.has("plans")
-          ? <PlansTab data={plansQuery.data} isLoading={plansQuery.isLoading} />
+          ? <PlansTabContainer />
           : <LayerOffPrompt layer="Plans" />
       )}
       {showingOverlayTab && activeResultsTab === "contacts" && (
         activeLayers.has("contacts")
-          ? <ContactsTab data={filteredContacts} isLoading={contactsQuery.isLoading} />
+          ? <ContactsTabContainer filteredData={filteredContacts} geoStates={geoStates} />
           : <LayerOffPrompt layer="Contacts" />
       )}
       {showingOverlayTab && activeResultsTab === "vacancies" && (
         activeLayers.has("vacancies")
-          ? <VacanciesTab data={filteredVacancies} isLoading={vacanciesQuery.isLoading} />
+          ? <VacanciesTabContainer filteredData={filteredVacancies} geoStates={geoStates} />
           : <LayerOffPrompt layer="Vacancies" />
       )}
       {showingOverlayTab && activeResultsTab === "activities" && (
         activeLayers.has("activities")
-          ? <ActivitiesTab data={filteredActivities} isLoading={activitiesQuery.isLoading} />
+          ? <ActivitiesTabContainer filteredData={filteredActivities} geoStates={geoStates} />
           : <LayerOffPrompt layer="Activities" />
       )}
 

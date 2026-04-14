@@ -145,6 +145,7 @@ export default function SearchBar() {
   // Overlay layers
   const activeLayers = useMapV2Store((s) => s.activeLayers);
   const toggleLayer = useMapV2Store((s) => s.toggleLayer);
+  const switchToLayer = useMapV2Store((s) => s.switchToLayer);
   const contactFilters = useMapV2Store((s) => s.layerFilters.contacts);
   const vacancyFilters = useMapV2Store((s) => s.layerFilters.vacancies);
   const activityFilters = useMapV2Store((s) => s.layerFilters.activities);
@@ -241,16 +242,18 @@ export default function SearchBar() {
   const handleEntityChevronClick = useCallback((layerName: string, layerType: OverlayLayerType) => {
     const store = useMapV2Store.getState();
     if (!store.activeLayers.has(layerType)) {
-      toggleLayer(layerType);
+      switchToLayer(layerType);
+      setOpenDropdown((prev) => (prev === layerName ? null : layerName));
+    } else {
+      setOpenDropdown((prev) => {
+        const isOpening = prev !== layerName;
+        if (isOpening) {
+          useMapV2Store.getState().openResultsPanel(layerType as LayerType);
+        }
+        return isOpening ? layerName : null;
+      });
     }
-    setOpenDropdown((prev) => {
-      const isOpening = prev !== layerName;
-      if (isOpening) {
-        useMapV2Store.getState().openResultsPanel(layerType as LayerType);
-      }
-      return isOpening ? layerName : null;
-    });
-  }, [toggleLayer]);
+  }, [switchToLayer]);
 
   const activeFilterCount = searchFilters.length;
 
