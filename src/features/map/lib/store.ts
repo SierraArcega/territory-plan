@@ -435,6 +435,7 @@ interface MapV2Actions {
 
   // Overlay layers (map planning overlays)
   toggleLayer: (layer: OverlayLayerType) => void;
+  switchToLayer: (layer: OverlayLayerType) => void;
   setLayerFilter: <K extends keyof LayerFilters>(layer: K, filter: Partial<LayerFilters[K]>) => void;
   setDateRange: (layer: "vacancies" | "activities", range: Partial<DateRange>) => void;
   setMapBounds: (bounds: [number, number, number, number] | null) => void;
@@ -1149,6 +1150,17 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
         next.add(layer);
       }
       return { activeLayers: next };
+    }),
+
+  switchToLayer: (layer) =>
+    set((s) => {
+      const next = new Set(s.activeLayers);
+      next.add(layer);
+      return {
+        activeLayers: next,
+        activeResultsTab: layer,
+        searchResultsVisible: true,
+      };
     }),
 
   setLayerFilter: (layer, filter) =>
