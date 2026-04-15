@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, ChevronDown, Trophy, Target, TrendingUp, DollarSign, Zap } from "lucide-react";
 import { useLeaderboard, useMyLeaderboardRank } from "../lib/queries";
+import RevenueOverviewTab from "./RevenueOverviewTab";
 import TierBadge from "./TierBadge";
 import { parseTierRank, TIER_LABELS, TIERS, TIER_COLORS } from "../lib/types";
 import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
@@ -41,6 +42,7 @@ const VIEW_CONFIG: {
 ];
 
 export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
+  const [activeTab, setActiveTab] = useState<"revenue" | "initiative">("revenue");
   const [view, setView] = useState<LeaderboardView>("combined");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const { data: leaderboard, isLoading: lbLoading } = useLeaderboard();
@@ -57,7 +59,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
   // Collapse expanded rows when switching tabs
   useEffect(() => {
     setExpandedUser(null);
-  }, [view]);
+  }, [activeTab, view]);
 
   if (!isOpen) return null;
 
@@ -159,8 +161,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
             </p>
           )}
 
-          {/* Initiative summary — always visible regardless of active tab */}
-          {initiative && (
+          {/* Initiative summary — only visible on initiative tab */}
+          {initiative && activeTab === "initiative" && (
             <p className="text-xs text-[#6E6390] leading-relaxed mt-2 ml-7.5">
               Ranked by a weighted blend of{" "}
               {[
@@ -192,48 +194,77 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
           )}
         </div>
 
-        {/* Tabs + description — sticky above scroll */}
+        {/* Top-level tabs */}
         <div className="flex-shrink-0 border-b border-[#E2DEEC]">
           <div className="flex px-6">
-            {VIEW_CONFIG.map((opt) => {
-              const Icon = opt.icon;
-              const isActive = view === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  onClick={() => setView(opt.value)}
-                  className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                    isActive
-                      ? "border-[#403770] text-[#403770]"
-                      : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {opt.label}
-                </button>
-              );
-            })}
+            <button
+              onClick={() => setActiveTab("revenue")}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === "revenue"
+                  ? "border-[#403770] text-[#403770]"
+                  : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+              }`}
+            >
+              Revenue Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("initiative")}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === "initiative"
+                  ? "border-[#403770] text-[#403770]"
+                  : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+              }`}
+            >
+              Initiative
+            </button>
           </div>
-          <p className="px-6 py-2 text-[11px] text-[#6E6390] bg-[#F7F5FA] leading-relaxed">
-            {view === "combined" && (
-              <>
-                Weighted blend of all metrics, normalized across reps.
-                <span className="text-[#8A80A8]">
-                  {" "}Initiative {weights.initiative}% · Pipeline {weights.pipeline}% ({fyLabels.pipeline}) · Take {weights.take}% ({fyLabels.take}) · Revenue {weights.revenue}% ({fyLabels.revenue}){weights.revenueTargeted > 0 && <> · Targeted {weights.revenueTargeted}% ({fyLabels.revenueTargeted})</>}
-                </span>
-              </>
-            )}
-            {view === "initiative" && "Points from tracked actions — plans created, activities logged, and revenue targeted."}
-            {view === "pipeline" && (<>Open pipeline (stages 0–5) from opportunities in <span className="font-medium text-[#403770]">{fyLabels.pipeline}</span>.</>)}
-            {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
-            {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
-            {view === "revenueTargeted" && (<>Total revenue targeted in territory plans{fyLabels.revenueTargeted !== "Current FY" ? <> for <span className="font-medium text-[#403770]">{fyLabels.revenueTargeted}</span></> : ""}.</>)}
-          </p>
+          {activeTab === "initiative" && (
+            <>
+              {/* Initiative sub-tabs */}
+              <div className="flex px-6 border-t border-[#EFEDF5]">
+                {VIEW_CONFIG.map((opt) => {
+                  const Icon = opt.icon;
+                  const isActive = view === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setView(opt.value)}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${
+                        isActive
+                          ? "border-[#403770] text-[#403770]"
+                          : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="px-6 py-2 text-[11px] text-[#6E6390] bg-[#F7F5FA] leading-relaxed">
+                {view === "combined" && (
+                  <>
+                    Weighted blend of all metrics, normalized across reps.
+                    <span className="text-[#8A80A8]">
+                      {" "}Initiative {weights.initiative}% · Pipeline {weights.pipeline}% ({fyLabels.pipeline}) · Take {weights.take}% ({fyLabels.take}) · Revenue {weights.revenue}% ({fyLabels.revenue}){weights.revenueTargeted > 0 && <> · Targeted {weights.revenueTargeted}% ({fyLabels.revenueTargeted})</>}
+                    </span>
+                  </>
+                )}
+                {view === "initiative" && "Points from tracked actions — plans created, activities logged, and revenue targeted."}
+                {view === "pipeline" && (<>Open pipeline (stages 0–5) from opportunities in <span className="font-medium text-[#403770]">{fyLabels.pipeline}</span>.</>)}
+                {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
+                {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
+                {view === "revenueTargeted" && (<>Total revenue targeted in territory plans{fyLabels.revenueTargeted !== "Current FY" ? <> for <span className="font-medium text-[#403770]">{fyLabels.revenueTargeted}</span></> : ""}.</>)}
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Rankings — scrollable area */}
+        {/* Content — scrollable area */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {lbLoading ? (
+          {activeTab === "revenue" ? (
+            <RevenueOverviewTab />
+          ) : lbLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-[#403770] border-t-transparent rounded-full animate-spin" />
             </div>

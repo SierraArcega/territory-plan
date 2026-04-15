@@ -26,19 +26,25 @@ export async function GET(request: NextRequest) {
       where: { initiativeId: initiative.id },
       include: {
         user: {
-          select: { id: true, fullName: true, avatarUrl: true },
+          select: { id: true, fullName: true, avatarUrl: true, role: true },
         },
       },
       orderBy: { totalPoints: "desc" },
     });
 
-    const myIndex = allScores.findIndex((s) => s.userId === user.id);
+    // Admins are excluded from the visible roster; rank/neighbors/total
+    // are computed against reps only. If the current user is themselves
+    // an admin, myIndex will be -1 and the existing not-on-leaderboard
+    // fallback kicks in.
+    const rosterScores = allScores.filter((s) => s.user.role !== "admin");
+
+    const myIndex = rosterScores.findIndex((s) => s.userId === user.id);
 
     if (myIndex === -1) {
       return NextResponse.json({
         initiativeName: initiative.showName ? initiative.name : "Leaderboard",
-        rank: allScores.length + 1,
-        totalReps: allScores.length + 1,
+        rank: rosterScores.length + 1,
+        totalReps: rosterScores.length + 1,
         totalPoints: 0,
         tier: "freshman",
         above: null,
@@ -53,9 +59,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const myScore = allScores[myIndex];
-    const above = myIndex > 0 ? allScores[myIndex - 1] : null;
-    const below = myIndex < allScores.length - 1 ? allScores[myIndex + 1] : null;
+    const myScore = rosterScores[myIndex];
+    const above = myIndex > 0 ? rosterScores[myIndex - 1] : null;
+    const below = myIndex < rosterScores.length - 1 ? rosterScores[myIndex + 1] : null;
 
     // Calculate point breakdown per metric
     // Attribute plans to their owner, falling back to creator when no owner is set
@@ -130,7 +136,7 @@ export async function GET(request: NextRequest) {
             fullName: score.user.fullName ?? "Unknown",
             avatarUrl: score.user.avatarUrl,
             totalPoints: score.totalPoints,
-            rank: allScores.indexOf(score) + 1,
+            rank: rosterScores.indexOf(score) + 1,
           }
         : null;
 
@@ -138,7 +144,7 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       initiativeName: initiative.name,
       rank: myIndex + 1,
-      totalReps: allScores.length,
+      totalReps: rosterScores.length,
       totalPoints: myScore.totalPoints,
       tier: myScore.tier,
       above: formatNeighbor(above),

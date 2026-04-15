@@ -48,8 +48,13 @@ export interface LeaderboardEntry {
   rank: number;
   take: number;
   pipeline: number;
+  pipelineCurrentFY: number;
+  pipelineNextFY: number;
   revenue: number;
+  priorYearRevenue: number;
   revenueTargeted: number;
+  targetedCurrentFY: number;
+  targetedNextFY: number;
   combinedScore: number;
   initiativeScore: number;
   pointBreakdown: PointBreakdownItem[];
