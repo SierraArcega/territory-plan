@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
             fullName: true,
             avatarUrl: true,
             email: true,
+            role: true,
           },
         },
       },
@@ -89,11 +90,20 @@ export async function GET(request: NextRequest) {
 
     const actualsMap = new Map(repActuals.map((a) => [a.userId, a]));
 
+    // Partition by role: admins are excluded from the visible roster
+    // and from max-value normalization, but their actuals still feed
+    // the team-wide totals.
+    const adminUserIds = new Set(
+      scores.filter((s) => s.user.role === "admin").map((s) => s.userId)
+    );
+    const rosterScores = scores.filter((s) => !adminUserIds.has(s.userId));
+    const rosterActuals = repActuals.filter((a) => !adminUserIds.has(a.userId));
+
     // Calculate max values for normalization
-    const maxInitiativePoints = Math.max(...scores.map((s) => s.totalPoints), 0);
-    const maxTake = Math.max(...repActuals.map((a) => a.take), 0);
-    const maxPipeline = Math.max(...repActuals.map((a) => a.pipeline), 0);
-    const maxRevenue = Math.max(...repActuals.map((a) => a.revenue), 0);
+    const maxInitiativePoints = Math.max(...rosterScores.map((s) => s.totalPoints), 0);
+    const maxTake = Math.max(...rosterActuals.map((a) => a.take), 0);
+    const maxPipeline = Math.max(...rosterActuals.map((a) => a.pipeline), 0);
+    const maxRevenue = Math.max(...rosterActuals.map((a) => a.revenue), 0);
 
     const thresholdData = initiative.thresholds.map((t) => ({ tier: t.tier, minPoints: t.minPoints }));
 
@@ -205,7 +215,10 @@ export async function GET(request: NextRequest) {
     for (const uid of userIds) {
       revenueTargetedByUser.set(uid, (targetedCurrentFYByUser.get(uid) ?? 0) + (targetedNextFYByUser.get(uid) ?? 0));
     }
-    const maxRevenueTargeted = Math.max(...[...revenueTargetedByUser.values()], 0);
+    const maxRevenueTargeted = Math.max(
+      ...rosterScores.map((s) => revenueTargetedByUser.get(s.userId) ?? 0),
+      0
+    );
 
     const getActionCount = (userId: string, action: string): number => {
       if (action === "plan_created") return planCountMap.get(userId) ?? 0;
@@ -215,7 +228,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Build leaderboard entries
-    const entries = scores.map((score, index) => {
+    const entries = rosterScores.map((score, index) => {
       const actuals = actualsMap.get(score.userId) ?? {
         userId: score.userId,
         take: 0,
@@ -283,6 +296,41 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Sum across the FULL repActuals + targeted maps (admin-inclusive).
+    // The `unassigned*` fields capture the admin-only subtotal so the UI
+    // can show an inline "incl. $X unassigned" annotation.
+    const sumActuals = (
+      pool: typeof repActuals,
+      key: "revenue" | "priorYearRevenue" | "pipelineCurrentFY" | "pipelineNextFY",
+    ): number => pool.reduce((acc, a) => acc + (a[key] ?? 0), 0);
+
+    const sumTargetedMap = (pool: Map<string, number>, ids: Iterable<string>): number => {
+      let total = 0;
+      for (const id of ids) total += pool.get(id) ?? 0;
+      return total;
+    };
+
+    const adminActuals = repActuals.filter((a) => adminUserIds.has(a.userId));
+
+    const teamTotals = {
+      revenue: sumActuals(repActuals, "revenue"),
+      priorYearRevenue: sumActuals(repActuals, "priorYearRevenue"),
+      unassignedRevenue: sumActuals(adminActuals, "revenue"),
+      unassignedPriorYearRevenue: sumActuals(adminActuals, "priorYearRevenue"),
+
+      pipelineCurrentFY: sumActuals(repActuals, "pipelineCurrentFY"),
+      pipelineNextFY: sumActuals(repActuals, "pipelineNextFY"),
+      unassignedPipelineCurrentFY: sumActuals(adminActuals, "pipelineCurrentFY"),
+      unassignedPipelineNextFY: sumActuals(adminActuals, "pipelineNextFY"),
+
+      // userIds (declared earlier, full score list) → all-users sum.
+      // adminUserIds → admin-only sum.
+      targetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, userIds),
+      targetedNextFY: sumTargetedMap(targetedNextFYByUser, userIds),
+      unassignedTargetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, adminUserIds),
+      unassignedTargetedNextFY: sumTargetedMap(targetedNextFYByUser, adminUserIds),
+    };
+
     return NextResponse.json({
       initiative: {
         id: initiative.id,
@@ -306,6 +354,7 @@ export async function GET(request: NextRequest) {
         nextFY: nextFYSchoolYr,
       },
       entries,
+      teamTotals,
       metrics: initiative.metrics.map((m) => ({
         action: m.action,
         label: m.label,
