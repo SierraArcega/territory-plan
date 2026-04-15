@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useUpdateTerritoryPlan, useUsers } from "@/lib/api";
+import { useUpdateTerritoryPlan, useUsers, useStates } from "@/lib/api";
 import type { TerritoryPlanDetail } from "@/features/shared/types/api-types";
 
 const STATUS_OPTIONS: { value: string; label: string; dot: string }[] = [
@@ -216,6 +216,7 @@ function ReadMode({
 function EditMode({ plan }: { plan: TerritoryPlanDetail }) {
   const updatePlan = useUpdateTerritoryPlan();
   const { data: users } = useUsers();
+  const { data: allStates } = useStates();
 
   const save = (field: string, value: unknown) => {
     updatePlan.mutate({ id: plan.id, [field]: value });
@@ -262,6 +263,15 @@ function EditMode({ plan }: { plan: TerritoryPlanDetail }) {
             </option>
           ))}
         </select>
+      </EditField>
+
+      {/* States */}
+      <EditField label="States">
+        <StatesMultiSelect
+          allStates={allStates ?? []}
+          initialValue={plan.states?.map((s) => s.fips) ?? []}
+          onSave={(fips) => save("stateFips", fips)}
+        />
       </EditField>
 
       {/* Fiscal Year */}
@@ -401,5 +411,157 @@ function AutoSaveTextarea({
       rows={3}
       className="w-full px-2.5 py-1.5 text-xs border border-[#D4CFE2] rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#403770]/30 text-[#544A78] resize-none"
     />
+  );
+}
+
+function StatesMultiSelect({
+  allStates,
+  initialValue,
+  onSave,
+}: {
+  allStates: { fips: string; abbrev: string; name: string }[];
+  initialValue: string[];
+  onSave: (fips: string[]) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>(initialValue);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const commit = (next: string[]) => {
+    setSelected(next);
+    onSave(next);
+  };
+
+  const toggle = (fips: string) => {
+    commit(
+      selected.includes(fips)
+        ? selected.filter((f) => f !== fips)
+        : [...selected, fips]
+    );
+  };
+
+  const filtered = search
+    ? allStates.filter((s) => {
+        const q = search.toLowerCase();
+        return s.name.toLowerCase().includes(q) || s.abbrev.toLowerCase().includes(q);
+      })
+    : allStates;
+
+  return (
+    <div ref={containerRef} className="relative">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {selected.map((fips) => {
+            const st = allStates.find((s) => s.fips === fips);
+            return (
+              <span
+                key={fips}
+                className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 bg-[#EFEDF5] border border-[#D4CFE2] text-[#544A78] rounded-full text-[10px] font-semibold"
+              >
+                {st?.abbrev ?? fips}
+                <button
+                  type="button"
+                  onClick={() => commit(selected.filter((f) => f !== fips))}
+                  className="w-3.5 h-3.5 flex items-center justify-center rounded-full text-[#8A80A8] hover:text-[#403770] hover:bg-white transition-colors"
+                  aria-label={`Unlink ${st?.name ?? fips}`}
+                >
+                  <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+                    <path
+                      d="M1 1L6 6M6 1L1 6"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-2.5 py-1.5 text-xs border border-[#D4CFE2] rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#403770]/30 text-left flex items-center justify-between transition-colors hover:border-[#A69DC0]"
+      >
+        <span className={selected.length === 0 ? "text-[#A69DC0]" : "text-[#544A78]"}>
+          {selected.length === 0
+            ? "Link a state…"
+            : selected.length === 1
+            ? "1 state linked"
+            : `${selected.length} states linked`}
+        </span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          className={`text-[#A69DC0] transition-transform duration-100 ${open ? "rotate-180" : ""}`}
+        >
+          <path
+            d="M2 3.5L5 6.5L8 3.5"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-[#D4CFE2]/60 rounded-xl shadow-lg overflow-hidden">
+          <div className="p-1.5 border-b border-[#E2DEEC]">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search states…"
+              autoFocus
+              className="w-full px-2 py-1 text-xs rounded-md bg-[#F7F5FA] border border-transparent focus:outline-none focus:bg-white focus:border-[#D4CFE2] text-[#544A78] placeholder:text-[#A69DC0]"
+            />
+          </div>
+          <div className="max-h-44 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-[11px] text-[#A69DC0]">No matches</p>
+            ) : (
+              filtered.map((state) => {
+                const checked = selected.includes(state.fips);
+                return (
+                  <label
+                    key={state.fips}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-[#544A78] cursor-pointer hover:bg-[#EFEDF5] transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(state.fips)}
+                      className="rounded border-[#D4CFE2] text-[#403770] focus:ring-[#403770]/30"
+                    />
+                    <span className="font-semibold w-7 shrink-0 text-[#403770]">
+                      {state.abbrev}
+                    </span>
+                    <span className="truncate">{state.name}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
