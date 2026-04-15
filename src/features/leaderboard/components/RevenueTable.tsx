@@ -27,7 +27,7 @@ interface RevenueTableProps {
 
 const COLUMNS: { key: RevenueSortColumn; label: string }[] = [
   { key: "revenue", label: "Current Revenue" },
-  { key: "priorYearRevenue", label: "Prior Year Closed" },
+  { key: "priorYearRevenue", label: "Prior Year Bookings" },
   { key: "pipeline", label: "Pipeline" },
   { key: "revenueTargeted", label: "Targeted" },
 ];

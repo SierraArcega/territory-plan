@@ -42,7 +42,7 @@ describe("RevenueTable", () => {
 
     // Check column headers
     expect(screen.getByText("Current Revenue")).toBeInTheDocument();
-    expect(screen.getByText("Prior Year Closed")).toBeInTheDocument();
+    expect(screen.getByText("Prior Year Bookings")).toBeInTheDocument();
     expect(screen.getByText("Pipeline")).toBeInTheDocument();
     expect(screen.getByText("Targeted")).toBeInTheDocument();
   });
