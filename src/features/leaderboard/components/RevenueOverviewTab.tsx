@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import RevenuePodium from "./RevenuePodium";
 import RevenueTable from "./RevenueTable";
-import type { RevenueSortColumn } from "./RevenueTable";
+import type { RevenueSortColumn, RevenueTableTotals } from "./RevenueTable";
 import { useLeaderboard } from "../lib/queries";
 import type { LeaderboardEntry } from "../lib/types";
 
@@ -46,6 +46,36 @@ export default function RevenueOverviewTab() {
       revenueTargeted: getTargetedValue(entry, targetedFY),
     }));
   }, [leaderboard?.entries, pipelineFY, targetedFY]);
+
+  const projectedTotals = useMemo<RevenueTableTotals | undefined>(() => {
+    const t = leaderboard?.teamTotals;
+    if (!t) return undefined;
+
+    const projectFY = (cur: number, next: number, fy: FYSelection): number => {
+      if (fy === "current") return cur;
+      if (fy === "next") return next;
+      return cur + next;
+    };
+
+    return {
+      revenue: t.revenue,
+      priorYearRevenue: t.priorYearRevenue,
+      pipeline: projectFY(t.pipelineCurrentFY, t.pipelineNextFY, pipelineFY),
+      revenueTargeted: projectFY(t.targetedCurrentFY, t.targetedNextFY, targetedFY),
+      unassignedRevenue: t.unassignedRevenue,
+      unassignedPriorYearRevenue: t.unassignedPriorYearRevenue,
+      unassignedPipeline: projectFY(
+        t.unassignedPipelineCurrentFY,
+        t.unassignedPipelineNextFY,
+        pipelineFY
+      ),
+      unassignedRevenueTargeted: projectFY(
+        t.unassignedTargetedCurrentFY,
+        t.unassignedTargetedNextFY,
+        targetedFY
+      ),
+    };
+  }, [leaderboard?.teamTotals, pipelineFY, targetedFY]);
 
   const sortedEntries = useMemo(() => {
     return [...projectedEntries].sort((a, b) => {
@@ -107,6 +137,7 @@ export default function RevenueOverviewTab() {
         sortColumn={sortColumn}
         sortDirection={sortDirection}
         onSort={handleSort}
+        teamTotals={projectedTotals}
       />
     </div>
   );
