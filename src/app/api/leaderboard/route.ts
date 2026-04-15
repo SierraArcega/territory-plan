@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
         { ownerId: { in: userIds } },
         { userId: { in: userIds }, ownerId: null },
       ],
-    } as const;
+    };
 
     const [targetedCurrentFYDistricts, targetedNextFYDistricts] = await Promise.all([
       prisma.territoryPlanDistrict.findMany({
@@ -216,7 +216,15 @@ export async function GET(request: NextRequest) {
 
     // Build leaderboard entries
     const entries = scores.map((score, index) => {
-      const actuals = actualsMap.get(score.userId) ?? { take: 0, pipeline: 0, revenue: 0, priorYearRevenue: 0 };
+      const actuals = actualsMap.get(score.userId) ?? {
+        userId: score.userId,
+        take: 0,
+        pipeline: 0,
+        pipelineCurrentFY: 0,
+        pipelineNextFY: 0,
+        revenue: 0,
+        priorYearRevenue: 0,
+      };
 
       const tier = calculateTier(score.totalPoints, thresholdData);
 
