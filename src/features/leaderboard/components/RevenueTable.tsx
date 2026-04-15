@@ -6,11 +6,23 @@ import { formatRevenue, getInitials } from "../lib/format";
 
 export type RevenueSortColumn = "revenue" | "priorYearRevenue" | "pipeline" | "revenueTargeted";
 
+export type RevenueTableTotals = {
+  revenue: number;
+  priorYearRevenue: number;
+  pipeline: number;
+  revenueTargeted: number;
+  unassignedRevenue: number;
+  unassignedPriorYearRevenue: number;
+  unassignedPipeline: number;
+  unassignedRevenueTargeted: number;
+};
+
 interface RevenueTableProps {
   entries: LeaderboardEntry[];
   sortColumn: RevenueSortColumn;
   sortDirection: "asc" | "desc";
   onSort: (column: RevenueSortColumn) => void;
+  teamTotals?: RevenueTableTotals;
 }
 
 const COLUMNS: { key: RevenueSortColumn; label: string }[] = [
@@ -25,6 +37,7 @@ export default function RevenueTable({
   sortColumn,
   sortDirection,
   onSort,
+  teamTotals,
 }: RevenueTableProps) {
   return (
     <table className="w-full border-collapse">
@@ -104,6 +117,36 @@ export default function RevenueTable({
           </tr>
         ))}
       </tbody>
+      {teamTotals && entries.length > 0 && (
+        <tfoot>
+          <tr className="border-t-2 border-[#EFEDF5] bg-[#F7F5FA]">
+            <td />
+            <td className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#8A849A]">
+              Team Total
+            </td>
+            {COLUMNS.map((col) => {
+              const total = teamTotals[col.key];
+              const unassignedKey = (
+                "unassigned" + col.key[0].toUpperCase() + col.key.slice(1)
+              ) as keyof RevenueTableTotals;
+              const unassigned = teamTotals[unassignedKey];
+              return (
+                <td
+                  key={col.key}
+                  className="px-3 py-3 text-right text-sm tabular-nums font-semibold text-[#2D2440]"
+                >
+                  {formatRevenue(total)}
+                  {unassigned > 0 && (
+                    <div className="text-[10px] text-[#8A849A] font-normal mt-0.5">
+                      incl. {formatRevenue(unassigned)} unassigned
+                    </div>
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        </tfoot>
+      )}
     </table>
   );
 }
