@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
             pipelineNextFY: yearActuals.get(nextFYSchoolYr)?.openPipeline ?? 0,
             take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
             revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
-            priorYearRevenue: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
+            priorYearRevenue: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
           };
         } catch {
           return { userId: score.userId, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, revenue: 0, priorYearRevenue: 0 };
