@@ -8,7 +8,8 @@ import type { RevenueSortColumn, RevenueTableTotals } from "./RevenueTable";
 import { useLeaderboard } from "../lib/queries";
 import type { LeaderboardEntry } from "../lib/types";
 
-type FYSelection = "current" | "next" | "both";
+type ForwardFYSelection = "current" | "next" | "both";
+type BackwardFYSelection = "current" | "prior" | "both";
 
 /** Convert school year "2025-26" to display "FY26" */
 function formatFYLabel(schoolYr: string): string {
@@ -17,65 +18,106 @@ function formatFYLabel(schoolYr: string): string {
 }
 
 /** Compute the display value for pipeline based on FY selection */
-function getPipelineValue(entry: LeaderboardEntry, fy: FYSelection): number {
+function getPipelineValue(entry: LeaderboardEntry, fy: ForwardFYSelection): number {
   if (fy === "current") return entry.pipelineCurrentFY;
   if (fy === "next") return entry.pipelineNextFY;
   return entry.pipelineCurrentFY + entry.pipelineNextFY;
 }
 
 /** Compute the display value for targeted based on FY selection */
-function getTargetedValue(entry: LeaderboardEntry, fy: FYSelection): number {
+function getTargetedValue(entry: LeaderboardEntry, fy: ForwardFYSelection): number {
   if (fy === "current") return entry.targetedCurrentFY;
   if (fy === "next") return entry.targetedNextFY;
   return entry.targetedCurrentFY + entry.targetedNextFY;
 }
 
+/** Compute the display value for revenue based on backward FY selection (current/prior/both) */
+function getRevenueValue(entry: LeaderboardEntry, fy: BackwardFYSelection): number {
+  if (fy === "current") return entry.revenueCurrentFY;
+  if (fy === "prior") return entry.revenuePriorFY;
+  return entry.revenueCurrentFY + entry.revenuePriorFY;
+}
+
+/** Compute the display value for min purchases based on backward FY selection */
+function getMinPurchasesValue(entry: LeaderboardEntry, fy: BackwardFYSelection): number {
+  if (fy === "current") return entry.minPurchasesCurrentFY;
+  if (fy === "prior") return entry.minPurchasesPriorFY;
+  return entry.minPurchasesCurrentFY + entry.minPurchasesPriorFY;
+}
+
 export default function RevenueOverviewTab() {
-  const [pipelineFY, setPipelineFY] = useState<FYSelection>("both");
-  const [targetedFY, setTargetedFY] = useState<FYSelection>("both");
+  // Forward-looking selectors (pipeline/targeted): current/next/both
+  const [pipelineFY, setPipelineFY] = useState<ForwardFYSelection>("both");
+  const [targetedFY, setTargetedFY] = useState<ForwardFYSelection>("both");
+  // Backward-looking selectors (revenue/min purchases): current/prior/both
+  const [revenueFY, setRevenueFY] = useState<BackwardFYSelection>("current");
+  const [minPurchasesFY, setMinPurchasesFY] = useState<BackwardFYSelection>("prior");
+
   const [sortColumn, setSortColumn] = useState<RevenueSortColumn>("revenue");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const { data: leaderboard, isLoading } = useLeaderboard();
 
-  // Project entries with computed pipeline/targeted values based on FY selection
+  // Project entries with computed values based on FY selection.
+  // `revenue` and `priorYearRevenue` are overridden so the sort logic
+  // reads the projected values for those columns.
   const projectedEntries = useMemo(() => {
     return (leaderboard?.entries ?? []).map((entry) => ({
       ...entry,
+      revenue: getRevenueValue(entry, revenueFY),
+      priorYearRevenue: getMinPurchasesValue(entry, minPurchasesFY),
       pipeline: getPipelineValue(entry, pipelineFY),
       revenueTargeted: getTargetedValue(entry, targetedFY),
     }));
-  }, [leaderboard?.entries, pipelineFY, targetedFY]);
+  }, [leaderboard?.entries, revenueFY, minPurchasesFY, pipelineFY, targetedFY]);
 
   const projectedTotals = useMemo<RevenueTableTotals | undefined>(() => {
     const t = leaderboard?.teamTotals;
     if (!t) return undefined;
 
-    const projectFY = (cur: number, next: number, fy: FYSelection): number => {
+    const projectForward = (cur: number, next: number, fy: ForwardFYSelection): number => {
       if (fy === "current") return cur;
       if (fy === "next") return next;
       return cur + next;
     };
 
+    const projectBackward = (cur: number, prior: number, fy: BackwardFYSelection): number => {
+      if (fy === "current") return cur;
+      if (fy === "prior") return prior;
+      return cur + prior;
+    };
+
     return {
-      revenue: t.revenue,
-      priorYearRevenue: t.priorYearRevenue,
-      pipeline: projectFY(t.pipelineCurrentFY, t.pipelineNextFY, pipelineFY),
-      revenueTargeted: projectFY(t.targetedCurrentFY, t.targetedNextFY, targetedFY),
-      unassignedRevenue: t.unassignedRevenue,
-      unassignedPriorYearRevenue: t.unassignedPriorYearRevenue,
-      unassignedPipeline: projectFY(
+      revenue: projectBackward(t.revenueCurrentFY, t.revenuePriorFY, revenueFY),
+      priorYearRevenue: projectBackward(
+        t.minPurchasesCurrentFY,
+        t.minPurchasesPriorFY,
+        minPurchasesFY
+      ),
+      pipeline: projectForward(t.pipelineCurrentFY, t.pipelineNextFY, pipelineFY),
+      revenueTargeted: projectForward(t.targetedCurrentFY, t.targetedNextFY, targetedFY),
+      unassignedRevenue: projectBackward(
+        t.unassignedRevenueCurrentFY,
+        t.unassignedRevenuePriorFY,
+        revenueFY
+      ),
+      unassignedPriorYearRevenue: projectBackward(
+        t.unassignedMinPurchasesCurrentFY,
+        t.unassignedMinPurchasesPriorFY,
+        minPurchasesFY
+      ),
+      unassignedPipeline: projectForward(
         t.unassignedPipelineCurrentFY,
         t.unassignedPipelineNextFY,
         pipelineFY
       ),
-      unassignedRevenueTargeted: projectFY(
+      unassignedRevenueTargeted: projectForward(
         t.unassignedTargetedCurrentFY,
         t.unassignedTargetedNextFY,
         targetedFY
       ),
     };
-  }, [leaderboard?.teamTotals, pipelineFY, targetedFY]);
+  }, [leaderboard?.teamTotals, revenueFY, minPurchasesFY, pipelineFY, targetedFY]);
 
   const sortedEntries = useMemo(() => {
     return [...projectedEntries].sort((a, b) => {
@@ -103,7 +145,8 @@ export default function RevenueOverviewTab() {
   }
 
   const fy = leaderboard?.fiscalYears;
-  const fyOptions: { value: FYSelection; label: string }[] = fy
+
+  const forwardFYOptions: { value: ForwardFYSelection; label: string }[] = fy
     ? [
         { value: "current", label: formatFYLabel(fy.currentFY) },
         { value: "next", label: formatFYLabel(fy.nextFY) },
@@ -111,19 +154,34 @@ export default function RevenueOverviewTab() {
       ]
     : [];
 
-  const rangeLabel = (sel: FYSelection): string | null => {
+  const backwardFYOptions: { value: BackwardFYSelection; label: string }[] = fy
+    ? [
+        { value: "current", label: formatFYLabel(fy.currentFY) },
+        { value: "prior", label: formatFYLabel(fy.priorFY) },
+        { value: "both", label: "Both" },
+      ]
+    : [];
+
+  const forwardRangeLabel = (sel: ForwardFYSelection): string | null => {
     if (!fy) return null;
     if (sel === "current") return formatFYLabel(fy.currentFY);
     if (sel === "next") return formatFYLabel(fy.nextFY);
     return `${formatFYLabel(fy.currentFY)}+${formatFYLabel(fy.nextFY)}`;
   };
 
+  const backwardRangeLabel = (sel: BackwardFYSelection): string | null => {
+    if (!fy) return null;
+    if (sel === "current") return formatFYLabel(fy.currentFY);
+    if (sel === "prior") return formatFYLabel(fy.priorFY);
+    return `${formatFYLabel(fy.priorFY)}+${formatFYLabel(fy.currentFY)}`;
+  };
+
   const columnLabels: Partial<Record<RevenueSortColumn, string>> | undefined = fy
     ? {
-        revenue: `Current Revenue (${formatFYLabel(fy.currentFY)})`,
-        priorYearRevenue: `Min Purchases (${formatFYLabel(fy.priorFY)})`,
-        pipeline: `Pipeline (${rangeLabel(pipelineFY)})`,
-        revenueTargeted: `Targeted (${rangeLabel(targetedFY)})`,
+        revenue: `Revenue (${backwardRangeLabel(revenueFY)})`,
+        priorYearRevenue: `Min Purchases (${backwardRangeLabel(minPurchasesFY)})`,
+        pipeline: `Pipeline (${forwardRangeLabel(pipelineFY)})`,
+        revenueTargeted: `Targeted (${forwardRangeLabel(targetedFY)})`,
       }
     : undefined;
 
@@ -131,18 +189,30 @@ export default function RevenueOverviewTab() {
     <div>
       {/* FY selectors */}
       {fy && (
-        <div className="flex items-center gap-4 px-4 py-2.5 bg-[#F7F5FA] border-b border-[#EFEDF5]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 bg-[#F7F5FA] border-b border-[#EFEDF5]">
+          <FYSelect
+            label="Revenue"
+            value={revenueFY}
+            options={backwardFYOptions}
+            onChange={(v) => setRevenueFY(v as BackwardFYSelection)}
+          />
+          <FYSelect
+            label="Min Purchases"
+            value={minPurchasesFY}
+            options={backwardFYOptions}
+            onChange={(v) => setMinPurchasesFY(v as BackwardFYSelection)}
+          />
           <FYSelect
             label="Pipeline"
             value={pipelineFY}
-            options={fyOptions}
-            onChange={(v) => setPipelineFY(v as FYSelection)}
+            options={forwardFYOptions}
+            onChange={(v) => setPipelineFY(v as ForwardFYSelection)}
           />
           <FYSelect
             label="Targeted"
             value={targetedFY}
-            options={fyOptions}
-            onChange={(v) => setTargetedFY(v as FYSelection)}
+            options={forwardFYOptions}
+            onChange={(v) => setTargetedFY(v as ForwardFYSelection)}
           />
         </div>
       )}
