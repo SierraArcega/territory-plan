@@ -20,7 +20,7 @@ export async function GET() {
         metrics: true,
         scores: {
           orderBy: { totalPoints: "desc" },
-          include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
+          include: { user: { select: { id: true, fullName: true, avatarUrl: true, role: true } } },
         },
       },
     });
@@ -29,7 +29,9 @@ export async function GET() {
       return NextResponse.json({ entries: [], metrics: [] });
     }
 
-    const userIds = initiative.scores.map((s) => s.userId);
+    // Admins are excluded from the Initiative tab roster.
+    const rosterScores = initiative.scores.filter((s) => s.user.role !== "admin");
+    const userIds = rosterScores.map((s) => s.userId);
     const sinceDate = initiative.startDate;
 
     // Fetch actual plan and activity records for all users (only since initiative start)
@@ -92,7 +94,7 @@ export async function GET() {
     }
 
     // Build entries with breakdowns and individual items
-    const entries = initiative.scores.map((score, index) => {
+    const entries = rosterScores.map((score, index) => {
       const userId = score.userId;
       const userPlans = plansByUser.get(userId) ?? [];
       const userActivities = activitiesByUser.get(userId) ?? [];
