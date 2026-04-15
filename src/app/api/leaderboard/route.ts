@@ -79,11 +79,31 @@ export async function GET(request: NextRequest) {
             pipelineCurrentFY: yearActuals.get(defaultSchoolYr)?.openPipeline ?? 0,
             pipelineNextFY: yearActuals.get(nextFYSchoolYr)?.openPipeline ?? 0,
             take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
+            // Revenue: current is used for scoring; per-FY values let the client toggle.
             revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
+            revenueCurrentFY: yearActuals.get(defaultSchoolYr)?.totalRevenue ?? 0,
+            revenuePriorFY: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
+            // Min purchases: prior is the historical "bookings floor"; per-FY lets the
+            // client toggle between current/prior/both. `priorYearRevenue` is kept as
+            // a backward-compat alias for `minPurchasesPriorFY` (same value).
             priorYearRevenue: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
+            minPurchasesCurrentFY: yearActuals.get(defaultSchoolYr)?.minPurchaseBookings ?? 0,
+            minPurchasesPriorFY: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
           };
         } catch {
-          return { userId: score.userId, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, revenue: 0, priorYearRevenue: 0 };
+          return {
+            userId: score.userId,
+            take: 0,
+            pipeline: 0,
+            pipelineCurrentFY: 0,
+            pipelineNextFY: 0,
+            revenue: 0,
+            revenueCurrentFY: 0,
+            revenuePriorFY: 0,
+            priorYearRevenue: 0,
+            minPurchasesCurrentFY: 0,
+            minPurchasesPriorFY: 0,
+          };
         }
       })
     );
@@ -236,7 +256,11 @@ export async function GET(request: NextRequest) {
         pipelineCurrentFY: 0,
         pipelineNextFY: 0,
         revenue: 0,
+        revenueCurrentFY: 0,
+        revenuePriorFY: 0,
         priorYearRevenue: 0,
+        minPurchasesCurrentFY: 0,
+        minPurchasesPriorFY: 0,
       };
 
       const tier = calculateTier(score.totalPoints, thresholdData);
@@ -286,7 +310,11 @@ export async function GET(request: NextRequest) {
         pipelineCurrentFY: actuals.pipelineCurrentFY,
         pipelineNextFY: actuals.pipelineNextFY,
         revenue: actuals.revenue,
+        revenueCurrentFY: actuals.revenueCurrentFY,
+        revenuePriorFY: actuals.revenuePriorFY,
         priorYearRevenue: actuals.priorYearRevenue,
+        minPurchasesCurrentFY: actuals.minPurchasesCurrentFY,
+        minPurchasesPriorFY: actuals.minPurchasesPriorFY,
         revenueTargeted: revenueTargetedByUser.get(score.userId) ?? 0,
         targetedCurrentFY: targetedCurrentFYByUser.get(score.userId) ?? 0,
         targetedNextFY: targetedNextFYByUser.get(score.userId) ?? 0,
@@ -301,7 +329,15 @@ export async function GET(request: NextRequest) {
     // can show an inline "incl. $X unassigned" annotation.
     const sumActuals = (
       pool: typeof repActuals,
-      key: "revenue" | "priorYearRevenue" | "pipelineCurrentFY" | "pipelineNextFY",
+      key:
+        | "revenue"
+        | "revenueCurrentFY"
+        | "revenuePriorFY"
+        | "priorYearRevenue"
+        | "minPurchasesCurrentFY"
+        | "minPurchasesPriorFY"
+        | "pipelineCurrentFY"
+        | "pipelineNextFY",
     ): number => pool.reduce((acc, a) => acc + (a[key] ?? 0), 0);
 
     const sumTargetedMap = (pool: Map<string, number>, ids: Iterable<string>): number => {
@@ -313,10 +349,21 @@ export async function GET(request: NextRequest) {
     const adminActuals = repActuals.filter((a) => adminUserIds.has(a.userId));
 
     const teamTotals = {
+      // Revenue: legacy scalar (scoring/compat) + per-FY pair (client toggle)
       revenue: sumActuals(repActuals, "revenue"),
-      priorYearRevenue: sumActuals(repActuals, "priorYearRevenue"),
+      revenueCurrentFY: sumActuals(repActuals, "revenueCurrentFY"),
+      revenuePriorFY: sumActuals(repActuals, "revenuePriorFY"),
       unassignedRevenue: sumActuals(adminActuals, "revenue"),
+      unassignedRevenueCurrentFY: sumActuals(adminActuals, "revenueCurrentFY"),
+      unassignedRevenuePriorFY: sumActuals(adminActuals, "revenuePriorFY"),
+
+      // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
+      priorYearRevenue: sumActuals(repActuals, "priorYearRevenue"),
+      minPurchasesCurrentFY: sumActuals(repActuals, "minPurchasesCurrentFY"),
+      minPurchasesPriorFY: sumActuals(repActuals, "minPurchasesPriorFY"),
       unassignedPriorYearRevenue: sumActuals(adminActuals, "priorYearRevenue"),
+      unassignedMinPurchasesCurrentFY: sumActuals(adminActuals, "minPurchasesCurrentFY"),
+      unassignedMinPurchasesPriorFY: sumActuals(adminActuals, "minPurchasesPriorFY"),
 
       pipelineCurrentFY: sumActuals(repActuals, "pipelineCurrentFY"),
       pipelineNextFY: sumActuals(repActuals, "pipelineNextFY"),

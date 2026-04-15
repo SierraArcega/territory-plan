@@ -50,8 +50,14 @@ export interface LeaderboardEntry {
   pipeline: number;
   pipelineCurrentFY: number;
   pipelineNextFY: number;
+  // Revenue: legacy scalar (used by scoring) + per-FY pair (client toggle)
   revenue: number;
+  revenueCurrentFY: number;
+  revenuePriorFY: number;
+  // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
   priorYearRevenue: number;
+  minPurchasesCurrentFY: number;
+  minPurchasesPriorFY: number;
   revenueTargeted: number;
   targetedCurrentFY: number;
   targetedNextFY: number;
