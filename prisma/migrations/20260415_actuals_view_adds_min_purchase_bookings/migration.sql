@@ -1,3 +1,16 @@
+-- Add min_purchase_bookings column to district_opportunity_actuals matview.
+--
+-- The existing `bookings` column aggregates Salesforce's net_booking_amount on
+-- closed-won opportunities. This adds a parallel `min_purchase_bookings` column
+-- that aggregates minimum_purchase_amount instead — the contracted spending
+-- floor. Historical opps were backfilled from invoiced + credited; see
+-- prisma/migrations/manual/2026-04-15-backfill-min-purchase-from-net-billings.sql.
+--
+-- Used by the leaderboard's "Prior Year Bookings" column, which swaps from
+-- session-delivered total_revenue (too lagging) to this contracted-floor metric.
+--
+-- Matview rebuild pattern matches 20260412_actuals_view_includes_subscriptions.
+
 -- scripts/district-opportunity-actuals-view.sql
 -- Materialized view: district_opportunity_actuals
 -- Aggregates opportunities by district, school year, sales rep, and category.
