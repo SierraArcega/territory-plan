@@ -352,6 +352,7 @@ export async function GET(request: NextRequest) {
       fiscalYears: {
         currentFY: defaultSchoolYr,
         nextFY: nextFYSchoolYr,
+        priorFY: priorSchoolYr,
       },
       entries,
       teamTotals,

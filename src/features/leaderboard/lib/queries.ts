@@ -5,6 +5,7 @@ import type { LeaderboardEntry, LeaderboardMyRank, InitiativeInfo } from "./type
 export interface LeaderboardFiscalYears {
   currentFY: string;
   nextFY: string;
+  priorFY: string;
 }
 
 export interface LeaderboardResponse {

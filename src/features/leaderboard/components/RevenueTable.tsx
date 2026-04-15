@@ -23,11 +23,12 @@ interface RevenueTableProps {
   sortDirection: "asc" | "desc";
   onSort: (column: RevenueSortColumn) => void;
   teamTotals?: RevenueTableTotals;
+  columnLabels?: Partial<Record<RevenueSortColumn, string>>;
 }
 
 const COLUMNS: { key: RevenueSortColumn; label: string }[] = [
   { key: "revenue", label: "Current Revenue" },
-  { key: "priorYearRevenue", label: "Prior Year Bookings" },
+  { key: "priorYearRevenue", label: "Min Purchases" },
   { key: "pipeline", label: "Pipeline" },
   { key: "revenueTargeted", label: "Targeted" },
 ];
@@ -38,6 +39,7 @@ export default function RevenueTable({
   sortDirection,
   onSort,
   teamTotals,
+  columnLabels,
 }: RevenueTableProps) {
   return (
     <table className="w-full border-collapse">
@@ -52,6 +54,7 @@ export default function RevenueTable({
           {COLUMNS.map((col) => {
             const isActive = sortColumn === col.key;
             const SortIcon = sortDirection === "asc" ? ChevronUp : ChevronDown;
+            const label = columnLabels?.[col.key] ?? col.label;
             return (
               <th
                 key={col.key}
@@ -61,7 +64,7 @@ export default function RevenueTable({
                 }`}
               >
                 <span className="inline-flex items-center gap-1">
-                  {col.label}
+                  {label}
                   {isActive && <SortIcon className="w-3 h-3" />}
                 </span>
               </th>

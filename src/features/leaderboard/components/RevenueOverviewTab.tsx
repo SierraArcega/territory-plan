@@ -111,6 +111,22 @@ export default function RevenueOverviewTab() {
       ]
     : [];
 
+  const rangeLabel = (sel: FYSelection): string | null => {
+    if (!fy) return null;
+    if (sel === "current") return formatFYLabel(fy.currentFY);
+    if (sel === "next") return formatFYLabel(fy.nextFY);
+    return `${formatFYLabel(fy.currentFY)}+${formatFYLabel(fy.nextFY)}`;
+  };
+
+  const columnLabels: Partial<Record<RevenueSortColumn, string>> | undefined = fy
+    ? {
+        revenue: `Current Revenue (${formatFYLabel(fy.currentFY)})`,
+        priorYearRevenue: `Min Purchases (${formatFYLabel(fy.priorFY)})`,
+        pipeline: `Pipeline (${rangeLabel(pipelineFY)})`,
+        revenueTargeted: `Targeted (${rangeLabel(targetedFY)})`,
+      }
+    : undefined;
+
   return (
     <div>
       {/* FY selectors */}
@@ -138,6 +154,7 @@ export default function RevenueOverviewTab() {
         sortDirection={sortDirection}
         onSort={handleSort}
         teamTotals={projectedTotals}
+        columnLabels={columnLabels}
       />
     </div>
   );
