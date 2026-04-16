@@ -253,10 +253,12 @@ export async function GET(request: NextRequest) {
       repPipelineMap.set(key, Number(row.pipeline));
     }
 
-    // New Targeted formula: for each plan district that has BOTH a positive
-    // target AND positive open pipeline (rep-scoped, same FY), contribute
-    // max(0, target - pipeline). Districts with either zero are skipped —
-    // the metric is "untapped target: what's still left to convert to pipeline".
+    // Targeted formula: sum the value of targeted business that is NOT yet
+    // in the pipeline. For each plan district with a positive target,
+    // contribute max(0, target - pipeline). Pipeline defaults to 0 for
+    // districts without any open opportunities, so those districts contribute
+    // their full target amount (all of it is "untapped"). Districts with no
+    // target are skipped.
     function sumTargetsWithPipelineDeduction(
       districts: typeof targetedCurrentFYDistricts,
       schoolYr: string,
@@ -265,15 +267,15 @@ export async function GET(request: NextRequest) {
       for (const d of districts) {
         const uid = d.plan.ownerId ?? d.plan.userId;
         if (!uid) continue;
-        const email = emailByUserId.get(uid);
-        if (!email) continue;
 
         const target = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) +
                        Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
         if (target <= 0) continue;
 
-        const pipeline = repPipelineMap.get(`${email}::${d.districtLeaid}::${schoolYr}`) ?? 0;
-        if (pipeline <= 0) continue;
+        const email = emailByUserId.get(uid);
+        const pipeline = email
+          ? repPipelineMap.get(`${email}::${d.districtLeaid}::${schoolYr}`) ?? 0
+          : 0;
 
         map.set(uid, (map.get(uid) ?? 0) + Math.max(0, target - pipeline));
       }
