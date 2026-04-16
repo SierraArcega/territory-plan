@@ -3,6 +3,7 @@ import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { LeaderboardEntry, LeaderboardMyRank, InitiativeInfo } from "./types";
 
 export interface LeaderboardFiscalYears {
+  priorFY: string;
   currentFY: string;
   nextFY: string;
 }
@@ -25,13 +26,17 @@ export interface LeaderboardResponse {
     unassignedRevenue: number;
     unassignedPriorYearRevenue: number;
 
+    pipelinePriorFY: number;
     pipelineCurrentFY: number;
     pipelineNextFY: number;
+    unassignedPipelinePriorFY: number;
     unassignedPipelineCurrentFY: number;
     unassignedPipelineNextFY: number;
 
+    targetedPriorFY: number;
     targetedCurrentFY: number;
     targetedNextFY: number;
+    unassignedTargetedPriorFY: number;
     unassignedTargetedCurrentFY: number;
     unassignedTargetedNextFY: number;
   };
