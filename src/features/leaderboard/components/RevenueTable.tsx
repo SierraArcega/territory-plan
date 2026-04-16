@@ -73,7 +73,7 @@ export default function RevenueTable({
                 {tooltip && (
                   <span
                     role="tooltip"
-                    className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#2D2440] px-2.5 py-1.5 text-[11px] font-normal normal-case tracking-normal text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+                    className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-1.5 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-[#403770] px-3 py-1.5 text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition-all duration-150 ease-out group-hover:translate-y-0 group-hover:opacity-100"
                   >
                     {tooltip}
                   </span>
