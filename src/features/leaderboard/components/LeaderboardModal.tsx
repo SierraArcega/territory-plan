@@ -4,9 +4,7 @@ import { useState, useEffect } from "react";
 import { X, ChevronDown, Trophy, Target, TrendingUp, DollarSign, Zap } from "lucide-react";
 import { useLeaderboard, useMyLeaderboardRank } from "../lib/queries";
 import RevenueOverviewTab from "./RevenueOverviewTab";
-import TierBadge from "./TierBadge";
-import { parseTierRank, TIER_LABELS, TIERS, TIER_COLORS } from "../lib/types";
-import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
+import type { LeaderboardView, LeaderboardEntry } from "../lib/types";
 
 interface LeaderboardModalProps {
   isOpen: boolean;
@@ -111,17 +109,6 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
     if (view === "revenueTargeted") return formatCurrency(entry.revenueTargeted);
     return formatCurrency(entry.take);
   };
-
-  const getTierForEntry = (entry: LeaderboardEntry): string => {
-    return parseTierRank(entry.tier).tier;
-  };
-
-  const tierThresholdMap = new Map<string, number>();
-  if (leaderboard?.thresholds) {
-    for (const t of leaderboard.thresholds) {
-      tierThresholdMap.set(t.tier, t.minPoints);
-    }
-  }
 
   const activeViewConfig = VIEW_CONFIG.find((v) => v.value === view)!;
 
@@ -269,210 +256,166 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
               <div className="w-6 h-6 border-2 border-[#403770] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div>
-              {[...TIERS].reverse().map((tierKey) => {
-                const tierEntries = rankedEntries.filter(
-                  (e) => getTierForEntry(e) === tierKey
-                );
-                const tierLabel = TIER_LABELS[tierKey];
-                const minPoints = tierThresholdMap.get(tierKey);
-                const colors = TIER_COLORS[tierKey];
+            <div className="divide-y divide-[#E2DEEC]">
+              {rankedEntries.map((entry) => {
+                const isExpanded = expandedUser === entry.userId;
+                const isMe = myRank?.userId === entry.userId;
 
                 return (
-                  <div key={tierKey}>
-                    {/* Tier divider */}
-                    <div className="flex items-center gap-2 px-6 py-2 bg-[#F7F5FA] border-b border-[#E2DEEC]">
-                      <div className="h-px flex-1 bg-[#E2DEEC]" />
-                      <span
-                        className="text-[10px] font-semibold tracking-wider"
-                        style={{ color: colors.text }}
-                      >
-                        {tierLabel}
-                        {minPoints != null && (view === "combined" || view === "initiative") && (
-                          <span className="font-normal text-[#8A80A8] ml-1">
-                            ({minPoints}+ pts)
+                  <div key={entry.userId}>
+                    {/* Main row */}
+                    <button
+                      onClick={() =>
+                        setExpandedUser(isExpanded ? null : entry.userId)
+                      }
+                      className={`w-full flex items-center gap-3 px-6 py-3 transition-colors text-left ${
+                        isMe
+                          ? "bg-[#C4E7E6]/20 border-l-3 border-l-[#C4E7E6]"
+                          : "hover:bg-[#FAFAFA]"
+                      }`}
+                    >
+                      <span className="w-8 text-sm font-bold text-[#403770] text-right">
+                        #{entry.displayRank}
+                      </span>
+
+                      {entry.avatarUrl ? (
+                        <img
+                          src={entry.avatarUrl}
+                          alt={entry.fullName}
+                          className="w-8 h-8 rounded-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-[#F37167] flex items-center justify-center">
+                          <span className="text-xs font-bold text-white">
+                            {entry.fullName
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .slice(0, 2)}
                           </span>
+                        </div>
+                      )}
+
+                      <span className="flex-1 text-sm font-medium text-[#403770] truncate">
+                        {entry.fullName}
+                        {isMe && (
+                          <span className="ml-1.5 text-[10px] font-semibold text-[#6EA3BE]">You</span>
                         )}
                       </span>
-                      <div className="h-px flex-1 bg-[#E2DEEC]" />
-                    </div>
 
-                    {tierEntries.length === 0 ? (
-                      <div className="px-6 py-4 text-center">
-                        <span className="text-xs text-[#8A80A8] italic">
-                          No reps yet — be the first to reach {tierLabel}!
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-[#E2DEEC]">
-                        {tierEntries.map((entry) => {
-                          const isExpanded = expandedUser === entry.userId;
-                          const isMe = myRank?.userId === entry.userId;
+                      <span className="w-20 text-right text-sm font-semibold text-[#403770]">
+                        {getScore(entry)}
+                      </span>
 
-                          return (
-                            <div key={entry.userId}>
-                              {/* Main row */}
-                              <button
-                                onClick={() =>
-                                  setExpandedUser(isExpanded ? null : entry.userId)
-                                }
-                                className={`w-full flex items-center gap-3 px-6 py-3 transition-colors text-left ${
-                                  isMe
-                                    ? "bg-[#C4E7E6]/20 border-l-3 border-l-[#C4E7E6]"
-                                    : "hover:bg-[#FAFAFA]"
-                                }`}
-                              >
-                                <span className="w-8 text-sm font-bold text-[#403770] text-right">
-                                  #{entry.displayRank}
-                                </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-[#A69DC0] transition-transform ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
 
-                                {entry.avatarUrl ? (
-                                  <img
-                                    src={entry.avatarUrl}
-                                    alt={entry.fullName}
-                                    className="w-8 h-8 rounded-full object-cover"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-[#F37167] flex items-center justify-center">
-                                    <span className="text-xs font-bold text-white">
-                                      {entry.fullName
-                                        .split(" ")
-                                        .map((n) => n[0])
-                                        .join("")
-                                        .slice(0, 2)}
+                    {/* Expanded breakdown */}
+                    {isExpanded && (
+                      <div className="px-6 pb-3 pt-0">
+                        <div className="ml-11 rounded-xl bg-[#F7F5FA] p-4">
+                          {view === "initiative" ? (
+                            <div className="space-y-2">
+                              {(entry.pointBreakdown ?? []).map((b) => {
+                                const isRevenue = b.action === "revenue_targeted";
+                                const revenueDollars = isRevenue ? b.count * 10000 : 0;
+
+                                return (
+                                  <div
+                                    key={b.action}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-md bg-[#403770]/10 flex items-center justify-center">
+                                        <Target className="w-3.5 h-3.5 text-[#403770]" />
+                                      </div>
+                                      <div>
+                                        <span className="text-xs font-medium text-[#403770]">
+                                          {b.label}
+                                        </span>
+                                        {isRevenue ? (
+                                          <span className="text-[10px] text-[#8A80A8] ml-1.5">
+                                            {formatCurrency(revenueDollars)} targeted ÷ $10K = {b.count} units x {b.pointValue} pts
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-[#8A80A8] ml-1.5">
+                                            {b.count} x {b.pointValue} pts
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="text-xs font-semibold text-[#403770]">
+                                      {b.total} pts
                                     </span>
                                   </div>
-                                )}
-
-                                <span className="flex-1 text-sm font-medium text-[#403770] truncate">
-                                  {entry.fullName}
-                                  {isMe && (
-                                    <span className="ml-1.5 text-[10px] font-semibold text-[#6EA3BE]">You</span>
-                                  )}
+                                );
+                              })}
+                              <div className="pt-2 mt-1 border-t border-[#E2DEEC] flex items-center justify-between">
+                                <span className="text-xs font-semibold text-[#403770]">
+                                  Total Initiative Points
                                 </span>
-
-                                <TierBadge tierRank={entry.tier} size="sm" />
-
-                                <span className="w-20 text-right text-sm font-semibold text-[#403770]">
-                                  {getScore(entry)}
+                                <span className="text-sm font-bold text-[#403770]">
+                                  {entry.totalPoints} pts
                                 </span>
-
-                                <ChevronDown
-                                  className={`w-4 h-4 text-[#A69DC0] transition-transform ${
-                                    isExpanded ? "rotate-180" : ""
-                                  }`}
-                                />
-                              </button>
-
-                              {/* Expanded breakdown */}
-                              {isExpanded && (
-                                <div className="px-6 pb-3 pt-0">
-                                  <div className="ml-11 rounded-xl bg-[#F7F5FA] p-4">
-                                    {view === "initiative" ? (
-                                      /* Initiative Points breakdown — show what actions earned points */
-                                      <div className="space-y-2">
-                                        {(entry.pointBreakdown ?? []).map((b) => {
-                                          const isRevenue = b.action === "revenue_targeted";
-                                          const revenueDollars = isRevenue ? b.count * 10000 : 0;
-
-                                          return (
-                                            <div
-                                              key={b.action}
-                                              className="flex items-center justify-between"
-                                            >
-                                              <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-md bg-[#403770]/10 flex items-center justify-center">
-                                                  <Target className="w-3.5 h-3.5 text-[#403770]" />
-                                                </div>
-                                                <div>
-                                                  <span className="text-xs font-medium text-[#403770]">
-                                                    {b.label}
-                                                  </span>
-                                                  {isRevenue ? (
-                                                    <span className="text-[10px] text-[#8A80A8] ml-1.5">
-                                                      {formatCurrency(revenueDollars)} targeted ÷ $10K = {b.count} units x {b.pointValue} pts
-                                                    </span>
-                                                  ) : (
-                                                    <span className="text-[10px] text-[#8A80A8] ml-1.5">
-                                                      {b.count} x {b.pointValue} pts
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              </div>
-                                              <span className="text-xs font-semibold text-[#403770]">
-                                                {b.total} pts
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                        <div className="pt-2 mt-1 border-t border-[#E2DEEC] flex items-center justify-between">
-                                          <span className="text-xs font-semibold text-[#403770]">
-                                            Total Initiative Points
-                                          </span>
-                                          <span className="text-sm font-bold text-[#403770]">
-                                            {entry.totalPoints} pts
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      /* Combined / Take view — show all score components */
-                                      <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                                        <ScoreRow
-                                          icon={Target}
-                                          label="Initiative Points"
-                                          value={`${entry.totalPoints} pts`}
-                                          weight={weights.initiative}
-                                          color="#403770"
-                                        />
-                                        <ScoreRow
-                                          icon={TrendingUp}
-                                          label={`Pipeline (${fyLabels.pipeline})`}
-                                          value={formatCurrency(entry.pipeline)}
-                                          weight={weights.pipeline}
-                                          color="#6EA3BE"
-                                        />
-                                        <ScoreRow
-                                          icon={DollarSign}
-                                          label={`Take (${fyLabels.take})`}
-                                          value={formatCurrency(entry.take)}
-                                          weight={weights.take}
-                                          color="#69B34A"
-                                        />
-                                        <ScoreRow
-                                          icon={Trophy}
-                                          label={`Revenue (${fyLabels.revenue})`}
-                                          value={formatCurrency(entry.revenue)}
-                                          weight={weights.revenue}
-                                          color="#D4A843"
-                                        />
-                                        {weights.revenueTargeted > 0 && (
-                                          <ScoreRow
-                                            icon={Target}
-                                            label={`Targeted (${fyLabels.revenueTargeted})`}
-                                            value={formatCurrency(entry.revenueTargeted)}
-                                            weight={weights.revenueTargeted}
-                                            color="#F37167"
-                                          />
-                                        )}
-                                        <div className="col-span-2 pt-2 mt-1 border-t border-[#E2DEEC]">
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-xs font-semibold text-[#403770]">
-                                              Combined Score
-                                            </span>
-                                            <span className="text-sm font-bold text-[#403770]">
-                                              {entry.combinedScore.toFixed(1)}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
+                              </div>
                             </div>
-                          );
-                        })}
+                          ) : (
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                              <ScoreRow
+                                icon={Target}
+                                label="Initiative Points"
+                                value={`${entry.totalPoints} pts`}
+                                weight={weights.initiative}
+                                color="#403770"
+                              />
+                              <ScoreRow
+                                icon={TrendingUp}
+                                label={`Pipeline (${fyLabels.pipeline})`}
+                                value={formatCurrency(entry.pipeline)}
+                                weight={weights.pipeline}
+                                color="#6EA3BE"
+                              />
+                              <ScoreRow
+                                icon={DollarSign}
+                                label={`Take (${fyLabels.take})`}
+                                value={formatCurrency(entry.take)}
+                                weight={weights.take}
+                                color="#69B34A"
+                              />
+                              <ScoreRow
+                                icon={Trophy}
+                                label={`Revenue (${fyLabels.revenue})`}
+                                value={formatCurrency(entry.revenue)}
+                                weight={weights.revenue}
+                                color="#D4A843"
+                              />
+                              {weights.revenueTargeted > 0 && (
+                                <ScoreRow
+                                  icon={Target}
+                                  label={`Targeted (${fyLabels.revenueTargeted})`}
+                                  value={formatCurrency(entry.revenueTargeted)}
+                                  weight={weights.revenueTargeted}
+                                  color="#F37167"
+                                />
+                              )}
+                              <div className="col-span-2 pt-2 mt-1 border-t border-[#E2DEEC]">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-[#403770]">
+                                    Combined Score
+                                  </span>
+                                  <span className="text-sm font-bold text-[#403770]">
+                                    {entry.combinedScore.toFixed(1)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
