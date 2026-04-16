@@ -31,7 +31,14 @@ interface LeaderboardImageLayoutProps {
 
 export function LeaderboardImageLayout({ payload, renderedAt }: LeaderboardImageLayoutProps) {
   const date = renderedAt ?? new Date();
-  const { entries, teamTotals, initiative, fiscalYears } = payload;
+  const { teamTotals, initiative, fiscalYears } = payload;
+
+  // Sort the image by current-FY revenue descending and re-rank from 1.
+  // The API returns entries ordered by initiative points; this view is a
+  // pure revenue ranking so the displayed rank reflects that.
+  const entries = [...payload.entries]
+    .sort((a, b) => b.revenueCurrentFY - a.revenueCurrentFY)
+    .map((e, i) => ({ ...e, rank: i + 1 }));
 
   // Pretty FY labels: "2025-26" → "FY26", "2026-27" → "FY27"
   const fyLabel = (s: string) => `FY${s.split("-")[1]}`;
