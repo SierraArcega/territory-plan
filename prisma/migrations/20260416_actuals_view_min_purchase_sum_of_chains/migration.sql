@@ -1,3 +1,21 @@
+-- min_purchase_bookings: sum across contract chains, MAX within each chain.
+--
+-- Supersedes 20260416_actuals_view_min_purchase_max. The previous migration
+-- switched SUM → MAX to fix double-counting within a single contract that has
+-- multiple cumulative add-ons. But MAX over a (district, rep, year, category)
+-- bucket silently loses value when the bucket contains MORE THAN ONE contract
+-- chain (e.g. one Tier 1 Renewal chain AND one Tier 1 New Business chain in
+-- the same district, same rep, same FY, same derived category).
+--
+-- This migration adds a `chain_key` to categorized_opps by stripping the
+-- " Add-On [N]" suffix from opp.name (case-insensitive). Add-ons then share
+-- a chain_key with their parent contract. A new chain_floors CTE takes MAX
+-- per chain; a bucket_min_purchase CTE sums chain floors per bucket. The
+-- outer SELECT reads the bucket value via LEFT JOIN.
+--
+-- Matview rebuild pattern matches 20260415_actuals_view_adds_min_purchase_bookings
+-- (full DROP + CREATE).
+
 -- scripts/district-opportunity-actuals-view.sql
 -- Materialized view: district_opportunity_actuals
 -- Aggregates opportunities by district, school year, sales rep, and category.
@@ -45,25 +63,11 @@ categorized_opps AS (
     -- Contract chain key for min-purchase aggregation. Add-on opportunities
     -- share a chain_key with their parent contract so we can MAX their
     -- cumulative min_purchase per chain, then SUM across chains in a bucket.
-    --
-    -- Two normalizations, applied in order:
-    --   1. Strip the district-name prefix (everything up to and including the
-    --      first underscore). Names like "Douglas County Schools_Tier 1_..."
-    --      and "Douglas County_Tier 1_..." then collapse to "Tier 1_..." so
-    --      inconsistent district names within the same district_lea_id don't
-    --      split a single contract into two chains. Safe because the
-    --      chain_key is scoped to a single (district, rep, year, category)
-    --      bucket in the outer aggregation.
-    --   2. Strip " Add-On [N]" / "_AddOn" / " Add On" (case-insensitive) so
-    --      add-ons collapse into their parent chain.
-    --
+    -- Strips " Add-On [N]" / "_AddOn" / " Add On" (case-insensitive) from name.
     -- Falls back to the opp id when name is NULL so orphan opps become their
     -- own singleton chains.
     COALESCE(
-      regexp_replace(
-        regexp_replace(o.name, '^[^_]*_', ''),
-        '[\s_]+Add[-_ ]?On[s]?(\s*\d+)?', '', 'gi'
-      ),
+      regexp_replace(o.name, '[\s_]+Add[-_ ]?On[s]?(\s*\d+)?', '', 'gi'),
       o.id
     ) AS chain_key,
     -- Stage prefix bucket (matches the logic in refresh_fullmind_financials).
