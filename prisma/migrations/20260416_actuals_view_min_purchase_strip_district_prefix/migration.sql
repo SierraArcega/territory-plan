@@ -1,3 +1,24 @@
+-- Harder chain_key normalization for min_purchase_bookings.
+--
+-- Supersedes 20260416_actuals_view_min_purchase_sum_of_chains. That migration
+-- added chain-aware aggregation via a name-suffix strip (Add-On), but opps
+-- with inconsistent district-name prefixes (e.g. "Douglas County Schools"
+-- vs "Douglas County") still landed in separate chains and double-counted.
+--
+-- This migration adds a second normalization step that strips everything up
+-- to and including the first underscore in the opp name. Since chain_key is
+-- only used within a single (district, rep, year, category) bucket, stripping
+-- the district-name portion is safe — names like "Douglas County Schools_*"
+-- and "Douglas County_*" collapse onto the same chain.
+--
+-- Known tradeoff: this also collapses legitimately separate sub-entities
+-- that share a district_lea_id (e.g. "Caddo Parish Schools_Tier 1" and
+-- "Caddo Virtual Academy_Tier 1"). If that matters for a specific district,
+-- the fix is at the data layer (separate district_lea_ids) or another
+-- iteration of this chain_key.
+--
+-- Matview rebuild pattern matches the previous migration (full DROP + CREATE).
+
 -- scripts/district-opportunity-actuals-view.sql
 -- Materialized view: district_opportunity_actuals
 -- Aggregates opportunities by district, school year, sales rep, and category.

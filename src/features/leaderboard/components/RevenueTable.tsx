@@ -23,11 +23,13 @@ interface RevenueTableProps {
   sortDirection: "asc" | "desc";
   onSort: (column: RevenueSortColumn) => void;
   teamTotals?: RevenueTableTotals;
+  columnLabels?: Partial<Record<RevenueSortColumn, string>>;
+  columnTooltips?: Partial<Record<RevenueSortColumn, string>>;
 }
 
 const COLUMNS: { key: RevenueSortColumn; label: string }[] = [
   { key: "revenue", label: "Current Revenue" },
-  { key: "priorYearRevenue", label: "Prior Year Closed" },
+  { key: "priorYearRevenue", label: "Min Purchases" },
   { key: "pipeline", label: "Pipeline" },
   { key: "revenueTargeted", label: "Targeted" },
 ];
@@ -38,6 +40,8 @@ export default function RevenueTable({
   sortDirection,
   onSort,
   teamTotals,
+  columnLabels,
+  columnTooltips,
 }: RevenueTableProps) {
   return (
     <table className="w-full border-collapse">
@@ -52,18 +56,28 @@ export default function RevenueTable({
           {COLUMNS.map((col) => {
             const isActive = sortColumn === col.key;
             const SortIcon = sortDirection === "asc" ? ChevronUp : ChevronDown;
+            const label = columnLabels?.[col.key] ?? col.label;
+            const tooltip = columnTooltips?.[col.key];
             return (
               <th
                 key={col.key}
                 onClick={() => onSort(col.key)}
-                className={`text-right text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 border-b-2 border-[#EFEDF5] cursor-pointer select-none transition-colors hover:text-[#5B2E91] ${
+                className={`relative text-right text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 border-b-2 border-[#EFEDF5] cursor-pointer select-none transition-colors hover:text-[#5B2E91] group ${
                   isActive ? "text-[#5B2E91]" : "text-[#8A849A]"
                 }`}
               >
                 <span className="inline-flex items-center gap-1">
-                  {col.label}
+                  {label}
                   {isActive && <SortIcon className="w-3 h-3" />}
                 </span>
+                {tooltip && (
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-1.5 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg bg-[#403770] px-3 py-1.5 text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition-all duration-150 ease-out group-hover:translate-y-0 group-hover:opacity-100"
+                  >
+                    {tooltip}
+                  </span>
+                )}
               </th>
             );
           })}

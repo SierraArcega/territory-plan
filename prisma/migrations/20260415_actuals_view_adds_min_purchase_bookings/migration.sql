@@ -1,3 +1,16 @@
+-- Add min_purchase_bookings column to district_opportunity_actuals matview.
+--
+-- The existing `bookings` column aggregates Salesforce's net_booking_amount on
+-- closed-won opportunities. This adds a parallel `min_purchase_bookings` column
+-- that aggregates minimum_purchase_amount instead — the contracted spending
+-- floor. Historical opps were backfilled from invoiced + credited; see
+-- prisma/migrations/manual/2026-04-15-backfill-min-purchase-from-net-billings.sql.
+--
+-- Used by the leaderboard's "Prior Year Bookings" column, which swaps from
+-- session-delivered total_revenue (too lagging) to this contracted-floor metric.
+--
+-- Matview rebuild pattern matches 20260412_actuals_view_includes_subscriptions.
+
 -- scripts/district-opportunity-actuals-view.sql
 -- Materialized view: district_opportunity_actuals
 -- Aggregates opportunities by district, school year, sales rep, and category.
@@ -42,30 +55,6 @@ categorized_opps AS (
       WHEN LOWER(o.contract_type) LIKE '%expansion%' THEN 'expansion'
       ELSE 'new_business'
     END AS category,
-    -- Contract chain key for min-purchase aggregation. Add-on opportunities
-    -- share a chain_key with their parent contract so we can MAX their
-    -- cumulative min_purchase per chain, then SUM across chains in a bucket.
-    --
-    -- Two normalizations, applied in order:
-    --   1. Strip the district-name prefix (everything up to and including the
-    --      first underscore). Names like "Douglas County Schools_Tier 1_..."
-    --      and "Douglas County_Tier 1_..." then collapse to "Tier 1_..." so
-    --      inconsistent district names within the same district_lea_id don't
-    --      split a single contract into two chains. Safe because the
-    --      chain_key is scoped to a single (district, rep, year, category)
-    --      bucket in the outer aggregation.
-    --   2. Strip " Add-On [N]" / "_AddOn" / " Add On" (case-insensitive) so
-    --      add-ons collapse into their parent chain.
-    --
-    -- Falls back to the opp id when name is NULL so orphan opps become their
-    -- own singleton chains.
-    COALESCE(
-      regexp_replace(
-        regexp_replace(o.name, '^[^_]*_', ''),
-        '[\s_]+Add[-_ ]?On[s]?(\s*\d+)?', '', 'gi'
-      ),
-      o.id
-    ) AS chain_key,
     -- Stage prefix bucket (matches the logic in refresh_fullmind_financials).
     -- Numeric prefix 0-5 → open pipeline
     -- Numeric prefix 6+ → closed-won
@@ -83,34 +72,6 @@ categorized_opps AS (
   FROM opportunities o
   LEFT JOIN opp_subscriptions os ON os.opportunity_id = o.id
   WHERE o.district_lea_id IS NOT NULL
-),
--- Per-chain closed-won contract floor. Salesforce stores each add-on's
--- minimum_purchase_amount as the CUMULATIVE contract value at that point
--- (each add-on = prior contract total + its own net_booking_amount). MAX
--- per chain picks the final cumulative value = true contract floor. Summing
--- chain floors across a bucket then correctly handles the case where a
--- district+rep+year+category has multiple independent contracts (e.g. a
--- Tier 1 Renewal chain and a separate Tier 1 New Business chain).
-chain_floors AS (
-  SELECT
-    district_lea_id,
-    school_yr,
-    sales_rep_email,
-    category,
-    chain_key,
-    MAX(minimum_purchase_amount) FILTER (WHERE stage_prefix >= 6) AS chain_floor
-  FROM categorized_opps
-  GROUP BY district_lea_id, school_yr, sales_rep_email, category, chain_key
-),
-bucket_min_purchase AS (
-  SELECT
-    district_lea_id,
-    school_yr,
-    sales_rep_email,
-    category,
-    COALESCE(SUM(chain_floor), 0) AS min_purchase_bookings
-  FROM chain_floors
-  GROUP BY district_lea_id, school_yr, sales_rep_email, category
 )
 SELECT
   co.district_lea_id,
@@ -119,11 +80,11 @@ SELECT
   co.category,
   -- Bookings: closed-won (stage prefix >= 6)
   COALESCE(SUM(co.net_booking_amount) FILTER (WHERE co.stage_prefix >= 6), 0) AS bookings,
-  -- Min-purchase bookings: SUM over chains, MAX within each chain (see chain_floors CTE).
-  -- Historical opps were backfilled from invoiced + credited — see
-  -- prisma/migrations/manual/2026-04-15-backfill-min-purchase-from-net-billings.sql.
-  -- Used by the leaderboard's "Min Purchases" column.
-  COALESCE(MAX(bmp.min_purchase_bookings), 0) AS min_purchase_bookings,
+  -- Min-purchase bookings: closed-won floor, sourced from minimum_purchase_amount
+  -- (backfilled from invoiced + credited on historical opps — see
+  -- prisma/migrations/manual/2026-04-15-backfill-min-purchase-from-net-billings.sql).
+  -- Used by the leaderboard's "Prior Year Bookings" column.
+  COALESCE(SUM(co.minimum_purchase_amount) FILTER (WHERE co.stage_prefix >= 6), 0) AS min_purchase_bookings,
   -- Open pipeline: stages 0-5, unweighted
   COALESCE(SUM(co.net_booking_amount) FILTER (WHERE co.stage_prefix BETWEEN 0 AND 5), 0) AS open_pipeline,
   -- Weighted pipeline
@@ -153,11 +114,6 @@ SELECT
   COALESCE(SUM(co.sub_count), 0)::int AS subscription_count
 FROM categorized_opps co
 LEFT JOIN stage_weights sw ON sw.prefix = co.stage_prefix
-LEFT JOIN bucket_min_purchase bmp
-  ON bmp.district_lea_id = co.district_lea_id
- AND bmp.school_yr = co.school_yr
- AND (bmp.sales_rep_email IS NOT DISTINCT FROM co.sales_rep_email)
- AND bmp.category = co.category
 GROUP BY co.district_lea_id, co.school_yr, co.sales_rep_email, co.category;
 
 -- Indexes for query patterns

@@ -158,7 +158,15 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
         "payment_type": opp.get("payment_type"),
         "payment_terms": opp.get("payment_terms"),
         "lead_source": opp.get("lead_source"),
-        "minimum_purchase_amount": _to_decimal(opp.get("minimum_purchase_amount")) if opp.get("minimum_purchase_amount") is not None else None,
+        # Fallback: when OpenSearch doesn't provide a minimum_purchase_amount
+        # (e.g., historical opps imported before Salesforce exposed the field),
+        # derive it from invoiced + credited (credited is signed negative).
+        # Applies to all stages — open opps typically derive 0.
+        "minimum_purchase_amount": (
+            _to_decimal(opp.get("minimum_purchase_amount"))
+            if opp.get("minimum_purchase_amount") is not None
+            else (invoiced + credited)
+        ),
         "maximum_budget": _to_decimal(opp.get("maximum_budget")) if opp.get("maximum_budget") is not None else None,
         "details_link": opp.get("detailsLink"),
         "stage_history": json.dumps(opp.get("stage_history") or []),

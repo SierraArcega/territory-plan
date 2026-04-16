@@ -16,7 +16,11 @@ const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string }):
   pipelineCurrentFY: 0,
   pipelineNextFY: 0,
   revenue: 0,
+  revenueCurrentFY: 0,
+  revenuePriorFY: 0,
   priorYearRevenue: 0,
+  minPurchasesCurrentFY: 0,
+  minPurchasesPriorFY: 0,
   revenueTargeted: 0,
   targetedCurrentFY: 0,
   targetedNextFY: 0,
@@ -42,7 +46,7 @@ describe("RevenueTable", () => {
 
     // Check column headers
     expect(screen.getByText("Current Revenue")).toBeInTheDocument();
-    expect(screen.getByText("Prior Year Closed")).toBeInTheDocument();
+    expect(screen.getByText("Min Purchases")).toBeInTheDocument();
     expect(screen.getByText("Pipeline")).toBeInTheDocument();
     expect(screen.getByText("Targeted")).toBeInTheDocument();
   });

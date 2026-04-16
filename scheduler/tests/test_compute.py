@@ -268,3 +268,78 @@ def test_build_happy_path_matching_names_still_works():
     )
     assert record["district_lea_id"] == "1304410"
     assert record["_match_status"] == "matched"
+
+
+def test_minimum_purchase_amount_uses_fallback_when_source_null():
+    """When OpenSearch returns None for minimum_purchase_amount, fall back to
+    invoiced + credited. Credited is already signed negative, so the sum yields
+    net billings."""
+    opp = {
+        "id": "opp-no-min-purchase",
+        "name": "Historical opp without min purchase",
+        "stage": "Closed Won",
+        "school_yr": "2024-25",
+        "contractType": "renewal",
+        "state": "California",
+        "net_booking_amount": 50000,
+        "sales_rep": {"name": "Alex", "email": "alex@example.com"},
+        "accounts": [],
+        "invoices": [{"amount": 48000}],
+        "credit_memos": [{"amount": -2000}],
+        "minimum_purchase_amount": None,
+        "stage_history": [],
+    }
+
+    record = build_opportunity_record(opp, sessions=[], district_mapping={}, now=NOW)
+
+    # invoiced = 48000, credited = -2000, fallback = 46000
+    assert record["minimum_purchase_amount"] == Decimal("46000")
+
+
+def test_minimum_purchase_amount_keeps_source_value_when_set():
+    """When OpenSearch provides a minimum_purchase_amount, keep it — do not
+    overwrite with the invoiced+credited fallback."""
+    opp = {
+        "id": "opp-with-min-purchase",
+        "name": "Modern opp with min purchase",
+        "stage": "Closed Won",
+        "school_yr": "2025-26",
+        "contractType": "new_business",
+        "state": "California",
+        "net_booking_amount": 75000,
+        "sales_rep": {"name": "Bailey", "email": "bailey@example.com"},
+        "accounts": [],
+        "invoices": [{"amount": 10000}],
+        "credit_memos": [],
+        "minimum_purchase_amount": 60000,
+        "stage_history": [],
+    }
+
+    record = build_opportunity_record(opp, sessions=[], district_mapping={}, now=NOW)
+
+    # Source value kept, not 10000 (invoiced)
+    assert record["minimum_purchase_amount"] == Decimal("60000")
+
+
+def test_minimum_purchase_amount_fallback_on_open_opp_with_no_invoices():
+    """Open opportunities with no invoices and no min_purchase get a fallback
+    of 0 (not None) — the 1B scoping choice means all stages get a value."""
+    opp = {
+        "id": "opp-open-no-data",
+        "name": "Lead with nothing",
+        "stage": "1 - Lead",
+        "school_yr": "2025-26",
+        "contractType": "new_business",
+        "state": "California",
+        "net_booking_amount": 25000,
+        "sales_rep": {"name": "Cameron", "email": "cameron@example.com"},
+        "accounts": [],
+        "invoices": [],
+        "credit_memos": [],
+        "minimum_purchase_amount": None,
+        "stage_history": [],
+    }
+
+    record = build_opportunity_record(opp, sessions=[], district_mapping={}, now=NOW)
+
+    assert record["minimum_purchase_amount"] == Decimal("0")

@@ -5,6 +5,7 @@ import type { LeaderboardEntry, LeaderboardMyRank, InitiativeInfo } from "./type
 export interface LeaderboardFiscalYears {
   currentFY: string;
   nextFY: string;
+  priorFY: string;
 }
 
 export interface LeaderboardResponse {
@@ -20,10 +21,21 @@ export interface LeaderboardResponse {
    * Optional so older clients during deploy don't crash.
    */
   teamTotals?: {
+    // Revenue: legacy scalar + per-FY pair
     revenue: number;
-    priorYearRevenue: number;
+    revenueCurrentFY: number;
+    revenuePriorFY: number;
     unassignedRevenue: number;
+    unassignedRevenueCurrentFY: number;
+    unassignedRevenuePriorFY: number;
+
+    // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
+    priorYearRevenue: number;
+    minPurchasesCurrentFY: number;
+    minPurchasesPriorFY: number;
     unassignedPriorYearRevenue: number;
+    unassignedMinPurchasesCurrentFY: number;
+    unassignedMinPurchasesPriorFY: number;
 
     pipelineCurrentFY: number;
     pipelineNextFY: number;
