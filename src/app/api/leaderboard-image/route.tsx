@@ -40,9 +40,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const payload = await fetchLeaderboardData();
+    // next/og defaults height to 630 when omitted, clipping the table.
+    // Compute height: header band ~150 + column headers 46 + rows × 44 + footer 50 + buffer.
+    const height = 150 + 46 + payload.entries.length * 44 + 50 + 20;
     return new ImageResponse(<LeaderboardImageLayout payload={payload} />, {
       width: 1200,
-      // Height grows with content; setting only width lets Satori size vertically
+      height,
       headers: { "Cache-Control": "no-store" },
       fonts: [
         { name: "Plus Jakarta Sans", data: regular,  weight: 400, style: "normal" },
