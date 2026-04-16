@@ -187,7 +187,7 @@ export default function RevenueOverviewTab() {
 
   const columnTooltips: Partial<Record<RevenueSortColumn, string>> = {
     revenue: "Sum of Subscriptions + Sessions",
-    priorYearRevenue: "Sum of Issued Invoices − Credit Memos (contracted floor)",
+    priorYearRevenue: "Contracted floor per contract, summed across distinct contracts",
     pipeline: "Sum of Open Opportunities (stages 0–5)",
     revenueTargeted: "Sum of Plan District Targets minus Pipeline (untapped target)",
   };

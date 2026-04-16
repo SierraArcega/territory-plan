@@ -62,8 +62,7 @@ export default function RevenueTable({
               <th
                 key={col.key}
                 onClick={() => onSort(col.key)}
-                title={tooltip}
-                className={`text-right text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 border-b-2 border-[#EFEDF5] cursor-pointer select-none transition-colors hover:text-[#5B2E91] ${
+                className={`relative text-right text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 border-b-2 border-[#EFEDF5] cursor-pointer select-none transition-colors hover:text-[#5B2E91] group ${
                   isActive ? "text-[#5B2E91]" : "text-[#8A849A]"
                 }`}
               >
@@ -71,6 +70,14 @@ export default function RevenueTable({
                   {label}
                   {isActive && <SortIcon className="w-3 h-3" />}
                 </span>
+                {tooltip && (
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#2D2440] px-2.5 py-1.5 text-[11px] font-normal normal-case tracking-normal text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+                  >
+                    {tooltip}
+                  </span>
+                )}
               </th>
             );
           })}
