@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useMyLeaderboardRank } from "../lib/queries";
-import TierBadge from "./TierBadge";
 import RankTicker from "./RankTicker";
-import { parseTierRank, TIER_COLORS } from "../lib/types";
 
 interface LeaderboardHomeWidgetProps {
   onOpenModal: () => void;
@@ -39,10 +37,6 @@ export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWi
 
   if (isLoading || !data) return null;
 
-  const tierRank = data.tier ?? "freshman";
-  const { tier } = parseTierRank(tierRank);
-  const colors = TIER_COLORS[tier];
-
   // Build ticker lines
   const tickerLines: { text: string; highlight?: boolean }[] = [];
   if (data.above) {
@@ -69,8 +63,8 @@ export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWi
       onMouseLeave={() => setIsHovered(false)}
       className="relative mb-6 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-100 overflow-hidden"
       style={{
-        backgroundColor: colors.bg,
-        boxShadow: isHovered ? `0 0 20px ${colors.glow}` : "0 0 0 transparent",
+        backgroundColor: "#F7F5FA",
+        boxShadow: isHovered ? "0 0 20px rgba(138,128,168,0.3)" : "0 0 0 transparent",
         transform: rankChanged ? "scale(1.02)" : "scale(1)",
       }}
     >
@@ -79,16 +73,18 @@ export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWi
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)`,
+            background: "linear-gradient(90deg, transparent, rgba(138,128,168,0.3), transparent)",
             animation: "shimmer-sweep 1s ease-in-out",
           }}
         />
       )}
 
-      {/* Top row: tier badge + rank */}
+      {/* Rank display */}
       <div className="flex items-center justify-between mb-2">
-        <TierBadge tierRank={tierRank} size="md" />
-        <span className="text-lg font-bold text-plum">#{data.rank}</span>
+        <span className="text-lg font-bold text-[#403770]">#{data.rank}</span>
+        <span className="text-xs font-medium text-[#8A80A8]">
+          {data.totalPoints} pts
+        </span>
       </div>
 
       {/* Initiative name */}
