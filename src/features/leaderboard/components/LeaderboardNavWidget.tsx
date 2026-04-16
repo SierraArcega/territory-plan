@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useMyLeaderboardRank } from "../lib/queries";
-import TierBadge from "./TierBadge";
 import RankTicker from "./RankTicker";
-import { parseTierRank, TIER_COLORS } from "../lib/types";
 
 interface LeaderboardNavWidgetProps {
   collapsed: boolean;
@@ -55,10 +53,6 @@ export default function LeaderboardNavWidget({
 
   if (isLoading || !data) return null;
 
-  const tierRank = data.tier ?? "freshman";
-  const { tier } = parseTierRank(tierRank);
-  const colors = TIER_COLORS[tier];
-
   // Build ticker lines
   const tickerLines: { text: string; highlight?: boolean }[] = [];
   if (data.above) {
@@ -87,14 +81,11 @@ export default function LeaderboardNavWidget({
         onMouseLeave={() => setIsHovered(false)}
         className="relative flex items-center justify-center gap-1.5 px-2 py-2 mx-1 mb-1 rounded-lg cursor-pointer transition-all duration-100"
         style={{
-          boxShadow: isHovered ? `0 0 12px ${colors.glow}` : "none",
+          boxShadow: isHovered ? "0 0 12px rgba(138,128,168,0.3)" : "none",
         }}
         title="Open Leaderboard"
       >
-        <TierBadge tierRank={tierRank} size="sm" showLabel={false} />
-        {!collapsed && (
-          <span className="text-xs font-bold text-plum">#{data.rank}</span>
-        )}
+        <span className="text-xs font-bold text-[#403770]">#{data.rank}</span>
       </button>
     );
   }
@@ -107,8 +98,8 @@ export default function LeaderboardNavWidget({
       onMouseLeave={() => setIsHovered(false)}
       className="relative mx-2 mb-1 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-100 overflow-hidden"
       style={{
-        backgroundColor: colors.bg,
-        boxShadow: isHovered ? `0 0 16px ${colors.glow}` : "none",
+        backgroundColor: "#F7F5FA",
+        boxShadow: isHovered ? "0 0 16px rgba(138,128,168,0.3)" : "none",
         transform: rankChanged ? "scale(1.02)" : "scale(1)",
       }}
     >
@@ -117,7 +108,7 @@ export default function LeaderboardNavWidget({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)`,
+            background: "linear-gradient(90deg, transparent, rgba(138,128,168,0.3), transparent)",
             animation: "shimmer-sweep 1s ease-in-out",
           }}
         />
@@ -133,10 +124,12 @@ export default function LeaderboardNavWidget({
         <X size={12} />
       </button>
 
-      {/* Tier badge + rank */}
-      <div className="flex items-center gap-2 mb-1">
-        <TierBadge tierRank={tierRank} size="sm" />
-        <span className="text-sm font-bold text-plum">#{data.rank}</span>
+      {/* Rank display */}
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-bold text-[#403770]">#{data.rank}</span>
+        <span className="text-[10px] font-medium text-[#8A80A8]">
+          {data.totalPoints} pts
+        </span>
       </div>
 
       {/* Ticker */}
