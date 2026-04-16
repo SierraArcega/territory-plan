@@ -67,7 +67,7 @@ export function LeaderboardImageLayout({ payload, renderedAt }: LeaderboardImage
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <div style={{ fontSize: 14, color: "#D8D2EC" }}>{initiative.name}</div>
             <div style={{ fontSize: 14, color: "#D8D2EC", marginTop: 4 }}>
-              Revenue & Min Purchases · {currentFYLabel}  ·  Pipeline & Targets · {nextFYLabel}
+              {`Revenue & Min Purchases · ${currentFYLabel}  ·  Pipeline & Targets · ${nextFYLabel}`}
             </div>
           </div>
         </div>
@@ -84,12 +84,12 @@ export function LeaderboardImageLayout({ payload, renderedAt }: LeaderboardImage
           borderBottom: `1px solid ${BORDER_SUBTLE}`,
         }}
       >
-        <div style={{ width: COL_RANK_W, padding: "14px 0" }}>#</div>
-        <div style={{ width: COL_REP_W, padding: "14px 0" }}>Rep</div>
-        <div style={{ width: COL_NUM_W, padding: "14px 0", textAlign: "right" }}>Revenue ({currentFYLabel})</div>
-        <div style={{ width: COL_NUM_W, padding: "14px 0", textAlign: "right" }}>Min Purchases ({currentFYLabel})</div>
-        <div style={{ width: COL_NUM_W, padding: "14px 0", textAlign: "right" }}>Pipeline ({nextFYLabel})</div>
-        <div style={{ width: COL_NUM_W, padding: "14px 0", textAlign: "right" }}>Targeted ({nextFYLabel})</div>
+        <div style={{ display: "flex", width: COL_RANK_W, padding: "14px 0" }}>#</div>
+        <div style={{ display: "flex", width: COL_REP_W, padding: "14px 0" }}>Rep</div>
+        <div style={{ display: "flex", width: COL_NUM_W, padding: "14px 0", justifyContent: "flex-end" }}>{`Revenue (${currentFYLabel})`}</div>
+        <div style={{ display: "flex", width: COL_NUM_W, padding: "14px 0", justifyContent: "flex-end" }}>{`Min Purchases (${currentFYLabel})`}</div>
+        <div style={{ display: "flex", width: COL_NUM_W, padding: "14px 0", justifyContent: "flex-end" }}>{`Pipeline (${nextFYLabel})`}</div>
+        <div style={{ display: "flex", width: COL_NUM_W, padding: "14px 0", justifyContent: "flex-end" }}>{`Targeted (${nextFYLabel})`}</div>
       </div>
 
       {/* Rep rows */}
@@ -106,12 +106,12 @@ export function LeaderboardImageLayout({ payload, renderedAt }: LeaderboardImage
               height: ROW_HEIGHT, alignItems: "center",
             }}
           >
-            <div style={{ width: COL_RANK_W, color: TEXT_STRONG, fontWeight: 600 }}>{e.rank}</div>
-            <div style={{ width: COL_REP_W, color: TEXT_STRONG }}>{e.fullName}</div>
-            <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(e.revenueCurrentFY)}</div>
-            <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(e.minPurchasesCurrentFY)}</div>
-            <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(e.pipelineNextFY)}</div>
-            <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(e.targetedNextFY)}</div>
+            <div style={{ display: "flex", width: COL_RANK_W, color: TEXT_STRONG, fontWeight: 600 }}>{String(e.rank)}</div>
+            <div style={{ display: "flex", width: COL_REP_W, color: TEXT_STRONG }}>{e.fullName}</div>
+            <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(e.revenueCurrentFY)}</div>
+            <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(e.minPurchasesCurrentFY)}</div>
+            <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(e.pipelineNextFY)}</div>
+            <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(e.targetedNextFY)}</div>
           </div>
         ))}
       </div>
@@ -128,12 +128,12 @@ export function LeaderboardImageLayout({ payload, renderedAt }: LeaderboardImage
           borderTop: `1px solid ${BORDER_SUBTLE}`,
         }}
       >
-        <div style={{ width: COL_RANK_W }} />
-        <div style={{ width: COL_REP_W }}>Team Total</div>
-        <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(teamTotals.revenueCurrentFY)}</div>
-        <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(teamTotals.minPurchasesCurrentFY)}</div>
-        <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(teamTotals.pipelineNextFY)}</div>
-        <div style={{ width: COL_NUM_W, textAlign: "right" }}>{formatCurrencyShort(teamTotals.targetedNextFY)}</div>
+        <div style={{ display: "flex", width: COL_RANK_W }} />
+        <div style={{ display: "flex", width: COL_REP_W }}>Team Total</div>
+        <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(teamTotals.revenueCurrentFY)}</div>
+        <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(teamTotals.minPurchasesCurrentFY)}</div>
+        <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(teamTotals.pipelineNextFY)}</div>
+        <div style={{ display: "flex", width: COL_NUM_W, justifyContent: "flex-end" }}>{formatCurrencyShort(teamTotals.targetedNextFY)}</div>
       </div>
     </div>
   );
