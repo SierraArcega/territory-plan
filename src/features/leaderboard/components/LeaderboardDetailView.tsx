@@ -3,10 +3,7 @@
 import { Fragment, useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { useLeaderboardDetails } from "../lib/queries";
-import { TIER_LABELS, TIER_COLORS, parseTierRank } from "../lib/types";
-import TierBadge from "./TierBadge";
 import RevenueOverviewTab from "./RevenueOverviewTab";
-import type { TierName } from "../lib/types";
 
 const ACTION_TAB_MAP: Record<string, string> = {
   plan_created: "plans",
@@ -80,9 +77,6 @@ export default function LeaderboardDetailView() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[#8A80A8] uppercase tracking-wide">
                   Rep
                 </th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-[#8A80A8] uppercase tracking-wide w-28">
-                  Tier
-                </th>
                 {data.metrics.map((m) => (
                   <th
                     key={m.action}
@@ -99,8 +93,6 @@ export default function LeaderboardDetailView() {
             <tbody>
               {data.entries.map((entry) => {
                 const isExpanded = expandedUsers.has(entry.userId);
-                const tierKey = parseTierRank(entry.tier).tier;
-                const colors = TIER_COLORS[tierKey];
 
                 return (
                   <Fragment key={entry.userId}>
@@ -153,9 +145,6 @@ export default function LeaderboardDetailView() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <TierBadge tierRank={entry.tier} size="sm" />
-                      </td>
                       {entry.breakdown.map((b) => (
                         <td
                           key={b.action}
@@ -179,7 +168,7 @@ export default function LeaderboardDetailView() {
                     {/* Expanded detail row */}
                     {isExpanded && (
                       <tr className="bg-[#F7F5FA]">
-                        <td colSpan={3 + data.metrics.length + 1} className="px-6 py-4">
+                        <td colSpan={2 + data.metrics.length + 1} className="px-6 py-4">
                           <div className="space-y-4">
                             {entry.breakdown.map((b) => {
                               const itemsForAction = entry.items.filter(
