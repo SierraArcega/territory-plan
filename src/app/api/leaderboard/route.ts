@@ -78,12 +78,13 @@ export async function GET(request: NextRequest) {
             pipeline: yearActuals.get(pipelineSchoolYr)?.openPipeline ?? 0,
             pipelineCurrentFY: yearActuals.get(defaultSchoolYr)?.openPipeline ?? 0,
             pipelineNextFY: yearActuals.get(nextFYSchoolYr)?.openPipeline ?? 0,
+            pipelinePriorFY: yearActuals.get(priorSchoolYr)?.openPipeline ?? 0,
             take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
             revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
             priorYearRevenue: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
           };
         } catch {
-          return { userId: score.userId, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, revenue: 0, priorYearRevenue: 0 };
+          return { userId: score.userId, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, pipelinePriorFY: 0, revenue: 0, priorYearRevenue: 0 };
         }
       })
     );
@@ -172,6 +173,7 @@ export async function GET(request: NextRequest) {
     // Always fetch both current and next FY separately for client-side toggling
     const currentFYInt = currentFY;
     const nextFYInt = currentFY + 1;
+    const priorFYInt = currentFY - 1;
 
     const ownerFilter = {
       OR: [
@@ -180,7 +182,14 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    const [targetedCurrentFYDistricts, targetedNextFYDistricts] = await Promise.all([
+    const [targetedPriorFYDistricts, targetedCurrentFYDistricts, targetedNextFYDistricts] = await Promise.all([
+      prisma.territoryPlanDistrict.findMany({
+        where: { plan: { ...ownerFilter, fiscalYear: priorFYInt } },
+        select: {
+          renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
+          plan: { select: { ownerId: true, userId: true } },
+        },
+      }),
       prisma.territoryPlanDistrict.findMany({
         where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
         select: {
@@ -208,6 +217,7 @@ export async function GET(request: NextRequest) {
       return map;
     }
 
+    const targetedPriorFYByUser = sumTargets(targetedPriorFYDistricts);
     const targetedCurrentFYByUser = sumTargets(targetedCurrentFYDistricts);
     const targetedNextFYByUser = sumTargets(targetedNextFYDistricts);
     // Combined for initiative scoring (uses initiative FY setting or both)
@@ -235,6 +245,7 @@ export async function GET(request: NextRequest) {
         pipeline: 0,
         pipelineCurrentFY: 0,
         pipelineNextFY: 0,
+        pipelinePriorFY: 0,
         revenue: 0,
         priorYearRevenue: 0,
       };
@@ -285,11 +296,13 @@ export async function GET(request: NextRequest) {
         pipeline: actuals.pipeline,
         pipelineCurrentFY: actuals.pipelineCurrentFY,
         pipelineNextFY: actuals.pipelineNextFY,
+        pipelinePriorFY: actuals.pipelinePriorFY,
         revenue: actuals.revenue,
         priorYearRevenue: actuals.priorYearRevenue,
         revenueTargeted: revenueTargetedByUser.get(score.userId) ?? 0,
         targetedCurrentFY: targetedCurrentFYByUser.get(score.userId) ?? 0,
         targetedNextFY: targetedNextFYByUser.get(score.userId) ?? 0,
+        targetedPriorFY: targetedPriorFYByUser.get(score.userId) ?? 0,
         combinedScore: Math.round(combinedScore * 10) / 10,
         initiativeScore: Math.round(initiativeScore * 10) / 10,
         pointBreakdown,
@@ -301,7 +314,7 @@ export async function GET(request: NextRequest) {
     // can show an inline "incl. $X unassigned" annotation.
     const sumActuals = (
       pool: typeof repActuals,
-      key: "revenue" | "priorYearRevenue" | "pipelineCurrentFY" | "pipelineNextFY",
+      key: "revenue" | "priorYearRevenue" | "pipelineCurrentFY" | "pipelineNextFY" | "pipelinePriorFY",
     ): number => pool.reduce((acc, a) => acc + (a[key] ?? 0), 0);
 
     const sumTargetedMap = (pool: Map<string, number>, ids: Iterable<string>): number => {
@@ -320,15 +333,19 @@ export async function GET(request: NextRequest) {
 
       pipelineCurrentFY: sumActuals(repActuals, "pipelineCurrentFY"),
       pipelineNextFY: sumActuals(repActuals, "pipelineNextFY"),
+      pipelinePriorFY: sumActuals(repActuals, "pipelinePriorFY"),
       unassignedPipelineCurrentFY: sumActuals(adminActuals, "pipelineCurrentFY"),
       unassignedPipelineNextFY: sumActuals(adminActuals, "pipelineNextFY"),
+      unassignedPipelinePriorFY: sumActuals(adminActuals, "pipelinePriorFY"),
 
       // userIds (declared earlier, full score list) → all-users sum.
       // adminUserIds → admin-only sum.
       targetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, userIds),
       targetedNextFY: sumTargetedMap(targetedNextFYByUser, userIds),
+      targetedPriorFY: sumTargetedMap(targetedPriorFYByUser, userIds),
       unassignedTargetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, adminUserIds),
       unassignedTargetedNextFY: sumTargetedMap(targetedNextFYByUser, adminUserIds),
+      unassignedTargetedPriorFY: sumTargetedMap(targetedPriorFYByUser, adminUserIds),
     };
 
     return NextResponse.json({
@@ -350,6 +367,7 @@ export async function GET(request: NextRequest) {
         revenueTargetedFiscalYear: initiative.revenueTargetedFiscalYear,
       },
       fiscalYears: {
+        priorFY: priorSchoolYr,
         currentFY: defaultSchoolYr,
         nextFY: nextFYSchoolYr,
       },
