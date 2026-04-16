@@ -185,6 +185,13 @@ export default function RevenueOverviewTab() {
       }
     : undefined;
 
+  const columnTooltips: Partial<Record<RevenueSortColumn, string>> = {
+    revenue: "Sum of Subscriptions + Sessions",
+    priorYearRevenue: "Sum of Issued Invoices − Credit Memos (contracted floor)",
+    pipeline: "Sum of Open Opportunities (stages 0–5)",
+    revenueTargeted: "Sum of Plan District Targets minus Pipeline (untapped target)",
+  };
+
   return (
     <div>
       {/* FY selectors */}
@@ -225,6 +232,7 @@ export default function RevenueOverviewTab() {
         onSort={handleSort}
         teamTotals={projectedTotals}
         columnLabels={columnLabels}
+        columnTooltips={columnTooltips}
       />
     </div>
   );

@@ -24,6 +24,7 @@ interface RevenueTableProps {
   onSort: (column: RevenueSortColumn) => void;
   teamTotals?: RevenueTableTotals;
   columnLabels?: Partial<Record<RevenueSortColumn, string>>;
+  columnTooltips?: Partial<Record<RevenueSortColumn, string>>;
 }
 
 const COLUMNS: { key: RevenueSortColumn; label: string }[] = [
@@ -40,6 +41,7 @@ export default function RevenueTable({
   onSort,
   teamTotals,
   columnLabels,
+  columnTooltips,
 }: RevenueTableProps) {
   return (
     <table className="w-full border-collapse">
@@ -55,10 +57,12 @@ export default function RevenueTable({
             const isActive = sortColumn === col.key;
             const SortIcon = sortDirection === "asc" ? ChevronUp : ChevronDown;
             const label = columnLabels?.[col.key] ?? col.label;
+            const tooltip = columnTooltips?.[col.key];
             return (
               <th
                 key={col.key}
                 onClick={() => onSort(col.key)}
+                title={tooltip}
                 className={`text-right text-[11px] font-semibold uppercase tracking-wider px-3 py-2.5 border-b-2 border-[#EFEDF5] cursor-pointer select-none transition-colors hover:text-[#5B2E91] ${
                   isActive ? "text-[#5B2E91]" : "text-[#8A849A]"
                 }`}
