@@ -200,10 +200,22 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    const [targetedCurrentFYDistricts, targetedNextFYDistricts] = await Promise.all([
+    // Build userId → email map for matching plan ownership to matview rows
+    // (the matview keys pipeline by sales_rep_email, not user id).
+    const emailByUserId = new Map<string, string>();
+    for (const s of scores) {
+      if (s.user.email) emailByUserId.set(s.userId, s.user.email);
+    }
+    const rosterEmails = [...emailByUserId.values()];
+
+    // Fetch plan districts for each FY AND per-rep-per-district open pipeline
+    // from the matview in parallel. `districtLeaid` is now selected so we can
+    // join plan targets to pipeline at the district level.
+    const [targetedCurrentFYDistricts, targetedNextFYDistricts, pipelineRows] = await Promise.all([
       prisma.territoryPlanDistrict.findMany({
         where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
         select: {
+          districtLeaid: true,
           renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
           plan: { select: { ownerId: true, userId: true } },
         },
@@ -211,25 +223,71 @@ export async function GET(request: NextRequest) {
       prisma.territoryPlanDistrict.findMany({
         where: { plan: { ...ownerFilter, fiscalYear: nextFYInt } },
         select: {
+          districtLeaid: true,
           renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
           plan: { select: { ownerId: true, userId: true } },
         },
       }),
+      // Per-rep-per-district open pipeline for the two relevant FYs.
+      // Only rows with positive pipeline are returned — nothing else matters
+      // for the "districts with both target AND pipeline" filter below.
+      rosterEmails.length === 0
+        ? Promise.resolve([])
+        : prisma.$queryRaw<
+            { sales_rep_email: string; district_lea_id: string; school_yr: string; pipeline: number }[]
+          >`
+            SELECT sales_rep_email, district_lea_id, school_yr,
+                   SUM(open_pipeline)::float AS pipeline
+            FROM district_opportunity_actuals
+            WHERE sales_rep_email = ANY(${rosterEmails})
+              AND school_yr IN (${defaultSchoolYr}, ${nextFYSchoolYr})
+            GROUP BY sales_rep_email, district_lea_id, school_yr
+            HAVING SUM(open_pipeline) > 0
+          `,
     ]);
 
-    function sumTargets(districts: typeof targetedCurrentFYDistricts): Map<string, number> {
+    // Map keyed by "email::districtLeaid::schoolYr" → pipeline dollars.
+    const repPipelineMap = new Map<string, number>();
+    for (const row of pipelineRows) {
+      const key = `${row.sales_rep_email}::${row.district_lea_id}::${row.school_yr}`;
+      repPipelineMap.set(key, Number(row.pipeline));
+    }
+
+    // New Targeted formula: for each plan district that has BOTH a positive
+    // target AND positive open pipeline (rep-scoped, same FY), contribute
+    // max(0, target - pipeline). Districts with either zero are skipped —
+    // the metric is "untapped target: what's still left to convert to pipeline".
+    function sumTargetsWithPipelineDeduction(
+      districts: typeof targetedCurrentFYDistricts,
+      schoolYr: string,
+    ): Map<string, number> {
       const map = new Map<string, number>();
       for (const d of districts) {
         const uid = d.plan.ownerId ?? d.plan.userId;
         if (!uid) continue;
-        const total = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) + Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
-        map.set(uid, (map.get(uid) ?? 0) + total);
+        const email = emailByUserId.get(uid);
+        if (!email) continue;
+
+        const target = Number(d.renewalTarget ?? 0) + Number(d.winbackTarget ?? 0) +
+                       Number(d.expansionTarget ?? 0) + Number(d.newBusinessTarget ?? 0);
+        if (target <= 0) continue;
+
+        const pipeline = repPipelineMap.get(`${email}::${d.districtLeaid}::${schoolYr}`) ?? 0;
+        if (pipeline <= 0) continue;
+
+        map.set(uid, (map.get(uid) ?? 0) + Math.max(0, target - pipeline));
       }
       return map;
     }
 
-    const targetedCurrentFYByUser = sumTargets(targetedCurrentFYDistricts);
-    const targetedNextFYByUser = sumTargets(targetedNextFYDistricts);
+    const targetedCurrentFYByUser = sumTargetsWithPipelineDeduction(
+      targetedCurrentFYDistricts,
+      defaultSchoolYr,
+    );
+    const targetedNextFYByUser = sumTargetsWithPipelineDeduction(
+      targetedNextFYDistricts,
+      nextFYSchoolYr,
+    );
     // Combined for initiative scoring (uses initiative FY setting or both)
     const revenueTargetedByUser = new Map<string, number>();
     for (const uid of userIds) {
