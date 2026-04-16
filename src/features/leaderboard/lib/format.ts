@@ -1,3 +1,15 @@
+export function formatRevenue(n: number): string {
+  return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
+export function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2);
+}
+
 /**
  * Formats a currency value into a short, image-friendly string.
  * Examples: 0 → "$0", 450 → "$450", 12300 → "$12.3K", 2350000 → "$2.4M".
