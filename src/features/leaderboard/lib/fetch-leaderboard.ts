@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { calculateTier, calculateCombinedScore } from "@/features/leaderboard/lib/scoring";
 import { getRepActuals } from "@/lib/opportunity-actuals";
-import type { LeaderboardEntry } from "@/features/leaderboard/lib/types";
+import type { LeaderboardEntry, InitiativeInfo } from "@/features/leaderboard/lib/types";
 
 export interface LeaderboardTeamTotals {
   revenue: number;
@@ -27,23 +27,7 @@ export interface LeaderboardTeamTotals {
 }
 
 export interface LeaderboardPayload {
-  initiative: {
-    id: number;
-    name: string;
-    startDate: string;
-    endDate: string | null;
-    showName: boolean;
-    showDates: boolean;
-    initiativeWeight: number;
-    pipelineWeight: number;
-    takeWeight: number;
-    revenueWeight: number;
-    revenueTargetedWeight: number;
-    pipelineFiscalYear: string | null;
-    takeFiscalYear: string | null;
-    revenueFiscalYear: string | null;
-    revenueTargetedFiscalYear: string | null;
-  };
+  initiative: InitiativeInfo;
   fiscalYears: { currentFY: string; nextFY: string; priorFY: string };
   entries: LeaderboardEntry[];
   teamTotals: LeaderboardTeamTotals;
@@ -109,9 +93,13 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
           pipelineCurrentFY: yearActuals.get(defaultSchoolYr)?.openPipeline ?? 0,
           pipelineNextFY: yearActuals.get(nextFYSchoolYr)?.openPipeline ?? 0,
           take: yearActuals.get(takeSchoolYr)?.totalTake ?? 0,
+          // Revenue: current is used for scoring; per-FY values let the client toggle.
           revenue: yearActuals.get(revenueSchoolYr)?.totalRevenue ?? 0,
           revenueCurrentFY: yearActuals.get(defaultSchoolYr)?.totalRevenue ?? 0,
           revenuePriorFY: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
+          // Min purchases: prior is the historical "bookings floor"; per-FY lets the
+          // client toggle between current/prior/both. `priorYearRevenue` is kept as
+          // a backward-compat alias for `minPurchasesPriorFY` (same value).
           priorYearRevenue: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
           minPurchasesCurrentFY: yearActuals.get(defaultSchoolYr)?.minPurchaseBookings ?? 0,
           minPurchasesPriorFY: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
@@ -128,6 +116,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   );
 
   const actualsMap = new Map(repActuals.map((a) => [a.userId, a]));
+  // Partition by role: admins are excluded from the visible roster
+  // and from max-value normalization, but their actuals still feed
+  // the team-wide totals.
   const adminUserIds = new Set(scores.filter((s) => s.user.role === "admin").map((s) => s.userId));
   const rosterScores = scores.filter((s) => !adminUserIds.has(s.userId));
   const rosterActuals = repActuals.filter((a) => !adminUserIds.has(a.userId));
@@ -139,6 +130,8 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
 
   const thresholdData = initiative.thresholds.map((t) => ({ tier: t.tier, minPoints: t.minPoints }));
 
+  // Fetch per-user action counts for point breakdowns (only since initiative start)
+  // Attribute plans to their owner (ownerId), falling back to creator (userId) when no owner is set
   const userIds = scores.map((s) => s.userId);
   const sinceDate = initiative.startDate;
 
@@ -150,6 +143,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     select: { id: true, ownerId: true, userId: true },
   });
 
+  // Build plan count per effective owner
   const planCountMap = new Map<string, number>();
   for (const plan of allPlans) {
     const uid = plan.ownerId ?? plan.userId;
@@ -176,6 +170,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
 
   const activityCountMap = new Map(activityCounts.map((a) => [a.createdByUserId, a._count]));
 
+  // Calculate revenue units per user (attributed to plan owner)
   const revenueByUser = new Map<string, number>();
   for (const d of planDistricts) {
     const uid = d.plan.ownerId ?? d.plan.userId;
@@ -185,6 +180,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     revenueByUser.set(uid, (revenueByUser.get(uid) ?? 0) + total);
   }
 
+  // Calculate revenue targeted per user — queries ALL plans by ownership and fiscal year,
+  // independent of initiative start date (targets are FY goals, not initiative-period activities)
+  // Always fetch both current and next FY separately for client-side toggling
   const currentFYInt = currentFY;
   const nextFYInt = currentFY + 1;
 
@@ -192,10 +190,15 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     OR: [{ ownerId: { in: userIds } }, { userId: { in: userIds }, ownerId: null }],
   };
 
+  // Build userId → email map for matching plan ownership to matview rows
+  // (the matview keys pipeline by sales_rep_email, not user id).
   const emailByUserId = new Map<string, string>();
   for (const s of scores) { if (s.user.email) emailByUserId.set(s.userId, s.user.email); }
   const rosterEmails = [...emailByUserId.values()];
 
+  // Fetch plan districts for each FY AND per-rep-per-district open pipeline
+  // from the matview in parallel. `districtLeaid` is now selected so we can
+  // join plan targets to pipeline at the district level.
   const [targetedCurrentFYDistricts, targetedNextFYDistricts, pipelineRows] = await Promise.all([
     prisma.territoryPlanDistrict.findMany({
       where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
@@ -213,6 +216,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
         plan: { select: { ownerId: true, userId: true } },
       },
     }),
+    // Per-rep-per-district open pipeline for the two relevant FYs.
+    // Only rows with positive pipeline are returned — nothing else matters
+    // for the "districts with both target AND pipeline" filter below.
     rosterEmails.length === 0
       ? Promise.resolve([])
       : prisma.$queryRaw<{ sales_rep_email: string; district_lea_id: string; school_yr: string; pipeline: number }[]>`
@@ -226,11 +232,18 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
         `,
   ]);
 
+  // Map keyed by "email::districtLeaid::schoolYr" → pipeline dollars.
   const repPipelineMap = new Map<string, number>();
   for (const row of pipelineRows) {
     repPipelineMap.set(`${row.sales_rep_email}::${row.district_lea_id}::${row.school_yr}`, Number(row.pipeline));
   }
 
+  // Targeted formula: sum the value of targeted business that is NOT yet
+  // in the pipeline. For each plan district with a positive target,
+  // contribute max(0, target - pipeline). Pipeline defaults to 0 for
+  // districts without any open opportunities, so those districts contribute
+  // their full target amount (all of it is "untapped"). Districts with no
+  // target are skipped.
   function sumTargetsWithPipelineDeduction(
     districts: typeof targetedCurrentFYDistricts,
     schoolYr: string,
@@ -252,6 +265,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   const targetedCurrentFYByUser = sumTargetsWithPipelineDeduction(targetedCurrentFYDistricts, defaultSchoolYr);
   const targetedNextFYByUser = sumTargetsWithPipelineDeduction(targetedNextFYDistricts, nextFYSchoolYr);
 
+  // Combined for initiative scoring (uses initiative FY setting or both)
   const revenueTargetedByUser = new Map<string, number>();
   for (const uid of userIds) {
     revenueTargetedByUser.set(uid, (targetedCurrentFYByUser.get(uid) ?? 0) + (targetedNextFYByUser.get(uid) ?? 0));
@@ -265,6 +279,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     return 0;
   };
 
+  // Build leaderboard entries
   const entries: LeaderboardEntry[] = rosterScores.map((score, index) => {
     const actuals = actualsMap.get(score.userId) ?? {
       userId: score.userId, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0,
@@ -309,6 +324,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     };
   });
 
+  // Sum across the FULL repActuals + targeted maps (admin-inclusive).
+  // The `unassigned*` fields capture the admin-only subtotal so the UI
+  // can show an inline "incl. $X unassigned" annotation.
   const sumActuals = (
     pool: typeof repActuals,
     key:
@@ -326,12 +344,15 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   const adminActuals = repActuals.filter((a) => adminUserIds.has(a.userId));
 
   const teamTotals: LeaderboardTeamTotals = {
+    // Revenue: legacy scalar (scoring/compat) + per-FY pair (client toggle)
     revenue: sumActuals(repActuals, "revenue"),
     revenueCurrentFY: sumActuals(repActuals, "revenueCurrentFY"),
     revenuePriorFY: sumActuals(repActuals, "revenuePriorFY"),
     unassignedRevenue: sumActuals(adminActuals, "revenue"),
     unassignedRevenueCurrentFY: sumActuals(adminActuals, "revenueCurrentFY"),
     unassignedRevenuePriorFY: sumActuals(adminActuals, "revenuePriorFY"),
+
+    // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
     priorYearRevenue: sumActuals(repActuals, "priorYearRevenue"),
     minPurchasesCurrentFY: sumActuals(repActuals, "minPurchasesCurrentFY"),
     minPurchasesPriorFY: sumActuals(repActuals, "minPurchasesPriorFY"),
@@ -342,6 +363,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     pipelineNextFY: sumActuals(repActuals, "pipelineNextFY"),
     unassignedPipelineCurrentFY: sumActuals(adminActuals, "pipelineCurrentFY"),
     unassignedPipelineNextFY: sumActuals(adminActuals, "pipelineNextFY"),
+
+    // userIds (declared earlier, full score list) → all-users sum.
+    // adminUserIds → admin-only sum.
     targetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, userIds),
     targetedNextFY: sumTargetedMap(targetedNextFYByUser, userIds),
     unassignedTargetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, adminUserIds),
