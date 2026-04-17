@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
   const [regular, semiBold] = await Promise.all([fontRegular, fontSemiBold]);
 
   try {
-    const payload = await fetchLeaderboardData();
+    const raw = await fetchLeaderboardData();
+    const payload = { ...raw, entries: raw.entries.filter((e) => e.revenueCurrentFY > 0) };
     // next/og defaults height to 630 when omitted, clipping the table.
     // Compute height: header band ~150 + column headers 46 + rows × 44 + footer 50 + buffer.
     const height = 150 + 46 + payload.entries.length * 44 + 50 + 20;

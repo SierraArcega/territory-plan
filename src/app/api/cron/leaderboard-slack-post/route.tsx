@@ -19,7 +19,8 @@ const fontSemiBold = readFile(join(FONTS_DIR, "PlusJakartaSans-SemiBold.ttf"));
 
 async function renderLeaderboardPng(): Promise<Buffer> {
   const [regular, semiBold] = await Promise.all([fontRegular, fontSemiBold]);
-  const payload = await fetchLeaderboardData();
+  const raw = await fetchLeaderboardData();
+  const payload = { ...raw, entries: raw.entries.filter((e) => e.revenueCurrentFY > 0) };
   const height = 150 + 46 + payload.entries.length * 44 + 50 + 20;
 
   const response = new ImageResponse(
@@ -134,12 +135,24 @@ export async function GET(request: NextRequest) {
     const pngBytes = await renderLeaderboardPng();
     const today = new Date().toISOString().split("T")[0];
 
+    const comment = [
+      "🏆 *Fullmind Sales Leaderboard*",
+      "",
+      "Good morning, Sales Team! 🌅 Let's get after it today 💪🚀",
+      "",
+      "*Metric definitions*",
+      "• *Revenue* — Sum of Subscriptions + Sessions",
+      "• *Min Purchases* — Contracted floor per contract, summed across distinct contracts",
+      "• *Pipeline* — Sum of Open Opportunities (stages 0–5)",
+      "• *Targeted* — Sum of Plan District Targets minus Pipeline (untapped target)",
+    ].join("\n");
+
     await uploadImageToSlack(
       token,
       channelId,
       pngBytes,
       `leaderboard-${today}.png`,
-      "Daily Fullmind sales leaderboard",
+      comment,
     );
 
     return NextResponse.json({
