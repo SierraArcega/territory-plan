@@ -44,27 +44,22 @@ GRANT USAGE ON SCHEMA public TO query_tool_readonly;
 -- =============================================================================
 GRANT SELECT ON
   -- Districts & education data
-  districts, district_financials, district_data_history, district_grade_enrollment,
-  states, state_assessments, schools, school_enrollment_history,
-  -- People
-  contacts, school_contacts,
+  districts, district_financials,
+  states, state_assessments, schools,
+  -- People (user_profiles included so we can join sales_rep_email → rep profile)
+  contacts, user_profiles,
   -- Territory plans
-  territory_plans, territory_plan_districts, territory_plan_states,
-    territory_plan_collaborators, territory_plan_district_services,
-  -- Activities
-  activities, activity_districts, activity_plans, activity_states,
-    activity_contacts, activity_opportunities, activity_expenses,
-    activity_attendees, activity_relations,
-  -- Tasks
-  tasks, task_districts, task_plans, task_activities, task_contacts,
-  -- Revenue sources
+  territory_plans,
+  -- Activities & tasks
+  activities, tasks,
+  -- Rep goals
+  user_goals,
+  -- Revenue sources — raw + aggregated
   opportunities, sessions, subscriptions,
-  unmatched_accounts, unmatched_opportunities,
+  district_opportunity_actuals,
+  unmatched_accounts,
   -- Vacancies
-  vacancies, vacancy_scans,
-  -- Tags & services
-  tags, district_tags, school_tags,
-  services,
+  vacancies,
   -- Query tool internal
   query_log, saved_reports
 TO query_tool_readonly;
@@ -75,9 +70,17 @@ TO query_tool_readonly;
 -- migration blanket-grants the schema.
 -- =============================================================================
 REVOKE ALL ON
-  user_profiles, user_integrations, user_goals, calendar_events,
+  user_integrations, calendar_events,
   map_views, data_refresh_logs,
   initiatives, initiative_metrics, initiative_scores, initiative_tier_thresholds,
   metric_registry, vacancy_keyword_config,
-  district_opportunity_actuals
+  -- Junctions & ancillary tables excluded from the query tool surface
+  tags, district_tags, school_tags, school_contacts,
+  activity_districts, activity_plans, activity_states, activity_contacts,
+  activity_opportunities, activity_expenses, activity_attendees, activity_relations,
+  task_districts, task_plans, task_activities, task_contacts,
+  territory_plan_districts, territory_plan_states,
+  territory_plan_collaborators, territory_plan_district_services,
+  vacancy_scans, district_data_history, school_enrollment_history,
+  district_grade_enrollment, services, unmatched_opportunities
 FROM query_tool_readonly;

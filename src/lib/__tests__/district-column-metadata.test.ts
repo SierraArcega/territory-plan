@@ -124,12 +124,15 @@ describe("district-column-metadata", () => {
   });
 
   describe("relationship integrity", () => {
-    it("every TableRelationship.toTable is in TABLE_REGISTRY", () => {
+    it("every TableRelationship.toTable is either registered or explicitly excluded", () => {
+      const excluded = new Set(SEMANTIC_CONTEXT.excludedTables);
       const errors: string[] = [];
       for (const [from, meta] of Object.entries(TABLE_REGISTRY)) {
         for (const rel of meta.relationships) {
-          if (!TABLE_REGISTRY[rel.toTable]) {
-            errors.push(`${from} → ${rel.toTable}: target table not in TABLE_REGISTRY`);
+          if (!TABLE_REGISTRY[rel.toTable] && !excluded.has(rel.toTable)) {
+            errors.push(
+              `${from} → ${rel.toTable}: target table not in TABLE_REGISTRY or excludedTables`,
+            );
           }
         }
       }
