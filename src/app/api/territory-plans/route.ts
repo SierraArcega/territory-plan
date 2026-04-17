@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
-        ownerId: ownerId || null,
+        ownerId: ownerId || user.id,
         color: color || "#403770",
         status: status || "planning",
         fiscalYear,

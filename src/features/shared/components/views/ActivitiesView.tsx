@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   startOfMonth,
   endOfMonth,
@@ -78,6 +78,15 @@ export default function ActivitiesView() {
   const { data: users } = useUsers();
 
   const isCalendar = view === "calendar";
+
+  // Default the owner filter to the current user once profile loads
+  const hasSetDefaultOwner = useRef(false);
+  useEffect(() => {
+    if (profile && !hasSetDefaultOwner.current) {
+      hasSetDefaultOwner.current = true;
+      setActiveFilters((prev) => prev.owner ? prev : { ...prev, owner: profile.id });
+    }
+  }, [profile]);
 
   // Build owner filter options — current user first, then "All", then others
   const ownerOptions = useMemo((): FilterOption[] => {
