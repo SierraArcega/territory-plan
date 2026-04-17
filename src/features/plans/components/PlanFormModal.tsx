@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { TerritoryPlan } from "@/lib/api";
-import { useUsers, useStates } from "@/lib/api";
+import { useUsers, useStates, useProfile } from "@/lib/api";
 
 interface PlanFormModalProps {
   isOpen: boolean;
@@ -88,6 +88,7 @@ export default function PlanFormModal({
   const stateSearchRef = useRef<HTMLInputElement>(null);
   const { data: users } = useUsers();
   const { data: allStates } = useStates();
+  const { data: profile } = useProfile();
 
   // Reset form when modal opens/closes or initialData changes
   useEffect(() => {
@@ -95,7 +96,7 @@ export default function PlanFormModal({
       setFormData({
         name: initialData?.name || "",
         description: initialData?.description || "",
-        ownerId: initialData?.owner?.id ?? null,
+        ownerId: initialData?.owner?.id ?? profile?.id ?? null,
         color: initialData?.color || PLAN_COLORS[0].value,
         status: initialData?.status || "planning",
         fiscalYear: initialData?.fiscalYear || getDefaultFiscalYear(),
@@ -108,6 +109,7 @@ export default function PlanFormModal({
       // Focus input after a short delay for animation
       setTimeout(() => inputRef.current?.focus(), 100);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- profile is a stable cached value, don't reset form when it loads
   }, [isOpen, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {

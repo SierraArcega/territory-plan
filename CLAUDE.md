@@ -50,6 +50,25 @@ should cause a dramatic slowdown. Apply these rules to every new feature:
 - **Clean up on unmount** — useEffect hooks that write to shared state (store,
   context) must return a cleanup function to prevent stale data.
 
+### UX Defaults
+This is a single-user-first tool. Every interaction should feel personalized and
+require the fewest clicks possible. Apply these rules to all forms, filters, and
+creation flows:
+
+- **Default owner to current user** — any form with an owner, assignee, or rep
+  field must default to `profile.id` (via `useProfile()`), not "Unassigned" or
+  empty. Editing an existing record should preserve the saved owner.
+- **Create-and-add in one step** — when a user creates a new entity (plan, task,
+  activity) in a context where items are already selected (districts, contacts),
+  the creation flow must automatically associate those items. Never require a
+  second click to add what was already selected.
+- **Filter bars default to current user** — Rep/Owner filter dropdowns should
+  default to the current user's ID on mount, not "all". Use a ref guard to set
+  the default once without overwriting user-chosen filters.
+- **Show loading state, don't hide UI** — filters or dropdowns whose options
+  load asynchronously must render a disabled placeholder during loading, not
+  disappear. Disappearing UI causes layout shift and confusion.
+
 ### Testing
 - Vitest + Testing Library + jsdom
 - Tests co-located in `__tests__/` directories next to source
