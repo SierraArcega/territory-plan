@@ -20,10 +20,16 @@ interface SuggestResponse {
   explanation: string;
 }
 
-let cachedPrompt: string | null = null;
+// Prompt is stable except for the current-date anchor — cache keyed by
+// YYYY-MM-DD so a long-running process picks up date rollover at midnight UTC.
+let cachedPrompt: { date: string; text: string } | null = null;
 function schemaPrompt(): string {
-  if (!cachedPrompt) cachedPrompt = buildSchemaPrompt();
-  return cachedPrompt;
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  if (!cachedPrompt || cachedPrompt.date !== date) {
+    cachedPrompt = { date, text: buildSchemaPrompt(now) };
+  }
+  return cachedPrompt.text;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

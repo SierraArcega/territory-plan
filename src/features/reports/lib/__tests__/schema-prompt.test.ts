@@ -4,6 +4,19 @@ import { buildSchemaPrompt } from "../schema-prompt";
 describe("buildSchemaPrompt", () => {
   const prompt = buildSchemaPrompt();
 
+  it("anchors relative dates to a supplied current date", () => {
+    const fixed = buildSchemaPrompt(new Date("2026-04-17T00:00:00Z"));
+    expect(fixed).toMatch(/2026-04-17/);
+  });
+
+  it("forbids SQL expressions as filter values", () => {
+    // Regression: Claude emitted `value: "date_trunc('month', CURRENT_DATE)"`
+    // for filter ops, which Postgres rejected ("invalid input syntax for type
+    // timestamp") because every value is bound as a parameter.
+    expect(prompt).toMatch(/literal primitive/i);
+    expect(prompt).toMatch(/date_trunc/);
+  });
+
   it("includes every registered table name", () => {
     for (const t of [
       "districts",

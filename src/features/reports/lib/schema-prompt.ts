@@ -6,14 +6,18 @@ import {
 
 /**
  * Build the system prompt that describes the queryable schema + semantic
- * context for Claude. Stable across requests — put `cache_control` on this
- * block when calling the Messages API.
+ * context for Claude. Stable across requests except for the current-date
+ * anchor — cache by day on the call site. Pass `now` in tests for a stable
+ * output; in production it defaults to the server's wall-clock date.
  */
-export function buildSchemaPrompt(): string {
+export function buildSchemaPrompt(now: Date = new Date()): string {
   const parts: string[] = [];
+  const today = now.toISOString().slice(0, 10);
 
   parts.push(
     "You are a query-building assistant for a B2B sales team at Fullmind (an EdTech vendor selling to US school districts). You translate natural-language questions into structured query parameters for our internal reporting tool. You NEVER produce SQL — you always call the `run_query` tool with structured params. The server compiles those params to SQL and executes them against a read-only database.",
+    "",
+    `Today's date is ${today}. When a question uses a relative date window ("this month", "last quarter", "past 30 days", "YTD"), compute literal ISO dates from this anchor and emit them as a \`gte\` + \`lt\` filter pair.`,
     "",
     "IMPORTANT:",
     "- Use tables and columns ONLY from the list below. If a question cannot be answered with these tables, call `run_query` with your best attempt AND write a short explanation noting the limitation.",
@@ -90,7 +94,8 @@ export function buildSchemaPrompt(): string {
     "Call the `run_query` tool with these fields:",
     "- table (required): the root table name",
     "- columns (optional): array of column names to return; use qualified 'table.column' when joining",
-    "- filters (optional): array of { column, op, value? }. Ops: eq, neq, gt, gte, lt, lte, in, notIn, like, ilike, isNull, isNotNull",
+    "- filters (optional): array of { column, op, value? }. Ops: eq, neq, gt, gte, lt, lte, in, notIn, like, ilike, isNull, isNotNull.",
+    "  IMPORTANT: `value` must be a literal primitive — string, number, boolean, or array of those. SQL expressions are NOT allowed (e.g. `date_trunc('month', CURRENT_DATE)`, `NOW()`, `CURRENT_DATE - 30`, `date.toTable.column`). The server parameterizes every value, so a SQL-looking string is sent to Postgres as a literal and fails with a type error. For date windows, compute literal ISO dates from today (see top of prompt) and emit a `gte` + `lt` pair.",
     "- aggregations (optional): array of { column, fn, alias? }. Fns: sum, avg, min, max, count. Use column='*' only with fn='count'.",
     "- groupBy (optional): array of column names. REQUIRED when mixing aggregations with non-aggregated selected columns.",
     "- orderBy (optional): array of { column, direction: 'asc' | 'desc' }",
