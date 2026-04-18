@@ -777,6 +777,8 @@ model UserProfile {
   // Query tool audit + saved reports
   queryLogs           QueryLog[]                  @relation("UserQueryLogs")
   savedReports        SavedReport[]               @relation("UserSavedReports")
+  // Query tool active draft (one per user)
+  reportDraft         ReportDraft?                @relation("UserReportDraft")
 
   @@map("user_profiles")
 }
@@ -1569,4 +1571,21 @@ model SavedReport {
   @@index([userId])
   @@index([isTeamPinned])
   @@map("saved_reports")
+}
+
+// Active report draft per user. One row per user (PK on user_id). Draft lives
+// here across sessions so "return within retention window" → Draft state works
+// across devices. No retention policy for MVP — drafts persist until explicit
+// discard via DELETE /api/ai/query/draft.
+model ReportDraft {
+  userId         String   @id @map("user_id") @db.Uuid
+  params         Json
+  conversationId String?  @map("conversation_id") @db.Uuid
+  chatHistory    Json?    @map("chat_history")
+  lastTouchedAt  DateTime @updatedAt @map("last_touched_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user UserProfile @relation("UserReportDraft", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("report_drafts")
 }

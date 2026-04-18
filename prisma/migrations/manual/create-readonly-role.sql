@@ -71,7 +71,7 @@ TO query_tool_readonly;
 -- =============================================================================
 REVOKE ALL ON
   user_integrations, calendar_events,
-  map_views, data_refresh_logs,
+  map_views, data_refresh_logs, report_drafts,
   initiatives, initiative_metrics, initiative_scores, initiative_tier_thresholds,
   metric_registry, vacancy_keyword_config,
   -- Junctions & ancillary tables excluded from the query tool surface

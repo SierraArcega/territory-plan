@@ -3109,6 +3109,7 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "map_views",
     "metric_registry",
     "query_log",
+    "report_drafts",
     "saved_reports",
     "school_contacts",
     "school_enrollment_history",
