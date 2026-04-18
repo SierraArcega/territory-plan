@@ -98,8 +98,13 @@ class SqlBuilder {
     for (const join of this.params.joins) {
       const rel = rootMeta.relationships.find((r) => r.toTable === join.toTable);
       if (!rel) continue; // already validated upstream; defensive skip
-      // joinSql is a literal fragment like "subscriptions.opportunity_id = opportunities.id"
-      // — safe to inline because it comes from our own registry, not user input.
+      // Multi-hop: emit pre-composed statements verbatim.
+      // joinSql / joinStatements are literal fragments from our own registry —
+      // safe to inline because they are not user input.
+      if (rel.joinStatements && rel.joinStatements.length > 0) {
+        lines.push(...rel.joinStatements);
+        continue;
+      }
       lines.push(`LEFT JOIN ${quoteIdent(join.toTable)} ON ${rel.joinSql}`);
     }
     return lines.join("\n");

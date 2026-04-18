@@ -2545,10 +2545,28 @@ export interface TableRelationship {
   toTable: string;
   /** Cardinality */
   type: "one-to-many" | "many-to-one" | "many-to-many";
-  /** Literal SQL fragment Claude can drop into a JOIN clause */
+  /**
+   * SQL ON clause for a direct single-hop join. For multi-hop joins, set
+   * `joinStatements` instead — the compiler prefers `joinStatements` when
+   * present and `joinSql` is then informational only.
+   */
   joinSql: string;
   /** One-line human description */
   description: string;
+  /**
+   * Multi-hop join statements. Array of full "LEFT JOIN <table> ON <expr>"
+   * fragments in the order they should appear in the compiled SQL. Use when
+   * reaching `toTable` requires transiting an intermediate table — e.g.,
+   * `user_goals → district_opportunity_actuals` via `user_profiles`.
+   * When set, the compiler emits these verbatim and skips the default
+   * `LEFT JOIN <toTable> ON <joinSql>` line.
+   */
+  joinStatements?: string[];
+  /**
+   * Intermediate table names surfaced in UI labels ("via user_profiles").
+   * Cosmetic only — the compiler uses `joinStatements` for SQL generation.
+   */
+  through?: string[];
 }
 
 export interface TableMetadata {
@@ -2700,6 +2718,12 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "district_tags.district_leaid = districts.leaid",
         description: "Junction to tags",
       },
+      {
+        toTable: "district_opportunity_actuals",
+        type: "one-to-many",
+        joinSql: "district_opportunity_actuals.district_lea_id = districts.leaid",
+        description: "Hourly-refreshed opp rollups keyed on (district, FY, rep, category). Fans out across combinations when joined — filter FY/rep/category early.",
+      },
     ],
   },
 
@@ -2721,6 +2745,30 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "district_financials.unmatched_account_id = unmatched_accounts.id",
         description: "ETL-unmatched account (alternative to leaid for accounts that didn't match a district during import)",
+      },
+      {
+        toTable: "contacts",
+        type: "one-to-many",
+        joinSql: "contacts.leaid = district_financials.leaid",
+        description: "District-level contacts — joined via shared leaid, no hard FK. Every district_financials row fan-outs across contacts at that LEA; SUM across aggregated columns will multiply by contact count unless you aggregate in a CTE first.",
+      },
+      {
+        toTable: "schools",
+        type: "one-to-many",
+        joinSql: "schools.leaid = district_financials.leaid",
+        description: "Schools within the district — joined via shared leaid. Same fan-out caveat as contacts.",
+      },
+      {
+        toTable: "vacancies",
+        type: "one-to-many",
+        joinSql: "vacancies.leaid = district_financials.leaid",
+        description: "Open job postings at the district — joined via shared leaid.",
+      },
+      {
+        toTable: "opportunities",
+        type: "one-to-many",
+        joinSql: "opportunities.district_lea_id = district_financials.leaid",
+        description: "Individual deals at the district — joined via leaid. DOUBLE-COUNT TRAP: each district_financials column multiplies by opportunity count when joined. Use a subquery/CTE to fetch aggregates separately.",
       },
     ],
   },
@@ -2760,6 +2808,24 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "subscriptions.opportunity_id = opportunities.id",
         description: "EK12 subscription line items for this opportunity",
       },
+      {
+        toTable: "sessions",
+        type: "one-to-many",
+        joinSql: "sessions.opportunity_id = opportunities.id",
+        description: "Fullmind session rows for this opportunity. ~33% of historical sessions have no matching opportunity (see sessions table warning).",
+      },
+      {
+        toTable: "district_opportunity_actuals",
+        type: "many-to-one",
+        joinSql: "district_opportunity_actuals.district_lea_id = opportunities.district_lea_id AND district_opportunity_actuals.school_yr = opportunities.school_yr AND district_opportunity_actuals.sales_rep_email = opportunities.sales_rep_email",
+        description: "Aggregated rollup for this opp's (district, FY, rep, category) bucket. DOUBLE-COUNT TRAP: joining fans out; use a CTE for aggregates.",
+      },
+      {
+        toTable: "district_financials",
+        type: "many-to-one",
+        joinSql: "district_financials.leaid = opportunities.district_lea_id",
+        description: "Aggregated vendor financials for this opp's district. DOUBLE-COUNT TRAP: joining fans out across (vendor, FY); use a CTE for aggregates.",
+      },
     ],
   },
 
@@ -2776,6 +2842,30 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "subscriptions.opportunity_id = opportunities.id",
         description: "Parent opportunity (get district_lea_id, sales_rep_email, school_yr via the join)",
       },
+      {
+        toTable: "districts",
+        type: "many-to-one",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN opportunities ON opportunities.id = subscriptions.opportunity_id",
+          "LEFT JOIN districts ON districts.leaid = opportunities.district_lea_id",
+        ],
+        through: ["opportunities"],
+        description:
+          "Parent district, via opportunities.district_lea_id. Use to slice EK12 subscription revenue by district geography/demographics without writing the opp→district join yourself.",
+      },
+      {
+        toTable: "district_financials",
+        type: "many-to-one",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN opportunities ON opportunities.id = subscriptions.opportunity_id",
+          "LEFT JOIN district_financials ON district_financials.leaid = opportunities.district_lea_id",
+        ],
+        through: ["opportunities"],
+        description:
+          "Vendor-scoped financials at the subscription's district. Fans out across (vendor, FY) — filter vendor='fullmind' to see only our side.",
+      },
     ],
   },
 
@@ -2791,6 +2881,24 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "contacts.leaid = districts.leaid",
         description: "Parent district",
+      },
+      {
+        toTable: "district_financials",
+        type: "many-to-one",
+        joinSql: "contacts.leaid = district_financials.leaid",
+        description: "Vendor-scoped financials at this contact's district — joined via shared leaid. DOUBLE-COUNT TRAP when aggregating: fans out across (vendor, FY).",
+      },
+      {
+        toTable: "district_opportunity_actuals",
+        type: "many-to-one",
+        joinSql: "contacts.leaid = district_opportunity_actuals.district_lea_id",
+        description: "Rep/category rollups at this contact's district — joined via shared leaid. DOUBLE-COUNT TRAP when aggregating: fans out across (FY, rep, category).",
+      },
+      {
+        toTable: "vacancies",
+        type: "one-to-many",
+        joinSql: "vacancies.contact_id = contacts.id",
+        description: "Job postings where this contact is the hiring manager.",
       },
     ],
   },
@@ -2824,6 +2932,18 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "state_assessments.state_fips = states.fips",
         description: "Standardized tests administered by the state",
       },
+      {
+        toTable: "districts",
+        type: "one-to-many",
+        joinSql: "districts.state_fips = states.fips",
+        description: "All districts in the state. Joining fans out to ~13K districts across the US — filter the state first.",
+      },
+      {
+        toTable: "schools",
+        type: "one-to-many",
+        joinSql: "schools.state_fips = states.fips",
+        description: "All schools in the state. Joining fans out massively — filter early.",
+      },
     ],
   },
 
@@ -2855,6 +2975,18 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "territory_plans.owner_id = user_profiles.id",
         description: "Plan owner (rep)",
+      },
+      {
+        toTable: "district_opportunity_actuals",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN user_profiles ON user_profiles.id = territory_plans.owner_id",
+          "LEFT JOIN district_opportunity_actuals ON district_opportunity_actuals.sales_rep_email = user_profiles.email",
+        ],
+        through: ["user_profiles"],
+        description:
+          "Plan owner's opp rollups across all their territory districts. Filter DOA.school_yr against territory_plans.fiscal_year if you want apples-to-apples plan-year comparison (note: DOA uses '2025-26' strings; territory_plans uses numeric year).",
       },
     ],
   },
@@ -2888,6 +3020,36 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "user_goals.user_id = user_profiles.id",
         description: "Per-FY goals for this user",
       },
+      {
+        toTable: "territory_plans",
+        type: "one-to-many",
+        joinSql: "territory_plans.owner_id = user_profiles.id",
+        description: "Plans this user owns.",
+      },
+      {
+        toTable: "activities",
+        type: "one-to-many",
+        joinSql: "activities.created_by_user_id = user_profiles.id",
+        description: "Activities this user logged.",
+      },
+      {
+        toTable: "tasks",
+        type: "one-to-many",
+        joinSql: "tasks.assigned_to_user_id = user_profiles.id",
+        description: "Tasks assigned to this user.",
+      },
+      {
+        toTable: "opportunities",
+        type: "one-to-many",
+        joinSql: "opportunities.sales_rep_email = user_profiles.email",
+        description: "Opportunities owned by this rep (by email match).",
+      },
+      {
+        toTable: "district_opportunity_actuals",
+        type: "one-to-many",
+        joinSql: "district_opportunity_actuals.sales_rep_email = user_profiles.email",
+        description: "Rep rollups across all districts/categories (by email match).",
+      },
     ],
   },
 
@@ -2903,6 +3065,18 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "user_goals.user_id = user_profiles.id",
         description: "The rep this goal belongs to",
+      },
+      {
+        toTable: "district_opportunity_actuals",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN user_profiles ON user_profiles.id = user_goals.user_id",
+          "LEFT JOIN district_opportunity_actuals ON district_opportunity_actuals.sales_rep_email = user_profiles.email",
+        ],
+        through: ["user_profiles"],
+        description:
+          "Rep's opp rollups, via user_profiles.email → DOA.sales_rep_email. Pair with user_goals.earningsTarget / renewalTarget / takeTarget to compare goal vs attainment per rep per FY.",
       },
     ],
   },
@@ -2941,6 +3115,18 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "schools.state_fips = states.fips",
         description: "Parent state",
+      },
+      {
+        toTable: "district_financials",
+        type: "many-to-one",
+        joinSql: "schools.leaid = district_financials.leaid",
+        description: "Vendor financials at this school's district — joined via shared leaid. DOUBLE-COUNT TRAP when aggregating: fans out across (vendor, FY).",
+      },
+      {
+        toTable: "vacancies",
+        type: "one-to-many",
+        joinSql: "vacancies.school_ncessch = schools.ncessch",
+        description: "Job postings at this specific school (not district-wide).",
       },
     ],
   },
