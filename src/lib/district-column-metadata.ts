@@ -2735,6 +2735,42 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "district_opportunity_actuals.district_lea_id = districts.leaid",
         description: "Hourly-refreshed opp rollups keyed on (district, FY, rep, category). Fans out across combinations when joined — filter FY/rep/category early.",
       },
+      {
+        toTable: "activities",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN activity_districts ON activity_districts.district_leaid = districts.leaid",
+          "LEFT JOIN activities ON activities.id = activity_districts.activity_id",
+        ],
+        through: ["activity_districts"],
+        description:
+          "Activities that tagged this district. Many-to-many. Filter activities.startDate for 'touches this month/quarter'.",
+      },
+      {
+        toTable: "tasks",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN task_districts ON task_districts.district_leaid = districts.leaid",
+          "LEFT JOIN tasks ON tasks.id = task_districts.task_id",
+        ],
+        through: ["task_districts"],
+        description:
+          "Tasks targeting this district (kanban to-do items). Filter tasks.status for 'open follow-ups'.",
+      },
+      {
+        toTable: "territory_plans",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN territory_plan_districts ON territory_plan_districts.district_leaid = districts.leaid",
+          "LEFT JOIN territory_plans ON territory_plans.id = territory_plan_districts.plan_id",
+        ],
+        through: ["territory_plan_districts"],
+        description:
+          "Territory plans that include this district.",
+      },
     ],
   },
 

@@ -21,6 +21,12 @@ export function buildSchemaPrompt(): string {
     "- Respect the WARNINGS below — they encode known data quality issues and are non-negotiable.",
     "- Always provide a 1-2 sentence `explanation` summarizing what the query will return and surfacing any mandatory caveats.",
     "",
+    "JOINS / RELATIONSHIPS:",
+    "- Each table lists its outbound relationships. The token after `→` is the NAME you pass to `joins: [{ toTable: <name> }]`.",
+    "- Some relationships have an `alias` — the alias IS the name. Example: `→ df_same_district_fy [alias → district_financials]` means you pass `{ toTable: \"df_same_district_fy\" }` and reference columns as `df_same_district_fy.<column>` (the alias is the SQL table name in the generated query).",
+    "- Some relationships go `via <intermediate>` — these are multi-hop paths composed of multiple LEFT JOINs. You still only add ONE join entry; the server wires up the intermediate automatically.",
+    "- Self-joins (alias to the same table) are how you do vendor-vs-vendor comparisons and year-over-year deltas — prefer them over writing parallel queries by hand.",
+    "",
     "=== AVAILABLE TABLES ===",
     "",
   );
@@ -104,9 +110,15 @@ function serializeTable(meta: TableMetadata): string {
   lines.push(`## ${meta.table}  (pk: ${pk})`);
   lines.push(meta.description);
   if (meta.relationships.length > 0) {
-    lines.push("  Relationships:");
+    lines.push("  Relationships (use the token after → as joins[].toTable):");
     for (const rel of meta.relationships) {
-      lines.push(`    → ${rel.toTable} (${rel.type}): ${rel.description}`);
+      const key = rel.alias ?? rel.toTable;
+      const suffix: string[] = [`(${rel.type})`];
+      if (rel.alias) suffix.push(`[alias → ${rel.toTable}]`);
+      if (rel.through && rel.through.length > 0) {
+        suffix.push(`[via ${rel.through.join(", ")}]`);
+      }
+      lines.push(`    → ${key} ${suffix.join(" ")}: ${rel.description}`);
     }
   }
   if (meta.columns.length > 0) {
