@@ -59,10 +59,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const startedAt = Date.now();
   let response: Anthropic.Message;
   try {
+    // NOTE: forced `tool_choice` is incompatible with adaptive thinking on
+    // Opus 4.7 (API: "Thinking may not be enabled when tool_choice forces
+    // tool use"). Thinking is intentionally omitted — NL→structured params
+    // is a deterministic mapping, so reasoning adds cost without benefit.
     response = await anthropic.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 16000,
-      thinking: { type: "adaptive" },
       system: [
         {
           type: "text",
