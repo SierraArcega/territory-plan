@@ -51,4 +51,13 @@ describe("buildSchemaPrompt", () => {
     expect(prompt).toMatch(/"revenue"/);
     expect(prompt).toMatch(/"bookings"/);
   });
+
+  it("tells Claude to modify existing builder state when present", () => {
+    expect(prompt).toMatch(/<CURRENT_BUILDER>/);
+    expect(prompt).toMatch(/preserve anything still relevant/i);
+  });
+
+  it("allows Claude to ask a clarifying question when ambiguous", () => {
+    expect(prompt).toMatch(/clarifying question/i);
+  });
 });

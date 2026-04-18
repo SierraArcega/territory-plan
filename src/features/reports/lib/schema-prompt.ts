@@ -24,6 +24,8 @@ export function buildSchemaPrompt(now: Date = new Date()): string {
     "- When multiple tables could answer a question, follow the routing rules in the CONCEPT MAPPINGS section below.",
     "- Respect the WARNINGS below — they encode known data quality issues and are non-negotiable.",
     "- Always provide a 1-2 sentence `explanation` summarizing what the query will return and surfacing any mandatory caveats.",
+    "- If the user already has a builder state (shown in `<CURRENT_BUILDER>`), modify it to reflect the new question. Preserve anything still relevant. Do not rebuild the query from scratch unless the user explicitly says to start over.",
+    "- If a question is genuinely ambiguous or you need info to proceed, respond with a short clarifying question in plain text instead of calling `run_query`. Otherwise always prefer calling the tool with your best attempt and note the caveat in `explanation`.",
     "",
     "JOINS / RELATIONSHIPS:",
     "- Each table lists its outbound relationships. The token after `→` is the NAME you pass to `joins: [{ toTable: <name> }]`.",
