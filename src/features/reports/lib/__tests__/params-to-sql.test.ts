@@ -106,4 +106,32 @@ describe("compileParams", () => {
     });
     expect(sql).toMatch(/WHERE "school_yr" = \$1 AND "bookings" > \$2/);
   });
+
+  it("compiles aliased self-joins via joinStatements", () => {
+    const { sql } = compile({
+      table: "district_financials",
+      columns: [
+        "district_financials.leaid",
+        "df_same_district_fy.vendor",
+      ],
+      joins: [{ toTable: "df_same_district_fy" }],
+    });
+    expect(sql).toMatch(/"district_financials"\."leaid"/);
+    expect(sql).toMatch(/"df_same_district_fy"\."vendor"/);
+    expect(sql).toMatch(
+      /LEFT JOIN district_financials AS df_same_district_fy ON/,
+    );
+  });
+
+  it("compiles multi-hop joinStatements in order", () => {
+    const { sql } = compile({
+      table: "user_goals",
+      columns: ["user_goals.fiscal_year"],
+      joins: [{ toTable: "district_opportunity_actuals" }],
+    });
+    const joinIdx = sql.indexOf("LEFT JOIN user_profiles");
+    const doaIdx = sql.indexOf("LEFT JOIN district_opportunity_actuals");
+    expect(joinIdx).toBeGreaterThan(-1);
+    expect(doaIdx).toBeGreaterThan(joinIdx);
+  });
 });

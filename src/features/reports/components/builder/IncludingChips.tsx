@@ -21,8 +21,18 @@ export default function IncludingChips({ params, onChange }: Props) {
     if (!root) return [];
     const existing = new Set((params.joins ?? []).map((j) => j.toTable));
     return root.relationships
-      .filter((r) => !existing.has(r.toTable))
-      .map((r) => ({ toTable: r.toTable, through: r.through ?? [] }));
+      .map((r) => {
+        const key = r.alias ?? r.toTable;
+        return {
+          key,
+          label:
+            r.alias && r.alias !== r.toTable
+              ? `${r.alias} (${r.toTable})`
+              : r.toTable,
+          through: r.through ?? [],
+        };
+      })
+      .filter((c) => !existing.has(c.key));
   }, [params.table, params.joins]);
 
   const addJoin = (toTable: string) => {
@@ -80,13 +90,13 @@ export default function IncludingChips({ params, onChange }: Props) {
         )}
         {candidates.map((c) => (
           <button
-            key={c.toTable}
+            key={c.key}
             type="button"
-            onClick={() => addJoin(c.toTable)}
+            onClick={() => addJoin(c.key)}
             className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[#544A78] hover:bg-[#F7F5FA]"
           >
             <DomainDot kind="join" />
-            <span>{c.toTable}</span>
+            <span>{c.label}</span>
             {c.through.length > 0 && (
               <span className="ml-auto text-[10px] text-[#A69DC0]">
                 via {c.through.join(", ")}

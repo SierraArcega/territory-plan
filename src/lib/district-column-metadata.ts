@@ -2543,12 +2543,21 @@ export const VACANCY_COLUMNS: ColumnMetadata[] = [
 export interface TableRelationship {
   /** Target table (physical table name) */
   toTable: string;
+  /**
+   * Optional SQL alias for `toTable`. REQUIRED for self-joins (root table =
+   * toTable) and for any case where multiple relationships target the same
+   * toTable. When set, the alias is the user-facing identifier: Claude and
+   * the UI refer to it in `joins: [{ toTable: <alias> }]`, column references
+   * use `<alias>.<column>`, and the aliased join's `joinStatements` must
+   * declare the alias (`LEFT JOIN district_financials AS df_competitor ...`).
+   */
+  alias?: string;
   /** Cardinality */
   type: "one-to-many" | "many-to-one" | "many-to-many";
   /**
-   * SQL ON clause for a direct single-hop join. For multi-hop joins, set
-   * `joinStatements` instead — the compiler prefers `joinStatements` when
-   * present and `joinSql` is then informational only.
+   * SQL ON clause for a direct single-hop join. For multi-hop joins or
+   * aliased joins, set `joinStatements` instead — the compiler prefers
+   * `joinStatements` when present and `joinSql` is then informational only.
    */
   joinSql: string;
   /** One-line human description */
@@ -2557,7 +2566,9 @@ export interface TableRelationship {
    * Multi-hop join statements. Array of full "LEFT JOIN <table> ON <expr>"
    * fragments in the order they should appear in the compiled SQL. Use when
    * reaching `toTable` requires transiting an intermediate table — e.g.,
-   * `user_goals → district_opportunity_actuals` via `user_profiles`.
+   * `user_goals → district_opportunity_actuals` via `user_profiles`. Also
+   * required for aliased joins (self-joins), where the alias must appear
+   * inside the statements.
    * When set, the compiler emits these verbatim and skips the default
    * `LEFT JOIN <toTable> ON <joinSql>` line.
    */
@@ -2770,6 +2781,28 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "opportunities.district_lea_id = district_financials.leaid",
         description: "Individual deals at the district — joined via leaid. DOUBLE-COUNT TRAP: each district_financials column multiplies by opportunity count when joined. Use a subquery/CTE to fetch aggregates separately.",
       },
+      {
+        toTable: "district_financials",
+        alias: "df_same_district_fy",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          'LEFT JOIN district_financials AS df_same_district_fy ON df_same_district_fy.leaid = district_financials.leaid AND df_same_district_fy.fiscal_year = district_financials.fiscal_year AND df_same_district_fy.vendor <> district_financials.vendor',
+        ],
+        description:
+          "Other vendors' financials at the same district + fiscal_year. Use for side-by-side Fullmind-vs-competitor comparisons — filter root to vendor='fullmind', then select df_same_district_fy.vendor, .total_revenue, etc.",
+      },
+      {
+        toTable: "district_financials",
+        alias: "df_prior_year",
+        type: "many-to-one",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN district_financials AS df_prior_year ON df_prior_year.leaid = district_financials.leaid AND df_prior_year.vendor = district_financials.vendor AND df_prior_year.fiscal_year = 'FY' || LPAD((CAST(SUBSTRING(district_financials.fiscal_year FROM 3) AS INTEGER) - 1)::text, 2, '0')",
+        ],
+        description:
+          "Prior fiscal year's financials at the same (leaid, vendor). Use for YoY deltas — SELECT district_financials.total_revenue AND df_prior_year.total_revenue side-by-side.",
+      },
     ],
   },
 
@@ -2785,6 +2818,23 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "district_opportunity_actuals.district_lea_id = districts.leaid",
         description: "Parent district (FK-enforced via underlying opportunities.district_lea_id)",
+      },
+      {
+        toTable: "district_opportunity_actuals",
+        alias: "doa_prior_year",
+        type: "many-to-one",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN district_opportunity_actuals AS doa_prior_year ON doa_prior_year.district_lea_id = district_opportunity_actuals.district_lea_id AND doa_prior_year.sales_rep_email = district_opportunity_actuals.sales_rep_email AND doa_prior_year.category = district_opportunity_actuals.category AND doa_prior_year.school_yr = (CAST(SUBSTRING(district_opportunity_actuals.school_yr FROM 1 FOR 4) AS INTEGER) - 1)::text || '-' || LPAD((CAST(SUBSTRING(district_opportunity_actuals.school_yr FROM 1 FOR 4) AS INTEGER) % 100)::text, 2, '0')",
+        ],
+        description:
+          "Prior school year's rollups at the same (district, rep, category). Use for rep YoY comparison — e.g., 'reps whose FY26 renewals lag their FY25 renewals'.",
+      },
+      {
+        toTable: "user_profiles",
+        type: "many-to-one",
+        joinSql: "district_opportunity_actuals.sales_rep_email = user_profiles.email",
+        description: "Owner rep's profile (by email match).",
       },
     ],
   },
@@ -2988,13 +3038,25 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         description:
           "Plan owner's opp rollups across all their territory districts. Filter DOA.school_yr against territory_plans.fiscal_year if you want apples-to-apples plan-year comparison (note: DOA uses '2025-26' strings; territory_plans uses numeric year).",
       },
+      {
+        toTable: "districts",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN territory_plan_districts ON territory_plan_districts.plan_id = territory_plans.id",
+          "LEFT JOIN districts ON districts.leaid = territory_plan_districts.district_leaid",
+        ],
+        through: ["territory_plan_districts"],
+        description:
+          "Districts assigned to this plan. Many-to-many: a district can be in multiple plans, a plan has many districts. Use to pull demographics/finance alongside plan rollups.",
+      },
     ],
   },
 
   activities: {
     table: "activities",
     description:
-      "Engagement records — conferences, road trips, meetings, emails, calls, notes. Linked to plans, districts, contacts, states, opportunities, and tasks via junction tables (all excluded from registry; use raw Prisma joins to get the junctions). Query for engagement frequency, outcome patterns, or pipeline-to-activity correlations.",
+      "Engagement records — conferences, road trips, meetings, emails, calls, notes. Linked to plans, districts, contacts, states, opportunities, and tasks via junction tables. Junctions are excluded from the registry, but the multi-hop relationships below expose the most common paths directly. Query for engagement frequency, outcome patterns, or pipeline-to-activity correlations.",
     primaryKey: "id",
     columns: ACTIVITY_COLUMNS,
     relationships: [
@@ -3003,6 +3065,42 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "activities.created_by_user_id = user_profiles.id",
         description: "Creator",
+      },
+      {
+        toTable: "districts",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN activity_districts ON activity_districts.activity_id = activities.id",
+          "LEFT JOIN districts ON districts.leaid = activity_districts.district_leaid",
+        ],
+        through: ["activity_districts"],
+        description:
+          "Districts this activity touched. Many-to-many — an activity can tag multiple districts, and a district accumulates many activities. Filter activities.startDate for time-bounded engagement reports.",
+      },
+      {
+        toTable: "contacts",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN activity_contacts ON activity_contacts.activity_id = activities.id",
+          "LEFT JOIN contacts ON contacts.id = activity_contacts.contact_id",
+        ],
+        through: ["activity_contacts"],
+        description:
+          "Contacts involved in this activity. Use to find 'who have we actually talked to recently'.",
+      },
+      {
+        toTable: "opportunities",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN activity_opportunities ON activity_opportunities.activity_id = activities.id",
+          "LEFT JOIN opportunities ON opportunities.id = activity_opportunities.opportunity_id",
+        ],
+        through: ["activity_opportunities"],
+        description:
+          "Opportunities this activity progressed. Useful for 'which deals moved after a touch'.",
       },
     ],
   },
@@ -3084,7 +3182,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   tasks: {
     table: "tasks",
     description:
-      "Rep to-do items with kanban status (todo/in_progress/blocked/done) and priority (low/medium/high/urgent). Junction tables link to districts, plans, activities, and contacts (all excluded; use raw Prisma joins).",
+      "Rep to-do items with kanban status (todo/in_progress/blocked/done) and priority (low/medium/high/urgent). Junction tables link to districts, plans, activities, and contacts. Junctions are excluded from the registry but the multi-hop relationships below expose the common paths directly.",
     primaryKey: "id",
     columns: TASK_COLUMNS,
     relationships: [
@@ -3093,6 +3191,29 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "tasks.assigned_to_user_id = user_profiles.id",
         description: "Assignee",
+      },
+      {
+        toTable: "districts",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN task_districts ON task_districts.task_id = tasks.id",
+          "LEFT JOIN districts ON districts.leaid = task_districts.district_leaid",
+        ],
+        through: ["task_districts"],
+        description:
+          "Districts this task targets. Use for 'tasks tied to my plan districts'.",
+      },
+      {
+        toTable: "contacts",
+        type: "many-to-many",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN task_contacts ON task_contacts.task_id = tasks.id",
+          "LEFT JOIN contacts ON contacts.id = task_contacts.contact_id",
+        ],
+        through: ["task_contacts"],
+        description: "Contacts linked to this task — 'who is this follow-up for'.",
       },
     ],
   },

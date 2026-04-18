@@ -96,16 +96,21 @@ class SqlBuilder {
     const rootMeta = TABLE_REGISTRY[this.params.table];
     const lines: string[] = [];
     for (const join of this.params.joins) {
-      const rel = rootMeta.relationships.find((r) => r.toTable === join.toTable);
+      // Match by alias first (self-joins / disambiguated joins), then by the
+      // real target table. The user's `join.toTable` is the UI-facing key,
+      // which equals `rel.alias ?? rel.toTable`.
+      const rel = rootMeta.relationships.find(
+        (r) => (r.alias ?? r.toTable) === join.toTable,
+      );
       if (!rel) continue; // already validated upstream; defensive skip
-      // Multi-hop: emit pre-composed statements verbatim.
+      // Multi-hop or aliased: emit pre-composed statements verbatim.
       // joinSql / joinStatements are literal fragments from our own registry —
       // safe to inline because they are not user input.
       if (rel.joinStatements && rel.joinStatements.length > 0) {
         lines.push(...rel.joinStatements);
         continue;
       }
-      lines.push(`LEFT JOIN ${quoteIdent(join.toTable)} ON ${rel.joinSql}`);
+      lines.push(`LEFT JOIN ${quoteIdent(rel.toTable)} ON ${rel.joinSql}`);
     }
     return lines.join("\n");
   }
