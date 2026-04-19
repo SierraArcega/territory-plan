@@ -60,4 +60,13 @@ describe("buildSchemaPrompt", () => {
   it("allows Claude to ask a clarifying question when ambiguous", () => {
     expect(prompt).toMatch(/clarifying question/i);
   });
+
+  it("forbids staged/scouting queries — each call must be the complete answer", () => {
+    // Regression: Claude emitted a 1-column 'Initial scouting query' for a
+    // multi-field request, staging the answer across imagined follow-up turns.
+    expect(prompt).toMatch(/COMPLETE answer in a single turn/);
+    expect(prompt).toMatch(/scouting/i);
+    expect(prompt).toMatch(/no follow-up turn/i);
+    expect(prompt).toMatch(/unenumerated fields are not ambiguity/i);
+  });
 });
