@@ -9,7 +9,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/prisma", () => ({
-  default: { queryLog: { create: vi.fn() } },
+  default: { queryLog: { create: vi.fn().mockResolvedValue({}) } },
 }));
 
 vi.mock("@/features/reports/lib/claude-client", () => ({

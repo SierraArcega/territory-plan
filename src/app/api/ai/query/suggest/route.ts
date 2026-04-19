@@ -123,7 +123,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           executionTimeMs,
         },
       })
-      ?.catch(() => undefined);
+      .catch(() => undefined);
     const payload: SuggestResponse = { kind: "clarify", question: clarify };
     return NextResponse.json(payload);
   }
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         executionTimeMs,
       },
     })
-    ?.catch(() => undefined);
+    .catch(() => undefined);
 
   const payload: SuggestResponse = {
     kind: "params",
