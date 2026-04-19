@@ -3,18 +3,13 @@
  */
 
 import type { QueryParams } from "./types";
+import type { ReceiptAction } from "./params-diff";
 
 export type ChatMessageRole = "user" | "assistant" | "system";
 
 export interface ChatMessageReceipt {
-  /** Brief summary of what Claude changed in the builder. */
-  summary: string;
-  /** Optional counts for each chip category. */
-  counts?: {
-    filters?: number;
-    columns?: number;
-    sort?: number;
-  };
+  /** Structured per-change rows. Empty for clarify replies or no-op turns. */
+  actions: ReceiptAction[];
 }
 
 export interface ChatMessage {

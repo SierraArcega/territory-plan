@@ -14,6 +14,7 @@ import {
 } from "../lib/queries";
 import type { QueryParams, QueryResult } from "../lib/types";
 import type { ChatMessage } from "../lib/ui-types";
+import { diffParams } from "../lib/params-diff";
 import BuilderStrip from "./builder/BuilderStrip";
 import ChatPanel from "./ChatPanel";
 import ResultsArea from "./ResultsArea";
@@ -88,28 +89,38 @@ export default function ReportsView() {
         content: text,
         timestamp: new Date().toISOString(),
       };
+      const priorMessages = messages;
       setMessages((m) => [...m, userMsg]);
       try {
-        const res = await suggest.mutateAsync({ question: text });
-        await setParams(res.params);
-        const filterCount = res.params.filters?.length ?? 0;
-        const columnCount = res.params.columns?.length ?? 0;
-        const sortCount = res.params.orderBy?.length ?? 0;
-        const assistantMsg: ChatMessage = {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: res.explanation,
-          timestamp: new Date().toISOString(),
-          receipt: {
-            summary: `Populated builder: ${filterCount} filter${filterCount === 1 ? "" : "s"}, ${columnCount} column${columnCount === 1 ? "" : "s"}, ${sortCount} sort`,
-            counts: {
-              filters: filterCount,
-              columns: columnCount,
-              sort: sortCount,
-            },
-          },
-        };
-        setMessages((m) => [...m, assistantMsg]);
+        const res = await suggest.mutateAsync({
+          question: text,
+          currentParams: params.table ? params : undefined,
+          chatHistory: priorMessages.map((m) => ({
+            role: m.role === "assistant" ? "assistant" : "user",
+            content: m.content,
+          })),
+        });
+        if (res.kind === "params") {
+          const actions = diffParams(params.table ? params : null, res.params);
+          await setParams(res.params);
+          const assistantMsg: ChatMessage = {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            content: res.explanation,
+            timestamp: new Date().toISOString(),
+            receipt: { actions },
+          };
+          setMessages((m) => [...m, assistantMsg]);
+        } else {
+          // kind: "clarify"
+          const assistantMsg: ChatMessage = {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            content: res.question,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((m) => [...m, assistantMsg]);
+        }
       } catch (err: unknown) {
         setMessages((m) => [
           ...m,
@@ -126,7 +137,7 @@ export default function ReportsView() {
         ]);
       }
     },
-    [suggest, setParams],
+    [suggest, setParams, messages, params],
   );
 
   const handleNewReport = useCallback(() => {

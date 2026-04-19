@@ -205,13 +205,14 @@ export function useRunQueryMutation() {
 
 interface SuggestVars {
   question: string;
+  currentParams?: QueryParams;
+  chatHistory?: Array<{ role: "user" | "assistant"; content: string }>;
   conversationId?: string;
 }
 
-interface SuggestResponse {
-  params: QueryParams;
-  explanation: string;
-}
+export type SuggestResponse =
+  | { kind: "params"; params: QueryParams; explanation: string }
+  | { kind: "clarify"; question: string };
 
 export function useSuggestMutation() {
   return useMutation<SuggestResponse, Error, SuggestVars>({
