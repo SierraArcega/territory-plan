@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useMyPlans, useAddDistrictToPlanMutation } from "../lib/queries";
 import type { IncreaseTarget, IncreaseTargetBucket } from "../lib/types";
 
@@ -60,41 +60,28 @@ export default function AddToPlanPopover({
   const canSubmit =
     !!planId && parsedTarget > 0 && !addMutation.isPending && !hasNoPlans;
 
-  // Reset form every time we reopen for a fresh district.
-  useEffect(() => {
-    if (isOpen) {
-      setPlanId("");
-      setBucket("renewal");
-      setTargetInput("");
-      setErrorMessage(null);
-    }
-  }, [isOpen, district.leaid]);
-
   // Position the popover below the anchor button, right-aligned.
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+
+  const updatePosition = useCallback(() => {
+    if (!anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    const width = 320;
+    const right = rect.right;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, right - width));
+    const top = rect.bottom + 6;
+    setCoords({ top, left });
+  }, [anchorRef]);
+
   useEffect(() => {
-    if (!isOpen) {
-      setCoords(null);
-      return;
-    }
-    const update = () => {
-      const anchor = anchorRef.current;
-      if (!anchor) return;
-      const rect = anchor.getBoundingClientRect();
-      const width = 320;
-      const right = rect.right;
-      const left = Math.max(8, Math.min(window.innerWidth - width - 8, right - width));
-      const top = rect.bottom + 6;
-      setCoords({ top, left });
-    };
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen, anchorRef]);
+  }, [updatePosition]);
 
   // Focus first field on open.
   useEffect(() => {

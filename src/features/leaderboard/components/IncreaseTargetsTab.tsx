@@ -214,13 +214,15 @@ function AddButton({ row, onSuccess }: AddButtonProps) {
         Add
         <ChevronDown className="w-3 h-3 opacity-80" />
       </button>
-      <AddToPlanPopover
-        district={row}
-        anchorRef={buttonRef}
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        onSuccess={handleSuccess}
-      />
+      {isOpen && (
+        <AddToPlanPopover
+          district={row}
+          anchorRef={buttonRef}
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
     </>
   );
 }
