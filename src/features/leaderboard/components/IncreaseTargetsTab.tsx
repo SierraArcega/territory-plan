@@ -420,6 +420,7 @@ export default function IncreaseTargetsTab() {
             rowIdAccessor="leaid"
             expandedRowIds={expandedIds}
             onToggleExpand={toggleExpand}
+            onRowClick={(row) => toggleExpand(row.leaid as string)}
             renderExpandedRow={(row) => (
               <ExpandedRowDetail row={row as unknown as IncreaseTargetRow} />
             )}

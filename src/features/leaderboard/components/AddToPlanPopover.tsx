@@ -285,7 +285,7 @@ export default function AddToPlanPopover({
               placeholder="0"
               onChange={(e) => setTargetInput(e.target.value)}
               onBlur={(e) => setTargetInput(formatTargetInput(e.target.value))}
-              className="w-full rounded-md border border-[#C2BBD4] bg-white pl-5 pr-2 py-1.5 text-sm text-[#403770] focus:border-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167]/40"
+              className="w-full rounded-md border border-[#C2BBD4] bg-white pl-5 pr-2 py-1.5 text-sm text-[#403770] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#F37167]"
               required
             />
           </div>
@@ -304,7 +304,7 @@ export default function AddToPlanPopover({
             type="button"
             onClick={onClose}
             disabled={addMutation.isPending}
-            className="px-3 py-1.5 rounded-md text-xs font-semibold text-[#6E6390] hover:text-[#403770] hover:bg-[#F7F5FA] disabled:opacity-50 transition-colors"
+            className="px-3 py-1.5 rounded-md text-xs font-semibold border border-[#403770] text-[#403770] hover:bg-[#403770] hover:text-white disabled:opacity-50 transition-colors"
           >
             Cancel
           </button>
