@@ -108,4 +108,60 @@ export interface InitiativeInfo {
   revenueFiscalYear: string | null;
 }
 
-export type LeaderboardView = "combined" | "initiative" | "pipeline" | "take" | "revenue" | "revenueTargeted";
+export type LeaderboardView =
+  | "combined"
+  | "initiative"
+  | "pipeline"
+  | "take"
+  | "revenue"
+  | "revenueTargeted"
+  | "increase";
+
+// ---------------------------------------------------------------------------
+// Increase Your Targets tab
+// ---------------------------------------------------------------------------
+
+export interface IncreaseTargetLastClosedWon {
+  repName: string | null;
+  repEmail: string | null;
+  closeDate: string | null; // ISO
+  schoolYr: string | null;
+  amount: number | null;
+}
+
+export interface IncreaseTarget {
+  leaid: string;
+  districtName: string;
+  state: string;
+  enrollment: number | null;
+  fy26Revenue: number;
+  fy26CompletedRevenue: number;
+  fy26ScheduledRevenue: number;
+  fy26SessionCount: number | null;
+  fy26SubscriptionCount: number | null;
+  lastClosedWon: IncreaseTargetLastClosedWon | null;
+  productTypes: string[];
+  subProducts: string[];
+}
+
+export interface IncreaseTargetsResponse {
+  districts: IncreaseTarget[];
+  totalRevenueAtRisk: number;
+}
+
+/** Bucket on a TerritoryPlanDistrict target field. */
+export type IncreaseTargetBucket =
+  | "renewal"
+  | "winback"
+  | "expansion"
+  | "newBusiness";
+
+export const INCREASE_TARGET_BUCKET_FIELD: Record<
+  IncreaseTargetBucket,
+  "renewalTarget" | "winbackTarget" | "expansionTarget" | "newBusinessTarget"
+> = {
+  renewal: "renewalTarget",
+  winback: "winbackTarget",
+  expansion: "expansionTarget",
+  newBusiness: "newBusinessTarget",
+};
