@@ -1,11 +1,12 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Sparkles } from "lucide-react";
 import { useLeaderboardDetails } from "../lib/queries";
 import { TIER_LABELS, TIER_COLORS, parseTierRank } from "../lib/types";
 import TierBadge from "./TierBadge";
 import RevenueOverviewTab from "./RevenueOverviewTab";
+import IncreaseTargetsTab from "./IncreaseTargetsTab";
 import type { TierName } from "../lib/types";
 
 const ACTION_TAB_MAP: Record<string, string> = {
@@ -16,7 +17,7 @@ const ACTION_TAB_MAP: Record<string, string> = {
 
 export default function LeaderboardDetailView() {
   const { data, isLoading, isError } = useLeaderboardDetails();
-  const [activeTab, setActiveTab] = useState<"revenue" | "initiative">("revenue");
+  const [activeTab, setActiveTab] = useState<"revenue" | "initiative" | "increase">("revenue");
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   return (
@@ -28,6 +29,8 @@ export default function LeaderboardDetailView() {
           <p className="text-sm text-[#8A80A8]">
             {activeTab === "revenue"
               ? "Revenue Overview — ranked by current year revenue"
+              : activeTab === "increase"
+              ? "Districts with FY26 revenue but no FY27 activity — add to a plan to start the renewal conversation"
               : "Point breakdown by rep — click a row to see details"}
           </p>
         </div>
@@ -54,10 +57,23 @@ export default function LeaderboardDetailView() {
           >
             Initiative
           </button>
+          <button
+            onClick={() => setActiveTab("increase")}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === "increase"
+                ? "border-[#403770] text-[#403770]"
+                : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Increase Targets
+          </button>
         </div>
 
         {activeTab === "revenue" ? (
           <RevenueOverviewTab />
+        ) : activeTab === "increase" ? (
+          <IncreaseTargetsTab />
         ) : isLoading ? (
           <div className="space-y-4">
             <div className="h-8 w-48 bg-[#E2DEEC]/40 rounded animate-pulse" />
