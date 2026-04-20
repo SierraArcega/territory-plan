@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, ChevronDown, Trophy, Target, TrendingUp, DollarSign, Zap } from "lucide-react";
+import { X, ChevronDown, Trophy, Target, TrendingUp, DollarSign, Zap, Sparkles } from "lucide-react";
 import { useLeaderboard, useMyLeaderboardRank } from "../lib/queries";
 import RevenueOverviewTab from "./RevenueOverviewTab";
+import IncreaseTargetsTab from "./IncreaseTargetsTab";
 import TierBadge from "./TierBadge";
 import { parseTierRank, TIER_LABELS, TIERS, TIER_COLORS } from "../lib/types";
 import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
@@ -39,6 +40,7 @@ const VIEW_CONFIG: {
   { value: "take", label: "Take", icon: DollarSign },
   { value: "revenue", label: "Revenue", icon: Trophy },
   { value: "revenueTargeted", label: "Targeted", icon: Target },
+  { value: "increase", label: "Increase Targets", icon: Sparkles },
 ];
 
 export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
@@ -133,7 +135,9 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
       />
 
       <div
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+        className={`relative bg-white rounded-2xl shadow-xl w-full ${
+          activeTab === "initiative" && view === "increase" ? "max-w-5xl" : "max-w-2xl"
+        } max-h-[85vh] flex flex-col`}
         style={{ animation: "modal-in 200ms ease-out" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -255,6 +259,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                 {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
                 {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
                 {view === "revenueTargeted" && (<>Total revenue targeted in territory plans{fyLabels.revenueTargeted !== "Current FY" ? <> for <span className="font-medium text-[#403770]">{fyLabels.revenueTargeted}</span></> : ""}.</>)}
+                {view === "increase" && "Districts with FY26 revenue but no FY27 activity. Add to a plan to start the renewal conversation."}
               </p>
             </>
           )}
@@ -264,6 +269,8 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
         <div className="flex-1 min-h-0 overflow-y-auto">
           {activeTab === "revenue" ? (
             <RevenueOverviewTab />
+          ) : view === "increase" ? (
+            <IncreaseTargetsTab />
           ) : lbLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-[#403770] border-t-transparent rounded-full animate-spin" />
