@@ -149,7 +149,13 @@ The existing `ContactsTable` should already render principal contacts since it j
 ## Data / dependencies
 
 - **No Prisma schema changes.**
-- **Clay workflow:** requires confirmation that Clay's template can accept `ncessch`/`school_name`/`target_role: "Principal"` and return a principal contact. **Treat as a coordination step in the plan.** If Clay doesn't support this today, flag to the user before coding starts.
+- **Clay workflow audit (explicit plan step):** the existing Clay workflow is keyed to `CLAY_WEBHOOK_URL` and accepts per-district fields only. Before code ships, the user will open Clay and verify / update:
+  1. **Input columns** — the table that receives `CLAY_WEBHOOK_URL` POSTs needs new columns: `ncessch`, `school_name`, `school_level`, `school_type`.
+  2. **Enrichment step** — must look up a person by title + school (not title + district). In Clay, this is typically a "Find Person" / Apollo / ZoomInfo step where the company input is the school, not the district.
+  3. **Callback HTTP column** — the column that POSTs back to `/api/webhooks/clay` must include `ncessch` in its payload so the app can link the returned contact to the correct school.
+
+  If any of the three is missing, the user edits the Clay workflow before flipping the feature on. The app-side code can be built and merged independently of this audit — it just won't produce correct results until Clay is ready.
+
 - **School data coverage:** `schoolLevel` and `schoolType` population rate is unknown. Spot-check in the plan: query for districts where a reasonable % of schools have null values. If `schoolType` is mostly null, the export column is still correct (just blank) and sales reps will see the gap.
 
 ## Testing
@@ -170,6 +176,6 @@ Sales reps may run this on a plan with 500+ schools. Existing batching (10 webho
 
 ## Open items for the implementation plan
 
-1. Confirm Clay workflow supports per-school principal lookup (or coordinate an update). Treat as a blocker before the code ships, not before coding starts.
+1. **Clay workflow audit (step 1 of the plan)** — user opens Clay, checks the 3 items above (input columns, enrichment step, callback payload), and edits the workflow if any are missing. The plan should explicitly include this as a first step so it doesn't get forgotten.
 2. Confirm `School.schoolType` data coverage (quick query against prod DB).
 3. Decide where `SCHOOL_TYPE_LABELS` and `SCHOOL_LEVEL_LABELS` ultimately live — the map-only location is fine for now, but export code will need to import them, so a shared location (`src/features/shared/lib/schoolLabels.ts` or similar) is cleaner.
