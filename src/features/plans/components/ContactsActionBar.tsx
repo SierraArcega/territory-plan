@@ -91,7 +91,7 @@ export default function ContactsActionBar({
     // Completion check
     if (progress.queued > 0 && progress.enriched >= progress.queued) {
       setIsEnriching(false);
-      setToast({ message: `Contact enrichment complete — ${progress.enriched} districts enriched`, type: "success" });
+      setToast({ message: `Contact enrichment complete — ${progress.enriched} contact${progress.enriched !== 1 ? "s" : ""} found`, type: "success" });
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       return;
     }
@@ -103,7 +103,7 @@ export default function ContactsActionBar({
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       stallTimerRef.current = setTimeout(() => {
         setIsEnriching(false);
-        setToast({ message: "Enrichment may be stalled — some districts may not have results", type: "warning" });
+        setToast({ message: "Enrichment may be stalled — some contacts may not have results", type: "warning" });
       }, 2 * 60 * 1000);
     }
   }, [isEnriching, progress]);
@@ -128,7 +128,7 @@ export default function ContactsActionBar({
       });
 
       if (result.queued === 0) {
-        setToast({ message: "All districts already have contacts — nothing to enrich", type: "info" });
+        setToast({ message: "Nothing to enrich — all targets already have contacts", type: "info" });
         return;
       }
 
@@ -138,10 +138,10 @@ export default function ContactsActionBar({
       // Start stall timer
       stallTimerRef.current = setTimeout(() => {
         setIsEnriching(false);
-        setToast({ message: "Enrichment may be stalled — some districts may not have results", type: "warning" });
+        setToast({ message: "Enrichment may be stalled — some contacts may not have results", type: "warning" });
       }, 2 * 60 * 1000);
 
-      setToast({ message: `Contact enrichment started for ${result.queued} districts`, type: "info" });
+      setToast({ message: `Looking for ${result.queued} contact${result.queued !== 1 ? "s" : ""}`, type: "info" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to start contact enrichment";
       if (message.includes("409") || message.includes("already in progress")) {
