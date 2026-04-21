@@ -162,6 +162,15 @@ export interface IncreaseTarget {
   lastClosedWon: IncreaseTargetLastClosedWon | null;
   productTypes: string[];
   subProducts: string[];
+  /** Nullable per-FY total_revenue from district_financials (fullmind vendor, or elevate for ek12_winback). */
+  revenueTrend: {
+    fy24: number | null;
+    fy25: number | null;
+    fy26: number | null;
+    fy27: number | null;
+  };
+  /** Heuristic suggested renewal/winback amount; null when no revenue signal. */
+  suggestedTarget: number | null;
 }
 
 export interface IncreaseTargetsResponse {
