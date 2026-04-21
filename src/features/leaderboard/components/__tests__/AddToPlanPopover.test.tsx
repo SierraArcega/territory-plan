@@ -101,6 +101,8 @@ function makeDistrict(overrides: Partial<IncreaseTarget> = {}): IncreaseTarget {
     lastClosedWon: null,
     productTypes: [],
     subProducts: [],
+    revenueTrend: { fy24: null, fy25: null, fy26: null, fy27: null },
+    suggestedTarget: null,
     ...overrides,
   };
 }
