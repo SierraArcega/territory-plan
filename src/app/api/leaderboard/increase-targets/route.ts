@@ -17,8 +17,11 @@ interface IncreaseTargetRow {
   fy26_subscription_count: number | string | null;
   fy26_opp_bookings: number | string | null;
   fy26_opp_min_commit: number | string | null;
-  in_plan: boolean;
+  in_fy27_plan: boolean;
   plan_ids: string[] | null;
+  has_fy27_target: boolean;
+  has_fy27_pipeline: boolean;
+  fy27_open_pipeline: number | string | null;
   sales_rep_name: string | null;
   sales_rep_email: string | null;
   close_date: Date | string | null;
@@ -40,9 +43,14 @@ interface IncreaseTarget {
   fy26SessionCount: number | null;
   fy26SubscriptionCount: number | null;
   fy26OppBookings: number;
-  fy26OppMinCommit: number;
-  inPlan: boolean;
+  fy26MinBookings: number;
+  inFy27Plan: boolean;
   planIds: string[];
+  hasFy27Target: boolean;
+  hasFy27Pipeline: boolean;
+  fy27OpenPipeline: number;
+  // Deprecated alias kept so existing callers compile. Equivalent to inFy27Plan.
+  inPlan: boolean;
   lastClosedWon: {
     repName: string | null;
     repEmail: string | null;
@@ -72,10 +80,10 @@ function toIsoOrNull(v: Date | string | null | undefined): string | null {
 }
 
 // GET /api/leaderboard/increase-targets
-// Returns districts where we have a FY26 revenue signal (district_financials OR
-// Closed Won opportunities in 2025-26) AND no FY27 activity yet. Includes rows
-// already in territory plans so reps can still click through to the LMS for
-// renewal — the action differs based on `inPlan`.
+// FY26 customers (df revenue OR Closed Won opp bookings/min commits) that have
+// NOT yet been renewed in FY27 (no FY27 closed_won or booked revenue).
+// Each row carries three FY27 readiness signals so the rep can triage:
+//   - inFy27Plan, hasFy27Target, hasFy27Pipeline
 export async function GET() {
   try {
     const user = await getUser();
@@ -85,69 +93,56 @@ export async function GET() {
 
     const rows = await prisma.$queryRaw<IncreaseTargetRow[]>`
       WITH fy26_df AS (
-        SELECT
-          leaid,
-          total_revenue,
-          completed_revenue,
-          scheduled_revenue,
-          session_count,
-          subscription_count
+        SELECT leaid, total_revenue, completed_revenue, scheduled_revenue,
+               session_count, subscription_count
         FROM district_financials
-        WHERE vendor = 'fullmind'
-          AND fiscal_year = 'FY26'
-          AND total_revenue > 0
+        WHERE vendor='fullmind' AND fiscal_year='FY26' AND total_revenue > 0
       ),
       fy26_opp AS (
-        SELECT
-          district_lea_id AS leaid,
+        SELECT district_lea_id AS leaid,
           SUM(COALESCE(net_booking_amount, 0))::numeric AS bookings,
           SUM(COALESCE(minimum_purchase_amount, 0))::numeric AS min_commit
         FROM opportunities
-        WHERE school_yr = '2025-26'
-          AND stage ILIKE 'Closed Won%'
-          AND district_lea_id IS NOT NULL
+        WHERE school_yr='2025-26' AND stage ILIKE 'Closed Won%' AND district_lea_id IS NOT NULL
         GROUP BY district_lea_id
-        HAVING SUM(COALESCE(net_booking_amount, 0))
-             + SUM(COALESCE(minimum_purchase_amount, 0)) > 0
+        HAVING SUM(COALESCE(net_booking_amount,0))+SUM(COALESCE(minimum_purchase_amount,0)) > 0
       ),
       fy26_any AS (
-        SELECT leaid FROM fy26_df
-        UNION
-        SELECT leaid FROM fy26_opp
+        SELECT leaid FROM fy26_df UNION SELECT leaid FROM fy26_opp
       ),
-      fy27_any AS (
+      fy27_done AS (
         SELECT leaid
         FROM district_financials
-        WHERE vendor = 'fullmind'
-          AND fiscal_year = 'FY27'
-          AND (
-            COALESCE(open_pipeline, 0)
-            + COALESCE(closed_won_bookings, 0)
-            + COALESCE(total_revenue, 0)
-          ) > 0
+        WHERE vendor='fullmind' AND fiscal_year='FY27'
+          AND (COALESCE(closed_won_bookings,0)+COALESCE(total_revenue,0)) > 0
       ),
-      planned AS (
-        SELECT district_leaid AS leaid,
-          ARRAY_AGG(DISTINCT plan_id::text) AS plan_ids
-        FROM territory_plan_districts
-        GROUP BY district_leaid
+      fy27_pipe AS (
+        SELECT leaid, open_pipeline
+        FROM district_financials
+        WHERE vendor='fullmind' AND fiscal_year='FY27' AND COALESCE(open_pipeline,0) > 0
+      ),
+      fy27_plan AS (
+        SELECT tpd.district_leaid AS leaid,
+          ARRAY_AGG(DISTINCT tp.id::text) AS plan_ids,
+          BOOL_OR(
+            COALESCE(tpd.renewal_target,0) + COALESCE(tpd.winback_target,0) +
+            COALESCE(tpd.expansion_target,0) + COALESCE(tpd.new_business_target,0) > 0
+          ) AS has_target
+        FROM territory_plan_districts tpd
+        JOIN territory_plans tp ON tp.id = tpd.plan_id
+        WHERE tp.fiscal_year = 2027
+        GROUP BY tpd.district_leaid
       ),
       last_opp AS (
         SELECT DISTINCT ON (district_lea_id)
-          district_lea_id AS leaid,
-          sales_rep_name,
-          sales_rep_email,
-          close_date,
-          net_booking_amount,
-          school_yr
+          district_lea_id AS leaid, sales_rep_name, sales_rep_email,
+          close_date, net_booking_amount, school_yr
         FROM opportunities
-        WHERE district_lea_id IS NOT NULL
-          AND stage ILIKE 'Closed Won%'
+        WHERE district_lea_id IS NOT NULL AND stage ILIKE 'Closed Won%'
         ORDER BY district_lea_id, close_date DESC
       ),
       top_products AS (
-        SELECT
-          o.district_lea_id AS leaid,
+        SELECT o.district_lea_id AS leaid,
           ARRAY_AGG(DISTINCT s.product_type) FILTER (WHERE s.product_type IS NOT NULL) AS product_types,
           ARRAY_AGG(DISTINCT s.sub_product) FILTER (WHERE s.sub_product IS NOT NULL) AS sub_products
         FROM subscriptions s
@@ -156,35 +151,31 @@ export async function GET() {
         GROUP BY o.district_lea_id
       )
       SELECT
-        d.leaid,
-        d.name,
-        d.state_abbrev,
-        d.enrollment,
-        d.lmsid,
-        fy26_df.total_revenue AS fy26_revenue,
-        fy26_df.completed_revenue AS fy26_completed_revenue,
-        fy26_df.scheduled_revenue AS fy26_scheduled_revenue,
-        fy26_df.session_count AS fy26_session_count,
-        fy26_df.subscription_count AS fy26_subscription_count,
-        fy26_opp.bookings AS fy26_opp_bookings,
-        fy26_opp.min_commit AS fy26_opp_min_commit,
-        (planned.leaid IS NOT NULL) AS in_plan,
-        planned.plan_ids,
-        lo.sales_rep_name,
-        lo.sales_rep_email,
-        lo.close_date,
-        lo.school_yr,
-        lo.net_booking_amount,
-        tp.product_types,
-        tp.sub_products
+        d.leaid, d.name, d.state_abbrev, d.enrollment, d.lmsid,
+        fy26_df.total_revenue       AS fy26_revenue,
+        fy26_df.completed_revenue   AS fy26_completed_revenue,
+        fy26_df.scheduled_revenue   AS fy26_scheduled_revenue,
+        fy26_df.session_count       AS fy26_session_count,
+        fy26_df.subscription_count  AS fy26_subscription_count,
+        fy26_opp.bookings           AS fy26_opp_bookings,
+        fy26_opp.min_commit         AS fy26_opp_min_commit,
+        (fy27_plan.leaid IS NOT NULL)              AS in_fy27_plan,
+        fy27_plan.plan_ids,
+        COALESCE(fy27_plan.has_target, false)      AS has_fy27_target,
+        (fy27_pipe.leaid IS NOT NULL)              AS has_fy27_pipeline,
+        fy27_pipe.open_pipeline                    AS fy27_open_pipeline,
+        lo.sales_rep_name, lo.sales_rep_email, lo.close_date,
+        lo.school_yr, lo.net_booking_amount,
+        tp.product_types, tp.sub_products
       FROM fy26_any
       JOIN districts d ON d.leaid = fy26_any.leaid
       LEFT JOIN fy26_df ON fy26_df.leaid = fy26_any.leaid
       LEFT JOIN fy26_opp ON fy26_opp.leaid = fy26_any.leaid
-      LEFT JOIN planned ON planned.leaid = fy26_any.leaid
+      LEFT JOIN fy27_plan ON fy27_plan.leaid = fy26_any.leaid
+      LEFT JOIN fy27_pipe ON fy27_pipe.leaid = fy26_any.leaid
       LEFT JOIN last_opp lo ON lo.leaid = fy26_any.leaid
       LEFT JOIN top_products tp ON tp.leaid = fy26_any.leaid
-      WHERE fy26_any.leaid NOT IN (SELECT leaid FROM fy27_any WHERE leaid IS NOT NULL)
+      WHERE fy26_any.leaid NOT IN (SELECT leaid FROM fy27_done WHERE leaid IS NOT NULL)
       ORDER BY
         GREATEST(
           COALESCE(fy26_df.total_revenue, 0),
@@ -215,9 +206,13 @@ export async function GET() {
         fy26SessionCount: toNumberOrNull(row.fy26_session_count),
         fy26SubscriptionCount: toNumberOrNull(row.fy26_subscription_count),
         fy26OppBookings: oppBookings,
-        fy26OppMinCommit: toNumber(row.fy26_opp_min_commit),
-        inPlan: row.in_plan === true,
+        fy26MinBookings: toNumber(row.fy26_opp_min_commit),
+        inFy27Plan: row.in_fy27_plan === true,
         planIds: row.plan_ids ?? [],
+        hasFy27Target: row.has_fy27_target === true,
+        hasFy27Pipeline: row.has_fy27_pipeline === true,
+        fy27OpenPipeline: toNumber(row.fy27_open_pipeline),
+        inPlan: row.in_fy27_plan === true,
         lastClosedWon: hasLastOpp
           ? {
               repName: row.sales_rep_name ?? null,

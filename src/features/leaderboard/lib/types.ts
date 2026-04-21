@@ -141,9 +141,14 @@ export interface IncreaseTarget {
   fy26SessionCount: number | null;
   fy26SubscriptionCount: number | null;
   fy26OppBookings: number;
-  fy26OppMinCommit: number;
-  inPlan: boolean;
+  fy26MinBookings: number;
+  inFy27Plan: boolean;
   planIds: string[];
+  hasFy27Target: boolean;
+  hasFy27Pipeline: boolean;
+  fy27OpenPipeline: number;
+  /** Alias for inFy27Plan — kept so existing callers compile. */
+  inPlan: boolean;
   lastClosedWon: IncreaseTargetLastClosedWon | null;
   productTypes: string[];
   subProducts: string[];

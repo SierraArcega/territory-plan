@@ -22,6 +22,10 @@ type IncreaseTargetRow = IncreaseTarget & {
   lastRepName: string | null;
   lastSaleSummary: string | null;
   products: string[];
+  // Concatenated string so the sortable/filterable contract on the column
+  // doesn't need a bespoke comparator. The actual rendering happens in the
+  // Fy27StatusCell renderer and reads from the boolean fields directly.
+  fy27Status: string;
 };
 
 function formatShortDate(iso: string | null): string {
@@ -46,6 +50,13 @@ function toRow(r: IncreaseTarget): IncreaseTargetRow {
     lastRepName: r.lastClosedWon?.repName ?? null,
     lastSaleSummary: buildLastSaleSummary(r),
     products: r.productTypes,
+    fy27Status: [
+      r.inFy27Plan ? "plan" : "",
+      r.hasFy27Target ? "target" : "",
+      r.hasFy27Pipeline ? "pipe" : "",
+    ]
+      .filter(Boolean)
+      .join(","),
   };
 }
 
@@ -69,6 +80,39 @@ const LastSaleCell: CellRendererFn = ({ value }) => {
     return <span className="text-[#A69DC0]">{"\u2014"}</span>;
   }
   return <span className="text-sm text-[#6E6390]">{value}</span>;
+};
+
+const Fy27StatusCell: CellRendererFn = ({ row }) => {
+  const r = row as unknown as IncreaseTargetRow;
+  const dot = (
+    on: boolean,
+    label: string,
+    tooltip: string,
+  ) => (
+    <span
+      title={tooltip}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+        on
+          ? "text-[#2F7D32] bg-[#E8F5E9] border border-[#B9DDBE]"
+          : "text-[#8A80A8] bg-[#F7F5FA] border border-[#D4CFE2]"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`inline-block w-1.5 h-1.5 rounded-full ${
+          on ? "bg-[#2F7D32]" : "bg-[#A69DC0]"
+        }`}
+      />
+      {label}
+    </span>
+  );
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {dot(r.inFy27Plan, "Plan", "In a FY27 territory plan")}
+      {dot(r.hasFy27Target, "Target", "Has an FY27 target set")}
+      {dot(r.hasFy27Pipeline, "Pipe", "Has FY27 open pipeline")}
+    </span>
+  );
 };
 
 const ProductsCell: CellRendererFn = ({ value }) => {
@@ -361,6 +405,7 @@ export default function IncreaseTargetsTab() {
       state: StateCell,
       lastSaleSummary: LastSaleCell,
       products: ProductsCell,
+      fy27Status: Fy27StatusCell,
     }),
     [],
   );

@@ -1,6 +1,6 @@
 // Column definitions for the Increase Targets DataGrid.
-// Keys match the IncreaseTarget response fields. Label "($)" suffix on
-// fy26Revenue triggers the DataGrid's currency auto-detect.
+// Keys match the IncreaseTarget response fields. Label "($)" suffix on a
+// numeric column triggers the DataGrid's currency auto-detect.
 
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
@@ -26,15 +26,15 @@ export const increaseTargetsColumns: ColumnDef[] = [
     group: "At-Risk Info",
     isDefault: true,
     filterType: "number",
-    width: 110,
+    width: 120,
   },
   {
-    key: "fy26SessionCount",
-    label: "Sessions",
+    key: "fy26MinBookings",
+    label: "FY26 Min Bookings ($)",
     group: "At-Risk Info",
-    isDefault: false,
+    isDefault: true,
     filterType: "number",
-    width: 80,
+    width: 130,
   },
   {
     key: "lastRepName",
@@ -45,12 +45,12 @@ export const increaseTargetsColumns: ColumnDef[] = [
     width: 130,
   },
   {
-    key: "lastSaleSummary",
-    label: "Last Sale",
+    key: "fy27Status",
+    label: "FY27 Status",
     group: "At-Risk Info",
     isDefault: true,
     filterType: "text",
-    width: 140,
+    width: 180,
     sortable: false,
   },
   {

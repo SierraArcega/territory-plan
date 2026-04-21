@@ -184,9 +184,11 @@ export function useAddDistrictToPlanMutation() {
       );
     },
     onSuccess: (_data, variables) => {
-      // Optimistic cache update: flip the added row to `inPlan: true` so its
-      // action changes to "Open in LMS" without a refetch flicker. The row
-      // stays in the list — it still has FY26 revenue and no FY27 pipeline.
+      // Optimistic cache update: flip the added row's FY27 readiness flags so
+      // its action / status cell updates without a refetch flicker. The row
+      // itself stays in the list — it still has FY26 revenue and the plan may
+      // be any fiscal year; server refetch will reconcile if they picked a
+      // non-FY27 plan.
       queryClient.setQueryData<IncreaseTargetsResponse>(
         INCREASE_TARGETS_QUERY_KEY,
         (prev) => {
@@ -197,7 +199,9 @@ export function useAddDistrictToPlanMutation() {
               d.leaid === variables.leaid
                 ? {
                     ...d,
+                    inFy27Plan: true,
                     inPlan: true,
+                    hasFy27Target: (variables.targetAmount ?? 0) > 0,
                     planIds: d.planIds.includes(variables.planId)
                       ? d.planIds
                       : [...d.planIds, variables.planId],
