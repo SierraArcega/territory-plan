@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Search, Download, ChevronDown } from "lucide-react";
 import { TARGET_ROLES, type TargetRole } from "@/features/shared/types/contact-types";
+import { SCHOOL_LEVEL_LABELS, SCHOOL_TYPE_LABELS } from "@/features/shared/lib/schoolLabels";
 import type { Contact } from "@/lib/api";
 import {
   useBulkEnrich,
@@ -153,43 +154,58 @@ export default function ContactsActionBar({
   }, [planId, selectedRole, schoolLevels, bulkEnrich]);
 
   const handleExportCsv = useCallback(() => {
-    const headers = ["District Name", "Website", "Contact Name", "Title", "Email", "Phone", "Department", "Seniority Level"];
+    const headers = [
+      "District Name",
+      "Website",
+      "School Name",
+      "School Level",
+      "School Type",
+      "Contact Name",
+      "Title",
+      "Email",
+      "Phone",
+      "Department",
+      "Seniority Level",
+    ];
 
-    // Build a map of leaid -> primary contact
-    const primaryByDistrict = new Map<string, Contact>();
+    const rows: string[][] = [];
+    const seenDistricts = new Set<string>();
+
+    // One row per contact
     for (const contact of contacts) {
-      const existing = primaryByDistrict.get(contact.leaid);
-      if (!existing) {
-        primaryByDistrict.set(contact.leaid, contact);
-      } else if (contact.isPrimary && !existing.isPrimary) {
-        primaryByDistrict.set(contact.leaid, contact);
-      } else if (
-        !existing.isPrimary &&
-        !contact.isPrimary &&
-        contact.name.localeCompare(existing.name) < 0
-      ) {
-        primaryByDistrict.set(contact.leaid, contact);
-      }
-    }
+      seenDistricts.add(contact.leaid);
+      const districtName = districtNameMap?.get(contact.leaid) || contact.leaid;
+      const websiteUrl = districtWebsiteMap?.get(contact.leaid) || "";
 
-    // One row per district (including districts with no contacts)
-    const rows = allDistrictLeaids.map((leaid) => {
-      const districtName = districtNameMap?.get(leaid) || leaid;
-      const contact = primaryByDistrict.get(leaid);
+      const link = contact.schoolContacts?.[0];
+      const schoolName = link?.name ?? "";
+      const schoolLevel =
+        link?.schoolLevel != null ? (SCHOOL_LEVEL_LABELS[link.schoolLevel] ?? "") : "";
+      const schoolType =
+        link?.schoolType != null ? (SCHOOL_TYPE_LABELS[link.schoolType] ?? "") : "";
 
-      const websiteUrl = districtWebsiteMap?.get(leaid) || "";
-
-      return [
+      rows.push([
         districtName,
         websiteUrl,
-        contact?.name || "",
-        contact?.title || "",
-        contact?.email || "",
-        contact?.phone || "",
-        contact?.persona || "",
-        contact?.seniorityLevel || "",
-      ];
-    });
+        schoolName,
+        schoolLevel,
+        schoolType,
+        contact.name || "",
+        contact.title || "",
+        contact.email || "",
+        contact.phone || "",
+        contact.persona || "",
+        contact.seniorityLevel || "",
+      ]);
+    }
+
+    // Preserve coverage-gap signal: one blank row per district with zero contacts
+    for (const leaid of allDistrictLeaids) {
+      if (seenDistricts.has(leaid)) continue;
+      const districtName = districtNameMap?.get(leaid) || leaid;
+      const websiteUrl = districtWebsiteMap?.get(leaid) || "";
+      rows.push([districtName, websiteUrl, "", "", "", "", "", "", "", "", ""]);
+    }
 
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
@@ -203,7 +219,7 @@ export default function ContactsActionBar({
     link.download = `${safeName}-contacts-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [contacts, allDistrictLeaids, districtNameMap, planName]);
+  }, [contacts, allDistrictLeaids, districtNameMap, districtWebsiteMap, planName]);
 
   const progressPercent =
     progress && progress.queued > 0
