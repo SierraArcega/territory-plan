@@ -40,7 +40,7 @@ const VIEW_CONFIG: {
   { value: "take", label: "Take", icon: DollarSign },
   { value: "revenue", label: "Revenue", icon: Trophy },
   { value: "revenueTargeted", label: "Targeted", icon: Target },
-  { value: "increase", label: "Increase Targets", icon: Sparkles },
+  { value: "increase", label: "Missing Renewal Opp", icon: Sparkles },
 ];
 
 export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
@@ -259,7 +259,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                 {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
                 {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
                 {view === "revenueTargeted" && (<>Total revenue targeted in territory plans{fyLabels.revenueTargeted !== "Current FY" ? <> for <span className="font-medium text-[#403770]">{fyLabels.revenueTargeted}</span></> : ""}.</>)}
-                {view === "increase" && "Districts with FY26 revenue but no FY27 activity. Add to a plan to start the renewal conversation."}
+                {view === "increase" && "FY26 Fullmind customers without an FY27 opportunity yet. Add to a plan or open the LMS to create the renewal opp."}
               </p>
             </>
           )}

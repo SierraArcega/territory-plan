@@ -426,11 +426,11 @@ export default function IncreaseTargetsTab() {
           <span>
             {districtCount} {districtCount === 1 ? "district" : "districts"}
             {" \u2022 "}
-            {formatCurrency(revenueAtRisk, true)} FY26 revenue at renewal risk
+            {formatCurrency(revenueAtRisk, true)} FY26 revenue missing a renewal opp
           </span>
         </div>
         <p className="mt-0.5 text-xs text-[#6E6390]">
-          FY26 Fullmind customers with no FY27 activity yet.
+          FY26 Fullmind customers with no FY27 opportunity yet.
         </p>
       </div>
 
@@ -465,7 +465,7 @@ export default function IncreaseTargetsTab() {
         ) : !isError && districtCount === 0 ? (
           <div className="flex items-center justify-center py-12">
             <p className="text-sm text-[#6E6390] text-center max-w-sm">
-              Nothing at risk right now. Every FY26 customer has FY27 activity.
+              No missing renewal opps. Every FY26 customer has an FY27 deal in flight.
             </p>
           </div>
         ) : (

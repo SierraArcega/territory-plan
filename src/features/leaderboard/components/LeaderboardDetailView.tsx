@@ -30,7 +30,7 @@ export default function LeaderboardDetailView() {
             {activeTab === "revenue"
               ? "Revenue Overview — ranked by current year revenue"
               : activeTab === "increase"
-              ? "Districts with FY26 revenue but no FY27 activity — add to a plan to start the renewal conversation"
+              ? "FY26 Fullmind customers without an FY27 opportunity yet — add to a plan or open the LMS to create the renewal opp"
               : "Point breakdown by rep — click a row to see details"}
           </p>
         </div>
@@ -66,7 +66,7 @@ export default function LeaderboardDetailView() {
             }`}
           >
             <Sparkles className="w-4 h-4" />
-            Increase Targets
+            Missing Renewal Opp
           </button>
         </div>
 
