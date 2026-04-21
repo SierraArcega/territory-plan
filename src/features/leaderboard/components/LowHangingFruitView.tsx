@@ -10,7 +10,7 @@ import {
   type LHFFilters,
 } from "../lib/filters";
 import LowHangingFruitCard from "./LowHangingFruitCard";
-import LowHangingFruitFilterRail from "./LowHangingFruitFilterRail";
+import LowHangingFruitFilterBar from "./LowHangingFruitFilterBar";
 import LowHangingFruitDetailDrawer from "./LowHangingFruitDetailDrawer";
 import BulkAddWizard from "./BulkAddWizard";
 
@@ -102,9 +102,9 @@ export default function LowHangingFruitView() {
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <LowHangingFruitFilterRail filters={filters} facets={facets} onChange={setFilters} />
+      <LowHangingFruitFilterBar filters={filters} facets={facets} onChange={setFilters} />
 
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <main className="flex-1 min-w-0 flex flex-col min-h-0">
           <div className="flex-shrink-0 px-6 py-3 flex items-center justify-between border-b border-[#E2DEEC] bg-white">
             <div className="text-xs text-[#6E6390]">
