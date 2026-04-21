@@ -52,6 +52,20 @@ export async function GET(
         { isPrimary: "desc" },
         { name: "asc" },
       ],
+      include: {
+        schoolContacts: {
+          include: {
+            school: {
+              select: {
+                ncessch: true,
+                schoolName: true,
+                schoolLevel: true,
+                schoolType: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     // De-duplicate by email: keep only the first contact per email address.
@@ -81,6 +95,12 @@ export async function GET(
         seniorityLevel: c.seniorityLevel,
         createdAt: c.createdAt.toISOString(),
         lastEnrichedAt: c.lastEnrichedAt?.toISOString() ?? null,
+        schoolContacts: c.schoolContacts.map((sc) => ({
+          ncessch: sc.school.ncessch,
+          name: sc.school.schoolName,
+          schoolLevel: sc.school.schoolLevel,
+          schoolType: sc.school.schoolType,
+        })),
       }))
     );
   } catch (error) {
