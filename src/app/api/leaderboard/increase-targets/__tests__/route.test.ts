@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Mock } from "vitest";
 
 // Mock supabase server - route calls getUser()
 vi.mock("@/lib/supabase/server", () => ({
@@ -6,16 +7,16 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 // Mock Prisma — only $queryRaw is used by this route
-const mockQueryRaw = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   default: {
-    $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
+    $queryRaw: vi.fn(),
   },
 }));
 
 // Import handler after mocks
 import { GET } from "../route";
 import { getUser } from "@/lib/supabase/server";
+import prisma from "@/lib/prisma";
 
 const mockGetUser = vi.mocked(getUser);
 
@@ -24,11 +25,23 @@ interface RawRow {
   name: string | null;
   state_abbrev: string | null;
   enrollment: number | string | null;
-  total_revenue: number | string | null;
-  completed_revenue: number | string | null;
-  scheduled_revenue: number | string | null;
-  session_count: number | string | null;
-  subscription_count: number | string | null;
+  lmsid: string | null;
+  category: "missing_renewal" | "fullmind_winback" | "ek12_winback";
+  fy26_revenue: number | string | null;
+  fy26_completed_revenue: number | string | null;
+  fy26_scheduled_revenue: number | string | null;
+  fy26_session_count: number | string | null;
+  fy26_subscription_count: number | string | null;
+  fy26_opp_bookings: number | string | null;
+  fy26_opp_min_commit: number | string | null;
+  prior_year_revenue: number | string | null;
+  prior_year_vendor: string | null;
+  prior_year_fy: string | null;
+  in_fy27_plan: boolean;
+  plan_ids: string[] | null;
+  has_fy27_target: boolean;
+  has_fy27_pipeline: boolean;
+  fy27_open_pipeline: number | string | null;
   sales_rep_name: string | null;
   sales_rep_email: string | null;
   close_date: Date | string | null;
@@ -36,6 +49,10 @@ interface RawRow {
   net_booking_amount: number | string | null;
   product_types: string[] | null;
   sub_products: string[] | null;
+  trend_fy24: number | string | null;
+  trend_fy25: number | string | null;
+  trend_fy26: number | string | null;
+  trend_fy27: number | string | null;
 }
 
 function makeRow(overrides: Partial<RawRow> = {}): RawRow {
@@ -44,11 +61,23 @@ function makeRow(overrides: Partial<RawRow> = {}): RawRow {
     name: "Test District",
     state_abbrev: "CA",
     enrollment: 1000,
-    total_revenue: 50000,
-    completed_revenue: 30000,
-    scheduled_revenue: 20000,
-    session_count: 100,
-    subscription_count: 5,
+    lmsid: null,
+    category: "missing_renewal",
+    fy26_revenue: "50000",
+    fy26_completed_revenue: "30000",
+    fy26_scheduled_revenue: "20000",
+    fy26_session_count: 100,
+    fy26_subscription_count: 5,
+    fy26_opp_bookings: "0",
+    fy26_opp_min_commit: "0",
+    prior_year_revenue: "0",
+    prior_year_vendor: null,
+    prior_year_fy: null,
+    in_fy27_plan: false,
+    plan_ids: null,
+    has_fy27_target: false,
+    has_fy27_pipeline: false,
+    fy27_open_pipeline: null,
     sales_rep_name: null,
     sales_rep_email: null,
     close_date: null,
@@ -56,6 +85,10 @@ function makeRow(overrides: Partial<RawRow> = {}): RawRow {
     net_booking_amount: null,
     product_types: null,
     sub_products: null,
+    trend_fy24: null,
+    trend_fy25: null,
+    trend_fy26: "320000",
+    trend_fy27: null,
     ...overrides,
   };
 }
@@ -77,7 +110,7 @@ describe("GET /api/leaderboard/increase-targets", () => {
   });
 
   it("returns empty districts array and zero revenue when no FY26 customers exist", async () => {
-    mockQueryRaw.mockResolvedValue([]);
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([]);
 
     const response = await GET();
     const data = await response.json();
@@ -94,9 +127,10 @@ describe("GET /api/leaderboard/increase-targets", () => {
     const eligibleRow = makeRow({
       leaid: "0200001",
       name: "Eligible District",
-      total_revenue: 75000,
+      category: "missing_renewal",
+      fy26_revenue: "75000",
     });
-    mockQueryRaw.mockResolvedValue([eligibleRow]);
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([eligibleRow]);
 
     const response = await GET();
     const data = await response.json();
@@ -109,21 +143,23 @@ describe("GET /api/leaderboard/increase-targets", () => {
     expect(data.totalRevenueAtRisk).toBe(75000);
   });
 
-  it("excludes districts in its SQL with fy27_any and already_planned CTEs", async () => {
-    mockQueryRaw.mockResolvedValue([]);
+  it("references fy27_done, fy27_pipe, fy27_plan, and revenue_trend CTEs in its SQL", async () => {
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([]);
 
     await GET();
 
     // The raw SQL template is passed as a TemplateStringsArray. It's the first
     // argument; we join its `strings` to inspect the query shape.
-    const firstCall = mockQueryRaw.mock.calls[0] as unknown[];
+    const firstCall = (prisma.$queryRaw as unknown as Mock).mock.calls[0] as unknown[];
     const template = firstCall[0] as TemplateStringsArray;
     const sql = template.join("");
 
-    expect(sql).toContain("fy27_any");
-    expect(sql).toContain("already_planned");
-    expect(sql).toContain("NOT IN (SELECT leaid FROM fy27_any");
-    expect(sql).toContain("NOT IN (SELECT leaid FROM already_planned");
+    expect(sql).toContain("fy27_done");
+    expect(sql).toContain("fy27_pipe");
+    expect(sql).toContain("fy27_plan");
+    expect(sql).toContain("revenue_trend");
+    expect(sql).toContain("NOT IN (SELECT leaid FROM fy27_done");
+    expect(sql).toContain("LEFT JOIN revenue_trend rt");
   });
 
   it("returns lastClosedWon as null when the district has no prior Closed Won opp", async () => {
@@ -135,7 +171,7 @@ describe("GET /api/leaderboard/increase-targets", () => {
       school_yr: null,
       net_booking_amount: null,
     });
-    mockQueryRaw.mockResolvedValue([rowNoLastOpp]);
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([rowNoLastOpp]);
 
     const response = await GET();
     const data = await response.json();
@@ -154,7 +190,7 @@ describe("GET /api/leaderboard/increase-targets", () => {
       school_yr: "2023-24",
       net_booking_amount: 45000,
     });
-    mockQueryRaw.mockResolvedValue([rowWithLastOpp]);
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([rowWithLastOpp]);
 
     const response = await GET();
     const data = await response.json();
@@ -172,7 +208,7 @@ describe("GET /api/leaderboard/increase-targets", () => {
   it("returns 500 with the documented error message on Prisma error", async () => {
     // Silence the expected console.error in the handler.
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockQueryRaw.mockRejectedValue(new Error("boom"));
+    (prisma.$queryRaw as unknown as Mock).mockRejectedValueOnce(new Error("boom"));
 
     const response = await GET();
     const data = await response.json();
@@ -181,5 +217,49 @@ describe("GET /api/leaderboard/increase-targets", () => {
     expect(data.error).toBe("Failed to load at-risk districts");
 
     consoleSpy.mockRestore();
+  });
+
+  it("computes suggestedTarget = fy26 × 1.05 rounded to $5K for missing_renewal", async () => {
+    const row = makeRow({
+      category: "missing_renewal",
+      fy26_revenue: "320000",
+      fy26_opp_bookings: "0",
+      prior_year_revenue: "0",
+    });
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([row]);
+    const res = await GET();
+    const body = await res.json();
+    expect(body.districts[0].suggestedTarget).toBe(335000);
+  });
+
+  it("returns suggestedTarget null when fy26 and priorYear are both zero", async () => {
+    const row = makeRow({
+      category: "missing_renewal",
+      fy26_revenue: "0",
+      fy26_opp_bookings: "0",
+      prior_year_revenue: "0",
+    });
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([row]);
+    const res = await GET();
+    const body = await res.json();
+    expect(body.districts[0].suggestedTarget).toBeNull();
+  });
+
+  it("passes trend_fy24..fy27 through as revenueTrend", async () => {
+    const row = makeRow({
+      trend_fy24: "120000",
+      trend_fy25: "240000",
+      trend_fy26: "320000",
+      trend_fy27: null,
+    });
+    (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([row]);
+    const res = await GET();
+    const body = await res.json();
+    expect(body.districts[0].revenueTrend).toEqual({
+      fy24: 120000,
+      fy25: 240000,
+      fy26: 320000,
+      fy27: null,
+    });
   });
 });
