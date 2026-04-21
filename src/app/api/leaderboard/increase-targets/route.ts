@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { computeSuggestedTarget } from "@/features/leaderboard/lib/suggestedTarget";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,10 @@ interface IncreaseTargetRow {
   net_booking_amount: number | string | null;
   product_types: string[] | null;
   sub_products: string[] | null;
+  trend_fy24: number | string | null;
+  trend_fy25: number | string | null;
+  trend_fy26: number | string | null;
+  trend_fy27: number | string | null;
 }
 
 type IncreaseTargetCategory =
@@ -73,6 +78,13 @@ interface IncreaseTarget {
   } | null;
   productTypes: string[];
   subProducts: string[];
+  revenueTrend: {
+    fy24: number | null;
+    fy25: number | null;
+    fy26: number | null;
+    fy27: number | null;
+  };
+  suggestedTarget: number | null;
 }
 
 function toNumberOrNull(v: number | string | null | undefined): number | null {
@@ -163,6 +175,19 @@ export async function GET() {
       ek12_prior_latest AS (
         SELECT leaid, total_revenue, fiscal_year FROM ek12_prior WHERE rn=1
       ),
+      revenue_trend AS (
+        SELECT
+          df.leaid,
+          df.vendor,
+          MAX(CASE WHEN df.fiscal_year = 'FY24' THEN df.total_revenue END) AS fy24,
+          MAX(CASE WHEN df.fiscal_year = 'FY25' THEN df.total_revenue END) AS fy25,
+          MAX(CASE WHEN df.fiscal_year = 'FY26' THEN df.total_revenue END) AS fy26,
+          MAX(CASE WHEN df.fiscal_year = 'FY27' THEN df.total_revenue END) AS fy27
+        FROM district_financials df
+        WHERE df.vendor IN ('fullmind', 'elevate')
+          AND df.fiscal_year IN ('FY24','FY25','FY26','FY27')
+        GROUP BY df.leaid, df.vendor
+      ),
       -- Source 1: FY26 Fullmind customers (df OR opp bookings)
       src_missing_renewal AS (
         SELECT leaid, 'missing_renewal'::text AS category
@@ -251,13 +276,20 @@ export async function GET() {
         fy27_pipe.open_pipeline                    AS fy27_open_pipeline,
         lo.sales_rep_name, lo.sales_rep_email, lo.close_date,
         lo.school_yr, lo.net_booking_amount,
-        tp.product_types, tp.sub_products
+        tp.product_types, tp.sub_products,
+        rt.fy24 AS trend_fy24,
+        rt.fy25 AS trend_fy25,
+        rt.fy26 AS trend_fy26,
+        rt.fy27 AS trend_fy27
       FROM eligible
       JOIN districts d ON d.leaid = eligible.leaid
       LEFT JOIN fy26_df ON fy26_df.leaid = eligible.leaid
       LEFT JOIN fy26_opp ON fy26_opp.leaid = eligible.leaid
       LEFT JOIN fullmind_prior_latest fpl ON fpl.leaid = eligible.leaid
       LEFT JOIN ek12_prior_latest epl ON epl.leaid = eligible.leaid
+      LEFT JOIN revenue_trend rt
+        ON rt.leaid = eligible.leaid
+       AND rt.vendor = CASE WHEN eligible.category = 'ek12_winback' THEN 'elevate' ELSE 'fullmind' END
       LEFT JOIN fy27_plan ON fy27_plan.leaid = eligible.leaid
       LEFT JOIN fy27_pipe ON fy27_pipe.leaid = eligible.leaid
       LEFT JOIN last_opp lo ON lo.leaid = eligible.leaid
@@ -329,6 +361,17 @@ export async function GET() {
           : null,
         productTypes: row.product_types ?? [],
         subProducts: row.sub_products ?? [],
+        revenueTrend: {
+          fy24: toNumberOrNull(row.trend_fy24),
+          fy25: toNumberOrNull(row.trend_fy25),
+          fy26: toNumberOrNull(row.trend_fy26),
+          fy27: toNumberOrNull(row.trend_fy27),
+        },
+        suggestedTarget: computeSuggestedTarget(
+          row.category,
+          dfRevenue > 0 ? dfRevenue : oppBookings,
+          toNumber(row.prior_year_revenue),
+        ),
       };
     });
 
