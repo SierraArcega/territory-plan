@@ -33,6 +33,9 @@ export default function ContactsActionBar({
 }: ContactsActionBarProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [selectedRole, setSelectedRole] = useState<TargetRole>("Superintendent");
+  // School-level subfilter (only meaningful when selectedRole === "Principal").
+  // Default: all 3 levels checked (1 = Primary/Elementary, 2 = Middle, 3 = High).
+  const [schoolLevels, setSchoolLevels] = useState<Set<number>>(new Set([1, 2, 3]));
   const [isEnriching, setIsEnriching] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -115,7 +118,13 @@ export default function ContactsActionBar({
     setShowPopover(false);
 
     try {
-      const result = await bulkEnrich.mutateAsync({ planId, targetRole: selectedRole });
+      const result = await bulkEnrich.mutateAsync({
+        planId,
+        targetRole: selectedRole,
+        ...(selectedRole === "Principal"
+          ? { schoolLevels: Array.from(schoolLevels).sort() }
+          : {}),
+      });
 
       if (result.queued === 0) {
         setToast({ message: "All districts already have contacts — nothing to enrich", type: "info" });
@@ -141,7 +150,7 @@ export default function ContactsActionBar({
         setToast({ message, type: "error" });
       }
     }
-  }, [planId, selectedRole, bulkEnrich]);
+  }, [planId, selectedRole, schoolLevels, bulkEnrich]);
 
   const handleExportCsv = useCallback(() => {
     const headers = ["District Name", "Website", "Contact Name", "Title", "Email", "Phone", "Department", "Seniority Level"];
@@ -238,10 +247,49 @@ export default function ContactsActionBar({
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#403770]/40 pointer-events-none" />
                 </div>
+
+                {selectedRole === "Principal" && (
+                  <div className="mb-3">
+                    <label className="block text-[11px] font-semibold text-[#403770]/60 uppercase tracking-wider mb-1.5">
+                      School Level
+                    </label>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        { value: 1, label: "Primary" },
+                        { value: 2, label: "Middle" },
+                        { value: 3, label: "High" },
+                      ].map(({ value, label }) => (
+                        <label
+                          key={value}
+                          className="flex items-center gap-2 text-[13px] text-[#403770] cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={schoolLevels.has(value)}
+                            onChange={(e) => {
+                              setSchoolLevels((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(value);
+                                else next.delete(value);
+                                return next;
+                              });
+                            }}
+                            className="w-3.5 h-3.5 accent-[#403770]"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={handleStartEnrichment}
-                  disabled={bulkEnrich.isPending}
-                  className="w-full px-3 py-2 text-[13px] font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-50 rounded-lg transition-colors"
+                  disabled={
+                    bulkEnrich.isPending ||
+                    (selectedRole === "Principal" && schoolLevels.size === 0)
+                  }
+                  className="w-full px-3 py-2 text-[13px] font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   {bulkEnrich.isPending ? "Starting..." : "Start"}
                 </button>
