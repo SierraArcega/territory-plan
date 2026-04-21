@@ -1,6 +1,6 @@
-// Column definitions for the Increase Targets DataGrid.
-// Keys match the IncreaseTarget response fields. Label "($)" suffix on a
-// numeric column triggers the DataGrid's currency auto-detect.
+// Column definitions for the Increase Targets / Missing Renewal Opp DataGrid.
+// Keys match the IncreaseTargetRow fields. Label "($)" suffix on a numeric
+// column triggers the DataGrid's currency auto-detect.
 
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 
@@ -21,8 +21,17 @@ export const increaseTargetsColumns: ColumnDef[] = [
     width: 60,
   },
   {
-    key: "fy26Revenue",
-    label: "FY26 Revenue ($)",
+    key: "categoryLabel",
+    label: "Category",
+    group: "At-Risk Info",
+    isDefault: true,
+    filterType: "text",
+    width: 170,
+    sortable: true,
+  },
+  {
+    key: "displayRevenue",
+    label: "Revenue ($)",
     group: "At-Risk Info",
     isDefault: true,
     filterType: "number",
@@ -50,7 +59,7 @@ export const increaseTargetsColumns: ColumnDef[] = [
     group: "At-Risk Info",
     isDefault: true,
     filterType: "text",
-    width: 180,
+    width: 150,
     sortable: false,
   },
   {

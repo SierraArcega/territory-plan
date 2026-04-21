@@ -26,6 +26,18 @@ type IncreaseTargetRow = IncreaseTarget & {
   // doesn't need a bespoke comparator. The actual rendering happens in the
   // Fy27StatusCell renderer and reads from the boolean fields directly.
   fy27Status: string;
+  // Category label used for sorting/filtering; cell renderer pulls the raw
+  // category field off the row for styling.
+  categoryLabel: string;
+  // Revenue figure the Revenue column should display — FY26 for renewal rows,
+  // prior-year for win-back rows.
+  displayRevenue: number;
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  missing_renewal: "Missing Renewal Opp",
+  fullmind_winback: "Fullmind Win Back",
+  ek12_winback: "EK12 Win Back",
 };
 
 function formatShortDate(iso: string | null): string {
@@ -57,6 +69,9 @@ function toRow(r: IncreaseTarget): IncreaseTargetRow {
     ]
       .filter(Boolean)
       .join(","),
+    categoryLabel: CATEGORY_LABEL[r.category] ?? r.category,
+    displayRevenue:
+      r.category === "missing_renewal" ? r.fy26Revenue : r.priorYearRevenue,
   };
 }
 
@@ -80,6 +95,31 @@ const LastSaleCell: CellRendererFn = ({ value }) => {
     return <span className="text-[#A69DC0]">{"\u2014"}</span>;
   }
   return <span className="text-sm text-[#6E6390]">{value}</span>;
+};
+
+const CategoryCell: CellRendererFn = ({ row }) => {
+  const r = row as unknown as IncreaseTargetRow;
+  const palette: Record<string, { bg: string; fg: string; dot: string }> = {
+    missing_renewal: { bg: "#FEF2F1", fg: "#B5453D", dot: "#F37167" },
+    fullmind_winback: { bg: "#EFEDF5", fg: "#403770", dot: "#403770" },
+    ek12_winback: { bg: "#FDEEE8", fg: "#7C3A21", dot: "#E07A5F" },
+  };
+  const p = palette[r.category] ?? palette.missing_renewal;
+  const fy = r.priorYearFy ? ` · ${r.priorYearFy}` : "";
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+      style={{ backgroundColor: p.bg, color: p.fg }}
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: p.dot }}
+      />
+      {r.categoryLabel}
+      {r.category !== "missing_renewal" && fy}
+    </span>
+  );
 };
 
 const Fy27StatusCell: CellRendererFn = ({ row }) => {
@@ -405,6 +445,7 @@ export default function IncreaseTargetsTab() {
       lastSaleSummary: LastSaleCell,
       products: ProductsCell,
       fy27Status: Fy27StatusCell,
+      categoryLabel: CategoryCell,
     }),
     [],
   );

@@ -129,12 +129,18 @@ export interface IncreaseTargetLastClosedWon {
   amount: number | null;
 }
 
+export type IncreaseTargetCategory =
+  | "missing_renewal"
+  | "fullmind_winback"
+  | "ek12_winback";
+
 export interface IncreaseTarget {
   leaid: string;
   districtName: string;
   state: string;
   enrollment: number | null;
   lmsId: string | null;
+  category: IncreaseTargetCategory;
   fy26Revenue: number;
   fy26CompletedRevenue: number;
   fy26ScheduledRevenue: number;
@@ -142,6 +148,10 @@ export interface IncreaseTarget {
   fy26SubscriptionCount: number | null;
   fy26OppBookings: number;
   fy26MinBookings: number;
+  /** FY25 (or FY24) revenue for win-back categories; 0 for missing_renewal. */
+  priorYearRevenue: number;
+  priorYearVendor: string | null;
+  priorYearFy: string | null;
   inFy27Plan: boolean;
   planIds: string[];
   hasFy27Target: boolean;

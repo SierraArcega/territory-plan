@@ -14,6 +14,7 @@ export const AUTO_TAGS = {
   FULLMIND_NEW_BIZ_TARGET: { name: "Fullmind New Biz Target", color: "#403770" },
   FULLMIND_WIN_BACK_FY25: { name: "Fullmind Win Back - FY25", color: "#403770" },
   FULLMIND_WIN_BACK_FY26: { name: "Fullmind Win Back - FY26", color: "#403770" },
+  MISSING_RENEWAL_OPP: { name: "Missing Renewal Opp", color: "#F37167" },
   // Locale tags
   CITY: { name: "City", color: "#403770" },
   SUBURB: { name: "Suburb", color: "#48bb78" },
@@ -448,6 +449,137 @@ export async function syncCompetitorTagsForDistrict(leaid: string): Promise<void
       }
     }
   });
+}
+
+/**
+ * Computes the set of leaids that should carry the "Missing Renewal Opp" tag.
+ * Matches the Increase Targets tab filter exactly:
+ *   - FY26 revenue signal (district_financials.total_revenue > 0
+ *     OR FY26 Closed Won opp bookings/min commits > 0)
+ *   - AND no FY27 closed_won or booked revenue (not already renewed)
+ *   - AND no FY27 open_pipeline (no deal in flight)
+ */
+async function computeMissingRenewalOppLeaids(): Promise<Set<string>> {
+  const rows = await prisma.$queryRaw<{ leaid: string }[]>`
+    WITH fy26_df AS (
+      SELECT leaid FROM district_financials
+      WHERE vendor = 'fullmind' AND fiscal_year = 'FY26' AND total_revenue > 0
+    ),
+    fy26_opp AS (
+      SELECT district_lea_id AS leaid
+      FROM opportunities
+      WHERE school_yr = '2025-26' AND stage ILIKE 'Closed Won%'
+        AND district_lea_id IS NOT NULL
+      GROUP BY district_lea_id
+      HAVING SUM(COALESCE(net_booking_amount, 0))
+           + SUM(COALESCE(minimum_purchase_amount, 0)) > 0
+    ),
+    fy26_any AS (SELECT leaid FROM fy26_df UNION SELECT leaid FROM fy26_opp),
+    fy27_done AS (
+      SELECT leaid FROM district_financials
+      WHERE vendor = 'fullmind' AND fiscal_year = 'FY27'
+        AND (COALESCE(closed_won_bookings, 0) + COALESCE(total_revenue, 0)) > 0
+    ),
+    fy27_pipe AS (
+      SELECT leaid FROM district_financials
+      WHERE vendor = 'fullmind' AND fiscal_year = 'FY27'
+        AND COALESCE(open_pipeline, 0) > 0
+    )
+    SELECT a.leaid FROM fy26_any a
+    WHERE a.leaid NOT IN (SELECT leaid FROM fy27_done WHERE leaid IS NOT NULL)
+      AND a.leaid NOT IN (SELECT leaid FROM fy27_pipe WHERE leaid IS NOT NULL)
+  `;
+  return new Set(rows.map((r) => r.leaid));
+}
+
+/**
+ * Recomputes the "Missing Renewal Opp" tag for a single district. Call after
+ * any mutation that could flip the status: plan district add/remove, FY27 opp
+ * stage change, district_financials refresh. Fast path — scoped query, no
+ * full table scan.
+ */
+export async function syncMissingRenewalOppTagForDistrict(
+  leaid: string,
+): Promise<void> {
+  const tag = await prisma.tag.findUnique({
+    where: { name: AUTO_TAGS.MISSING_RENEWAL_OPP.name },
+    select: { id: true },
+  });
+  if (!tag) return;
+
+  const rows = await prisma.$queryRaw<{ eligible: boolean }[]>`
+    WITH fy26_df AS (
+      SELECT 1 AS hit FROM district_financials
+      WHERE leaid = ${leaid} AND vendor = 'fullmind' AND fiscal_year = 'FY26'
+        AND total_revenue > 0
+    ),
+    fy26_opp AS (
+      SELECT 1 AS hit FROM opportunities
+      WHERE district_lea_id = ${leaid}
+        AND school_yr = '2025-26'
+        AND stage ILIKE 'Closed Won%'
+      HAVING SUM(COALESCE(net_booking_amount, 0))
+           + SUM(COALESCE(minimum_purchase_amount, 0)) > 0
+    ),
+    fy27_done AS (
+      SELECT 1 AS hit FROM district_financials
+      WHERE leaid = ${leaid} AND vendor = 'fullmind' AND fiscal_year = 'FY27'
+        AND (COALESCE(closed_won_bookings, 0) + COALESCE(total_revenue, 0)) > 0
+    ),
+    fy27_pipe AS (
+      SELECT 1 AS hit FROM district_financials
+      WHERE leaid = ${leaid} AND vendor = 'fullmind' AND fiscal_year = 'FY27'
+        AND COALESCE(open_pipeline, 0) > 0
+    )
+    SELECT
+      ((EXISTS (SELECT 1 FROM fy26_df) OR EXISTS (SELECT 1 FROM fy26_opp))
+        AND NOT EXISTS (SELECT 1 FROM fy27_done)
+        AND NOT EXISTS (SELECT 1 FROM fy27_pipe)) AS eligible
+  `;
+  const shouldHave = rows[0]?.eligible === true;
+
+  if (shouldHave) {
+    await prisma.districtTag.upsert({
+      where: { districtLeaid_tagId: { districtLeaid: leaid, tagId: tag.id } },
+      create: { districtLeaid: leaid, tagId: tag.id },
+      update: {},
+    });
+  } else {
+    await prisma.districtTag.deleteMany({
+      where: { districtLeaid: leaid, tagId: tag.id },
+    });
+  }
+}
+
+/**
+ * Bulk-syncs the "Missing Renewal Opp" tag across all districts. Replaces the
+ * entire tag assignment set in a single transaction.
+ */
+export async function syncAllMissingRenewalOppTags(): Promise<number> {
+  const tag = await prisma.tag.findUnique({
+    where: { name: AUTO_TAGS.MISSING_RENEWAL_OPP.name },
+    select: { id: true },
+  });
+  if (!tag) return 0;
+
+  const eligible = await computeMissingRenewalOppLeaids();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.districtTag.deleteMany({ where: { tagId: tag.id } });
+    if (eligible.size === 0) return;
+    const CHUNK = 1000;
+    const leaids = Array.from(eligible);
+    for (let i = 0; i < leaids.length; i += CHUNK) {
+      await tx.districtTag.createMany({
+        data: leaids
+          .slice(i, i + CHUNK)
+          .map((leaid) => ({ districtLeaid: leaid, tagId: tag.id })),
+        skipDuplicates: true,
+      });
+    }
+  });
+
+  return eligible.size;
 }
 
 /**
