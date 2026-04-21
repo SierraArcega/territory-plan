@@ -354,6 +354,10 @@ export default function Sidebar({
       isOpen={showLeaderboard}
       onClose={() => setShowLeaderboard(false)}
       onNavigateToDetails={() => onTabChange("leaderboard" as TabId)}
+      setActiveTab={(tab) => {
+        setShowLeaderboard(false);
+        onTabChange(tab);
+      }}
     />
     </>
   );
