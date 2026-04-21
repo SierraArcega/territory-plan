@@ -273,3 +273,142 @@ export function useSearchContacts(search: string, leaid?: string) {
   });
 }
 
+// ===== Drawer: Notes (threaded log) =====
+
+export interface ActivityNoteEntry {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: {
+    id: string;
+    fullName: string | null;
+    email: string;
+    avatarUrl: string | null;
+  };
+}
+
+export function useActivityNotes(activityId: string | null) {
+  return useQuery({
+    queryKey: ["activity", activityId, "notes"],
+    queryFn: () =>
+      fetchJson<{ notes: ActivityNoteEntry[] }>(
+        `${API_BASE}/activities/${activityId}/notes`
+      ).then((res) => res.notes),
+    enabled: !!activityId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreateActivityNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ activityId, body }: { activityId: string; body: string }) =>
+      fetchJson<ActivityNoteEntry>(`${API_BASE}/activities/${activityId}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["activity", vars.activityId, "notes"] });
+    },
+  });
+}
+
+export function useDeleteActivityNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ activityId, noteId }: { activityId: string; noteId: string }) =>
+      fetchJson<{ success: boolean }>(
+        `${API_BASE}/activities/${activityId}/notes/${noteId}`,
+        { method: "DELETE" }
+      ),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["activity", vars.activityId, "notes"] });
+    },
+  });
+}
+
+// ===== Drawer: Attachments (files + photos) =====
+
+export interface ActivityAttachmentMeta {
+  id: string;
+  kind: "photo" | "file";
+  name: string;
+  sizeBytes: number;
+  mime: string;
+  uploadedAt: string;
+  uploader: {
+    id: string;
+    fullName: string | null;
+    email: string;
+    avatarUrl: string | null;
+  };
+}
+
+export function useActivityAttachments(activityId: string | null) {
+  return useQuery({
+    queryKey: ["activity", activityId, "attachments"],
+    queryFn: () =>
+      fetchJson<{ attachments: ActivityAttachmentMeta[] }>(
+        `${API_BASE}/activities/${activityId}/attachments`
+      ).then((res) => res.attachments),
+    enabled: !!activityId,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useUploadActivityAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ activityId, file }: { activityId: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API_BASE}/activities/${activityId}/attachments`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || "upload_failed");
+      }
+      return (await res.json()) as ActivityAttachmentMeta;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["activity", vars.activityId, "attachments"],
+      });
+    },
+  });
+}
+
+export function useDeleteActivityAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ activityId, attachmentId }: { activityId: string; attachmentId: string }) =>
+      fetchJson<{ success: boolean }>(
+        `${API_BASE}/activities/${activityId}/attachments/${attachmentId}`,
+        { method: "DELETE" }
+      ),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["activity", vars.activityId, "attachments"],
+      });
+    },
+  });
+}
+
+// Resolve a short-lived signed URL for one attachment (used to render <img>/anchor src).
+export function useActivityAttachmentUrl(
+  activityId: string | null,
+  attachmentId: string | null
+) {
+  return useQuery({
+    queryKey: ["activity", activityId, "attachment-url", attachmentId],
+    queryFn: () =>
+      fetchJson<{ url: string }>(
+        `${API_BASE}/activities/${activityId}/attachments/${attachmentId}/url`
+      ).then((res) => res.url),
+    enabled: !!activityId && !!attachmentId,
+    staleTime: 50 * 60 * 1000, // refresh just before the 60-min signed URL TTL
+  });
+}
+
