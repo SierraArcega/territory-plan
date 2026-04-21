@@ -72,6 +72,7 @@ export const TARGET_ROLES = [
   "Curriculum Director",
   "Special Education Director",
   "HR Director",
+  "Principal",
 ] as const;
 
 export type TargetRole = (typeof TARGET_ROLES)[number];
