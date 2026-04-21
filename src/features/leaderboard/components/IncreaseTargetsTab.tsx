@@ -110,7 +110,6 @@ const Fy27StatusCell: CellRendererFn = ({ row }) => {
     <span className="inline-flex flex-wrap items-center gap-1">
       {dot(r.inFy27Plan, "Plan", "In a FY27 territory plan")}
       {dot(r.hasFy27Target, "Target", "Has an FY27 target set")}
-      {dot(r.hasFy27Pipeline, "Pipe", "Has FY27 open pipeline")}
     </span>
   );
 };

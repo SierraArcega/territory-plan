@@ -176,11 +176,7 @@ export async function GET() {
       LEFT JOIN last_opp lo ON lo.leaid = fy26_any.leaid
       LEFT JOIN top_products tp ON tp.leaid = fy26_any.leaid
       WHERE fy26_any.leaid NOT IN (SELECT leaid FROM fy27_done WHERE leaid IS NOT NULL)
-        AND NOT (
-          fy27_plan.leaid IS NOT NULL
-          AND COALESCE(fy27_plan.has_target, false) = true
-          AND fy27_pipe.leaid IS NOT NULL
-        )
+        AND fy27_pipe.leaid IS NULL
       ORDER BY
         GREATEST(
           COALESCE(fy26_df.total_revenue, 0),
