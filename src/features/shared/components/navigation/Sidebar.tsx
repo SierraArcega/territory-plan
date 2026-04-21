@@ -7,7 +7,7 @@ import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "leaderboard" | "resources" | "profile" | "admin";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin";
 
 interface Tab {
   id: TabId;

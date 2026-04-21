@@ -132,6 +132,9 @@ export function useIncreaseTargetsList() {
   });
 }
 
+/** Preferred alias — the list is the data source for the Low Hanging Fruit surface. */
+export const useLowHangingFruitList = useIncreaseTargetsList;
+
 /**
  * Territory plans owned by the current user. Reuses the team-wide
  * /api/territory-plans endpoint and filters client-side by `owner.id`.
