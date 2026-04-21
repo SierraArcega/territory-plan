@@ -1,10 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Plus, ChevronDown, ExternalLink } from "lucide-react";
 import type { IncreaseTarget } from "../lib/types";
 import { formatCurrency } from "@/features/shared/lib/format";
-import AddToPlanPopover from "./AddToPlanPopover";
+import AddActionMenu from "./AddActionMenu";
 
 interface Props {
   row: IncreaseTarget;
@@ -51,8 +49,6 @@ export default function LowHangingFruitCard({
   onOpenDetail,
   onAddSuccess,
 }: Props) {
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const addBtnRef = useRef<HTMLButtonElement>(null);
   const cat = CATEGORY_COLORS[row.category];
   const products = row.productTypes.slice(0, 2);
   const overflow = row.productTypes.length - products.length;
@@ -84,32 +80,9 @@ export default function LowHangingFruitCard({
             <div className="text-xs text-[#8A80A8]">{row.state}</div>
           </div>
         </div>
-        {row.inPlan ? (
-          <a
-            href={row.lmsId ? `https://lms.fullmindlearning.com/districts/${row.lmsId}` : "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border border-[#403770] text-[#403770] hover:bg-[#403770] hover:text-white transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            LMS
-          </a>
-        ) : (
-          <button
-            ref={addBtnRef}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPopoverOpen((v) => !v);
-            }}
-            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-white bg-[#403770] hover:bg-[#322a5a] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add
-            <ChevronDown className="w-3 h-3 opacity-80" />
-          </button>
-        )}
+        <div onClick={(e) => e.stopPropagation()}>
+          <AddActionMenu district={row} onAddSuccess={onAddSuccess} />
+        </div>
       </div>
 
       {/* Row 2: hero revenue */}
@@ -155,18 +128,6 @@ export default function LowHangingFruitCard({
         )}
       </div>
 
-      {popoverOpen && (
-        <AddToPlanPopover
-          district={row}
-          anchorRef={addBtnRef}
-          isOpen={popoverOpen}
-          onClose={() => setPopoverOpen(false)}
-          onSuccess={(planName) => {
-            setPopoverOpen(false);
-            onAddSuccess(planName);
-          }}
-        />
-      )}
     </div>
   );
 }

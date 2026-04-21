@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { X, ExternalLink, Plus, ChevronDown } from "lucide-react";
+import { useEffect } from "react";
+import { X, ExternalLink } from "lucide-react";
 import type { IncreaseTarget } from "../lib/types";
 import { formatCurrency } from "@/features/shared/lib/format";
-import AddToPlanPopover from "./AddToPlanPopover";
+import AddActionMenu from "./AddActionMenu";
 
 interface Props {
   row: IncreaseTarget | null;
@@ -17,9 +17,6 @@ function fyCell(val: number | null): string {
 }
 
 export default function LowHangingFruitDetailDrawer({ row, onClose, onAddSuccess }: Props) {
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const addBtnRef = useRef<HTMLButtonElement>(null);
-
   useEffect(() => {
     if (!row) return;
     const onKey = (e: KeyboardEvent) => {
@@ -160,40 +157,7 @@ export default function LowHangingFruitDetailDrawer({ row, onClose, onAddSuccess
         </div>
 
         <footer className="sticky bottom-0 bg-white border-t border-[#E2DEEC] p-4">
-          {row.inPlan ? (
-            <a
-              href={row.lmsId ? `https://lms.fullmindlearning.com/districts/${row.lmsId}` : "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold border border-[#403770] text-[#403770] hover:bg-[#403770] hover:text-white transition-colors"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Open in LMS
-            </a>
-          ) : (
-            <button
-              ref={addBtnRef}
-              type="button"
-              onClick={() => setPopoverOpen((v) => !v)}
-              className="w-full inline-flex items-center justify-center gap-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-[#403770] hover:bg-[#322a5a] transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add to plan
-              <ChevronDown className="w-3.5 h-3.5 opacity-80" />
-            </button>
-          )}
-          {popoverOpen && (
-            <AddToPlanPopover
-              district={row}
-              anchorRef={addBtnRef}
-              isOpen={popoverOpen}
-              onClose={() => setPopoverOpen(false)}
-              onSuccess={(planName) => {
-                setPopoverOpen(false);
-                onAddSuccess(planName);
-              }}
-            />
-          )}
+          <AddActionMenu district={row} onAddSuccess={onAddSuccess} fullWidth />
         </footer>
       </aside>
     </>
