@@ -257,12 +257,23 @@ export function useBulkEnrich() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ planId, targetRole }: { planId: string; targetRole: string }) =>
+    mutationFn: ({
+      planId,
+      targetRole,
+      schoolLevels,
+    }: {
+      planId: string;
+      targetRole: string;
+      schoolLevels?: number[];
+    }) =>
       fetchJson<{ total: number; skipped: number; queued: number }>(
         `${API_BASE}/territory-plans/${planId}/contacts/bulk-enrich`,
         {
           method: "POST",
-          body: JSON.stringify({ targetRole }),
+          body: JSON.stringify({
+            targetRole,
+            ...(schoolLevels ? { schoolLevels } : {}),
+          }),
         }
       ),
     onSuccess: (_, variables) => {
