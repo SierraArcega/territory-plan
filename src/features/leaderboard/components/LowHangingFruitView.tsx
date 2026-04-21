@@ -90,8 +90,8 @@ export default function LowHangingFruitView() {
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FFFCFA]">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-[#E2DEEC] bg-white">
+    <div className="flex flex-col h-full bg-[#FFFCFA] overflow-hidden">
+      <header className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-[#E2DEEC] bg-white">
         <div>
           <h1 className="text-xl font-bold text-[#403770]">Low Hanging Fruit</h1>
           <p className="text-xs text-[#6E6390]">
@@ -102,11 +102,11 @@ export default function LowHangingFruitView() {
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <LowHangingFruitFilterRail filters={filters} facets={facets} onChange={setFilters} />
 
-        <main className="flex-1 min-w-0">
-          <div className="px-6 py-3 flex items-center justify-between border-b border-[#E2DEEC] bg-white">
+        <main className="flex-1 min-w-0 flex flex-col min-h-0">
+          <div className="flex-shrink-0 px-6 py-3 flex items-center justify-between border-b border-[#E2DEEC] bg-white">
             <div className="text-xs text-[#6E6390]">
               Showing {filtered.length} of {allRows.length}
             </div>
@@ -124,6 +124,7 @@ export default function LowHangingFruitView() {
             </label>
           </div>
 
+          <div className="flex-1 min-h-0 overflow-y-auto">
           {query.isLoading ? (
             <div className="p-6 grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -169,11 +170,12 @@ export default function LowHangingFruitView() {
               ))}
             </div>
           )}
+          </div>
         </main>
       </div>
 
       {selectedLeaids.size > 0 && (
-        <div className="sticky bottom-0 flex items-center justify-between gap-3 px-6 py-3 bg-[#403770] text-white shadow-lg">
+        <div className="flex-shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-[#403770] text-white shadow-lg">
           <span className="text-sm">
             {selectedLeaids.size} selected · {formatCurrency(totalSelectedRevenue, true)} total
           </span>

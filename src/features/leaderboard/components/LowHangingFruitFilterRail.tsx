@@ -99,7 +99,7 @@ export default function LowHangingFruitFilterRail({ filters, facets, onChange }:
   );
 
   return (
-    <aside className="w-[220px] shrink-0 bg-[#F7F5FA] border-r border-[#E2DEEC] sticky top-0 self-start max-h-screen overflow-y-auto">
+    <aside className="w-[220px] shrink-0 bg-[#F7F5FA] border-r border-[#E2DEEC] overflow-y-auto">
       <Section
         title="Category"
         active={filters.categories.length}
