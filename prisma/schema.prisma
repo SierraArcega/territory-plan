@@ -615,6 +615,8 @@ model Activity {
   relations     ActivityRelation[]    @relation("ActivityRelations")
   relatedTo     ActivityRelation[]    @relation("RelatedToActivities")
   opportunities ActivityOpportunity[]
+  noteEntries   ActivityNote[]
+  attachments   ActivityAttachment[]
 
   @@unique([slackChannelId, slackMessageTs])
   @@index([createdByUserId])
@@ -722,6 +724,93 @@ model ActivityRelation {
   @@map("activity_relations")
 }
 
+// Generic column-level audit log. Populated by Postgres triggers on the
+// tables whose columns we want to track (see migration 20260420). Each row
+// records a single column change on a single primary-key row.
+//
+// row_pk is text so composite keys serialize as "plan_id:district_leaid".
+// changed_by is populated from current_setting('app.user_id') if the app
+// sets it before running a mutation; otherwise NULL (we still get when + what).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  tableName  String   @map("table_name") @db.VarChar(64)
+  rowPk      String   @map("row_pk") @db.Text
+  columnName String   @map("column_name") @db.VarChar(64)
+  oldValue   String?  @map("old_value") @db.Text
+  newValue   String?  @map("new_value") @db.Text
+  changedAt  DateTime @default(now()) @map("changed_at") @db.Timestamptz
+  changedBy  String?  @map("changed_by") @db.Uuid
+
+  @@index([tableName, rowPk])
+  @@index([tableName, columnName, changedAt])
+  @@index([changedAt])
+  @@map("audit_log")
+}
+
+// Weekly snapshot of every opportunity's key fields. Written by the
+// /api/cron/pipeline-snapshot route. Lets us answer "what did pipeline look
+// like N weeks ago" without replaying the audit log. One row per opp per
+// snapshot_date; unique constraint prevents duplicates within a single day.
+model OpportunitySnapshot {
+  id                    BigInt    @id @default(autoincrement())
+  snapshotDate          DateTime  @map("snapshot_date") @db.Date
+  opportunityId         String    @map("opportunity_id") @db.Text
+  stage                 String?   @db.Text
+  netBookingAmount      Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  minimumPurchaseAmount Decimal?  @map("minimum_purchase_amount") @db.Decimal(15, 2)
+  maximumBudget         Decimal?  @map("maximum_budget") @db.Decimal(15, 2)
+  schoolYr              String?   @map("school_yr") @db.Text
+  salesRepId            String?   @map("sales_rep_id") @db.Uuid
+  districtLeaId         String?   @map("district_lea_id") @db.VarChar(7)
+  closeDate             DateTime? @map("close_date") @db.Timestamptz
+  expiration            DateTime? @map("expiration") @db.Timestamptz
+  capturedAt            DateTime  @default(now()) @map("captured_at") @db.Timestamptz
+
+  @@unique([opportunityId, snapshotDate])
+  @@index([snapshotDate])
+  @@index([schoolYr, snapshotDate])
+  @@index([opportunityId])
+  @@map("opportunity_snapshots")
+}
+
+// Threaded note log on an activity. Distinct from Activity.notes (free-form
+// description on the activity itself) — this is one row per author entry,
+// shown as a chronological feed in the activity detail drawer.
+model ActivityNote {
+  id         String      @id @default(uuid())
+  activityId String      @map("activity_id")
+  authorId   String      @map("author_id") @db.Uuid
+  body       String
+  createdAt  DateTime    @default(now()) @map("created_at")
+  activity   Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author     UserProfile @relation("ActivityNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([activityId])
+  @@index([authorId])
+  @@map("activity_notes")
+}
+
+// File / photo attached to an activity. Blob lives in the Supabase Storage
+// bucket `activity-attachments`; storagePath is the bucket-relative path used
+// to mint signed URLs at read time.
+model ActivityAttachment {
+  id           String      @id @default(uuid())
+  activityId   String      @map("activity_id")
+  kind         String      @db.VarChar(10) // 'photo' | 'file'
+  name         String      @db.VarChar(255)
+  sizeBytes    Int         @map("size_bytes")
+  mime         String      @db.VarChar(100)
+  storagePath  String      @map("storage_path") @db.VarChar(500)
+  uploadedById String      @map("uploaded_by_id") @db.Uuid
+  uploadedAt   DateTime    @default(now()) @map("uploaded_at")
+  activity     Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  uploader     UserProfile @relation("ActivityAttachmentUploader", fields: [uploadedById], references: [id])
+
+  @@index([activityId])
+  @@index([uploadedById])
+  @@map("activity_attachments")
+}
+
 // ===== User Roles =====
 enum UserRole {
   admin
@@ -763,6 +852,10 @@ model UserProfile {
   savedMapViews       MapView[]                   @relation("MapViewOwner")
   // Activity attendance
   activityAttendances ActivityAttendee[]
+  // Notes authored on activity logs
+  activityNotes       ActivityNote[]              @relation("ActivityNoteAuthor")
+  // Files / photos uploaded to activity drawers
+  activityAttachments ActivityAttachment[]        @relation("ActivityAttachmentUploader")
   // Tasks assigned to this user (not necessarily created by them)
   assignedTasks       Task[]                      @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
