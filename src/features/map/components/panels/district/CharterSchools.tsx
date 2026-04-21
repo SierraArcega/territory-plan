@@ -1,13 +1,7 @@
 "use client";
 
 import { useSchoolsByDistrict } from "@/lib/api";
-
-const SCHOOL_LEVEL_LABELS: Record<number, string> = {
-  1: "Primary",
-  2: "Middle",
-  3: "High",
-  4: "Other",
-};
+import { SCHOOL_LEVEL_LABELS } from "@/features/shared/lib/schoolLabels";
 
 interface CharterSchoolsProps {
   leaid: string;

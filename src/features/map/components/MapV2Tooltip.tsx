@@ -3,6 +3,7 @@
 import { useEffect, forwardRef } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { TRANSITION_BUCKET_MAP } from "@/features/map/lib/comparison";
+import { SCHOOL_LEVEL_LABELS } from "@/features/shared/lib/schoolLabels";
 
 const CATEGORY_LABELS: Record<string, string> = {
   multi_year_growing: "Multi-year (Growing)",
@@ -27,13 +28,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   lapsed: "#FFB347",
   pipeline: "#c4dae6",
   target: "#e8f1f5",
-};
-
-const SCHOOL_LEVEL_LABELS: Record<number, string> = {
-  1: "Elementary",
-  2: "Middle",
-  3: "High",
-  4: "Other",
 };
 
 const SCHOOL_LEVEL_COLORS: Record<number, string> = {

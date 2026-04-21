@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { useSchoolsByDistrict } from "@/lib/api";
 import type { SchoolListItem, SchoolsSummary } from "@/features/shared/types/api-types";
-
-const SCHOOL_LEVEL_LABELS: Record<number, string> = {
-  1: "Primary",
-  2: "Middle",
-  3: "High",
-  4: "Other",
-};
+import { SCHOOL_LEVEL_LABELS } from "@/features/shared/lib/schoolLabels";
 
 const TITLE_I_LABELS: Record<number, string> = {
   1: "Eligible (No Program)",
