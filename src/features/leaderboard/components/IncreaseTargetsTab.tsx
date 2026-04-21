@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, ChevronDown, Sparkles } from "lucide-react";
+import { Plus, ChevronDown, Sparkles, ExternalLink } from "lucide-react";
 import { DataGrid } from "@/features/shared/components/DataGrid";
 import type {
   ColumnDef,
@@ -196,6 +196,26 @@ function AddButton({ row, onSuccess }: AddButtonProps) {
     setIsOpen(false);
     onSuccess(planName);
   };
+
+  // If the district is already in a plan, the action is a link out to the LMS
+  // district page (where the rep can create the renewal opp).
+  if (row.inPlan) {
+    const lmsHref = row.lmsId
+      ? `https://lms.fullmindlearning.com/districts/${row.lmsId}`
+      : "https://lms.fullmindlearning.com/opportunities/kanban?school_year=2026-27";
+    return (
+      <a
+        href={lmsHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border border-[#403770] text-[#403770] hover:bg-[#403770] hover:text-white transition-colors"
+      >
+        <ExternalLink className="w-3.5 h-3.5" />
+        Open in LMS
+      </a>
+    );
+  }
 
   return (
     <>

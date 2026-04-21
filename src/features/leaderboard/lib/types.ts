@@ -134,11 +134,16 @@ export interface IncreaseTarget {
   districtName: string;
   state: string;
   enrollment: number | null;
+  lmsId: string | null;
   fy26Revenue: number;
   fy26CompletedRevenue: number;
   fy26ScheduledRevenue: number;
   fy26SessionCount: number | null;
   fy26SubscriptionCount: number | null;
+  fy26OppBookings: number;
+  fy26OppMinCommit: number;
+  inPlan: boolean;
+  planIds: string[];
   lastClosedWon: IncreaseTargetLastClosedWon | null;
   productTypes: string[];
   subProducts: string[];

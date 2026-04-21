@@ -184,19 +184,25 @@ export function useAddDistrictToPlanMutation() {
       );
     },
     onSuccess: (_data, variables) => {
-      // Optimistic cache update: drop the added row from the list and
-      // decrement the revenue total. Avoids a refetch flicker.
+      // Optimistic cache update: flip the added row to `inPlan: true` so its
+      // action changes to "Open in LMS" without a refetch flicker. The row
+      // stays in the list — it still has FY26 revenue and no FY27 pipeline.
       queryClient.setQueryData<IncreaseTargetsResponse>(
         INCREASE_TARGETS_QUERY_KEY,
         (prev) => {
           if (!prev) return prev;
-          const removed = prev.districts.find((d) => d.leaid === variables.leaid);
-          if (!removed) return prev;
           return {
-            districts: prev.districts.filter((d) => d.leaid !== variables.leaid),
-            totalRevenueAtRisk: Math.max(
-              0,
-              prev.totalRevenueAtRisk - removed.fy26Revenue,
+            ...prev,
+            districts: prev.districts.map((d) =>
+              d.leaid === variables.leaid
+                ? {
+                    ...d,
+                    inPlan: true,
+                    planIds: d.planIds.includes(variables.planId)
+                      ? d.planIds
+                      : [...d.planIds, variables.planId],
+                  }
+                : d,
             ),
           };
         },

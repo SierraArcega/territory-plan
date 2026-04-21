@@ -4,18 +4,21 @@ import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// Raw row shape returned by the $queryRaw call below. All numeric columns
-// may come back as strings (pg) or Decimal (Prisma). We coerce via Number().
 interface IncreaseTargetRow {
   leaid: string;
   name: string | null;
   state_abbrev: string | null;
   enrollment: number | string | null;
-  total_revenue: number | string | null;
-  completed_revenue: number | string | null;
-  scheduled_revenue: number | string | null;
-  session_count: number | string | null;
-  subscription_count: number | string | null;
+  lmsid: string | null;
+  fy26_revenue: number | string | null;
+  fy26_completed_revenue: number | string | null;
+  fy26_scheduled_revenue: number | string | null;
+  fy26_session_count: number | string | null;
+  fy26_subscription_count: number | string | null;
+  fy26_opp_bookings: number | string | null;
+  fy26_opp_min_commit: number | string | null;
+  in_plan: boolean;
+  plan_ids: string[] | null;
   sales_rep_name: string | null;
   sales_rep_email: string | null;
   close_date: Date | string | null;
@@ -30,11 +33,16 @@ interface IncreaseTarget {
   districtName: string;
   state: string;
   enrollment: number | null;
+  lmsId: string | null;
   fy26Revenue: number;
   fy26CompletedRevenue: number;
   fy26ScheduledRevenue: number;
   fy26SessionCount: number | null;
   fy26SubscriptionCount: number | null;
+  fy26OppBookings: number;
+  fy26OppMinCommit: number;
+  inPlan: boolean;
+  planIds: string[];
   lastClosedWon: {
     repName: string | null;
     repEmail: string | null;
@@ -59,14 +67,15 @@ function toNumber(v: number | string | null | undefined): number {
 function toIsoOrNull(v: Date | string | null | undefined): string | null {
   if (v === null || v === undefined) return null;
   if (v instanceof Date) return v.toISOString();
-  // Already a string — try to normalize via Date; if invalid, return as-is.
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : d.toISOString();
 }
 
 // GET /api/leaderboard/increase-targets
-// Returns FY26 Fullmind customers with no FY27 activity and not already in any
-// territory plan. Team-wide visibility — every rep sees the same list.
+// Returns districts where we have a FY26 revenue signal (district_financials OR
+// Closed Won opportunities in 2025-26) AND no FY27 activity yet. Includes rows
+// already in territory plans so reps can still click through to the LMS for
+// renewal — the action differs based on `inPlan`.
 export async function GET() {
   try {
     const user = await getUser();
@@ -75,7 +84,7 @@ export async function GET() {
     }
 
     const rows = await prisma.$queryRaw<IncreaseTargetRow[]>`
-      WITH fy26 AS (
+      WITH fy26_df AS (
         SELECT
           leaid,
           total_revenue,
@@ -88,6 +97,24 @@ export async function GET() {
           AND fiscal_year = 'FY26'
           AND total_revenue > 0
       ),
+      fy26_opp AS (
+        SELECT
+          district_lea_id AS leaid,
+          SUM(COALESCE(net_booking_amount, 0))::numeric AS bookings,
+          SUM(COALESCE(minimum_purchase_amount, 0))::numeric AS min_commit
+        FROM opportunities
+        WHERE school_yr = '2025-26'
+          AND stage ILIKE 'Closed Won%'
+          AND district_lea_id IS NOT NULL
+        GROUP BY district_lea_id
+        HAVING SUM(COALESCE(net_booking_amount, 0))
+             + SUM(COALESCE(minimum_purchase_amount, 0)) > 0
+      ),
+      fy26_any AS (
+        SELECT leaid FROM fy26_df
+        UNION
+        SELECT leaid FROM fy26_opp
+      ),
       fy27_any AS (
         SELECT leaid
         FROM district_financials
@@ -99,9 +126,11 @@ export async function GET() {
             + COALESCE(total_revenue, 0)
           ) > 0
       ),
-      already_planned AS (
-        SELECT DISTINCT district_leaid AS leaid
+      planned AS (
+        SELECT district_leaid AS leaid,
+          ARRAY_AGG(DISTINCT plan_id::text) AS plan_ids
         FROM territory_plan_districts
+        GROUP BY district_leaid
       ),
       last_opp AS (
         SELECT DISTINCT ON (district_lea_id)
@@ -131,11 +160,16 @@ export async function GET() {
         d.name,
         d.state_abbrev,
         d.enrollment,
-        fy26.total_revenue,
-        fy26.completed_revenue,
-        fy26.scheduled_revenue,
-        fy26.session_count,
-        fy26.subscription_count,
+        d.lmsid,
+        fy26_df.total_revenue AS fy26_revenue,
+        fy26_df.completed_revenue AS fy26_completed_revenue,
+        fy26_df.scheduled_revenue AS fy26_scheduled_revenue,
+        fy26_df.session_count AS fy26_session_count,
+        fy26_df.subscription_count AS fy26_subscription_count,
+        fy26_opp.bookings AS fy26_opp_bookings,
+        fy26_opp.min_commit AS fy26_opp_min_commit,
+        (planned.leaid IS NOT NULL) AS in_plan,
+        planned.plan_ids,
         lo.sales_rep_name,
         lo.sales_rep_email,
         lo.close_date,
@@ -143,13 +177,19 @@ export async function GET() {
         lo.net_booking_amount,
         tp.product_types,
         tp.sub_products
-      FROM fy26
-      JOIN districts d ON d.leaid = fy26.leaid
-      LEFT JOIN last_opp lo ON lo.leaid = fy26.leaid
-      LEFT JOIN top_products tp ON tp.leaid = fy26.leaid
-      WHERE fy26.leaid NOT IN (SELECT leaid FROM fy27_any WHERE leaid IS NOT NULL)
-        AND fy26.leaid NOT IN (SELECT leaid FROM already_planned WHERE leaid IS NOT NULL)
-      ORDER BY fy26.total_revenue DESC
+      FROM fy26_any
+      JOIN districts d ON d.leaid = fy26_any.leaid
+      LEFT JOIN fy26_df ON fy26_df.leaid = fy26_any.leaid
+      LEFT JOIN fy26_opp ON fy26_opp.leaid = fy26_any.leaid
+      LEFT JOIN planned ON planned.leaid = fy26_any.leaid
+      LEFT JOIN last_opp lo ON lo.leaid = fy26_any.leaid
+      LEFT JOIN top_products tp ON tp.leaid = fy26_any.leaid
+      WHERE fy26_any.leaid NOT IN (SELECT leaid FROM fy27_any WHERE leaid IS NOT NULL)
+      ORDER BY
+        GREATEST(
+          COALESCE(fy26_df.total_revenue, 0),
+          COALESCE(fy26_opp.bookings, 0)
+        ) DESC
     `;
 
     const districts: IncreaseTarget[] = rows.map((row) => {
@@ -160,16 +200,24 @@ export async function GET() {
         row.school_yr !== null ||
         row.net_booking_amount !== null;
 
+      const dfRevenue = toNumber(row.fy26_revenue);
+      const oppBookings = toNumber(row.fy26_opp_bookings);
+
       return {
         leaid: row.leaid,
         districtName: row.name ?? "",
         state: row.state_abbrev ?? "",
         enrollment: toNumberOrNull(row.enrollment),
-        fy26Revenue: toNumber(row.total_revenue),
-        fy26CompletedRevenue: toNumber(row.completed_revenue),
-        fy26ScheduledRevenue: toNumber(row.scheduled_revenue),
-        fy26SessionCount: toNumberOrNull(row.session_count),
-        fy26SubscriptionCount: toNumberOrNull(row.subscription_count),
+        lmsId: row.lmsid && row.lmsid !== "0" ? row.lmsid : null,
+        fy26Revenue: dfRevenue > 0 ? dfRevenue : oppBookings,
+        fy26CompletedRevenue: toNumber(row.fy26_completed_revenue),
+        fy26ScheduledRevenue: toNumber(row.fy26_scheduled_revenue),
+        fy26SessionCount: toNumberOrNull(row.fy26_session_count),
+        fy26SubscriptionCount: toNumberOrNull(row.fy26_subscription_count),
+        fy26OppBookings: oppBookings,
+        fy26OppMinCommit: toNumber(row.fy26_opp_min_commit),
+        inPlan: row.in_plan === true,
+        planIds: row.plan_ids ?? [],
         lastClosedWon: hasLastOpp
           ? {
               repName: row.sales_rep_name ?? null,

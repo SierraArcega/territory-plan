@@ -58,11 +58,16 @@ function makeDistrict(overrides: Partial<IncreaseTarget> = {}): IncreaseTarget {
     districtName: "Alpha USD",
     state: "CA",
     enrollment: 1000,
+    lmsId: null,
     fy26Revenue: 50000,
     fy26CompletedRevenue: 30000,
     fy26ScheduledRevenue: 20000,
     fy26SessionCount: 100,
     fy26SubscriptionCount: 5,
+    fy26OppBookings: 0,
+    fy26OppMinCommit: 0,
+    inPlan: false,
+    planIds: [],
     lastClosedWon: null,
     productTypes: ["Tutoring"],
     subProducts: [],
@@ -76,13 +81,13 @@ function renderTab() {
   });
   // Intercept setQueryData so we can assert the optimistic update without
   // relying on internal React Query state.
-  const originalSet = queryClient.setQueryData.bind(queryClient);
+  const originalSet = queryClient.setQueryData.bind(queryClient) as (
+    key: unknown,
+    updater: unknown,
+  ) => unknown;
   queryClient.setQueryData = ((key: unknown, updater: unknown) => {
     mockSetQueryData(key, updater);
-    return originalSet(
-      key as Parameters<typeof originalSet>[0],
-      updater as Parameters<typeof originalSet>[1],
-    );
+    return originalSet(key, updater);
   }) as typeof queryClient.setQueryData;
 
   return {
