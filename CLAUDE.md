@@ -73,6 +73,23 @@ creation flows:
 - Vitest + Testing Library + jsdom
 - Tests co-located in `__tests__/` directories next to source
 
+### External Webhooks (Clay, etc.)
+When touching any flow that asks a third party to POST back to us (Clay
+`CLAY_WEBHOOK_URL` callbacks, future webhook integrations), the callback URL is
+built from `NEXT_PUBLIC_SITE_URL`, which defaults to production
+(`https://plan.fullmindlearning.com`). That means **end-to-end verification on
+localhost requires a tunnel** — otherwise the third party POSTs back to prod and
+your local code never runs.
+
+- Start a tunnel: `ngrok http 3005` (ngrok is already authed on dev machines).
+- Put the public URL in `.env.local` as `NEXT_PUBLIC_SITE_URL=<tunnel-url>` and
+  restart `npm run dev` so the API routes pick it up.
+- After testing, remove the override from `.env.local` so subsequent runs
+  don't keep pointing Clay at a dead tunnel.
+- If you modify webhook request/response shape, also update the corresponding
+  Clay table's input columns / HTTP callback payload — app-side code alone
+  won't fix a mismatch on Clay's side.
+
 ## Large Files — Read Selectively
 - `src/features/map/lib/store.ts` (~1400 lines) — Zustand store, grep for specific slices
 - `src/features/map/lib/layers.ts` (688 lines) — MapLibre layer configs
