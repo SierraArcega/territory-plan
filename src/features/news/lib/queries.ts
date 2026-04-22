@@ -41,7 +41,7 @@ export function useDistrictNewsQuery(leaid: string | null, limit = DEFAULT_LIMIT
     queryKey: qk.district(leaid ?? "", limit),
     queryFn: async () =>
       fetchJson<NewsListResponse>(
-        `${API_BASE}/api/news?leaid=${encodeURIComponent(leaid!)}&limit=${limit}`
+        `${API_BASE}/news?leaid=${encodeURIComponent(leaid!)}&limit=${limit}`
       ),
     enabled: Boolean(leaid),
     staleTime: 10 * 60 * 1000,
@@ -53,7 +53,7 @@ export function useSchoolNewsQuery(ncessch: string | null, limit = DEFAULT_LIMIT
     queryKey: qk.school(ncessch ?? "", limit),
     queryFn: async () =>
       fetchJson<NewsListResponse>(
-        `${API_BASE}/api/news?ncessch=${encodeURIComponent(ncessch!)}&limit=${limit}`
+        `${API_BASE}/news?ncessch=${encodeURIComponent(ncessch!)}&limit=${limit}`
       ),
     enabled: Boolean(ncessch),
     staleTime: 10 * 60 * 1000,
@@ -64,7 +64,7 @@ export function useContactNewsQuery(contactId: number | null) {
   return useQuery({
     queryKey: qk.contact(contactId ?? 0),
     queryFn: async () =>
-      fetchJson<NewsListResponse>(`${API_BASE}/api/news?contactId=${contactId}&limit=3`),
+      fetchJson<NewsListResponse>(`${API_BASE}/news?contactId=${contactId}&limit=3`),
     enabled: contactId !== null && contactId > 0,
     staleTime: 10 * 60 * 1000,
   });
@@ -75,7 +75,7 @@ export function useTerritoryNewsQuery(territoryPlanId: string | null, limit = 10
     queryKey: qk.territory(territoryPlanId ?? "", limit),
     queryFn: async () =>
       fetchJson<NewsListResponse>(
-        `${API_BASE}/api/news?territoryPlanId=${encodeURIComponent(territoryPlanId!)}&limit=${limit}`
+        `${API_BASE}/news?territoryPlanId=${encodeURIComponent(territoryPlanId!)}&limit=${limit}`
       ),
     enabled: Boolean(territoryPlanId),
     staleTime: 5 * 60 * 1000,
@@ -87,7 +87,7 @@ export function useMyTerritoryNewsQuery(limit = 10) {
     queryKey: qk.myTerritory(limit),
     queryFn: async () =>
       fetchJson<NewsListResponse>(
-        `${API_BASE}/api/news?scope=my-territory&limit=${limit}`
+        `${API_BASE}/news?scope=my-territory&limit=${limit}`
       ),
     staleTime: 5 * 60 * 1000,
   });
@@ -97,7 +97,7 @@ export function useRefreshDistrictNewsMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (leaid: string) =>
-      fetchJson<RefreshResponse>(`${API_BASE}/api/news/refresh/${leaid}`, {
+      fetchJson<RefreshResponse>(`${API_BASE}/news/refresh/${leaid}`, {
         method: "POST",
       }),
     onSuccess: (_data, leaid) => {
