@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ContactsActionBar from "../ContactsActionBar";
+
+function withQueryClient(ui: React.ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
+}
 
 const mockMutateAsync = vi.fn().mockResolvedValue({ total: 3, skipped: 0, queued: 3 });
 const mockExpandMutateAsync = vi.fn().mockResolvedValue({ rollupsExpanded: [], expandedCount: 0 });
+
+let progressData: { total: number; enriched: number; queued: number } = {
+  total: 0,
+  enriched: 0,
+  queued: 0,
+};
 
 vi.mock("@/features/plans/lib/queries", () => ({
   useBulkEnrich: () => ({
@@ -11,7 +23,13 @@ vi.mock("@/features/plans/lib/queries", () => ({
     isPending: false,
   }),
   useEnrichProgress: () => ({
-    data: { total: 0, enriched: 0, queued: 0 },
+    data: progressData,
+  }),
+  useContactSources: () => ({
+    data: { plans: [] },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
   }),
   useExpandRollup: () => ({
     mutateAsync: mockExpandMutateAsync,
@@ -25,6 +43,7 @@ describe("ContactsActionBar — Principal popover", () => {
     mockMutateAsync.mockResolvedValue({ total: 3, skipped: 0, queued: 3 });
     mockExpandMutateAsync.mockClear();
     mockExpandMutateAsync.mockResolvedValue({ rollupsExpanded: [], expandedCount: 0 });
+    progressData = { total: 0, enriched: 0, queued: 0 };
   });
 
   it("shows School Level checkboxes when Principal is selected", () => {
@@ -178,5 +197,109 @@ describe("ContactsActionBar — Principal popover", () => {
     await vi.waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe("ContactsActionBar — ExistingContactsModal triggers", () => {
+  beforeEach(() => {
+    mockMutateAsync.mockClear();
+    progressData = { total: 0, enriched: 0, queued: 0 };
+  });
+
+  it("opens modal in queued-zero variant when queued=0 (not the 'Nothing to enrich' toast)", async () => {
+    mockMutateAsync.mockResolvedValueOnce({ total: 2, skipped: 2, queued: 0 });
+
+    render(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["0100001", "0100002"]}
+        />
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    });
+
+    expect(await screen.findByRole("heading", { name: /contacts already exist/i })).toBeInTheDocument();
+    expect(screen.queryByText(/nothing to enrich/i)).not.toBeInTheDocument();
+  });
+
+  it("opens modal in partial variant after completion when queued>0 and skipped>0", async () => {
+    mockMutateAsync.mockResolvedValueOnce({ total: 3, skipped: 1, queued: 2 });
+
+    const { rerender } = render(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["0100001", "0100002", "0100003"]}
+        />
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    });
+
+    // No modal immediately on submit
+    expect(screen.queryByRole("heading", { name: /enrichment complete/i })).not.toBeInTheDocument();
+
+    // Simulate progress completion
+    progressData = { total: 2, enriched: 2, queued: 2 };
+    rerender(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["0100001", "0100002", "0100003"]}
+        />
+      )
+    );
+
+    expect(await screen.findByRole("heading", { name: /enrichment complete/i })).toBeInTheDocument();
+    expect(screen.getByText(/1 district already had contacts/i)).toBeInTheDocument();
+  });
+
+  it("does not open modal when queued>0 and skipped=0 (all-new path)", async () => {
+    mockMutateAsync.mockResolvedValueOnce({ total: 3, skipped: 0, queued: 3 });
+
+    const { rerender } = render(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["0100001"]}
+        />
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    });
+
+    progressData = { total: 3, enriched: 3, queued: 3 };
+    rerender(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["0100001"]}
+        />
+      )
+    );
+
+    expect(screen.queryByRole("heading", { name: /enrichment complete/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /contacts already exist/i })).not.toBeInTheDocument();
   });
 });
