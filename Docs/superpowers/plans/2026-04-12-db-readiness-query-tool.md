@@ -1,5 +1,10 @@
 # DB Readiness for Query Tool — Implementation Plan
 
+> ⚠️ **Partially superseded. Tasks 13–30 continue as Plan 1 (metadata completion).**
+> See `specs/2026-04-21-query-tool-agentic-redesign.md` for the current direction. Tasks 1–12 are shipped and unchanged. The "query engine" references throughout are obsolete; the remaining metadata-population tasks (13–30) are still the right work and feed `search_metadata` in the new agent loop.
+
+> 🔎 **Authoring emphasis (post-pivot):** Column descriptions and `SEMANTIC_CONTEXT.conceptMappings` entries are no longer just reference material for engineers — Claude searches them at runtime via the `search_metadata` agent tool. **Write descriptions like the answer to a rep's question, not like a schema comment.** Include the words a user would type ("renewal", "win rate", "pipeline", "closed-won"), the gotchas, the canonical SQL pattern, and references to related columns. A column whose description is just "FY-scoped revenue" will not surface for a rep asking about "bookings" — even if it's the right column. When prompting the user during interactive tasks, ask not just "what does this column mean" but also "what words would a rep use when asking for this" and "what's the most common mistake when filtering on this".
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **⚠️ INTERACTIVE TASKS WARNING:** Tasks 11–25 involve authoring column metadata, table descriptions, concept mappings, and warnings that encode the user's tacit business logic. Per project memory (`feedback_collaborative_metadata.md`), **these tasks MUST be executed interactively with the user, not dispatched to an isolated subagent.** Autonomous generation from the schema produces technically-correct-but-business-wrong descriptions. Each interactive task starts with a "Prompt the user" block listing exactly what to ask. If executing via subagent-driven-development, pause at each interactive task and run it inline in the main session.
@@ -1770,19 +1775,22 @@ git commit -m "feat(metadata): add unmatched accounts/opportunities registry and
 
 These are internal tables; no user Q&A needed.
 
+> **Schema-drift note:** `saved_reports` gains two columns in Plan 2 Task 1 (`summary` JSONB, `conversation_id` UUID). The `SAVED_REPORT_COLUMNS` array below already includes them. If Plan 2 Task 1 hasn't landed yet, the schema coverage test for these two columns will fail — order Plan 2 Task 1 before this task, or temporarily omit those two entries and circle back.
+
 - [ ] **Step 1: Add `QUERY_LOG_COLUMNS` and `SAVED_REPORT_COLUMNS`**
 
 ```typescript
 export const QUERY_LOG_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "Auto-increment primary key", domain: "audit", format: "integer", source: "query_tool", queryable: true },
   { field: "userId", column: "user_id", label: "User ID", description: "UUID of the user who ran the query", domain: "audit", format: "text", source: "query_tool", queryable: true },
-  { field: "conversationId", column: "conversation_id", label: "Conversation ID", description: "Groups queries into a single chat conversation", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "conversationId", column: "conversation_id", label: "Conversation ID", description: "Groups queries into a single chat conversation. The agent loop loads prior turns by this id to make 'like that but for Texas' work.", domain: "audit", format: "text", source: "query_tool", queryable: true },
   { field: "question", column: "question", label: "Question", description: "Natural-language question the user asked", domain: "audit", format: "text", source: "query_tool", queryable: true },
-  { field: "sql", column: "sql", label: "Generated SQL", description: "SQL Claude generated (null for non-query actions)", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "sql", column: "sql", label: "Generated SQL", description: "SQL Claude generated (null for non-query actions). Server-side only — never returned to clients per the never-show-SQL rule.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "params", column: "params", label: "Params (JSON)", description: "Per-turn JSON payload — currently stores { summary } so the chat history can re-render chips for prior turns.", domain: "audit", format: "text", source: "query_tool", queryable: false },
   { field: "rowCount", column: "row_count", label: "Row Count", description: "Number of rows returned", domain: "audit", format: "integer", source: "query_tool", queryable: true },
   { field: "executionTimeMs", column: "execution_time_ms", label: "Execution Time (ms)", description: "How long the SQL took to run", domain: "audit", format: "integer", source: "query_tool", queryable: true },
-  { field: "error", column: "error", label: "Error", description: "Error message if the query failed", domain: "audit", format: "text", source: "query_tool", queryable: true },
-  { field: "action", column: "action", label: "Action", description: "Action tool name for MAP-3 mutations (null for reads)", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "error", column: "error", label: "Error", description: "Error message if the query failed (Claude-paraphrased before user display).", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "action", column: "action", label: "Action", description: "Action tool name for MAP-3 agentic actions (null for reads). One of: add_districts_to_plan, create_task, create_activity, create_contact.", domain: "audit", format: "text", source: "query_tool", queryable: true },
   { field: "actionParams", column: "action_params", label: "Action Params", description: "JSON of the action parameters", domain: "audit", format: "text", source: "query_tool", queryable: false },
   { field: "actionSuccess", column: "action_success", label: "Action Success", description: "Whether the action executed successfully", domain: "audit", format: "boolean", source: "query_tool", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "When the query was logged", domain: "audit", format: "date", source: "query_tool", queryable: true },
@@ -1791,10 +1799,12 @@ export const QUERY_LOG_COLUMNS: ColumnMetadata[] = [
 export const SAVED_REPORT_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "Auto-increment primary key", domain: "audit", format: "integer", source: "query_tool", queryable: true },
   { field: "userId", column: "user_id", label: "User ID", description: "Owner of the saved report", domain: "audit", format: "text", source: "query_tool", queryable: true },
-  { field: "title", column: "title", label: "Title", description: "Human-readable report title", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "title", column: "title", label: "Title", description: "Human-readable report title (rep-named at save time).", domain: "audit", format: "text", source: "query_tool", queryable: true },
   { field: "question", column: "question", label: "Original Question", description: "The natural-language question that produced this SQL", domain: "audit", format: "text", source: "query_tool", queryable: true },
-  { field: "sql", column: "sql", label: "Stored SQL", description: "SQL that gets re-executed when the report is run", domain: "audit", format: "text", source: "query_tool", queryable: false },
-  { field: "isTeamPinned", column: "is_team_pinned", label: "Team Pinned", description: "Whether this report is pinned to the Team Reports tab", domain: "audit", format: "boolean", source: "query_tool", queryable: true },
+  { field: "sql", column: "sql", label: "Stored SQL", description: "Exact SQL string re-executed by /api/reports/:id/run. Reruns are zero-Claude (D9). Server-side only — never shown to users.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "summary", column: "summary", label: "Chip Summary (JSON)", description: "Stored QuerySummary object — the chip representation rendered when the saved report runs. Lets us show the report's structure without re-asking Claude.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "conversationId", column: "conversation_id", label: "Origin Conversation", description: "The chat thread the report was saved from. Used to 'open in chat to modify' — opening the saved report rehydrates the conversation context.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "isTeamPinned", column: "is_team_pinned", label: "Team Pinned", description: "Whether this report is pinned to the Team Reports tab (out of scope for v1 UI but flag exists).", domain: "audit", format: "boolean", source: "query_tool", queryable: true },
   { field: "pinnedBy", column: "pinned_by", label: "Pinned By", description: "Admin who pinned the report (null if not pinned)", domain: "audit", format: "text", source: "query_tool", queryable: true },
   { field: "lastRunAt", column: "last_run_at", label: "Last Run At", description: "When the report was most recently executed", domain: "audit", format: "date", source: "query_tool", queryable: true },
   { field: "runCount", column: "run_count", label: "Run Count", description: "How many times the report has been executed", domain: "audit", format: "integer", source: "query_tool", queryable: true },
@@ -2104,7 +2114,35 @@ Append to `SEMANTIC_CONTEXT.warnings`:
     },
 ```
 
-- [ ] **Step 3: Run the full test suite**
+- [ ] **Step 3: Audit alignment between `excludedTables` and the readonly role grants**
+
+The `query_tool_readonly` role's grants and the `TABLE_REGISTRY` / `excludedTables` lists must agree, otherwise:
+- A table granted SELECT but absent from both lists is invisible to Claude (no metadata = won't appear in `list_tables` or `search_metadata`) — but a hand-written SQL fragment from `count_rows` / `sample_rows` / `run_sql` could still hit it. Confusing.
+- A table in `TABLE_REGISTRY` but **not** granted SELECT will surface in `describe_table` and Claude will try to query it, then `run_sql` returns "permission denied for table foo" — bad UX.
+
+Run this audit:
+
+```bash
+psql "$DATABASE_READONLY_URL" -c "
+  SELECT table_name
+  FROM information_schema.role_table_grants
+  WHERE grantee = 'query_tool_readonly' AND privilege_type = 'SELECT'
+  ORDER BY table_name;
+" > /tmp/granted-tables.txt
+```
+
+Cross-reference against `TABLE_REGISTRY` keys + `SEMANTIC_CONTEXT.excludedTables`. Three buckets:
+
+1. **Granted AND in TABLE_REGISTRY** → correct.
+2. **Granted AND in excludedTables** → correct (intentionally hidden from Claude metadata; readonly grant is fine because Claude won't reference it without metadata).
+3. **Granted AND in neither** → fix one or the other:
+   - If the table should be queryable: add to `TABLE_REGISTRY` (probably as a deferred follow-up — note in the schema-coverage test failure)
+   - If not: add to `excludedTables`
+4. **In TABLE_REGISTRY but NOT granted** → revoke from registry OR amend the readonly role's grants in `prisma/migrations/manual/create-readonly-role.sql`. Whichever is correct, fix and document.
+
+Record findings inline in the commit message.
+
+- [ ] **Step 4: Run the full test suite**
 
 ```bash
 npm test -- district-column-metadata
@@ -2112,11 +2150,11 @@ npm test -- district-column-metadata
 
 Expected: **ALL TESTS PASS.** If the schema coverage test reports missing tables, add them to either TABLE_REGISTRY or excludedTables and re-run.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/lib/district-column-metadata.ts
-git commit -m "feat(metadata): populate excludedTables and final semantic warnings"
+git add src/lib/district-column-metadata.ts prisma/migrations/manual/create-readonly-role.sql
+git commit -m "feat(metadata): populate excludedTables, audit readonly grants alignment"
 ```
 
 ---
@@ -2154,45 +2192,72 @@ Expected: schema is valid.
 
 ---
 
-## Task 29: Patch the MAP-5 design spec
+## Task 29: Verify metadata coverage matches the agent loop's needs
 
 **Files:**
-- Modify: `Docs/superpowers/specs/2026-04-03-claude-query-tool-design.md`
+- None (verification + ad-hoc fixes)
 
-The existing MAP-5 design spec references `schema-reference.yaml`, which we're not using. Update it to point at the TS file and document the warning injection approach.
+> **Replaces the original "patch the MAP-5 design spec" task.** The MAP-5 design spec (`specs/2026-04-03-claude-query-tool-design.md`) is fully superseded by `specs/2026-04-21-query-tool-agentic-redesign.md` — no patching needed. Instead, sanity-check that the metadata Plan 2's agent tools actually rely on is rich enough.
 
-- [ ] **Step 1: Replace YAML references with TS**
+The agent loop's tools that consume this metadata:
 
-In `Docs/superpowers/specs/2026-04-03-claude-query-tool-design.md`, find and replace:
+- `list_tables` → reads `TABLE_REGISTRY[t].description` for every entry
+- `describe_table` → reads columns, relationships, warnings, and any SEMANTIC_CONTEXT scoped to the table
+- `search_metadata` → does lexical search across `column.description`, `column.label`, concept mapping `note`/`aggregated`/`dealLevel`, and warning `message`s
 
-1. `src/features/reports/lib/schema-reference.yaml` → `src/lib/district-column-metadata.ts` (use Grep tool to find all occurrences first)
-2. Any sentence referring to "YAML loader" → describe importing `TABLE_REGISTRY` and `SEMANTIC_CONTEXT` directly
-3. In the Architecture section, update the component list to reflect the TS exports
+If those texts are sparse, Claude makes worse decisions. This task is a quality pass.
 
-- [ ] **Step 2: Add a warning injection subsection**
+- [ ] **Step 1: Smoke-test `search_metadata` against the rep questions you actually expect**
 
-Under "Claude API Integration" (around the section describing the system prompt), append:
-
-```markdown
-### Warning Injection
-
-For every query, after Claude generates SQL, the query engine:
-
-1. Parses the SQL to extract referenced tables
-2. For each `Warning` in `SEMANTIC_CONTEXT.warnings` whose `triggerTables` overlap the extracted set:
-   - If `severity === "mandatory"`: prepend the warning's `message` to Claude's follow-up prompt and instruct Claude to surface the caveat in its `insight` response
-   - If `severity === "informational"`: include the message but don't force it into the insight
-3. The engine re-queries Claude for the insight with warnings in context
-
-This ensures the stage-convention, EK12-revenue, and historical-session-gap warnings cannot be bypassed even if Claude writes otherwise-correct SQL.
-```
-
-- [ ] **Step 3: Commit**
+Pick 8–10 real rep questions and grep the metadata file for the keywords they'd produce:
 
 ```bash
-git add Docs/superpowers/specs/2026-04-03-claude-query-tool-design.md
-git commit -m "docs(spec): update MAP-5 query tool spec — TS metadata, warning injection"
+QUESTIONS=(
+  "bookings"
+  "renewal"
+  "win rate"
+  "pipeline"
+  "closed won"
+  "spend per student"
+  "subscription revenue"
+  "vacancy"
+  "math sessions"
+  "rep email"
+)
+for q in "${QUESTIONS[@]}"; do
+  echo "=== $q ==="
+  grep -i -c "$q" src/lib/district-column-metadata.ts
+done
 ```
+
+Any question with a count of 0 or 1 is a coverage gap — add a description sentence or a `SEMANTIC_CONTEXT.conceptMappings` entry that uses that phrasing.
+
+- [ ] **Step 2: Spot-check `describe_table` output for a few key tables**
+
+Mentally render the output of `describe_table("opportunities")`, `describe_table("district_financials")`, `describe_table("subscriptions")`. Ask: would a junior data analyst, reading this output cold, know how to write a sensible query? Particularly:
+- Is the closed-won detection convention spelled out (numeric vs text stages)?
+- Is the EK12 revenue rolled-into-fullmind-vendor relationship clear?
+- Is the contract-chain dedup for `min_purchase_bookings` mentioned?
+- Is the FY26 = 2025-26 format mismatch noted?
+
+If any answer is "no," extend the relevant column description or add a SEMANTIC_CONTEXT entry. **This is not a fail-fast test — it's a judgment call. Note any gaps and decide whether to fix now or defer.**
+
+- [ ] **Step 3: Run `system-prompt.test.ts` from Plan 2** (if Plan 2 has landed)
+
+```bash
+npx vitest run src/features/reports/lib/agent/__tests__/system-prompt.test.ts 2>&1 | head
+```
+
+The prompt enumerates registered tables — confirm your additions show up.
+
+- [ ] **Step 4: Commit any inline fixes**
+
+```bash
+git add src/lib/district-column-metadata.ts
+git commit -m "feat(metadata): coverage pass for agent-loop search_metadata + describe_table"
+```
+
+If no fixes needed, no commit — proceed to Task 30.
 
 ---
 
