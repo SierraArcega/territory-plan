@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { extractStates } from "./extract-states";
 import {
   matchArticleKeyword,
@@ -176,10 +177,11 @@ export async function matchArticles(articleIds: string[]): Promise<MatchStats> {
         contacts: keywordResult.ambiguous.flatMap((a) => a.contactCandidates ?? []),
       };
       try {
+        const json = JSON.parse(JSON.stringify(flatCandidates)) as Prisma.InputJsonValue;
         await prisma.newsMatchQueue.upsert({
           where: { articleId: article.id },
-          create: { articleId: article.id, candidates: flatCandidates },
-          update: { candidates: flatCandidates, processedAt: null },
+          create: { articleId: article.id, candidates: json },
+          update: { candidates: json, processedAt: null },
         });
         stats.queuedForLlm++;
       } catch (err) {
