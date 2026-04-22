@@ -167,25 +167,29 @@ POST/PUT `/api/territory-plans/[id]` and `/api/territory-plans` (create):
 
 ### Bulk-enrich guard
 
-`src/app/api/districts/[leaid]/bulk-enrich-principals/route.ts`:
+`src/app/api/territory-plans/[id]/contacts/bulk-enrich/route.ts` (actual path;
+bulk-enrich is plan-level, not district-level):
 
-- Pre-check: if `isRollup(leaid)`, return HTTP 400
-  `{ reason: "rollup-district", children: string[], childCount: number }`.
+- Pre-check: inspect the plan's `districts` for any rollup leaids (via
+  `getRollupLeaids(planLeaids)` helper); if any are present, return HTTP 400
+  with `{ error, reason: "rollup-district", rollupLeaids: string[], childLeaids: string[] }`.
 - Stays in place after auto-migrate ships as a defensive layer for any rollup
   not yet identified.
 
 ### UI toast change
 
-Bulk-enrich toast consumer (`src/features/plans/components/.../ActionBar.tsx` or
-sibling):
+Bulk-enrich toast consumer at `src/features/plans/components/ContactsActionBar.tsx`
+(specifically around line 131, which currently emits "Nothing to enrich — all
+targets already have contacts"):
 
-- When response has `reason: "rollup-district"`, toast copy becomes
-  "NYC DOE contains 32 community districts. [Expand to 32 districts]" with a
-  click-through action that calls a new endpoint
-  `PATCH /api/territory-plans/[id]/expand-rollup` (passing the rollup leaid),
-  then refetches the plan's contacts list.
+- Catch the 400 response with `reason: "rollup-district"` before the existing
+  `result.queued === 0` branch; toast copy becomes "NYC DOE contains N
+  community districts. [Expand to N districts]" with a click-through action
+  that calls a new endpoint `PATCH /api/territory-plans/[id]/expand-rollup`
+  (passing the rollup leaid), then re-triggers bulk-enrich.
 - Existing toast copy "Nothing to enrich — all targets already have contacts"
-  stays for the legitimate case (all schools already have primaries).
+  stays for the legitimate case (all schools already have primaries) which is
+  `queued === 0` on a non-rollup plan.
 
 ### Expand-rollup endpoint
 
@@ -310,6 +314,6 @@ Modified:
 - `src/features/map/lib/store.ts` (new `selectDistricts(leaids[])` batched action, if not already present)
 - `src/app/api/territory-plans/[id]/route.ts` (auto-migrate on GET)
 - `src/app/api/territory-plans/route.ts` + `src/app/api/territory-plans/[id]/route.ts` (write guard on POST/PUT)
-- `src/app/api/districts/[leaid]/bulk-enrich-principals/route.ts` (rollup pre-check)
-- Bulk-enrich toast consumer (plan ActionBar or equivalent) — copy + CTA
+- `src/app/api/territory-plans/[id]/contacts/bulk-enrich/route.ts` (rollup pre-check; plan-level bulk-enrich, not district-level)
+- `src/features/plans/components/ContactsActionBar.tsx` (toast copy + expand CTA around line 131)
 - Tests co-located under each touched module's `__tests__/`
