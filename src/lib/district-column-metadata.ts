@@ -2839,6 +2839,17 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         description:
           "Prior fiscal year's financials at the same (leaid, vendor). Use for YoY deltas — SELECT district_financials.total_revenue AND df_prior_year.total_revenue side-by-side.",
       },
+      {
+        toTable: "district_financials",
+        alias: "df_next_year",
+        type: "many-to-one",
+        joinSql: "",
+        joinStatements: [
+          "LEFT JOIN district_financials AS df_next_year ON df_next_year.leaid = district_financials.leaid AND df_next_year.vendor = district_financials.vendor AND df_next_year.fiscal_year = 'FY' || LPAD((CAST(SUBSTRING(district_financials.fiscal_year FROM 3) AS INTEGER) + 1)::text, 2, '0')",
+        ],
+        description:
+          "Next fiscal year's financials at the same (leaid, vendor). Use for YoY forward deltas and 'current vs next-year pipeline' queries — SELECT district_financials.total_revenue AND df_next_year.open_pipeline side-by-side.",
+      },
     ],
   },
 
