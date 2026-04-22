@@ -1,11 +1,26 @@
-import { describe, it, expect, vi } from "vitest";
-import { detectPlatform, isStatewideBoard, isStatewideBoardAsync } from "../platform-detector";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  detectPlatform,
+  isStatewideBoard,
+  isStatewideBoardAsync,
+  normalizeJobBoardKey,
+  __resetSharedBoardsCache,
+} from "../platform-detector";
 
+const mockFindMany = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   default: {
-    $queryRaw: vi.fn().mockResolvedValue([]),
+    district: {
+      findMany: (...args: unknown[]) => mockFindMany(...args),
+    },
   },
 }));
+
+beforeEach(() => {
+  mockFindMany.mockReset();
+  mockFindMany.mockResolvedValue([]);
+  __resetSharedBoardsCache();
+});
 
 describe("detectPlatform", () => {
   describe("known platforms", () => {
@@ -105,44 +120,117 @@ describe("detectPlatform", () => {
   });
 });
 
-describe("isStatewideBoard", () => {
-  it("returns true for olas", () => {
-    expect(isStatewideBoard("olas")).toBe(true);
+describe("normalizeJobBoardKey", () => {
+  it("lowercases origin and path", () => {
+    expect(normalizeJobBoardKey("https://IOWA.SchoolSpring.com/JOBS")).toBe(
+      "https://iowa.schoolspring.com/jobs"
+    );
   });
 
-  it("returns true for schoolspring", () => {
-    expect(isStatewideBoard("schoolspring")).toBe(true);
+  it("strips trailing slash", () => {
+    expect(normalizeJobBoardKey("https://www.applitrack.com/nesdec/onlineapp/")).toBe(
+      "https://www.applitrack.com/nesdec/onlineapp"
+    );
   });
 
-  it("returns false for applitrack without URL", () => {
+  it("ignores query string and fragment", () => {
+    expect(normalizeJobBoardKey("https://www.schoolspring.com/search?q=sped#top")).toBe(
+      "https://www.schoolspring.com/search"
+    );
+  });
+
+  it("returns root origin for bare domain", () => {
+    expect(normalizeJobBoardKey("https://iowa.schoolspring.com/")).toBe(
+      "https://iowa.schoolspring.com"
+    );
+  });
+
+  it("returns null for invalid URL", () => {
+    expect(normalizeJobBoardKey("not a url")).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(normalizeJobBoardKey("")).toBeNull();
+  });
+});
+
+describe("isStatewideBoard (sync)", () => {
+  it("returns false when no URL is provided", () => {
+    expect(isStatewideBoard("olas")).toBe(false);
+    expect(isStatewideBoard("schoolspring")).toBe(false);
     expect(isStatewideBoard("applitrack")).toBe(false);
+    expect(isStatewideBoard("unknown")).toBe(false);
   });
 
-  it("returns false for unknown", () => {
-    expect(isStatewideBoard("unknown")).toBe(false);
+  it("returns false before the shared-boards cache is loaded", () => {
+    expect(isStatewideBoard("schoolspring", "https://iowa.schoolspring.com/")).toBe(false);
+  });
+
+  it("returns true after cache is loaded for a URL shared by 2+ districts", async () => {
+    mockFindMany.mockResolvedValue([
+      { jobBoardUrl: "https://iowa.schoolspring.com/" },
+      { jobBoardUrl: "https://iowa.schoolspring.com/" },
+      { jobBoardUrl: "https://joplin.schoolspring.com/" },
+    ]);
+    await isStatewideBoardAsync("schoolspring", "https://iowa.schoolspring.com/"); // warms cache
+    expect(isStatewideBoard("schoolspring", "https://iowa.schoolspring.com/")).toBe(true);
+    expect(isStatewideBoard("schoolspring", "https://joplin.schoolspring.com/")).toBe(false);
   });
 });
 
 describe("isStatewideBoardAsync", () => {
-  it("returns true for olas without needing cache", async () => {
-    expect(await isStatewideBoardAsync("olas")).toBe(true);
+  it("returns true for a URL shared by 2+ districts", async () => {
+    mockFindMany.mockResolvedValue([
+      { jobBoardUrl: "https://iowa.schoolspring.com/" },
+      { jobBoardUrl: "https://iowa.schoolspring.com/" },
+    ]);
+    expect(await isStatewideBoardAsync("schoolspring", "https://iowa.schoolspring.com/")).toBe(true);
   });
 
-  it("returns true for schoolspring without needing cache", async () => {
-    expect(await isStatewideBoardAsync("schoolspring")).toBe(true);
-  });
-
-  it("returns false for unknown", async () => {
-    expect(await isStatewideBoardAsync("unknown")).toBe(false);
-  });
-
-  it("returns false for applitrack without URL", async () => {
-    expect(await isStatewideBoardAsync("applitrack")).toBe(false);
-  });
-
-  it("returns false for applitrack with a non-shared instance URL", async () => {
+  it("returns false for single-district schoolspring subdomain", async () => {
+    // Verifies the fix: richmondmo.tedk12.com was previously mis-classified as statewide
+    mockFindMany.mockResolvedValue([
+      { jobBoardUrl: "https://richmondmo.tedk12.com/hire/index.aspx" },
+      { jobBoardUrl: "https://other.tedk12.com/hire/index.aspx" },
+    ]);
     expect(
-      await isStatewideBoardAsync("applitrack", "https://www.applitrack.com/nonexistent-instance-xyz/onlineapp/")
+      await isStatewideBoardAsync("schoolspring", "https://richmondmo.tedk12.com/hire/index.aspx")
     ).toBe(false);
+  });
+
+  it("returns false for single-district olas URL", async () => {
+    mockFindMany.mockResolvedValue([
+      { jobBoardUrl: "https://onedistrict.olasjobs.org/" },
+    ]);
+    expect(await isStatewideBoardAsync("olas", "https://onedistrict.olasjobs.org/")).toBe(false);
+  });
+
+  it("returns true for shared applitrack instance URL", async () => {
+    mockFindMany.mockResolvedValue([
+      { jobBoardUrl: "https://www.applitrack.com/nesdec/onlineapp/" },
+      { jobBoardUrl: "https://www.applitrack.com/nesdec/onlineapp/" },
+    ]);
+    expect(
+      await isStatewideBoardAsync("applitrack", "https://www.applitrack.com/nesdec/onlineapp/")
+    ).toBe(true);
+  });
+
+  it("normalizes URL case and trailing slash when matching cache", async () => {
+    mockFindMany.mockResolvedValue([
+      { jobBoardUrl: "https://www.applitrack.com/nesdec/onlineapp/" },
+      { jobBoardUrl: "https://www.applitrack.com/nesdec/onlineapp/" },
+    ]);
+    expect(
+      await isStatewideBoardAsync("applitrack", "https://WWW.applitrack.com/NESDEC/onlineapp")
+    ).toBe(true);
+  });
+
+  it("returns false without URL", async () => {
+    expect(await isStatewideBoardAsync("schoolspring")).toBe(false);
+    expect(await isStatewideBoardAsync("olas")).toBe(false);
+  });
+
+  it("returns false for invalid URL", async () => {
+    expect(await isStatewideBoardAsync("schoolspring", "not a url")).toBe(false);
   });
 });

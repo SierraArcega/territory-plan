@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import PQueue from "p-queue";
 import prisma from "@/lib/prisma";
-import { detectPlatform, isStatewideBoard, loadSharedAppliTrackInstances } from "@/features/vacancies/lib/platform-detector";
+import { detectPlatform, isStatewideBoard, loadSharedJobBoardUrls, normalizeJobBoardKey } from "@/features/vacancies/lib/platform-detector";
 import { runScan } from "@/features/vacancies/lib/scan-runner";
+import { buildSiblingCoverageRecords } from "@/features/vacancies/lib/shared-board-coverage";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min — Vercel Pro limit
@@ -49,8 +50,8 @@ export async function GET(request: NextRequest) {
     const staleDate = new Date();
     staleDate.setDate(staleDate.getDate() - staleDays);
 
-    // Warm shared AppliTrack cache before grouping
-    await loadSharedAppliTrackInstances();
+    // Warm shared job-board cache before grouping
+    await loadSharedJobBoardUrls();
 
     // Find all districts with job board URLs
     const districts = await prisma.district.findMany({
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
       select: { leaid: true, name: true, jobBoardUrl: true },
     });
 
-    // Find which districts were recently scanned
+    // Districts recently scanned (excluded from this run's stale pool)
     const recentScans = await prisma.vacancyScan.groupBy({
       by: ["leaid"],
       where: {
@@ -68,37 +69,55 @@ export async function GET(request: NextRequest) {
     });
     const recentlyScanned = new Set(recentScans.map((s) => s.leaid));
 
+    // Districts that have EVER completed a scan — used to prioritize never-scanned groups
+    const everCompleted = await prisma.vacancyScan.groupBy({
+      by: ["leaid"],
+      where: { status: { in: ["completed", "completed_partial"] } },
+    });
+    const everScanned = new Set(everCompleted.map((s) => s.leaid));
+
     const staleDistricts = districts.filter(
       (d) => d.jobBoardUrl && !recentlyScanned.has(d.leaid)
     );
 
-    // Group by unique job board URL to deduplicate state-wide boards
+    // Group by unique job board URL to deduplicate shared boards
     const urlGroups = new Map<
       string,
-      { url: string; platform: string; districts: typeof staleDistricts }
+      { url: string; platform: string; districts: typeof staleDistricts; hasNeverScanned: boolean }
     >();
 
     for (const d of staleDistricts) {
       const url = d.jobBoardUrl!;
       const platform = detectPlatform(url);
+      const isShared = isStatewideBoard(platform, url);
 
-      // State-wide boards: group by base URL (one scan covers all)
+      // Shared boards: group by normalized URL (one scan covers all)
       // District-scoped: unique key per district
-      const groupKey = isStatewideBoard(platform, url)
-        ? new URL(url).origin + new URL(url).pathname
+      const groupKey = isShared
+        ? normalizeJobBoardKey(url) ?? `district:${d.leaid}`
         : `district:${d.leaid}`;
 
-      if (!urlGroups.has(groupKey)) {
-        urlGroups.set(groupKey, { url, platform, districts: [] });
+      let group = urlGroups.get(groupKey);
+      if (!group) {
+        group = { url, platform, districts: [], hasNeverScanned: false };
+        urlGroups.set(groupKey, group);
       }
-      urlGroups.get(groupKey)!.districts.push(d);
+      group.districts.push(d);
+      if (!everScanned.has(d.leaid)) group.hasNeverScanned = true;
     }
 
-    // Sort: state-wide boards first (high value), then by district count
+    // Sort priority:
+    //   1. Shared boards first (one scan covers many districts)
+    //   2. Groups containing at least one never-scanned district
+    //      (prevents cycling-through-covered starvation; critical for coverage growth)
+    //   3. Larger groups before smaller ones
     const sortedGroups = [...urlGroups.values()].sort((a, b) => {
-      const aStatewide = isStatewideBoard(a.platform, a.url) ? 1 : 0;
-      const bStatewide = isStatewideBoard(b.platform, b.url) ? 1 : 0;
-      if (aStatewide !== bStatewide) return bStatewide - aStatewide;
+      const aShared = isStatewideBoard(a.platform, a.url) ? 1 : 0;
+      const bShared = isStatewideBoard(b.platform, b.url) ? 1 : 0;
+      if (aShared !== bShared) return bShared - aShared;
+      const aNever = a.hasNeverScanned ? 1 : 0;
+      const bNever = b.hasNeverScanned ? 1 : 0;
+      if (aNever !== bNever) return bNever - aNever;
       return b.districts.length - a.districts.length;
     });
 
@@ -125,16 +144,35 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    let siblingCoverageCreated = 0;
+
     await queue.addAll(
       scanJobs.map(({ scan, group, representative }) => async () => {
         await runScan(scan.id);
 
         const result = await prisma.vacancyScan.findUnique({
           where: { id: scan.id },
-          select: { status: true },
+          select: { status: true, platform: true, startedAt: true, completedAt: true },
         });
 
         const isStatewide = isStatewideBoard(group.platform, group.url);
+
+        // For shared boards, create coverage records for sibling districts so
+        // the coverage metric reflects the real number of districts whose
+        // board was checked this run (not just the representative).
+        if (isStatewide && result && group.districts.length > 1) {
+          const siblingRecords = buildSiblingCoverageRecords({
+            districts: group.districts,
+            representativeLeaid: representative.leaid,
+            representativeScan: result,
+            batchId,
+          });
+          if (siblingRecords.length > 0) {
+            await prisma.vacancyScan.createMany({ data: siblingRecords });
+            siblingCoverageCreated += siblingRecords.length;
+          }
+        }
+
         results.push({
           leaid: representative.leaid,
           name: representative.name,
@@ -149,6 +187,11 @@ export async function GET(request: NextRequest) {
       return sum + (isStatewide ? group.districts.length : 1);
     }, 0);
 
+    const neverScannedGroupsPicked = batch.filter((g) => g.hasNeverScanned).length;
+    const neverScannedGroupsRemaining = sortedGroups
+      .slice(batch.length)
+      .filter((g) => g.hasNeverScanned).length;
+
     return NextResponse.json({
       batchId,
       totalStale: staleDistricts.length,
@@ -156,6 +199,9 @@ export async function GET(request: NextRequest) {
       scansRun: batch.length,
       districtsProcessed,
       remaining: Math.max(0, urlGroups.size - batch.length),
+      neverScannedGroupsPicked,
+      neverScannedGroupsRemaining,
+      siblingCoverageCreated,
       results,
     });
   } catch (error) {
