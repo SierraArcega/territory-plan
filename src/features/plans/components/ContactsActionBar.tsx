@@ -156,13 +156,20 @@ export default function ContactsActionBar({
         if (result.skipped > 0) {
           setModalState({ variant: "queued-zero", districtCount: result.skipped });
         } else {
-          setToast({
-            message:
+          let message: string;
+          if (result.reason === "no-districts") {
+            message = "No districts to enrich — add districts to this plan first";
+          } else if (result.reason === "no-schools-in-district") {
+            message = "No schools on record for this district";
+          } else if (result.reason === "no-schools-at-levels") {
+            message = "No schools at the selected levels";
+          } else {
+            message =
               selectedRole === "Principal"
-                ? "No schools match the selected levels"
-                : "No districts to enrich — add districts to this plan first",
-            type: "info",
-          });
+                ? "No schools to enrich"
+                : "No contacts to enrich";
+          }
+          setToast({ message, type: "info" });
         }
         return;
       }

@@ -269,7 +269,7 @@ describe("ContactsActionBar — ExistingContactsModal triggers", () => {
   });
 
   it("does not open modal when queued=0 and skipped=0 (no-targets path) — shows toast instead", async () => {
-    mockMutateAsync.mockResolvedValueOnce({ total: 0, skipped: 0, queued: 0 });
+    mockMutateAsync.mockResolvedValueOnce({ total: 0, skipped: 0, queued: 0, reason: "no-districts" });
 
     render(
       withQueryClient(
@@ -289,6 +289,56 @@ describe("ContactsActionBar — ExistingContactsModal triggers", () => {
 
     expect(screen.queryByRole("heading", { name: /contacts already exist/i })).not.toBeInTheDocument();
     expect(await screen.findByText(/no districts to enrich/i)).toBeInTheDocument();
+  });
+
+  it("shows 'no schools on record' toast when reason=no-schools-in-district", async () => {
+    mockMutateAsync.mockResolvedValueOnce({
+      total: 0, skipped: 0, queued: 0, reason: "no-schools-in-district",
+    });
+
+    render(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["3620580"]}
+        />
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Principal" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    });
+
+    expect(await screen.findByText(/no schools on record for this district/i)).toBeInTheDocument();
+  });
+
+  it("shows 'no schools at the selected levels' toast when reason=no-schools-at-levels", async () => {
+    mockMutateAsync.mockResolvedValueOnce({
+      total: 0, skipped: 0, queued: 0, reason: "no-schools-at-levels",
+    });
+
+    render(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={["0100001"]}
+        />
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Principal" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    });
+
+    expect(await screen.findByText(/no schools at the selected levels/i)).toBeInTheDocument();
   });
 
   it("does not open modal when queued>0 and skipped=0 (all-new path)", async () => {

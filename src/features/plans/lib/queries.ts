@@ -328,7 +328,12 @@ export function useBulkEnrich() {
         err.body = body;
         throw err;
       }
-      return body as { total: number; skipped: number; queued: number };
+      return body as {
+        total: number;
+        skipped: number;
+        queued: number;
+        reason?: "no-districts" | "no-schools-in-district" | "no-schools-at-levels";
+      };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["planContacts", variables.planId] });
