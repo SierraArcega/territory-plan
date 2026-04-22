@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/leaderboard-slack-post?secret=${CRON_SECRET}",
       "schedule": "0 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron/ingest-news-daily?secret=${CRON_SECRET}",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/ingest-news-rolling?secret=${CRON_SECRET}",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
