@@ -2454,14 +2454,14 @@ export const USER_GOAL_COLUMNS: ColumnMetadata[] = [
 /** tasks — rep to-do items; kanban status + priority */
 export const TASK_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "Task ID", description: "UUID PK.", domain: "task", format: "text", source: "user", queryable: true },
-  { field: "title", column: "title", label: "Title", description: "Task title.", domain: "task", format: "text", source: "user", queryable: true },
-  { field: "description", column: "description", label: "Description", description: "Free-text description.", domain: "task", format: "text", source: "user", queryable: true },
-  { field: "status", column: "status", label: "Status", description: "One of: todo, in_progress, blocked, done.", domain: "task", format: "text", source: "user", queryable: true },
-  { field: "priority", column: "priority", label: "Priority", description: "One of: low, medium, high, urgent.", domain: "task", format: "text", source: "user", queryable: true },
-  { field: "dueDate", column: "due_date", label: "Due Date", description: "Task due date.", domain: "task", format: "date", source: "user", queryable: true },
-  { field: "position", column: "position", label: "Position", description: "Kanban column ordering.", domain: "task", format: "integer", source: "user", queryable: true },
-  { field: "createdByUserId", column: "created_by_user_id", label: "Created By", description: "FK to user_profiles.id — creator.", domain: "crm", format: "text", source: "user", queryable: true },
-  { field: "assignedToUserId", column: "assigned_to_user_id", label: "Assigned To", description: "FK to user_profiles.id — assignee.", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "title", column: "title", label: "Title", description: "Task title — the short label a rep sees in the kanban board. ILIKE search for 'find the task about <topic>'.", domain: "task", format: "text", source: "user", queryable: true },
+  { field: "description", column: "description", label: "Description", description: "Free-text task description. ILIKE search for rep questions like 'tasks mentioning <keyword>'.", domain: "task", format: "text", source: "user", queryable: true },
+  { field: "status", column: "status", label: "Status", description: "Task status. Full enum: 'todo', 'in_progress', 'blocked', 'done'. Reps ask about this as 'my open tasks' (todo + in_progress), 'blocked tasks', 'what I've finished' (done), or 'on my plate' (todo + in_progress + blocked — everything non-done).", domain: "task", format: "text", source: "user", queryable: true },
+  { field: "priority", column: "priority", label: "Priority", description: "Task priority. Full enum: 'low', 'medium', 'high', 'urgent'. Reps ask about this as 'urgent tasks', 'high-priority tasks', or 'top of my list' (high + urgent).", domain: "task", format: "text", source: "user", queryable: true },
+  { field: "dueDate", column: "due_date", label: "Due Date", description: "Task due date. Reps ask about this as 'tasks due this week', 'overdue tasks' (due_date < current_date AND status != 'done'), 'due today', 'due this month'. NULL on tasks with no due date.", domain: "task", format: "date", source: "user", queryable: true },
+  { field: "position", column: "position", label: "Position", description: "Kanban column ordering for UI. Not rep-facing.", domain: "task", format: "integer", source: "user", queryable: false },
+  { field: "createdByUserId", column: "created_by_user_id", label: "Created By", description: "FK to user_profiles.id — task creator. Used for 'tasks I created' or 'tasks I delegated' questions (creator != assignee).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "assignedToUserId", column: "assigned_to_user_id", label: "Assigned To", description: "FK to user_profiles.id — task assignee. This is the DEFAULT filter for 'my tasks' / 'what's on my plate' / 'my to-dos' rep questions. Only fall back to created_by_user_id when the rep specifically says 'tasks I created' or 'tasks I assigned to someone else'.", domain: "crm", format: "text", source: "user", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "Record creation timestamp.", domain: "task", format: "date", source: "user", queryable: true },
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "task", format: "date", source: "user", queryable: true },
 ];
@@ -2960,26 +2960,11 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
     ],
   },
 
-  user_goals: {
-    table: "user_goals",
-    description:
-      "Per-user per-fiscal-year targets (earnings, take rate, category bookings, new-district count). One row per (user_id, fiscal_year). Pair with district_opportunity_actuals for attainment questions ('Jake vs his FY26 renewal target'). fiscal_year is numeric (2026), not 'FY26' string.",
-    primaryKey: "id",
-    columns: USER_GOAL_COLUMNS,
-    relationships: [
-      {
-        toTable: "user_profiles",
-        type: "many-to-one",
-        joinSql: "user_goals.user_id = user_profiles.id",
-        description: "The rep this goal belongs to",
-      },
-    ],
-  },
 
   tasks: {
     table: "tasks",
     description:
-      "Rep to-do items with kanban status (todo/in_progress/blocked/done) and priority (low/medium/high/urgent). Junction tables link to districts, plans, activities, and contacts (all excluded; use raw Prisma joins).",
+      "Rep to-do items with kanban status (todo / in_progress / blocked / done) and priority (low / medium / high / urgent). Rep questions: 'my tasks' / 'what's on my plate' / 'my to-dos' (filter by assigned_to_user_id), 'tasks due this week', 'overdue tasks', 'urgent tasks', 'blocked tasks', 'tasks for <district>' (via task_districts junction), 'tasks for <plan>' (via task_plans junction), 'tasks I delegated' (created_by_user_id vs assigned_to_user_id differ). DEFAULT filter for 'my tasks' is assigned_to_user_id, not created_by_user_id. Junction tables (task_districts / task_plans / task_activities / task_contacts) remain excluded; use raw Prisma joins.",
     primaryKey: "id",
     columns: TASK_COLUMNS,
     relationships: [
@@ -3247,6 +3232,7 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "territory_plan_collaborators",
     "territory_plan_district_services",
     "territory_plan_states",
+    "user_goals",
     "user_integrations",
     "vacancy_keyword_config",
     "vacancy_scans",
