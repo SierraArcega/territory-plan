@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import DealQualifyingPage from "./resources/DealQualifyingPage";
+import OrgChartPage from "./resources/OrgChartPage";
 import UnderstandingLeaderboardPage from "./resources/UnderstandingLeaderboardPage";
 
 // ── Resource page registry ────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ interface ResourcePage {
 const RESOURCE_PAGES: ResourcePage[] = [
   { id: "deal-qualifying", label: "Deal Qualifying", category: "Sales Enablement", component: DealQualifyingPage },
   { id: "understanding-leaderboard", label: "Understanding the Leaderboard", category: "Training", component: UnderstandingLeaderboardPage },
+  { id: "org-chart", label: "Org Chart", category: "Team", component: OrgChartPage },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────
