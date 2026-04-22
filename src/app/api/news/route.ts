@@ -31,8 +31,11 @@ export interface NewsArticleDto {
  *   ?leaid=           — articles matched to this district
  *   ?ncessch=         — articles matched to this school
  *   ?contactId=       — articles matched to this contact
+ *   ?stateAbbrev=     — articles mentioning this US state (state-wide news)
  *   ?territoryPlanId= — articles matched to any district in a territory plan
- *   ?scope=my-territory — articles for any district in any plan the user owns/collaborates on
+ *   ?scope=my-territory — articles matched to districts in any plan the user
+ *                         owns/collaborates on, plus state-wide articles for
+ *                         any state covered by those plans
  *
  * Common params:
  *   ?since=ISO8601    — only articles published on/after this date
@@ -49,6 +52,7 @@ export async function GET(request: NextRequest) {
   const ncessch = searchParams.get("ncessch");
   const contactIdRaw = searchParams.get("contactId");
   const contactId = contactIdRaw ? parseInt(contactIdRaw, 10) : null;
+  const stateAbbrev = searchParams.get("stateAbbrev")?.toUpperCase();
   const territoryPlanId = searchParams.get("territoryPlanId");
   const scope = searchParams.get("scope");
   const since = searchParams.get("since");
@@ -102,6 +106,15 @@ export async function GET(request: NextRequest) {
         include: { article: true },
       });
       articles = matches.map((m) => toDto(m.article, m.confidence));
+    } else if (stateAbbrev) {
+      // State-wide news: any article that mentions this state (from Pass 1's
+      // extractStates) but is not necessarily tied to a specific district.
+      const stateArticles = await prisma.newsArticle.findMany({
+        where: { ...articleWhere, stateAbbrevs: { has: stateAbbrev } },
+        orderBy: { publishedAt: "desc" },
+        take: limit,
+      });
+      articles = stateArticles.map((a) => toDto(a, "state"));
     } else if (territoryPlanId) {
       const matches = await prisma.newsArticleDistrict.findMany({
         where: {
@@ -119,30 +132,72 @@ export async function GET(request: NextRequest) {
         toDto(m.article, m.confidence, m.district.leaid, m.district.name)
       );
     } else if (scope === "my-territory") {
-      const matches = await prisma.newsArticleDistrict.findMany({
+      // Find the user's territory: both the districts they own/collab on AND
+      // the states those districts sit in (for state-wide news).
+      const territoryDistricts = await prisma.district.findMany({
         where: {
-          confidence: { in: DEFAULT_CONFIDENCE_FILTER },
-          article: articleWhere,
-          district: {
-            territoryPlans: {
-              some: {
-                plan: {
-                  OR: [
-                    { ownerId: user.id },
-                    { collaborators: { some: { userId: user.id } } },
-                  ],
-                },
+          territoryPlans: {
+            some: {
+              plan: {
+                OR: [
+                  { ownerId: user.id },
+                  { collaborators: { some: { userId: user.id } } },
+                ],
               },
             },
           },
         },
+        select: { leaid: true, name: true, stateAbbrev: true },
+      });
+      const territoryLeaids = territoryDistricts.map((d) => d.leaid);
+      const territoryStates = [
+        ...new Set(
+          territoryDistricts
+            .map((d) => d.stateAbbrev)
+            .filter((s): s is string => Boolean(s))
+        ),
+      ];
+
+      // District-matched articles (over-fetch so the state-wide union can't
+      // starve them out in the top-N).
+      const districtMatches = await prisma.newsArticleDistrict.findMany({
+        where: {
+          confidence: { in: DEFAULT_CONFIDENCE_FILTER },
+          article: articleWhere,
+          leaid: { in: territoryLeaids.length > 0 ? territoryLeaids : [""] },
+        },
         orderBy: { article: { publishedAt: "desc" } },
-        take: limit,
+        take: limit * 2,
         include: { article: true, district: { select: { leaid: true, name: true } } },
       });
-      articles = matches.map((m) =>
-        toDto(m.article, m.confidence, m.district.leaid, m.district.name)
-      );
+
+      // State-wide articles — only those NOT already surfaced by a district hit
+      const districtMatchedArticleIds = new Set(districtMatches.map((m) => m.articleId));
+      const stateArticles = territoryStates.length > 0
+        ? await prisma.newsArticle.findMany({
+            where: {
+              ...articleWhere,
+              stateAbbrevs: { hasSome: territoryStates },
+              id: { notIn: [...districtMatchedArticleIds] },
+            },
+            orderBy: { publishedAt: "desc" },
+            take: limit * 2,
+          })
+        : [];
+
+      // Merge, sort, cap at limit
+      const merged: Array<{ article: NewsArticleDto; publishedAt: Date }> = [
+        ...districtMatches.map((m) => ({
+          article: toDto(m.article, m.confidence, m.district.leaid, m.district.name),
+          publishedAt: m.article.publishedAt,
+        })),
+        ...stateArticles.map((a) => ({
+          article: toDto(a, "state"),
+          publishedAt: a.publishedAt,
+        })),
+      ];
+      merged.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+      articles = merged.slice(0, limit).map((m) => m.article);
     } else {
       return NextResponse.json(
         { error: "One of leaid, ncessch, contactId, territoryPlanId, or scope is required" },

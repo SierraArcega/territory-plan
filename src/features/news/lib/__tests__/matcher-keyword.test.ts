@@ -20,8 +20,8 @@ function makeInput(override: Partial<Parameters<typeof matchArticleKeyword>[0]> 
   };
 }
 
-describe("matchArticleKeyword", () => {
-  it("matches a district by full name scoped to its state", () => {
+describe("matchArticleKeyword — Tier 1 auto-confirm", () => {
+  it("auto-confirms a district by full-name literal scoped to its state", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("GA", [
       { leaid: "1301200", name: "Cobb County School District", stateAbbrev: "GA" },
@@ -35,10 +35,10 @@ describe("matchArticleKeyword", () => {
     );
     expect(result.confirmedDistricts).toHaveLength(1);
     expect(result.confirmedDistricts[0].leaid).toBe("1301200");
+    expect(result.ambiguous).toHaveLength(0);
   });
 
-  it("matches by acronym when state is confirmed", () => {
-    // DISTRICT_ACRONYMS includes CPS → IL
+  it("auto-confirms by acronym when state is confirmed", () => {
     const result = matchArticleKeyword(
       makeInput({
         articleText: "CPS teachers will strike Monday.",
@@ -48,7 +48,7 @@ describe("matchArticleKeyword", () => {
     expect(result.confirmedDistricts[0]?.leaid).toBe("1709930");
   });
 
-  it("does NOT match acronym when state is wrong", () => {
+  it("does NOT auto-confirm acronym when state is wrong", () => {
     const result = matchArticleKeyword(
       makeInput({
         articleText: "CPS teachers will strike Monday.",
@@ -58,7 +58,7 @@ describe("matchArticleKeyword", () => {
     expect(result.confirmedDistricts).toHaveLength(0);
   });
 
-  it("only matches a contact when a role keyword co-occurs", () => {
+  it("auto-confirms contact only when district confirmed AND role keyword present", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("IL", [
       { leaid: "1709930", name: "Chicago Public Schools", stateAbbrev: "IL" },
@@ -89,7 +89,7 @@ describe("matchArticleKeyword", () => {
     expect(withoutRole.confirmedContacts).toHaveLength(0);
   });
 
-  it("matches a school only when its parent district is also matched", () => {
+  it("auto-confirms school only when parent district is confirmed", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("IL", [
       { leaid: "1709930", name: "Chicago Public Schools", stateAbbrev: "IL" },
@@ -108,5 +108,70 @@ describe("matchArticleKeyword", () => {
       })
     );
     expect(result.confirmedSchools).toHaveLength(1);
+  });
+});
+
+describe("matchArticleKeyword — Tier 2 LLM queue", () => {
+  it("does NOT auto-confirm on core-name-only substring hits (York trap)", () => {
+    // "York Central School District" → core "york" — appears in "New York"
+    // whenever the article mentions NY. Must go to LLM queue, not auto-confirm.
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("NY", [
+      { leaid: "3636310", name: "York Central School District", stateAbbrev: "NY" },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "In New York schools, enrollment dropped this year.",
+        stateAbbrevs: ["NY"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+    expect(result.ambiguous).toHaveLength(1);
+    expect(result.ambiguous[0].districtCandidates?.[0].leaid).toBe("3636310");
+  });
+
+  it("queues partial matches for LLM when core appears in multiple states", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("CA", [
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA" },
+    ]);
+    districtsByState.set("NE", [
+      { leaid: "3122222", name: "Lincoln Public Schools", stateAbbrev: "NE" },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Lincoln schools are adopting a new curriculum. Officials in California and Nebraska weighed in.",
+        stateAbbrevs: ["CA", "NE"],
+        districtsByState,
+      })
+    );
+    // "Lincoln" core hits both — neither full name is present — both queued
+    expect(result.confirmedDistricts).toHaveLength(0);
+    expect(result.ambiguous).toHaveLength(1);
+    expect(result.ambiguous[0].districtCandidates).toHaveLength(2);
+  });
+
+  it("still queues even when full-name of one district IS present (other is ambiguous)", () => {
+    // Full-name for Lincoln Public Schools (NE) present → auto-confirm NE.
+    // Core "lincoln" also in CA — but CA doesn't have a full-name literal, so
+    // CA stays queued for LLM to judge whether the article is about CA too.
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("CA", [
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA" },
+    ]);
+    districtsByState.set("NE", [
+      { leaid: "3122222", name: "Lincoln Public Schools", stateAbbrev: "NE" },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Lincoln Public Schools and Lincoln officials across California met.",
+        stateAbbrevs: ["CA", "NE"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts.map((d) => d.leaid)).toEqual(["3122222"]);
+    expect(result.ambiguous.length).toBe(1);
+    expect(result.ambiguous[0].districtCandidates?.[0].leaid).toBe("0611111");
   });
 });
