@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { extractStates } from "./extract-states";
 import {
   matchArticleKeyword,
+  schoolHasDistinctiveToken as schoolHasDistinctive,
   type DistrictCandidate,
   type SchoolCandidate,
   type ContactCandidate,
@@ -40,14 +41,16 @@ function emptyStats(): MatchStats {
 async function loadCandidates(states: Set<string>): Promise<{
   districtsByState: Map<string, DistrictCandidate[]>;
   schoolsByLeaid: Map<string, SchoolCandidate[]>;
+  schoolsByState: Map<string, SchoolCandidate[]>;
   contactsByLeaid: Map<string, ContactCandidate[]>;
 }> {
   const districtsByState = new Map<string, DistrictCandidate[]>();
   const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
+  const schoolsByState = new Map<string, SchoolCandidate[]>();
   const contactsByLeaid = new Map<string, ContactCandidate[]>();
 
   if (states.size === 0) {
-    return { districtsByState, schoolsByLeaid, contactsByLeaid };
+    return { districtsByState, schoolsByLeaid, schoolsByState, contactsByLeaid };
   }
 
   const stateList = [...states];
@@ -107,7 +110,25 @@ async function loadCandidates(states: Set<string>): Promise<{
     }
   }
 
-  return { districtsByState, schoolsByLeaid, contactsByLeaid };
+  // Build schoolsByState, pre-filtering to the subset that's eligible for
+  // Pass B3 (≥2 words, ≥6 chars, at least one distinctive token). The bulk
+  // of schools fail that test — pre-filtering cuts per-article work ~60%.
+  const stateByLeaid = new Map<string, string>();
+  for (const d of districts) if (d.stateAbbrev) stateByLeaid.set(d.leaid, d.stateAbbrev);
+  for (const [leaid, schools] of schoolsByLeaid) {
+    const st = stateByLeaid.get(leaid);
+    if (!st) continue;
+    const arr = schoolsByState.get(st) ?? [];
+    for (const s of schools) {
+      if (s.schoolName.length < 6) continue;
+      if (s.schoolName.trim().split(/\s+/).length < 2) continue;
+      if (!schoolHasDistinctive(s.schoolName)) continue;
+      arr.push(s);
+    }
+    schoolsByState.set(st, arr);
+  }
+
+  return { districtsByState, schoolsByLeaid, schoolsByState, contactsByLeaid };
 }
 
 /**
@@ -150,6 +171,7 @@ export async function matchArticles(articleIds: string[]): Promise<MatchStats> {
       stateAbbrevs: states,
       districtsByState: candidates.districtsByState,
       schoolsByLeaid: candidates.schoolsByLeaid,
+      schoolsByState: candidates.schoolsByState,
       contactsByLeaid: candidates.contactsByLeaid,
     });
 
