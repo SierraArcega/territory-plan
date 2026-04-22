@@ -390,7 +390,11 @@ export default function MapV2Container({
         );
         // Update filter to match the signal's tile property
         const config = SIGNAL_CONFIGS[colorBy];
-        map.current.setFilter("district-signal-fill", ["has", config.tileProperty]);
+        map.current.setFilter("district-signal-fill", [
+          "all",
+          ["has", config.tileProperty],
+          NOT_ROLLUP_FILTER,
+        ]);
       }
     } else if (colorBy === "locale") {
       // Hide all vendor fill layers
