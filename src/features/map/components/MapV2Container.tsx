@@ -28,6 +28,7 @@ import {
 } from "@/features/map/lib/pin-layers";
 import type { RightPanelContent } from "@/features/map/lib/store";
 import MapV2Tooltip from "./MapV2Tooltip";
+import { pickDistrictFeature } from "./pickDistrictFeature";
 
 export interface MapV2ContainerProps {
   /** Override the fiscal year used for tile requests (for side-by-side panes) */
@@ -1214,7 +1215,8 @@ export default function MapV2Container({
       {
         const districtFeatures = queryLayer("district-base-fill");
         if (districtFeatures.length > 0) {
-          const leaid = districtFeatures[0].properties?.leaid;
+          const picked = pickDistrictFeature(districtFeatures);
+          const leaid = picked?.properties?.leaid;
           if (!leaid) return;
 
           const store = useMapV2Store.getState();
@@ -1234,7 +1236,7 @@ export default function MapV2Container({
           store.openResultsPanel("districts");
 
           // Zoom to district
-          const bounds = districtFeatures[0].geometry;
+          const bounds = picked?.geometry;
           if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
             // Compute a rough bounding box from coordinates
             const coords = bounds.type === "Polygon"
