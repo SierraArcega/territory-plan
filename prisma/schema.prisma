@@ -1644,18 +1644,20 @@ model QueryLog {
 }
 
 model SavedReport {
-  id           Int       @id @default(autoincrement())
-  userId       String    @map("user_id") @db.Uuid
-  title        String
-  question     String
-  sql          String?
-  params       Json?
-  isTeamPinned Boolean   @default(false) @map("is_team_pinned")
-  pinnedBy     String?   @map("pinned_by") @db.Uuid
-  lastRunAt    DateTime? @map("last_run_at")
-  runCount     Int       @default(0) @map("run_count")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id             Int       @id @default(autoincrement())
+  userId         String    @map("user_id") @db.Uuid
+  title          String
+  question       String
+  sql            String?
+  params         Json?
+  summary        Json?
+  conversationId String?   @map("conversation_id") @db.Uuid
+  isTeamPinned   Boolean   @default(false) @map("is_team_pinned")
+  pinnedBy       String?   @map("pinned_by") @db.Uuid
+  lastRunAt      DateTime? @map("last_run_at")
+  runCount       Int       @default(0) @map("run_count")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   user UserProfile @relation("UserSavedReports", fields: [userId], references: [id])
 
