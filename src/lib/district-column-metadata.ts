@@ -3496,6 +3496,12 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
         "EK12 REVENUE QUIRK: Elevate K12 opportunities have $0 in their session-derived revenue columns (completed_revenue, scheduled_revenue, total_revenue, completed_take, scheduled_take, total_take). Their real revenue lives in the subscriptions table via SUM(subscriptions.net_total). A query that asks 'what's this rep's FY26 revenue' and reads only opportunities.total_revenue will return $0 for every EK12 rep despite millions in contracted subscription revenue. ALWAYS prefer district_financials (vendor='fullmind') for revenue totals because the ETL rolls in both session AND subscription sources. If you must query opportunities directly, join subscriptions on opportunity_id and sum net_total. 'Take' has no subscription analog — any take-rate query reflects session-derived deals only.",
     },
     {
+      triggerTables: ["district_financials"],
+      severity: "informational",
+      message:
+        "Use vendor='fullmind' for our internal data. Other vendors ('elevate', 'proximity', 'tbt') are competitors sourced from GovSpend PO data and represent ESTIMATED competitor spend, not Fullmind revenue. The 'fullmind' vendor rows aggregate BOTH session-derived revenue (from opportunities + sessions) AND Elevate K12 subscription revenue (from subscriptions) via refresh_fullmind_financials() — so a rep asking about 'our revenue' or 'Fullmind revenue' should always filter vendor='fullmind' and does not need to separately join subscriptions.",
+    },
+    {
       triggerTables: [
         "district_financials",
         "district_opportunity_actuals",
