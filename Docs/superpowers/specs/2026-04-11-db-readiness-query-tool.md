@@ -1,5 +1,8 @@
 # DB Readiness for Query Tool / Report Builder / MCP — Design Spec
 
+> ⚠️ **Partially superseded by `specs/2026-04-21-query-tool-agentic-redesign.md`.**
+> Infrastructure portions (readonly role, migrations, metadata types, `TABLE_REGISTRY` + `SEMANTIC_CONTEXT` scaffolding) are shipped and still valid. The query-engine references throughout this doc are obsolete — the query tool is no longer a structured-params DSL; see the April 21 spec.
+
 **Date:** 2026-04-12
 **Status:** Design approved, ready for implementation plan
 **Branch:** TBD (suggested: `feat/db-readiness-query-tool`)

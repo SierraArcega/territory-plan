@@ -1,5 +1,8 @@
 # Query Tool Agentic Actions — Design Spec
 
+> ⚠️ **Partially superseded by `specs/2026-04-21-query-tool-agentic-redesign.md`.**
+> The "actions on query results" scope (add-to-plan, create-task, bulk actions, confirmation UI) is still valid and moves to Plan 3. The "generate_query" and forced-tool-choice integration bits are obsolete — action tools now plug into the new multi-turn agent loop alongside `run_sql`, not the old suggest endpoint.
+
 **Date:** 2026-04-05
 **Status:** Design approved
 **Linear:** MAP-3

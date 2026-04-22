@@ -1,5 +1,8 @@
 # Query Tool Agentic Actions — Implementation Plan
 
+> ⚠️ **Superseded. Will be rewritten as Plan 3 once Plan 2 (agent loop) is landing.**
+> See `specs/2026-04-21-query-tool-agentic-redesign.md`. Reasons for rewrite: QueryLog migration bits overlap with shipped db-readiness work; action tools must plug into the new multi-turn agent loop alongside `run_sql`, not the old forced-tool-choice suggest endpoint.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extend the Claude Query Tool with 9 write-action tools so users can add districts to plans, create activities/tasks/contacts, and update records — all through natural language chat or table action buttons, with mandatory confirmation before execution.

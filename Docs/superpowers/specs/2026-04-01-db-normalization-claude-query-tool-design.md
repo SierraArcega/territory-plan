@@ -1,5 +1,9 @@
 # Database Normalization & Claude Query Tool
 
+> ⚠️ **Superseded (query-tool portion) by `specs/2026-04-21-query-tool-agentic-redesign.md`.**
+> Part 1 (DB normalization) shipped and remains historical reference.
+> Part 2 (query tool architecture) is obsolete — assumed single-shot SQL generation and user-visible SQL validation; see the April 21 spec for the current chips-describe-the-query direction.
+
 **Date:** 2026-04-01
 **Status:** Phase 2a complete (query migration), Phase 2b planned (person FK + competitor migration), Query tool not started
 **Branch:** `feat/db-normalization-query-tool`
