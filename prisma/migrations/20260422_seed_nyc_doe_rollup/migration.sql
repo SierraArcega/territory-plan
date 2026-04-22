@@ -9,10 +9,14 @@
 -- NYC DOE polygon. Using a 100m buffer absorbs geocoding precision jitter
 -- (one charter in Rockaway Park sits 28m outside the polygon edge).
 --
+-- The list is hardcoded (not computed at migration time) so every
+-- environment — dev, staging, prod — produces the same parent-child
+-- graph regardless of its districts-table snapshot. A spatial query at
+-- migration time would self-heal, but would also produce nondeterministic
+-- results if point_location data differed between environments.
+--
 -- If the district roster drifts (new charters added, LEAs merged/closed),
--- re-run the discovery script and regenerate this list. The discovery
--- query is documented in Docs/superpowers/plans/2026-03-28-leaderboard-admin.md
--- and reproduced below for convenience:
+-- re-run the discovery query below and regenerate this list:
 --
 --   WITH nyc AS (SELECT geometry AS geom FROM districts WHERE leaid='3620580')
 --   SELECT d.leaid FROM districts d, nyc
