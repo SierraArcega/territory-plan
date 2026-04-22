@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/server";
 import { ingestOneDistrict } from "@/features/news/lib/ingest";
 import { matchArticles } from "@/features/news/lib/matcher";
+import { classifyArticles } from "@/features/news/lib/classifier";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +47,12 @@ export async function POST(
   try {
     const ingestStats = await ingestOneDistrict(leaid);
     const matchStats = await matchArticles(ingestStats.newArticleIds);
+    const classifyStats = await classifyArticles(ingestStats.newArticleIds, 4, 30_000);
     return NextResponse.json({
       newArticles: ingestStats.articlesNew,
       matched: matchStats.districtMatches,
-      errors: ingestStats.errors.length + matchStats.errors.length,
+      classified: classifyStats.classified,
+      errors: ingestStats.errors.length + matchStats.errors.length + classifyStats.errors,
     });
   } catch (err) {
     return NextResponse.json(

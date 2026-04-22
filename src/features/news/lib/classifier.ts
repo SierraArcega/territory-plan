@@ -151,6 +151,23 @@ async function classifyOne(article: {
   return { sentiment, categories, fullmindRelevance };
 }
 
+/** Run the classifier over a specific article list. Used right after ingest
+ *  so newly-landed articles get sentiment/categories/relevance immediately. */
+export async function classifyArticles(
+  articleIds: string[],
+  concurrency = 4,
+  timeBudgetMs = 45_000
+): Promise<ClassifyStats> {
+  const stats: ClassifyStats = { processed: 0, classified: 0, errors: 0, llmCalls: 0 };
+  if (process.env.NEWS_LLM_ENABLED === "false" || articleIds.length === 0) return stats;
+
+  const articles = await prisma.newsArticle.findMany({
+    where: { id: { in: articleIds }, classifiedAt: null },
+    select: { id: true, title: true, description: true },
+  });
+  return classifyMany(articles, concurrency, timeBudgetMs, stats);
+}
+
 /**
  * Classify any articles with `classifiedAt IS NULL`.
  * Respects a time budget and a max-articles cap.
@@ -163,13 +180,22 @@ export async function classifyUnclassified(
   const stats: ClassifyStats = { processed: 0, classified: 0, errors: 0, llmCalls: 0 };
   if (process.env.NEWS_LLM_ENABLED === "false") return stats;
 
-  const deadline = Date.now() + timeBudgetMs;
   const articles = await prisma.newsArticle.findMany({
     where: { classifiedAt: null },
     select: { id: true, title: true, description: true },
     take: limit,
     orderBy: { publishedAt: "desc" },
   });
+  return classifyMany(articles, concurrency, timeBudgetMs, stats);
+}
+
+async function classifyMany(
+  articles: Array<{ id: string; title: string; description: string | null }>,
+  concurrency: number,
+  timeBudgetMs: number,
+  stats: ClassifyStats
+): Promise<ClassifyStats> {
+  const deadline = Date.now() + timeBudgetMs;
 
   const queue = new PQueue({ concurrency });
   for (const a of articles) {

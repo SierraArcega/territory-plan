@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ingestDailyLayers } from "@/features/news/lib/ingest";
 import { matchArticles, processMatchQueue } from "@/features/news/lib/matcher";
+import { classifyArticles } from "@/features/news/lib/classifier";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     const ingestStats = await ingestDailyLayers();
     const matchStats = await matchArticles(ingestStats.newArticleIds);
     const queueStats = await processMatchQueue(20);
+    const classifyStats = await classifyArticles(ingestStats.newArticleIds, 4, 60_000);
 
     await prisma.newsIngestRun.update({
       where: { id: run.id },
@@ -56,8 +58,9 @@ export async function GET(request: NextRequest) {
       schoolMatches: matchStats.schoolMatches,
       contactMatches: matchStats.contactMatches,
       queuedForLlm: matchStats.queuedForLlm,
-      llmCalls: matchStats.llmCalls + queueStats.llmCalls,
-      errors: ingestStats.errors.length + matchStats.errors.length + queueStats.errors.length,
+      classified: classifyStats.classified,
+      llmCalls: matchStats.llmCalls + queueStats.llmCalls + classifyStats.llmCalls,
+      errors: ingestStats.errors.length + matchStats.errors.length + queueStats.errors.length + classifyStats.errors,
     });
   } catch (err) {
     await prisma.newsIngestRun.update({

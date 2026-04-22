@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ingestRollingLayer } from "@/features/news/lib/ingest";
 import { matchArticles, processMatchQueue } from "@/features/news/lib/matcher";
+import { classifyArticles } from "@/features/news/lib/classifier";
 import { ROLLING_BATCH_SIZE } from "@/features/news/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
     const ingestStats = await ingestRollingLayer(batchSize);
     const matchStats = await matchArticles(ingestStats.newArticleIds);
     const queueStats = await processMatchQueue(20);
+    const classifyStats = await classifyArticles(ingestStats.newArticleIds, 4, 45_000);
 
     await prisma.newsIngestRun.update({
       where: { id: run.id },
@@ -62,8 +64,9 @@ export async function GET(request: NextRequest) {
       articlesNew: ingestStats.articlesNew,
       articlesDup: ingestStats.articlesDup,
       districtMatches: matchStats.districtMatches,
-      llmCalls: matchStats.llmCalls + queueStats.llmCalls,
-      errors: ingestStats.errors.length + matchStats.errors.length + queueStats.errors.length,
+      llmCalls: matchStats.llmCalls + queueStats.llmCalls + classifyStats.llmCalls,
+      classified: classifyStats.classified,
+      errors: ingestStats.errors.length + matchStats.errors.length + queueStats.errors.length + classifyStats.errors,
     });
   } catch (err) {
     await prisma.newsIngestRun.update({
