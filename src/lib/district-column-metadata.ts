@@ -2470,13 +2470,13 @@ export const TASK_COLUMNS: ColumnMetadata[] = [
 export const SCHOOL_COLUMNS: ColumnMetadata[] = [
   { field: "ncessch", column: "ncessch", label: "NCES School ID", description: "12-char NCES school PK.", domain: "school", format: "text", source: "nces", queryable: true },
   { field: "leaid", column: "leaid", label: "LEA ID", description: "FK to districts.leaid — parent district.", domain: "core", format: "text", source: "nces", queryable: true },
-  { field: "schoolName", column: "school_name", label: "School Name", description: "School name.", domain: "school", format: "text", source: "nces", queryable: true },
-  { field: "charter", column: "charter", label: "Charter", description: "0 = traditional, 1 = charter.", domain: "school", format: "integer", source: "nces", queryable: true },
-  { field: "schoolLevel", column: "school_level", label: "School Level", description: "1=Primary, 2=Middle, 3=High, 4=Other.", domain: "school", format: "integer", source: "nces", queryable: true },
-  { field: "schoolType", column: "school_type", label: "School Type", description: "NCES school type code.", domain: "school", format: "integer", source: "nces", queryable: true },
-  { field: "lograde", column: "lograde", label: "Low Grade", description: "Lowest grade served (e.g., 'KG', '06').", domain: "school", format: "text", source: "nces", queryable: true },
-  { field: "higrade", column: "higrade", label: "High Grade", description: "Highest grade served (e.g., '08', '12').", domain: "school", format: "text", source: "nces", queryable: true },
-  { field: "schoolStatus", column: "school_status", label: "School Status", description: "1=Open, 2=Closed, other codes per NCES.", domain: "school", format: "integer", source: "nces", queryable: true },
+  { field: "schoolName", column: "school_name", label: "School Name", description: "School name — ILIKE search for 'find <school>' rep questions.", domain: "school", format: "text", source: "nces", queryable: true },
+  { field: "charter", column: "charter", label: "Charter", description: "Charter-school flag stored as Int: 0 = traditional public, 1 = charter. Reps ask about this as 'charter schools in <district>', 'traditional schools', or 'charter-heavy districts'. Filter with charter = 1 for charters.", domain: "school", format: "integer", source: "nces", queryable: true },
+  { field: "schoolLevel", column: "school_level", label: "School Level", description: "School level stored as Int: 1 = Primary / Elementary, 2 = Middle, 3 = High, 4 = Other. Reps ask 'elementary schools' / 'primary schools' (= 1), 'middle schools' (= 2), 'high schools' (= 3). NULL for schools where the level wasn't categorized.", domain: "school", format: "integer", source: "nces", queryable: true },
+  { field: "schoolType", column: "school_type", label: "School Type", description: "NCES school type code (e.g., regular, alternative, vocational). Secondary to school_level for most rep questions.", domain: "school", format: "integer", source: "nces", queryable: true },
+  { field: "lograde", column: "lograde", label: "Low Grade", description: "Lowest grade served by the school (e.g., 'KG', '01', '06', 'PK').", domain: "school", format: "text", source: "nces", queryable: true },
+  { field: "higrade", column: "higrade", label: "High Grade", description: "Highest grade served by the school (e.g., '05', '08', '12').", domain: "school", format: "text", source: "nces", queryable: true },
+  { field: "schoolStatus", column: "school_status", label: "School Status", description: "Operational status stored as Int: 1 = Open, 2 = Closed. DEFAULT filter for 'current schools' / 'open schools' rep questions is school_status = 1. Only broaden when the rep explicitly asks about closed schools.", domain: "school", format: "integer", source: "nces", queryable: true },
   { field: "latitude", column: "latitude", label: "Latitude", description: "School latitude.", domain: "school", format: "decimal", source: "nces", queryable: true },
   { field: "longitude", column: "longitude", label: "Longitude", description: "School longitude.", domain: "school", format: "decimal", source: "nces", queryable: true },
   { field: "streetAddress", column: "street_address", label: "Street Address", description: "Street address.", domain: "school", format: "text", source: "nces", queryable: true },
@@ -2489,10 +2489,10 @@ export const SCHOOL_COLUMNS: ColumnMetadata[] = [
   { field: "urbanCentricLocale", column: "urban_centric_locale", label: "Urban-Centric Locale", description: "NCES urbanicity code (1-8).", domain: "school", format: "integer", source: "nces", queryable: true },
   { field: "enrollment", column: "enrollment", label: "Enrollment", description: "Total school enrollment.", domain: "demographics", format: "integer", source: "nces", queryable: true },
   { field: "directoryDataYear", column: "directory_data_year", label: "Directory Data Year", description: "NCES CCD directory snapshot year.", domain: "school", format: "year", source: "nces", queryable: true },
-  { field: "titleIStatus", column: "title_i_status", label: "Title I Status", description: "Title I participation status code.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
-  { field: "titleIEligible", column: "title_i_eligible", label: "Title I Eligible", description: "0/1 Title I eligibility flag.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
-  { field: "titleISchoolwide", column: "title_i_schoolwide", label: "Title I Schoolwide", description: "0/1 Schoolwide program flag.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
-  { field: "titleIDataYear", column: "title_i_data_year", label: "Title I Data Year", description: "Data year for Title I fields.", domain: "poverty", format: "year", source: "urban_institute", queryable: true },
+  { field: "titleIStatus", column: "title_i_status", label: "Title I Status", description: "Title I participation status code (from Urban Institute / CCD). Reps ask 'Title I schools in <district>', 'which schools participate in Title I', or 'Title I-eligible schools'. Pair with title_i_eligible and title_i_schoolwide for finer splits. Note: no Title I funding DOLLAR amount is stored — if a rep asks about funding amounts, we only have participation flags, not dollars.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
+  { field: "titleIEligible", column: "title_i_eligible", label: "Title I Eligible", description: "Title I eligibility flag (0/1). Reps ask 'Title I eligible schools' — filter title_i_eligible = 1.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
+  { field: "titleISchoolwide", column: "title_i_schoolwide", label: "Title I Schoolwide", description: "Schoolwide-program flag (0/1) — higher-poverty schools that run Title I services school-wide rather than targeted. Reps ask 'Title I schoolwide programs' or 'schoolwide Title I' — filter title_i_schoolwide = 1.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
+  { field: "titleIDataYear", column: "title_i_data_year", label: "Title I Data Year", description: "Data year for Title I fields (check for freshness).", domain: "poverty", format: "year", source: "urban_institute", queryable: true },
   { field: "freeLunch", column: "free_lunch", label: "Free Lunch", description: "Count of students on free lunch.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
   { field: "reducedPriceLunch", column: "reduced_price_lunch", label: "Reduced Price Lunch", description: "Count of students on reduced-price lunch.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
   { field: "frplTotal", column: "frpl_total", label: "FRPL Total", description: "Free + reduced-price lunch count.", domain: "poverty", format: "integer", source: "urban_institute", queryable: true },
@@ -2509,6 +2509,14 @@ export const SCHOOL_COLUMNS: ColumnMetadata[] = [
   { field: "notesUpdatedAt", column: "notes_updated_at", label: "Notes Updated At", description: "Last notes edit timestamp.", domain: "user_edits", format: "date", source: "user", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "Record creation timestamp.", domain: "school", format: "date", source: "nces", queryable: true },
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "school", format: "date", source: "nces", queryable: true },
+];
+
+/** school_enrollment_history — per-school yearly enrollment snapshots; used for growth/shrinkage trends */
+export const SCHOOL_ENROLLMENT_HISTORY_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "ID", description: "Autoincrement PK.", domain: "school", format: "integer", source: "nces", queryable: true },
+  { field: "ncessch", column: "ncessch", label: "NCES School ID", description: "FK to schools.ncessch. One row per (school, year).", domain: "school", format: "text", source: "nces", queryable: true },
+  { field: "year", column: "year", label: "Year", description: "School-year snapshot as an integer (e.g., 2024 represents the 2024–25 school year per NCES CCD convention). For YoY comparisons, compare rows with consecutive year values.", domain: "school", format: "year", source: "nces", queryable: true },
+  { field: "enrollment", column: "enrollment", label: "Enrollment", description: "Total enrollment at the school for that year. Use this column for growth/shrinkage questions ('schools that grew the most between FY23 and FY24', 'schools with declining enrollment', 'biggest enrollment jumps'). For single-year current enrollment prefer schools.enrollment (the denormalized latest value).", domain: "demographics", format: "integer", source: "nces", queryable: true },
 ];
 
 /** sessions — individual Fullmind session records (FK to opportunities) */
@@ -2980,7 +2988,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   schools: {
     table: "schools",
     description:
-      "Individual schools within districts, keyed on 12-char NCES school ID (ncessch). Rich demographic data: Title I, FRPL, race/ethnicity enrollment breakdowns, charter/traditional flag. Join to districts via leaid for district-to-school drill-in.",
+      "Individual schools within districts, keyed on 12-char NCES school ID (ncessch). Rich demographic data: Title I participation, FRPL, race/ethnicity enrollment breakdowns, charter/traditional flag, grade span, urbanicity. Join to districts via leaid for district-to-school drill-in. Rep questions: 'charter schools in <district>', 'high schools in <state>' (school_level = 3), 'Title I schools', 'largest schools by enrollment', 'schools with the highest FRPL rate', 'demographic breakdown at <school>', 'schools that grew/shrank' (via school_enrollment_history). DEFAULT filter for 'current schools' is school_status = 1 (Open).",
     primaryKey: "ncessch",
     columns: SCHOOL_COLUMNS,
     relationships: [
@@ -2995,6 +3003,27 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "schools.state_fips = states.fips",
         description: "Parent state",
+      },
+      {
+        toTable: "school_enrollment_history",
+        type: "one-to-many",
+        joinSql: "school_enrollment_history.ncessch = schools.ncessch",
+        description: "Historical enrollment snapshots per year (trend / growth / shrinkage)",
+      },
+    ],
+  },
+  school_enrollment_history: {
+    table: "school_enrollment_history",
+    description:
+      "Per-school yearly enrollment snapshots. One row per (school, year). Use this table for 'which schools are growing', 'declining enrollment', 'biggest enrollment jumps YoY', 'enrollment trend at <school>', or 'top growers in <state>' questions. For a single current enrollment number, schools.enrollment is the denormalized latest value and is faster.",
+    primaryKey: "id",
+    columns: SCHOOL_ENROLLMENT_HISTORY_COLUMNS,
+    relationships: [
+      {
+        toTable: "schools",
+        type: "many-to-one",
+        joinSql: "school_enrollment_history.ncessch = schools.ncessch",
+        description: "The school this history row belongs to",
       },
     ],
   },
@@ -3222,7 +3251,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "query_log",
     "saved_reports",
     "school_contacts",
-    "school_enrollment_history",
     "school_tags",
     "tags",
     "task_activities",
