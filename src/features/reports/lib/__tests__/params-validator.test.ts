@@ -17,7 +17,7 @@ describe("validateParams", () => {
   });
 
   it("rejects an excluded table", () => {
-    const result = validateParams({ table: "query_log" });
+    const result = validateParams({ table: "audit_log" });
     expect(result.valid).toBe(false);
   });
 
