@@ -28,6 +28,11 @@ function emptyStats(): IngestStats {
   };
 }
 
+// Minimum bar for trusting a source-scoped article: title or description
+// must contain an edu-context word. Kills obituaries, city-budget stories,
+// and unrelated-school articles that Google News returns for local queries.
+const EDU_CONTEXT_RE = /\b(schools?|districts?|superintendents?|boards?|teachers?|students?|pupils?|classrooms?|education|curriculum|enrollment|academic|tutoring|literacy)\b/i;
+
 async function ingestFeed(
   articles: RawArticle[],
   feedSource: string,
@@ -47,18 +52,23 @@ async function ingestFeed(
       // "Trust the source" — when an article was fetched via a query scoped
       // to a specific district (Layer 3 rolling or Layer 4 on-demand refresh),
       // the query itself is strong evidence that the article is about that
-      // district, even if the title doesn't name it verbatim. Create the
-      // match at ingest time with confidence='source'. The downstream matcher
-      // still runs on the article to pick up mentions of OTHER districts.
+      // district, even if the title doesn't name it verbatim. Gate this trust
+      // behind a minimal edu-context check: the title or description must
+      // contain at least one school/district/etc. word. Google News returns
+      // lots of obituaries, city-budget, and unrelated-school articles for
+      // district name queries — this filter kills them.
       if (sourceLeaid) {
-        try {
-          await prisma.newsArticleDistrict.upsert({
-            where: { articleId_leaid: { articleId: article.id, leaid: sourceLeaid } },
-            create: { articleId: article.id, leaid: sourceLeaid, confidence: "source" },
-            update: {},
-          });
-        } catch (err) {
-          stats.errors.push(`source-link failed for ${raw.url}: ${String(err)}`);
+        const text = `${raw.title} ${raw.description ?? ""}`;
+        if (EDU_CONTEXT_RE.test(text)) {
+          try {
+            await prisma.newsArticleDistrict.upsert({
+              where: { articleId_leaid: { articleId: article.id, leaid: sourceLeaid } },
+              create: { articleId: article.id, leaid: sourceLeaid, confidence: "source" },
+              update: {},
+            });
+          } catch (err) {
+            stats.errors.push(`source-link failed for ${raw.url}: ${String(err)}`);
+          }
         }
       }
     } catch (err) {
