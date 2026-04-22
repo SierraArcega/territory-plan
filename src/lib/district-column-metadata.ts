@@ -1370,7 +1370,7 @@ export const DISTRICT_OPPORTUNITY_ACTUALS_COLUMNS: ColumnMetadata[] = [
     column: "school_yr",
     label: "School Year",
     description:
-      "Salesforce school year string, e.g. '2025-26' (= FY26). Join key for FY-scoped questions; use fiscalYearToSchoolYear() in src/lib/opportunity-actuals.ts to convert a numeric FY.",
+      "Fullmind LMS school year string, e.g. '2025-26' (= FY26). Join key for FY-scoped questions; use fiscalYearToSchoolYear() in src/lib/opportunity-actuals.ts to convert a numeric FY.",
     domain: "crm",
     format: "text",
     source: "computed",
@@ -1381,7 +1381,7 @@ export const DISTRICT_OPPORTUNITY_ACTUALS_COLUMNS: ColumnMetadata[] = [
     column: "sales_rep_email",
     label: "Sales Rep Email",
     description:
-      "Opportunity owner email, sourced from Salesforce via OpenSearch sync. Can be NULL for orphan opps. A one-off migration reassigned mixed-rep 'Anurag' contract groups to the real rep, but the scheduler's hourly sync clobbers these — known fragile until fixed upstream.",
+      "Opportunity owner email, sourced from the Fullmind LMS via OpenSearch sync. Can be NULL for orphan opps. A one-off migration reassigned mixed-rep 'Anurag' contract groups to the real rep, but the scheduler's hourly sync clobbers these — known fragile until fixed upstream.",
     domain: "crm",
     format: "text",
     source: "computed",
@@ -1403,7 +1403,7 @@ export const DISTRICT_OPPORTUNITY_ACTUALS_COLUMNS: ColumnMetadata[] = [
     column: "bookings",
     label: "Bookings",
     description:
-      "SUM(net_booking_amount) on closed-won opportunities. Closed-won detection handles BOTH numeric stage prefix ≥ 6 AND text stages ('closed won', 'active', 'position purchased', 'requisition received', 'return position pending'). Salesforce-native booking total. For contracted-floor view (preferred for in-progress years), use min_purchase_bookings.",
+      "SUM(net_booking_amount) on closed-won opportunities. Closed-won detection handles BOTH numeric stage prefix ≥ 6 AND text stages ('closed won', 'active', 'position purchased', 'requisition received', 'return position pending'). Fullmind LMS-native booking total. For contracted-floor view (preferred for in-progress years), use min_purchase_bookings.",
     domain: "opportunity",
     format: "currency",
     source: "computed",
@@ -1414,7 +1414,7 @@ export const DISTRICT_OPPORTUNITY_ACTUALS_COLUMNS: ColumnMetadata[] = [
     column: "min_purchase_bookings",
     label: "Min Purchase Bookings",
     description:
-      "Closed-won CONTRACT FLOOR, sourced from opportunities.minimum_purchase_amount. Chain-deduplicated: Salesforce stores add-ons with cumulative minimum_purchase_amount values, so the matview clusters contract chains (by name after stripping 'Add-On'/'AddOn'/'Add On' suffixes and district-name prefixes), takes MAX per chain (the latest cumulative floor), then SUMs across chains. A naive SUM(opportunities.minimum_purchase_amount) would 3-4× overcount tier-1 contracts. Powers the leaderboard's 'Prior Year Bookings' column — preferred for in-progress years where session delivery lags signed contract value.",
+      "Closed-won CONTRACT FLOOR, sourced from opportunities.minimum_purchase_amount. Chain-deduplicated: Fullmind LMS stores add-ons with cumulative minimum_purchase_amount values, so the matview clusters contract chains (by name after stripping 'Add-On'/'AddOn'/'Add On' suffixes and district-name prefixes), takes MAX per chain (the latest cumulative floor), then SUMs across chains. A naive SUM(opportunities.minimum_purchase_amount) would 3-4× overcount tier-1 contracts. Powers the leaderboard's 'Prior Year Bookings' column — preferred for in-progress years where session delivery lags signed contract value.",
     domain: "opportunity",
     format: "currency",
     source: "computed",
@@ -1584,7 +1584,7 @@ export const DOA_QUERYABLE_COLUMNS = DISTRICT_OPPORTUNITY_ACTUALS_COLUMNS.filter
  * (0-5) and very rarely higher. "Closed Won" / "Closed Lost" are the only
  * meaningful text stages. Other text values ('Active', 'Position Purchased',
  * 'Requisition Received', 'Return Position Pending') are erroneous child/
- * auxiliary opportunity rows from Salesforce — DOA counts them as closed-won
+ * auxiliary opportunity rows from the Fullmind LMS — DOA counts them as closed-won
  * (leaderboard behavior, intentional), but deal-level queries should filter
  * them out. Known data quality issue to be fixed upstream.
  */
@@ -1607,7 +1607,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "id",
     column: "id",
     label: "Opportunity ID",
-    description: "Salesforce opportunity ID (primary key). Also referenced by subscriptions.opportunity_id and sessions.opportunity_id.",
+    description: "Fullmind LMS opportunity ID (primary key). Also referenced by subscriptions.opportunity_id and sessions.opportunity_id.",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1617,7 +1617,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "name",
     column: "name",
     label: "Name",
-    description: "Salesforce opportunity name. Add-on opportunities typically include 'Add-On' / 'AddOn' / 'Add On' in the name — DOA's min_purchase_bookings uses this pattern to cluster contract chains.",
+    description: "Fullmind LMS opportunity name. Add-on opportunities typically include 'Add-On' / 'AddOn' / 'Add On' in the name — DOA's min_purchase_bookings uses this pattern to cluster contract chains.",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1627,7 +1627,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "schoolYr",
     column: "school_yr",
     label: "School Year",
-    description: "Salesforce school year string, e.g. '2025-26' (= FY26). Same format as DOA.school_yr and different from district_financials.fiscal_year ('FY26'). Use fiscalYearToSchoolYear() to convert between.",
+    description: "Fullmind LMS school year string, e.g. '2025-26' (= FY26). Same format as DOA.school_yr and different from district_financials.fiscal_year ('FY26'). Use fiscalYearToSchoolYear() to convert between.",
     domain: "crm",
     format: "text",
     source: "opensearch",
@@ -1637,7 +1637,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "contractType",
     column: "contract_type",
     label: "Contract Type",
-    description: "Free-text Salesforce field (no picklist). DOA.category regex-derives from this — matches '%renewal%' / '%winback%' / '%win back%' / '%expansion%' (case-insensitive); everything else → 'new_business'. For category rollups, always query DOA.category instead of this raw column.",
+    description: "Free-text Fullmind LMS field (no picklist). DOA.category regex-derives from this — matches '%renewal%' / '%winback%' / '%win back%' / '%expansion%' (case-insensitive); everything else → 'new_business'. For category rollups, always query DOA.category instead of this raw column.",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1647,7 +1647,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "state",
     column: "state",
     label: "State",
-    description: "State name as stored in Salesforce (may be full name or abbreviation).",
+    description: "State name as stored in the Fullmind LMS (may be full name or abbreviation).",
     domain: "core",
     format: "text",
     source: "opensearch",
@@ -1667,7 +1667,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "salesRepName",
     column: "sales_rep_name",
     label: "Sales Rep Name",
-    description: "Opportunity owner display name from Salesforce.",
+    description: "Opportunity owner display name from the Fullmind LMS.",
     domain: "crm",
     format: "text",
     source: "opensearch",
@@ -1697,7 +1697,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "districtName",
     column: "district_name",
     label: "District Name",
-    description: "District name as stored in Salesforce (may not exactly match districts.name).",
+    description: "District name as stored in the Fullmind LMS (may not exactly match districts.name).",
     domain: "core",
     format: "text",
     source: "opensearch",
@@ -1707,7 +1707,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "districtLmsId",
     column: "district_lms_id",
     label: "District LMS ID",
-    description: "Internal LMS district identifier from Salesforce.",
+    description: "Internal LMS district identifier from the Fullmind LMS.",
     domain: "core",
     format: "text",
     source: "opensearch",
@@ -1717,7 +1717,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "districtNcesId",
     column: "district_nces_id",
     label: "District NCES ID",
-    description: "NCES district identifier from Salesforce. Often matches but may differ from the canonical districts.leaid — prefer district_lea_id for joins.",
+    description: "NCES district identifier from the Fullmind LMS. Often matches but may differ from the canonical districts.leaid — prefer district_lea_id for joins.",
     domain: "core",
     format: "text",
     source: "opensearch",
@@ -1737,7 +1737,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "createdAt",
     column: "created_at",
     label: "Created At",
-    description: "Opportunity creation timestamp in Salesforce.",
+    description: "Opportunity creation timestamp in the Fullmind LMS.",
     domain: "opportunity",
     format: "date",
     source: "opensearch",
@@ -1747,7 +1747,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "closeDate",
     column: "close_date",
     label: "Close Date",
-    description: "Projected or actual close date from Salesforce.",
+    description: "Projected or actual close date from the Fullmind LMS.",
     domain: "opportunity",
     format: "date",
     source: "opensearch",
@@ -1757,7 +1757,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "brandAmbassador",
     column: "brand_ambassador",
     label: "Brand Ambassador",
-    description: "Salesforce brand ambassador field (optional referral/partner attribution).",
+    description: "Fullmind LMS brand ambassador field (optional referral/partner attribution).",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1777,7 +1777,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "netBookingAmount",
     column: "net_booking_amount",
     label: "Net Booking Amount",
-    description: "Salesforce net booking value. Safe to SUM per deal (add-ons add real incremental dollars). For CLOSED-WON aggregates across deals, use DOA.bookings — raw SUM here requires the full dual-stage closed-won CASE and will undercount if you use numeric-only logic.",
+    description: "Fullmind LMS net booking value. Safe to SUM per deal (add-ons add real incremental dollars). For CLOSED-WON aggregates across deals, use DOA.bookings — raw SUM here requires the full dual-stage closed-won CASE and will undercount if you use numeric-only logic.",
     domain: "opportunity",
     format: "currency",
     source: "opensearch",
@@ -1787,7 +1787,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "contractThrough",
     column: "contract_through",
     label: "Contract Through",
-    description: "Free-text contract term end indicator from Salesforce.",
+    description: "Free-text contract term end indicator from the Fullmind LMS.",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1797,7 +1797,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "fundingThrough",
     column: "funding_through",
     label: "Funding Through",
-    description: "Free-text funding source description from Salesforce.",
+    description: "Free-text funding source description from the Fullmind LMS.",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1807,7 +1807,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "paymentType",
     column: "payment_type",
     label: "Payment Type",
-    description: "Salesforce payment type (e.g., annual, monthly, per-session).",
+    description: "Fullmind LMS payment type (e.g., annual, monthly, per-session).",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1817,7 +1817,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "paymentTerms",
     column: "payment_terms",
     label: "Payment Terms",
-    description: "Salesforce payment terms (e.g., Net 30).",
+    description: "Fullmind LMS payment terms (e.g., Net 30).",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1967,7 +1967,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "detailsLink",
     column: "details_link",
     label: "Details Link",
-    description: "URL to the deal in Salesforce (useful for user-facing result cards).",
+    description: "URL to the deal in the Fullmind LMS (useful for user-facing result cards).",
     domain: "links",
     format: "text",
     source: "opensearch",
@@ -2278,7 +2278,7 @@ export const CONTACT_COLUMNS: ColumnMetadata[] = [
 /** unmatched_accounts — ETL accounts that couldn't match a district during import */
 export const UNMATCHED_ACCOUNT_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "PK (autoincrement). Referenced by district_financials.unmatched_account_id.", domain: "unmatched", format: "integer", source: "fullmind_crm", queryable: true },
-  { field: "accountName", column: "account_name", label: "Account Name", description: "Salesforce account name as it arrived from import.", domain: "unmatched", format: "text", source: "fullmind_crm", queryable: true },
+  { field: "accountName", column: "account_name", label: "Account Name", description: "Fullmind LMS account name as it arrived from import.", domain: "unmatched", format: "text", source: "fullmind_crm", queryable: true },
   { field: "salesExecutiveId", column: "sales_executive_id", label: "Sales Exec ID", description: "FK to user_profiles.id for the attributed rep.", domain: "crm", format: "text", source: "fullmind_crm", queryable: true },
   { field: "stateAbbrev", column: "state_abbrev", label: "State Abbrev", description: "State 2-letter abbreviation.", domain: "core", format: "text", source: "fullmind_crm", queryable: true },
   { field: "stateFips", column: "state_fips", label: "State FIPS", description: "State 2-digit FIPS code.", domain: "core", format: "text", source: "fullmind_crm", queryable: true },
@@ -2406,7 +2406,7 @@ export const USER_PROFILE_COLUMNS: ColumnMetadata[] = [
   { field: "slackUrl", column: "slack_url", label: "Slack URL", description: "Link to the user's Slack profile.", domain: "links", format: "text", source: "user", queryable: true },
   { field: "bookingLink", column: "booking_link", label: "Booking Link", description: "Calendly/booking URL.", domain: "links", format: "text", source: "user", queryable: true },
   { field: "bio", column: "bio", label: "Bio", description: "Free-text bio.", domain: "crm", format: "text", source: "user", queryable: true },
-  { field: "crmName", column: "crm_name", label: "CRM Name", description: "Name as it appears in Salesforce (for matching to sales_rep_name).", domain: "crm", format: "text", source: "user", queryable: true },
+  { field: "crmName", column: "crm_name", label: "CRM Name", description: "Name as it appears in the Fullmind LMS (for matching to sales_rep_name).", domain: "crm", format: "text", source: "user", queryable: true },
   { field: "hasCompletedSetup", column: "has_completed_setup", label: "Has Completed Setup", description: "Onboarding flag.", domain: "crm", format: "boolean", source: "user", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "Record creation timestamp.", domain: "crm", format: "date", source: "user", queryable: true },
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "crm", format: "date", source: "user", queryable: true },
@@ -2492,7 +2492,7 @@ export const SCHOOL_COLUMNS: ColumnMetadata[] = [
 
 /** sessions — individual Fullmind session records (FK to opportunities) */
 export const SESSION_COLUMNS: ColumnMetadata[] = [
-  { field: "id", column: "id", label: "Session ID", description: "Salesforce session PK.", domain: "session", format: "text", source: "opensearch", queryable: true },
+  { field: "id", column: "id", label: "Session ID", description: "Fullmind LMS session PK.", domain: "session", format: "text", source: "opensearch", queryable: true },
   { field: "opportunityId", column: "opportunity_id", label: "Opportunity ID", description: "FK to opportunities.id. NOT a hard FK — 33% of sessions point to historical opps not in our opportunities table (scheduler sync lag).", domain: "opportunity", format: "text", source: "opensearch", queryable: true },
   { field: "serviceType", column: "service_type", label: "Service Type", description: "Service type code for this session.", domain: "session", format: "text", source: "opensearch", queryable: true },
   { field: "sessionPrice", column: "session_price", label: "Session Price", description: "Customer-facing session price.", domain: "session", format: "currency", source: "opensearch", queryable: true },
@@ -2744,7 +2744,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   opportunities: {
     table: "opportunities",
     description:
-      "Raw Salesforce opportunities, synced from OpenSearch by the scheduler. Safe ONLY for per-deal queries: SELECT by id/name, list individual deals, filter by a specific stage, count distinct deals, drill into a single contract. For any aggregate — bookings, pipeline, revenue, take, category rollup, closed-won totals — ROUTE TO district_opportunity_actuals instead. Raw aggregates silently produce wrong answers because: (a) LMS closed-won is text-only ('Closed Won'), numeric-prefix logic misses it; (b) minimum_purchase_amount / maximum_budget are cumulative on EK12 add-ons (SUM overcounts 3-4×); (c) session-revenue columns (total_revenue, completed_revenue, scheduled_revenue) don't include EK12 subscription revenue. Stage column has erroneous child-op text values ('Active', 'Position Purchased', 'Requisition Received', 'Return Position Pending') that should be filtered out of deal-level listings. One opportunity can have many subscriptions (EK12) and many sessions (Fullmind native).",
+      "Raw Fullmind LMS opportunities, synced from OpenSearch by the scheduler. Safe ONLY for per-deal queries: SELECT by id/name, list individual deals, filter by a specific stage, count distinct deals, drill into a single contract. For any aggregate — bookings, pipeline, revenue, take, category rollup, closed-won totals — ROUTE TO district_opportunity_actuals instead. Raw aggregates silently produce wrong answers because: (a) LMS closed-won is text-only ('Closed Won'), numeric-prefix logic misses it; (b) minimum_purchase_amount / maximum_budget are cumulative on EK12 add-ons (SUM overcounts 3-4×); (c) session-revenue columns (total_revenue, completed_revenue, scheduled_revenue) don't include EK12 subscription revenue. Stage column has erroneous child-op text values ('Active', 'Position Purchased', 'Requisition Received', 'Return Position Pending') that should be filtered out of deal-level listings. One opportunity can have many subscriptions (EK12) and many sessions (Fullmind native).",
     primaryKey: "id",
     columns: OPPORTUNITY_COLUMNS,
     relationships: [
@@ -2798,7 +2798,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   unmatched_accounts: {
     table: "unmatched_accounts",
     description:
-      "ETL accounts from Salesforce imports that couldn't match a known district. Used as an alternative parent key on district_financials when leaid is NULL. Query this for revenue attached to unmatched accounts (e.g., 'show Fullmind revenue that isn't tied to a district').",
+      "ETL accounts from the Fullmind LMS imports that couldn't match a known district. Used as an alternative parent key on district_financials when leaid is NULL. Query this for revenue attached to unmatched accounts (e.g., 'show Fullmind revenue that isn't tied to a district').",
     primaryKey: "id",
     columns: UNMATCHED_ACCOUNT_COLUMNS,
     relationships: [
@@ -3033,7 +3033,7 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
         "district_opportunity_actuals.min_purchase_bookings (rep-scoped, category-scoped, chain-deduplicated).",
       dealLevel:
         "opportunities.minimum_purchase_amount for a single deal (safe). Do NOT SUM across deals.",
-      note: "Closed-won contracted minimum — the signed-contract floor, regardless of session delivery. STRONGLY prefer DOA over opportunities aggregates because Salesforce stores add-ons with cumulative minimum_purchase_amount values; naive SUM across add-ons triples/quadruples tier-1 contracts. DOA's min_purchase_bookings clusters contract chains (via name-suffix stripping) and picks MAX per chain, then SUMs across chains. Powers the leaderboard's 'Prior Year Bookings' column — the right metric for in-progress years where session-delivered revenue lags signed contract value.",
+      note: "Closed-won contracted minimum — the signed-contract floor, regardless of session delivery. STRONGLY prefer DOA over opportunities aggregates because Fullmind LMS stores add-ons with cumulative minimum_purchase_amount values; naive SUM across add-ons triples/quadruples tier-1 contracts. DOA's min_purchase_bookings clusters contract chains (via name-suffix stripping) and picks MAX per chain, then SUMs across chains. Powers the leaderboard's 'Prior Year Bookings' column — the right metric for in-progress years where session-delivered revenue lags signed contract value.",
     },
     category_breakdown: {
       aggregated:
