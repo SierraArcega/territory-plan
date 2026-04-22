@@ -79,32 +79,45 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       assistantText += (assistantText ? "\n" : "") + textBlocks.map((b) => b.text).join("\n");
     }
 
-    const toolUse = response.content.find(
+    const toolUses = response.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
 
-    if (!toolUse) {
+    if (toolUses.length === 0) {
       return { kind: "clarifying", text: assistantText || "(no text)" };
     }
 
     messages.push({ role: "assistant", content: response.content });
 
-    if (toolUse.name === RUN_SQL_TOOL_NAME) {
-      const input = toolUse.input as { sql: string; summary: QuerySummary };
-      const runResult: RunSqlResult = await handleRunSql(input.sql, input.summary);
+    const runSqlUse = toolUses.find((t) => t.name === RUN_SQL_TOOL_NAME);
+    let runSqlResult: RunSqlResult | null = null;
+    if (runSqlUse) {
+      const input = runSqlUse.input as { sql: string; summary: QuerySummary };
+      runSqlResult = await handleRunSql(input.sql, input.summary);
 
-      if (runResult.kind === "ok") {
+      if (runSqlResult.kind === "ok") {
         return {
           kind: "result",
-          sql: runResult.sql,
-          summary: runResult.summary,
-          columns: runResult.columns,
-          rows: runResult.rows,
-          rowCount: runResult.rowCount,
-          executionTimeMs: runResult.executionTimeMs,
+          sql: runSqlResult.sql,
+          summary: runSqlResult.summary,
+          columns: runSqlResult.columns,
+          rows: runSqlResult.rows,
+          rowCount: runSqlResult.rowCount,
+          executionTimeMs: runSqlResult.executionTimeMs,
           assistantText,
         };
       }
+
+      console.error("[agent-loop] run_sql failed", {
+        attempt: sqlRetriesUsed + 1,
+        kind: runSqlResult.kind,
+        errors:
+          runSqlResult.kind === "validation_error"
+            ? runSqlResult.errors
+            : [runSqlResult.message],
+        sql: input.sql,
+        summary: input.summary,
+      });
 
       if (sqlRetriesUsed >= MAX_SQL_RETRIES) {
         return {
@@ -115,31 +128,43 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
         };
       }
       sqlRetriesUsed++;
-      const errorText =
-        runResult.kind === "error"
-          ? `run_sql failed: ${runResult.message}. Please correct the query and retry.`
-          : `run_sql validation failed:\n${runResult.errors.join("\n")}\nAdjust and retry.`;
-      messages.push({
-        role: "user",
-        content: [{ type: "tool_result", tool_use_id: toolUse.id, content: errorText, is_error: true }],
+    }
+
+    // Anthropic requires every tool_use in the assistant turn to have a matching
+    // tool_result in the next user turn. Process all in one batch.
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const tu of toolUses) {
+      if (tu === runSqlUse && runSqlResult && runSqlResult.kind !== "ok") {
+        const errorText =
+          runSqlResult.kind === "error"
+            ? `run_sql failed: ${runSqlResult.message}. Please correct the query and retry.`
+            : `run_sql validation failed:\n${runSqlResult.errors.join("\n")}\nAdjust and retry.`;
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tu.id,
+          content: errorText,
+          is_error: true,
+        });
+        continue;
+      }
+
+      exploratoryCalls++;
+      if (exploratoryCalls > MAX_EXPLORATORY_CALLS_PER_TURN) {
+        return {
+          kind: "surrender",
+          text:
+            "I'm having trouble narrowing this down. Could you give me more details about what you're looking for?",
+        };
+      }
+      const toolResult = await executeExploratoryTool(tu, userId);
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: tu.id,
+        content: toolResult,
       });
-      continue;
     }
 
-    exploratoryCalls++;
-    if (exploratoryCalls > MAX_EXPLORATORY_CALLS_PER_TURN) {
-      return {
-        kind: "surrender",
-        text:
-          "I'm having trouble narrowing this down. Could you give me more details about what you're looking for?",
-      };
-    }
-
-    const toolResult = await executeExploratoryTool(toolUse, userId);
-    messages.push({
-      role: "user",
-      content: [{ type: "tool_result", tool_use_id: toolUse.id, content: toolResult }],
-    });
+    messages.push({ role: "user", content: toolResults });
   }
 }
 
