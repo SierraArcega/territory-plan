@@ -221,7 +221,42 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:3005/api/calendar/callback
+
+# Anthropic API (required for Claude-based parsers and the news matcher)
+ANTHROPIC_API_KEY=sk-ant-...
+# Optional kill switch for the news LLM matcher (Pass 2 disambiguation).
+# Set to "false" to short-circuit Haiku calls; ambiguous candidates stay queued.
+NEWS_LLM_ENABLED=true
+
+# Cron auth — Bearer header or ?secret= query param on /api/cron/* routes
+CRON_SECRET=your-cron-secret
+
+# NewsAPI.org (optional, not currently wired up — reserved for future enrichment
+# of top-20 districts where structured imageUrl + source.id metadata is desired)
+NEWS_API_KEY=...
 ```
+
+### News feature
+
+The `news` feature (added 2026-04-22) ingests K-12 news from four layers:
+edu publishers via direct RSS (Chalkbeat, K-12 Dive, The 74, EdSurge), broad
+Google News RSS queries, per-state queries, and a rolling per-district queue.
+Articles match to districts/schools/contacts via a tiered keyword + Claude
+Haiku matcher (`src/features/news/lib/matcher.ts`).
+
+Tables: `news_articles`, `news_article_districts`, `news_article_schools`,
+`news_article_contacts`, `district_news_fetch`, `news_ingest_runs`,
+`news_match_queue`. See `prisma/migrations/20260422090000_add_news_tables/`.
+
+Cron: `/api/cron/ingest-news-daily` (2am PT), `/api/cron/ingest-news-rolling`
+(every 15 min; requires Vercel Pro), `/api/cron/rematch-news` (operational,
+re-runs matcher over existing articles).
+
+API: `GET /api/news` with `leaid` / `ncessch` / `contactId` / `territoryPlanId`
+/ `scope=my-territory` filters; `POST /api/news/refresh/[leaid]` on-demand.
+
+UI surfaces: not yet wired up — to be built in a follow-up PR. The backend
+API is stable and ready for a frontend to consume.
 
 ## Performance Considerations
 

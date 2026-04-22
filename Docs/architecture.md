@@ -25,6 +25,7 @@ Each feature follows the pattern `src/features/{name}/`:
 | `vacancies` | Vacancy scanning and tracking | `components/` + `lib/` |
 | `mixmax` | Mixmax campaign integration | `components/CampaignStatsPanel.tsx` |
 | `admin` | Admin tools (unmatched accounts, ICP scoring) | `components/` |
+| `news` | K-12 news ingest + entity matching (RSS + Google News + LLM disambiguator) — backend only; UI pending | `lib/ingest.ts`, `lib/matcher.ts` |
 | `shared` | Cross-feature components, hooks, utilities | `components/`, `lib/`, `hooks/` |
 
 ### The `map` Feature (Largest)

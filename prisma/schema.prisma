@@ -257,6 +257,8 @@ model District {
   vacancyScans    VacancyScan[]
   vacancies       Vacancy[]
   opportunities   Opportunity[]
+  newsArticles    NewsArticleDistrict[]
+  newsFetch       DistrictNewsFetch?
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -353,6 +355,7 @@ model Contact {
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
   vacancies      Vacancy[]
+  newsArticles   NewsArticleContact[]
 
   @@index([leaid])
   @@map("contacts")
@@ -1070,6 +1073,7 @@ model School {
   schoolTags        SchoolTag[]
   schoolContacts    SchoolContact[]
   vacancies         Vacancy[]
+  newsArticles      NewsArticleSchool[]
 
   @@index([leaid])
   @@index([charter])
@@ -1478,4 +1482,126 @@ model MetricRegistry {
   category    String @db.VarChar(50)
 
   @@map("metric_registry")
+}
+
+// ==============================================================
+// News Events
+// Ingested RSS + Google News articles, matched to districts,
+// schools, and contacts. See docs/superpowers/specs/2026-04-22-*
+// ==============================================================
+
+model NewsArticle {
+  id           String   @id @default(cuid())
+  url          String   @unique @db.VarChar(2000)
+  urlHash      String   @unique @map("url_hash") @db.VarChar(64)
+  title        String   @db.VarChar(500)
+  description  String?
+  content      String?
+  imageUrl     String?  @map("image_url") @db.VarChar(1000)
+  author       String?  @db.VarChar(255)
+  source       String   @db.VarChar(255)
+  feedSource   String   @map("feed_source") @db.VarChar(40)
+  publishedAt  DateTime @map("published_at")
+  fetchedAt    DateTime @default(now()) @map("fetched_at")
+  stateAbbrevs String[] @map("state_abbrevs") @db.VarChar(2)
+
+  // Classification — set by the Haiku classifier pass. Null until classified.
+  sentiment          String?   @db.VarChar(10)
+  categories         String[]  @default([]) @db.VarChar(40)
+  fullmindRelevance  String?   @map("fullmind_relevance") @db.VarChar(10)
+  classifiedAt       DateTime? @map("classified_at")
+
+  districts   NewsArticleDistrict[]
+  schools     NewsArticleSchool[]
+  contacts    NewsArticleContact[]
+  queueEntry  NewsMatchQueue?
+
+  @@index([publishedAt])
+  @@index([feedSource])
+  @@index([fullmindRelevance, publishedAt])
+  @@index([title, publishedAt])
+  @@map("news_articles")
+}
+
+model NewsArticleDistrict {
+  articleId  String   @map("article_id")
+  leaid      String   @db.VarChar(7)
+  confidence String   @db.VarChar(10)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  article  NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  district District    @relation(fields: [leaid], references: [leaid])
+
+  @@id([articleId, leaid])
+  @@index([leaid, confidence])
+  @@map("news_article_districts")
+}
+
+model NewsArticleSchool {
+  articleId  String   @map("article_id")
+  ncessch    String   @db.VarChar(12)
+  confidence String   @db.VarChar(10)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  article NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  school  School      @relation(fields: [ncessch], references: [ncessch])
+
+  @@id([articleId, ncessch])
+  @@index([ncessch, confidence])
+  @@map("news_article_schools")
+}
+
+model NewsArticleContact {
+  articleId  String   @map("article_id")
+  contactId  Int      @map("contact_id")
+  confidence String   @db.VarChar(10)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  article NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id])
+
+  @@id([articleId, contactId])
+  @@index([contactId, confidence])
+  @@map("news_article_contacts")
+}
+
+model DistrictNewsFetch {
+  leaid         String    @id @db.VarChar(7)
+  lastFetchedAt DateTime? @map("last_fetched_at")
+  priority      Int       @default(0)
+  lastStatus    String?   @map("last_status") @db.VarChar(20)
+  lastError     String?   @map("last_error")
+
+  district District @relation(fields: [leaid], references: [leaid], onDelete: Cascade)
+
+  @@index([priority, lastFetchedAt])
+  @@map("district_news_fetch")
+}
+
+model NewsIngestRun {
+  id                 String    @id @default(cuid())
+  layer              String    @db.VarChar(20)
+  startedAt          DateTime  @default(now()) @map("started_at")
+  finishedAt         DateTime? @map("finished_at")
+  articlesNew        Int       @default(0) @map("articles_new")
+  articlesDup        Int       @default(0) @map("articles_dup")
+  districtsProcessed Int       @default(0) @map("districts_processed")
+  llmCalls           Int       @default(0) @map("llm_calls")
+  status             String    @db.VarChar(20)
+  error              String?
+
+  @@index([layer, startedAt])
+  @@map("news_ingest_runs")
+}
+
+model NewsMatchQueue {
+  articleId   String    @id @map("article_id")
+  candidates  Json
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  article NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([processedAt])
+  @@map("news_match_queue")
 }
