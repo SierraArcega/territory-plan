@@ -3092,14 +3092,18 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     // Permanently excluded — admin/ops tables, junction tables, the query
     // tool's own persistence, and data the query tool shouldn't surface.
     "CalendarEvent",
+    "activity_attachments",
     "activity_attendees",
     "activity_contacts",
     "activity_districts",
     "activity_expenses",
+    "activity_notes",
     "activity_opportunities",
     "activity_plans",
     "activity_relations",
     "activity_states",
+    "audit_log",
+    "opportunity_snapshots",
     "data_refresh_logs",
     "district_data_history",
     "district_tags",
