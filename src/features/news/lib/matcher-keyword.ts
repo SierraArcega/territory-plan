@@ -1,5 +1,19 @@
 import { DISTRICT_ACRONYMS, type AcronymEntry } from "./acronyms.generated";
 import { ROLE_KEYWORDS } from "./config";
+import { normalizeName } from "./dice";
+
+// Core name of a district after stripping noise words ("Central", "Unified",
+// "School District", etc). We match against this so an article that mentions
+// "New Hartford School Board" hits the "New Hartford Central School District"
+// district row. Names that normalize to <4 chars or a single short token
+// (e.g. "PS 1") are skipped to avoid false-positives.
+const MIN_CORE_LENGTH = 4;
+
+function districtCoreName(name: string): string | null {
+  const core = normalizeName(name);
+  if (core.length < MIN_CORE_LENGTH) return null;
+  return core;
+}
 
 export interface DistrictCandidate {
   leaid: string;
@@ -74,28 +88,42 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
     }
   }
 
-  // Pass B: full district name matches (state-scoped)
+  // Pass B: district name matches (state-scoped), using the noise-stripped
+  // core name so "New Hartford School Board" hits "New Hartford Central School
+  // District". Falls back to the full name when the core-name is too short.
+  const normText = normalizeName(lowerText);
   for (const state of stateAbbrevs) {
     const candidates = districtsByState.get(state) ?? [];
     for (const c of candidates) {
       if (matchedLeaids.has(c.leaid)) continue;
-      const cname = c.name.toLowerCase();
-      if (!lowerText.includes(cname)) continue;
+      const core = districtCoreName(c.name);
+      if (!core) continue;
 
-      // Ambiguity check: is this same name also in districtsByState for another state?
+      const coreHit = normText.includes(core);
+      const fullHit = lowerText.includes(c.name.toLowerCase());
+      if (!coreHit && !fullHit) continue;
+
+      // Ambiguity check: same core name present in another state's district set?
       const dupeStates: string[] = [];
       for (const [s, list] of districtsByState.entries()) {
         if (s === state) continue;
-        if (list.some((d) => d.name.toLowerCase() === cname)) dupeStates.push(s);
+        if (list.some((d) => districtCoreName(d.name) === core)) dupeStates.push(s);
       }
-      if (dupeStates.length > 0 && !stateAbbrevs.some((s) => dupeStates.includes(s) === false)) {
-        // Multiple states have same name and article mentions all of them — ambiguous
+      if (dupeStates.length > 0 && !dupeStates.every((s) => stateAbbrevs.includes(s))) {
+        // Another state also has this core name but that state isn't mentioned —
+        // still a clean match on this state. If all dupeStates are co-mentioned,
+        // we can't disambiguate; queue it.
+        result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
+        matchedLeaids.add(c.leaid);
+        continue;
+      }
+      if (dupeStates.length > 0) {
         result.ambiguous.push({
-          reason: `district name "${c.name}" ambiguous across states ${[state, ...dupeStates].join(", ")}`,
+          reason: `district core name "${core}" present in states ${[state, ...dupeStates].join(", ")}, all co-mentioned`,
           districtCandidates: [
             c,
-            ...dupeStates.flatMap(
-              (s) => (districtsByState.get(s) ?? []).filter((d) => d.name.toLowerCase() === cname)
+            ...dupeStates.flatMap((s) =>
+              (districtsByState.get(s) ?? []).filter((d) => districtCoreName(d.name) === core)
             ),
           ],
         });
