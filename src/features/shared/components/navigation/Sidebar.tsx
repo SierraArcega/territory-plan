@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Apple } from "lucide-react";
 import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardNavWidget";
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "leaderboard" | "resources" | "profile" | "admin";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin";
 
 interface Tab {
   id: TabId;
@@ -105,6 +106,8 @@ const LeaderboardIcon = () => (
   </svg>
 );
 
+const LowHangingFruitIcon = () => <Apple className="w-5 h-5" />;
+
 // Admin gear icon
 const AdminIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,6 +153,7 @@ const MAIN_TABS: Tab[] = [
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
   { id: "leaderboard", label: "Leaderboard", icon: <LeaderboardIcon /> },
+  { id: "low-hanging-fruit", label: "Low Hanging Fruit", icon: <LowHangingFruitIcon /> },
   { id: "resources", label: "Resources", icon: <ResourcesIcon /> },
 ];
 
@@ -354,6 +358,10 @@ export default function Sidebar({
       isOpen={showLeaderboard}
       onClose={() => setShowLeaderboard(false)}
       onNavigateToDetails={() => onTabChange("leaderboard" as TabId)}
+      setActiveTab={(tab) => {
+        setShowLeaderboard(false);
+        onTabChange(tab);
+      }}
     />
     </>
   );

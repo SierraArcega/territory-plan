@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { syncClassificationTagsForDistrict } from "@/features/shared/lib/auto-tags";
+import {
+  syncClassificationTagsForDistrict,
+  syncMissingRenewalOppTagForDistrict,
+} from "@/features/shared/lib/auto-tags";
 import { syncPlanRollups } from "@/features/plans/lib/rollup-sync";
 import { awardPoints } from "@/features/leaderboard/lib/scoring";
 import {
@@ -155,9 +158,10 @@ export async function POST(
     const BATCH_SIZE = 10;
     for (let i = 0; i < districtLeaids.length; i += BATCH_SIZE) {
       await Promise.all(
-        districtLeaids.slice(i, i + BATCH_SIZE).map((leaid) =>
-          syncClassificationTagsForDistrict(leaid)
-        )
+        districtLeaids.slice(i, i + BATCH_SIZE).flatMap((leaid) => [
+          syncClassificationTagsForDistrict(leaid),
+          syncMissingRenewalOppTagForDistrict(leaid),
+        ])
       );
     }
 
