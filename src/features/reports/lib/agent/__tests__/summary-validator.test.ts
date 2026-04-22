@@ -55,4 +55,38 @@ describe("validateSummary", () => {
     const result = validateSummary(sql, baseSummary);
     expect(result.valid).toBe(false);
   });
+
+  it("validates CTE queries correctly (counts outer SELECT columns)", () => {
+    const sql =
+      "WITH recent AS (SELECT a, b FROM districts WHERE state = 'Texas') SELECT name, bookings FROM recent LIMIT 100";
+    const result = validateSummary(sql, baseSummary);
+    expect(result.valid).toBe(true);
+  });
+
+  it("validates queries with subqueries in SELECT list", () => {
+    const sql =
+      "SELECT name, (SELECT COUNT(*) FROM opportunities WHERE district_lea_id = districts.leaid) AS deal_count FROM districts WHERE state = 'Texas' LIMIT 100";
+    const summary: QuerySummary = {
+      ...baseSummary,
+      columns: [
+        { id: "c1", label: "District name" },
+        { id: "c2", label: "Deal count" },
+      ],
+    };
+    const result = validateSummary(sql, summary);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects SQL whose only LIMIT is inside a block comment", () => {
+    const sql = "SELECT name, bookings FROM districts WHERE state = 'Texas' /* LIMIT 50 */";
+    const result = validateSummary(sql, baseSummary);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.toLowerCase().includes("limit"))).toBe(true);
+  });
+
+  it("ignores LIMIT inside line comments", () => {
+    const sql = "-- LIMIT 9999\nSELECT name, bookings FROM districts WHERE state = 'Texas' LIMIT 100";
+    const result = validateSummary(sql, baseSummary);
+    expect(result.valid).toBe(true);
+  });
 });

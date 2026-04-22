@@ -6,9 +6,29 @@ export interface ValidationResult {
   errors: string[];
 }
 
+/** Strip SQL line comments (--) and block comments (/* ... *\/). */
+function stripComments(sql: string): string {
+  return sql.replace(/--.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+/**
+ * Iteratively remove innermost parenthesised groups until none remain.
+ * This collapses CTEs and subqueries so the outer SELECT…FROM regex
+ * matches the top-level query rather than an inner one.
+ */
+function stripParens(sql: string): string {
+  let prev: string;
+  let curr = sql;
+  do {
+    prev = curr;
+    curr = curr.replace(/\([^()]*\)/g, "");
+  } while (curr !== prev);
+  return curr;
+}
+
 /** Count top-level SELECT columns in a SQL string. Handles nested parens + quoted commas. */
 function countSelectColumns(sql: string): number | null {
-  const clean = sql.replace(/--.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  const clean = stripParens(stripComments(sql));
 
   const selectMatch = /\bselect\b([\s\S]*?)\bfrom\b/i.exec(clean);
   if (!selectMatch) return null;
@@ -32,14 +52,14 @@ function countSelectColumns(sql: string): number | null {
 }
 
 function findLimit(sql: string): number | null {
-  const m = /\blimit\s+(\d+)\b/i.exec(sql);
+  const m = /\blimit\s+(\d+)\b/i.exec(stripComments(sql));
   return m ? Number(m[1]) : null;
 }
 
 /** Extract literal values from the SQL (quoted strings + numeric comparands). */
 function extractLiterals(sql: string): string[] {
   const literals: string[] = [];
-  const singleQuoted = sql.match(/'([^']*)'/g) ?? [];
+  const singleQuoted = stripComments(sql).match(/'([^']*)'/g) ?? [];
   for (const s of singleQuoted) literals.push(s.slice(1, -1));
   return literals;
 }
