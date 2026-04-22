@@ -153,7 +153,17 @@ export default function ContactsActionBar({
       });
 
       if (result.queued === 0) {
-        setModalState({ variant: "queued-zero", districtCount: result.skipped });
+        if (result.skipped > 0) {
+          setModalState({ variant: "queued-zero", districtCount: result.skipped });
+        } else {
+          setToast({
+            message:
+              selectedRole === "Principal"
+                ? "No schools match the selected levels"
+                : "No districts to enrich — add districts to this plan first",
+            type: "info",
+          });
+        }
         return;
       }
 

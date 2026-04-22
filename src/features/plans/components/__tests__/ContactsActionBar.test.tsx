@@ -268,6 +268,29 @@ describe("ContactsActionBar — ExistingContactsModal triggers", () => {
     expect(screen.getByText(/1 district already had contacts/i)).toBeInTheDocument();
   });
 
+  it("does not open modal when queued=0 and skipped=0 (no-targets path) — shows toast instead", async () => {
+    mockMutateAsync.mockResolvedValueOnce({ total: 0, skipped: 0, queued: 0 });
+
+    render(
+      withQueryClient(
+        <ContactsActionBar
+          planId="plan-1"
+          planName="Plan"
+          contacts={[]}
+          allDistrictLeaids={[]}
+        />
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    });
+
+    expect(screen.queryByRole("heading", { name: /contacts already exist/i })).not.toBeInTheDocument();
+    expect(await screen.findByText(/no districts to enrich/i)).toBeInTheDocument();
+  });
+
   it("does not open modal when queued>0 and skipped=0 (all-new path)", async () => {
     mockMutateAsync.mockResolvedValueOnce({ total: 3, skipped: 0, queued: 3 });
 
