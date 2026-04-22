@@ -1519,6 +1519,7 @@ model NewsArticle {
   @@index([publishedAt])
   @@index([feedSource])
   @@index([fullmindRelevance, publishedAt])
+  @@index([title, publishedAt])
   @@map("news_articles")
 }
 

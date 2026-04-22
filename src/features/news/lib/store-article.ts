@@ -30,6 +30,21 @@ export function hashUrl(url: string): string {
   return createHash("sha256").update(normalizeUrl(url)).digest("hex");
 }
 
+/** Cross-publisher syndication window: if we already have an article with the
+ *  same normalized title published within this window of the incoming one,
+ *  treat them as duplicates. 24h covers same-day wire-syndication cases like
+ *  NBC News → MSN → NBC regional affiliates. */
+const DUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Normalize a title for dup comparison: trim, collapse whitespace, strip
+ *  trailing " - {publisher}" suffixes the RSS parser didn't catch. */
+function normalizeTitle(title: string): string {
+  return title
+    .replace(/\s+/g, " ")
+    .replace(/\s+-\s+[^-]{3,50}$/, "")
+    .trim();
+}
+
 export async function upsertArticle(
   raw: RawArticle,
   feedSource: string
@@ -43,17 +58,34 @@ export async function upsertArticle(
   const imageUrl = raw.imageUrl?.slice(0, 1000) ?? null;
   const author = raw.author?.slice(0, 255) ?? null;
 
-  // Try insert; on unique violation we fetch existing.
-  const existing = await prisma.newsArticle.findUnique({ where: { urlHash } });
-  if (existing) {
-    return { article: existing, isNew: false };
+  // Primary dedup: URL hash.
+  const byUrl = await prisma.newsArticle.findUnique({ where: { urlHash } });
+  if (byUrl) {
+    return { article: byUrl, isNew: false };
+  }
+
+  // Secondary dedup: cross-publisher syndication — same normalized title
+  // published within DUP_WINDOW_MS of the new article. Covers wire stories
+  // on NBC/MSN/regional affiliates, NPR member stations, Sinclair, etc.
+  const titleNorm = normalizeTitle(title);
+  const windowStart = new Date(raw.publishedAt.getTime() - DUP_WINDOW_MS);
+  const windowEnd = new Date(raw.publishedAt.getTime() + DUP_WINDOW_MS);
+  const byTitle = await prisma.newsArticle.findFirst({
+    where: {
+      title: titleNorm,
+      publishedAt: { gte: windowStart, lte: windowEnd },
+    },
+    orderBy: { publishedAt: "asc" },
+  });
+  if (byTitle) {
+    return { article: byTitle, isNew: false };
   }
 
   const article = await prisma.newsArticle.create({
     data: {
       url: normalized.slice(0, 2000),
       urlHash,
-      title,
+      title: titleNorm.slice(0, 500),
       description,
       content: raw.content ?? null,
       imageUrl,
