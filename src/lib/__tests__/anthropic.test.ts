@@ -121,6 +121,55 @@ describe("findToolUse", () => {
   });
 });
 
+describe("callClaude retries", () => {
+  it("retries on 429 and succeeds on follow-up call", async () => {
+    mockFetch
+      .mockResolvedValueOnce(new Response("rate limited", { status: 429, headers: { "retry-after": "0" } }))
+      .mockResolvedValueOnce(new Response("rate limited", { status: 429, headers: { "retry-after": "0" } }))
+      .mockResolvedValueOnce(okJson([{ type: "text", text: "ok" }]));
+
+    const result = await callClaude({
+      model: HAIKU_MODEL,
+      userMessage: "x",
+      maxRetries: 3,
+    });
+    expect(result).toEqual([{ type: "text", text: "ok" }]);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries on 500 and succeeds", async () => {
+    mockFetch
+      .mockResolvedValueOnce(new Response("oops", { status: 500 }))
+      .mockResolvedValueOnce(okJson([{ type: "text", text: "ok" }]));
+
+    const result = await callClaude({
+      model: HAIKU_MODEL,
+      userMessage: "x",
+      maxRetries: 2,
+    });
+    expect(result).toEqual([{ type: "text", text: "ok" }]);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws after exceeding maxRetries on persistent 429", async () => {
+    mockFetch.mockResolvedValue(
+      new Response("rate limited", { status: 429, headers: { "retry-after": "0" } })
+    );
+    await expect(
+      callClaude({ model: HAIKU_MODEL, userMessage: "x", maxRetries: 2 })
+    ).rejects.toMatchObject({ name: "AnthropicError", status: 429 });
+    expect(mockFetch).toHaveBeenCalledTimes(3); // initial + 2 retries
+  });
+
+  it("does NOT retry on non-retriable 4xx (e.g. 401)", async () => {
+    mockFetch.mockResolvedValueOnce(new Response("bad key", { status: 401 }));
+    await expect(
+      callClaude({ model: HAIKU_MODEL, userMessage: "x", maxRetries: 5 })
+    ).rejects.toMatchObject({ name: "AnthropicError", status: 401 });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("AnthropicError", () => {
   it("carries status and body", () => {
     const e = new AnthropicError("fail", 500, "oops");
