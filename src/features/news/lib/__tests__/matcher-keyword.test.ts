@@ -162,6 +162,65 @@ describe("matchArticleKeyword — Tier 1 city+context auto-confirm", () => {
   });
 });
 
+describe("matchArticleKeyword — false-positive guards", () => {
+  it("does NOT match Vernon (CT) inside 'Mount Vernon'", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("CT", [
+      { leaid: "0999999", name: "Vernon School District", stateAbbrev: "CT", cityLocation: "Vernon", countyName: null, accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Mount Vernon City School District proposes $276 million budget with tax increase",
+        stateAbbrevs: ["CT"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("does NOT school-first-match on generic names like 'Illinois School'", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("IL", [
+      { leaid: "1725020", name: "Matteson Elementary School District 162", stateAbbrev: "IL", cityLocation: "Richton Park", countyName: "Cook County", accountName: null },
+    ]);
+    const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
+    schoolsByLeaid.set("1725020", [
+      { ncessch: "170993000001", leaid: "1725020", schoolName: "Illinois School" },
+      { ncessch: "170993000002", leaid: "1725020", schoolName: "Arcadia Elem School" },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "28 Illinois schools receive state Blue Ribbon Schools award",
+        stateAbbrevs: ["IL"],
+        districtsByState,
+        schoolsByLeaid,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("still school-first-matches on distinctive names like 'Arcadia Elem School'", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("IL", [
+      { leaid: "1725020", name: "Matteson Elementary School District 162", stateAbbrev: "IL", cityLocation: "Richton Park", countyName: "Cook County", accountName: null },
+    ]);
+    const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
+    schoolsByLeaid.set("1725020", [
+      { ncessch: "170993000002", leaid: "1725020", schoolName: "Arcadia Elem School" },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Arcadia Elem School celebrates Blue Ribbon award",
+        stateAbbrevs: ["IL"],
+        districtsByState,
+        schoolsByLeaid,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(1);
+    expect(result.confirmedDistricts[0].leaid).toBe("1725020");
+  });
+});
+
 describe("matchArticleKeyword — Tier 2 LLM queue", () => {
   it("does NOT auto-confirm on core-name-only substring hits (York trap)", () => {
     // "York Central School District" → core "york" — appears in "New York"

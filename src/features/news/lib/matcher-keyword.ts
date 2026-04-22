@@ -1,6 +1,25 @@
 import { DISTRICT_ACRONYMS, type AcronymEntry } from "./acronyms.generated";
-import { ROLE_KEYWORDS } from "./config";
+import { ROLE_KEYWORDS, US_STATES } from "./config";
 import { normalizeName } from "./dice";
+
+// Tokens that carry no district-distinguishing signal. State names, cardinal
+// directions, and grade-level suffixes all appear in news headlines constantly
+// ("Illinois schools", "North Elementary", etc.). A school or district name
+// whose tokens ALL come from this set is not a reliable auto-confirm target.
+const SCHOOL_STOPWORDS = new Set<string>([
+  ...US_STATES.map((s) => s.name.toLowerCase()),
+  ...US_STATES.map((s) => s.abbrev.toLowerCase()),
+  "north", "south", "east", "west", "central", "main", "old", "new", "upper", "lower",
+  "high", "middle", "elementary", "junior", "senior", "primary", "secondary",
+  "school", "schools", "academy", "district", "elem", "jr", "sr",
+  "america", "united", "states",
+]);
+
+/** Whether a school name has at least one distinctive token (not in the stoplist). */
+function schoolHasDistinctiveToken(name: string): boolean {
+  const tokens = name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return tokens.some((t) => t.length >= 3 && !SCHOOL_STOPWORDS.has(t));
+}
 
 /**
  * Core name = district name with noise words stripped ("Central", "Unified",
@@ -143,7 +162,12 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
   // Catches local-news headlines like "Stockton school district passes bond"
   // that don't name the district but name its city. Requires edu context to
   // avoid false-positives on pure geographic mentions.
+  //
+  // Guard against compound-city traps: "Vernon" should NOT match inside
+  // "Mount Vernon"; "York" should NOT match inside "New York";
+  // "Washington" should NOT match inside "Fort Washington" / "Lake Washington".
   const DISTRICT_CONTEXT_RE = /\b(school district|school board|superintendent|school system|district's?|public schools?)\b/i;
+  const COMPOUND_PREFIX_RE = /(mount|new|north|south|east|west|fort|port|old|upper|lower|lake|point|cape|san|saint|st\.?)$/i;
   if (DISTRICT_CONTEXT_RE.test(articleText)) {
     for (const state of stateAbbrevs) {
       const candidates = districtsByState.get(state) ?? [];
@@ -151,10 +175,20 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
         if (confirmedLeaids.has(c.leaid)) continue;
         const city = c.cityLocation?.toLowerCase();
         if (!city || city.length < 4) continue;
-        // City name must appear as a standalone token, not embedded in another
-        // word. Use word-boundary regex rather than includes().
-        const cityRe = new RegExp(`\\b${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
-        if (!cityRe.test(lowerText)) continue;
+        const escaped = city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const cityRe = new RegExp(`\\b${escaped}\\b`, "g");
+        let match: RegExpExecArray | null;
+        let foundStandalone = false;
+        while ((match = cityRe.exec(lowerText)) !== null) {
+          // Look at up to 10 chars before the match for a compound prefix word
+          const start = Math.max(0, match.index - 10);
+          const before = lowerText.slice(start, match.index).trim();
+          if (!COMPOUND_PREFIX_RE.test(before)) {
+            foundStandalone = true;
+            break;
+          }
+        }
+        if (!foundStandalone) continue;
         // Only one district per city per state can auto-confirm this way —
         // avoids auto-linking multiple districts in the same city.
         const othersInSameCity = candidates.filter(
@@ -170,26 +204,25 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
   // Pass B3: school-first lookup. Many local stories name a school but not
   // its parent district ("Central High School…" rather than "Anywhere Unified
   // SD's Central High"). Scan state-scoped schools for any literal school-
-  // name hit; if found, add the parent district as a candidate. Auto-confirm
-  // only when the school name is distinctive (≥2 words and not just "Central
-  // High"); otherwise queue for LLM.
-  const SCHOOL_GENERIC_RE = /^(central|north|south|east|west|main|high|middle|elementary|junior|senior|lincoln|washington|jefferson|madison|jackson|hamilton)\s+(high|middle|elementary|school)(\s+school)?$/i;
+  // name hit; if found, auto-confirm the parent district — but only when the
+  // school name has at least one distinctive (non-stopword) token. Without
+  // this guard, a district that happens to contain a school named "Illinois
+  // School" would auto-link every "Illinois schools" headline.
   for (const state of stateAbbrevs) {
     const candidates = districtsByState.get(state) ?? [];
     for (const c of candidates) {
+      if (confirmedLeaids.has(c.leaid)) continue;
       const schools = schoolsByLeaid.get(c.leaid) ?? [];
       for (const s of schools) {
         const sn = s.schoolName.toLowerCase();
         if (sn.length < 6) continue;
         const words = sn.split(/\s+/).filter(Boolean).length;
         if (words < 2) continue;
+        if (!schoolHasDistinctiveToken(s.schoolName)) continue;
         if (!lowerText.includes(sn)) continue;
-        // Distinctive enough to auto-confirm the DISTRICT?
-        const isGeneric = SCHOOL_GENERIC_RE.test(s.schoolName);
-        if (!isGeneric && !confirmedLeaids.has(c.leaid)) {
-          result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
-          confirmedLeaids.add(c.leaid);
-        }
+        result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
+        confirmedLeaids.add(c.leaid);
+        break;
       }
     }
   }
