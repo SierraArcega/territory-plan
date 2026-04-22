@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
+import { expandPlanRollups } from "@/features/districts/lib/expandRollups";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,10 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
+
+    // Auto-migrate any rollup leaids in this plan to their children.
+    // Safe to run on every GET — idempotent after first successful expansion.
+    await expandPlanRollups(id, user.id);
 
     // Team shares visibility across plans (matches list endpoint)
     const plan = await prisma.territoryPlan.findUnique({
