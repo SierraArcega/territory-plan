@@ -2862,21 +2862,6 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
     ],
   },
 
-  unmatched_accounts: {
-    table: "unmatched_accounts",
-    description:
-      "ETL accounts from the Fullmind LMS imports that couldn't match a known district. Used as an alternative parent key on district_financials when leaid is NULL. Query this for revenue attached to unmatched accounts (e.g., 'show Fullmind revenue that isn't tied to a district').",
-    primaryKey: "id",
-    columns: UNMATCHED_ACCOUNT_COLUMNS,
-    relationships: [
-      {
-        toTable: "district_financials",
-        type: "one-to-many",
-        joinSql: "district_financials.unmatched_account_id = unmatched_accounts.id",
-        description: "Financial rows attributed to this unmatched account",
-      },
-    ],
-  },
 
   states: {
     table: "states",
@@ -3327,6 +3312,8 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "territory_plan_collaborators",
     "territory_plan_district_services",
     "territory_plan_states",
+    "unmatched_accounts",
+    "unmatched_opportunities",
     "user_goals",
     "user_integrations",
     "vacancy_keyword_config",
@@ -3336,7 +3323,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     // own entry. Move into TABLE_REGISTRY as question shapes demand.
     "initiatives",
     "services",
-    "unmatched_opportunities",
   ],
 };
 
