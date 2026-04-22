@@ -11,6 +11,8 @@ import {
   VENDOR_CONFIGS,
   SIGNAL_CONFIGS,
   VENDOR_IDS,
+  NOT_ROLLUP_FILTER,
+  DISTRICT_ROLLUP_OUTLINE_LAYER,
 } from "../layers";
 import type { VendorPalette, SignalPalette } from "../palettes";
 
@@ -1017,5 +1019,37 @@ describe("buildFilterExpression", () => {
       expect(indexOfExpr[2][1]).toEqual(["get", "plan_ids"]);
       expect(indexOfExpr[2][2]).toBe("");
     });
+  });
+});
+
+// ============================================
+// Rollup districts
+// ============================================
+
+describe("NOT_ROLLUP_FILTER", () => {
+  it("excludes features where is_rollup is true", () => {
+    expect(NOT_ROLLUP_FILTER).toEqual(["!=", ["get", "is_rollup"], true]);
+  });
+});
+
+describe("DISTRICT_ROLLUP_OUTLINE_LAYER", () => {
+  it("filters to rollup features only", () => {
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER.filter).toEqual([
+      "==",
+      ["get", "is_rollup"],
+      true,
+    ]);
+  });
+
+  it("uses plum brand color, dashed line, no fill", () => {
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER.type).toBe("line");
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER.paint["line-color"]).toBe("#403770");
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER.paint["line-dasharray"]).toEqual([2, 2]);
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER.paint["line-width"]).toBe(1.5);
+  });
+
+  it("reads from the districts tile source", () => {
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER.source).toBe("districts");
+    expect(DISTRICT_ROLLUP_OUTLINE_LAYER["source-layer"]).toBe("districts");
   });
 });

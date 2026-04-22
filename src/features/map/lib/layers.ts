@@ -486,6 +486,47 @@ export const LOCALE_LAYER_META: Record<LocaleId, { label: string; color: string 
 export const LOCALE_FILL: ExpressionSpecification = LOCALE_SIGNAL_FILL;
 
 // ============================================
+// Rollup districts (e.g., NYC DOE)
+// ============================================
+
+/**
+ * MapLibre filter expression that excludes rollup districts (e.g., NYC DOE,
+ * whose children are the 32 NYC Geographic Districts). Rollups cover the
+ * same geography as their children, so painting a fill on them would absorb
+ * clicks meant for the child district underneath. Compose this with any
+ * existing filter via ["all", <existing>, NOT_ROLLUP_FILTER].
+ *
+ * The `!=` form treats missing `is_rollup` properties as "not a rollup",
+ * which matches the intent (any feature that isn't explicitly flagged is
+ * a normal district).
+ */
+export const NOT_ROLLUP_FILTER: ExpressionSpecification = [
+  "!=",
+  ["get", "is_rollup"],
+  true,
+];
+
+/**
+ * Outline-only layer for rollup districts. Renders a thin dashed plum
+ * outline with no fill, so rollup polygons stay visible as context but
+ * don't absorb clicks — clicks pass through to the underlying child
+ * district (the child's `district-base-fill` is what MapLibre hit-tests).
+ */
+export const DISTRICT_ROLLUP_OUTLINE_LAYER = {
+  id: "district-rollup-outline",
+  type: "line" as const,
+  source: "districts",
+  "source-layer": "districts",
+  filter: ["==", ["get", "is_rollup"], true] as ExpressionSpecification,
+  paint: {
+    "line-color": LAYER_COLORS.districts, // Plum (#403770)
+    "line-width": 1.5,
+    "line-dasharray": [2, 2],
+    "line-opacity": 0.5,
+  },
+};
+
+// ============================================
 // Circle layer for non-district point accounts
 // ============================================
 
