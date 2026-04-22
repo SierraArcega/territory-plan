@@ -2343,22 +2343,34 @@ export const TERRITORY_PLAN_COLUMNS: ColumnMetadata[] = [
   { field: "description", column: "description", label: "Description", description: "Free-text description.", domain: "plan", format: "text", source: "user", queryable: true },
   { field: "ownerId", column: "owner_id", label: "Owner User ID", description: "FK to user_profiles.id — the rep who owns this plan.", domain: "crm", format: "text", source: "user", queryable: true },
   { field: "color", column: "color", label: "Color", description: "Hex color for UI.", domain: "plan", format: "text", source: "user", queryable: true },
-  { field: "status", column: "status", label: "Status", description: "One of: planning, active, archived.", domain: "plan", format: "text", source: "user", queryable: true },
-  { field: "fiscalYear", column: "fiscal_year", label: "Fiscal Year", description: "Numeric FY (e.g., 2026). NOT 'FY26' string format.", domain: "crm", format: "year", source: "user", queryable: true },
+  { field: "status", column: "status", label: "Status", description: "Plan lifecycle status. Full enum: 'planning', 'active', 'archived'. Reps ask about this as 'my active plans', 'plans I'm still drafting' (planning), or 'past plans' (archived).", domain: "plan", format: "text", source: "user", queryable: true },
+  { field: "fiscalYear", column: "fiscal_year", label: "Fiscal Year", description: "Numeric FY (e.g., 2026 = FY26). NOT the 'FY26' string used on district_financials or the 'YYYY-YY' string used on opportunities — see SEMANTIC_CONTEXT.formatMismatches.fiscal_year. Reps filter on this for 'my FY26 plan' / 'my plan for this year' style questions.", domain: "crm", format: "year", source: "user", queryable: true },
   { field: "startDate", column: "start_date", label: "Start Date", description: "Plan start date.", domain: "plan", format: "date", source: "user", queryable: true },
   { field: "endDate", column: "end_date", label: "End Date", description: "Plan end date.", domain: "plan", format: "date", source: "user", queryable: true },
   { field: "userId", column: "user_id", label: "Legacy User ID", description: "Legacy FK (use ownerId for new code).", domain: "crm", format: "text", source: "user", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "Plan creation timestamp.", domain: "plan", format: "date", source: "user", queryable: true },
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "plan", format: "date", source: "user", queryable: true },
-  { field: "districtCount", column: "district_count", label: "District Count", description: "Denormalized count of districts in plan.", domain: "plan", format: "integer", source: "computed", queryable: true },
-  { field: "stateCount", column: "state_count", label: "State Count", description: "Denormalized count of states in plan.", domain: "plan", format: "integer", source: "computed", queryable: true },
-  { field: "renewalRollup", column: "renewal_rollup", label: "Renewal Rollup", description: "Sum of per-district renewal targets.", domain: "plan", format: "currency", source: "computed", queryable: true },
-  { field: "expansionRollup", column: "expansion_rollup", label: "Expansion Rollup", description: "Sum of per-district expansion targets.", domain: "plan", format: "currency", source: "computed", queryable: true },
-  { field: "winbackRollup", column: "winback_rollup", label: "Winback Rollup", description: "Sum of per-district winback targets.", domain: "plan", format: "currency", source: "computed", queryable: true },
-  { field: "newBusinessRollup", column: "new_business_rollup", label: "New Business Rollup", description: "Sum of per-district new-business targets.", domain: "plan", format: "currency", source: "computed", queryable: true },
-  { field: "enrichmentStartedAt", column: "enrichment_started_at", label: "Enrichment Started At", description: "When bulk district enrichment was last kicked off.", domain: "plan", format: "date", source: "computed", queryable: true },
-  { field: "enrichmentQueued", column: "enrichment_queued", label: "Enrichment Queued", description: "Count of districts still being enriched.", domain: "plan", format: "integer", source: "computed", queryable: true },
-  { field: "enrichmentActivityId", column: "enrichment_activity_id", label: "Enrichment Activity ID", description: "Tracking activity for bulk enrichment run.", domain: "plan", format: "text", source: "computed", queryable: true },
+  { field: "districtCount", column: "district_count", label: "District Count", description: "Denormalized count of districts in the plan — the canonical answer for 'how many districts are in my plan'. May briefly lag the territory_plan_districts junction right after an edit; SUM the junction if you need reconciliation-grade precision.", domain: "plan", format: "integer", source: "computed", queryable: true },
+  { field: "stateCount", column: "state_count", label: "State Count", description: "Denormalized count of states in the plan. Same lag caveat as district_count.", domain: "plan", format: "integer", source: "computed", queryable: true },
+  { field: "renewalRollup", column: "renewal_rollup", label: "Renewal Rollup", description: "Sum of per-district renewal targets for this plan (dollars). This is the canonical answer for 'my renewal target' / 'my plan's renewal goal'. Denormalized from SUM(territory_plan_districts.renewal_target) — may briefly lag after an edit; use the junction if reconciliation-grade precision is needed.", domain: "plan", format: "currency", source: "computed", queryable: true },
+  { field: "expansionRollup", column: "expansion_rollup", label: "Expansion Rollup", description: "Sum of per-district expansion targets for this plan (dollars). Canonical answer for 'my expansion target' / 'my growth goal'. Same lag caveat as renewal_rollup.", domain: "plan", format: "currency", source: "computed", queryable: true },
+  { field: "winbackRollup", column: "winback_rollup", label: "Winback Rollup", description: "Sum of per-district winback targets for this plan (dollars). Canonical answer for 'my winback target' / 'my winback goal'. Same lag caveat as renewal_rollup.", domain: "plan", format: "currency", source: "computed", queryable: true },
+  { field: "newBusinessRollup", column: "new_business_rollup", label: "New Business Rollup", description: "Sum of per-district new-business targets for this plan (dollars). Canonical answer for 'my new-business target'. Same lag caveat as renewal_rollup. For a rep's TOTAL target across categories, sum all four rollup columns (renewal + expansion + winback + new_business).", domain: "plan", format: "currency", source: "computed", queryable: true },
+  { field: "enrichmentStartedAt", column: "enrichment_started_at", label: "Enrichment Started At", description: "Internal-ops field. When bulk district enrichment was last kicked off for this plan.", domain: "plan", format: "date", source: "computed", queryable: false },
+  { field: "enrichmentQueued", column: "enrichment_queued", label: "Enrichment Queued", description: "Internal-ops field. Count of districts still being enriched.", domain: "plan", format: "integer", source: "computed", queryable: false },
+  { field: "enrichmentActivityId", column: "enrichment_activity_id", label: "Enrichment Activity ID", description: "Internal-ops field. Tracking activity for bulk enrichment run.", domain: "plan", format: "text", source: "computed", queryable: false },
+];
+
+/** territory_plan_districts — per-district goals within a rep's territory plan */
+export const TERRITORY_PLAN_DISTRICT_COLUMNS: ColumnMetadata[] = [
+  { field: "planId", column: "plan_id", label: "Plan ID", description: "FK to territory_plans.id. Join here to get the plan's owner (rep), fiscal_year, and status.", domain: "plan", format: "text", source: "user", queryable: true },
+  { field: "districtLeaid", column: "district_leaid", label: "LEA ID", description: "FK to districts.leaid. One row per (plan, district) pair.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "addedAt", column: "added_at", label: "Added At", description: "When this district was added to the plan.", domain: "plan", format: "date", source: "user", queryable: true },
+  { field: "renewalTarget", column: "renewal_target", label: "Renewal Target", description: "Dollar goal a rep has set for renewing existing business in this district this fiscal year. Reps ask about this as 'my renewal target for <district>' or 'which districts have the highest renewal goals'. For plan-level totals see territory_plans.renewal_rollup.", domain: "plan", format: "currency", source: "user", queryable: true },
+  { field: "winbackTarget", column: "winback_target", label: "Winback Target", description: "Dollar goal a rep has set for winning back lapsed business in this district. Reps ask 'my winback target for <district>', 'biggest winback opportunities'. Plan-level totals: territory_plans.winback_rollup.", domain: "plan", format: "currency", source: "user", queryable: true },
+  { field: "expansionTarget", column: "expansion_target", label: "Expansion Target", description: "Dollar goal a rep has set for expanding an existing customer in this district. Reps ask 'my expansion target for <district>', 'expansion goals'. Plan-level totals: territory_plans.expansion_rollup.", domain: "plan", format: "currency", source: "user", queryable: true },
+  { field: "newBusinessTarget", column: "new_business_target", label: "New Business Target", description: "Dollar goal a rep has set for landing new business in this district. Reps ask 'my new business target for <district>', 'where am I going after net new'. Plan-level totals: territory_plans.new_business_rollup. For the rep's TOTAL target in this district, sum all 4 target columns.", domain: "plan", format: "currency", source: "user", queryable: true },
+  { field: "notes", column: "notes", label: "Notes", description: "Free-text rep notes scoped to a specific district in the plan — rep-editable. Reps may include these in reports or ask 'districts where I noted X' (use ILIKE). Distinct from the district-wide notes stored elsewhere.", domain: "user_edits", format: "text", source: "user", queryable: true },
 ];
 
 /** activities — engagement records (conferences, emails, meetings, etc.) */
@@ -2855,7 +2867,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   territory_plans: {
     table: "territory_plans",
     description:
-      "One territory plan per rep per fiscal year (owner_id = rep). Anchors plan-scoped questions ('my plan's pipeline', 'which districts are in Jake's plan'). Note: fiscal_year is a NUMBER (2026), not the 'FY26' string used elsewhere. Districts-in-plan are accessed via the excluded junction table territory_plan_districts; use raw Prisma joins for those lookups.",
+      "One territory plan per rep per fiscal year (owner_id = rep). Anchors plan-scoped questions — 'my plan', 'my FY26 plan', 'Jake's plan', 'my renewal target', 'my plan's districts'. Reps set per-district goals here (they don't have rep-level quotas in this tool). Plan-level target totals live in the denormalized rollup columns; per-district goals live in territory_plan_districts. fiscal_year is a NUMBER (2026 = FY26), not the 'FY26' string used elsewhere — see SEMANTIC_CONTEXT.formatMismatches.fiscal_year.",
     primaryKey: "id",
     columns: TERRITORY_PLAN_COLUMNS,
     relationships: [
@@ -2864,6 +2876,33 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "territory_plans.owner_id = user_profiles.id",
         description: "Plan owner (rep)",
+      },
+      {
+        toTable: "territory_plan_districts",
+        type: "one-to-many",
+        joinSql: "territory_plan_districts.plan_id = territory_plans.id",
+        description: "Districts in this plan with per-district target goals",
+      },
+    ],
+  },
+  territory_plan_districts: {
+    table: "territory_plan_districts",
+    description:
+      "Per-district goal records inside a rep's territory plan. One row per (plan, district). Reps set 4 dollar-denominated target columns here: renewal_target, winback_target, expansion_target, new_business_target — reps will ask about any of them individually or as a rep's total target for a district (sum of all 4). Free-text notes are rep-editable and may be included in reports. For plan-level totals, prefer the denormalized rollup columns on territory_plans (district_count, renewal_rollup, etc.) which answer 'my total renewal target' questions directly.",
+    primaryKey: ["planId", "districtLeaid"],
+    columns: TERRITORY_PLAN_DISTRICT_COLUMNS,
+    relationships: [
+      {
+        toTable: "territory_plans",
+        type: "many-to-one",
+        joinSql: "territory_plan_districts.plan_id = territory_plans.id",
+        description: "Parent plan (get fiscal_year, owner, status here)",
+      },
+      {
+        toTable: "districts",
+        type: "many-to-one",
+        joinSql: "territory_plan_districts.district_leaid = districts.leaid",
+        description: "District in the plan",
       },
     ],
   },
@@ -3087,6 +3126,13 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
         "For rep/category-scoped rollups with EK12 subscriptions folded in, use DOA.completed_revenue and DOA.scheduled_revenue. DOA.total_revenue = both plus EK12 subscription revenue. For rep-agnostic totals, district_financials has total_revenue only; it does not expose the delivered-vs-scheduled split.",
       note: "When a rep asks 'how much of this deal has been delivered' or 'what's scheduled to deliver this year' or 'completed vs scheduled revenue for <rep>', this is the breakdown to reach for. EK12 subscription revenue has no delivered-vs-scheduled concept in our data (subscriptions are a single line-item value). If a rep asks for the split on an EK12-heavy rep or district, surface that caveat.",
     },
+    plan_targets: {
+      aggregated:
+        "Plan-level targets (per rep per fiscal year) live on territory_plans as denormalized rollup columns: renewal_rollup, expansion_rollup, winback_rollup, new_business_rollup. These sum each category's per-district targets. For the rep's TOTAL target, sum all 4 rollups. For 'my FY26 target', filter territory_plans by owner_id + fiscal_year and read the rollups directly.",
+      dealLevel:
+        "Per-district targets live on territory_plan_districts: renewal_target, winback_target, expansion_target, new_business_target (all dollar amounts). One row per (plan, district). For a district's total target within a plan, sum all 4 target columns on that row. Join through territory_plans to filter by rep / fiscal year.",
+      note: "Reps DO NOT have rep-level quotas in this tool — they set per-district goals. 'My renewal target' / 'my winback target' / 'my total target' all trace back to rollups on territory_plans. Denormalized rollup columns may briefly lag the territory_plan_districts junction right after an edit; they are the canonical answer for rep-facing questions but fall back to SUM(territory_plan_districts) when reconciliation-grade precision is required.",
+    },
     service_type_breakdown: {
       dealLevel:
         "For service-type breakdowns of revenue, the canonical shape depends on the modality: native Fullmind (session-based) → sessions.service_type / sessions.service_name with session_price × count(*) for revenue (or SUM(session_price)); EK12 subscriptions → subscriptions.product / product_type / sub_product / course_name with SUM(subscriptions.net_total). opportunities.service_types is a deal-level jsonb tag, not the canonical breakdown surface. For a combined cross-modality breakdown ('Algebra revenue overall'), UNION the two sources with a modality column and sum.",
@@ -3200,7 +3246,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "task_plans",
     "territory_plan_collaborators",
     "territory_plan_district_services",
-    "territory_plan_districts",
     "territory_plan_states",
     "user_integrations",
     "vacancy_keyword_config",
