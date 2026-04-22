@@ -1767,7 +1767,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "stage",
     column: "stage",
     label: "Stage",
-    description: "Deal stage. Canonical values are: numeric prefix stages (0-5 open pipeline, 6+ closed-won) and text 'Closed Won' / 'Closed Lost'. Other text values ('Active', 'Position Purchased', 'Requisition Received', 'Return Position Pending') are ERRONEOUS child/auxiliary opportunity rows — filter them out in deal-level queries (WHERE stage NOT IN (...) using ERRONEOUS_CHILD_OP_STAGES). Note: DOA aggregates DO include these as closed-won (leaderboard behavior, intentional). For any closed-won/lost/open aggregate, use DOA, not this column.",
+    description: "Deal stage. Canonical values: numeric prefix stages 0-5 for open pipeline (e.g., '0 - Lead' through '5 - Final Negotiation'), and text 'Closed Won' / 'Closed Lost' for terminal states. Closed-won is ALWAYS the literal text 'Closed Won' — there is no numeric 6+ closed-won state. Four other text values ('Active', 'Position Purchased', 'Requisition Received', 'Return Position Pending') are ERRONEOUS child/auxiliary opportunity rows and MUST be filtered out in deal-level queries (WHERE stage NOT IN (...) using ERRONEOUS_CHILD_OP_STAGES). Note: DOA aggregates intentionally include these child rows for leaderboard accrual — that's a DOA choice, not a closed-won redefinition. For any closed-won/lost/open aggregate, use DOA or district_financials, not raw opportunities.",
     domain: "opportunity",
     format: "text",
     source: "opensearch",
@@ -1777,7 +1777,7 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
     field: "netBookingAmount",
     column: "net_booking_amount",
     label: "Net Booking Amount",
-    description: "Fullmind LMS net booking value. Safe to SUM per deal (add-ons add real incremental dollars). For CLOSED-WON aggregates across deals, use DOA.bookings — raw SUM here requires the full dual-stage closed-won CASE and will undercount if you use numeric-only logic.",
+    description: "Fullmind LMS net booking value — the signed contract dollar value of the deal. Safe to SUM per deal (add-ons add real incremental dollars). For CLOSED-WON aggregates across deals, prefer DOA.bookings (rep/category-scoped) or district_financials.closed_won_bookings (rep-agnostic). Raw SUM here is only correct if you filter stage = 'Closed Won' AND exclude the ERRONEOUS_CHILD_OP_STAGES child rows — otherwise the total is wrong.",
     domain: "opportunity",
     format: "currency",
     source: "opensearch",
@@ -3063,8 +3063,31 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
       note: "districts.is_customer is a denormalized boolean computed from district_financials presence. Indexed for fast filtering. May lag the source by one ETL refresh cycle.",
     },
   },
-  formatMismatches: [],
+  formatMismatches: [
+    {
+      concept: "fiscal year",
+      tables: {
+        opportunities: "school_yr text 'YYYY-YY' e.g., '2025-26' (= FY26)",
+        district_opportunity_actuals: "school_yr text 'YYYY-YY' e.g., '2025-26'",
+        district_financials: "fiscal_year text 'FYNN' e.g., 'FY26'",
+        territory_plans: "fiscal_year integer e.g., 2026 (represents FY26)",
+      },
+      conversionSql:
+        "SUBSTRING(opportunities.school_yr, 6, 2) = SUBSTRING(district_financials.fiscal_year, 3, 2). Or use fiscalYearToSchoolYear() / schoolYearToFiscalYear() helpers.",
+      note: "A rep asking about 'FY26' / 'this year' / '2025-26' / 'school year 2025-26' is asking for the SAME fiscal year but the three formats do not compare directly. Always convert before joining or filtering across these tables.",
+    },
+    {
+      concept: "opportunity stage",
+      note: "opportunities.stage has mixed conventions. Open pipeline stages are numeric-prefixed: '0 - Lead' through '5 - Final Negotiation'. Terminal stages are text: 'Closed Won' and 'Closed Lost'. There is NO numeric 6+ closed-won state — closed-won is always the literal text 'Closed Won'. FOUR OTHER text values ('Active', 'Position Purchased', 'Requisition Received', 'Return Position Pending') are ERRONEOUS child/auxiliary opportunity rows that MUST be excluded from deal-level queries. Canonical patterns: closed-won → `stage = 'Closed Won'`; open pipeline → `stage ~ '^[0-5]'`; closed-lost → `stage = 'Closed Lost'`; always-exclude child rows → `stage NOT IN ('Active','Position Purchased','Requisition Received','Return Position Pending')` (constant exported as ERRONEOUS_CHILD_OP_STAGES). Note: district_opportunity_actuals aggregates intentionally include those 4 child values for leaderboard accrual — that is a DOA-only behavior, not a closed-won redefinition. For any aggregate, route to DOA (rep/category-scoped) or district_financials (rep-agnostic) instead of aggregating raw opportunities.",
+    },
+  ],
   warnings: [
+    {
+      triggerTables: ["opportunities"],
+      severity: "mandatory",
+      message:
+        "OPPORTUNITY STAGE CONVENTION: opportunities.stage has mixed open-pipeline and terminal-state encodings plus 4 child-row stage values that MUST be excluded from deal-level queries. Closed-won is ALWAYS the literal text 'Closed Won' (there is no numeric 6+ closed-won state). Open pipeline is numeric prefix '0-5'. Four text values — 'Active', 'Position Purchased', 'Requisition Received', 'Return Position Pending' — are ERRONEOUS child/auxiliary rows; filter them out with `stage NOT IN (<ERRONEOUS_CHILD_OP_STAGES>)` in any deal-level query. For closed-won/open/lost AGGREGATES (totals, rep/district/state rollups, category breakdowns), prefer district_financials.closed_won_bookings WHERE vendor='fullmind' (rep-agnostic) or district_opportunity_actuals.bookings (rep/category-scoped). DOA aggregates DO include those 4 child values for leaderboard accrual — that is intentional and only correct inside DOA's aggregation, not as a closed-won definition.",
+    },
     {
       triggerTables: [
         "district_financials",
