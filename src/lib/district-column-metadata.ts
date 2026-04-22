@@ -2600,6 +2600,41 @@ export const VACANCY_COLUMNS: ColumnMetadata[] = [
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "vacancy", format: "date", source: "scraper", queryable: true },
 ];
 
+/** query_log — audit log of every natural-language query and agentic action */
+export const QUERY_LOG_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "ID", description: "Auto-increment primary key.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
+  { field: "userId", column: "user_id", label: "User ID", description: "UUID of the user who ran the query.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "conversationId", column: "conversation_id", label: "Conversation ID", description: "Groups queries into a single chat conversation. The agent loop loads prior turns by this id so 'like that but for Texas' works.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "question", column: "question", label: "Question", description: "Natural-language question the user asked.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "sql", column: "sql", label: "Generated SQL", description: "SQL Claude generated (null for non-query actions). Server-side only — never returned to clients per the never-show-SQL rule.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "params", column: "params", label: "Params (JSON)", description: "Per-turn JSON payload — currently stores { summary } so the chat history can re-render chips for prior turns.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "rowCount", column: "row_count", label: "Row Count", description: "Number of rows returned.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
+  { field: "executionTimeMs", column: "execution_time_ms", label: "Execution Time (ms)", description: "How long the SQL took to run.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
+  { field: "error", column: "error", label: "Error", description: "Error message if the query failed (Claude-paraphrased before user display).", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "action", column: "action", label: "Action", description: "Action tool name for agentic actions (null for reads). Examples: add_districts_to_plan, create_task, create_activity, create_contact.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "actionParams", column: "action_params", label: "Action Params", description: "JSON of the action parameters.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "actionSuccess", column: "action_success", label: "Action Success", description: "Whether the action executed successfully.", domain: "audit", format: "boolean", source: "query_tool", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "When the query was logged.", domain: "audit", format: "date", source: "query_tool", queryable: true },
+];
+
+/** saved_reports — user-saved query reports with stored SQL and chip summary; reruns bypass Claude */
+export const SAVED_REPORT_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "ID", description: "Auto-increment primary key.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
+  { field: "userId", column: "user_id", label: "User ID", description: "Owner of the saved report.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "title", column: "title", label: "Title", description: "Human-readable report title (rep-named at save time).", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "question", column: "question", label: "Original Question", description: "The natural-language question that produced this SQL.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "sql", column: "sql", label: "Stored SQL", description: "Exact SQL string re-executed by /api/reports/:id/run. Reruns are zero-Claude. Server-side only — never shown to users.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "params", column: "params", label: "Params (JSON)", description: "Legacy structured-params payload from the pre-agent-loop design. New reports store summary instead; this column remains for backwards compatibility.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "summary", column: "summary", label: "Chip Summary (JSON)", description: "Stored QuerySummary object — the chip representation rendered when the saved report runs. Lets the UI show the report's structure without re-asking Claude.", domain: "audit", format: "text", source: "query_tool", queryable: false },
+  { field: "conversationId", column: "conversation_id", label: "Origin Conversation", description: "The chat thread the report was saved from. Used to 'open in chat to modify' — opening the saved report rehydrates the conversation context.", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "isTeamPinned", column: "is_team_pinned", label: "Team Pinned", description: "Whether this report is pinned to the Team Reports tab (out of scope for v1 UI but flag exists).", domain: "audit", format: "boolean", source: "query_tool", queryable: true },
+  { field: "pinnedBy", column: "pinned_by", label: "Pinned By", description: "Admin who pinned the report (null if not pinned).", domain: "audit", format: "text", source: "query_tool", queryable: true },
+  { field: "lastRunAt", column: "last_run_at", label: "Last Run At", description: "When the report was most recently executed.", domain: "audit", format: "date", source: "query_tool", queryable: true },
+  { field: "runCount", column: "run_count", label: "Run Count", description: "How many times the report has been executed.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "When the report was saved.", domain: "audit", format: "date", source: "query_tool", queryable: true },
+  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "When the report was last modified.", domain: "audit", format: "date", source: "query_tool", queryable: true },
+];
+
 // ============================================================================
 // Table Registry & Semantic Context
 // ============================================================================
@@ -3124,6 +3159,22 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
       },
     ],
   },
+  query_log: {
+    table: "query_log",
+    description:
+      "Audit log of every natural-language query run through the Claude query tool, plus every agentic action executed. One row per agent-loop turn. Rep-relevance is low (operational data), but rep questions may include 'my recent questions', 'queries that failed', or 'how often have I asked about Texas renewals' — answerable via user_id + conversation_id + question / error. The sql and action_params columns are queryable: false (server-side only; never returned to clients).",
+    primaryKey: "id",
+    columns: QUERY_LOG_COLUMNS,
+    relationships: [],
+  },
+  saved_reports: {
+    table: "saved_reports",
+    description:
+      "User-saved query reports with stored SQL. Team-pinned reports are surfaced to all users. Re-running a report re-executes the stored SQL directly against the read-only pool — zero Claude calls, zero token cost. sql / summary / params are queryable: false (stored SQL is never shown to users). Rep questions: 'my saved reports', 'my team-pinned reports', 'reports I ran last week', 'most-run reports' (via run_count / last_run_at).",
+    primaryKey: "id",
+    columns: SAVED_REPORT_COLUMNS,
+    relationships: [],
+  },
 };
 
 /**
@@ -3300,8 +3351,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "initiative_tier_thresholds",
     "map_views",
     "metric_registry",
-    "query_log",
-    "saved_reports",
     "school_contacts",
     "school_tags",
     "tags",
