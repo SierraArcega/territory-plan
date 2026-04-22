@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
 
   const since = searchParams.get("since");
   const sinceDate = since ? new Date(since) : null;
-  const batch = Math.min(parseInt(searchParams.get("batch") || "500", 10), 2000);
+  // Small batches avoid blowing Supabase pooler limits on the state-scoped
+  // candidate joins. 50 articles covers maybe 5-15 states of candidates,
+  // which stays under reasonable Prisma/pgbouncer query sizes.
+  const batch = Math.min(parseInt(searchParams.get("batch") || "50", 10), 200);
 
   const ids = (
     await prisma.newsArticle.findMany({
@@ -69,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   if (drainQueue) {
     while (Date.now() < deadline) {
-      const stats = await processMatchQueue(25);
+      const stats = await processMatchQueue(100, 8);
       llmCalls += stats.llmCalls;
       districtMatches += stats.districtMatches;
       schoolMatches += stats.schoolMatches;
