@@ -6,18 +6,15 @@ import StaffingCard from "../StaffingCard";
 import StudentPopulationsCard from "../StudentPopulationsCard";
 import AcademicCard from "../AcademicCard";
 import FinanceCard from "../FinanceCard";
-import { NewsSection } from "@/features/news/components/NewsSection";
 
 interface SignalsTabProps {
   data: DistrictDetail;
   leaid: string;
 }
 
-export default function SignalsTab({ data, leaid }: SignalsTabProps) {
+export default function SignalsTab({ data }: SignalsTabProps) {
   return (
     <div className="p-3 space-y-3">
-      <NewsSection leaid={leaid} />
-
       <EnrollmentCard
         district={data.district}
         demographics={data.enrollmentDemographics}

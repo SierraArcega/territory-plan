@@ -249,13 +249,14 @@ Tables: `news_articles`, `news_article_districts`, `news_article_schools`,
 `news_match_queue`. See `prisma/migrations/20260422090000_add_news_tables/`.
 
 Cron: `/api/cron/ingest-news-daily` (2am PT), `/api/cron/ingest-news-rolling`
-(every 15 min; requires Vercel Pro).
+(every 15 min; requires Vercel Pro), `/api/cron/rematch-news` (operational,
+re-runs matcher over existing articles).
 
 API: `GET /api/news` with `leaid` / `ncessch` / `contactId` / `territoryPlanId`
 / `scope=my-territory` filters; `POST /api/news/refresh/[leaid]` on-demand.
 
-UI: News section on the District panel Signals tab; Territory news card on
-the Home feed; standalone `/news` page.
+UI surfaces: not yet wired up — to be built in a follow-up PR. The backend
+API is stable and ready for a frontend to consume.
 
 ## Performance Considerations
 

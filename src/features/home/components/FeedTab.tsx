@@ -19,7 +19,6 @@ import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import { ACTIVITY_TYPE_LABELS } from "@/features/activities/types";
 import { Rocket, Users } from "lucide-react";
 import Link from "next/link";
-import { HomeNewsCard } from "@/features/news/components/HomeNewsCard";
 
 // ============================================================================
 // Helpers
@@ -263,9 +262,6 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         pageSize={pageSize}
         onPageSizeChange={setPageSize}
       />
-
-      {/* Territory news — hidden when empty */}
-      <HomeNewsCard />
 
       {/* Overdue Tasks — always pinned */}
       {overdueTasks.length > 0 && (
