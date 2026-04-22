@@ -189,7 +189,7 @@ export default function ExistingContactsModal({
                   <button
                     type="button"
                     onClick={() => refetch()}
-                    className="underline font-medium text-[#F37167] hover:text-[#d85a50]"
+                    className="underline font-medium text-[#F37167] hover:text-[#f58d85]"
                   >
                     Retry
                   </button>
