@@ -2364,31 +2364,40 @@ export const TERRITORY_PLAN_COLUMNS: ColumnMetadata[] = [
 /** activities — engagement records (conferences, emails, meetings, etc.) */
 export const ACTIVITY_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "Activity ID", description: "UUID PK.", domain: "activity", format: "text", source: "user", queryable: true },
-  { field: "type", column: "type", label: "Type", description: "E.g., conference, road_trip, email_campaign, meeting, call, note.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "type", column: "type", label: "Type", description: "Activity type — the kind of engagement logged. Active set includes values like 'conference', 'road_trip', 'dinner', 'happy_hour', 'school_site_visit', 'fun_and_games', 'mixmax_campaign', 'discovery_call', 'program_check_in', 'proposal_review', 'renewal_conversation', 'gift_drop', 'booth_exhibit', 'conference_sponsor', 'meal_reception', 'charity_event', 'webinar', 'speaking_engagement', 'professional_development', 'course', 'sponsorships', plus the generic 'meeting' / 'call' / 'note' / 'email_campaign'. Run get_column_values('activities', 'type') to confirm the current set before filtering on an exact value. Reps often cluster these into higher-level buckets the data doesn't explicitly model: 'in-person vs virtual' (e.g., conference / road_trip / school_site_visit / dinner are in-person; webinar / call / mixmax_campaign are virtual), 'district visits' (school_site_visit, road_trip), 'meals' (dinner, meal_reception, happy_hour), 'conferences' (conference, booth_exhibit, conference_sponsor). Map the rep's phrasing onto one or more type values using rep judgment.", domain: "activity", format: "text", source: "user", queryable: true },
   { field: "title", column: "title", label: "Title", description: "Activity title/subject.", domain: "activity", format: "text", source: "user", queryable: true },
   { field: "notes", column: "notes", label: "Notes", description: "Free-text notes.", domain: "activity", format: "text", source: "user", queryable: true },
   { field: "startDate", column: "start_date", label: "Start Date", description: "Activity start date/time.", domain: "activity", format: "date", source: "user", queryable: true },
   { field: "endDate", column: "end_date", label: "End Date", description: "Activity end date/time.", domain: "activity", format: "date", source: "user", queryable: true },
-  { field: "status", column: "status", label: "Status", description: "One of: planned, requested, planning, in_progress, wrapping_up, completed, cancelled.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "status", column: "status", label: "Status", description: "Activity lifecycle status. Full enum: 'planned', 'requested', 'planning', 'in_progress', 'wrapping_up', 'completed', 'cancelled'. Reps ask about this as 'my upcoming activities' (planned / planning / requested / in_progress), 'completed activities' (completed), or 'cancelled plans' (cancelled). For 'what have I done' questions filter to completed; for 'what's on my plate' filter to the active (non-terminal) subset.", domain: "activity", format: "text", source: "user", queryable: true },
   { field: "createdByUserId", column: "created_by_user_id", label: "Created By User ID", description: "FK to user_profiles.id — who logged it.", domain: "crm", format: "text", source: "user", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "Record creation timestamp.", domain: "activity", format: "date", source: "user", queryable: true },
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "activity", format: "date", source: "user", queryable: true },
   { field: "googleEventId", column: "google_event_id", label: "Google Event ID", description: "Link to Google Calendar event for two-way sync.", domain: "activity", format: "text", source: "etl_link", queryable: true },
-  { field: "source", column: "source", label: "Source", description: "'manual' or 'calendar_sync'.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "source", column: "source", label: "Source", description: "How the activity was created. Full enum today: 'manual' (logged directly by the rep), 'calendar_sync' (synced in from Google Calendar). The gmail / slack / mixmax integration sources referenced by legacy code are NOT active — only calendar_sync is running.", domain: "activity", format: "text", source: "user", queryable: true },
   { field: "gmailMessageId", column: "gmail_message_id", label: "Gmail Message ID", description: "Dedup key for Gmail-sourced activities.", domain: "activity", format: "text", source: "etl_link", queryable: true },
   { field: "slackChannelId", column: "slack_channel_id", label: "Slack Channel ID", description: "Dedup key for Slack-sourced activities.", domain: "activity", format: "text", source: "etl_link", queryable: true },
   { field: "slackMessageTs", column: "slack_message_ts", label: "Slack Message TS", description: "Slack message timestamp for dedup.", domain: "activity", format: "text", source: "etl_link", queryable: true },
   { field: "integrationMeta", column: "integration_meta", label: "Integration Meta", description: "Service-specific metadata (JSONB).", domain: "activity", format: "text", source: "etl_link", queryable: true },
-  { field: "mixmaxSequenceName", column: "mixmax_sequence_name", label: "Mixmax Sequence Name", description: "Mixmax email sequence name.", domain: "activity", format: "text", source: "etl_link", queryable: true },
-  { field: "mixmaxSequenceStep", column: "mixmax_sequence_step", label: "Mixmax Sequence Step", description: "Step number within sequence.", domain: "activity", format: "integer", source: "etl_link", queryable: true },
-  { field: "mixmaxSequenceTotal", column: "mixmax_sequence_total", label: "Mixmax Sequence Total", description: "Total steps in sequence.", domain: "activity", format: "integer", source: "etl_link", queryable: true },
-  { field: "mixmaxStatus", column: "mixmax_status", label: "Mixmax Status", description: "Mixmax delivery status.", domain: "activity", format: "text", source: "etl_link", queryable: true },
-  { field: "mixmaxOpenCount", column: "mixmax_open_count", label: "Mixmax Open Count", description: "Times the email was opened.", domain: "activity", format: "integer", source: "etl_link", queryable: true },
-  { field: "mixmaxClickCount", column: "mixmax_click_count", label: "Mixmax Click Count", description: "Times links in the email were clicked.", domain: "activity", format: "integer", source: "etl_link", queryable: true },
-  { field: "outcome", column: "outcome", label: "Outcome", description: "Free-text outcome note (set on completion).", domain: "activity", format: "text", source: "user", queryable: true },
-  { field: "outcomeType", column: "outcome_type", label: "Outcome Type", description: "One of: positive_progress, neutral, negative, follow_up_needed.", domain: "activity", format: "text", source: "user", queryable: true },
-  { field: "rating", column: "rating", label: "Rating", description: "1-5 star rating of activity outcome.", domain: "activity", format: "integer", source: "user", queryable: true },
+  { field: "mixmaxSequenceName", column: "mixmax_sequence_name", label: "Mixmax Sequence Name", description: "Legacy Mixmax email-sequence name. Mixmax integration is removed — no new data flows in, but historical rows remain. Reps still log activities with type='mixmax_campaign' manually; those don't populate this column. Treat as historical only.", domain: "activity", format: "text", source: "etl_link", queryable: false },
+  { field: "mixmaxSequenceStep", column: "mixmax_sequence_step", label: "Mixmax Sequence Step", description: "Legacy Mixmax sequence step number. Historical only — Mixmax integration removed.", domain: "activity", format: "integer", source: "etl_link", queryable: false },
+  { field: "mixmaxSequenceTotal", column: "mixmax_sequence_total", label: "Mixmax Sequence Total", description: "Legacy total-steps count. Historical only — Mixmax integration removed.", domain: "activity", format: "integer", source: "etl_link", queryable: false },
+  { field: "mixmaxStatus", column: "mixmax_status", label: "Mixmax Status", description: "Legacy Mixmax delivery status. Historical only — Mixmax integration removed.", domain: "activity", format: "text", source: "etl_link", queryable: false },
+  { field: "mixmaxOpenCount", column: "mixmax_open_count", label: "Mixmax Open Count", description: "Legacy email-open count. Historical only — Mixmax integration removed.", domain: "activity", format: "integer", source: "etl_link", queryable: false },
+  { field: "mixmaxClickCount", column: "mixmax_click_count", label: "Mixmax Click Count", description: "Legacy email-click count. Historical only — Mixmax integration removed.", domain: "activity", format: "integer", source: "etl_link", queryable: false },
+  { field: "outcome", column: "outcome", label: "Outcome", description: "Free-text outcome note set when the activity completes. Reps search this for 'what came out of <activity>' questions or to find the narrative behind a logged engagement. Use ILIKE for keyword matching; pair with outcome_type for structured filtering.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "outcomeType", column: "outcome_type", label: "Outcome Type", description: "Structured outcome classification. Full enum: 'positive_progress', 'neutral', 'negative', 'follow_up_needed'. Reps ask about this as 'most positive activities', 'activities that need follow-up', 'negative outcomes by rep', or 'which districts had bad engagements'. Use for GROUP BY / COUNT / rep leaderboard questions.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "rating", column: "rating", label: "Rating", description: "1-5 star rep rating of how the activity went (set on completion). Reps ask about 'highest-rated conferences', 'average rating per rep', or 'activities rated 4+'. NULL on activities that haven't been rated.", domain: "activity", format: "integer", source: "user", queryable: true },
   { field: "metadata", column: "metadata", label: "Metadata", description: "Type-specific scalar fields (JSON).", domain: "activity", format: "text", source: "user", queryable: true },
+];
+
+/** activity_expenses — per-activity spending line items (food, travel, gifts, etc.) */
+export const ACTIVITY_EXPENSE_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "Expense ID", description: "UUID primary key.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "activityId", column: "activity_id", label: "Activity ID", description: "FK to activities.id. Join here to filter expenses by the activity's type, district junction, date, or rep.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "description", column: "description", label: "Description", description: "Free-text line-item description — what the spend was for (e.g., 'Dinner at Steakhouse', 'Lyft to conference', 'Gift basket'). Use ILIKE for keyword matches. Paired with activity.type for category-style breakdowns.", domain: "activity", format: "text", source: "user", queryable: true },
+  { field: "amount", column: "amount", label: "Amount", description: "Dollar amount spent on this line item. SUM is the canonical aggregate. Reps ask about this as 'how much did we spend on <district>', 'activity spend this quarter', 'cost per road trip', 'top districts by spend'. Join through activity_districts to filter by district, or through activities.created_by_user_id for rep-level spend.", domain: "activity", format: "currency", source: "user", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "When the expense line was logged.", domain: "activity", format: "date", source: "user", queryable: true },
 ];
 
 /** user_profiles — Fullmind teammates; FK target for reps, plan owners, task assignees */
@@ -2862,7 +2871,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   activities: {
     table: "activities",
     description:
-      "Engagement records — conferences, road trips, meetings, emails, calls, notes. Linked to plans, districts, contacts, states, opportunities, and tasks via junction tables (all excluded from registry; use raw Prisma joins to get the junctions). Query for engagement frequency, outcome patterns, or pipeline-to-activity correlations.",
+      "Engagement records — conferences, road trips, school visits, dinners, meetings, calls, notes, and more. Linked to plans, districts, contacts, states, opportunities, and tasks via junction tables (still excluded from registry; use raw Prisma joins to get the junctions). Per-activity spending lives in activity_expenses (registered) — use it for 'how much did we spend on <district>' or 'activity cost per rep'. Query this table for engagement frequency, outcome patterns, pipeline-to-activity correlations, or spend questions (via activity_expenses).",
     primaryKey: "id",
     columns: ACTIVITY_COLUMNS,
     relationships: [
@@ -2871,6 +2880,27 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "activities.created_by_user_id = user_profiles.id",
         description: "Creator",
+      },
+      {
+        toTable: "activity_expenses",
+        type: "one-to-many",
+        joinSql: "activity_expenses.activity_id = activities.id",
+        description: "Per-activity expense line items (cost side of an activity)",
+      },
+    ],
+  },
+  activity_expenses: {
+    table: "activity_expenses",
+    description:
+      "Per-activity expense line items — food, travel, gifts, and other spend tied to a specific activity. One activity can have many expense rows. Use for 'how much did we spend on <district>', 'activity spend this quarter', 'cost per road trip', 'spend per rep', 'top districts by spend'. Join through activities.id and then through the relevant activity junction (activity_districts for district-level spend, activities.created_by_user_id for rep-level spend) since activity_expenses has no direct rep/district FK.",
+    primaryKey: "id",
+    columns: ACTIVITY_EXPENSE_COLUMNS,
+    relationships: [
+      {
+        toTable: "activities",
+        type: "many-to-one",
+        joinSql: "activity_expenses.activity_id = activities.id",
+        description: "Parent activity (travel through this to get rep, district, type, date)",
       },
     ],
   },
@@ -3143,7 +3173,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "activity_attendees",
     "activity_contacts",
     "activity_districts",
-    "activity_expenses",
     "activity_notes",
     "activity_opportunities",
     "activity_plans",
