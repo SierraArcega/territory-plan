@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
-const DEFAULT_CONFIDENCE_FILTER = ["high", "llm"];
+const DEFAULT_CONFIDENCE_FILTER = ["high", "llm", "source"];
 
 export interface NewsArticleDto {
   id: string;

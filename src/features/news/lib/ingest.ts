@@ -31,7 +31,8 @@ function emptyStats(): IngestStats {
 async function ingestFeed(
   articles: RawArticle[],
   feedSource: string,
-  stats: IngestStats
+  stats: IngestStats,
+  sourceLeaid?: string
 ): Promise<void> {
   for (const raw of articles) {
     try {
@@ -41,6 +42,24 @@ async function ingestFeed(
         stats.newArticleIds.push(article.id);
       } else {
         stats.articlesDup++;
+      }
+
+      // "Trust the source" — when an article was fetched via a query scoped
+      // to a specific district (Layer 3 rolling or Layer 4 on-demand refresh),
+      // the query itself is strong evidence that the article is about that
+      // district, even if the title doesn't name it verbatim. Create the
+      // match at ingest time with confidence='source'. The downstream matcher
+      // still runs on the article to pick up mentions of OTHER districts.
+      if (sourceLeaid) {
+        try {
+          await prisma.newsArticleDistrict.upsert({
+            where: { articleId_leaid: { articleId: article.id, leaid: sourceLeaid } },
+            create: { articleId: article.id, leaid: sourceLeaid, confidence: "source" },
+            update: {},
+          });
+        } catch (err) {
+          stats.errors.push(`source-link failed for ${raw.url}: ${String(err)}`);
+        }
       }
     } catch (err) {
       stats.errors.push(`upsert failed for ${raw.url}: ${String(err)}`);
@@ -123,7 +142,7 @@ export async function ingestRollingLayer(
       const query = `"${row.district.name}" ${disambig}`.trim();
       try {
         const raws = await fetchGoogleNewsRss(query);
-        await ingestFeed(raws, "google_news_district", stats);
+        await ingestFeed(raws, "google_news_district", stats, row.leaid);
         await prisma.districtNewsFetch.update({
           where: { leaid: row.leaid },
           data: { lastFetchedAt: new Date(), lastStatus: "ok", lastError: null },
@@ -162,7 +181,7 @@ export async function ingestOneDistrict(leaid: string): Promise<IngestStats> {
   const query = `"${district.name}" ${disambig}`.trim();
   try {
     const raws = await fetchGoogleNewsRss(query);
-    await ingestFeed(raws, "manual_refresh", stats);
+    await ingestFeed(raws, "manual_refresh", stats, leaid);
     await prisma.districtNewsFetch.upsert({
       where: { leaid },
       create: { leaid, lastFetchedAt: new Date(), lastStatus: "ok" },
