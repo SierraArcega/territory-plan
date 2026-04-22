@@ -3175,6 +3175,195 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
     columns: SAVED_REPORT_COLUMNS,
     relationships: [],
   },
+
+  // === Junction tables (no column arrays — Claude navigates through relationships) ===
+
+  district_tags: {
+    table: "district_tags",
+    description: "Junction between districts and tags.",
+    primaryKey: ["districtLeaid", "tagId"],
+    columns: [],
+    relationships: [
+      { toTable: "districts", type: "many-to-one", joinSql: "district_tags.district_leaid = districts.leaid", description: "District" },
+      { toTable: "tags", type: "many-to-one", joinSql: "district_tags.tag_id = tags.id", description: "Tag" },
+    ],
+  },
+  school_tags: {
+    table: "school_tags",
+    description: "Junction between schools and tags.",
+    primaryKey: ["schoolId", "tagId"],
+    columns: [],
+    relationships: [
+      { toTable: "schools", type: "many-to-one", joinSql: "school_tags.school_id = schools.ncessch", description: "School" },
+      { toTable: "tags", type: "many-to-one", joinSql: "school_tags.tag_id = tags.id", description: "Tag" },
+    ],
+  },
+  school_contacts: {
+    table: "school_contacts",
+    description: "Junction between schools and contacts.",
+    primaryKey: ["schoolId", "contactId"],
+    columns: [],
+    relationships: [
+      { toTable: "schools", type: "many-to-one", joinSql: "school_contacts.school_id = schools.ncessch", description: "School" },
+      { toTable: "contacts", type: "many-to-one", joinSql: "school_contacts.contact_id = contacts.id", description: "Contact" },
+    ],
+  },
+  territory_plan_states: {
+    table: "territory_plan_states",
+    description: "Junction between territory plans and states.",
+    primaryKey: ["planId", "stateFips"],
+    columns: [],
+    relationships: [
+      { toTable: "territory_plans", type: "many-to-one", joinSql: "territory_plan_states.plan_id = territory_plans.id", description: "Plan" },
+      { toTable: "states", type: "many-to-one", joinSql: "territory_plan_states.state_fips = states.fips", description: "State" },
+    ],
+  },
+  territory_plan_collaborators: {
+    table: "territory_plan_collaborators",
+    description: "Junction between territory plans and additional user collaborators (beyond the owner).",
+    primaryKey: ["planId", "userId"],
+    columns: [],
+    relationships: [
+      { toTable: "territory_plans", type: "many-to-one", joinSql: "territory_plan_collaborators.plan_id = territory_plans.id", description: "Plan" },
+    ],
+  },
+  territory_plan_district_services: {
+    table: "territory_plan_district_services",
+    description: "Junction linking plan-district rows to target services (return vs new).",
+    primaryKey: ["planId", "districtLeaid", "serviceId", "category"],
+    columns: [],
+    relationships: [
+      { toTable: "territory_plan_districts", type: "many-to-one", joinSql: "territory_plan_district_services.plan_id = territory_plan_districts.plan_id AND territory_plan_district_services.district_leaid = territory_plan_districts.district_leaid", description: "Plan-district row" },
+      { toTable: "services", type: "many-to-one", joinSql: "territory_plan_district_services.service_id = services.id", description: "Service" },
+    ],
+  },
+  activity_districts: {
+    table: "activity_districts",
+    description: "Junction between activities and districts, with visit_date, position, and notes for road-trip style activities.",
+    primaryKey: ["activityId", "districtLeaid"],
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_districts.activity_id = activities.id", description: "Activity" },
+      { toTable: "districts", type: "many-to-one", joinSql: "activity_districts.district_leaid = districts.leaid", description: "District" },
+    ],
+  },
+  activity_plans: {
+    table: "activity_plans",
+    description: "Junction between activities and territory plans.",
+    primaryKey: ["activityId", "planId"],
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_plans.activity_id = activities.id", description: "Activity" },
+      { toTable: "territory_plans", type: "many-to-one", joinSql: "activity_plans.plan_id = territory_plans.id", description: "Plan" },
+    ],
+  },
+  activity_contacts: {
+    table: "activity_contacts",
+    description: "Junction between activities and contacts.",
+    primaryKey: ["activityId", "contactId"],
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_contacts.activity_id = activities.id", description: "Activity" },
+      { toTable: "contacts", type: "many-to-one", joinSql: "activity_contacts.contact_id = contacts.id", description: "Contact" },
+    ],
+  },
+  activity_states: {
+    table: "activity_states",
+    description: "Junction between activities and states.",
+    primaryKey: ["activityId", "stateFips"],
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_states.activity_id = activities.id", description: "Activity" },
+      { toTable: "states", type: "many-to-one", joinSql: "activity_states.state_fips = states.fips", description: "State" },
+    ],
+  },
+  activity_opportunities: {
+    table: "activity_opportunities",
+    description: "Junction between activities and opportunities.",
+    primaryKey: ["activityId", "opportunityId"],
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_opportunities.activity_id = activities.id", description: "Activity" },
+      { toTable: "opportunities", type: "many-to-one", joinSql: "activity_opportunities.opportunity_id = opportunities.id", description: "Opportunity" },
+    ],
+  },
+  activity_attendees: {
+    table: "activity_attendees",
+    description: "Internal Fullmind users who attended an activity.",
+    primaryKey: ["activityId", "userId"],
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_attendees.activity_id = activities.id", description: "Activity" },
+    ],
+  },
+  activity_relations: {
+    table: "activity_relations",
+    description: "Links between related activities (e.g., follow-up, part-of, preceded-by).",
+    primaryKey: "id",
+    columns: [],
+    relationships: [
+      { toTable: "activities", type: "many-to-one", joinSql: "activity_relations.activity_id = activities.id", description: "Source activity" },
+    ],
+  },
+  task_districts: {
+    table: "task_districts",
+    description: "Junction between tasks and districts.",
+    primaryKey: ["taskId", "districtLeaid"],
+    columns: [],
+    relationships: [
+      { toTable: "tasks", type: "many-to-one", joinSql: "task_districts.task_id = tasks.id", description: "Task" },
+      { toTable: "districts", type: "many-to-one", joinSql: "task_districts.district_leaid = districts.leaid", description: "District" },
+    ],
+  },
+  task_plans: {
+    table: "task_plans",
+    description: "Junction between tasks and territory plans.",
+    primaryKey: ["taskId", "planId"],
+    columns: [],
+    relationships: [
+      { toTable: "tasks", type: "many-to-one", joinSql: "task_plans.task_id = tasks.id", description: "Task" },
+      { toTable: "territory_plans", type: "many-to-one", joinSql: "task_plans.plan_id = territory_plans.id", description: "Plan" },
+    ],
+  },
+  task_activities: {
+    table: "task_activities",
+    description: "Junction between tasks and activities.",
+    primaryKey: ["taskId", "activityId"],
+    columns: [],
+    relationships: [
+      { toTable: "tasks", type: "many-to-one", joinSql: "task_activities.task_id = tasks.id", description: "Task" },
+      { toTable: "activities", type: "many-to-one", joinSql: "task_activities.activity_id = activities.id", description: "Activity" },
+    ],
+  },
+  task_contacts: {
+    table: "task_contacts",
+    description: "Junction between tasks and contacts.",
+    primaryKey: ["taskId", "contactId"],
+    columns: [],
+    relationships: [
+      { toTable: "tasks", type: "many-to-one", joinSql: "task_contacts.task_id = tasks.id", description: "Task" },
+      { toTable: "contacts", type: "many-to-one", joinSql: "task_contacts.contact_id = contacts.id", description: "Contact" },
+    ],
+  },
+  tags: {
+    table: "tags",
+    description: "User-managed tags that can be applied to districts or schools. Rep questions: 'districts tagged <name>', 'what tags does this district have', 'schools with <tag>'.",
+    primaryKey: "id",
+    columns: [],
+    relationships: [
+      { toTable: "district_tags", type: "one-to-many", joinSql: "district_tags.tag_id = tags.id", description: "Junction to districts" },
+      { toTable: "school_tags", type: "one-to-many", joinSql: "school_tags.tag_id = tags.id", description: "Junction to schools" },
+    ],
+  },
+  services: {
+    table: "services",
+    description: "Catalog of Fullmind service offerings that can be targeted for districts in a plan (via territory_plan_district_services).",
+    primaryKey: "id",
+    columns: [],
+    relationships: [
+      { toTable: "territory_plan_district_services", type: "one-to-many", joinSql: "territory_plan_district_services.service_id = services.id", description: "Junction to plan-districts" },
+    ],
+  },
 };
 
 /**
@@ -3330,48 +3519,27 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     },
   ],
   excludedTables: [
-    // Permanently excluded — admin/ops tables, junction tables, the query
-    // tool's own persistence, and data the query tool shouldn't surface.
+    // Permanently excluded — admin/ops tables, attachments/notes, the query
+    // tool's own persistence, OAuth/PII, deprecated modules, and data the
+    // query tool shouldn't surface.
     "CalendarEvent",
     "activity_attachments",
-    "activity_attendees",
-    "activity_contacts",
-    "activity_districts",
     "activity_notes",
-    "activity_opportunities",
-    "activity_plans",
-    "activity_relations",
-    "activity_states",
     "audit_log",
-    "opportunity_snapshots",
     "data_refresh_logs",
-    "district_tags",
     "initiative_metrics",
     "initiative_scores",
     "initiative_tier_thresholds",
+    "initiatives",
     "map_views",
     "metric_registry",
-    "school_contacts",
-    "school_tags",
-    "tags",
-    "task_activities",
-    "task_contacts",
-    "task_districts",
-    "task_plans",
-    "territory_plan_collaborators",
-    "territory_plan_district_services",
-    "territory_plan_states",
+    "opportunity_snapshots",
     "unmatched_accounts",
     "unmatched_opportunities",
     "user_goals",
     "user_integrations",
     "vacancy_keyword_config",
     "vacancy_scans",
-
-    // PENDING REGISTRATION — meaningful for reports but not yet worth their
-    // own entry. Move into TABLE_REGISTRY as question shapes demand.
-    "initiatives",
-    "services",
   ],
 };
 
