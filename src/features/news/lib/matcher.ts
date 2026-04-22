@@ -1,3 +1,4 @@
+import PQueue from "p-queue";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { extractStates } from "./extract-states";
@@ -52,36 +53,57 @@ async function loadCandidates(states: Set<string>): Promise<{
   const stateList = [...states];
   const districts = await prisma.district.findMany({
     where: { stateAbbrev: { in: stateList } },
-    select: { leaid: true, name: true, stateAbbrev: true },
+    select: {
+      leaid: true,
+      name: true,
+      stateAbbrev: true,
+      cityLocation: true,
+      countyName: true,
+      accountName: true,
+    },
   });
   for (const d of districts) {
     const s = d.stateAbbrev;
     if (!s) continue;
     const arr = districtsByState.get(s) ?? [];
-    arr.push({ leaid: d.leaid, name: d.name, stateAbbrev: s });
+    arr.push({
+      leaid: d.leaid,
+      name: d.name,
+      stateAbbrev: s,
+      cityLocation: d.cityLocation,
+      countyName: d.countyName,
+      accountName: d.accountName,
+    });
     districtsByState.set(s, arr);
   }
 
   const leaidsInScope = districts.map((d) => d.leaid);
   if (leaidsInScope.length > 0) {
-    const schools = await prisma.school.findMany({
-      where: { leaid: { in: leaidsInScope } },
-      select: { ncessch: true, leaid: true, schoolName: true },
-    });
-    for (const s of schools) {
-      const arr = schoolsByLeaid.get(s.leaid) ?? [];
-      arr.push({ ncessch: s.ncessch, leaid: s.leaid, schoolName: s.schoolName });
-      schoolsByLeaid.set(s.leaid, arr);
-    }
+    // Chunk large IN lists — Supabase pgbouncer drops connections on queries
+    // with huge parameter counts, and the combined schools/contacts query is
+    // the most common offender.
+    const CHUNK = 500;
+    for (let i = 0; i < leaidsInScope.length; i += CHUNK) {
+      const slice = leaidsInScope.slice(i, i + CHUNK);
+      const schools = await prisma.school.findMany({
+        where: { leaid: { in: slice } },
+        select: { ncessch: true, leaid: true, schoolName: true },
+      });
+      for (const s of schools) {
+        const arr = schoolsByLeaid.get(s.leaid) ?? [];
+        arr.push({ ncessch: s.ncessch, leaid: s.leaid, schoolName: s.schoolName });
+        schoolsByLeaid.set(s.leaid, arr);
+      }
 
-    const contacts = await prisma.contact.findMany({
-      where: { leaid: { in: leaidsInScope } },
-      select: { id: true, leaid: true, name: true, title: true },
-    });
-    for (const c of contacts) {
-      const arr = contactsByLeaid.get(c.leaid) ?? [];
-      arr.push({ id: c.id, leaid: c.leaid, name: c.name, title: c.title });
-      contactsByLeaid.set(c.leaid, arr);
+      const contacts = await prisma.contact.findMany({
+        where: { leaid: { in: slice } },
+        select: { id: true, leaid: true, name: true, title: true },
+      });
+      for (const c of contacts) {
+        const arr = contactsByLeaid.get(c.leaid) ?? [];
+        arr.push({ id: c.id, leaid: c.leaid, name: c.name, title: c.title });
+        contactsByLeaid.set(c.leaid, arr);
+      }
     }
   }
 
@@ -197,7 +219,7 @@ export async function matchArticles(articleIds: string[]): Promise<MatchStats> {
  * Pass 2: LLM disambiguation of queued ambiguous articles.
  * Short-circuits when NEWS_LLM_ENABLED=false.
  */
-export async function processMatchQueue(limit = 20): Promise<MatchStats> {
+export async function processMatchQueue(limit = 20, concurrency = 5): Promise<MatchStats> {
   const stats = emptyStats();
   if (process.env.NEWS_LLM_ENABLED === "false") return stats;
 
@@ -208,49 +230,55 @@ export async function processMatchQueue(limit = 20): Promise<MatchStats> {
     include: { article: true },
   });
 
+  // LLM calls are I/O-bound — parallelize under a concurrency cap. Prisma's
+  // connection pool size (default 3 in dev) constrains DB writes already.
+  const queue = new PQueue({ concurrency });
   for (const q of queued) {
-    stats.articlesProcessed++;
-    const candidates = q.candidates as unknown as LlmCandidates;
-    try {
-      const result = await matchArticleLLM(
-        { title: q.article.title, description: q.article.description },
-        candidates
-      );
-      stats.llmCalls += result.llmCalls;
+    queue.add(async () => {
+      stats.articlesProcessed++;
+      const candidates = q.candidates as unknown as LlmCandidates;
+      try {
+        const result = await matchArticleLLM(
+          { title: q.article.title, description: q.article.description },
+          candidates
+        );
+        stats.llmCalls += result.llmCalls;
 
-      for (const m of result.confirmedDistricts) {
-        await prisma.newsArticleDistrict.upsert({
-          where: { articleId_leaid: { articleId: q.articleId, leaid: m.leaid } },
-          create: { articleId: q.articleId, leaid: m.leaid, confidence: m.confidence },
-          update: { confidence: m.confidence },
-        });
-        stats.districtMatches++;
-      }
-      for (const m of result.confirmedSchools) {
-        await prisma.newsArticleSchool.upsert({
-          where: { articleId_ncessch: { articleId: q.articleId, ncessch: m.ncessch } },
-          create: { articleId: q.articleId, ncessch: m.ncessch, confidence: m.confidence },
-          update: { confidence: m.confidence },
-        });
-        stats.schoolMatches++;
-      }
-      for (const m of result.confirmedContacts) {
-        await prisma.newsArticleContact.upsert({
-          where: { articleId_contactId: { articleId: q.articleId, contactId: m.contactId } },
-          create: { articleId: q.articleId, contactId: m.contactId, confidence: m.confidence },
-          update: { confidence: m.confidence },
-        });
-        stats.contactMatches++;
-      }
+        for (const m of result.confirmedDistricts) {
+          await prisma.newsArticleDistrict.upsert({
+            where: { articleId_leaid: { articleId: q.articleId, leaid: m.leaid } },
+            create: { articleId: q.articleId, leaid: m.leaid, confidence: m.confidence },
+            update: { confidence: m.confidence },
+          });
+          stats.districtMatches++;
+        }
+        for (const m of result.confirmedSchools) {
+          await prisma.newsArticleSchool.upsert({
+            where: { articleId_ncessch: { articleId: q.articleId, ncessch: m.ncessch } },
+            create: { articleId: q.articleId, ncessch: m.ncessch, confidence: m.confidence },
+            update: { confidence: m.confidence },
+          });
+          stats.schoolMatches++;
+        }
+        for (const m of result.confirmedContacts) {
+          await prisma.newsArticleContact.upsert({
+            where: { articleId_contactId: { articleId: q.articleId, contactId: m.contactId } },
+            create: { articleId: q.articleId, contactId: m.contactId, confidence: m.confidence },
+            update: { confidence: m.confidence },
+          });
+          stats.contactMatches++;
+        }
 
-      await prisma.newsMatchQueue.update({
-        where: { articleId: q.articleId },
-        data: { processedAt: new Date() },
-      });
-    } catch (err) {
-      stats.errors.push(`LLM match ${q.articleId}: ${String(err)}`);
-    }
+        await prisma.newsMatchQueue.update({
+          where: { articleId: q.articleId },
+          data: { processedAt: new Date() },
+        });
+      } catch (err) {
+        stats.errors.push(`LLM match ${q.articleId}: ${String(err)}`);
+      }
+    });
   }
+  await queue.onIdle();
 
   return stats;
 }

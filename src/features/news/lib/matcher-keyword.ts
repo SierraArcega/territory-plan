@@ -17,10 +17,35 @@ function districtCoreName(name: string): string | null {
   return core;
 }
 
+/**
+ * Whether a district name is distinctive enough that a full-name literal
+ * substring match is unambiguous. Single-word names that collide with common
+ * place names ("Portland", "York", "Bangor") are NOT distinctive — they'd
+ * trigger on any article mentioning that city for unrelated reasons. These
+ * go to the LLM regardless of exact-substring match.
+ *
+ * Distinctive if:
+ *   • name has ≥2 words (e.g. "Portland Public Schools"), OR
+ *   • contains a school/district suffix keyword ("Unified", "ISD", etc.), OR
+ *   • has a number in it ("School District 11")
+ */
+const DISTRICT_SUFFIX_RE = /\b(unified|independent|consolidated|central|public|schools?|district|academy|isd|usd|county|area|regional|cooperative|charter|community)\b/i;
+
+function isDistinctiveForTier1(name: string): boolean {
+  const trimmed = name.trim();
+  if (trimmed.split(/\s+/).length >= 2) return true;
+  if (/\d/.test(trimmed)) return true;
+  if (DISTRICT_SUFFIX_RE.test(trimmed)) return true;
+  return false;
+}
+
 export interface DistrictCandidate {
   leaid: string;
   name: string;
   stateAbbrev: string | null;
+  cityLocation: string | null;
+  countyName: string | null;
+  accountName: string | null;
 }
 
 export interface SchoolCandidate {
@@ -99,14 +124,72 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
     }
   }
 
-  // Pass B: full literal district name + state → auto-confirm
+  // Pass B: full literal district name + state → auto-confirm, but only
+  // when the name is distinctive. Non-distinctive names (single-word place
+  // names like "Portland", "York") go to Pass C for LLM disambiguation.
   for (const state of stateAbbrevs) {
     const candidates = districtsByState.get(state) ?? [];
     for (const c of candidates) {
       if (confirmedLeaids.has(c.leaid)) continue;
+      if (!isDistinctiveForTier1(c.name)) continue;
       if (lowerText.includes(c.name.toLowerCase())) {
         result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
         confirmedLeaids.add(c.leaid);
+      }
+    }
+  }
+
+  // Pass B2: city/county + district-context phrase → auto-confirm.
+  // Catches local-news headlines like "Stockton school district passes bond"
+  // that don't name the district but name its city. Requires edu context to
+  // avoid false-positives on pure geographic mentions.
+  const DISTRICT_CONTEXT_RE = /\b(school district|school board|superintendent|school system|district's?|public schools?)\b/i;
+  if (DISTRICT_CONTEXT_RE.test(articleText)) {
+    for (const state of stateAbbrevs) {
+      const candidates = districtsByState.get(state) ?? [];
+      for (const c of candidates) {
+        if (confirmedLeaids.has(c.leaid)) continue;
+        const city = c.cityLocation?.toLowerCase();
+        if (!city || city.length < 4) continue;
+        // City name must appear as a standalone token, not embedded in another
+        // word. Use word-boundary regex rather than includes().
+        const cityRe = new RegExp(`\\b${city.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+        if (!cityRe.test(lowerText)) continue;
+        // Only one district per city per state can auto-confirm this way —
+        // avoids auto-linking multiple districts in the same city.
+        const othersInSameCity = candidates.filter(
+          (d) => d.leaid !== c.leaid && d.cityLocation?.toLowerCase() === city
+        );
+        if (othersInSameCity.length > 0) continue;
+        result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
+        confirmedLeaids.add(c.leaid);
+      }
+    }
+  }
+
+  // Pass B3: school-first lookup. Many local stories name a school but not
+  // its parent district ("Central High School…" rather than "Anywhere Unified
+  // SD's Central High"). Scan state-scoped schools for any literal school-
+  // name hit; if found, add the parent district as a candidate. Auto-confirm
+  // only when the school name is distinctive (≥2 words and not just "Central
+  // High"); otherwise queue for LLM.
+  const SCHOOL_GENERIC_RE = /^(central|north|south|east|west|main|high|middle|elementary|junior|senior|lincoln|washington|jefferson|madison|jackson|hamilton)\s+(high|middle|elementary|school)(\s+school)?$/i;
+  for (const state of stateAbbrevs) {
+    const candidates = districtsByState.get(state) ?? [];
+    for (const c of candidates) {
+      const schools = schoolsByLeaid.get(c.leaid) ?? [];
+      for (const s of schools) {
+        const sn = s.schoolName.toLowerCase();
+        if (sn.length < 6) continue;
+        const words = sn.split(/\s+/).filter(Boolean).length;
+        if (words < 2) continue;
+        if (!lowerText.includes(sn)) continue;
+        // Distinctive enough to auto-confirm the DISTRICT?
+        const isGeneric = SCHOOL_GENERIC_RE.test(s.schoolName);
+        if (!isGeneric && !confirmedLeaids.has(c.leaid)) {
+          result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
+          confirmedLeaids.add(c.leaid);
+        }
       }
     }
   }

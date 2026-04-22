@@ -24,7 +24,7 @@ describe("matchArticleKeyword — Tier 1 auto-confirm", () => {
   it("auto-confirms a district by full-name literal scoped to its state", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("GA", [
-      { leaid: "1301200", name: "Cobb County School District", stateAbbrev: "GA" },
+      { leaid: "1301200", name: "Cobb County School District", stateAbbrev: "GA", cityLocation: null, countyName: "Cobb County", accountName: null },
     ]);
     const result = matchArticleKeyword(
       makeInput({
@@ -61,7 +61,7 @@ describe("matchArticleKeyword — Tier 1 auto-confirm", () => {
   it("auto-confirms contact only when district confirmed AND role keyword present", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("IL", [
-      { leaid: "1709930", name: "Chicago Public Schools", stateAbbrev: "IL" },
+      { leaid: "1709930", name: "Chicago Public Schools", stateAbbrev: "IL", cityLocation: "Chicago", countyName: "Cook County", accountName: null },
     ]);
     const contactsByLeaid = new Map<string, ContactCandidate[]>();
     contactsByLeaid.set("1709930", [
@@ -92,7 +92,7 @@ describe("matchArticleKeyword — Tier 1 auto-confirm", () => {
   it("auto-confirms school only when parent district is confirmed", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("IL", [
-      { leaid: "1709930", name: "Chicago Public Schools", stateAbbrev: "IL" },
+      { leaid: "1709930", name: "Chicago Public Schools", stateAbbrev: "IL", cityLocation: "Chicago", countyName: "Cook County", accountName: null },
     ]);
     const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
     schoolsByLeaid.set("1709930", [
@@ -111,13 +111,64 @@ describe("matchArticleKeyword — Tier 1 auto-confirm", () => {
   });
 });
 
+describe("matchArticleKeyword — Tier 1 city+context auto-confirm", () => {
+  it("auto-confirms when article mentions city + school district context", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("CA", [
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA", cityLocation: "Stockton", countyName: "San Joaquin County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Stockton school district passes a bond for new facilities.",
+        stateAbbrevs: ["CA"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(1);
+    expect(result.confirmedDistricts[0].leaid).toBe("0611111");
+  });
+
+  it("does NOT auto-confirm on city alone without district context", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("CA", [
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA", cityLocation: "Stockton", countyName: "San Joaquin County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "The Stockton Kings won their playoff game last night.",
+        stateAbbrevs: ["CA"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("skips city-match auto-confirm when multiple districts share the same city", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("CA", [
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA", cityLocation: "Stockton", countyName: "San Joaquin County", accountName: null },
+      { leaid: "0622222", name: "Stockton Unified School District", stateAbbrev: "CA", cityLocation: "Stockton", countyName: "San Joaquin County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "A Stockton school district passes a bond.",
+        stateAbbrevs: ["CA"],
+        districtsByState,
+      })
+    );
+    // Two districts share Stockton; city-rule does NOT auto-confirm either.
+    // Neither full name appears literally. Ambiguous — should be empty.
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+});
+
 describe("matchArticleKeyword — Tier 2 LLM queue", () => {
   it("does NOT auto-confirm on core-name-only substring hits (York trap)", () => {
     // "York Central School District" → core "york" — appears in "New York"
     // whenever the article mentions NY. Must go to LLM queue, not auto-confirm.
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("NY", [
-      { leaid: "3636310", name: "York Central School District", stateAbbrev: "NY" },
+      { leaid: "3636310", name: "York Central School District", stateAbbrev: "NY", cityLocation: "Retsof", countyName: "Livingston County", accountName: null },
     ]);
     const result = matchArticleKeyword(
       makeInput({
@@ -134,10 +185,10 @@ describe("matchArticleKeyword — Tier 2 LLM queue", () => {
   it("queues partial matches for LLM when core appears in multiple states", () => {
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("CA", [
-      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA" },
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA", cityLocation: "Stockton", countyName: "San Joaquin County", accountName: null },
     ]);
     districtsByState.set("NE", [
-      { leaid: "3122222", name: "Lincoln Public Schools", stateAbbrev: "NE" },
+      { leaid: "3122222", name: "Lincoln Public Schools", stateAbbrev: "NE", cityLocation: "Lincoln", countyName: "Lancaster County", accountName: null },
     ]);
     const result = matchArticleKeyword(
       makeInput({
@@ -158,10 +209,10 @@ describe("matchArticleKeyword — Tier 2 LLM queue", () => {
     // CA stays queued for LLM to judge whether the article is about CA too.
     const districtsByState = new Map<string, DistrictCandidate[]>();
     districtsByState.set("CA", [
-      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA" },
+      { leaid: "0611111", name: "Lincoln Unified", stateAbbrev: "CA", cityLocation: "Stockton", countyName: "San Joaquin County", accountName: null },
     ]);
     districtsByState.set("NE", [
-      { leaid: "3122222", name: "Lincoln Public Schools", stateAbbrev: "NE" },
+      { leaid: "3122222", name: "Lincoln Public Schools", stateAbbrev: "NE", cityLocation: "Lincoln", countyName: "Lancaster County", accountName: null },
     ]);
     const result = matchArticleKeyword(
       makeInput({
