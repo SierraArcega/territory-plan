@@ -404,6 +404,10 @@ model State {
   abbrev String @unique @db.VarChar(2) // "CA"
   name   String @db.VarChar(100) // "California"
 
+  // ===== External references =====
+  boardOfEdUrl String? @map("board_of_ed_url") @db.VarChar(500)
+  deptOfEdUrl  String? @map("dept_of_ed_url") @db.VarChar(500)
+
   // ===== Denormalized Aggregates =====
   // Refreshed from districts table via ETL
   totalDistricts     Int      @default(0) @map("total_districts")
