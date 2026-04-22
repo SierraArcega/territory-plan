@@ -40,7 +40,8 @@ export async function handleRunSql(
   }
 
   const startedAt = Date.now();
-  let res: { fields?: Array<{ name: string }>; rows?: Array<Record<string, unknown>>; rowCount?: number };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let res: any;
   try {
     res = await readonlyPool.query(sql);
   } catch (err) {

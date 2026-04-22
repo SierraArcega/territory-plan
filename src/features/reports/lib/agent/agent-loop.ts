@@ -134,7 +134,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
     // tool_result in the next user turn. Process all in one batch.
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const tu of toolUses) {
-      if (tu === runSqlUse && runSqlResult && runSqlResult.kind !== "ok") {
+      if (tu === runSqlUse && runSqlResult) {
         const errorText =
           runSqlResult.kind === "error"
             ? `run_sql failed: ${runSqlResult.message}. Please correct the query and retry.`

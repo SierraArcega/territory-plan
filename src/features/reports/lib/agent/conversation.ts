@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import type { QuerySummary } from "./types";
 
@@ -26,7 +27,7 @@ export async function loadPriorTurns(
     sql: r.sql,
     summary:
       r.params && typeof r.params === "object" && "summary" in r.params
-        ? (r.params as { summary: QuerySummary }).summary
+        ? (r.params as unknown as { summary: QuerySummary }).summary
         : null,
     createdAt: r.createdAt,
   }));
@@ -49,7 +50,7 @@ export async function saveTurn(args: {
       conversationId,
       question,
       sql: sql ?? null,
-      params: summary ? { summary } : undefined,
+      params: summary ? ({ summary } as unknown as Prisma.InputJsonValue) : undefined,
       rowCount: rowCount ?? null,
       executionTimeMs: executionTimeMs ?? null,
       error: error ?? null,
