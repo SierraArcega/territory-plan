@@ -263,6 +263,27 @@ export interface BulkEnrichError extends Error {
   body: unknown;
 }
 
+export interface ContactSourcePlan {
+  id: string;
+  name: string;
+  ownerName: string | null;
+  sharedDistrictCount: number;
+  contactCount: number;
+  lastEnrichedAt: string | null;
+}
+
+export function useContactSources(planId: string | null) {
+  return useQuery({
+    queryKey: ["planContactSources", planId],
+    queryFn: () =>
+      fetchJson<{ plans: ContactSourcePlan[] }>(
+        `${API_BASE}/territory-plans/${planId}/contact-sources`
+      ),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useBulkEnrich() {
   const queryClient = useQueryClient();
 
