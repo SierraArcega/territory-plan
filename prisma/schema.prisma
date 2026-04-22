@@ -1505,6 +1505,12 @@ model NewsArticle {
   fetchedAt    DateTime @default(now()) @map("fetched_at")
   stateAbbrevs String[] @map("state_abbrevs") @db.VarChar(2)
 
+  // Classification — set by the Haiku classifier pass. Null until classified.
+  sentiment          String?   @db.VarChar(10)
+  categories         String[]  @default([]) @db.VarChar(40)
+  fullmindRelevance  String?   @map("fullmind_relevance") @db.VarChar(10)
+  classifiedAt       DateTime? @map("classified_at")
+
   districts   NewsArticleDistrict[]
   schools     NewsArticleSchool[]
   contacts    NewsArticleContact[]
@@ -1512,6 +1518,7 @@ model NewsArticle {
 
   @@index([publishedAt])
   @@index([feedSource])
+  @@index([fullmindRelevance, publishedAt])
   @@map("news_articles")
 }
 

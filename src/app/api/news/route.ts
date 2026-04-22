@@ -19,6 +19,9 @@ export interface NewsArticleDto {
   source: string;
   feedSource: string;
   publishedAt: string;
+  sentiment: string | null;
+  categories: string[];
+  fullmindRelevance: string | null;
   confidence?: string;
   districtLeaid?: string;
   districtName?: string;
@@ -38,8 +41,10 @@ export interface NewsArticleDto {
  *                         any state covered by those plans
  *
  * Common params:
- *   ?since=ISO8601    — only articles published on/after this date
- *   ?limit=N          — cap results (default 10, max 100)
+ *   ?since=ISO8601      — only articles published on/after this date
+ *   ?limit=N            — cap results (default 10, max 100)
+ *   ?minRelevance=TIER  — only articles with fullmindRelevance ≥ TIER
+ *                         (high | medium | low), omitted = no filter
  */
 export async function GET(request: NextRequest) {
   const user = await getUser();
@@ -62,9 +67,17 @@ export async function GET(request: NextRequest) {
   );
 
   const sinceDate = since ? new Date(since) : null;
+  const minRelevance = searchParams.get("minRelevance") ?? null;
+  const RELEVANCE_ORDER = ["high", "medium", "low"] as const;
+  const relevanceIndex = minRelevance ? RELEVANCE_ORDER.indexOf(minRelevance as (typeof RELEVANCE_ORDER)[number]) : -1;
+  const acceptedRelevance = relevanceIndex >= 0 ? RELEVANCE_ORDER.slice(0, relevanceIndex + 1) : null;
+
   const articleWhere: Prisma.NewsArticleWhereInput = {};
   if (sinceDate && !Number.isNaN(sinceDate.getTime())) {
     articleWhere.publishedAt = { gte: sinceDate };
+  }
+  if (acceptedRelevance) {
+    articleWhere.fullmindRelevance = { in: [...acceptedRelevance] };
   }
 
   try {
@@ -225,6 +238,9 @@ function toDto(
     source: string;
     feedSource: string;
     publishedAt: Date;
+    sentiment: string | null;
+    categories: string[];
+    fullmindRelevance: string | null;
   },
   confidence: string,
   districtLeaid?: string,
@@ -240,6 +256,9 @@ function toDto(
     source: article.source,
     feedSource: article.feedSource,
     publishedAt: article.publishedAt.toISOString(),
+    sentiment: article.sentiment,
+    categories: article.categories,
+    fullmindRelevance: article.fullmindRelevance,
     confidence,
     districtLeaid,
     districtName,
