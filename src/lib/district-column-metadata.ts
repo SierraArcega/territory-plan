@@ -2511,6 +2511,44 @@ export const SCHOOL_COLUMNS: ColumnMetadata[] = [
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "school", format: "date", source: "nces", queryable: true },
 ];
 
+/** district_data_history — per-district-year snapshots from multi-source ETL (CCD / SAIPE / EdFacts); fallback for trend questions not covered by districts' precomputed trend columns */
+export const DISTRICT_DATA_HISTORY_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "ID", description: "Autoincrement PK.", domain: "core", format: "integer", source: "urban_institute", queryable: true },
+  { field: "leaid", column: "leaid", label: "LEA ID", description: "FK to districts.leaid — the district this historical snapshot belongs to.", domain: "core", format: "text", source: "urban_institute", queryable: true },
+  { field: "year", column: "year", label: "Year", description: "School-year snapshot as Int (e.g., 2024 = 2024–25 per CCD convention). History goes back as far as the Urban Institute series provides for each source — varies by source.", domain: "core", format: "year", source: "urban_institute", queryable: true },
+  { field: "source", column: "source", label: "Source", description: "Which upstream ETL produced the row. Known values: 'ccd_directory' (enrollment, staffing), 'ccd_finance' (revenue, expenditure breakdowns), 'saipe' (poverty), 'edfacts_grad' (graduation rate), 'edfacts_assess' (math/read proficiency). Different sources fill different columns, so filtering by source is needed when asking about a specific metric to avoid NULL noise. Only cite the source to the rep if they ask.", domain: "audit", format: "text", source: "urban_institute", queryable: true },
+  { field: "enrollment", column: "enrollment", label: "Enrollment", description: "Historical enrollment snapshot (from ccd_directory). Use for 'enrollment over time' when districts' pre-computed trend columns don't cover the year span the rep wants.", domain: "demographics", format: "integer", source: "urban_institute", queryable: true },
+  { field: "teachersFte", column: "teachers_fte", label: "Teachers FTE", description: "Full-time-equivalent teacher count (from ccd_directory). For staffing-trend questions.", domain: "staffing", format: "decimal", source: "urban_institute", queryable: true },
+  { field: "staffTotalFte", column: "staff_total_fte", label: "Staff Total FTE", description: "Full-time-equivalent total staff count (from ccd_directory).", domain: "staffing", format: "decimal", source: "urban_institute", queryable: true },
+  { field: "specEdStudents", column: "spec_ed_students", label: "Special Ed Students", description: "Historical SPED student count (from ccd_directory).", domain: "sped", format: "integer", source: "urban_institute", queryable: true },
+  { field: "ellStudents", column: "ell_students", label: "ELL Students", description: "Historical English-learner student count (from ccd_directory).", domain: "demographics", format: "integer", source: "urban_institute", queryable: true },
+  { field: "chronicAbsenteeismRate", column: "chronic_absenteeism_rate", label: "Chronic Absenteeism Rate", description: "Historical chronic absenteeism rate (from ccd_directory).", domain: "absenteeism", format: "percentage", source: "urban_institute", queryable: true },
+  { field: "totalRevenue", column: "total_revenue", label: "Total Revenue", description: "District total revenue for the year (from ccd_finance). 'Revenue history' for the district — NOT Fullmind revenue. For Fullmind revenue, use district_financials.", domain: "finance", format: "currency", source: "urban_institute", queryable: true },
+  { field: "totalExpenditure", column: "total_expenditure", label: "Total Expenditure", description: "District total spending for the year (from ccd_finance).", domain: "finance", format: "currency", source: "urban_institute", queryable: true },
+  { field: "expenditurePp", column: "expenditure_per_pupil", label: "Expenditure Per Pupil", description: "Per-pupil spending for the year (from ccd_finance). Reps ask about 'spending per student over time'.", domain: "finance", format: "currency", source: "urban_institute", queryable: true },
+  { field: "federalRevenue", column: "federal_revenue", label: "Federal Revenue", description: "District federal-source revenue for the year (from ccd_finance).", domain: "finance", format: "currency", source: "urban_institute", queryable: true },
+  { field: "stateRevenue", column: "state_revenue", label: "State Revenue", description: "District state-source revenue for the year (from ccd_finance).", domain: "finance", format: "currency", source: "urban_institute", queryable: true },
+  { field: "localRevenue", column: "local_revenue", label: "Local Revenue", description: "District local-source revenue for the year (from ccd_finance).", domain: "finance", format: "currency", source: "urban_institute", queryable: true },
+  { field: "spedExpenditure", column: "sped_expenditure_total", label: "SPED Expenditure", description: "District SPED expenditure for the year (from ccd_finance). For 'SPED spending trend' rep questions.", domain: "sped", format: "currency", source: "urban_institute", queryable: true },
+  { field: "povertyPct", column: "poverty_percent", label: "Poverty %", description: "Historical child-poverty rate (from saipe).", domain: "poverty", format: "percentage", source: "urban_institute", queryable: true },
+  { field: "graduationRate", column: "graduation_rate", label: "Graduation Rate", description: "Historical graduation rate (from edfacts_grad).", domain: "graduation", format: "percentage", source: "urban_institute", queryable: true },
+  { field: "mathProficiency", column: "math_proficiency_pct", label: "Math Proficiency %", description: "Historical math proficiency (from edfacts_assess).", domain: "assessment", format: "percentage", source: "urban_institute", queryable: true },
+  { field: "readProficiency", column: "read_proficiency_pct", label: "Read Proficiency %", description: "Historical reading proficiency (from edfacts_assess).", domain: "assessment", format: "percentage", source: "urban_institute", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "Row creation timestamp.", domain: "audit", format: "date", source: "urban_institute", queryable: true },
+  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "audit", format: "date", source: "urban_institute", queryable: true },
+];
+
+/** district_grade_enrollment — per-grade yearly enrollment per district */
+export const DISTRICT_GRADE_ENROLLMENT_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "ID", description: "Autoincrement PK.", domain: "demographics", format: "integer", source: "urban_institute", queryable: true },
+  { field: "leaid", column: "leaid", label: "LEA ID", description: "FK to districts.leaid.", domain: "core", format: "text", source: "urban_institute", queryable: true },
+  { field: "year", column: "year", label: "Year", description: "School-year snapshot as Int (e.g., 2024 = 2024–25).", domain: "demographics", format: "year", source: "urban_institute", queryable: true },
+  { field: "grade", column: "grade", label: "Grade", description: "Grade code as VarChar. Known values: 'K' (kindergarten), '01' through '12' (grades 1-12, zero-padded), 'PK' (pre-K), 'UG' (ungraded). For grade-range filters use IN / LIKE — e.g., elementary = ('K', '01', '02', '03', '04', '05'), middle = ('06', '07', '08'), high = ('09', '10', '11', '12').", domain: "demographics", format: "text", source: "urban_institute", queryable: true },
+  { field: "enrollment", column: "enrollment", label: "Enrollment", description: "Student count at that grade in that district-year. Use for 'biggest K-2 populations', 'high-school enrollment in <state>' (join districts for state_fips), or 'grade-band demographics' rep questions.", domain: "demographics", format: "integer", source: "urban_institute", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "Row creation timestamp.", domain: "audit", format: "date", source: "urban_institute", queryable: true },
+  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "audit", format: "date", source: "urban_institute", queryable: true },
+];
+
 /** school_enrollment_history — per-school yearly enrollment snapshots; used for growth/shrinkage trends */
 export const SCHOOL_ENROLLMENT_HISTORY_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "Autoincrement PK.", domain: "school", format: "integer", source: "nces", queryable: true },
@@ -3012,6 +3050,36 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
       },
     ],
   },
+  district_data_history: {
+    table: "district_data_history",
+    description:
+      "Per-district-year historical snapshots from multi-source ETL (CCD directory, CCD finance, SAIPE poverty, EdFacts grad, EdFacts assess). One row per (leaid, year, source) — so a single district-year has multiple rows, each populated by one upstream source. PREFER districts' pre-computed trend columns (e.g., enrollmentTrend3yr) for common trend questions; fall back to this table for year-specific or longer-span questions (history goes as far back as the Urban Institute series allows). When filtering a specific metric (grad rate, poverty, etc.) filter by source first to avoid NULL noise (see source column). Rep questions: 'enrollment over time', 'poverty trend in <district>', 'grad rate 5 years back', 'spending per student trend', 'SPED spending history'. Note: total_revenue here is the DISTRICT's revenue (federal + state + local), not Fullmind revenue — for Fullmind use district_financials.",
+    primaryKey: "id",
+    columns: DISTRICT_DATA_HISTORY_COLUMNS,
+    relationships: [
+      {
+        toTable: "districts",
+        type: "many-to-one",
+        joinSql: "district_data_history.leaid = districts.leaid",
+        description: "Parent district",
+      },
+    ],
+  },
+  district_grade_enrollment: {
+    table: "district_grade_enrollment",
+    description:
+      "Per-(district, year, grade) enrollment snapshots. Grade values: 'K', '01'..'12', 'PK', 'UG'. Rep questions: 'biggest K-2 populations', 'high-school enrollment in <state>', 'grade-band demographics', 'districts with the most SPED-relevant elementary enrollment'. For grade-range filters, use IN / LIKE: elementary ('K','01'..'05'), middle ('06','07','08'), high ('09'..'12'). Join districts for state_fips or other district-level filters.",
+    primaryKey: "id",
+    columns: DISTRICT_GRADE_ENROLLMENT_COLUMNS,
+    relationships: [
+      {
+        toTable: "districts",
+        type: "many-to-one",
+        joinSql: "district_grade_enrollment.leaid = districts.leaid",
+        description: "Parent district",
+      },
+    ],
+  },
   school_enrollment_history: {
     table: "school_enrollment_history",
     description:
@@ -3241,7 +3309,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "audit_log",
     "opportunity_snapshots",
     "data_refresh_logs",
-    "district_data_history",
     "district_tags",
     "initiative_metrics",
     "initiative_scores",
@@ -3267,7 +3334,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
 
     // PENDING REGISTRATION — meaningful for reports but not yet worth their
     // own entry. Move into TABLE_REGISTRY as question shapes demand.
-    "district_grade_enrollment",
     "initiatives",
     "services",
     "unmatched_opportunities",
