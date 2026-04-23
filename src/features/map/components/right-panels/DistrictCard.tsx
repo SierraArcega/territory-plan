@@ -86,12 +86,17 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
               Select all {data.district.childLeaids.length} children
             </button>
             <button
-              disabled
-              title="Will return 0 contacts — not recommended"
+              type="button"
+              aria-disabled="true"
+              aria-describedby={`rollup-warning-${leaid}`}
+              onClick={(e) => e.preventDefault()}
               className="px-3 py-1 rounded-md bg-white text-plum/40 text-xs font-medium border border-plum/20 cursor-not-allowed"
             >
               Keep as rollup
             </button>
+            <p id={`rollup-warning-${leaid}`} className="sr-only">
+              Will return 0 contacts — not recommended
+            </p>
           </div>
         </div>
       )}

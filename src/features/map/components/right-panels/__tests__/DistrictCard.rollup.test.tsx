@@ -110,4 +110,19 @@ describe("DistrictCard — rollup strip", () => {
     expect(screen.queryByText(/child districts/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /select all/i })).not.toBeInTheDocument();
   });
+
+  it("'Keep as rollup' is aria-disabled with an sr-only warning", () => {
+    mockDistrict = {
+      name: "New York City Department Of Education",
+      stateAbbrev: "NY",
+      accountType: "district",
+      isRollup: true,
+      childLeaids: Array.from({ length: 309 }, (_, i) => `child-${i}`),
+      schoolCount: 1491,
+    };
+    render(<DistrictCard leaid="3620580" />);
+    const button = screen.getByRole("button", { name: /keep as rollup/i });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByText(/Will return 0 contacts — not recommended/i)).toBeInTheDocument();
+  });
 });
