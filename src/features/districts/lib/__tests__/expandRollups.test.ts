@@ -52,6 +52,7 @@ describe("expandPlanRollups", () => {
     expect(activity?.metadata).toMatchObject({
       subtype: "rollup-expanded",
       rollupLeaid: "3620580",
+      childCount: expect.any(Number),
     });
   });
 

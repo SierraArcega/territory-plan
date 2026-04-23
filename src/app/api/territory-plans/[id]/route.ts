@@ -21,7 +21,17 @@ export async function GET(
 
     // Auto-migrate any rollup leaids in this plan to their children.
     // Safe to run on every GET — idempotent after first successful expansion.
-    await expandPlanRollups(id, user.id);
+    // Log-but-proceed on failure so a broken migration doesn't 500 the plan GET;
+    // the rollup row stays in the plan for this request but the user still sees their plan.
+    try {
+      await expandPlanRollups(id, user.id);
+    } catch (migrationErr) {
+      console.error("expandPlanRollups failed; returning plan without migration", {
+        planId: id,
+        err: migrationErr,
+      });
+      // Fall through — the plan GET proceeds with the rollup row still present.
+    }
 
     // Team shares visibility across plans (matches list endpoint)
     const plan = await prisma.territoryPlan.findUnique({
