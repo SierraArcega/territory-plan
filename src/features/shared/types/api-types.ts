@@ -238,6 +238,8 @@ export interface DistrictListItem {
   isCustomer: boolean;
   hasOpenPipeline: boolean;
   metricValue: number;
+  isRollup?: boolean;
+  childCount?: number;
 }
 
 export interface UnmatchedAccount {

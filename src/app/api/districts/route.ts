@@ -104,6 +104,9 @@ export async function GET(request: NextRequest) {
           where: { vendor: "fullmind" },
           select: FULLMIND_FINANCIALS_SELECT,
         },
+        _count: {
+          select: { childDistricts: true },
+        },
       },
       take: limit,
       skip: offset,
@@ -114,6 +117,7 @@ export async function GET(request: NextRequest) {
     const lookup = getFinancialLookup(metric, year);
     const districtList = districts.map((d) => {
       const metricValue = getFinancialValue(d.districtFinancials, "fullmind", lookup.fiscalYear, lookup.field);
+      const childCount = d._count?.childDistricts ?? 0;
 
       return {
         leaid: d.leaid,
@@ -124,6 +128,8 @@ export async function GET(request: NextRequest) {
         accountType: d.accountType || "district",
         cityLocation: d.cityLocation,
         metricValue,
+        isRollup: childCount > 0,
+        childCount,
       };
     });
 
