@@ -284,6 +284,34 @@ targets already have contacts"):
 - Load testing for auto-migrate at scale — NYC DOE's ~50 children is the only
   known rollup; scaling concerns aren't applicable.
 
+## Operator prerequisite — child polygon geometry
+
+**Lesson learned during shipping:** the "children win map clicks" design
+requires children to have real polygon `geometry` in the `districts` table.
+The initial assumption (from an exploration pass) that NYC's 32 Community
+School Districts had polygons was wrong — they only had `point_location`
+(geocoded centroids). `district_map_features.render_geometry` (a
+`COALESCE(geometry, point_location)` fallback in the matview) therefore
+emitted 1-point geometries for CSDs, and MapLibre couldn't hit-test them.
+
+**Resolution:** `prisma/seed-nyc-csd-polygons.ts` imports NYC Open Data's
+"School Districts" dataset (id `8ugf-3d8u`, 33 features covering CSDs 1-32
+with District 10 as two non-contiguous parts merged via scalar `ST_Union`)
+into `districts.geometry`. District 75 (citywide admin overlay, not a
+geographic region) and the 276 NYC charters remain as points — they're not
+admin boundaries in the traditional sense.
+
+**Matview refresh required after any geometry import:** `district_map_features`
+is a materialized view (`relkind='m'`), so new geometries don't appear in
+tiles until a `REFRESH MATERIALIZED VIEW district_map_features;` runs. Plan
+for any future rollup seeding: (a) import geometry, (b) refresh matview,
+(c) bump tile cache version so clients re-fetch.
+
+**Future rollups:** we'd likely follow the same three-step pattern. The
+`parent_leaid` column is agnostic to geometry source — it only requires the
+children exist in `districts`. Populating `geometry` for the children is a
+separate data-ingestion concern.
+
 ## Known limitations / follow-ups
 
 - **Historical queries using the rollup leaid** return empty (e.g., leaderboards
@@ -296,6 +324,16 @@ targets already have contacts"):
 - **Discovery of additional rollups**: we don't auto-detect them. When a new
   rollup surfaces, we add rows to `parent_leaid` manually; the UX works without
   code changes.
+- **Charters vs. community districts are undifferentiated in the rollup** —
+  NYC DOE's 309 children include 33 Geographic/Special districts and 276
+  charters. The DistrictCard strip copy ("N child districts") and the "Select
+  all N children" CTA treat them uniformly. A future enhancement could split
+  them into two sub-tabs (community districts / charters) or introduce a
+  separate `nyc-charters` pseudo-rollup so users can pick one group at a time.
+- **District 75 has no polygon** and renders as a point. Users can find it
+  via search but can't click a boundary on the map. Not addressable without
+  inventing a geometry for a citywide admin overlay that has no geographic
+  footprint distinct from NYC DOE's.
 
 ## File touchpoints
 
