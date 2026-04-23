@@ -28,7 +28,3 @@ WHERE leaid = '3600135';
 
 -- Delete the synthetic pseudo-rollup row.
 DELETE FROM districts WHERE leaid = '3600000';
-
--- Refresh the map-features matview so tiles stop exposing 3600000 as a
--- feature and charter features reflect their new (absent) parentage.
-REFRESH MATERIALIZED VIEW district_map_features;

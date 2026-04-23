@@ -196,9 +196,17 @@ Applying migration `20260423_revert_nyc_charter_pseudo_rollup`
 All migrations have been successfully applied.
 ```
 
-If you see a PostGIS error about `REFRESH MATERIALIZED VIEW` not running inside a transaction, stop and report — we may need to split the refresh into a follow-up step.
+The migration only runs DML (UPDATE/UPDATE/DELETE). The matview refresh is a separate step (Step 3) to match the repo's existing pattern (see `scripts/import-customer-book.ts:490`, `scripts/etl/utils/refresh_views.py:19`) — REFRESH MATERIALIZED VIEW takes ~30s and this repo runs it outside Prisma migrations.
 
-- [ ] **Step 3: Verify invariant — NYC DOE children = 32**
+- [ ] **Step 3: Refresh the map-features matview**
+
+```bash
+npx tsx -e "import('@/lib/prisma').then(m => m.default.\$executeRawUnsafe('REFRESH MATERIALIZED VIEW district_map_features').then(() => { console.log('refreshed'); return m.default.\$disconnect(); }))"
+```
+
+Expected: prints `refreshed` after ~30 seconds.
+
+- [ ] **Step 4: Verify invariant — NYC DOE children = 32**
 
 ```bash
 psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM districts WHERE parent_leaid = '3620580';"
@@ -206,7 +214,7 @@ psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM districts WHERE parent_l
 
 Expected: `n = 32`. If not, STOP.
 
-- [ ] **Step 4: Verify invariant — 3600000 row deleted**
+- [ ] **Step 5: Verify invariant — 3600000 row deleted**
 
 ```bash
 psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM districts WHERE leaid = '3600000';"
@@ -214,7 +222,7 @@ psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM districts WHERE leaid = 
 
 Expected: `n = 0`. If not, STOP.
 
-- [ ] **Step 5: Verify invariant — no rows reference 3600000 as parent**
+- [ ] **Step 6: Verify invariant — no rows reference 3600000 as parent**
 
 ```bash
 psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM districts WHERE parent_leaid = '3600000';"
@@ -222,7 +230,7 @@ psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM districts WHERE parent_l
 
 Expected: `n = 0`. If not, STOP — the pseudo-rollup still has children.
 
-- [ ] **Step 6: Verify invariant — D75 is top-level**
+- [ ] **Step 7: Verify invariant — D75 is top-level**
 
 ```bash
 psql "$DATABASE_URL" -c "SELECT leaid, parent_leaid, name FROM districts WHERE leaid = '3600135';"
@@ -230,7 +238,7 @@ psql "$DATABASE_URL" -c "SELECT leaid, parent_leaid, name FROM districts WHERE l
 
 Expected: `parent_leaid` is NULL (shown as empty in psql default output).
 
-- [ ] **Step 7: Charter spot-check — five known charter leaids should all be NULL**
+- [ ] **Step 8: Charter spot-check — five known charter leaids should all be NULL**
 
 ```bash
 psql "$DATABASE_URL" -c "
@@ -243,7 +251,7 @@ psql "$DATABASE_URL" -c "
 
 Expected: five rows returned, all with `parent_leaid` NULL.
 
-- [ ] **Step 8: Verify matview refreshed — no 3600000 feature**
+- [ ] **Step 9: Verify matview refreshed — no 3600000 feature**
 
 ```bash
 psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM district_map_features WHERE leaid = '3600000';"
@@ -251,7 +259,7 @@ psql "$DATABASE_URL" -c "SELECT COUNT(*)::int AS n FROM district_map_features WH
 
 Expected: `n = 0`. If not, the matview refresh didn't run or didn't include the delete — STOP.
 
-- [ ] **Step 9: No commit required**
+- [ ] **Step 10: No commit required**
 
 `prisma migrate deploy` records the applied migration in `_prisma_migrations` inside the database. No files change in the working tree.
 
