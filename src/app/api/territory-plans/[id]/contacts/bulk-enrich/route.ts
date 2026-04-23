@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { getRollupLeaids, getChildren } from "@/features/districts/lib/rollup";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,25 @@ export async function POST(
     }
 
     const allLeaids = plan.districts.map((d) => d.districtLeaid);
+
+    // Rollup pre-check — fail fast with a reason code the UI can act on.
+    // This is a defensive layer on top of T7's auto-migrate (which runs on plan GET);
+    // plans modified out-of-band might still reach here with rollup leaids.
+    const rollupLeaids = await getRollupLeaids(allLeaids);
+    if (rollupLeaids.length > 0) {
+      const childLeaids = (
+        await Promise.all(rollupLeaids.map((l) => getChildren(l)))
+      ).flat();
+      return NextResponse.json(
+        {
+          error: "Plan contains rollup district(s); expand to children before enriching.",
+          reason: "rollup-district",
+          rollupLeaids,
+          childLeaids,
+        },
+        { status: 400 }
+      );
+    }
 
     if (allLeaids.length === 0) {
       return NextResponse.json({ total: 0, skipped: 0, queued: 0 });
