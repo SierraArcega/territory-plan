@@ -1027,17 +1027,19 @@ describe("buildFilterExpression", () => {
 // ============================================
 
 describe("NOT_ROLLUP_FILTER", () => {
-  it("excludes features where is_rollup is true", () => {
-    expect(NOT_ROLLUP_FILTER).toEqual(["!=", ["get", "is_rollup"], true]);
+  it("excludes features where is_rollup is true (via to-boolean coercion)", () => {
+    // to-boolean handles the case where MVT encoding omits the boolean for
+    // false/default values — a `missing is_rollup` property coerces to false,
+    // matching the intent "not explicitly a rollup".
+    expect(NOT_ROLLUP_FILTER).toEqual(["!", ["to-boolean", ["get", "is_rollup"]]]);
   });
 });
 
 describe("DISTRICT_ROLLUP_OUTLINE_LAYER", () => {
-  it("filters to rollup features only", () => {
+  it("filters to rollup features only (via to-boolean coercion)", () => {
     expect(DISTRICT_ROLLUP_OUTLINE_LAYER.filter).toEqual([
-      "==",
+      "to-boolean",
       ["get", "is_rollup"],
-      true,
     ]);
   });
 

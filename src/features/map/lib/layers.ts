@@ -501,9 +501,8 @@ export const LOCALE_FILL: ExpressionSpecification = LOCALE_SIGNAL_FILL;
  * a normal district).
  */
 export const NOT_ROLLUP_FILTER: ExpressionSpecification = [
-  "!=",
-  ["get", "is_rollup"],
-  true,
+  "!",
+  ["to-boolean", ["get", "is_rollup"]],
 ];
 
 /**
@@ -517,7 +516,7 @@ export const DISTRICT_ROLLUP_OUTLINE_LAYER = {
   type: "line" as const,
   source: "districts",
   "source-layer": "districts",
-  filter: ["==", ["get", "is_rollup"], true] as ExpressionSpecification,
+  filter: ["to-boolean", ["get", "is_rollup"]] as ExpressionSpecification,
   paint: {
     "line-color": LAYER_COLORS.districts, // Plum (#403770)
     "line-width": 1.5,
