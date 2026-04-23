@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import ContactsActionBar from "../ContactsActionBar";
 
 const mockMutateAsync = vi.fn().mockResolvedValue({ total: 3, skipped: 0, queued: 3 });
+const mockExpandMutateAsync = vi.fn().mockResolvedValue({ rollupsExpanded: [], expandedCount: 0 });
 
 vi.mock("@/features/plans/lib/queries", () => ({
   useBulkEnrich: () => ({
@@ -12,11 +13,18 @@ vi.mock("@/features/plans/lib/queries", () => ({
   useEnrichProgress: () => ({
     data: { total: 0, enriched: 0, queued: 0 },
   }),
+  useExpandRollup: () => ({
+    mutateAsync: mockExpandMutateAsync,
+    isPending: false,
+  }),
 }));
 
 describe("ContactsActionBar — Principal popover", () => {
   beforeEach(() => {
     mockMutateAsync.mockClear();
+    mockMutateAsync.mockResolvedValue({ total: 3, skipped: 0, queued: 3 });
+    mockExpandMutateAsync.mockClear();
+    mockExpandMutateAsync.mockResolvedValue({ rollupsExpanded: [], expandedCount: 0 });
   });
 
   it("shows School Level checkboxes when Principal is selected", () => {
@@ -101,6 +109,74 @@ describe("ContactsActionBar — Principal popover", () => {
         planId: "plan-1",
         targetRole: "Superintendent",
       });
+    });
+  });
+
+  it("shows 'Expand to N districts' CTA when bulk-enrich returns reason=rollup-district", async () => {
+    const rollupError = Object.assign(new Error("400: Plan contains rollup districts"), {
+      status: 400,
+      body: {
+        reason: "rollup-district",
+        rollupLeaids: ["3620580"],
+        childLeaids: Array.from({ length: 309 }, (_, i) => `child-${i}`),
+      },
+    });
+    mockMutateAsync.mockRejectedValueOnce(rollupError);
+
+    render(
+      <ContactsActionBar
+        planId="plan-1"
+        planName="Plan"
+        contacts={[]}
+        allDistrictLeaids={["3620580"]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+
+    expect(await screen.findByText(/309 child districts/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /expand to 309 districts/i })
+    ).toBeInTheDocument();
+  });
+
+  it("expands rollup and retries enrichment when the Expand CTA is clicked", async () => {
+    const rollupError = Object.assign(new Error("400: Plan contains rollup districts"), {
+      status: 400,
+      body: {
+        reason: "rollup-district",
+        rollupLeaids: ["3620580"],
+        childLeaids: Array.from({ length: 309 }, (_, i) => `child-${i}`),
+      },
+    });
+    // First call: rollup error. Second call (retry): success.
+    mockMutateAsync
+      .mockRejectedValueOnce(rollupError)
+      .mockResolvedValueOnce({ total: 309, skipped: 0, queued: 309 });
+
+    render(
+      <ContactsActionBar
+        planId="plan-1"
+        planName="Plan"
+        contacts={[]}
+        allDistrictLeaids={["3620580"]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /find contacts/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+
+    const expandBtn = await screen.findByRole("button", {
+      name: /expand to 309 districts/i,
+    });
+    fireEvent.click(expandBtn);
+
+    await vi.waitFor(() => {
+      expect(mockExpandMutateAsync).toHaveBeenCalledWith({ planId: "plan-1" });
+    });
+    await vi.waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledTimes(2);
     });
   });
 });

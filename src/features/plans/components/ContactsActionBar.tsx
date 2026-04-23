@@ -8,6 +8,7 @@ import type { Contact } from "@/lib/api";
 import {
   useBulkEnrich,
   useEnrichProgress,
+  useExpandRollup,
 } from "@/features/plans/lib/queries";
 
 interface ContactsActionBarProps {
@@ -38,12 +39,17 @@ export default function ContactsActionBar({
   // Default: all 3 levels checked (1 = Primary/Elementary, 2 = Middle, 3 = High).
   const [schoolLevels, setSchoolLevels] = useState<Set<number>>(new Set([1, 2, 3]));
   const [isEnriching, setIsEnriching] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "warning" | "error";
+    action?: { label: string; onClick: () => void };
+  } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEnrichedRef = useRef<number>(0);
 
   const bulkEnrich = useBulkEnrich();
+  const expandRollup = useExpandRollup();
 
   // Fetch progress on mount (cached 30s), fast-poll every 5s when enriching
   const { data: progress } = useEnrichProgress(planId, isEnriching);
@@ -65,9 +71,11 @@ export default function ContactsActionBar({
     onEnrichingChange?.(isEnriching);
   }, [isEnriching, onEnrichingChange]);
 
-  // Auto-dismiss toast after 5 seconds
+  // Auto-dismiss toast after 5 seconds — unless it carries an action (e.g.
+  // "Expand to N districts"), which must stay until the user clicks or
+  // dismisses manually.
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || toast.action) return;
     const timer = setTimeout(() => setToast(null), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
@@ -115,6 +123,10 @@ export default function ContactsActionBar({
     };
   }, []);
 
+  // Stable ref so the "Expand" toast action can re-trigger enrichment after
+  // rollup expansion without being captured against a stale closure.
+  const handleStartEnrichmentRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
   const handleStartEnrichment = useCallback(async () => {
     setShowPopover(false);
 
@@ -143,6 +155,48 @@ export default function ContactsActionBar({
 
       setToast({ message: `Looking for ${result.queued} contact${result.queued !== 1 ? "s" : ""}`, type: "info" });
     } catch (error) {
+      // Rollup-district detection: bulk-enrich returns HTTP 400 with a structured
+      // body when the plan still contains parent-district rollup leaids.
+      // useBulkEnrich preserves that body on `error.body`.
+      const body = (error as { body?: unknown })?.body;
+      if (
+        body &&
+        typeof body === "object" &&
+        (body as { reason?: unknown }).reason === "rollup-district"
+      ) {
+        const b = body as { childLeaids?: string[]; rollupLeaids?: string[] };
+        const count = b.childLeaids?.length ?? 0;
+        const rollupCount = b.rollupLeaids?.length ?? 0;
+        if (rollupCount === 0 || count === 0) {
+          setToast({
+            message: "Plan contains a rollup district; cannot expand automatically.",
+            type: "error",
+          });
+          return;
+        }
+        setToast({
+          message: `This plan contains ${count.toLocaleString()} child districts rolled up under a parent.`,
+          type: "warning",
+          action: {
+            label: `Expand to ${count.toLocaleString()} districts`,
+            onClick: async () => {
+              try {
+                await expandRollup.mutateAsync({ planId });
+                setToast(null);
+                // Re-trigger the enrichment now that the plan is expanded.
+                await handleStartEnrichmentRef.current();
+              } catch {
+                setToast({
+                  message: "Failed to expand rollup; please refresh and try again.",
+                  type: "error",
+                });
+              }
+            },
+          },
+        });
+        return;
+      }
+
       const message = error instanceof Error ? error.message : "Failed to start contact enrichment";
       if (message.includes("409") || message.includes("already in progress")) {
         setToast({ message: "Enrichment already in progress", type: "info" });
@@ -151,7 +205,13 @@ export default function ContactsActionBar({
         setToast({ message, type: "error" });
       }
     }
-  }, [planId, selectedRole, schoolLevels, bulkEnrich]);
+  }, [planId, selectedRole, schoolLevels, bulkEnrich, expandRollup]);
+
+  // Keep the ref pointing at the latest callback so the toast action closure
+  // always retries with fresh state (selectedRole, schoolLevels).
+  useEffect(() => {
+    handleStartEnrichmentRef.current = handleStartEnrichment;
+  }, [handleStartEnrichment]);
 
   const handleExportCsv = useCallback(() => {
     const headers = [
@@ -342,7 +402,8 @@ export default function ContactsActionBar({
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-[13px] font-medium ${
+          role="status"
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-[13px] font-medium flex items-center gap-3 ${
             toast.type === "success"
               ? "bg-[#8AA891] text-white"
               : toast.type === "warning"
@@ -353,7 +414,17 @@ export default function ContactsActionBar({
           }`}
           style={{ animation: "tooltipEnter 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
         >
-          {toast.message}
+          <span>{toast.message}</span>
+          {toast.action && (
+            <button
+              type="button"
+              onClick={toast.action.onClick}
+              disabled={expandRollup.isPending}
+              className="inline-flex items-center px-2.5 py-1 text-[12px] font-semibold text-white bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors whitespace-nowrap"
+            >
+              {expandRollup.isPending ? "Expanding..." : toast.action.label}
+            </button>
+          )}
         </div>
       )}
     </>
