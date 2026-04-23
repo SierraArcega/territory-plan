@@ -464,7 +464,7 @@ export default function MapV2Container({
         const suffix = tileUrlSuffix ?? "";
         map.current.addSource("districts", {
           type: "vector",
-          tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=8&fy=${initialFy}${suffix}`],
+          tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=9&fy=${initialFy}${suffix}`],
           minzoom: 2,
           maxzoom: 12,
         });
@@ -1493,7 +1493,7 @@ export default function MapV2Container({
 
     const effectiveFy = fyOverride ?? selectedFiscalYear;
     const suffix = tileUrlSuffix ?? "";
-    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=8&fy=${effectiveFy}${suffix}`;
+    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=9&fy=${effectiveFy}${suffix}`;
     source.setTiles([newUrl]);
   }, [selectedFiscalYear, fyOverride, tileUrlSuffix, mapReady]);
 
