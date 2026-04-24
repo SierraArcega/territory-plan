@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ingestDailyLayers } from "@/features/news/lib/ingest";
-import { matchArticles, processMatchQueue } from "@/features/news/lib/matcher";
-import { classifyArticles } from "@/features/news/lib/classifier";
+import { matchArticles } from "@/features/news/lib/matcher";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -13,8 +12,10 @@ const CRON_SECRET = process.env.CRON_SECRET;
  * GET /api/cron/ingest-news-daily
  *
  * Nightly news ingest: Layer 1 (edu RSS feeds) + Layer 2 (broad Google News
- * RSS queries + per-state queries). After ingest, runs keyword matcher on
- * new articles, then processes LLM match queue.
+ * RSS queries + per-state queries). Keyword matcher fires inline on new
+ * articles; LLM-heavy steps are deferred to their dedicated crons
+ * (classify-news hourly, drain-match-queue every 2h) so this stays under
+ * Vercel's 300s maxDuration.
  *
  * Auth: CRON_SECRET via Bearer token or ?secret= query param.
  */
@@ -33,19 +34,26 @@ export async function GET(request: NextRequest) {
 
   try {
     const ingestStats = await ingestDailyLayers();
+
+    // Checkpoint fetch stats before the matcher. If the function is killed
+    // mid-match we still see what was ingested.
+    await prisma.newsIngestRun.update({
+      where: { id: run.id },
+      data: {
+        articlesNew: ingestStats.articlesNew,
+        articlesDup: ingestStats.articlesDup,
+        districtsProcessed: ingestStats.districtsProcessed,
+      },
+    });
+
     const matchStats = await matchArticles(ingestStats.newArticleIds);
-    const queueStats = await processMatchQueue(20);
-    const classifyStats = await classifyArticles(ingestStats.newArticleIds, 4, 60_000);
 
     await prisma.newsIngestRun.update({
       where: { id: run.id },
       data: {
         finishedAt: new Date(),
-        articlesNew: ingestStats.articlesNew,
-        articlesDup: ingestStats.articlesDup,
-        districtsProcessed: ingestStats.districtsProcessed,
-        llmCalls: matchStats.llmCalls + queueStats.llmCalls,
-        status: ingestStats.errors.length > 0 ? "ok" : "ok",
+        llmCalls: matchStats.llmCalls,
+        status: "ok",
         error: ingestStats.errors.length > 0 ? ingestStats.errors.slice(0, 5).join("; ").slice(0, 2000) : null,
       },
     });
@@ -58,9 +66,8 @@ export async function GET(request: NextRequest) {
       schoolMatches: matchStats.schoolMatches,
       contactMatches: matchStats.contactMatches,
       queuedForLlm: matchStats.queuedForLlm,
-      classified: classifyStats.classified,
-      llmCalls: matchStats.llmCalls + queueStats.llmCalls + classifyStats.llmCalls,
-      errors: ingestStats.errors.length + matchStats.errors.length + queueStats.errors.length + classifyStats.errors,
+      llmCalls: matchStats.llmCalls,
+      errors: ingestStats.errors.length + matchStats.errors.length,
     });
   } catch (err) {
     await prisma.newsIngestRun.update({
