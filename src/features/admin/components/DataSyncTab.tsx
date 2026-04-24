@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAdminSync, SyncLogItem } from "../hooks/useAdminSync";
 import SyncHealthBanner from "./SyncHealthBanner";
 import VacancyScanCard from "./VacancyScanCard";
+import NewsIngestCard from "./NewsIngestCard";
 
 function relativeTime(date: string | null): string {
   if (!date) return "Never";
@@ -157,6 +158,7 @@ export default function DataSyncTab() {
     <div className="space-y-3">
       <SyncHealthBanner />
       <VacancyScanCard />
+      <NewsIngestCard />
 
       {/* Toolbar */}
       <div className="flex items-center gap-3">
