@@ -12,6 +12,7 @@ import {
   buildWhereClause,
   DISTRICT_FIELD_MAP,
 } from "@/features/shared/lib/filters";
+import { getRollupLeaids, getChildren } from "@/features/districts/lib/rollup";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,21 @@ export async function POST(
         { error: "No matching districts found" },
         { status: 400 }
       );
+    }
+
+    // Expand any rollup leaids in the requested list to their children.
+    // The plan never stores rollup leaids directly; this is the server-side
+    // enforcement of that invariant (belt-and-suspenders with T7's
+    // expandPlanRollups auto-migrate on plan GET).
+    const rollupsInRequest = await getRollupLeaids(districtLeaids);
+    if (rollupsInRequest.length > 0) {
+      const keep = new Set(
+        districtLeaids.filter((l) => !rollupsInRequest.includes(l))
+      );
+      for (const r of rollupsInRequest) {
+        for (const c of await getChildren(r)) keep.add(c);
+      }
+      districtLeaids = Array.from(keep);
     }
 
     // Check if plan exists

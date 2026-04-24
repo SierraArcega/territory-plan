@@ -33,6 +33,10 @@ export interface District {
   centroidLng: number | null;
   // Account type (district, cmo, esa_boces, etc.)
   accountType: string;
+  // Rollup composition (NYC DOE and similar parent districts with children)
+  isRollup?: boolean;
+  childLeaids?: string[];
+  schoolCount?: number;
 }
 
 export interface DistrictFinancial {
@@ -234,6 +238,8 @@ export interface DistrictListItem {
   isCustomer: boolean;
   hasOpenPipeline: boolean;
   metricValue: number;
+  isRollup?: boolean;
+  childCount?: number;
 }
 
 export interface UnmatchedAccount {

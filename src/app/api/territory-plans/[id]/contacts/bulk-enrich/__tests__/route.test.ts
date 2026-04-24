@@ -61,7 +61,21 @@ beforeEach(() => {
   });
   mockPrisma.territoryPlan.update.mockResolvedValue({});
   mockPrisma.activity.create.mockResolvedValue({ id: "activity-1" });
+  // Default district.findMany — rollup pre-check returns [], no enrich-path rows.
+  // Tests override via setDistrictFindMany(rows) for the enrich-path lookup.
+  setDistrictFindMany([]);
 });
+
+// Helper: install a district.findMany mock that returns `districtRows` for the
+// enrich-path lookup (selects leaid/name/etc.) and `[]` for the rollup pre-check
+// (which uses `distinct: ["parentLeaid"]`). Tests should call this instead of
+// mockPrisma.district.findMany.mockResolvedValue(...) directly.
+function setDistrictFindMany(districtRows: unknown[]) {
+  mockPrisma.district.findMany.mockImplementation((args: { distinct?: string[] }) => {
+    if (args?.distinct?.includes("parentLeaid")) return Promise.resolve([]);
+    return Promise.resolve(districtRows);
+  });
+}
 
 describe("POST /bulk-enrich — Principal", () => {
   it("queues one webhook per eligible school at the requested levels", async () => {
@@ -71,7 +85,7 @@ describe("POST /bulk-enrich — Principal", () => {
       { ncessch: "010000200001", schoolName: "Gamma HS", schoolLevel: 3, schoolType: 1, leaid: "0100002", streetAddress: "3 C St", city: "C", stateAbbrev: "AL", zip: "10002", phone: null },
     ]);
     mockPrisma.schoolContact.findMany.mockResolvedValue([]); // none already enriched
-    mockPrisma.district.findMany.mockResolvedValue([
+    setDistrictFindMany([
       { leaid: "0100001", name: "Alpha SD", stateAbbrev: "AL", websiteUrl: "alpha.edu" },
       { leaid: "0100002", name: "Beta SD",  stateAbbrev: "AL", websiteUrl: "beta.edu"  },
     ]);
@@ -111,7 +125,7 @@ describe("POST /bulk-enrich — Principal", () => {
     ]);
     // S1 already has a principal contact
     mockPrisma.schoolContact.findMany.mockResolvedValue([{ schoolId: "S1" }]);
-    mockPrisma.district.findMany.mockResolvedValue([
+    setDistrictFindMany([
       { leaid: "0100001", name: "Alpha SD", stateAbbrev: "AL", websiteUrl: null },
     ]);
 
@@ -129,7 +143,7 @@ describe("POST /bulk-enrich — Principal", () => {
       { ncessch: "S1", schoolName: "One", schoolLevel: 1, schoolType: 1, leaid: "0100001", streetAddress: "", city: "", stateAbbrev: "AL", zip: "", phone: null },
     ]);
     mockPrisma.schoolContact.findMany.mockResolvedValue([]);
-    mockPrisma.district.findMany.mockResolvedValue([
+    setDistrictFindMany([
       { leaid: "0100001", name: "Alpha SD", stateAbbrev: "AL", websiteUrl: null },
     ]);
 
@@ -161,7 +175,7 @@ describe("POST /bulk-enrich — Principal", () => {
 describe("POST /bulk-enrich — non-Principal (regression)", () => {
   it("Superintendent path still fires per-district webhooks", async () => {
     mockPrisma.contact.groupBy.mockResolvedValue([]); // no districts already enriched
-    mockPrisma.district.findMany.mockResolvedValue([
+    setDistrictFindMany([
       { leaid: "0100001", name: "Alpha SD", stateAbbrev: "AL", cityLocation: "A", streetLocation: "1 A", zipLocation: "10000", websiteUrl: "alpha.edu" },
       { leaid: "0100002", name: "Beta SD",  stateAbbrev: "AL", cityLocation: "B", streetLocation: "2 B", zipLocation: "10001", websiteUrl: "beta.edu" },
     ]);

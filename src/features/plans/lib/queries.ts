@@ -253,11 +253,21 @@ export function usePlanContacts(planId: string | null, options?: { refetchInterv
   });
 }
 
+/**
+ * Error thrown by useBulkEnrich when the API returns a non-OK status. The
+ * response body (e.g. `{ reason: "rollup-district", rollupLeaids, childLeaids }`)
+ * is preserved on `.body` so callers can branch on structured error shapes.
+ */
+export interface BulkEnrichError extends Error {
+  status: number;
+  body: unknown;
+}
+
 export function useBulkEnrich() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       planId,
       targetRole,
       schoolLevels,
@@ -265,18 +275,74 @@ export function useBulkEnrich() {
       planId: string;
       targetRole: string;
       schoolLevels?: number[];
-    }) =>
-      fetchJson<{ total: number; skipped: number; queued: number }>(
+    }) => {
+      // Custom fetch (not fetchJson) so we can attach the parsed response body
+      // to thrown errors. The rollup-district 400 response carries structured
+      // fields that ContactsActionBar uses to offer an "Expand" action.
+      const res = await fetch(
         `${API_BASE}/territory-plans/${planId}/contacts/bulk-enrich`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             targetRole,
             ...(schoolLevels ? { schoolLevels } : {}),
           }),
         }
-      ),
+      );
+      let body: unknown = null;
+      try {
+        body = await res.json();
+      } catch {
+        // non-JSON body — leave body as null
+      }
+      if (!res.ok) {
+        const errRecord = (body ?? {}) as Record<string, unknown>;
+        const detail =
+          typeof errRecord.error === "string"
+            ? errRecord.error
+            : `API Error: ${res.status} ${res.statusText}`;
+        const err = new Error(`${res.status}: ${detail}`) as BulkEnrichError;
+        err.status = res.status;
+        err.body = body;
+        throw err;
+      }
+      return body as { total: number; skipped: number; queued: number };
+    },
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["planContacts", variables.planId] });
+    },
+  });
+}
+
+/**
+ * PATCH /api/territory-plans/[id]/expand-rollup — converts any rollup leaids in
+ * the plan to their child districts. Idempotent; safe to call anytime.
+ * Invalidates the plan detail and contacts caches on success so the UI picks up
+ * the newly expanded set of districts.
+ */
+export function useExpandRollup() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ planId }: { planId: string }) => {
+      const res = await fetch(
+        `${API_BASE}/territory-plans/${planId}/expand-rollup`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`Failed to expand rollup (${res.status})`);
+      }
+      return res.json() as Promise<{
+        rollupsExpanded: string[];
+        expandedCount: number;
+      }>;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["planContacts", variables.planId] });
     },
   });

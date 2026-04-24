@@ -5,6 +5,7 @@ import {
   serializeFinancials,
   FULLMIND_FINANCIALS_SELECT,
 } from "@/features/shared/lib/financial-helpers";
+import { getChildren } from "@/features/districts/lib/rollup";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,14 @@ export async function GET(
 FROM districts WHERE leaid = ${leaid} LIMIT 1`;
     const centroid = centroidResult.length > 0 ? centroidResult[0] : null;
 
+    // Rollup composition: does this district have children (e.g., NYC DOE)?
+    // A rollup has 0 directly-attached schools; children hold the school data.
+    const childLeaids = await getChildren(leaid);
+    const isRollup = childLeaids.length > 0;
+    const schoolCount = isRollup
+      ? await prisma.school.count({ where: { leaid: { in: childLeaids } } })
+      : 0;
+
     // Build response - data is now all on the district model
     // Keeping the same response shape for backward compatibility with frontend
     const response = {
@@ -84,6 +93,9 @@ FROM districts WHERE leaid = ${leaid} LIMIT 1`;
         centroidLat: centroid ? Number(centroid.lat) : null,
         centroidLng: centroid ? Number(centroid.lng) : null,
         accountType: district.accountType || "district",
+        isRollup,
+        childLeaids,
+        schoolCount,
       },
 
       // Fullmind CRM data (from district_financials relation)

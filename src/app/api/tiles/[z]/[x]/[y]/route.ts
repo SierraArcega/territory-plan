@@ -83,6 +83,9 @@ export async function GET(
           ST_TileEnvelope($1, $2, $3) AS envelope,
           ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS envelope_4326
       ),
+      rollup_leaids AS (
+        SELECT DISTINCT parent_leaid AS leaid FROM districts WHERE parent_leaid IS NOT NULL
+      ),
       tile_data AS (
         SELECT
           d.leaid,
@@ -98,6 +101,7 @@ export async function GET(
           d.locale_signal,
           d.expenditure_signal,
           d.account_type,
+          (r.leaid IS NOT NULL) AS is_rollup,
           ST_AsMVTGeom(
             ST_Transform(
               ST_Simplify(d.render_geometry, ${simplifyTolerance}),
@@ -109,6 +113,7 @@ export async function GET(
             true
           ) AS geom
         FROM district_map_features d
+        LEFT JOIN rollup_leaids r ON r.leaid = d.leaid
         WHERE d.render_geometry IS NOT NULL
           AND d.render_geometry && (SELECT envelope_4326 FROM tile_bounds)
           ${stateFilter ? "AND d.state_abbrev = $4" : ""}
