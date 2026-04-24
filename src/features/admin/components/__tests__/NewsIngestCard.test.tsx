@@ -112,4 +112,26 @@ describe("NewsIngestCard", () => {
     expect(screen.getByText("daily")).toBeInTheDocument();
     expect(screen.getByText("quarterly")).toBeInTheDocument();
   });
+
+  it("caps layer chips at 5 even when more are provided", () => {
+    mockHook.mockReturnValue({
+      data: baseStats({
+        layerBreakdown: [
+          { layer: "daily", runsLast24h: 7, lastStatus: "success" },
+          { layer: "rolling", runsLast24h: 6, lastStatus: "success" },
+          { layer: "weekly", runsLast24h: 5, lastStatus: "success" },
+          { layer: "monthly", runsLast24h: 4, lastStatus: "success" },
+          { layer: "quarterly", runsLast24h: 3, lastStatus: "success" },
+          { layer: "biennial", runsLast24h: 2, lastStatus: "success" },
+          { layer: "decadal", runsLast24h: 1, lastStatus: "success" },
+        ],
+      }),
+      isLoading: false,
+    } as never);
+    renderCard();
+    expect(screen.getByText("daily")).toBeInTheDocument();
+    expect(screen.getByText("quarterly")).toBeInTheDocument();
+    expect(screen.queryByText("biennial")).not.toBeInTheDocument();
+    expect(screen.queryByText("decadal")).not.toBeInTheDocument();
+  });
 });

@@ -157,7 +157,7 @@ export default function NewsIngestCard() {
 
       {data.layerBreakdown.length > 0 && (
         <div className="flex gap-2 flex-wrap">
-          {data.layerBreakdown.map((chip) => (
+          {data.layerBreakdown.slice(0, 5).map((chip) => (
             <div
               key={chip.layer}
               className="flex items-center gap-1.5 rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2.5 py-1 text-[11px] text-[#6E6390]"
