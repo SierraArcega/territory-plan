@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 const UnmatchedOpsContent = lazy(() => import("@/app/admin/unmatched-opportunities/page"));
 const UsersTab = lazy(() => import("./UsersTab"));
 const IntegrationsTab = lazy(() => import("./IntegrationsTab"));
-const DataSyncTab = lazy(() => import("./DataSyncTab"));
+const IngestHealthTab = lazy(() => import("./IngestHealthTab"));
 const VacancyConfigTab = lazy(() => import("./VacancyConfigTab"));
 const LeaderboardTab = lazy(() => import("./LeaderboardTab"));
 
@@ -119,7 +119,7 @@ export default function AdminDashboard({ initialSection }: AdminDashboardProps) 
             {activeTab === "unmatched" && <UnmatchedOpsContent />}
             {activeTab === "users" && <UsersTab />}
             {activeTab === "integrations" && <IntegrationsTab />}
-            {activeTab === "ingest-health" && <DataSyncTab />}
+            {activeTab === "ingest-health" && <IngestHealthTab />}
             {activeTab === "vacancy-config" && <VacancyConfigTab />}
             {activeTab === "leaderboard" && <LeaderboardTab />}
           </Suspense>
