@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useAdminSync, SyncLogItem } from "../hooks/useAdminSync";
+import { useAdminSync } from "../hooks/useAdminSync";
+import type { UnifiedIngestRow } from "../lib/ingest-log-normalizer";
 import SyncHealthBanner from "./SyncHealthBanner";
 import VacancyScanCard from "./VacancyScanCard";
+import NewsIngestCard from "./NewsIngestCard";
 
 function relativeTime(date: string | null): string {
   if (!date) return "Never";
@@ -18,9 +20,8 @@ function relativeTime(date: string | null): string {
   return new Date(date).toLocaleDateString();
 }
 
-function formatDuration(start: string, end: string | null): string {
-  if (!end) return "\u2014";
-  const ms = new Date(end).getTime() - new Date(start).getTime();
+function formatDurationMs(ms: number | null): string {
+  if (ms === null) return "—";
   const secs = Math.floor(ms / 1000);
   if (secs < 60) return `${secs}s`;
   const mins = Math.floor(secs / 60);
@@ -46,29 +47,6 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
-function SortArrow({ dir }: { dir: "asc" | "desc" | null }) {
-  if (dir === "asc") {
-    return (
-      <svg className="w-3.5 h-3.5 inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-      </svg>
-    );
-  }
-  if (dir === "desc") {
-    return (
-      <svg className="w-3.5 h-3.5 inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
-    );
-  }
-  // neutral — faint arrow shown on hover only via group-hover
-  return (
-    <svg className="w-3.5 h-3.5 inline ml-0.5 opacity-0 group-hover/sortcol:opacity-40 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-    </svg>
-  );
-}
-
 // ---------- Status badge ----------
 
 function StatusBadge({ status }: { status: string }) {
@@ -76,7 +54,7 @@ function StatusBadge({ status }: { status: string }) {
   let classes = "px-2 py-0.5 text-xs font-medium rounded-full ";
   if (s === "success") {
     classes += "bg-[#EDFFE3] text-[#5f665b]";
-  } else if (s === "error") {
+  } else if (s === "failed" || s === "error") {
     classes += "bg-[#F37167]/15 text-[#c25a52]";
   } else if (s === "running") {
     classes += "bg-[#6EA3BE]/15 text-[#4d7285]";
@@ -86,28 +64,25 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={classes}>{status}</span>;
 }
 
-// ---------- Sortable columns ----------
+// ---------- Column definitions ----------
 
-type SortableColumn = "dataSource" | "status" | "recordsUpdated" | "recordsFailed" | "startedAt" | "duration";
+type SortableColumn = "source" | "status" | "recordsUpdated" | "startedAt" | "completedAt";
 
-const columns: { key: SortableColumn; label: string; align?: "right" }[] = [
-  { key: "dataSource", label: "Source" },
+const columns: { key: SortableColumn; label: string; align?: "left" | "right" }[] = [
+  { key: "source", label: "Source" },
   { key: "status", label: "Status" },
-  { key: "recordsUpdated", label: "Records Updated", align: "right" },
-  { key: "recordsFailed", label: "Failed", align: "right" },
+  { key: "recordsUpdated", label: "Records", align: "right" },
   { key: "startedAt", label: "Started" },
-  { key: "duration", label: "Duration" },
+  { key: "completedAt", label: "Duration" },
 ];
 
 // ---------- Component ----------
 
-export default function DataSyncTab() {
+export default function IngestHealthTab() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [source, setSource] = useState("");
   const [status, setStatus] = useState("");
-  const [sortBy, setSortBy] = useState("");
-  const [sortDir, setSortDir] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useAdminSync({
@@ -115,8 +90,6 @@ export default function DataSyncTab() {
     pageSize,
     source,
     status,
-    sortBy,
-    sortDir,
   });
 
   const items = data?.items ?? [];
@@ -133,30 +106,11 @@ export default function DataSyncTab() {
     });
   }
 
-  function handleSort(col: SortableColumn) {
-    if (sortBy === col) {
-      if (sortDir === "asc") {
-        setSortDir("desc");
-      } else if (sortDir === "desc") {
-        setSortBy("");
-        setSortDir("");
-      }
-    } else {
-      setSortBy(col);
-      setSortDir("asc");
-    }
-    setPage(1);
-  }
-
-  function sortDirFor(col: SortableColumn): "asc" | "desc" | null {
-    if (sortBy !== col) return null;
-    return sortDir as "asc" | "desc";
-  }
-
   return (
     <div className="space-y-3">
       <SyncHealthBanner />
       <VacancyScanCard />
+      <NewsIngestCard />
 
       {/* Toolbar */}
       <div className="flex items-center gap-3">
@@ -186,7 +140,7 @@ export default function DataSyncTab() {
         >
           <option value="">All statuses</option>
           <option value="success">success</option>
-          <option value="error">error</option>
+          <option value="failed">failed</option>
           <option value="running">running</option>
         </select>
       </div>
@@ -198,22 +152,16 @@ export default function DataSyncTab() {
             <tr className="bg-[#F7F5FA] border-b border-[#D4CFE2]">
               {/* Expand column */}
               <th className="w-10 px-3 py-3" />
-              {columns.map((col) => {
-                const dir = sortDirFor(col.key);
-                const isActive = dir !== null;
-                return (
-                  <th
-                    key={col.key}
-                    className={`group/sortcol px-4 py-3 text-[11px] font-semibold uppercase tracking-wider cursor-pointer select-none ${
-                      col.align === "right" ? "text-right" : "text-left"
-                    } ${isActive ? "text-[#403770]" : "text-[#8A80A8]"}`}
-                    onClick={() => handleSort(col.key)}
-                  >
-                    {col.label}
-                    <SortArrow dir={dir} />
-                  </th>
-                );
-              })}
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#8A80A8] ${
+                    col.align === "right" ? "text-right" : "text-left"
+                  }`}
+                >
+                  {col.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -281,7 +229,7 @@ export default function DataSyncTab() {
   );
 }
 
-// ---------- Row group (data row + optional expanded error) ----------
+// ---------- Row group (data row + optional expanded detail) ----------
 
 function RowGroup({
   item,
@@ -290,32 +238,34 @@ function RowGroup({
   isLast,
   onToggle,
 }: {
-  item: SyncLogItem;
+  item: UnifiedIngestRow;
   isExpanded: boolean;
   hasError: boolean;
   isLast: boolean;
   onToggle: () => void;
 }) {
+  const canExpand = hasError || !!item.detail;
+
   return (
     <>
       <tr
         className={`group hover:bg-[#EFEDF5] transition-colors duration-100 ${
           !isLast && !isExpanded ? "border-b border-[#E2DEEC]" : ""
-        } ${hasError ? "cursor-pointer" : ""}`}
-        onClick={hasError ? onToggle : undefined}
+        } ${canExpand ? "cursor-pointer" : ""}`}
+        onClick={canExpand ? onToggle : undefined}
       >
         {/* Chevron */}
-        <td className="px-3 py-3">
-          {hasError ? (
-            <ChevronIcon expanded={isExpanded} />
-          ) : (
-            <span className="w-4 h-4 block" />
+        <td className="w-10 px-3 py-3">
+          {canExpand && (
+            <button onClick={onToggle} aria-label="Toggle details">
+              <ChevronIcon expanded={isExpanded} />
+            </button>
           )}
         </td>
 
         {/* Source */}
         <td className="px-4 py-3 text-sm font-medium text-[#403770]">
-          {item.dataSource}
+          {item.source}
         </td>
 
         {/* Status */}
@@ -323,18 +273,9 @@ function RowGroup({
           <StatusBadge status={item.status} />
         </td>
 
-        {/* Records Updated */}
+        {/* Records */}
         <td className="px-4 py-3 text-sm text-[#6E6390] text-right">
-          {item.recordsUpdated.toLocaleString()}
-        </td>
-
-        {/* Failed */}
-        <td
-          className={`px-4 py-3 text-sm text-right ${
-            item.recordsFailed > 0 ? "text-[#F37167]" : "text-[#A69DC0]"
-          }`}
-        >
-          {item.recordsFailed > 0 ? item.recordsFailed.toLocaleString() : "0"}
+          {item.recordsUpdated !== null ? item.recordsUpdated.toLocaleString() : "—"}
         </td>
 
         {/* Started */}
@@ -344,18 +285,60 @@ function RowGroup({
 
         {/* Duration */}
         <td className="px-4 py-3 text-sm text-[#6E6390]">
-          {formatDuration(item.startedAt, item.completedAt)}
+          {formatDurationMs(item.durationMs)}
         </td>
       </tr>
 
-      {/* Expanded error row */}
-      {isExpanded && hasError && (
+      {/* Expanded detail row */}
+      {isExpanded && (hasError || item.detail) && (
         <tr className={!isLast ? "border-b border-[#E2DEEC]" : ""}>
           <td colSpan={columns.length + 1} className="p-0">
-            <div className="bg-[#F7F5FA] px-8 py-4 border-l-2 border-[#F37167]">
-              <p className="text-sm text-[#c25a52] whitespace-pre-wrap">
-                {item.errorMessage}
-              </p>
+            <div
+              className={`bg-[#F7F5FA] px-8 py-4 ${
+                hasError ? "border-l-2 border-[#F37167]" : "border-l-2 border-[#C2BBD4]"
+              }`}
+            >
+              {hasError && (
+                <p className="text-sm text-[#c25a52] whitespace-pre-wrap mb-3">
+                  {item.errorMessage}
+                </p>
+              )}
+              {item.detail && (
+                <div className="grid grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#8A80A8]">
+                      Layer
+                    </div>
+                    <div className="text-[#403770] font-medium">
+                      {item.detail.layer}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#8A80A8]">
+                      Districts processed
+                    </div>
+                    <div className="text-[#403770] font-medium">
+                      {item.detail.districtsProcessed.toLocaleString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#8A80A8]">
+                      Duplicates
+                    </div>
+                    <div className="text-[#403770] font-medium">
+                      {item.detail.articlesDup.toLocaleString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-[#8A80A8]">
+                      LLM calls
+                    </div>
+                    <div className="text-[#403770] font-medium">
+                      {item.detail.llmCalls.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </td>
         </tr>

@@ -140,6 +140,13 @@ model District {
   ownerUser          UserProfile? @relation("DistrictOwner", fields: [ownerId], references: [id])
   salesExecutiveUser UserProfile? @relation("DistrictSalesExec", fields: [salesExecutiveId], references: [id])
 
+  // ===== Rollup Relationship =====
+  // Self-relation for districts that roll up into a parent (e.g., NYC Geographic
+  // Districts roll up into NYC DOE leaid 3620580). See docs/nyc-doe-rollup plan.
+  parentLeaid    String?    @map("parent_leaid") @db.VarChar(7)
+  parentDistrict District?  @relation("DistrictRollup", fields: [parentLeaid], references: [leaid], onDelete: SetNull)
+  childDistricts District[] @relation("DistrictRollup")
+
   // ===== PostGIS Geometry (managed outside Prisma) =====
   geometry Unsupported("geometry(MultiPolygon, 4326)")?
   centroid Unsupported("geometry(Point, 4326)")?
@@ -271,6 +278,7 @@ model District {
   @@index([salesExecutiveId])
   @@index([icpTier])
   @@index([accountType])
+  @@index([name])
   @@map("districts")
 }
 

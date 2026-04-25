@@ -28,7 +28,7 @@ export function useDistricts(params: {
   year?: FiscalYear;
   limit?: number;
   offset?: number;
-}) {
+}, options?: { enabled?: boolean }) {
   const searchParams = new URLSearchParams();
   if (params.state) searchParams.set("state", params.state);
   if (params.status && params.status !== "all")
@@ -47,6 +47,7 @@ export function useDistricts(params: {
         `${API_BASE}/districts?${searchParams}`
       ),
     staleTime: 5 * 60 * 1000, // 5 minutes - district lists don't change often
+    enabled: options?.enabled,
   });
 }
 

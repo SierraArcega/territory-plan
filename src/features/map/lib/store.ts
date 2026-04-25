@@ -337,6 +337,7 @@ interface MapV2Actions {
 
   // Multi-select (map shift-click — uses selectedLeaids)
   toggleLeaidSelection: (leaid: string) => void;
+  selectDistricts: (leaids: string[]) => void;
   clearSelectedDistricts: () => void;
   createPlanFromSelection: () => void;
 
@@ -784,6 +785,18 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       // When adding (next is larger than before), switch to selection tab
       const activeIconTab = next.size > s.selectedLeaids.size ? "selection" : s.activeIconTab;
       return { selectedLeaids: next, panelState, activeIconTab };
+    }),
+
+  // Batched multi-select setter — used by rollup expansion which needs
+  // to select > 20 children at once, bypassing the toggleLeaidSelection cap.
+  selectDistricts: (leaids) =>
+    set(() => {
+      const next = new Set(leaids);
+      return {
+        selectedLeaids: next,
+        panelState: next.size > 0 ? "MULTI_DISTRICT" : "BROWSE",
+        activeIconTab: next.size > 0 ? "selection" : "home",
+      };
     }),
 
   clearSelectedDistricts: () => set({ selectedLeaids: new Set<string>(), panelState: "BROWSE", panelHistory: [] }),

@@ -68,15 +68,15 @@ export default function TaskFormModal({
   const createTask = useCreateTask();
   const createPlan = useCreateTerritoryPlan();
   const { data: plans } = useTerritoryPlans({ enabled: isOpen });
-  const { data: activitiesData } = useActivities();
+  const { data: activitiesData } = useActivities({}, { enabled: isOpen });
   const { data: districtsData } = useDistricts({
     search: districtSearch || undefined,
     limit: 20,
-  });
+  }, { enabled: isOpen });
   const { data: contactsData } = useContacts({
     search: contactSearch || undefined,
     limit: 20,
-  });
+  }, { enabled: isOpen });
 
   // Reset form when modal opens
   useEffect(() => {

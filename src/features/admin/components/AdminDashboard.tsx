@@ -6,20 +6,25 @@ import { useSearchParams, useRouter } from "next/navigation";
 const UnmatchedOpsContent = lazy(() => import("@/app/admin/unmatched-opportunities/page"));
 const UsersTab = lazy(() => import("./UsersTab"));
 const IntegrationsTab = lazy(() => import("./IntegrationsTab"));
-const DataSyncTab = lazy(() => import("./DataSyncTab"));
+const IngestHealthTab = lazy(() => import("./IngestHealthTab"));
 const VacancyConfigTab = lazy(() => import("./VacancyConfigTab"));
 const LeaderboardTab = lazy(() => import("./LeaderboardTab"));
 
-type AdminTab = "unmatched" | "users" | "integrations" | "sync" | "vacancy-config" | "leaderboard";
+type AdminTab = "unmatched" | "users" | "integrations" | "ingest-health" | "vacancy-config" | "leaderboard";
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: "unmatched", label: "Unmatched Opps" },
   { id: "users", label: "Users" },
   { id: "integrations", label: "Integrations" },
-  { id: "sync", label: "Data Sync" },
+  { id: "ingest-health", label: "Ingest Health" },
   { id: "vacancy-config", label: "Vacancy Config" },
   { id: "leaderboard", label: "Leaderboard" },
 ];
+
+// Legacy slug alias: old bookmarks to ?section=sync should still land here.
+const LEGACY_TAB_ALIASES: Record<string, AdminTab> = {
+  sync: "ingest-health",
+};
 
 function TabSkeleton() {
   return (
@@ -40,7 +45,11 @@ export default function AdminDashboard({ initialSection }: AdminDashboardProps) 
   const router = useRouter();
 
   // Read initial section from props (sidebar) or URL, default to "unmatched"
-  const sectionParam = searchParams.get("section") as AdminTab | null;
+  const rawSection = searchParams.get("section");
+  const sectionParam: AdminTab | null =
+    rawSection && rawSection in LEGACY_TAB_ALIASES
+      ? LEGACY_TAB_ALIASES[rawSection]
+      : (rawSection as AdminTab | null);
   const defaultTab = initialSection && TABS.some((t) => t.id === initialSection)
     ? (initialSection as AdminTab)
     : sectionParam && TABS.some((t) => t.id === sectionParam)
@@ -110,7 +119,7 @@ export default function AdminDashboard({ initialSection }: AdminDashboardProps) 
             {activeTab === "unmatched" && <UnmatchedOpsContent />}
             {activeTab === "users" && <UsersTab />}
             {activeTab === "integrations" && <IntegrationsTab />}
-            {activeTab === "sync" && <DataSyncTab />}
+            {activeTab === "ingest-health" && <IngestHealthTab />}
             {activeTab === "vacancy-config" && <VacancyConfigTab />}
             {activeTab === "leaderboard" && <LeaderboardTab />}
           </Suspense>
