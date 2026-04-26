@@ -35,6 +35,48 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _build_record_and_classify(opp, opp_sessions, district_mapping, now):
+    """Build an opportunity record and classify the unmatched reason.
+
+    Returns (record, unmatched_or_None). The `_match_status` signal that
+    compute.build_opportunity_record() attaches is popped off the record
+    before returning so it never reaches the opportunities table.
+
+    If the opp's district resolved successfully, unmatched_or_None is None.
+    Otherwise it's a dict ready to upsert into unmatched_opportunities,
+    with a reason classified from _match_status:
+      - 'name_mismatch' (bug b) -> 'Name/LEAID mismatch'
+      - anything else           -> 'Needs Review'
+    """
+    record = build_opportunity_record(opp, opp_sessions, district_mapping, now=now)
+    match_status = record.pop("_match_status", None)
+
+    if record["district_lea_id"] is not None:
+        return record, None
+
+    if match_status == "name_mismatch":
+        reason = "Name/LEAID mismatch"
+    else:
+        reason = "Needs Review"
+
+    accounts = opp.get("accounts") or []
+    first_acc = accounts[0] if accounts else {}
+    unmatched = {
+        "id": opp["id"],
+        "name": opp.get("name"),
+        "stage": opp.get("stage"),
+        "school_yr": opp.get("school_yr"),
+        "account_name": first_acc.get("name"),
+        "account_lms_id": first_acc.get("id"),
+        "account_type": first_acc.get("type"),
+        "state": normalize_state(opp.get("state")),
+        "net_booking_amount": record["net_booking_amount"],
+        "reason": reason,
+        "synced_at": now,
+    }
+    return record, unmatched
+
+
 def run_sync():
     """Execute one full sync cycle."""
     now = datetime.now(timezone.utc)
@@ -103,33 +145,18 @@ def run_sync():
         for h in opp_hits:
             opp = h["_source"]
             opp_sessions = sessions_by_opp.get(opp["id"], [])
-            record = build_opportunity_record(opp, opp_sessions, district_mapping, now=now)
+            record, unmatched = _build_record_and_classify(
+                opp, opp_sessions, district_mapping, now=now
+            )
 
-            # Check if unmatched but manually resolved
+            # Manual resolutions from unmatched_opportunities heal the mapping
             if record["district_lea_id"] is None and opp["id"] in manual_resolutions:
                 record["district_lea_id"] = manual_resolutions[opp["id"]]
+                unmatched = None
 
-            if record["district_lea_id"] is not None:
-                matched_records.append(record)
-            else:
-                # Build unmatched record
-                accounts = opp.get("accounts") or []
-                first_acc = accounts[0] if accounts else {}
-                unmatched_records.append({
-                    "id": opp["id"],
-                    "name": opp.get("name"),
-                    "stage": opp.get("stage"),
-                    "school_yr": opp.get("school_yr"),
-                    "account_name": first_acc.get("name"),
-                    "account_lms_id": first_acc.get("id"),
-                    "account_type": first_acc.get("type"),
-                    "state": normalize_state(opp.get("state")),
-                    "net_booking_amount": record["net_booking_amount"],
-                    "reason": "Needs Review",
-                    "synced_at": now,
-                })
-                # Still upsert to opportunities (with null district)
-                matched_records.append(record)
+            matched_records.append(record)
+            if unmatched is not None:
+                unmatched_records.append(unmatched)
 
         # Phase 5: Write to Supabase
         upsert_opportunities(conn, matched_records)

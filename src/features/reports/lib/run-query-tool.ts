@@ -110,7 +110,7 @@ export const runQueryTool: Anthropic.Tool = {
       explanation: {
         type: "string",
         description:
-          "1-2 sentences summarizing what the query returns and surfacing any mandatory caveats (e.g., EK12 session-revenue gap, child-op stages). Always provide this.",
+          "1-2 sentences summarizing what this query returns and surfacing any mandatory data caveats (e.g., EK12 session-revenue gap, child-op stages). This call is the FINAL answer — do NOT describe the query as 'scouting', 'initial', 'exploratory', or 'first pass', and do NOT promise a follow-up query in a later turn. Always provide this.",
       },
     },
     required: ["table", "explanation"],

@@ -187,6 +187,9 @@ async function searchAddresses(query: string): Promise<NominatimSuggestion[]> {
 const UNRESOLVED_REASONS = [
   "Needs Review",
   "Missing District",
+  "Name/LEAID mismatch",
+  "NCES-only link: name mismatch",
+  "NCES-only link: unknown NCES",
   "Remove Child Opp",
   "Organization",
   "University",

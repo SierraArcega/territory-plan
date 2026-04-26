@@ -66,30 +66,35 @@ export function validateParams(params: QueryParams): ValidationResult {
     return { valid: false, errors };
   }
 
-  // Validate and dedupe joins.
+  // Validate and dedupe joins. Each join's `toTable` may be either a real
+  // table name or a registered alias (for self-joins / disambiguated joins).
+  // Relationships are matched by `rel.alias ?? rel.toTable`.
   const joinedTables = new Map<string, TableMetadata>();
   const normalizedJoins: Join[] = [];
   for (const join of params.joins ?? []) {
-    if (joinedTables.has(join.toTable) || join.toTable === params.table) {
-      continue; // dedupe silently
-    }
-    const target = TABLE_REGISTRY[join.toTable];
-    if (!target) {
-      errors.push(`join target '${join.toTable}' is not registered`);
-      continue;
-    }
-    if (excluded.has(join.toTable)) {
-      errors.push(`join target '${join.toTable}' is excluded`);
-      continue;
-    }
-    const path = rootMeta.relationships.find((r) => r.toTable === join.toTable);
-    if (!path) {
+    const joinKey = join.toTable;
+    if (joinedTables.has(joinKey)) continue;
+    // Skip self-references to the root unless declared via an alias.
+    if (joinKey === params.table) continue;
+    const rel = rootMeta.relationships.find(
+      (r) => (r.alias ?? r.toTable) === joinKey,
+    );
+    if (!rel) {
       errors.push(
-        `no declared relationship from '${params.table}' to '${join.toTable}'`,
+        `no declared relationship from '${params.table}' to '${joinKey}'`,
       );
       continue;
     }
-    joinedTables.set(join.toTable, target);
+    const target = TABLE_REGISTRY[rel.toTable];
+    if (!target) {
+      errors.push(`join target '${rel.toTable}' is not registered`);
+      continue;
+    }
+    if (excluded.has(rel.toTable)) {
+      errors.push(`join target '${rel.toTable}' is excluded`);
+      continue;
+    }
+    joinedTables.set(joinKey, target);
     normalizedJoins.push(join);
   }
 

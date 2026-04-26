@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { FeatureCollection, Point, Feature } from "geojson";
 import ContactCard from "./ContactCard";
+
+const PAGE_SIZE = 50;
 
 interface ContactsTabProps {
   data: FeatureCollection<Point> | undefined;
@@ -29,6 +32,7 @@ function SkeletonCards() {
 
 export default function ContactsTab({ data, isLoading }: ContactsTabProps) {
   const features = data?.features ?? [];
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   if (isLoading) return <SkeletonCards />;
 
@@ -43,14 +47,36 @@ export default function ContactsTab({ data, isLoading }: ContactsTabProps) {
     );
   }
 
+  const visibleFeatures = features.slice(0, visibleCount);
+  const hasMore = visibleCount < features.length;
+
   return (
     <div className="flex-1 overflow-y-auto p-3 space-y-2">
-      {features.map((feature, i) => (
+      {features.length > 200 && (
+        <div className="flex items-center gap-2 rounded-lg bg-[#C4E7E6]/30 px-3 py-2">
+          <svg className="w-3.5 h-3.5 text-[#6EA3BE] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <p className="text-[11px] text-[#544A78]">
+            <span className="font-semibold">{features.length.toLocaleString()} results</span>
+            {" \u2014 try adding filters to narrow down"}
+          </p>
+        </div>
+      )}
+      {visibleFeatures.map((feature, i) => (
         <ContactCard
           key={feature.properties?.id ?? feature.id ?? i}
           feature={feature as Feature<Point>}
         />
       ))}
+      {hasMore && (
+        <button
+          onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+          className="w-full py-2 rounded-lg text-xs font-medium text-[#544A78] bg-[#F7F5FA] hover:bg-[#EFEDF5] transition-colors"
+        >
+          Show more ({features.length - visibleCount} remaining)
+        </button>
+      )}
     </div>
   );
 }

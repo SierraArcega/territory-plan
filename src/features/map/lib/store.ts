@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { FeatureCollection, Point, Geometry } from "geojson";
 import type { VendorId, SignalId, LocaleId, LayerType, ColorDimension } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
@@ -282,6 +283,12 @@ interface MapV2State {
   layerFilters: LayerFilters;
   dateRange: Record<"vacancies" | "activities", DateRange>;
   mapBounds: [number, number, number, number] | null; // [west, south, east, north]
+  overlayGeoJSON: {
+    contacts: FeatureCollection<Point> | null;
+    vacancies: FeatureCollection<Point> | null;
+    activities: FeatureCollection<Point> | null;
+    plans: FeatureCollection<Geometry> | null;
+  };
 
   // Unified layer control
   colorBy: ColorDimension;
@@ -435,9 +442,11 @@ interface MapV2Actions {
 
   // Overlay layers (map planning overlays)
   toggleLayer: (layer: OverlayLayerType) => void;
+  switchToLayer: (layer: OverlayLayerType) => void;
   setLayerFilter: <K extends keyof LayerFilters>(layer: K, filter: Partial<LayerFilters[K]>) => void;
   setDateRange: (layer: "vacancies" | "activities", range: Partial<DateRange>) => void;
   setMapBounds: (bounds: [number, number, number, number] | null) => void;
+  setOverlayGeoJSON: (layer: keyof MapV2State["overlayGeoJSON"], data: FeatureCollection | null) => void;
 
   // Unified layer control
   setColorBy: (dimension: ColorDimension) => void;
@@ -591,6 +600,12 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     activities: { start: null, end: null, preset: null },
   },
   mapBounds: null,
+  overlayGeoJSON: {
+    contacts: null,
+    vacancies: null,
+    activities: null,
+    plans: null,
+  },
 
   // Unified layer control
   colorBy: "engagement" as ColorDimension,
@@ -1151,6 +1166,17 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       return { activeLayers: next };
     }),
 
+  switchToLayer: (layer) =>
+    set((s) => {
+      const next = new Set(s.activeLayers);
+      next.add(layer);
+      return {
+        activeLayers: next,
+        activeResultsTab: layer,
+        searchResultsVisible: true,
+      };
+    }),
+
   setLayerFilter: (layer, filter) =>
     set((s) => ({
       layerFilters: {
@@ -1168,6 +1194,11 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
     })),
 
   setMapBounds: (bounds) => set({ mapBounds: bounds }),
+
+  setOverlayGeoJSON: (layer, data) =>
+    set((s) => ({
+      overlayGeoJSON: { ...s.overlayGeoJSON, [layer]: data },
+    })),
 
   // Unified layer control
   setColorBy: (dimension) => set({ colorBy: dimension }),

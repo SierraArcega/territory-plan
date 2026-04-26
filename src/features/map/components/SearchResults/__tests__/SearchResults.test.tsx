@@ -24,9 +24,7 @@ const mockStoreState = {
   setSearchBounds: vi.fn(),
   setSearchSort: vi.fn(),
   activeLayers: new Set(["districts"]),
-  layerFilters: { contacts: {}, vacancies: {}, activities: {}, plans: {} },
-  dateRange: { vacancies: { start: null, end: null, preset: null }, activities: { start: null, end: null, preset: null } },
-  mapBounds: null,
+  overlayGeoJSON: { contacts: null, vacancies: null, activities: null, plans: null },
   activeResultsTab: "districts" as string,
   openResultsPanel: vi.fn(),
   selectedFiscalYear: "fy26",
@@ -58,12 +56,10 @@ vi.mock("@/features/shared/lib/queries", () => ({
   useProfile: () => ({ data: { id: "user-1" } }),
 }));
 
-vi.mock("@/features/map/lib/queries", () => ({
-  useMapContacts: () => ({ data: [] }),
-  useMapVacancies: () => ({ data: [] }),
-  useMapActivities: () => ({ data: [] }),
-  useMapPlans: () => ({ data: [] }),
-}));
+vi.mock("../ContactsTabContainer", () => ({ default: () => <div data-testid="contacts-tab-container" /> }));
+vi.mock("../VacanciesTabContainer", () => ({ default: () => <div data-testid="vacancies-tab-container" /> }));
+vi.mock("../ActivitiesTabContainer", () => ({ default: () => <div data-testid="activities-tab-container" /> }));
+vi.mock("../PlansTabContainer", () => ({ default: () => <div data-testid="plans-tab-container" /> }));
 
 vi.mock("@/features/map/lib/useCrossFilter", () => ({
   useCrossFilter: () => ({ contactLeaids: new Set(), vacancyLeaids: new Set(), activityLeaids: new Set(), planLeaids: new Set() }),

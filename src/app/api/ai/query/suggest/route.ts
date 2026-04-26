@@ -10,20 +10,32 @@ import { getUser } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 interface SuggestRequestBody {
   question: string;
+  currentParams?: QueryParams;
+  chatHistory?: ChatTurn[];
   conversationId?: string;
 }
 
-interface SuggestResponse {
-  params: QueryParams;
-  explanation: string;
-}
+type SuggestResponse =
+  | { kind: "params"; params: QueryParams; explanation: string }
+  | { kind: "clarify"; question: string };
 
-let cachedPrompt: string | null = null;
+// Prompt is stable except for the current-date anchor — cache keyed by
+// YYYY-MM-DD so a long-running process picks up date rollover at midnight UTC.
+let cachedPrompt: { date: string; text: string } | null = null;
 function schemaPrompt(): string {
-  if (!cachedPrompt) cachedPrompt = buildSchemaPrompt();
-  return cachedPrompt;
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10);
+  if (!cachedPrompt || cachedPrompt.date !== date) {
+    cachedPrompt = { date, text: buildSchemaPrompt(now) };
+  }
+  return cachedPrompt.text;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -56,13 +68,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const finalUserContent = body.currentParams
+    ? `${body.question}\n\n<CURRENT_BUILDER>\n${JSON.stringify(body.currentParams, null, 2)}\n</CURRENT_BUILDER>`
+    : body.question;
+
+  const messages: Array<{ role: "user" | "assistant"; content: string }> = [
+    ...(body.chatHistory ?? []),
+    { role: "user", content: finalUserContent },
+  ];
+
   const startedAt = Date.now();
   let response: Anthropic.Message;
   try {
     response = await anthropic.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 16000,
-      thinking: { type: "adaptive" },
       system: [
         {
           type: "text",
@@ -71,8 +91,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       ],
       tools: [runQueryTool],
-      tool_choice: { type: "tool", name: "run_query" },
-      messages: [{ role: "user", content: body.question }],
+      tool_choice: { type: "auto" },
+      messages,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -85,17 +105,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const toolUse = response.content.find(
     (b): b is Anthropic.ToolUseBlock => b.type === "tool_use" && b.name === "run_query",
   );
+  const textBlock = response.content.find(
+    (b): b is Anthropic.TextBlock => b.type === "text",
+  );
+
+  const executionTimeMs = Date.now() - startedAt;
+
   if (!toolUse) {
-    const textBlock = response.content.find(
-      (b): b is Anthropic.TextBlock => b.type === "text",
-    );
-    return NextResponse.json(
-      {
-        error: "Claude did not produce query params",
-        explanation: textBlock?.text,
-      },
-      { status: 422 },
-    );
+    const clarify = textBlock?.text?.trim() ||
+      "I'm not sure what to build — could you rephrase?";
+    void prisma.queryLog
+      .create({
+        data: {
+          userId: user.id,
+          conversationId: body.conversationId ?? undefined,
+          question: `[clarify] ${body.question}`,
+          executionTimeMs,
+        },
+      })
+      .catch(() => undefined);
+    const payload: SuggestResponse = { kind: "clarify", question: clarify };
+    return NextResponse.json(payload);
   }
 
   const { explanation, ...rawParams } = toolUse.input as QueryParams & {
@@ -114,8 +144,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const executionTimeMs = Date.now() - startedAt;
-
   void prisma.queryLog
     .create({
       data: {
@@ -128,9 +156,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     })
     .catch(() => undefined);
 
-  const result: SuggestResponse = {
+  const payload: SuggestResponse = {
+    kind: "params",
     params: validation.normalized,
     explanation: explanation ?? "",
   };
-  return NextResponse.json(result);
+  return NextResponse.json(payload);
 }

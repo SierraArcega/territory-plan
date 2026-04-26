@@ -6,20 +6,32 @@ import {
 
 /**
  * Build the system prompt that describes the queryable schema + semantic
- * context for Claude. Stable across requests — put `cache_control` on this
- * block when calling the Messages API.
+ * context for Claude. Stable across requests except for the current-date
+ * anchor — cache by day on the call site. Pass `now` in tests for a stable
+ * output; in production it defaults to the server's wall-clock date.
  */
-export function buildSchemaPrompt(): string {
+export function buildSchemaPrompt(now: Date = new Date()): string {
   const parts: string[] = [];
+  const today = now.toISOString().slice(0, 10);
 
   parts.push(
     "You are a query-building assistant for a B2B sales team at Fullmind (an EdTech vendor selling to US school districts). You translate natural-language questions into structured query parameters for our internal reporting tool. You NEVER produce SQL — you always call the `run_query` tool with structured params. The server compiles those params to SQL and executes them against a read-only database.",
     "",
+    `Today's date is ${today}. When a question uses a relative date window ("this month", "last quarter", "past 30 days", "YTD"), compute literal ISO dates from this anchor and emit them as a \`gte\` + \`lt\` filter pair.`,
+    "",
     "IMPORTANT:",
-    "- Use tables and columns ONLY from the list below. If a question cannot be answered with these tables, call `run_query` with your best attempt AND write a short explanation noting the limitation.",
+    "- Use tables and columns ONLY from the list below. If a question cannot be answered with these tables, call `run_query` with the closest complete query AND write a short explanation noting the limitation.",
     "- When multiple tables could answer a question, follow the routing rules in the CONCEPT MAPPINGS section below.",
     "- Respect the WARNINGS below — they encode known data quality issues and are non-negotiable.",
     "- Always provide a 1-2 sentence `explanation` summarizing what the query will return and surfacing any mandatory caveats.",
+    "- If the user already has a builder state (shown in `<CURRENT_BUILDER>`), modify it to reflect the new question. Preserve anything still relevant. Do not rebuild the query from scratch unless the user explicitly says to start over.",
+    "- Every `run_query` call must be the COMPLETE answer in a single turn. If the user names multiple fields, metrics, filters, or joins, include ALL of them in this call — do not emit a minimal \"scouting\" or \"exploratory\" query and promise more in a follow-up turn (there is no follow-up turn). Ask a clarifying question in plain text ONLY when you genuinely cannot map the request to a complete query — e.g., ambiguous intent about WHICH table, metric, or time window. If the user did not enumerate fields, pick sensible defaults and proceed with a complete query — unenumerated fields are not ambiguity.",
+    "",
+    "JOINS / RELATIONSHIPS:",
+    "- Each table lists its outbound relationships. The token after `→` is the NAME you pass to `joins: [{ toTable: <name> }]`.",
+    "- Some relationships have an `alias` — the alias IS the name. Example: `→ df_same_district_fy [alias → district_financials]` means you pass `{ toTable: \"df_same_district_fy\" }` and reference columns as `df_same_district_fy.<column>` (the alias is the SQL table name in the generated query).",
+    "- Some relationships go `via <intermediate>` — these are multi-hop paths composed of multiple LEFT JOINs. You still only add ONE join entry; the server wires up the intermediate automatically.",
+    "- Self-joins (alias to the same table) are how you do vendor-vs-vendor comparisons and year-over-year deltas — prefer them over writing parallel queries by hand.",
     "",
     "=== AVAILABLE TABLES ===",
     "",
@@ -84,7 +96,8 @@ export function buildSchemaPrompt(): string {
     "Call the `run_query` tool with these fields:",
     "- table (required): the root table name",
     "- columns (optional): array of column names to return; use qualified 'table.column' when joining",
-    "- filters (optional): array of { column, op, value? }. Ops: eq, neq, gt, gte, lt, lte, in, notIn, like, ilike, isNull, isNotNull",
+    "- filters (optional): array of { column, op, value? }. Ops: eq, neq, gt, gte, lt, lte, in, notIn, like, ilike, isNull, isNotNull.",
+    "  IMPORTANT: `value` must be a literal primitive — string, number, boolean, or array of those. SQL expressions are NOT allowed (e.g. `date_trunc('month', CURRENT_DATE)`, `NOW()`, `CURRENT_DATE - 30`, `date.toTable.column`). The server parameterizes every value, so a SQL-looking string is sent to Postgres as a literal and fails with a type error. For date windows, compute literal ISO dates from today (see top of prompt) and emit a `gte` + `lt` pair.",
     "- aggregations (optional): array of { column, fn, alias? }. Fns: sum, avg, min, max, count. Use column='*' only with fn='count'.",
     "- groupBy (optional): array of column names. REQUIRED when mixing aggregations with non-aggregated selected columns.",
     "- orderBy (optional): array of { column, direction: 'asc' | 'desc' }",
@@ -104,9 +117,15 @@ function serializeTable(meta: TableMetadata): string {
   lines.push(`## ${meta.table}  (pk: ${pk})`);
   lines.push(meta.description);
   if (meta.relationships.length > 0) {
-    lines.push("  Relationships:");
+    lines.push("  Relationships (use the token after → as joins[].toTable):");
     for (const rel of meta.relationships) {
-      lines.push(`    → ${rel.toTable} (${rel.type}): ${rel.description}`);
+      const key = rel.alias ?? rel.toTable;
+      const suffix: string[] = [`(${rel.type})`];
+      if (rel.alias) suffix.push(`[alias → ${rel.toTable}]`);
+      if (rel.through && rel.through.length > 0) {
+        suffix.push(`[via ${rel.through.join(", ")}]`);
+      }
+      lines.push(`    → ${key} ${suffix.join(" ")}: ${rel.description}`);
     }
   }
   if (meta.columns.length > 0) {

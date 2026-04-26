@@ -5,6 +5,7 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 import { useLeaderboardDetails } from "../lib/queries";
 import { TIER_LABELS, TIER_COLORS, parseTierRank } from "../lib/types";
 import TierBadge from "./TierBadge";
+import RevenueOverviewTab from "./RevenueOverviewTab";
 import type { TierName } from "../lib/types";
 
 const ACTION_TAB_MAP: Record<string, string> = {
@@ -15,46 +16,61 @@ const ACTION_TAB_MAP: Record<string, string> = {
 
 export default function LeaderboardDetailView() {
   const { data, isLoading, isError } = useLeaderboardDetails();
+  const [activeTab, setActiveTab] = useState<"revenue" | "initiative">("revenue");
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
-
-  if (isLoading) {
-    return (
-      <div className="h-full overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="space-y-4">
-            <div className="h-8 w-48 bg-[#E2DEEC]/40 rounded animate-pulse" />
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-14 bg-[#E2DEEC]/40 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-sm text-[#F37167]">Failed to load leaderboard details.</p>
-      </div>
-    );
-  }
-
-  const { entries, metrics } = data;
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#403770]">Leaderboard</h1>
-          <p className="text-sm text-[#8A80A8] mt-1">
-            Point breakdown by rep &mdash; click a row to see details
+          <h2 className="text-2xl font-bold text-[#403770] mb-1">Leaderboard</h2>
+          <p className="text-sm text-[#8A80A8]">
+            {activeTab === "revenue"
+              ? "Revenue Overview — ranked by current year revenue"
+              : "Point breakdown by rep — click a row to see details"}
           </p>
         </div>
 
-        {/* Table */}
-        <div className="border border-[#D4CFE2] rounded-xl bg-white overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex border-b border-[#EFEDF5] mb-4">
+          <button
+            onClick={() => setActiveTab("revenue")}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === "revenue"
+                ? "border-[#403770] text-[#403770]"
+                : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+            }`}
+          >
+            Revenue Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("initiative")}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === "initiative"
+                ? "border-[#403770] text-[#403770]"
+                : "border-transparent text-[#8A80A8] hover:text-[#6E6390]"
+            }`}
+          >
+            Initiative
+          </button>
+        </div>
+
+        {activeTab === "revenue" ? (
+          <RevenueOverviewTab />
+        ) : isLoading ? (
+          <div className="space-y-4">
+            <div className="h-8 w-48 bg-[#E2DEEC]/40 rounded animate-pulse" />
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-14 bg-[#E2DEEC]/40 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : isError || !data ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-sm text-[#F37167]">Failed to load leaderboard details.</p>
+          </div>
+        ) : (
+          <div className="border border-[#D4CFE2] rounded-xl bg-white overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="bg-[#F7F5FA] border-b border-[#E2DEEC]">
@@ -67,7 +83,7 @@ export default function LeaderboardDetailView() {
                 <th className="text-center px-4 py-3 text-xs font-semibold text-[#8A80A8] uppercase tracking-wide w-28">
                   Tier
                 </th>
-                {metrics.map((m) => (
+                {data.metrics.map((m) => (
                   <th
                     key={m.action}
                     className="text-right px-4 py-3 text-xs font-semibold text-[#8A80A8] uppercase tracking-wide w-28"
@@ -81,7 +97,7 @@ export default function LeaderboardDetailView() {
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => {
+              {data.entries.map((entry) => {
                 const isExpanded = expandedUsers.has(entry.userId);
                 const tierKey = parseTierRank(entry.tier).tier;
                 const colors = TIER_COLORS[tierKey];
@@ -163,7 +179,7 @@ export default function LeaderboardDetailView() {
                     {/* Expanded detail row */}
                     {isExpanded && (
                       <tr className="bg-[#F7F5FA]">
-                        <td colSpan={3 + metrics.length + 1} className="px-6 py-4">
+                        <td colSpan={3 + data.metrics.length + 1} className="px-6 py-4">
                           <div className="space-y-4">
                             {entry.breakdown.map((b) => {
                               const itemsForAction = entry.items.filter(
@@ -236,7 +252,7 @@ export default function LeaderboardDetailView() {
             </tbody>
           </table>
 
-          {entries.length === 0 && (
+          {data.entries.length === 0 && (
             <div className="text-center py-12">
               <p className="text-sm text-[#8A80A8]">
                 No scores yet. Start earning points!
@@ -244,6 +260,7 @@ export default function LeaderboardDetailView() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

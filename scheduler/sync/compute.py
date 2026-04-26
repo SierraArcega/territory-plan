@@ -90,25 +90,47 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
 
     sales_rep = opp.get("sales_rep") or {}
 
+    from sync.district_resolver import names_match
+
     accounts = opp.get("accounts") or []
+    opp_account_name = accounts[0].get("name") if accounts else None
+
     district_account = None
+    match_status = "no_mapping"  # default when no account resolves
     for acc in accounts:
         acc_id = str(acc.get("id", ""))
         if acc_id and acc_id in district_mapping:
             mapped = district_mapping[acc_id]
-            if mapped.get("type") == "district" or district_account is None:
-                district_account = {
-                    "district_name": mapped.get("name", acc.get("name")),
-                    "district_lms_id": acc_id,
-                    "district_nces_id": mapped.get("nces_id"),
-                    "district_lea_id": mapped.get("leaid"),
-                }
-                if mapped.get("type") == "district":
-                    break
+            mapped_name = mapped.get("name")
+            raw_nces = mapped.get("nces_id")
+            raw_lea = mapped.get("leaid")
+            nces_id = raw_nces.strip() if isinstance(raw_nces, str) else raw_nces
+            lea_id = raw_lea.strip() if isinstance(raw_lea, str) else raw_lea
+
+            # Bug (b) guardrail: if the account name on the opp disagrees
+            # with the resolved district's name, refuse to trust the mapping.
+            # The opp falls into the unmatched path below.
+            if not names_match(acc.get("name") or opp_account_name, mapped_name):
+                match_status = "name_mismatch"
+                continue
+
+            candidate = {
+                "district_name": mapped_name or acc.get("name"),
+                "district_lms_id": acc_id,
+                "district_nces_id": nces_id,
+                "district_lea_id": lea_id,
+            }
+            if mapped.get("type") == "district":
+                district_account = candidate
+                match_status = "matched"
+                break
+            if district_account is None:
+                district_account = candidate
+                match_status = "matched"
 
     if district_account is None:
         district_account = {
-            "district_name": accounts[0].get("name") if accounts else None,
+            "district_name": opp_account_name,
             "district_lms_id": accounts[0].get("id") if accounts else None,
             "district_nces_id": None,
             "district_lea_id": None,
@@ -118,7 +140,7 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
         s.get("serviceType") for s in sessions if s.get("serviceType")
     ))
 
-    return {
+    record = {
         "id": opp["id"],
         "name": opp.get("name"),
         "school_yr": opp.get("school_yr"),
@@ -136,7 +158,15 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
         "payment_type": opp.get("payment_type"),
         "payment_terms": opp.get("payment_terms"),
         "lead_source": opp.get("lead_source"),
-        "minimum_purchase_amount": _to_decimal(opp.get("minimum_purchase_amount")) if opp.get("minimum_purchase_amount") is not None else None,
+        # Fallback: when OpenSearch doesn't provide a minimum_purchase_amount
+        # (e.g., historical opps imported before Salesforce exposed the field),
+        # derive it from invoiced + credited (credited is signed negative).
+        # Applies to all stages — open opps typically derive 0.
+        "minimum_purchase_amount": (
+            _to_decimal(opp.get("minimum_purchase_amount"))
+            if opp.get("minimum_purchase_amount") is not None
+            else (invoiced + credited)
+        ),
         "maximum_budget": _to_decimal(opp.get("maximum_budget")) if opp.get("maximum_budget") is not None else None,
         "details_link": opp.get("detailsLink"),
         "stage_history": json.dumps(opp.get("stage_history") or []),
@@ -149,3 +179,5 @@ def build_opportunity_record(opp, sessions, district_mapping, now=None):
         "service_types": json.dumps(service_types),
         "synced_at": now,
     }
+    record["_match_status"] = match_status
+    return record

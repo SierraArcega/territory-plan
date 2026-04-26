@@ -81,6 +81,6 @@ export const config = {
      * - public files (images, etc.)
      * - API routes that should be public (tiles for map rendering)
      */
-    '/((?!_next|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/tiles|api/cron|api/webhooks).*)',
+    '/((?!_next|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/tiles|api/cron|api/webhooks|api/leaderboard-image).*)',
   ],
 }

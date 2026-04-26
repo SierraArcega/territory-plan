@@ -132,6 +132,30 @@ describe("setDateRange", () => {
   });
 });
 
+describe("switchToLayer", () => {
+  it("activates the layer, sets the results tab, and opens the results panel", () => {
+    useMapV2Store.getState().switchToLayer("vacancies");
+    const s = useMapV2Store.getState();
+    expect(s.activeLayers.has("vacancies")).toBe(true);
+    expect(s.activeResultsTab).toBe("vacancies");
+    expect(s.searchResultsVisible).toBe(true);
+  });
+
+  it("does not remove the districts layer", () => {
+    useMapV2Store.getState().switchToLayer("vacancies");
+    const s = useMapV2Store.getState();
+    expect(s.activeLayers.has("districts")).toBe(true);
+  });
+
+  it("preserves other active layers", () => {
+    useMapV2Store.getState().toggleLayer("contacts");
+    useMapV2Store.getState().switchToLayer("vacancies");
+    const s = useMapV2Store.getState();
+    expect(s.activeLayers.has("contacts")).toBe(true);
+    expect(s.activeLayers.has("vacancies")).toBe(true);
+  });
+});
+
 describe("geographyFilters", () => {
   it("defaults to empty states and null zipRadius", () => {
     const s = useMapV2Store.getState();

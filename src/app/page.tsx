@@ -30,7 +30,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "reports", "resources", "profile", "admin"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "reports", "leaderboard", "resources", "profile", "admin"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -195,6 +195,8 @@ function HomeContent() {
         return <TasksView />;
       case "home":
         return <HomeView />;
+      case "reports":
+        return <ReportsView />;
       case "leaderboard":
         return <LeaderboardDetailView />;
       case "reports":

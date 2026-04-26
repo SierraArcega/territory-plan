@@ -53,6 +53,8 @@ const COMPETITOR_VENDORS = [
 
 interface DistrictsDropdownProps {
   onClose: () => void;
+  owners: { id: string; name: string }[];
+  tags: Array<{ id: string; name: string }>;
 }
 
 type SectionKey = "attributes" | "fullmind" | "competitors" | "finance" | "demographics" | "academics";
@@ -66,7 +68,7 @@ const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: "academics", label: "Academics" },
 ];
 
-export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
+export default function DistrictsDropdown({ onClose, owners, tags }: DistrictsDropdownProps) {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
   const addSearchFilter = useMapV2Store((s) => s.addSearchFilter);
   const updateSearchFilter = useMapV2Store((s) => s.updateSearchFilter);
@@ -76,21 +78,6 @@ export default function DistrictsDropdown({ onClose }: DistrictsDropdownProps) {
 
   // Collapsible section state — start with first section open
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(new Set(["fullmind"]));
-
-  // Fullmind data
-  const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
-  const [tags, setTags] = useState<Array<{ id: string; name: string }>>([]);
-
-  useEffect(() => {
-    fetch("/api/sales-executives")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setOwners((data || []).map((d: { id: string; fullName: string | null; email: string }) => ({ id: d.id, name: d.fullName || d.email }))))
-      .catch(() => {});
-    fetch("/api/tags")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setTags(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  }, []);
 
   // Close on outside click
   useEffect(() => {
@@ -328,30 +315,26 @@ function FullmindContent({
         onSelect={(opt) => addFilter(opt.column, opt.op, opt.value)}
       />
 
-      {owners.length > 0 && (
-        <FilterMultiSelect
-          label="Sales Executive"
-          column="salesExecutive"
-          options={owners.map((o) => ({ value: o.id, label: o.name }))}
-          onApply={(col, vals) => {
-            const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);
-            addFilter(col, "in", vals, names.join(", "));
-          }}
-        />
-      )}
+      <FilterMultiSelect
+        label="Sales Executive"
+        column="salesExecutive"
+        options={owners.map((o) => ({ value: o.id, label: o.name }))}
+        onApply={(col, vals) => {
+          const names = vals.map((v) => owners.find((o) => o.id === v)?.name ?? v);
+          addFilter(col, "in", vals, names.join(", "));
+        }}
+      />
 
       <FinancialRangeFilter label="Pipeline" column="open_pipeline" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
       <FinancialRangeFilter label="Bookings" column="closed_won_bookings" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
       <FinancialRangeFilter label="Invoicing" column="invoicing" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
 
-      {tags.length > 0 && (
-        <FilterMultiSelect
-          label="Tags"
-          column="tags"
-          options={tags.map((t) => ({ value: t.name, label: t.name }))}
-          onApply={(col, vals) => addFilter(col, "eq", vals)}
-        />
-      )}
+      <FilterMultiSelect
+        label="Tags"
+        column="tags"
+        options={tags.map((t) => ({ value: t.name, label: t.name }))}
+        onApply={(col, vals) => addFilter(col, "eq", vals)}
+      />
     </>
   );
 }

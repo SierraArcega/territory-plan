@@ -145,6 +145,7 @@ export interface RepActuals {
   weightedPipeline: number;
   openPipeline: number;
   bookings: number;
+  minPurchaseBookings: number;
   invoiced: number;
 }
 
@@ -166,6 +167,7 @@ export async function getRepActuals(
         weighted_pipeline: number;
         open_pipeline: number;
         bookings: number;
+        min_purchase_bookings: number;
         invoiced: number;
       }[]
     >`
@@ -177,6 +179,7 @@ export async function getRepActuals(
         COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
         COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
         COALESCE(SUM(bookings), 0) AS bookings,
+        COALESCE(SUM(min_purchase_bookings), 0) AS min_purchase_bookings,
         COALESCE(SUM(invoiced), 0) AS invoiced
       FROM district_opportunity_actuals
       WHERE sales_rep_email = ${salesRepEmail}
@@ -194,6 +197,7 @@ export async function getRepActuals(
       weightedPipeline: 0,
       openPipeline: 0,
       bookings: 0,
+      minPurchaseBookings: 0,
       invoiced: 0,
     };
   }
@@ -207,6 +211,7 @@ export async function getRepActuals(
     weightedPipeline: Number(row.weighted_pipeline),
     openPipeline: Number(row.open_pipeline),
     bookings: Number(row.bookings),
+    minPurchaseBookings: Number(row.min_purchase_bookings),
     invoiced: Number(row.invoiced),
   };
 }

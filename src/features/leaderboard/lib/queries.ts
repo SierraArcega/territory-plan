@@ -2,11 +2,51 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { LeaderboardEntry, LeaderboardMyRank, InitiativeInfo } from "./types";
 
-interface LeaderboardResponse {
+export interface LeaderboardFiscalYears {
+  currentFY: string;
+  nextFY: string;
+  priorFY: string;
+}
+
+export interface LeaderboardResponse {
   initiative: InitiativeInfo;
+  fiscalYears: LeaderboardFiscalYears;
   entries: LeaderboardEntry[];
   metrics: { action: string; label: string; pointValue: number }[];
   thresholds: { tier: string; minPoints: number }[];
+  /**
+   * Team-wide totals across all users including admins (which are filtered
+   * from `entries`). Single-FY columns are scalars; pipeline and targeted
+   * are shipped per-FY so the client can match its FY selectors.
+   * Optional so older clients during deploy don't crash.
+   */
+  teamTotals?: {
+    // Revenue: legacy scalar + per-FY pair
+    revenue: number;
+    revenueCurrentFY: number;
+    revenuePriorFY: number;
+    unassignedRevenue: number;
+    unassignedRevenueCurrentFY: number;
+    unassignedRevenuePriorFY: number;
+
+    // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
+    priorYearRevenue: number;
+    minPurchasesCurrentFY: number;
+    minPurchasesPriorFY: number;
+    unassignedPriorYearRevenue: number;
+    unassignedMinPurchasesCurrentFY: number;
+    unassignedMinPurchasesPriorFY: number;
+
+    pipelineCurrentFY: number;
+    pipelineNextFY: number;
+    unassignedPipelineCurrentFY: number;
+    unassignedPipelineNextFY: number;
+
+    targetedCurrentFY: number;
+    targetedNextFY: number;
+    unassignedTargetedCurrentFY: number;
+    unassignedTargetedNextFY: number;
+  };
 }
 
 export function useLeaderboard() {

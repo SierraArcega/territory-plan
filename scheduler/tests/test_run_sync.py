@@ -94,3 +94,57 @@ def test_run_sync_no_opportunities_skips(
     mock_upsert_sessions.assert_not_called()
     mock_set_last.assert_called_once()
     mock_conn.close.assert_called_once()
+
+
+def test_name_mismatch_opp_routes_to_unmatched_with_correct_reason():
+    """Yuba City opp with Woodville's NCES ID should land in unmatched
+    with reason='Name/LEAID mismatch', not the generic 'Needs Review'."""
+    from run_sync import _build_record_and_classify
+    opp = {
+        "id": "OPP-YUBA",
+        "name": "Yuba City Tutoring",
+        "accounts": [{"id": "ACC-YUBA", "name": "Yuba City Unified School District"}],
+        "stage": "1 - Discovery",
+        "school_yr": "2026-27",
+        "state": "CA",
+        "invoices": [], "credit_memos": [], "sales_rep": {},
+    }
+    mapping = {"ACC-YUBA": {
+        "nces_id": "0643170",
+        "leaid":   "0643170",
+        "name":    "Woodville Elementary School District",
+        "type":    "district",
+    }}
+    from datetime import datetime, timezone
+    now = datetime(2026, 4, 13, 12, 0, 0, tzinfo=timezone.utc)
+    record, unmatched = _build_record_and_classify(opp, [], mapping, now=now)
+    assert record["district_lea_id"] is None
+    assert unmatched is not None
+    assert unmatched["reason"] == "Name/LEAID mismatch"
+    assert unmatched["id"] == "OPP-YUBA"
+    # _match_status should be stripped from the record so it never reaches the DB
+    assert "_match_status" not in record
+
+
+def test_build_and_classify_happy_path_no_unmatched():
+    """Matched opps should return unmatched=None."""
+    from run_sync import _build_record_and_classify
+    opp = {
+        "id": "OPP-ROCK",
+        "name": "Rockdale renewal",
+        "accounts": [{"id": "ACC-ROCK", "name": "Rockdale County School District"}],
+        "stage": "3 - Proposal", "school_yr": "2026-27", "state": "GA",
+        "invoices": [], "credit_memos": [], "sales_rep": {},
+    }
+    mapping = {"ACC-ROCK": {
+        "nces_id": "1304410",
+        "leaid":   "1304410",
+        "name":    "Rockdale County Public Schools",
+        "type":    "district",
+    }}
+    from datetime import datetime, timezone
+    now = datetime(2026, 4, 13, 12, 0, 0, tzinfo=timezone.utc)
+    record, unmatched = _build_record_and_classify(opp, [], mapping, now=now)
+    assert record["district_lea_id"] == "1304410"
+    assert unmatched is None
+    assert "_match_status" not in record
