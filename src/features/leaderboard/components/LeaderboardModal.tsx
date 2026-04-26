@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, ChevronDown, Trophy, Target, TrendingUp, DollarSign, Zap } from "lucide-react";
+import { X, ChevronDown, Trophy, Target, TrendingUp, DollarSign, Zap, Sparkles } from "lucide-react";
 import { useLeaderboard, useMyLeaderboardRank } from "../lib/queries";
 import RevenueOverviewTab from "./RevenueOverviewTab";
+import LowHangingFruitSummaryCard from "./LowHangingFruitSummaryCard";
 import TierBadge from "./TierBadge";
 import { parseTierRank, TIER_LABELS, TIERS, TIER_COLORS } from "../lib/types";
 import type { LeaderboardView, LeaderboardEntry, TierName } from "../lib/types";
@@ -12,6 +13,7 @@ interface LeaderboardModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateToDetails?: () => void;
+  setActiveTab?: (tab: "low-hanging-fruit") => void;
 }
 
 function formatDate(iso: string): string {
@@ -39,10 +41,11 @@ const VIEW_CONFIG: {
   { value: "take", label: "Take", icon: DollarSign },
   { value: "revenue", label: "Revenue", icon: Trophy },
   { value: "revenueTargeted", label: "Targeted", icon: Target },
+  { value: "increase", label: "Low Hanging Fruit", icon: Sparkles },
 ];
 
-export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails }: LeaderboardModalProps) {
-  const [activeTab, setActiveTab] = useState<"revenue" | "initiative">("revenue");
+export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails, setActiveTab }: LeaderboardModalProps) {
+  const [activeTab, setLocalActiveTab] = useState<"revenue" | "initiative">("revenue");
   const [view, setView] = useState<LeaderboardView>("combined");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const { data: leaderboard, isLoading: lbLoading } = useLeaderboard();
@@ -198,7 +201,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
         <div className="flex-shrink-0 border-b border-[#E2DEEC]">
           <div className="flex px-6">
             <button
-              onClick={() => setActiveTab("revenue")}
+              onClick={() => setLocalActiveTab("revenue")}
               className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "revenue"
                   ? "border-[#403770] text-[#403770]"
@@ -208,7 +211,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
               Revenue Overview
             </button>
             <button
-              onClick={() => setActiveTab("initiative")}
+              onClick={() => setLocalActiveTab("initiative")}
               className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === "initiative"
                   ? "border-[#403770] text-[#403770]"
@@ -255,6 +258,7 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
                 {view === "take" && (<>Net revenue after costs from closed opportunities in <span className="font-medium text-[#403770]">{fyLabels.take}</span>.</>)}
                 {view === "revenue" && (<>Total revenue from opportunities in <span className="font-medium text-[#403770]">{fyLabels.revenue}</span>.</>)}
                 {view === "revenueTargeted" && (<>Total revenue targeted in territory plans{fyLabels.revenueTargeted !== "Current FY" ? <> for <span className="font-medium text-[#403770]">{fyLabels.revenueTargeted}</span></> : ""}.</>)}
+                {view === "increase" && "FY26 Fullmind customers without an FY27 opportunity yet. Add to a plan or open the LMS to create the renewal opp."}
               </p>
             </>
           )}
@@ -264,6 +268,13 @@ export default function LeaderboardModal({ isOpen, onClose, onNavigateToDetails 
         <div className="flex-1 min-h-0 overflow-y-auto">
           {activeTab === "revenue" ? (
             <RevenueOverviewTab />
+          ) : view === "increase" ? (
+            <LowHangingFruitSummaryCard
+              onViewAll={() => {
+                onClose();
+                setActiveTab?.("low-hanging-fruit");
+              }}
+            />
           ) : lbLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-[#403770] border-t-transparent rounded-full animate-spin" />

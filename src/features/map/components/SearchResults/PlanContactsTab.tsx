@@ -3,9 +3,10 @@
 import { useState, useCallback, useMemo } from "react";
 import { usePlanContacts, useDistrictWebsites } from "@/lib/api";
 import { useCreateContact, useUpdateContact } from "@/features/shared/lib/queries";
-import type { Contact } from "@/features/shared/types/api-types";
+import type { Contact, ContactSchoolLink } from "@/features/shared/types/api-types";
 import { PERSONAS, SENIORITY_LEVELS } from "@/features/shared/types/contact-types";
 import ContactsActionBar from "@/features/plans/components/ContactsActionBar";
+import SchoolBadge from "@/features/plans/components/SchoolBadge";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -436,6 +437,7 @@ function DistrictContactGroup({
                           onCancel={onCancel}
                           isPending={isUpdatePending}
                           isEditing
+                          schoolLink={contact.schoolContacts?.[0]}
                         />
                       </div>
                     ) : (
@@ -517,6 +519,11 @@ function ContactRow({ contact, onClick }: { contact: Contact; onClick: () => voi
         {contact.title && (
           <p className="text-[10px] text-[#8A80A8] truncate">{contact.title}</p>
         )}
+        {contact.schoolContacts?.[0] && (
+          <div className="mt-0.5">
+            <SchoolBadge link={contact.schoolContacts[0]} />
+          </div>
+        )}
       </div>
 
       {/* Quick actions */}
@@ -558,6 +565,7 @@ function ContactInlineForm({
   onCancel,
   isPending,
   isEditing,
+  schoolLink,
 }: {
   formData: ContactFormData;
   setFormData: (data: ContactFormData) => void;
@@ -565,6 +573,7 @@ function ContactInlineForm({
   onCancel: () => void;
   isPending: boolean;
   isEditing?: boolean;
+  schoolLink?: ContactSchoolLink;
 }) {
   const inputClass =
     "w-full px-2.5 py-1.5 text-xs border border-[#E2DEEC] rounded-lg bg-white text-[#544A78] placeholder:text-[#C2BBD4] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 focus:border-[#403770] transition-colors";
@@ -576,6 +585,9 @@ function ContactInlineForm({
       <div className="text-[9px] font-bold uppercase tracking-wider text-[#6EA3BE] mb-1">
         {isEditing ? "Edit Contact" : "New Contact"}
       </div>
+      {schoolLink && (
+        <SchoolBadge link={schoolLink} variant="block" />
+      )}
       <div className="flex gap-2">
         <input
           type="text"

@@ -71,7 +71,7 @@ export function useRemoveDistrictTag() {
 
 // ===== Contacts =====
 
-export function useContacts(params: { search?: string; limit?: number } = {}) {
+export function useContacts(params: { search?: string; limit?: number } = {}, options?: { enabled?: boolean }) {
   const searchParams = new URLSearchParams();
   if (params.search) searchParams.set("search", params.search);
   if (params.limit) searchParams.set("limit", params.limit.toString());
@@ -83,6 +83,7 @@ export function useContacts(params: { search?: string; limit?: number } = {}) {
     queryKey: ["contacts", params],
     queryFn: () => fetchJson<ContactsResponse>(url),
     staleTime: 2 * 60 * 1000,
+    enabled: options?.enabled,
   });
 }
 

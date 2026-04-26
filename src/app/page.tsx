@@ -15,6 +15,7 @@ import AdminDashboard from "@/features/admin/components/AdminDashboard";
 import ResourcesView from "@/features/shared/components/views/ResourcesView";
 import LeaderboardDetailView from "@/features/leaderboard/components/LeaderboardDetailView";
 import { ReportsView } from "@/features/reports/components/ReportsView";
+import LowHangingFruitView from "@/features/leaderboard/components/LowHangingFruitView";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
 const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"), {
@@ -30,7 +31,7 @@ const MapV2Shell = dynamic(() => import("@/features/map/components/MapV2Shell"),
 });
 
 // Valid tab IDs for URL validation
-const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "reports", "leaderboard", "resources", "profile", "admin"];
+const VALID_TABS: TabId[] = ["home", "map", "plans", "activities", "tasks", "reports", "leaderboard", "low-hanging-fruit", "resources", "profile", "admin"];
 
 function isValidTab(tab: string | null): tab is TabId {
   return tab !== null && VALID_TABS.includes(tab as TabId);
@@ -199,8 +200,8 @@ function HomeContent() {
         return <ReportsView />;
       case "leaderboard":
         return <LeaderboardDetailView />;
-      case "reports":
-        return <ReportsView />;
+      case "low-hanging-fruit":
+        return <LowHangingFruitView />;
       case "resources":
         return <ResourcesView />;
       case "profile":

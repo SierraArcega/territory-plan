@@ -10,6 +10,7 @@ import type { Contact } from "@/lib/api";
 import { useSortableTable } from "@/features/shared/hooks/useSortableTable";
 import { SortHeader } from "@/features/shared/components/SortHeader";
 import ContactsActionBar from "./ContactsActionBar";
+import SchoolBadge from "./SchoolBadge";
 
 // Generate a consistent color from a contact's name for their avatar
 // Uses the brand palette so every avatar feels intentional
@@ -260,6 +261,9 @@ export default function ContactsTable({
                 <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                   District
                 </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  School
+                </th>
                 <SortHeader
                   field="persona"
                   label="Department"
@@ -366,6 +370,15 @@ export default function ContactsTable({
                         <span className="text-[13px] text-[#403770]/80 truncate max-w-[180px] block">
                           {districtName}
                         </span>
+                      ) : (
+                        <span className="text-[13px] text-gray-300">&mdash;</span>
+                      )}
+                    </td>
+
+                    {/* School */}
+                    <td className="px-4 py-3 max-w-[220px]">
+                      {contact.schoolContacts?.[0] ? (
+                        <SchoolBadge link={contact.schoolContacts[0]} />
                       ) : (
                         <span className="text-[13px] text-gray-300">&mdash;</span>
                       )}

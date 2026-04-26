@@ -336,8 +336,16 @@ export default function SearchResults() {
         color: newPlanColor,
         fiscalYear,
       });
-      // Auto-select the new plan so user can hit "Add to plan"
-      setSelectedPlanIds((prev) => new Set(prev).add(plan.id));
+      // Immediately add selected districts to the new plan
+      const leaidsToAdd = selectedDistrictLeaids.size > 0
+        ? [...selectedDistrictLeaids]
+        : searchResultLeaids;
+      if (leaidsToAdd.length > 0) {
+        await addDistricts.mutateAsync({ planId: plan.id, leaids: leaidsToAdd });
+      }
+      setShowAddAllDropdown(false);
+      setSelectedPlanIds(new Set());
+      setPlanSearchQuery("");
       setShowNewPlanForm(false);
       setNewPlanName("");
       setNewPlanColor("#403770");
@@ -746,7 +754,7 @@ export default function SearchResults() {
                       disabled={!newPlanName.trim() || createPlan.isPending}
                       className="w-full py-1.5 rounded-lg text-xs font-semibold text-white bg-plum hover:bg-[#322a5a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {createPlan.isPending ? "Creating..." : "Create Plan"}
+                      {createPlan.isPending || addDistricts.isPending ? "Creating..." : "Create & Add"}
                     </button>
                   </div>
                 ) : (

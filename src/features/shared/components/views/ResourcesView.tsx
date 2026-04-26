@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import DealQualifyingPage from "./resources/DealQualifyingPage";
+import OrgChartPage from "./resources/OrgChartPage";
+import OurServiceModelPage from "./resources/OurServiceModelPage";
+import PricingAndPackagingPage from "./resources/PricingAndPackagingPage";
 import UnderstandingLeaderboardPage from "./resources/UnderstandingLeaderboardPage";
+import UnderstandingTakePage from "./resources/UnderstandingTakePage";
 
 // ── Resource page registry ────────────────────────────────────────────────────
 // Add new pages here — one line per resource. The sidebar groups by category.
@@ -17,6 +21,10 @@ interface ResourcePage {
 const RESOURCE_PAGES: ResourcePage[] = [
   { id: "deal-qualifying", label: "Deal Qualifying", category: "Sales Enablement", component: DealQualifyingPage },
   { id: "understanding-leaderboard", label: "Understanding the Leaderboard", category: "Training", component: UnderstandingLeaderboardPage },
+  { id: "pricing-and-packaging", label: "Pricing & Packaging", category: "Training", component: PricingAndPackagingPage },
+  { id: "understanding-take", label: "Understanding Take", category: "Training", component: UnderstandingTakePage },
+  { id: "our-service-model", label: "Our Service Model", category: "Product", component: OurServiceModelPage },
+  { id: "org-chart", label: "Org Chart", category: "Team", component: OrgChartPage },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────

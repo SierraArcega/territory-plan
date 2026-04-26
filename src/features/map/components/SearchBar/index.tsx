@@ -37,6 +37,8 @@ interface DistrictSuggestion {
   name: string;
   stateAbbrev: string | null;
   cityLocation?: string | null;
+  isRollup?: boolean;
+  childCount?: number;
 }
 import { Info } from "lucide-react";
 import GeographyDropdown from "./GeographyDropdown";
@@ -305,10 +307,16 @@ export default function SearchBar() {
                       <svg className="w-3.5 h-3.5 text-plum/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
-                      <span>
+                      <span className="flex items-center gap-1.5">
                         <span className="text-[#544A78]">{d.name}</span>
                         {d.stateAbbrev && (
-                          <span className="text-[#A69DC0] text-xs ml-1">{d.stateAbbrev}</span>
+                          <span className="text-[#A69DC0] text-xs">{d.stateAbbrev}</span>
+                        )}
+                        {d.isRollup && d.childCount !== undefined && d.childCount > 0 && (
+                          <>
+                            <span className="text-plum/40">·</span>
+                            <span className="text-xs text-plum">{d.childCount} child districts</span>
+                          </>
                         )}
                       </span>
                     </button>

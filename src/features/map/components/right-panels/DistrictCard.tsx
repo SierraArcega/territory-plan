@@ -67,6 +67,40 @@ export default function DistrictCard({ leaid }: { leaid: string }) {
         trends={data.trends}
       />
 
+      {/* Rollup composition strip — only renders for rollup districts like NYC DOE.
+          Offers "Select all" to expand the rollup into its children (real selectable
+          districts with schools & contacts) vs. keeping the empty rollup selected. */}
+      {data.district.isRollup && data.district.childLeaids && data.district.childLeaids.length > 0 && (
+        <div className="border-b border-plum/20 bg-plum/5 px-3 py-2.5 space-y-1.5">
+          <p className="text-xs font-medium text-plum">
+            Rollup district — contains {data.district.childLeaids.length} child districts with {(data.district.schoolCount ?? 0).toLocaleString()} schools
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                const leaids = data.district.childLeaids;
+                if (leaids) useMapV2Store.getState().selectDistricts(leaids);
+              }}
+              className="px-3 py-1 rounded-md bg-plum text-white text-xs font-medium hover:opacity-90 transition-opacity"
+            >
+              Select all {data.district.childLeaids.length} children
+            </button>
+            <button
+              type="button"
+              aria-disabled="true"
+              aria-describedby={`rollup-warning-${leaid}`}
+              onClick={(e) => e.preventDefault()}
+              className="px-3 py-1 rounded-md bg-white text-plum/40 text-xs font-medium border border-plum/20 cursor-not-allowed"
+            >
+              Keep as rollup
+            </button>
+            <p id={`rollup-warning-${leaid}`} className="sr-only">
+              Will return 0 contacts — not recommended
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Tab strip */}
       <DistrictTabStrip
         activeTab={activeTab}

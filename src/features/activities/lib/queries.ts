@@ -9,7 +9,7 @@ import type {
 import type { OpportunityResult, CalendarAttendee } from "@/features/activities/lib/outcome-types-api";
 
 // List activities with filtering
-export function useActivities(params: ActivitiesParams = {}) {
+export function useActivities(params: ActivitiesParams = {}, options?: { enabled?: boolean }) {
   const searchParams = new URLSearchParams();
   if (params.planId) searchParams.set("planId", params.planId);
   if (params.districtLeaid) searchParams.set("districtLeaid", params.districtLeaid);
@@ -37,6 +37,7 @@ export function useActivities(params: ActivitiesParams = {}) {
     queryKey: ["activities", params],
     queryFn: () => fetchJson<ActivitiesResponse>(url),
     staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: options?.enabled,
   });
 }
 

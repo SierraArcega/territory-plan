@@ -3,10 +3,12 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Search, Download, ChevronDown } from "lucide-react";
 import { TARGET_ROLES, type TargetRole } from "@/features/shared/types/contact-types";
+import { SCHOOL_LEVEL_LABELS, SCHOOL_TYPE_LABELS } from "@/features/shared/lib/schoolLabels";
 import type { Contact } from "@/lib/api";
 import {
   useBulkEnrich,
   useEnrichProgress,
+  useExpandRollup,
 } from "@/features/plans/lib/queries";
 
 interface ContactsActionBarProps {
@@ -33,13 +35,21 @@ export default function ContactsActionBar({
 }: ContactsActionBarProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [selectedRole, setSelectedRole] = useState<TargetRole>("Superintendent");
+  // School-level subfilter (only meaningful when selectedRole === "Principal").
+  // Default: all 3 levels checked (1 = Primary/Elementary, 2 = Middle, 3 = High).
+  const [schoolLevels, setSchoolLevels] = useState<Set<number>>(new Set([1, 2, 3]));
   const [isEnriching, setIsEnriching] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "info" | "success" | "warning" | "error";
+    action?: { label: string; onClick: () => void };
+  } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEnrichedRef = useRef<number>(0);
 
   const bulkEnrich = useBulkEnrich();
+  const expandRollup = useExpandRollup();
 
   // Fetch progress on mount (cached 30s), fast-poll every 5s when enriching
   const { data: progress } = useEnrichProgress(planId, isEnriching);
@@ -61,9 +71,11 @@ export default function ContactsActionBar({
     onEnrichingChange?.(isEnriching);
   }, [isEnriching, onEnrichingChange]);
 
-  // Auto-dismiss toast after 5 seconds
+  // Auto-dismiss toast after 5 seconds — unless it carries an action (e.g.
+  // "Expand to N districts"), which must stay until the user clicks or
+  // dismisses manually.
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || toast.action) return;
     const timer = setTimeout(() => setToast(null), 5000);
     return () => clearTimeout(timer);
   }, [toast]);
@@ -87,7 +99,7 @@ export default function ContactsActionBar({
     // Completion check
     if (progress.queued > 0 && progress.enriched >= progress.queued) {
       setIsEnriching(false);
-      setToast({ message: `Contact enrichment complete — ${progress.enriched} districts enriched`, type: "success" });
+      setToast({ message: `Contact enrichment complete — ${progress.enriched} contact${progress.enriched !== 1 ? "s" : ""} found`, type: "success" });
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       return;
     }
@@ -99,7 +111,7 @@ export default function ContactsActionBar({
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       stallTimerRef.current = setTimeout(() => {
         setIsEnriching(false);
-        setToast({ message: "Enrichment may be stalled — some districts may not have results", type: "warning" });
+        setToast({ message: "Enrichment may be stalled — some contacts may not have results", type: "warning" });
       }, 2 * 60 * 1000);
     }
   }, [isEnriching, progress]);
@@ -111,14 +123,24 @@ export default function ContactsActionBar({
     };
   }, []);
 
+  // Stable ref so the "Expand" toast action can re-trigger enrichment after
+  // rollup expansion without being captured against a stale closure.
+  const handleStartEnrichmentRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
   const handleStartEnrichment = useCallback(async () => {
     setShowPopover(false);
 
     try {
-      const result = await bulkEnrich.mutateAsync({ planId, targetRole: selectedRole });
+      const result = await bulkEnrich.mutateAsync({
+        planId,
+        targetRole: selectedRole,
+        ...(selectedRole === "Principal"
+          ? { schoolLevels: Array.from(schoolLevels).sort() }
+          : {}),
+      });
 
       if (result.queued === 0) {
-        setToast({ message: "All districts already have contacts — nothing to enrich", type: "info" });
+        setToast({ message: "Nothing to enrich — all targets already have contacts", type: "info" });
         return;
       }
 
@@ -128,11 +150,53 @@ export default function ContactsActionBar({
       // Start stall timer
       stallTimerRef.current = setTimeout(() => {
         setIsEnriching(false);
-        setToast({ message: "Enrichment may be stalled — some districts may not have results", type: "warning" });
+        setToast({ message: "Enrichment may be stalled — some contacts may not have results", type: "warning" });
       }, 2 * 60 * 1000);
 
-      setToast({ message: `Contact enrichment started for ${result.queued} districts`, type: "info" });
+      setToast({ message: `Looking for ${result.queued} contact${result.queued !== 1 ? "s" : ""}`, type: "info" });
     } catch (error) {
+      // Rollup-district detection: bulk-enrich returns HTTP 400 with a structured
+      // body when the plan still contains parent-district rollup leaids.
+      // useBulkEnrich preserves that body on `error.body`.
+      const body = (error as { body?: unknown })?.body;
+      if (
+        body &&
+        typeof body === "object" &&
+        (body as { reason?: unknown }).reason === "rollup-district"
+      ) {
+        const b = body as { childLeaids?: string[]; rollupLeaids?: string[] };
+        const count = b.childLeaids?.length ?? 0;
+        const rollupCount = b.rollupLeaids?.length ?? 0;
+        if (rollupCount === 0 || count === 0) {
+          setToast({
+            message: "Plan contains a rollup district; cannot expand automatically.",
+            type: "error",
+          });
+          return;
+        }
+        setToast({
+          message: `This plan contains ${count.toLocaleString()} child districts rolled up under a parent.`,
+          type: "warning",
+          action: {
+            label: `Expand to ${count.toLocaleString()} districts`,
+            onClick: async () => {
+              try {
+                await expandRollup.mutateAsync({ planId });
+                setToast(null);
+                // Re-trigger the enrichment now that the plan is expanded.
+                await handleStartEnrichmentRef.current();
+              } catch {
+                setToast({
+                  message: "Failed to expand rollup; please refresh and try again.",
+                  type: "error",
+                });
+              }
+            },
+          },
+        });
+        return;
+      }
+
       const message = error instanceof Error ? error.message : "Failed to start contact enrichment";
       if (message.includes("409") || message.includes("already in progress")) {
         setToast({ message: "Enrichment already in progress", type: "info" });
@@ -141,46 +205,67 @@ export default function ContactsActionBar({
         setToast({ message, type: "error" });
       }
     }
-  }, [planId, selectedRole, bulkEnrich]);
+  }, [planId, selectedRole, schoolLevels, bulkEnrich, expandRollup]);
+
+  // Keep the ref pointing at the latest callback so the toast action closure
+  // always retries with fresh state (selectedRole, schoolLevels).
+  useEffect(() => {
+    handleStartEnrichmentRef.current = handleStartEnrichment;
+  }, [handleStartEnrichment]);
 
   const handleExportCsv = useCallback(() => {
-    const headers = ["District Name", "Website", "Contact Name", "Title", "Email", "Phone", "Department", "Seniority Level"];
+    const headers = [
+      "District Name",
+      "Website",
+      "School Name",
+      "School Level",
+      "School Type",
+      "Contact Name",
+      "Title",
+      "Email",
+      "Phone",
+      "Department",
+      "Seniority Level",
+    ];
 
-    // Build a map of leaid -> primary contact
-    const primaryByDistrict = new Map<string, Contact>();
+    const rows: string[][] = [];
+    const seenDistricts = new Set<string>();
+
+    // One row per contact
     for (const contact of contacts) {
-      const existing = primaryByDistrict.get(contact.leaid);
-      if (!existing) {
-        primaryByDistrict.set(contact.leaid, contact);
-      } else if (contact.isPrimary && !existing.isPrimary) {
-        primaryByDistrict.set(contact.leaid, contact);
-      } else if (
-        !existing.isPrimary &&
-        !contact.isPrimary &&
-        contact.name.localeCompare(existing.name) < 0
-      ) {
-        primaryByDistrict.set(contact.leaid, contact);
-      }
-    }
+      seenDistricts.add(contact.leaid);
+      const districtName = districtNameMap?.get(contact.leaid) || contact.leaid;
+      const websiteUrl = districtWebsiteMap?.get(contact.leaid) || "";
 
-    // One row per district (including districts with no contacts)
-    const rows = allDistrictLeaids.map((leaid) => {
-      const districtName = districtNameMap?.get(leaid) || leaid;
-      const contact = primaryByDistrict.get(leaid);
+      const link = contact.schoolContacts?.[0];
+      const schoolName = link?.name ?? "";
+      const schoolLevel =
+        link?.schoolLevel != null ? (SCHOOL_LEVEL_LABELS[link.schoolLevel] ?? "") : "";
+      const schoolType =
+        link?.schoolType != null ? (SCHOOL_TYPE_LABELS[link.schoolType] ?? "") : "";
 
-      const websiteUrl = districtWebsiteMap?.get(leaid) || "";
-
-      return [
+      rows.push([
         districtName,
         websiteUrl,
-        contact?.name || "",
-        contact?.title || "",
-        contact?.email || "",
-        contact?.phone || "",
-        contact?.persona || "",
-        contact?.seniorityLevel || "",
-      ];
-    });
+        schoolName,
+        schoolLevel,
+        schoolType,
+        contact.name || "",
+        contact.title || "",
+        contact.email || "",
+        contact.phone || "",
+        contact.persona || "",
+        contact.seniorityLevel || "",
+      ]);
+    }
+
+    // Preserve coverage-gap signal: one blank row per district with zero contacts
+    for (const leaid of allDistrictLeaids) {
+      if (seenDistricts.has(leaid)) continue;
+      const districtName = districtNameMap?.get(leaid) || leaid;
+      const websiteUrl = districtWebsiteMap?.get(leaid) || "";
+      rows.push([districtName, websiteUrl, "", "", "", "", "", "", "", "", ""]);
+    }
 
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
@@ -194,7 +279,7 @@ export default function ContactsActionBar({
     link.download = `${safeName}-contacts-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [contacts, allDistrictLeaids, districtNameMap, planName]);
+  }, [contacts, allDistrictLeaids, districtNameMap, districtWebsiteMap, planName]);
 
   const progressPercent =
     progress && progress.queued > 0
@@ -238,10 +323,49 @@ export default function ContactsActionBar({
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#403770]/40 pointer-events-none" />
                 </div>
+
+                {selectedRole === "Principal" && (
+                  <div className="mb-3">
+                    <label className="block text-[11px] font-semibold text-[#403770]/60 uppercase tracking-wider mb-1.5">
+                      School Level
+                    </label>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        { value: 1, label: "Primary" },
+                        { value: 2, label: "Middle" },
+                        { value: 3, label: "High" },
+                      ].map(({ value, label }) => (
+                        <label
+                          key={value}
+                          className="flex items-center gap-2 text-[13px] text-[#403770] cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={schoolLevels.has(value)}
+                            onChange={(e) => {
+                              setSchoolLevels((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(value);
+                                else next.delete(value);
+                                return next;
+                              });
+                            }}
+                            className="w-3.5 h-3.5 accent-[#403770]"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={handleStartEnrichment}
-                  disabled={bulkEnrich.isPending}
-                  className="w-full px-3 py-2 text-[13px] font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-50 rounded-lg transition-colors"
+                  disabled={
+                    bulkEnrich.isPending ||
+                    (selectedRole === "Principal" && schoolLevels.size === 0)
+                  }
+                  className="w-full px-3 py-2 text-[13px] font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   {bulkEnrich.isPending ? "Starting..." : "Start"}
                 </button>
@@ -278,7 +402,8 @@ export default function ContactsActionBar({
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-[13px] font-medium ${
+          role="status"
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-[13px] font-medium flex items-center gap-3 ${
             toast.type === "success"
               ? "bg-[#8AA891] text-white"
               : toast.type === "warning"
@@ -289,7 +414,17 @@ export default function ContactsActionBar({
           }`}
           style={{ animation: "tooltipEnter 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards" }}
         >
-          {toast.message}
+          <span>{toast.message}</span>
+          {toast.action && (
+            <button
+              type="button"
+              onClick={toast.action.onClick}
+              disabled={expandRollup.isPending}
+              className="inline-flex items-center px-2.5 py-1 text-[12px] font-semibold text-white bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors whitespace-nowrap"
+            >
+              {expandRollup.isPending ? "Expanding..." : toast.action.label}
+            </button>
+          )}
         </div>
       )}
     </>

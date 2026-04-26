@@ -3,7 +3,6 @@ import type { RawVacancy } from "./parsers/types";
 import { filterExcludedRoles } from "./role-filter";
 import { categorize } from "./categorizer";
 import { generateFingerprint } from "./fingerprint";
-import { isStatewideBoard } from "./platform-detector";
 
 interface ProcessResult {
   vacancyCount: number;
@@ -85,17 +84,14 @@ function normalizeDistrictName(name: string): string {
 
 /**
  * Check whether a vacancy's employer name matches the expected district.
- * Returns true (verified) for district-scoped platforms or when employer matches.
- * Returns false only when a state-wide board provides an employer that clearly
- * doesn't match the target district.
+ * Only called from redistribution paths (isOwnDistrict=false), where the
+ * vacancy came from a shared board and the target district must be verified
+ * by employer-name match.
  */
 function checkDistrictAffinity(
   raw: RawVacancy,
-  platform: string,
   districtName: string | undefined
 ): boolean {
-  // District-specific platforms — always trust
-  if (!isStatewideBoard(platform)) return true;
   // No district name to compare against — benefit of the doubt
   if (!districtName) return true;
   // No employer info available — benefit of the doubt
@@ -217,7 +213,7 @@ export async function processVacancies(
     if (fullmindRelevant) fullmindRelevantCount++;
 
     const datePosted = parseDatePosted(raw.datePosted);
-    const districtVerified = isOwnDistrict || checkDistrictAffinity(raw, platform, districtName);
+    const districtVerified = isOwnDistrict || checkDistrictAffinity(raw, districtName);
 
     // Upsert vacancy
     await prisma.vacancy.upsert({

@@ -21,39 +21,46 @@ export function detectPlatform(url: string): string {
 }
 
 /**
- * Returns true if the platform hosts listings from multiple districts
- * (state-wide boards or regional consortiums) rather than a single district.
+ * Normalize a job board URL into a stable key for grouping and shared-board
+ * detection. Returns lowercased `origin + pathname` with any trailing slash
+ * stripped, or null if the URL is unparseable.
  *
- * For OLAS and SchoolSpring, always true (they're inherently multi-district).
- * For AppliTrack, true when the URL belongs to a shared/regional instance
- * (multiple districts share the same AppliTrack subdirectory).
+ * Two districts whose URLs share the same normalized key point at the same
+ * board page and should be treated as sharing that board.
  */
-export function isStatewideBoard(platform: string, url?: string): boolean {
-  if (platform === "olas" || platform === "schoolspring") return true;
-
-  // AppliTrack shared instances: the URL path segment after /applitrack.com/
-  // is the instance name. If it appears in our known shared list, it's regional.
-  if (platform === "applitrack" && url) {
-    return isSharedAppliTrack(url);
+export function normalizeJobBoardKey(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const key = (u.origin + u.pathname).toLowerCase();
+    return key.endsWith("/") && key.length > u.origin.length ? key.slice(0, -1) : key;
+  } catch {
+    return null;
   }
-
-  return false;
 }
 
 /**
- * Async version of isStatewideBoard that guarantees the shared AppliTrack
- * instance cache is loaded before checking. Use this in async contexts
- * (scan-runner, cron route) for reliable detection.
+ * Returns true when this URL's normalized key is shared by 2+ districts —
+ * i.e. the URL represents a board that hosts listings from multiple districts.
+ *
+ * Sync check; returns false if the shared-boards cache has not been warmed.
+ * Call `loadSharedJobBoardUrls()` first (the cron route does this at startup).
+ * For contexts where you can await, prefer `isStatewideBoardAsync`.
  */
-export async function isStatewideBoardAsync(platform: string, url?: string): Promise<boolean> {
-  if (platform === "olas" || platform === "schoolspring") return true;
+export function isStatewideBoard(_platform: string, url?: string): boolean {
+  if (!url || !sharedBoardsCache) return false;
+  const key = normalizeJobBoardKey(url);
+  return key ? sharedBoardsCache.has(key) : false;
+}
 
-  if (platform === "applitrack" && url) {
-    await loadSharedAppliTrackInstances();
-    return isSharedAppliTrack(url);
-  }
-
-  return false;
+/**
+ * Async version that guarantees the shared-boards cache is loaded before
+ * checking. Use this in async contexts (scan-runner) for reliable detection.
+ */
+export async function isStatewideBoardAsync(_platform: string, url?: string): Promise<boolean> {
+  if (!url) return false;
+  await loadSharedJobBoardUrls();
+  const key = normalizeJobBoardKey(url);
+  return key && sharedBoardsCache ? sharedBoardsCache.has(key) : false;
 }
 
 /**
@@ -70,41 +77,48 @@ export function getAppliTrackInstance(url: string): string | null {
   }
 }
 
-// Cache of shared AppliTrack instances (loaded from DB on first use)
-let sharedInstancesCache: Set<string> | null = null;
-let sharedInstancesCacheTime = 0;
+// Cache of normalized job-board URL keys that are shared by 2+ districts.
+// Loaded from DB on first use and refreshed after CACHE_TTL_MS.
+let sharedBoardsCache: Set<string> | null = null;
+let sharedBoardsCacheTime = 0;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
- * Load shared AppliTrack instances from DB — instances where 2+ districts
- * share the same base path. Cached for 1 hour.
+ * Load the set of normalized job-board URL keys that are shared across
+ * multiple districts. Cached for 1 hour.
  */
-export async function loadSharedAppliTrackInstances(): Promise<Set<string>> {
+export async function loadSharedJobBoardUrls(): Promise<Set<string>> {
   const now = Date.now();
-  if (sharedInstancesCache && now - sharedInstancesCacheTime < CACHE_TTL_MS) {
-    return sharedInstancesCache;
+  if (sharedBoardsCache && now - sharedBoardsCacheTime < CACHE_TTL_MS) {
+    return sharedBoardsCache;
   }
 
-  // Dynamic import to avoid circular deps
   const prisma = (await import("@/lib/prisma")).default;
+  const districts = await prisma.district.findMany({
+    where: { jobBoardUrl: { not: null } },
+    select: { jobBoardUrl: true },
+  });
 
-  const results: { instance: string }[] = await prisma.$queryRaw`
-    SELECT LOWER(SUBSTRING(job_board_url FROM 'applitrack.com/([^/]+)')) as instance
-    FROM districts
-    WHERE job_board_url LIKE '%applitrack.com%'
-    GROUP BY LOWER(SUBSTRING(job_board_url FROM 'applitrack.com/([^/]+)'))
-    HAVING COUNT(*) > 1
-  `;
+  const counts = new Map<string, number>();
+  for (const d of districts) {
+    if (!d.jobBoardUrl) continue;
+    const key = normalizeJobBoardKey(d.jobBoardUrl);
+    if (!key) continue;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
 
-  sharedInstancesCache = new Set(results.map((r) => r.instance).filter(Boolean));
-  sharedInstancesCacheTime = now;
-  return sharedInstancesCache;
+  const shared = new Set<string>();
+  for (const [key, count] of counts) {
+    if (count > 1) shared.add(key);
+  }
+
+  sharedBoardsCache = shared;
+  sharedBoardsCacheTime = now;
+  return shared;
 }
 
-function isSharedAppliTrack(url: string): boolean {
-  // Synchronous check against cache — if cache isn't loaded yet, return false
-  // (the async loadSharedAppliTrackInstances should be called at scan startup)
-  const instance = getAppliTrackInstance(url);
-  if (!instance || !sharedInstancesCache) return false;
-  return sharedInstancesCache.has(instance);
+/** Test-only: clear the shared-boards cache so each test starts cold. */
+export function __resetSharedBoardsCache(): void {
+  sharedBoardsCache = null;
+  sharedBoardsCacheTime = 0;
 }

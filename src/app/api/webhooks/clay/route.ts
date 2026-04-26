@@ -51,11 +51,13 @@ interface ClayContact {
   seniority_level?: string;
   persona?: string;
   department?: string;
+  ncessch?: string;
 }
 
 // Interface for the full Clay webhook payload
 interface ClayWebhookPayload {
   leaid: string;
+  ncessch?: string;
   contacts?: ClayContact[];
   // Alternative: Clay might send a single contact per webhook call
   name?: string;
@@ -163,6 +165,10 @@ async function handleClayWebhook(request: NextRequest) {
 
     let contactsCreated = 0;
     let contactsUpdated = 0;
+    // Track the resolved Contact row for each processed payload entry so that,
+    // if this is a per-school enrichment (ncessch present), we can link each
+    // contact to its school via SchoolContact after the main loop.
+    const processedContacts: { id: number }[] = [];
 
     // Process each contact
     for (const contact of contacts) {
@@ -210,10 +216,11 @@ async function handleClayWebhook(request: NextRequest) {
               lastEnrichedAt: new Date(),
             },
           });
+          processedContacts.push({ id: existing.id });
           contactsUpdated++;
         } else {
           // Create new contact
-          await prisma.contact.create({
+          const created = await prisma.contact.create({
             data: {
               leaid,
               name,
@@ -227,6 +234,7 @@ async function handleClayWebhook(request: NextRequest) {
               lastEnrichedAt: new Date(),
             },
           });
+          processedContacts.push({ id: created.id });
           contactsCreated++;
         }
       } else {
@@ -251,10 +259,11 @@ async function handleClayWebhook(request: NextRequest) {
               lastEnrichedAt: new Date(),
             },
           });
+          processedContacts.push({ id: existing.id });
           contactsUpdated++;
         } else {
           // Create new contact without email
-          await prisma.contact.create({
+          const created = await prisma.contact.create({
             data: {
               leaid,
               name,
@@ -267,8 +276,21 @@ async function handleClayWebhook(request: NextRequest) {
               lastEnrichedAt: new Date(),
             },
           });
+          processedContacts.push({ id: created.id });
           contactsCreated++;
         }
+      }
+    }
+
+    // Per-school enrichment: link each resolved Contact to the School via SchoolContact
+    const rootNcessch = payload.ncessch;
+    if (rootNcessch) {
+      for (const c of processedContacts) {
+        await prisma.schoolContact.upsert({
+          where: { schoolId_contactId: { schoolId: rootNcessch, contactId: c.id } },
+          create: { schoolId: rootNcessch, contactId: c.id },
+          update: {},
+        });
       }
     }
 

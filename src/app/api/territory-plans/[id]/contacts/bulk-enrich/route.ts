@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
+import { getRollupLeaids, getChildren } from "@/features/districts/lib/rollup";
 
 export const dynamic = "force-dynamic";
 
-// How long before a previous enrichment is considered expired (10 minutes)
 const ENRICHMENT_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
  * POST /api/territory-plans/[id]/contacts/bulk-enrich
  *
- * Trigger bulk Clay contact enrichment for all districts in a plan.
- * Skips districts that already have contacts. Creates an Activity record
- * for admin visibility. Fires Clay webhooks in batches of 10.
+ * Trigger bulk Clay contact enrichment for a plan.
+ *   - Non-Principal roles: one webhook per district (skipping districts that already have contacts).
+ *   - Principal: one webhook per School at the requested schoolLevels (skipping schools already linked
+ *     to a principal via SchoolContact).
  */
 export async function POST(
   request: NextRequest,
@@ -27,35 +28,96 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { targetRole = "Superintendent" } = body;
+    const targetRole: string = body.targetRole ?? "Superintendent";
+    const schoolLevelsRaw: unknown = body.schoolLevels;
 
-    // Fetch the plan with its districts
+    const isPrincipal = targetRole === "Principal";
+
+    let schoolLevels: number[] = [];
+    if (isPrincipal) {
+      if (!Array.isArray(schoolLevelsRaw) || schoolLevelsRaw.length === 0) {
+        return NextResponse.json(
+          { error: "schoolLevels is required and must be non-empty when targetRole is Principal" },
+          { status: 400 }
+        );
+      }
+      schoolLevels = schoolLevelsRaw
+        .map((n) => Number(n))
+        .filter((n) => Number.isInteger(n) && n >= 1 && n <= 4);
+      if (schoolLevels.length === 0) {
+        return NextResponse.json(
+          { error: "schoolLevels must contain integers 1–4" },
+          { status: 400 }
+        );
+      }
+    }
+
     const plan = await prisma.territoryPlan.findUnique({
       where: { id },
-      include: {
-        districts: {
-          select: { districtLeaid: true },
-        },
-      },
+      include: { districts: { select: { districtLeaid: true } } },
     });
 
     if (!plan) {
       return NextResponse.json({ error: "Territory plan not found" }, { status: 404 });
     }
 
-    // Concurrency guard: check if enrichment is already in progress
+    const allLeaids = plan.districts.map((d) => d.districtLeaid);
+
+    // Rollup pre-check — fail fast with a reason code the UI can act on.
+    // This is a defensive layer on top of T7's auto-migrate (which runs on plan GET);
+    // plans modified out-of-band might still reach here with rollup leaids.
+    const rollupLeaids = await getRollupLeaids(allLeaids);
+    if (rollupLeaids.length > 0) {
+      const childLeaids = (
+        await Promise.all(rollupLeaids.map((l) => getChildren(l)))
+      ).flat();
+      return NextResponse.json(
+        {
+          error: "Plan contains rollup district(s); expand to children before enriching.",
+          reason: "rollup-district",
+          rollupLeaids,
+          childLeaids,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (allLeaids.length === 0) {
+      return NextResponse.json({ total: 0, skipped: 0, queued: 0 });
+    }
+
+    const clayWebhookUrl = process.env.CLAY_WEBHOOK_URL;
+    if (!clayWebhookUrl) {
+      return NextResponse.json(
+        { error: "Clay webhook not configured. Please add CLAY_WEBHOOK_URL to environment variables." },
+        { status: 500 }
+      );
+    }
+
+    const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://plan.fullmindlearning.com"}/api/webhooks/clay`;
+
+    // ---------- Concurrency guard (shared) ----------
     if (
       plan.enrichmentStartedAt &&
       plan.enrichmentQueued &&
       Date.now() - plan.enrichmentStartedAt.getTime() < ENRICHMENT_TIMEOUT_MS
     ) {
-      // Count how many queued districts now have contacts
-      const allLeaids = plan.districts.map((d) => d.districtLeaid);
+      // For district mode, the existing check against contact groupBy is correct.
+      // For Principal mode, we conservatively refuse until the previous run times out.
+      if (isPrincipal) {
+        return NextResponse.json(
+          {
+            error: "Enrichment already in progress",
+            enriched: 0,
+            queued: plan.enrichmentQueued,
+          },
+          { status: 409 }
+        );
+      }
       const enrichedCount = await prisma.contact.groupBy({
         by: ["leaid"],
         where: { leaid: { in: allLeaids } },
       });
-
       if (enrichedCount.length < plan.enrichmentQueued) {
         return NextResponse.json(
           {
@@ -68,13 +130,139 @@ export async function POST(
       }
     }
 
-    const allLeaids = plan.districts.map((d) => d.districtLeaid);
+    // ============================================================
+    // Principal path — one webhook per school
+    // ============================================================
+    if (isPrincipal) {
+      const schools = await prisma.school.findMany({
+        where: {
+          leaid: { in: allLeaids },
+          schoolLevel: { in: schoolLevels },
+          schoolStatus: 1, // open schools only
+        },
+        select: {
+          ncessch: true,
+          schoolName: true,
+          schoolLevel: true,
+          schoolType: true,
+          leaid: true,
+          streetAddress: true,
+          city: true,
+          stateAbbrev: true,
+          zip: true,
+          phone: true,
+        },
+      });
 
-    if (allLeaids.length === 0) {
-      return NextResponse.json({ total: 0, skipped: 0, queued: 0 });
+      if (schools.length === 0) {
+        return NextResponse.json({ total: 0, skipped: 0, queued: 0 });
+      }
+
+      // NOTE: the "already enriched as principal" heuristic matches title /principal/i.
+      // If match rate is poor in production, fall back to skipping schools with ANY SchoolContact.
+      const alreadyPrincipal = await prisma.schoolContact.findMany({
+        where: {
+          schoolId: { in: schools.map((s) => s.ncessch) },
+          contact: { title: { contains: "principal", mode: "insensitive" } },
+        },
+        select: { schoolId: true },
+      });
+      const alreadyPrincipalSet = new Set(alreadyPrincipal.map((r) => r.schoolId));
+      const toEnrich = schools.filter((s) => !alreadyPrincipalSet.has(s.ncessch));
+
+      const total = schools.length;
+      const skipped = alreadyPrincipalSet.size;
+      const queued = toEnrich.length;
+
+      if (queued === 0) {
+        return NextResponse.json({ total, skipped, queued: 0 });
+      }
+
+      const districtRows = await prisma.district.findMany({
+        where: { leaid: { in: Array.from(new Set(toEnrich.map((s) => s.leaid))) } },
+        select: {
+          leaid: true,
+          name: true,
+          stateAbbrev: true,
+          websiteUrl: true,
+        },
+      });
+      const districtByLeaid = new Map(districtRows.map((d) => [d.leaid, d]));
+
+      const activity = await prisma.activity.create({
+        data: {
+          type: "contact_enrichment",
+          title: `Bulk contact enrichment — Principal`,
+          status: "in_progress",
+          source: "system",
+          createdByUserId: user.id,
+          metadata: {
+            targetRole: "Principal",
+            schoolLevels,
+            schoolsQueued: queued,
+            districtCount: districtRows.length,
+            skipped,
+          },
+          plans: { create: { planId: id } },
+        },
+      });
+
+      await prisma.territoryPlan.update({
+        where: { id },
+        data: {
+          enrichmentStartedAt: new Date(),
+          enrichmentQueued: queued,
+          enrichmentActivityId: activity.id,
+        },
+      });
+
+      const batchSize = 10;
+      const fireBatches = async () => {
+        for (let i = 0; i < toEnrich.length; i += batchSize) {
+          const batch = toEnrich.slice(i, i + batchSize);
+          await Promise.all(
+            batch.map(async (school) => {
+              const district = districtByLeaid.get(school.leaid);
+              try {
+                await fetch(clayWebhookUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    ncessch: school.ncessch,
+                    school_name: school.schoolName,
+                    school_level: school.schoolLevel,
+                    school_type: school.schoolType,
+                    leaid: school.leaid,
+                    district_name: district?.name ?? null,
+                    state: school.stateAbbrev,
+                    city: school.city,
+                    street: school.streetAddress,
+                    zip: school.zip,
+                    website_url: district?.websiteUrl ?? null,
+                    target_role: "Principal",
+                    callback_url: callbackUrl,
+                  }),
+                });
+              } catch (error) {
+                console.error(`Clay webhook failed for school ${school.ncessch}:`, error);
+              }
+            })
+          );
+          if (i + batchSize < toEnrich.length) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        }
+      };
+      fireBatches().catch((error) => {
+        console.error("Batch enrichment error (Principal):", error);
+      });
+
+      return NextResponse.json({ total, skipped, queued });
     }
 
-    // Find districts that already have contacts (skip these)
+    // ============================================================
+    // Existing per-district path (unchanged behavior)
+    // ============================================================
     const districtsWithContacts = await prisma.contact.groupBy({
       by: ["leaid"],
       where: { leaid: { in: allLeaids } },
@@ -90,7 +278,6 @@ export async function POST(
       return NextResponse.json({ total, skipped, queued: 0 });
     }
 
-    // Fetch district details for Clay payload
     const districts = await prisma.district.findMany({
       where: { leaid: { in: leaidsToEnrich } },
       select: {
@@ -104,17 +291,6 @@ export async function POST(
       },
     });
 
-    const clayWebhookUrl = process.env.CLAY_WEBHOOK_URL;
-    if (!clayWebhookUrl) {
-      return NextResponse.json(
-        { error: "Clay webhook not configured. Please add CLAY_WEBHOOK_URL to environment variables." },
-        { status: 500 }
-      );
-    }
-
-    const callbackUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://plan.fullmindlearning.com"}/api/webhooks/clay`;
-
-    // Create Activity record for admin visibility
     const activity = await prisma.activity.create({
       data: {
         type: "contact_enrichment",
@@ -123,13 +299,10 @@ export async function POST(
         source: "system",
         createdByUserId: user.id,
         metadata: { targetRole, queued, skipped },
-        plans: {
-          create: { planId: id },
-        },
+        plans: { create: { planId: id } },
       },
     });
 
-    // Update plan with enrichment tracking
     await prisma.territoryPlan.update({
       where: { id },
       data: {
@@ -139,13 +312,10 @@ export async function POST(
       },
     });
 
-    // Fire Clay webhooks in batches of 10, sequentially with 1s delay
-    // This runs in the background after we return the response
     const batchSize = 10;
     const fireBatches = async () => {
       for (let i = 0; i < districts.length; i += batchSize) {
         const batch = districts.slice(i, i + batchSize);
-
         await Promise.all(
           batch.map(async (district) => {
             try {
@@ -170,15 +340,11 @@ export async function POST(
             }
           })
         );
-
-        // 1 second delay between batches (skip after last batch)
         if (i + batchSize < districts.length) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     };
-
-    // Fire batches without awaiting — return immediately
     fireBatches().catch((error) => {
       console.error("Batch enrichment error:", error);
     });

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { syncClassificationTagsForDistrict } from "@/features/shared/lib/auto-tags";
+import {
+  syncClassificationTagsForDistrict,
+  syncMissingRenewalOppTagForDistrict,
+} from "@/features/shared/lib/auto-tags";
 import { syncPlanRollups } from "@/features/plans/lib/rollup-sync";
 import { awardPoints } from "@/features/leaderboard/lib/scoring";
 import {
@@ -9,6 +12,7 @@ import {
   buildWhereClause,
   DISTRICT_FIELD_MAP,
 } from "@/features/shared/lib/filters";
+import { getRollupLeaids, getChildren } from "@/features/districts/lib/rollup";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +58,21 @@ export async function POST(
         { error: "No matching districts found" },
         { status: 400 }
       );
+    }
+
+    // Expand any rollup leaids in the requested list to their children.
+    // The plan never stores rollup leaids directly; this is the server-side
+    // enforcement of that invariant (belt-and-suspenders with T7's
+    // expandPlanRollups auto-migrate on plan GET).
+    const rollupsInRequest = await getRollupLeaids(districtLeaids);
+    if (rollupsInRequest.length > 0) {
+      const keep = new Set(
+        districtLeaids.filter((l) => !rollupsInRequest.includes(l))
+      );
+      for (const r of rollupsInRequest) {
+        for (const c of await getChildren(r)) keep.add(c);
+      }
+      districtLeaids = Array.from(keep);
     }
 
     // Check if plan exists
@@ -155,9 +174,10 @@ export async function POST(
     const BATCH_SIZE = 10;
     for (let i = 0; i < districtLeaids.length; i += BATCH_SIZE) {
       await Promise.all(
-        districtLeaids.slice(i, i + BATCH_SIZE).map((leaid) =>
-          syncClassificationTagsForDistrict(leaid)
-        )
+        districtLeaids.slice(i, i + BATCH_SIZE).flatMap((leaid) => [
+          syncClassificationTagsForDistrict(leaid),
+          syncMissingRenewalOppTagForDistrict(leaid),
+        ])
       );
     }
 

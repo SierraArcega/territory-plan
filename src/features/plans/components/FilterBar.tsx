@@ -217,12 +217,27 @@ export default function FilterBar({
 
         {/* Filter dropdowns */}
         {filters.map((filter) => {
-          if (filter.options.length === 0) return null;
+          const isLoading = filter.options.length === 0;
 
-          const isActive = activeFilters[filter.id] &&
+          const isActive = !isLoading && activeFilters[filter.id] &&
             (Array.isArray(activeFilters[filter.id])
               ? (activeFilters[filter.id] as string[]).length > 0
               : true);
+
+          if (isLoading) {
+            return (
+              <button
+                key={filter.id}
+                disabled
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed"
+              >
+                {filter.label}
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            );
+          }
 
           return (
             <Dropdown

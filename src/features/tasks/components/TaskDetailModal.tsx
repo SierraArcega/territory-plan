@@ -71,17 +71,17 @@ export default function TaskDetailModal({ task, isOpen, onClose }: TaskDetailMod
   const linkContacts = useLinkTaskContacts();
   const createPlan = useCreateTerritoryPlan();
 
-  // Data hooks for pickers
-  const { data: plans } = useTerritoryPlans();
-  const { data: activitiesData } = useActivities();
+  // Data hooks for pickers — gated on isOpen to avoid firing on every page load
+  const { data: plans } = useTerritoryPlans({ enabled: isOpen });
+  const { data: activitiesData } = useActivities({}, { enabled: isOpen });
   const { data: districtsData } = useDistricts({
     search: districtSearch || undefined,
     limit: 20,
-  });
+  }, { enabled: isOpen });
   const { data: contactsData } = useContacts({
     search: contactSearch || undefined,
     limit: 20,
-  });
+  }, { enabled: isOpen });
 
   // Reset form when task changes (use prop task for form fields)
   useEffect(() => {

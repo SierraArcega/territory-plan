@@ -33,6 +33,10 @@ export interface District {
   centroidLng: number | null;
   // Account type (district, cmo, esa_boces, etc.)
   accountType: string;
+  // Rollup composition (NYC DOE and similar parent districts with children)
+  isRollup?: boolean;
+  childLeaids?: string[];
+  schoolCount?: number;
 }
 
 export interface DistrictFinancial {
@@ -84,6 +88,13 @@ export interface Service {
   sortOrder: number;
 }
 
+export interface ContactSchoolLink {
+  ncessch: string;
+  name: string;
+  schoolLevel: number | null;
+  schoolType: number | null;
+}
+
 export interface Contact {
   id: number;
   leaid: string;
@@ -98,6 +109,8 @@ export interface Contact {
   seniorityLevel: string | null;
   createdAt: string;
   lastEnrichedAt: string | null;
+  /** Present when the contact is linked to one or more schools (e.g. principals). Empty array for district-level contacts. */
+  schoolContacts: ContactSchoolLink[];
 }
 
 export interface DistrictEducationData {
@@ -225,6 +238,8 @@ export interface DistrictListItem {
   isCustomer: boolean;
   hasOpenPipeline: boolean;
   metricValue: number;
+  isRollup?: boolean;
+  childCount?: number;
 }
 
 export interface UnmatchedAccount {

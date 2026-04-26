@@ -7,7 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Use more workers for parallel tile decoding during fast panning
 setWorkerCount(4);
 import { useMapV2Store } from "@/features/map/lib/store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression } from "@/features/map/lib/layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression, NOT_ROLLUP_FILTER, DISTRICT_ROLLUP_OUTLINE_LAYER } from "@/features/map/lib/layers";
 import type { SignalId } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
@@ -28,6 +28,7 @@ import {
 } from "@/features/map/lib/pin-layers";
 import type { RightPanelContent } from "@/features/map/lib/store";
 import MapV2Tooltip from "./MapV2Tooltip";
+import { pickDistrictFeature } from "./pickDistrictFeature";
 
 export interface MapV2ContainerProps {
   /** Override the fiscal year used for tile requests (for side-by-side panes) */
@@ -390,7 +391,11 @@ export default function MapV2Container({
         );
         // Update filter to match the signal's tile property
         const config = SIGNAL_CONFIGS[colorBy];
-        map.current.setFilter("district-signal-fill", ["has", config.tileProperty]);
+        map.current.setFilter("district-signal-fill", [
+          "all",
+          ["has", config.tileProperty],
+          NOT_ROLLUP_FILTER,
+        ]);
       }
     } else if (colorBy === "locale") {
       // Hide all vendor fill layers
@@ -459,7 +464,7 @@ export default function MapV2Container({
         const suffix = tileUrlSuffix ?? "";
         map.current.addSource("districts", {
           type: "vector",
-          tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${initialFy}${suffix}`],
+          tiles: [`${window.location.origin}/api/tiles/{z}/{x}/{y}?v=10&fy=${initialFy}${suffix}`],
           minzoom: 2,
           maxzoom: 12,
         });
@@ -527,25 +532,30 @@ export default function MapV2Container({
         },
       });
 
-      // Base fill for all districts (light gray background)
+      // Base fill for all districts (light gray background).
+      // Exclude rollup districts (e.g., NYC DOE) — they cover the same area
+      // as their children and would absorb clicks meant for the child.
       map.current.addLayer({
         id: "district-base-fill",
         type: "fill",
         source: "districts",
         "source-layer": "districts",
+        filter: NOT_ROLLUP_FILTER as any,
         paint: {
           "fill-color": "#E5E7EB",
           "fill-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.15, 4, 0.3, 5, 0.4],
         },
       });
 
-      // Base boundary for all districts
+      // Base boundary for all districts (excludes rollups; rollups get their
+      // own dashed outline via DISTRICT_ROLLUP_OUTLINE_LAYER below)
       map.current.addLayer({
         id: "district-base-boundary",
         type: "line",
         source: "districts",
         "source-layer": "districts",
         minzoom: 4.5,
+        filter: NOT_ROLLUP_FILTER as any,
         paint: {
           "line-color": "#374151",
           "line-width": ["interpolate", ["linear"], ["zoom"], 4.5, 0.1, 5, 0.2, 7, 0.6, 10, 1],
@@ -553,12 +563,17 @@ export default function MapV2Container({
         },
       });
 
-      // Signal fill layer (renders below vendor layers)
+      // Dashed outline for rollup districts — visible context without
+      // absorbing clicks (no fill, so MapLibre hit-tests pass through).
+      map.current.addLayer(DISTRICT_ROLLUP_OUTLINE_LAYER as any);
+
+      // Signal fill layer (renders below vendor layers) — rollups excluded
       map.current.addLayer({
         id: "district-signal-fill",
         type: "fill",
         source: "districts",
         "source-layer": "districts",
+        filter: NOT_ROLLUP_FILTER as any,
         paint: {
           "fill-color": "rgba(0,0,0,0)",
           "fill-opacity": 0,
@@ -568,13 +583,14 @@ export default function MapV2Container({
         },
       });
 
-      // Locale fill layer (renders below vendor layers, above signal)
+      // Locale fill layer (renders below vendor layers, above signal) —
+      // rollups excluded
       map.current.addLayer({
         id: "district-locale-fill",
         type: "fill",
         source: "districts",
         "source-layer": "districts",
-        filter: ["has", "locale_signal"],
+        filter: ["all", ["has", "locale_signal"], NOT_ROLLUP_FILTER] as any,
         paint: {
           "fill-color": LOCALE_FILL as any,
           "fill-opacity": 0.55,
@@ -593,9 +609,11 @@ export default function MapV2Container({
           : buildVendorFillExpressionFromCategories(vendorId, useMapV2Store.getState().categoryColors) as any;
         // In changes mode, use the _a property to detect presence (it replaces the base property)
         const filterProp = isChangesMode ? `${config.tileProperty}_a` : config.tileProperty;
-        const layerFilter = isChangesMode
-          ? ["any", ["has", `${config.tileProperty}_a`], ["has", `${config.tileProperty}_b`]] as any
+        const vendorHasFilter = isChangesMode
+          ? ["any", ["has", `${config.tileProperty}_a`], ["has", `${config.tileProperty}_b`]]
           : ["has", filterProp];
+        // Exclude rollups — they shouldn't receive any vendor fill
+        const layerFilter = ["all", vendorHasFilter, NOT_ROLLUP_FILTER] as any;
         map.current.addLayer({
           id: `district-${vendorId}-fill`,
           type: "fill",
@@ -1197,7 +1215,8 @@ export default function MapV2Container({
       {
         const districtFeatures = queryLayer("district-base-fill");
         if (districtFeatures.length > 0) {
-          const leaid = districtFeatures[0].properties?.leaid;
+          const picked = pickDistrictFeature(districtFeatures);
+          const leaid = picked?.properties?.leaid;
           if (!leaid) return;
 
           const store = useMapV2Store.getState();
@@ -1217,7 +1236,7 @@ export default function MapV2Container({
           store.openResultsPanel("districts");
 
           // Zoom to district
-          const bounds = districtFeatures[0].geometry;
+          const bounds = picked?.geometry;
           if (bounds && (bounds.type === "Polygon" || bounds.type === "MultiPolygon")) {
             // Compute a rough bounding box from coordinates
             const coords = bounds.type === "Polygon"
@@ -1474,7 +1493,7 @@ export default function MapV2Container({
 
     const effectiveFy = fyOverride ?? selectedFiscalYear;
     const suffix = tileUrlSuffix ?? "";
-    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=5&fy=${effectiveFy}${suffix}`;
+    const newUrl = `${window.location.origin}/api/tiles/{z}/{x}/{y}?v=10&fy=${effectiveFy}${suffix}`;
     source.setTiles([newUrl]);
   }, [selectedFiscalYear, fyOverride, tileUrlSuffix, mapReady]);
 
@@ -1571,9 +1590,10 @@ export default function MapV2Container({
       buildCategoryOpacityExpression(activeSignal, categoryOpacities) as any,
     );
 
-    // Apply combined filter (signal property exists + user filters + account type)
+    // Apply combined filter (signal property exists + user filters + account type
+    // + rollup exclusion). Rollups never receive signal fills — they absorb clicks.
     const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
-    const signalConditions: any[] = [["has", config.tileProperty]];
+    const signalConditions: any[] = [["has", config.tileProperty], NOT_ROLLUP_FILTER];
     if (userFilter) signalConditions.push(userFilter);
     if (filterAccountTypes.length > 0) {
       const includesDistrict = filterAccountTypes.includes("district");
@@ -1602,9 +1622,10 @@ export default function MapV2Container({
     map.current.setLayoutProperty("district-locale-fill", "visibility", "visible");
 
     // Build combined filter: locale value in selected set + user filters + account type
+    // + rollup exclusion. Rollups never receive locale fills — they absorb clicks.
     const userFilter = buildFilterExpression(filterOwner, filterPlanId, filterStates);
     const localeValues = [...visibleLocales];
-    const localeConditions: any[] = [];
+    const localeConditions: any[] = [NOT_ROLLUP_FILTER];
     localeConditions.push(
       visibleLocales.size === ALL_LOCALE_IDS.length
         ? ["has", "locale_signal"]
@@ -1693,15 +1714,15 @@ export default function MapV2Container({
       }
     }
 
-    // Combine user filter + account type filter
-    const conditions: any[] = [];
+    // Combine user filter + account type filter. Rollups (e.g., NYC DOE) are
+    // always excluded from fill layers so they don't absorb clicks — see
+    // NOT_ROLLUP_FILTER in layers.ts.
+    const conditions: any[] = [NOT_ROLLUP_FILTER];
     if (userFilter) conditions.push(userFilter);
     if (accountTypeFilter) conditions.push(accountTypeFilter);
-    const combinedFilter = conditions.length === 0
-      ? null
-      : conditions.length === 1
-        ? conditions[0]
-        : ["all", ...conditions];
+    const combinedFilter = conditions.length === 1
+      ? conditions[0]
+      : ["all", ...conditions];
 
     // Apply to base layers
     map.current.setFilter("district-base-fill", combinedFilter);

@@ -1,9 +1,7 @@
+import { callClaude, findToolUse, SONNET_MODEL } from "@/lib/anthropic";
 import type { RawVacancy } from "./types";
 
 const USER_AGENT = "TerritoryPlanBuilder/1.0 (vacancy-scanner)";
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = "claude-sonnet-4-6";
-const ANTHROPIC_VERSION = "2023-06-01";
 
 /** Maximum characters of page text to send to Claude (to stay within context limits) */
 const MAX_TEXT_LENGTH = 80_000;
@@ -21,13 +19,6 @@ const MIN_CONTENT_LENGTH = 200;
  * 4. Returns the extracted vacancies
  */
 export async function parseWithClaude(url: string): Promise<RawVacancy[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "ANTHROPIC_API_KEY environment variable is required for Claude fallback parsing"
-    );
-  }
-
   // Try plain fetch first (fast path for server-rendered pages)
   let html = await fetchPageSimple(url);
   let text = htmlToText(html);
@@ -48,7 +39,7 @@ export async function parseWithClaude(url: string): Promise<RawVacancy[]> {
   const truncatedText =
     text.length > MAX_TEXT_LENGTH ? text.slice(0, MAX_TEXT_LENGTH) : text;
 
-  return callClaude(apiKey, truncatedText, url);
+  return extractVacanciesFromText(truncatedText, url);
 }
 
 /** Fast path: plain fetch for server-rendered pages */
@@ -170,25 +161,6 @@ const VACANCY_TOOL = {
   },
 };
 
-interface ClaudeApiResponse {
-  content: ClaudeContentBlock[];
-  stop_reason: string;
-}
-
-interface ClaudeTextBlock {
-  type: "text";
-  text: string;
-}
-
-interface ClaudeToolUseBlock {
-  type: "tool_use";
-  id: string;
-  name: string;
-  input: Record<string, unknown>;
-}
-
-type ClaudeContentBlock = ClaudeTextBlock | ClaudeToolUseBlock;
-
 interface ExtractedVacanciesInput {
   vacancies: Array<{
     title: string;
@@ -201,60 +173,24 @@ interface ExtractedVacanciesInput {
   }>;
 }
 
-async function callClaude(
-  apiKey: string,
+async function extractVacanciesFromText(
   pageText: string,
   pageUrl: string
 ): Promise<RawVacancy[]> {
-  const body = {
-    model: CLAUDE_MODEL,
-    max_tokens: 4096,
-    system:
+  const content = await callClaude({
+    model: SONNET_MODEL,
+    systemPrompt:
       "You are extracting job vacancy listings from a school district job board page. Extract all job postings you can find. Use the extract_vacancies tool to return the structured data.",
-    messages: [
-      {
-        role: "user" as const,
-        content: `Extract all job vacancy postings from this school district job board page.\n\nPage URL: ${pageUrl}\n\nPage content:\n${pageText}`,
-      },
-    ],
+    userMessage: `Extract all job vacancy postings from this school district job board page.\n\nPage URL: ${pageUrl}\n\nPage content:\n${pageText}`,
     tools: [VACANCY_TOOL],
-    tool_choice: { type: "tool" as const, name: "extract_vacancies" },
-  };
-
-  const res = await fetch(CLAUDE_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": ANTHROPIC_VERSION,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
+    toolChoice: { type: "tool", name: "extract_vacancies" },
   });
 
-  if (!res.ok) {
-    const errorBody = await res.text().catch(() => "");
-    throw new Error(
-      `Claude API error: ${res.status} ${res.statusText}${errorBody ? ` - ${errorBody}` : ""}`
-    );
-  }
-
-  const response: ClaudeApiResponse = await res.json();
-
-  // Find the tool_use block in the response
-  const toolBlock = response.content.find(
-    (block): block is ClaudeToolUseBlock =>
-      block.type === "tool_use" && block.name === "extract_vacancies"
-  );
-
-  if (!toolBlock) {
-    return [];
-  }
+  const toolBlock = findToolUse(content, "extract_vacancies");
+  if (!toolBlock) return [];
 
   const input = toolBlock.input as unknown as ExtractedVacanciesInput;
-  if (!input.vacancies || !Array.isArray(input.vacancies)) {
-    return [];
-  }
+  if (!input.vacancies || !Array.isArray(input.vacancies)) return [];
 
   return input.vacancies.map((v) => ({
     title: v.title,
