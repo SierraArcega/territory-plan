@@ -1252,6 +1252,32 @@ model Opportunity {
   @@map("opportunities")
 }
 
+// Daily snapshot of every opportunity's key fields. Written by the
+// /api/cron/pipeline-snapshot route. Lets us answer "what did pipeline look
+// like N days ago" without replaying the audit log. One row per opp per
+// snapshot_date; unique constraint prevents duplicates within a single day.
+model OpportunitySnapshot {
+  id                    BigInt    @id @default(autoincrement())
+  snapshotDate          DateTime  @map("snapshot_date") @db.Date
+  opportunityId         String    @map("opportunity_id") @db.Text
+  stage                 String?   @db.Text
+  netBookingAmount      Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  minimumPurchaseAmount Decimal?  @map("minimum_purchase_amount") @db.Decimal(15, 2)
+  maximumBudget         Decimal?  @map("maximum_budget") @db.Decimal(15, 2)
+  schoolYr              String?   @map("school_yr") @db.Text
+  salesRepId            String?   @map("sales_rep_id") @db.Uuid
+  districtLeaId         String?   @map("district_lea_id") @db.VarChar(7)
+  closeDate             DateTime? @map("close_date") @db.Timestamptz
+  expiration            DateTime? @map("expiration") @db.Timestamptz
+  capturedAt            DateTime  @default(now()) @map("captured_at") @db.Timestamptz
+
+  @@unique([opportunityId, snapshotDate])
+  @@index([snapshotDate])
+  @@index([schoolYr, snapshotDate])
+  @@index([opportunityId])
+  @@map("opportunity_snapshots")
+}
+
 // ===== Sessions =====
 // Individual session records synced from OpenSearch.
 // Linked to opportunities by opportunity_id.
