@@ -224,6 +224,78 @@ describe("GET /api/activities", () => {
     );
   });
 
+  it("parses multi-value status as IN clause", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?status=completed,in_progress");
+    await listActivities(req);
+
+    expect(mockPrisma.activity.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["completed", "in_progress"] },
+        }),
+      })
+    );
+  });
+
+  it("parses multi-value owner as createdByUserId IN", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?owner=user-1,user-2");
+    await listActivities(req);
+
+    expect(mockPrisma.activity.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          createdByUserId: { in: ["user-1", "user-2"] },
+        }),
+      })
+    );
+  });
+
+  it("filters by state via the new `state` query param", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?state=CA,NY");
+    await listActivities(req);
+
+    expect(mockPrisma.activity.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          states: { some: { state: { abbrev: { in: ["CA", "NY"] } } } },
+        }),
+      })
+    );
+  });
+
+  it("treats legacy `stateCode` param as `state`", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?stateCode=CA");
+    await listActivities(req);
+
+    expect(mockPrisma.activity.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          states: { some: { state: { abbrev: { in: ["CA"] } } } },
+        }),
+      })
+    );
+  });
+
   it("returns 500 on error", async () => {
     mockGetUser.mockResolvedValue(TEST_USER);
     mockPrisma.activity.count.mockRejectedValue(new Error("DB error"));
@@ -701,6 +773,145 @@ describe("PATCH /api/activities/[id]", () => {
         }),
       })
     );
+  });
+
+  it("returns 400 for invalid sentiment", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ sentiment: "ecstatic" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("sentiment must be one of:");
+  });
+
+  it("returns 400 for invalid dealImpact", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ dealImpact: "exploded" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("dealImpact must be one of:");
+  });
+
+  it("returns 400 for invalid outcomeDisposition", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ outcomeDisposition: "ghosted" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("outcomeDisposition must be one of:");
+  });
+
+  it("persists redesigned outcome fields", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+
+    mockPrisma.activity.update.mockResolvedValue({
+      id: "activity-1",
+      type: "discovery_call",
+      title: "Demo",
+      updatedAt: new Date("2026-02-23T12:00:00Z"),
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        sentiment: "positive",
+        nextStep: "send pricing",
+        followUpDate: "2026-05-01T00:00:00Z",
+        dealImpact: "progressed",
+        outcomeDisposition: "completed",
+      }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.activity.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sentiment: "positive",
+          nextStep: "send pricing",
+          dealImpact: "progressed",
+          outcomeDisposition: "completed",
+        }),
+      })
+    );
+
+    const callArgs = mockPrisma.activity.update.mock.calls[0][0];
+    expect(callArgs.data.followUpDate).toBeInstanceOf(Date);
+  });
+
+  it("clears nullable outcome fields when empty string is sent", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+
+    mockPrisma.activity.update.mockResolvedValue({
+      id: "activity-1",
+      type: "discovery_call",
+      title: "Demo",
+      updatedAt: new Date("2026-02-23T12:00:00Z"),
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({
+        sentiment: "",
+        nextStep: "",
+        followUpDate: null,
+        outcomeDisposition: "",
+      }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = mockPrisma.activity.update.mock.calls[0][0].data;
+    expect(data.sentiment).toBeNull();
+    expect(data.nextStep).toBeNull();
+    expect(data.followUpDate).toBeNull();
+    expect(data.outcomeDisposition).toBeNull();
   });
 });
 

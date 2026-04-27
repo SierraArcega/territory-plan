@@ -239,3 +239,33 @@ export const DEFAULT_TYPE_FOR_CATEGORY: Record<ActivityCategory, ActivityType> =
   sponsorships: "booth_exhibit",
   thought_leadership: "webinar",
 };
+
+// ===== Outcome panel constants (Wave 1) =====
+
+// Disposition (was the activity completed, no-show, rescheduled, cancelled)
+export const VALID_ACTIVITY_OUTCOMES = [
+  "completed",
+  "no_show",
+  "rescheduled",
+  "cancelled",
+] as const;
+export type ActivityOutcomeDisposition = (typeof VALID_ACTIVITY_OUTCOMES)[number];
+
+// How did the activity feel? Plotted as 3 large buttons in the drawer.
+export const VALID_ACTIVITY_SENTIMENTS = ["positive", "neutral", "negative"] as const;
+export type ActivitySentiment = (typeof VALID_ACTIVITY_SENTIMENTS)[number];
+
+// Did this activity move the deal forward? Default 'none' so legacy rows
+// surface as no-impact rather than null.
+export const VALID_DEAL_IMPACTS = ["none", "progressed", "won", "lost"] as const;
+export type DealImpact = (typeof VALID_DEAL_IMPACTS)[number];
+
+// Expense category — drives the colored pill in the redesigned Expenses panel.
+export const VALID_EXPENSE_CATEGORIES = [
+  "travel",
+  "meals",
+  "lodging",
+  "swag",
+  "other",
+] as const;
+export type ExpenseCategory = (typeof VALID_EXPENSE_CATEGORIES)[number];

@@ -256,16 +256,16 @@ model District {
   districtTags       DistrictTag[]
   territoryPlans     TerritoryPlanDistrict[]
   districtFinancials DistrictFinancials[]
-  activityLinks   ActivityDistrict[]
-  taskLinks       TaskDistrict[]
-  schools         School[]
-  dataHistory     DistrictDataHistory[]
-  gradeEnrollment DistrictGradeEnrollment[]
-  vacancyScans    VacancyScan[]
-  vacancies       Vacancy[]
-  opportunities   Opportunity[]
-  newsArticles    NewsArticleDistrict[]
-  newsFetch       DistrictNewsFetch?
+  activityLinks      ActivityDistrict[]
+  taskLinks          TaskDistrict[]
+  schools            School[]
+  dataHistory        DistrictDataHistory[]
+  gradeEnrollment    DistrictGradeEnrollment[]
+  vacancyScans       VacancyScan[]
+  vacancies          Vacancy[]
+  opportunities      Opportunity[]
+  newsArticles       NewsArticleDistrict[]
+  newsFetch          DistrictNewsFetch?
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -345,20 +345,20 @@ model DistrictFinancials {
 }
 
 model Contact {
-  id             Int               @id @default(autoincrement())
-  leaid          String            @db.VarChar(7)
-  salutation     String?           @db.VarChar(20)
-  name           String            @db.VarChar(255)
-  title          String?           @db.VarChar(255)
-  email          String?           @db.VarChar(255)
-  phone          String?           @db.VarChar(50)
-  isPrimary      Boolean           @default(false) @map("is_primary")
-  linkedinUrl    String?           @map("linkedin_url") @db.VarChar(500)
-  persona        String?           @db.VarChar(100)
-  seniorityLevel String?           @map("seniority_level") @db.VarChar(100)
-  createdAt      DateTime          @default(now()) @map("created_at")
-  lastEnrichedAt DateTime?         @map("last_enriched_at")
-  district       District          @relation(fields: [leaid], references: [leaid])
+  id             Int                  @id @default(autoincrement())
+  leaid          String               @db.VarChar(7)
+  salutation     String?              @db.VarChar(20)
+  name           String               @db.VarChar(255)
+  title          String?              @db.VarChar(255)
+  email          String?              @db.VarChar(255)
+  phone          String?              @db.VarChar(50)
+  isPrimary      Boolean              @default(false) @map("is_primary")
+  linkedinUrl    String?              @map("linkedin_url") @db.VarChar(500)
+  persona        String?              @db.VarChar(100)
+  seniorityLevel String?              @map("seniority_level") @db.VarChar(100)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  lastEnrichedAt DateTime?            @map("last_enriched_at")
+  district       District             @relation(fields: [leaid], references: [leaid])
   activityLinks  ActivityContact[]
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
@@ -610,10 +610,18 @@ model Activity {
   mixmaxClickCount    Int?    @map("mixmax_click_count")
 
   // ===== Outcome Tracking =====
-  // Captures what resulted from the activity (set on completion)
-  outcome     String? @db.VarChar(500) // free-text outcome note
-  outcomeType String? @map("outcome_type") @db.VarChar(30) // positive_progress, neutral, negative, follow_up_needed, etc.
-  rating      Int? // 1-5 star rating for activity outcome
+  // Captures what resulted from the activity (set on completion).
+  // `outcome` (free text) and `outcomeType` (legacy 30-char value) are retained
+  // for backwards compatibility; the redesigned drawer reads/writes the four
+  // structured fields below plus `outcome_disposition` for the 4-way enum.
+  outcome            String?   @db.VarChar(500) // free-text outcome notes
+  outcomeType        String?   @map("outcome_type") @db.VarChar(30) // legacy positive_progress / neutral / etc.
+  rating             Int? // 1-5 star rating for activity outcome
+  sentiment          String?   @db.VarChar(10) // positive | neutral | negative
+  nextStep           String?   @map("next_step") @db.Text
+  followUpDate       DateTime? @map("follow_up_date")
+  dealImpact         String    @default("none") @map("deal_impact") @db.VarChar(20) // none | progressed | won | lost
+  outcomeDisposition String?   @map("outcome_disposition") @db.VarChar(20) // completed | no_show | rescheduled | cancelled
 
   // ===== Type-Specific Fields =====
   // JSON blob for scalar fields that vary by event type (address, urls, timezone, time, etc.)
@@ -638,6 +646,7 @@ model Activity {
   @@index([type])
   @@index([startDate])
   @@index([type, startDate])
+  @@index([followUpDate])
   @@map("activities")
 }
 
@@ -703,14 +712,20 @@ model ActivityState {
 }
 
 model ActivityExpense {
-  id          String   @id @default(uuid())
-  activityId  String   @map("activity_id")
-  description String   @db.VarChar(255)
-  amount      Decimal  @db.Decimal(10, 2)
-  createdAt   DateTime @default(now()) @map("created_at")
-  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  activityId         String       @map("activity_id")
+  description        String       @db.VarChar(255)
+  amount             Decimal      @db.Decimal(10, 2)
+  category           String       @default("other") @db.VarChar(20) // travel | meals | lodging | swag | other
+  incurredOn         DateTime     @map("incurred_on")
+  receiptStoragePath String?      @map("receipt_storage_path") @db.VarChar(500)
+  createdById        String?      @map("created_by_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at")
+  activity           Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdBy          UserProfile? @relation("ActivityExpenseCreator", fields: [createdById], references: [id])
 
   @@index([activityId])
+  @@index([category])
   @@map("activity_expenses")
 }
 
@@ -871,6 +886,8 @@ model UserProfile {
   activityNotes       ActivityNote[]              @relation("ActivityNoteAuthor")
   // Files / photos uploaded to activity drawers
   activityAttachments ActivityAttachment[]        @relation("ActivityAttachmentUploader")
+  // Expenses entered on activities by this user
+  activityExpenses    ActivityExpense[]           @relation("ActivityExpenseCreator")
   // Tasks assigned to this user (not necessarily created by them)
   assignedTasks       Task[]                      @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
@@ -1723,15 +1740,15 @@ model NewsArticle {
   stateAbbrevs String[] @map("state_abbrevs") @db.VarChar(2)
 
   // Classification — set by the Haiku classifier pass. Null until classified.
-  sentiment          String?   @db.VarChar(10)
-  categories         String[]  @default([]) @db.VarChar(40)
-  fullmindRelevance  String?   @map("fullmind_relevance") @db.VarChar(10)
-  classifiedAt       DateTime? @map("classified_at")
+  sentiment         String?   @db.VarChar(10)
+  categories        String[]  @default([]) @db.VarChar(40)
+  fullmindRelevance String?   @map("fullmind_relevance") @db.VarChar(10)
+  classifiedAt      DateTime? @map("classified_at")
 
-  districts   NewsArticleDistrict[]
-  schools     NewsArticleSchool[]
-  contacts    NewsArticleContact[]
-  queueEntry  NewsMatchQueue?
+  districts  NewsArticleDistrict[]
+  schools    NewsArticleSchool[]
+  contacts   NewsArticleContact[]
+  queueEntry NewsMatchQueue?
 
   @@index([publishedAt])
   @@index([feedSource])
