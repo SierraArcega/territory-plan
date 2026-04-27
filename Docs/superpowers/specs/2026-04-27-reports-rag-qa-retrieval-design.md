@@ -164,17 +164,84 @@ CREATE INDEX rag_documents_embedding_idx
 - Same embedding pipeline (only the input text differs by source type)
 - Lane 2 onboarding is "populate rows with `source='saved_report'` on save" + a small filter at retrieval time — no new migration
 
+### Modified table: `query_log` — new `agent_metadata` column
+
+We need a place to log per-turn agent telemetry (which Q&A pairs were retrieved, similarity scores, threshold hits/misses) for the soak observation period and for future debugging. The existing `params` column on `QueryLog` is already overloaded with the chip summary — folding retrieval results in there muddles its meaning.
+
+Add a generic JSON column:
+
+```prisma
+model QueryLog {
+  // ... existing fields ...
+  agentMetadata  Json?  @map("agent_metadata")  // retrieval results, future telemetry
+}
+```
+
+For v1, the only thing written here is:
+```ts
+{
+  retrievedExamples: [
+    { id: "pipeline-by-customer", similarity: 0.74 },
+    { id: "win-rate-by-rep",      similarity: 0.62 },
+  ],
+  retrievalThreshold: 0.6,
+  retrievalSource: "turn_1_auto" | "search_examples_tool",
+}
+```
+
+Future agent telemetry (token counts, cache hit ratios, etc.) lands here without another migration.
+
 ## Data Flow
 
 ### Turn 1 of a conversation
 
-1. `POST /api/ai/query/chat` receives a message with no `conversationId`
-2. Server embeds message via Voyage (`voyage-3-large`, ~150ms)
+"Turn 1" is detected as `priorTurns.length === 0` (the array returned by `loadPriorTurns()` in `agent/conversation.ts`). A `conversationId` is always present — the route generates one for new conversations — so its presence is not a useful signal.
+
+1. `POST /api/ai/query/chat` calls `runAgentLoop()`
+2. `runAgentLoop` checks `priorTurns.length === 0`. If so, server embeds the user message via Voyage (`voyage-3-large`, ~150ms)
 3. pgvector cosine query: `SELECT * FROM rag_documents WHERE source='qa_pair' ORDER BY embedding <=> $1 LIMIT 3`
 4. Filter: drop any result with similarity below threshold (initial: `0.6` cosine — tunable)
-5. If ≥1 pair survives the threshold, render them into the system prompt as an `## Examples that may be relevant` section, between the existing table registry and warnings
-6. Existing system prompt cache key now includes a hash of the retrieved pair ids — cache hits within a conversation, miss across conversations (acceptable; cache value comes from multi-turn reuse, not cross-conversation)
-7. Claude responds as today
+5. If ≥1 pair survives the threshold, render them into a *separate* system-prompt cache block (see "System prompt cache strategy" below). The block is titled `## Examples that may be relevant for this question` and explicitly framed as hints, not directives — see "Examples as hints, not authoritative" below.
+6. Claude responds as today
+
+### System prompt cache strategy
+
+`agent-loop.ts:70` already passes `system` as an array of cache blocks. We split the system prompt into **two cache blocks** so the static portion still hits cross-user cache:
+
+```ts
+system: [
+  // Block 1: stable across all users + conversations.
+  // Hits cross-user prompt cache.
+  {
+    type: "text",
+    text: STATIC_BASE_PROMPT, // table list + rules + mandatory warnings
+    cache_control: { type: "ephemeral" },
+  },
+  // Block 2: varies per conversation (retrieved examples).
+  // Hits within-conversation cache only (because retrieval fires on turn 1
+  // and the conversation reuses the same examples on follow-up turns).
+  // Omitted entirely when retrieval returns nothing above threshold.
+  ...(retrievedExamples.length > 0
+    ? [{
+        type: "text",
+        text: renderExamplesBlock(retrievedExamples),
+        cache_control: { type: "ephemeral" },
+      }]
+    : []),
+]
+```
+
+This is meaningfully better than a single combined block, which would invalidate the cross-user cache on every conversation.
+
+### Examples as hints, not authoritative
+
+The existing system prompt (`agent/system-prompt.ts:17–25`) demands `search_metadata` + `describe_table` + `get_column_values` before `run_sql`. This was hardened after a failure where Claude guessed a column name (per handoff doc, item 7). Injected examples must NOT weaken that discipline.
+
+The example block must open with explicit framing along the lines of:
+
+> *"Examples below show paths that worked for similar past questions. Treat them as starting points, not authoritative — they may be stale, and your question may differ in ways that matter. Still call `describe_table` on any table you reference if you haven't already this conversation. If an example contradicts what `describe_table` returns, trust the live schema."*
+
+This framing is part of the implementation, not an open question — the spec mandates it. The system prompt update (in `system-prompt.ts`) should also reference the new `## Examples that may be relevant for this question` block by name, so Claude knows where to look and how to weight it.
 
 ### Turn N > 1
 
@@ -232,9 +299,9 @@ CREATE INDEX rag_documents_embedding_idx
 
 ### Modified files
 
-- `prisma/schema.prisma` — add `RagDocument` model
-- `src/features/reports/lib/agent/agent-loop.ts` — turn-1 retrieval + injection
-- `src/features/reports/lib/agent/system-prompt.ts` — accept retrieved examples, render `## Examples` section
+- `prisma/schema.prisma` — add `RagDocument` model + `agentMetadata Json?` field on `QueryLog`
+- `src/features/reports/lib/agent/agent-loop.ts` — turn-1 retrieval, two-block `system` array, dynamic injection of examples block
+- `src/features/reports/lib/agent/system-prompt.ts` — split `buildSystemPrompt()` into `buildStaticBasePrompt()` (block 1) + `renderExamplesBlock(examples)` (block 2). Static base prompt updates to reference the new `## Examples that may be relevant for this question` section by name and tells Claude how to weight it (hints, not authoritative; trust live `describe_table` over examples if they conflict).
 - `src/features/reports/lib/agent/tool-definitions.ts` — register `search_examples`
 - `src/features/reports/lib/tools/index.ts` — export new tool
 - `package.json` — add `rag:sync` script + `voyageai`, `chokidar`, `gray-matter` dependencies
@@ -344,3 +411,4 @@ These are real and necessary for the tool to feel "powerful," but each is its ow
 3. **Saved-report semantic retrieval (lane 2)** — populate `rag_documents` rows on save, surface "you have a similar saved report" suggestion; small follow-up once UX is brainstormed
 4. **Feedback loop** — thumbs-up/down on every answer, feeds back into corpus curation queue
 5. **`SEMANTIC_CONTEXT` migration** — move the static metadata file into the same corpus form so non-engineers can edit it
+6. **Consolidate `search_metadata` and `search_examples`** — these tools overlap conceptually (semantic retrieval over different corpora). v1 ships them as siblings to keep changes scoped; a follow-up should merge them into one embedding-based tool with a `kind` filter (`'qa_pair' | 'concept' | 'column'`). Reduces tool count and gives Claude a single, coherent retrieval primitive.
