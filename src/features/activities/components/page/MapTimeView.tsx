@@ -183,71 +183,92 @@ export default function MapTimeView({
     const container = containerRef.current;
     if (!container || mapRef.current) return;
 
-    const map = new maplibregl.Map({
-      container,
-      style: {
-        version: 8,
-        glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-        sources: {},
-        layers: [
-          {
-            id: "background",
-            type: "background",
-            paint: { "background-color": "#D8EDEC" },
-          },
-        ],
-      },
-      bounds: US_BOUNDS,
-      fitBoundsOptions: { padding: 24 },
-      minZoom: 2,
-      maxZoom: 10,
-    });
-    mapRef.current = map;
+    let map: maplibregl.Map | null = null;
+    let ro: ResizeObserver | null = null;
+    let cancelled = false;
+    let rafId = 0;
 
-    map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      "bottom-right"
-    );
+    // Defer init until the container has real dimensions. MapLibre captures
+    // size at construction; if the flex layout hasn't computed yet (0×0), the
+    // canvas stays empty and ResizeObserver doesn't always recover.
+    const tryInit = () => {
+      if (cancelled) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width < 50 || rect.height < 50) {
+        rafId = requestAnimationFrame(tryInit);
+        return;
+      }
 
-    map.on("load", () => {
-      map.addSource("states", { type: "geojson", data: "/us-states.json" });
-      map.addLayer({
-        id: "state-fill",
-        type: "fill",
-        source: "states",
-        paint: { "fill-color": "#FFFFFF", "fill-opacity": 0.55 },
-      });
-      map.addLayer({
-        id: "state-outline",
-        type: "line",
-        source: "states",
-        paint: {
-          "line-color": "#6EA3BE",
-          "line-width": 1.2,
-          "line-opacity": 0.7,
+      map = new maplibregl.Map({
+        container,
+        style: {
+          version: 8,
+          glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+          sources: {},
+          layers: [
+            {
+              id: "background",
+              type: "background",
+              paint: { "background-color": "#D8EDEC" },
+            },
+          ],
         },
+        center: [-95, 38],
+        zoom: 3.4,
+        minZoom: 2,
+        maxZoom: 10,
+        attributionControl: false,
       });
-      // Force a resize once the layout has settled. MapLibre captures container
-      // size on init; in flex layouts the container may be 0×0 on first paint.
-      map.resize();
-      setMapReady(true);
-    });
+      mapRef.current = map;
 
-    // Auto-resize when the container changes size (filter rail collapse, panel
-    // toggle, window resize).
-    const ro = new ResizeObserver(() => map.resize());
-    ro.observe(container);
+      map.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        "bottom-right"
+      );
+      map.fitBounds(US_BOUNDS, { padding: 24, animate: false });
+
+      map.on("load", () => {
+        if (!map) return;
+        map.addSource("states", { type: "geojson", data: "/us-states.json" });
+        map.addLayer({
+          id: "state-fill",
+          type: "fill",
+          source: "states",
+          paint: { "fill-color": "#FFFFFF", "fill-opacity": 0.55 },
+        });
+        map.addLayer({
+          id: "state-outline",
+          type: "line",
+          source: "states",
+          paint: {
+            "line-color": "#6EA3BE",
+            "line-width": 1.2,
+            "line-opacity": 0.7,
+          },
+        });
+        map.resize();
+        setMapReady(true);
+      });
+
+      // Auto-resize when the container size changes (filter rail collapse,
+      // panel toggle, window resize).
+      ro = new ResizeObserver(() => map?.resize());
+      ro.observe(container);
+    };
+    tryInit();
 
     // Capture markers ref locally for cleanup (lint: ref may change by cleanup time).
     const markers = markersRef.current;
     return () => {
-      ro.disconnect();
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      ro?.disconnect();
       for (const handle of markers.values()) {
         handle.marker.remove();
         handle.root.unmount();
       }
       markers.clear();
-      map.remove();
+      map?.remove();
       mapRef.current = null;
       setMapReady(false);
     };
@@ -337,7 +358,8 @@ export default function MapTimeView({
         {/* Body: map + side panel */}
         <div className="flex-1 flex gap-3 min-h-0">
           <div className="flex-1 relative overflow-hidden rounded-xl border border-[#E2DEEC] min-w-0">
-            <div ref={containerRef} className="absolute inset-0" />
+            {/* h-full w-full not absolute inset-0: maplibre adds .maplibregl-map { position: relative } which would override absolute and collapse the canvas to ~30px */}
+            <div ref={containerRef} className="h-full w-full" />
 
             {mapReady && clusters.length === 0 && (
               <div
