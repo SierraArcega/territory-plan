@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useCalendarConnection, useTriggerCalendarSync } from "@/lib/api";
+import { useTriggerCalendarSync } from "@/lib/api";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
+import { useCalendarSyncState } from "@/features/calendar/lib/useCalendarSyncState";
 
 const STATE_STYLES = {
   connected: { dot: "bg-[#69B34A]", text: "text-[#5f665b]", bg: "bg-[#F7FFF2]", border: "border-[#8AC670]" },
@@ -11,21 +12,21 @@ const STATE_STYLES = {
 } as const;
 
 export default function CalendarSyncBadge() {
-  const { data, isLoading } = useCalendarConnection();
+  const { state, isLoading, email, pendingCount, data } = useCalendarSyncState();
   const sync = useTriggerCalendarSync();
   const setSyncState = useActivitiesChrome((s) => s.setSyncState);
-  const syncState = useActivitiesChrome((s) => s.syncState);
   const [open, setOpen] = useState(false);
 
+  // Mirror derived state into the chrome store so other components reading
+  // useActivitiesChrome((s) => s.syncState) stay in sync without needing the hook.
   useEffect(() => {
     if (isLoading) return;
-    if (!data?.connected) setSyncState("disconnected");
-    else setSyncState("connected");
-  }, [data, isLoading, setSyncState]);
+    setSyncState(state);
+  }, [state, isLoading, setSyncState]);
 
-  const styles = STATE_STYLES[syncState];
+  const styles = STATE_STYLES[state];
   const label =
-    syncState === "connected" ? "Synced" : syncState === "stale" ? "Stale" : "Disconnected";
+    state === "connected" ? "Synced" : state === "stale" ? "Stale" : "Disconnected";
 
   return (
     <div className="relative">
@@ -36,7 +37,7 @@ export default function CalendarSyncBadge() {
         className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${styles.bg} ${styles.text} ${styles.border} transition-colors`}
       >
         <span
-          className={`w-2 h-2 rounded-full ${styles.dot} ${syncState === "connected" ? "animate-pulse" : ""}`}
+          className={`w-2 h-2 rounded-full ${styles.dot} ${state === "connected" ? "animate-pulse" : ""}`}
         />
         {label}
       </button>
@@ -52,15 +53,15 @@ export default function CalendarSyncBadge() {
             Calendar
           </div>
           <div className="text-sm font-medium text-[#403770] mb-1">
-            {data?.connected
-              ? data?.connection?.googleAccountEmail || "Connected"
-              : "Not connected"}
+            {data?.connected ? email || "Connected" : "Not connected"}
           </div>
           <div className="text-xs text-[#8A80A8] mb-3">
-            {syncState === "connected"
+            {state === "connected"
               ? "Two-way sync is active."
-              : syncState === "stale"
-              ? "Last sync was a while ago."
+              : state === "stale"
+              ? pendingCount > 0
+                ? `${pendingCount} pending event${pendingCount === 1 ? "" : "s"} waiting to import.`
+                : "Last sync was a while ago."
               : "Connect Google Calendar to pull events into Activities."}
           </div>
           <div className="flex items-center gap-1.5">

@@ -4,14 +4,22 @@ import { Plus } from "lucide-react";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 import ViewToggle from "./ViewToggle";
 import CalendarSyncBadge from "./CalendarSyncBadge";
+import ActivitiesDateRange from "./ActivitiesDateRange";
+import ScopeToggle, { type ActivityScope } from "./ScopeToggle";
+
+interface ActivitiesPageHeaderProps {
+  count: number;
+  onNewActivity: () => void;
+  scope: ActivityScope;
+  onScopeChange: (scope: ActivityScope) => void;
+}
 
 export default function ActivitiesPageHeader({
   count,
   onNewActivity,
-}: {
-  count: number;
-  onNewActivity: () => void;
-}) {
+  scope,
+  onScopeChange,
+}: ActivitiesPageHeaderProps) {
   const view = useActivitiesChrome((s) => s.view);
   const setView = useActivitiesChrome((s) => s.setView);
 
@@ -19,13 +27,16 @@ export default function ActivitiesPageHeader({
     <header className="bg-white border-b border-[#E2DEEC] px-6 py-3">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold text-[#403770]">Activities</h1>
+          <h1 className="text-2xl font-bold text-[#403770] tracking-[-0.01em]">Activities</h1>
           <p className="text-xs text-[#8A80A8]">
-            Showing <span className="font-medium text-[#6E6390]">{count.toLocaleString()}</span> in this range
+            Showing{" "}
+            <span className="font-medium text-[#6E6390]">{count.toLocaleString()}</span>{" "}
+            in this range
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <ScopeToggle scope={scope} onChange={onScopeChange} />
           <CalendarSyncBadge />
           <ViewToggle value={view} onChange={setView} />
           <button
@@ -37,6 +48,10 @@ export default function ActivitiesPageHeader({
             New
           </button>
         </div>
+      </div>
+
+      <div className="mt-3 flex items-center">
+        <ActivitiesDateRange />
       </div>
     </header>
   );

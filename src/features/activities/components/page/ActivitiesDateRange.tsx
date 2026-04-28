@@ -51,6 +51,10 @@ function labelFor(iso: string, grain: Grain): string {
   }
 }
 
+/**
+ * One bordered pill: [Today] | [<] [label] [>] | [Day · Week · Month · Quarter].
+ * Reference: design_handoff_activities_calendar/reference/components/CalendarChrome.jsx:150-234
+ */
 export default function ActivitiesDateRange() {
   const grain = useActivitiesChrome((s) => s.grain);
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
@@ -58,8 +62,42 @@ export default function ActivitiesDateRange() {
   const setAnchor = useActivitiesChrome((s) => s.setAnchor);
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="inline-flex items-center gap-0.5 p-0.5 bg-[#F7F5FA] border border-[#E2DEEC] rounded-lg">
+    <div className="inline-flex items-center gap-0 p-[3px] rounded-[10px] bg-white border border-[#D4CFE2]">
+      <button
+        type="button"
+        onClick={() => setAnchor(new Date().toISOString())}
+        className="px-2.5 py-1 text-[11px] font-bold tracking-[0.06em] uppercase rounded-[7px] text-[#403770] hover:bg-[#EFEDF5]"
+      >
+        Today
+      </button>
+
+      <span aria-hidden="true" className="w-px h-5 bg-[#E2DEEC]" />
+
+      <button
+        type="button"
+        aria-label="Previous"
+        onClick={() => setAnchor(shiftAnchor(anchorIso, grain, -1))}
+        className="w-7 h-7 rounded-md inline-flex items-center justify-center text-[#544A78] hover:bg-[#EFEDF5]"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      <div className="min-w-[200px] max-w-[320px] px-2.5 text-sm font-bold text-[#403770] text-center tabular-nums truncate">
+        {labelFor(anchorIso, grain)}
+      </div>
+
+      <button
+        type="button"
+        aria-label="Next"
+        onClick={() => setAnchor(shiftAnchor(anchorIso, grain, 1))}
+        className="w-7 h-7 rounded-md inline-flex items-center justify-center text-[#544A78] hover:bg-[#EFEDF5]"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      <span aria-hidden="true" className="w-px h-5 bg-[#E2DEEC]" />
+
+      <div className="inline-flex p-0.5 ml-1 rounded-[7px] bg-[#F7F5FA]">
         {GRAINS.map(({ id, label }) => {
           const active = grain === id;
           return (
@@ -67,10 +105,10 @@ export default function ActivitiesDateRange() {
               key={id}
               type="button"
               onClick={() => setGrain(id)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-[5px] text-[11px] transition-all duration-[120ms] ease-out ${
                 active
-                  ? "bg-white text-[#403770] shadow-sm"
-                  : "text-[#8A80A8] hover:text-[#403770]"
+                  ? "bg-white text-[#403770] font-bold shadow-[0_1px_2px_rgba(64,55,112,0.08)]"
+                  : "text-[#6E6390] font-medium hover:text-[#403770]"
               }`}
             >
               {label}
@@ -78,34 +116,6 @@ export default function ActivitiesDateRange() {
           );
         })}
       </div>
-
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          aria-label="Previous"
-          onClick={() => setAnchor(shiftAnchor(anchorIso, grain, -1))}
-          className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#F7F5FA] text-[#6E6390]"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setAnchor(new Date().toISOString())}
-          className="px-2 py-1 text-xs font-medium text-[#403770] hover:bg-[#F7F5FA] rounded-md"
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          aria-label="Next"
-          onClick={() => setAnchor(shiftAnchor(anchorIso, grain, 1))}
-          className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#F7F5FA] text-[#6E6390]"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="text-sm font-semibold text-[#403770]">{labelFor(anchorIso, grain)}</div>
     </div>
   );
 }
