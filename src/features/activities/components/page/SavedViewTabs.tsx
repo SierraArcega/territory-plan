@@ -1,27 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 import {
   useSavedViews,
-  PRESET_VIEWS,
-  matchesPreset,
   type SavedView,
-  type PresetView,
 } from "@/features/activities/lib/saved-views";
 import { cn } from "@/features/shared/lib/cn";
 
 /**
- * Saved-view tabs row. Renders preset tabs (per handoff IDs) with leading
- * Lucide icon and coral underline on the active tab. User-saved views render
- * after the presets with a hover-revealed × button. "Save view" is right-aligned.
- *
- * Active state: prefers explicit `savedViewId` from chrome; falls back to
- * matching the current filter snapshot against each preset so a tab still
- * lights up after Reset.
+ * Saved-view tabs row. Renders user-saved views with a hover-revealed ×
+ * button; "Save view" is right-aligned. The row is empty until the user
+ * saves their first view.
  */
-export default function SavedViewTabs({ currentUserId }: { currentUserId: string | null }) {
+export default function SavedViewTabs(_: { currentUserId: string | null }) {
   const { views, save, remove } = useSavedViews();
   const setFilters = useActivitiesChrome((s) => s.setFilters);
   const filters = useActivitiesChrome((s) => s.filters);
@@ -29,31 +22,6 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
   const setSavedViewId = useActivitiesChrome((s) => s.setSavedViewId);
   const [naming, setNaming] = useState(false);
   const [draftName, setDraftName] = useState("");
-
-  // Derived match: highlight a preset whose filter snapshot equals current
-  // filters when nothing explicit is set. Cheap because preset list is small.
-  const inferredPresetId = (() => {
-    if (savedViewId) return null;
-    const hit = PRESET_VIEWS.find((p) => matchesPreset(filters, p, currentUserId));
-    return hit?.id ?? null;
-  })();
-  const activeId = savedViewId ?? inferredPresetId;
-
-  // Clear stale `savedViewId` if it points at a preset whose filters have
-  // since been edited away from the snapshot.
-  useEffect(() => {
-    if (!savedViewId) return;
-    const preset = PRESET_VIEWS.find((p) => p.id === savedViewId);
-    if (!preset) return; // user-saved view — leave alone
-    if (!matchesPreset(filters, preset, currentUserId)) {
-      setSavedViewId(null);
-    }
-  }, [filters, savedViewId, currentUserId, setSavedViewId]);
-
-  function applyPreset(p: PresetView) {
-    setFilters(p.build(currentUserId));
-    setSavedViewId(p.id);
-  }
 
   function applySaved(view: SavedView) {
     setFilters(view.filters);
@@ -74,15 +42,6 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
 
   return (
     <div className="flex items-end gap-0.5 px-6 border-b border-[#E2DEEC] bg-white overflow-x-auto -mb-px">
-      {PRESET_VIEWS.map((p) => (
-        <PresetTab
-          key={p.id}
-          preset={p}
-          active={activeId === p.id}
-          onClick={() => applyPreset(p)}
-        />
-      ))}
-
       {views.map((v) => (
         <span key={v.id} className="inline-flex items-end group">
           <SavedTab
@@ -141,47 +100,6 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
         </button>
       )}
     </div>
-  );
-}
-
-function PresetTab({
-  preset,
-  active,
-  onClick,
-}: {
-  preset: PresetView;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const { Icon } = preset;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "relative inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs",
-        "font-medium tracking-[-0.005em]",
-        "transition-colors duration-[120ms] ease-out",
-        "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-[-2px] rounded",
-        active ? "text-[#403770] font-bold" : "text-[#8A80A8] hover:text-[#544A78]"
-      )}
-    >
-      <Icon
-        className={cn(
-          "w-3.5 h-3.5 transition-colors duration-[120ms]",
-          active ? "text-[#F37167]" : "text-[#A69DC0]"
-        )}
-        aria-hidden="true"
-      />
-      {preset.name}
-      {active && (
-        <span
-          aria-hidden="true"
-          className="absolute left-2 right-2 -bottom-px h-0.5 bg-[#F37167] rounded-sm"
-        />
-      )}
-    </button>
   );
 }
 
