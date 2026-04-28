@@ -9,7 +9,6 @@ import { useProfile } from "@/features/shared/lib/queries";
 
 export type CalendarView = "schedule" | "month" | "week" | "map";
 export type Grain = "day" | "week" | "month" | "quarter";
-export type FilterVariant = "rail" | "bar" | "chips";
 export type DealDisplay = "overlay" | "objects" | "both";
 export type SyncState = "connected" | "stale" | "disconnected";
 export type DealKind = "won" | "lost" | "created" | "progressed" | "closing";
@@ -48,7 +47,6 @@ interface ChromeState {
   view: CalendarView;
   grain: Grain;
   anchorIso: string; // ISO date string for the current period anchor
-  filterVariant: FilterVariant;
   savedViewId: string | null;
   railCollapsed: boolean;
   dealDisplay: DealDisplay;
@@ -58,7 +56,6 @@ interface ChromeState {
   setView: (v: CalendarView) => void;
   setGrain: (g: Grain) => void;
   setAnchor: (iso: string) => void;
-  setFilterVariant: (v: FilterVariant) => void;
   setSavedViewId: (id: string | null) => void;
   setRailCollapsed: (collapsed: boolean) => void;
   setDealDisplay: (d: DealDisplay) => void;
@@ -74,7 +71,6 @@ export const useActivitiesChrome = create<ChromeState>()(
       view: "schedule",
       grain: "week",
       anchorIso: new Date().toISOString(),
-      filterVariant: "rail",
       savedViewId: null,
       railCollapsed: false,
       dealDisplay: "overlay",
@@ -84,7 +80,6 @@ export const useActivitiesChrome = create<ChromeState>()(
       setView: (view) => set({ view }),
       setGrain: (grain) => set({ grain }),
       setAnchor: (anchorIso) => set({ anchorIso }),
-      setFilterVariant: (filterVariant) => set({ filterVariant }),
       setSavedViewId: (savedViewId) => set({ savedViewId }),
       setRailCollapsed: (railCollapsed) => set({ railCollapsed }),
       setDealDisplay: (dealDisplay) => set({ dealDisplay }),
@@ -103,7 +98,6 @@ export const useActivitiesChrome = create<ChromeState>()(
       partialize: (s) => ({
         view: s.view,
         grain: s.grain,
-        filterVariant: s.filterVariant,
         savedViewId: s.savedViewId,
         railCollapsed: s.railCollapsed,
         dealDisplay: s.dealDisplay,

@@ -205,18 +205,11 @@ describe("filters-store", () => {
     });
   });
 
-  describe("filterVariant + dealDisplay setters", () => {
+  describe("dealDisplay setter", () => {
     beforeEach(() => {
       act(() => {
         useActivitiesChrome.getState().resetFilters();
       });
-    });
-
-    it("setFilterVariant updates the store", () => {
-      act(() => useActivitiesChrome.getState().setFilterVariant("bar"));
-      expect(useActivitiesChrome.getState().filterVariant).toBe("bar");
-      act(() => useActivitiesChrome.getState().setFilterVariant("chips"));
-      expect(useActivitiesChrome.getState().filterVariant).toBe("chips");
     });
 
     it("setDealDisplay updates the store", () => {
