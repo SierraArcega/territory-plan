@@ -1,34 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, X } from "lucide-react";
-import { useActivitiesChrome, EMPTY_FILTERS } from "@/features/activities/lib/filters-store";
-import { useSavedViews, type SavedView } from "@/features/activities/lib/saved-views";
+import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
+import {
+  useSavedViews,
+  PRESET_VIEWS,
+  matchesPreset,
+  type SavedView,
+  type PresetView,
+} from "@/features/activities/lib/saved-views";
+import { cn } from "@/features/shared/lib/cn";
 
-const PRESETS: { id: string; name: string; build: (currentUserId: string | null) => typeof EMPTY_FILTERS }[] = [
-  { id: "all", name: "All activities", build: () => ({ ...EMPTY_FILTERS }) },
-  {
-    id: "my_week",
-    name: "My week",
-    build: (uid) => ({ ...EMPTY_FILTERS, owners: uid ? [uid] : [] }),
-  },
-  {
-    id: "meetings",
-    name: "Meetings",
-    build: () => ({ ...EMPTY_FILTERS, categories: ["meetings"] }),
-  },
-  {
-    id: "events",
-    name: "Events",
-    build: () => ({ ...EMPTY_FILTERS, categories: ["events"] }),
-  },
-  {
-    id: "campaigns",
-    name: "Campaigns",
-    build: () => ({ ...EMPTY_FILTERS, categories: ["campaigns"] }),
-  },
-];
-
+/**
+ * Saved-view tabs row. Renders preset tabs (per handoff IDs) with leading
+ * Lucide icon and coral underline on the active tab. User-saved views render
+ * after the presets with a hover-revealed × button. "Save view" is right-aligned.
+ *
+ * Active state: prefers explicit `savedViewId` from chrome; falls back to
+ * matching the current filter snapshot against each preset so a tab still
+ * lights up after Reset.
+ */
 export default function SavedViewTabs({ currentUserId }: { currentUserId: string | null }) {
   const { views, save, remove } = useSavedViews();
   const setFilters = useActivitiesChrome((s) => s.setFilters);
@@ -38,11 +30,29 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
   const [naming, setNaming] = useState(false);
   const [draftName, setDraftName] = useState("");
 
-  function applyPreset(id: string) {
-    const preset = PRESETS.find((p) => p.id === id);
-    if (!preset) return;
-    setFilters(preset.build(currentUserId));
-    setSavedViewId(id);
+  // Derived match: highlight a preset whose filter snapshot equals current
+  // filters when nothing explicit is set. Cheap because preset list is small.
+  const inferredPresetId = (() => {
+    if (savedViewId) return null;
+    const hit = PRESET_VIEWS.find((p) => matchesPreset(filters, p, currentUserId));
+    return hit?.id ?? null;
+  })();
+  const activeId = savedViewId ?? inferredPresetId;
+
+  // Clear stale `savedViewId` if it points at a preset whose filters have
+  // since been edited away from the snapshot.
+  useEffect(() => {
+    if (!savedViewId) return;
+    const preset = PRESET_VIEWS.find((p) => p.id === savedViewId);
+    if (!preset) return; // user-saved view — leave alone
+    if (!matchesPreset(filters, preset, currentUserId)) {
+      setSavedViewId(null);
+    }
+  }, [filters, savedViewId, currentUserId, setSavedViewId]);
+
+  function applyPreset(p: PresetView) {
+    setFilters(p.build(currentUserId));
+    setSavedViewId(p.id);
   }
 
   function applySaved(view: SavedView) {
@@ -63,22 +73,23 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
   }
 
   return (
-    <div className="flex items-center gap-1 px-6 border-b border-[#E2DEEC] bg-white overflow-x-auto">
-      {PRESETS.map((p) => (
-        <TabButton
+    <div className="flex items-end gap-0.5 px-6 border-b border-[#E2DEEC] bg-white overflow-x-auto -mb-px">
+      {PRESET_VIEWS.map((p) => (
+        <PresetTab
           key={p.id}
-          active={savedViewId === p.id}
-          onClick={() => applyPreset(p.id)}
-        >
-          {p.name}
-        </TabButton>
+          preset={p}
+          active={activeId === p.id}
+          onClick={() => applyPreset(p)}
+        />
       ))}
 
       {views.map((v) => (
-        <span key={v.id} className="inline-flex items-center group">
-          <TabButton active={savedViewId === v.id} onClick={() => applySaved(v)}>
-            {v.name}
-          </TabButton>
+        <span key={v.id} className="inline-flex items-end group">
+          <SavedTab
+            label={v.name}
+            active={savedViewId === v.id}
+            onClick={() => applySaved(v)}
+          />
           <button
             type="button"
             aria-label={`Delete saved view ${v.name}`}
@@ -86,15 +97,17 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
               if (savedViewId === v.id) setSavedViewId(null);
               remove(v.id);
             }}
-            className="opacity-0 group-hover:opacity-100 ml-0.5 mr-1 text-[#A69DC0] hover:text-[#F37167] transition-opacity"
+            className="opacity-0 group-hover:opacity-100 ml-0.5 mr-1 mb-2.5 text-[#A69DC0] hover:text-[#F37167] transition-opacity focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2 rounded"
           >
             <X className="w-3 h-3" />
           </button>
         </span>
       ))}
 
+      <div className="flex-1" />
+
       {naming ? (
-        <span className="inline-flex items-center gap-1 px-2 py-1.5">
+        <span className="inline-flex items-center gap-1 px-2 py-1.5 mb-1">
           <input
             autoFocus
             value={draftName}
@@ -121,7 +134,7 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
         <button
           type="button"
           onClick={() => setNaming(true)}
-          className="ml-1 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-[#6E6390] hover:text-[#403770] hover:bg-[#F7F5FA] rounded-md transition-colors"
+          className="ml-1 mb-1 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] rounded-md transition-colors"
         >
           <Plus className="w-3 h-3" />
           Save view
@@ -131,26 +144,75 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
   );
 }
 
-function TabButton({
+function PresetTab({
+  preset,
   active,
   onClick,
-  children,
 }: {
+  preset: PresetView;
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+}) {
+  const { Icon } = preset;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "relative inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs",
+        "font-medium tracking-[-0.005em]",
+        "transition-colors duration-[120ms] ease-out",
+        "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-[-2px] rounded",
+        active ? "text-[#403770] font-bold" : "text-[#8A80A8] hover:text-[#544A78]"
+      )}
+    >
+      <Icon
+        className={cn(
+          "w-3.5 h-3.5 transition-colors duration-[120ms]",
+          active ? "text-[#F37167]" : "text-[#A69DC0]"
+        )}
+        aria-hidden="true"
+      />
+      {preset.name}
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute left-2 right-2 -bottom-px h-0.5 bg-[#F37167] rounded-sm"
+        />
+      )}
+    </button>
+  );
+}
+
+function SavedTab({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-        active
-          ? "border-[#403770] text-[#403770]"
-          : "border-transparent text-[#8A80A8] hover:text-[#403770]"
-      }`}
+      aria-pressed={active}
+      className={cn(
+        "relative inline-flex items-center px-3 py-2.5 text-xs font-medium",
+        "transition-colors duration-[120ms] ease-out",
+        "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-[-2px] rounded",
+        active ? "text-[#403770] font-bold" : "text-[#8A80A8] hover:text-[#544A78]"
+      )}
     >
-      {children}
+      {label}
+      {active && (
+        <span
+          aria-hidden="true"
+          className="absolute left-2 right-2 -bottom-px h-0.5 bg-[#F37167] rounded-sm"
+        />
+      )}
     </button>
   );
 }

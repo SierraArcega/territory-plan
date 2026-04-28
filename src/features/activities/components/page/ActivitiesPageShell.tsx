@@ -8,9 +8,14 @@ import {
   useActivitiesChrome,
   deriveActivitiesParams,
   applyClientFilters,
+  useDefaultOwnerHydration,
 } from "@/features/activities/lib/filters-store";
 import ActivitiesPageHeader from "./ActivitiesPageHeader";
 import ActivitiesFilterRail from "./ActivitiesFilterRail";
+import ActivitiesFilterBar from "./ActivitiesFilterBar";
+import ActivitiesFilterChips from "./ActivitiesFilterChips";
+import FilterVariantSwitcher from "./FilterVariantSwitcher";
+import CommandBar, { useCommandBarHotkey } from "./CommandBar";
 import SavedViewTabs from "./SavedViewTabs";
 import ScheduleView from "./ScheduleView";
 import MonthView from "./MonthView";
@@ -35,9 +40,16 @@ export default function ActivitiesPageShell() {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
   const filters = useActivitiesChrome((s) => s.filters);
   const patchFilters = useActivitiesChrome((s) => s.patchFilters);
+  const filterVariant = useActivitiesChrome((s) => s.filterVariant);
+
+  // Seed default owner from current profile on mount; ref-guarded so a manual
+  // selection survives subsequent renders.
+  useDefaultOwnerHydration();
 
   const [openActivityId, setOpenActivityId] = useState<string | null>(null);
   const [creatingActivity, setCreatingActivity] = useState(false);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  useCommandBarHotkey(setCommandBarOpen);
 
   const params = useMemo(
     () => deriveActivitiesParams({ filters, anchorIso, grain }),
@@ -90,7 +102,15 @@ export default function ActivitiesPageShell() {
         onScopeChange={onScopeChange}
       />
       <SavedViewTabs currentUserId={profile?.id ?? null} />
-      <ActivitiesFilterRail />
+      {filterVariant === "rail" && (
+        <ActivitiesFilterRail onOpenCommandBar={() => setCommandBarOpen(true)} />
+      )}
+      {filterVariant === "bar" && (
+        <ActivitiesFilterBar onOpenCommandBar={() => setCommandBarOpen(true)} />
+      )}
+      {filterVariant === "chips" && (
+        <ActivitiesFilterChips onOpenCommandBar={() => setCommandBarOpen(true)} />
+      )}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -127,6 +147,9 @@ export default function ActivitiesPageShell() {
       {creatingActivity && (
         <ActivityFormModal isOpen onClose={() => setCreatingActivity(false)} />
       )}
+
+      <CommandBar open={commandBarOpen} onClose={() => setCommandBarOpen(false)} />
+      <FilterVariantSwitcher />
     </div>
   );
 }

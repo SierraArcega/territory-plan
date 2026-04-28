@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { ActivitiesParams } from "@/features/shared/types/api-types";
 import type { ActivityCategory, ActivityType } from "@/features/activities/types";
+import { useProfile } from "@/features/shared/lib/queries";
 
 export type CalendarView = "schedule" | "month" | "week" | "map";
 export type Grain = "day" | "week" | "month" | "quarter";
@@ -109,6 +111,37 @@ export const useActivitiesChrome = create<ChromeState>()(
     }
   )
 );
+
+// ===== Default-owner hydration =====
+
+/**
+ * Seeds `filters.owners` with the current user's ID once per page mount so the
+ * default scope is "My activities". Only fires when:
+ *   - profile has loaded
+ *   - filters.owners is currently empty (untouched by user/preset)
+ *
+ * The ref guard ensures we never overwrite a user's manual selection on
+ * subsequent renders or after they Reset and re-pick. Per CLAUDE.md UX rule:
+ * "default owner to current user" + "ref guard to set the default once".
+ */
+export function useDefaultOwnerHydration() {
+  const profileId = useProfile().data?.id ?? null;
+  const patchFilters = useActivitiesChrome((s) => s.patchFilters);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    if (hydrated.current) return;
+    if (!profileId) return;
+    // Read current state synchronously so we don't fight a user who has
+    // already touched the filter (e.g. via a saved-view click) before
+    // profile resolves.
+    const current = useActivitiesChrome.getState().filters.owners;
+    if (current.length === 0) {
+      patchFilters({ owners: [profileId] });
+    }
+    hydrated.current = true;
+  }, [profileId, patchFilters]);
+}
 
 // ===== Param derivation =====
 
