@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, MoreVertical, Trash2, X } from "lucide-react";
 import {
   useActivity,
   useUpdateActivity,
@@ -13,9 +13,13 @@ import { useProfile } from "@/lib/api";
 import { useFocusTrap } from "@/features/shared/lib/use-focus-trap";
 import {
   ACTIVITY_TYPE_LABELS,
-  ACTIVITY_STATUS_CONFIG,
+  ALL_ACTIVITY_TYPES,
   type ActivityStatus,
+  type ActivityType,
 } from "@/features/activities/types";
+import EditableText from "@/features/shared/components/EditableText";
+import EditableSelect from "@/features/shared/components/EditableSelect";
+import TabBar, { type TabBarItem } from "@/features/shared/components/TabBar";
 import OverviewPanel from "./drawer/OverviewPanel";
 import OutcomePanel from "./drawer/OutcomePanel";
 import NotesPanel from "./drawer/NotesPanel";
@@ -24,22 +28,23 @@ import FilesPanel from "./drawer/FilesPanel";
 
 type TabId = "overview" | "outcome" | "notes" | "expenses" | "files";
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "outcome", label: "Outcome" },
-  { id: "notes", label: "Notes" },
-  { id: "expenses", label: "Expenses" },
-  { id: "files", label: "Files" },
-];
-
 type DrawerPatch = Partial<{
+  type: ActivityType;
+  title: string;
   status: ActivityStatus;
   startDate: string | null;
   endDate: string | null;
   notes: string | null;
-  outcomeType: string | null;
   outcome: string | null;
+  outcomeType: string | null;
+  sentiment: "positive" | "neutral" | "negative" | null;
+  nextStep: string | null;
+  followUpDate: string | null;
+  dealImpact: "none" | "progressed" | "won" | "lost";
+  outcomeDisposition: "completed" | "no_show" | "rescheduled" | "cancelled" | null;
 }>;
+
+const FLASH_MS = 1400;
 
 export default function ActivityDetailDrawer({
   activityId,
@@ -81,27 +86,46 @@ function DrawerInner({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
-  const readOnly = !!activity?.createdByUserId && activity.createdByUserId !== profile?.id;
-  const expensesTotal = activity?.expenses.reduce((s, e) => s + Number(e.amount || 0), 0) ?? 0;
-  const status = activity ? ACTIVITY_STATUS_CONFIG[activity.status] : null;
+  const readOnly =
+    !!activity?.createdByUserId && activity.createdByUserId !== profile?.id;
+
+  function flashSaved() {
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), FLASH_MS);
+  }
 
   function patch(data: DrawerPatch) {
     if (!activity) return;
-    update.mutate(
-      { activityId: activity.id, ...data },
-      {
-        onSuccess: () => {
-          setSavedFlash(true);
-          window.setTimeout(() => setSavedFlash(false), 1400);
-        },
-      }
-    );
+    update.mutate({ activityId: activity.id, ...data }, { onSuccess: flashSaved });
   }
 
   function onDelete() {
     if (!activity) return;
     remove.mutate(activity.id, { onSuccess: onClose });
   }
+
+  const typeOptions = useMemo(
+    () =>
+      ALL_ACTIVITY_TYPES.map((t) => ({
+        id: t,
+        label: ACTIVITY_TYPE_LABELS[t],
+      })),
+    []
+  );
+
+  const tabs: TabBarItem<TabId>[] = activity
+    ? [
+        { id: "overview", label: "Overview" },
+        { id: "outcome", label: "Outcome" },
+        { id: "notes", label: "Notes", count: notes.length || null },
+        {
+          id: "expenses",
+          label: "Expenses",
+          count: activity.expenses.length || null,
+        },
+        { id: "files", label: "Files", count: attachments.length || null },
+      ]
+    : [];
 
   return (
     <>
@@ -126,73 +150,80 @@ function DrawerInner({
         ) : (
           <>
             {/* Header with plum strip */}
-            <header className="relative flex items-start gap-3 px-5 py-4 border-b border-[#E2DEEC]">
-              <span className="absolute left-0 top-0 bottom-0 w-1 bg-[#403770]" aria-hidden />
+            <header className="relative flex items-start gap-3 px-5 py-4 border-b border-[#E2DEEC] bg-[#FFFCFA]">
+              <span
+                className="absolute left-0 top-0 bottom-0 w-1 bg-[#403770]"
+                aria-hidden
+              />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-[#403770] bg-[#EEEAF5] rounded">
-                    {ACTIVITY_TYPE_LABELS[activity.type] ?? activity.type}
-                  </span>
-                  {status && (
-                    <span
-                      className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold rounded"
-                      style={{ backgroundColor: status.bgColor, color: status.color }}
-                    >
-                      {status.label}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <EditableSelect<ActivityType>
+                    value={activity.type}
+                    options={typeOptions}
+                    readOnly={readOnly}
+                    ariaLabel="Activity type"
+                    onChange={(v) => patch({ type: v })}
+                    renderValue={(opt) => (
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-[#403770]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#403770]" aria-hidden />
+                        {opt?.label ?? activity.type}
+                      </span>
+                    )}
+                  />
+                  {readOnly && (
+                    <span className="ml-auto text-[10px] font-semibold text-[#6E6390] bg-[#EFEDF5] px-2 py-0.5 rounded-full whitespace-nowrap">
+                      Read-only · team activity
                     </span>
                   )}
                 </div>
-                <h2 className="text-base font-bold text-[#403770] truncate">{activity.title}</h2>
-                <div className="mt-1 text-[11px] text-[#8A80A8] flex items-center gap-3">
-                  {activity.startDate && (
-                    <span>{new Date(activity.startDate).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</span>
-                  )}
-                  {activity.districts[0] && <span>{activity.districts[0].name}</span>}
-                </div>
+                <EditableText
+                  value={activity.title}
+                  size="lg"
+                  weight="bold"
+                  placeholder="Add a title"
+                  readOnly={readOnly}
+                  ariaLabel="Activity title"
+                  onChange={(v) => patch({ title: v })}
+                />
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA]"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* TODO: overflow menu */}
+                <button
+                  type="button"
+                  aria-label="More options"
+                  title="More"
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA]"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </header>
 
             {/* Tabs */}
-            <div role="tablist" aria-label="Activity sections" className="flex items-center gap-1 px-5 border-b border-[#E2DEEC]">
-              {TABS.map((t) => {
-                const active = tab === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    role="tab"
-                    aria-selected={active}
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                      active
-                        ? "border-[#403770] text-[#403770]"
-                        : "border-transparent text-[#8A80A8] hover:text-[#403770]"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
+            <TabBar<TabId>
+              tabs={tabs}
+              active={tab}
+              onChange={setTab}
+              ariaLabel="Activity sections"
+            />
 
             {/* Body */}
             <div role="tabpanel" className="flex-1 overflow-hidden">
               {tab === "overview" && (
                 <OverviewPanel
                   activity={activity}
-                  notesCount={notes.length}
-                  expensesTotal={expensesTotal}
-                  attachmentsCount={attachments.length}
                   readOnly={readOnly}
                   onPatch={patch}
+                  notesCount={notes.length}
+                  attachmentsCount={attachments.length}
                 />
               )}
               {tab === "outcome" && (
@@ -202,55 +233,72 @@ function DrawerInner({
                   onPatch={patch}
                 />
               )}
-              {tab === "notes" && <NotesPanel activityId={activity.id} readOnly={readOnly} />}
-              {tab === "expenses" && <ExpensesPanel activity={activity} readOnly={readOnly} />}
-              {tab === "files" && <FilesPanel activityId={activity.id} readOnly={readOnly} />}
+              {tab === "notes" && (
+                <NotesPanel
+                  activityId={activity.id}
+                  readOnly={readOnly}
+                  onSaved={flashSaved}
+                />
+              )}
+              {tab === "expenses" && (
+                <ExpensesPanel
+                  activity={activity}
+                  readOnly={readOnly}
+                  onSaved={flashSaved}
+                />
+              )}
+              {tab === "files" && (
+                <FilesPanel
+                  activityId={activity.id}
+                  readOnly={readOnly}
+                  onSaved={flashSaved}
+                />
+              )}
             </div>
 
             {/* Footer */}
             <footer className="border-t border-[#E2DEEC] px-5 py-3 flex items-center gap-3 bg-[#FFFCFA]">
-              {!readOnly && (
-                <>
-                  {confirmingDelete ? (
-                    <div className="inline-flex items-center gap-2">
-                      <span className="text-xs text-[#c25a52]">Delete?</span>
-                      <button
-                        type="button"
-                        onClick={onDelete}
-                        className="px-2.5 py-1 text-xs font-medium text-white bg-[#F37167] rounded-md hover:bg-[#e25b50]"
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingDelete(false)}
-                        className="px-2.5 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#F7F5FA] rounded-md"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
+              {!readOnly &&
+                (confirmingDelete ? (
+                  <div className="inline-flex items-center gap-2">
+                    <span className="text-xs text-[#c25a52]">Delete?</span>
                     <button
                       type="button"
-                      aria-label="Delete activity"
-                      onClick={() => setConfirmingDelete(true)}
-                      className="text-[#A69DC0] hover:text-[#F37167] inline-flex items-center gap-1 text-xs"
+                      onClick={onDelete}
+                      className="px-2.5 py-1 text-xs font-medium text-white bg-[#F37167] rounded-md hover:bg-[#e25b50]"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Delete
+                      Yes
                     </button>
-                  )}
-                </>
-              )}
-              <div className="ml-auto flex items-center gap-2">
-                <span
-                  aria-live="polite"
-                  className={`text-[11px] transition-opacity ${
-                    savedFlash ? "opacity-100 text-[#69B34A]" : "opacity-0"
-                  }`}
-                >
-                  Saved
-                </span>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDelete(false)}
+                      className="px-2.5 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#F7F5FA] rounded-md"
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label="Delete activity"
+                    onClick={() => setConfirmingDelete(true)}
+                    className="text-[#A69DC0] hover:text-[#F37167] inline-flex items-center gap-1 text-xs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                ))}
+              <div className="ml-auto flex items-center gap-3">
+                {savedFlash && (
+                  <span
+                    aria-live="polite"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#5f665b]"
+                    style={{ animation: "fmFlashIn 1400ms ease-out" }}
+                  >
+                    <CheckCircle2 className="w-3 h-3 text-[#69B34A]" />
+                    Saved
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
@@ -266,12 +314,36 @@ function DrawerInner({
 
       <style jsx global>{`
         @keyframes fmFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
         }
         @keyframes fmSlideIn {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
+          from {
+            transform: translateX(100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+        @keyframes fmFlashIn {
+          0% {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          20% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          80% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+          }
         }
       `}</style>
     </>
