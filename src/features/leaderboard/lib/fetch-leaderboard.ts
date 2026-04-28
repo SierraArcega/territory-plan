@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { calculateTier, calculateCombinedScore } from "@/features/leaderboard/lib/scoring";
 import { getRepActuals } from "@/lib/opportunity-actuals";
-import type { LeaderboardEntry, InitiativeInfo } from "@/features/leaderboard/lib/types";
+import type { LeaderboardEntry } from "@/features/leaderboard/lib/types";
 
 export interface LeaderboardTeamTotals {
   revenue: number;
@@ -27,12 +27,9 @@ export interface LeaderboardTeamTotals {
 }
 
 export interface LeaderboardPayload {
-  initiative: InitiativeInfo;
   fiscalYears: { currentFY: string; nextFY: string; priorFY: string };
   entries: LeaderboardEntry[];
   teamTotals: LeaderboardTeamTotals;
-  metrics: { action: string; label: string; pointValue: number }[];
-  thresholds: { tier: string; minPoints: number }[];
 }
 
 export class NoActiveInitiativeError extends Error {
