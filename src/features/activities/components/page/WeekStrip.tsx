@@ -18,6 +18,7 @@ const DEAL_DOT: Record<DealKind, string> = {
   lost: "#F37167",
   created: "#403770",
   progressed: "#FFCF70",
+  closing: "#9B7BC4",
 };
 
 export interface WeekStripDay {

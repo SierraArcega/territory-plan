@@ -200,9 +200,8 @@ export default function CommandBar({ open, onClose }: CommandBarProps) {
                 onClose();
               }}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left",
-                "hover:bg-[#EFEDF5] transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-[-2px]"
+                "fm-focus-ring w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left",
+                "hover:bg-[#EFEDF5] [transition-duration:120ms] transition-colors"
               )}
             >
               <span className="min-w-[64px] text-[9px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">

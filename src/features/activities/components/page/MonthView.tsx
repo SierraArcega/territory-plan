@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   addDays,
   endOfMonth,
@@ -11,12 +11,21 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import type { ActivityListItem } from "@/features/shared/types/api-types";
+import type { ActivityListItem, OppEvent } from "@/features/shared/types/api-types";
 import {
   type ActivityCategory,
   CATEGORY_LABELS,
 } from "@/features/activities/types";
-import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
+import {
+  useActivitiesChrome,
+  getRangeForChrome,
+} from "@/features/activities/lib/filters-store";
+import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
+import DealChip from "./deals/DealChip";
+import OppDayBar from "./deals/OppDayBar";
+import OppSummaryStrip from "./deals/OppSummaryStrip";
+import OppDrawer, { type OppDrawerKind } from "./deals/OppDrawer";
+import type { ColdDistrict } from "./deals/ColdDistrictRow";
 
 const CATEGORY_STYLE: Record<ActivityCategory, { bg: string; ink: string; dot: string; label: string }> = {
   meetings: { bg: "#EFEDF5", ink: "#403770", dot: "#403770", label: CATEGORY_LABELS.meetings },
@@ -38,9 +47,35 @@ const WEEKDAY_LABELS = [
 ];
 
 const MAX_CHIPS_PER_DAY = 4;
+const MAX_DEAL_CHIPS_PER_DAY = 2;
 
 function fmtTime(iso: string): string {
   return format(new Date(iso), "h:mm a");
+}
+
+function drawerHeadingFor(kind: OppDrawerKind): string {
+  switch (kind) {
+    case "won":
+      return "Closed won";
+    case "lost":
+      return "Closed lost";
+    case "created":
+      return "New deals";
+    case "progressed":
+      return "Progressed deals";
+    case "closing":
+      return "Closing soon";
+    case "all":
+      return "All deal activity";
+    case "overdue":
+      return "Past-due open deals";
+    case "cold":
+      return "Districts going cold";
+  }
+}
+
+function fmtRange(range: { startIso: string; endIso: string }): string {
+  return format(new Date(range.startIso), "MMMM yyyy");
 }
 
 export default function MonthView({
@@ -51,10 +86,51 @@ export default function MonthView({
   onActivityClick: (id: string) => void;
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
+  const grain = useActivitiesChrome((s) => s.grain);
   const setAnchor = useActivitiesChrome((s) => s.setAnchor);
   const setGrain = useActivitiesChrome((s) => s.setGrain);
   const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
+  const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
+  const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
+  const statesFilter = useActivitiesChrome((s) => s.filters.states);
+
   const showOpps = dealDisplay !== "overlay";
+  const showSummary = dealDisplay !== "objects";
+  const showObjects = dealDisplay !== "overlay";
+
+  const range = useMemo(
+    () => getRangeForChrome(anchorIso, grain),
+    [anchorIso, grain]
+  );
+  const ownerParam = ownersFilter.length === 1 ? ownersFilter[0] : "all";
+  const stateParam = statesFilter.length > 0 ? statesFilter : undefined;
+
+  const { data: dealEventsData } = useDealEvents({
+    from: range.startIso,
+    to: range.endIso,
+    ownerId: ownerParam,
+    state: stateParam,
+  });
+  const events = useMemo<OppEvent[]>(() => {
+    let list = dealEventsData?.events ?? [];
+    if (dealKindsFilter.length > 0) {
+      const set = new Set(dealKindsFilter);
+      list = list.filter((e) => set.has(e.kind));
+    }
+    return list;
+  }, [dealEventsData, dealKindsFilter]);
+
+  const { data: openDealsData } = useOpenDeals(
+    { ownerId: ownerParam, state: stateParam, limit: 200 },
+    { enabled: showSummary }
+  );
+  const overdueDeals = useMemo(
+    () => (openDealsData?.deals ?? []).filter((d) => (d.daysToClose ?? 0) < 0),
+    [openDealsData]
+  );
+
+  // TODO: cold districts data source — Wave 8
+  const coldList: ColdDistrict[] = useMemo(() => [], []);
 
   const days = useMemo(() => {
     const anchor = new Date(anchorIso);
@@ -85,13 +161,41 @@ export default function MonthView({
     return map;
   }, [activities]);
 
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, OppEvent[]>();
+    for (const e of events) {
+      if (!e.occurredAt) continue;
+      const k = format(new Date(e.occurredAt), "yyyy-MM-dd");
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(e);
+    }
+    return map;
+  }, [events]);
+
   const today = new Date();
   const currentMonth = new Date(anchorIso);
   const totalRows = Math.ceil(days.length / 7);
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKind, setDrawerKind] = useState<OppDrawerKind>("all");
+  const onOpenDrawer = (kind: OppDrawerKind) => {
+    setDrawerKind(kind);
+    setDrawerOpen(true);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#FFFCFA]">
       <div className="flex flex-col gap-3 px-6 pt-4 pb-6 flex-1 min-h-0">
+        {showSummary && (
+          <OppSummaryStrip
+            events={events}
+            overdueDeals={overdueDeals}
+            coldList={coldList}
+            rangeLabel={fmtRange(range)}
+            onOpen={onOpenDrawer}
+          />
+        )}
+
         {/* Day-of-week header */}
         <div className="grid grid-cols-7 border-b border-[#D4CFE2]">
           {WEEKDAY_LABELS.map((lbl) => (
@@ -114,8 +218,19 @@ export default function MonthView({
             const isToday = isSameDay(day, today);
             const key = format(day, "yyyy-MM-dd");
             const items = byDay.get(key) ?? [];
-            const visible = items.slice(0, MAX_CHIPS_PER_DAY);
-            const overflow = items.length - visible.length;
+            const dayEvents = eventsByDay.get(key) ?? [];
+            const dealChipsToShow = showObjects
+              ? dayEvents.slice(0, MAX_DEAL_CHIPS_PER_DAY)
+              : [];
+            const remainingActivitySlots = Math.max(
+              0,
+              MAX_CHIPS_PER_DAY - dealChipsToShow.length
+            );
+            const visible = items.slice(0, remainingActivitySlots);
+            const overflow =
+              items.length -
+              visible.length +
+              (showObjects ? Math.max(0, dayEvents.length - dealChipsToShow.length) : 0);
             const dow = day.getDay();
             const weekend = dow === 0 || dow === 6;
             const colIdx = i % 7;
@@ -163,17 +278,22 @@ export default function MonthView({
                   )}
                 </div>
 
-                {/* Opp signal bar — Wave 6 will replace with <OppDayBar /> */}
+                {/* Opp day bar — overlay summary of deal activity */}
                 {showOpps && inMonth && (
-                  <div
-                    className="h-1 rounded-full bg-[#EFEDF5]"
-                    aria-hidden
-                    title="Pipeline activity placeholder (Wave 6)"
-                  />
+                  <OppDayBar opps={dayEvents} />
                 )}
 
-                {/* Activity chips — category-filled with time prefix */}
+                {/* Activity chips — category-filled with time prefix.
+                    When showObjects, render up to 2 deal chips above. */}
                 <div className="flex flex-col gap-[3px] min-h-0 overflow-hidden">
+                  {dealChipsToShow.map((ev) => (
+                    <DealChip
+                      key={ev.id}
+                      density="compact"
+                      deal={ev}
+                      onClick={() => onOpenDrawer("all")}
+                    />
+                  ))}
                   {visible.map((a) => {
                     const style = CATEGORY_STYLE[a.category];
                     return (
@@ -225,6 +345,17 @@ export default function MonthView({
           })}
         </div>
       </div>
+
+      <OppDrawer
+        open={drawerOpen}
+        kind={drawerKind}
+        heading={drawerHeadingFor(drawerKind)}
+        rangeLabel={fmtRange(range)}
+        events={events}
+        overdueDeals={overdueDeals}
+        coldList={coldList}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

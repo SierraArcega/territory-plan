@@ -31,6 +31,7 @@ const DEAL_KINDS: { id: DealKind; label: string; color: string; glyph: string }[
   { id: "lost", label: "Lost", color: "#F37167", glyph: "↘" },
   { id: "created", label: "New", color: "#6EA3BE", glyph: "+" },
   { id: "progressed", label: "Progressed", color: "#403770", glyph: "→" },
+  { id: "closing", label: "Closing", color: "#9B7BC4", glyph: "◎" },
 ];
 
 interface ActivitiesFilterBarProps {
@@ -94,7 +95,7 @@ export default function ActivitiesFilterBar({ onOpenCommandBar }: ActivitiesFilt
       <button
         type="button"
         onClick={onOpenCommandBar}
-        className="inline-flex items-center gap-2 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+        className="inline-flex items-center gap-2 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors fm-focus-ring"
       >
         <Search className="w-3.5 h-3.5 text-[#8A80A8]" />
         <span className="text-[#8A80A8]">Search or filter…</span>
@@ -185,7 +186,7 @@ export default function ActivitiesFilterBar({ onOpenCommandBar }: ActivitiesFilt
                   className={cn(
                     "inline-flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 text-xs font-medium",
                     "rounded-full border transition-colors duration-[120ms]",
-                    "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2",
+                    "fm-focus-ring",
                     active
                       ? "bg-white border-[#403770] text-[#403770] font-semibold"
                       : "bg-[#F7F5FA] border-[#D4CFE2] text-[#8A80A8] hover:bg-white opacity-65"
@@ -219,7 +220,7 @@ export default function ActivitiesFilterBar({ onOpenCommandBar }: ActivitiesFilt
                 patchFilters({ ...EMPTY_FILTERS, owners: [profile.id] });
               }
             }}
-            className="inline-flex items-center gap-1 h-8 px-2.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-1 h-8 px-2.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors fm-focus-ring"
           >
             <RotateCcw className="w-3 h-3" />
             Reset filters
@@ -285,7 +286,7 @@ function BarChip({
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium",
         "rounded-full border transition-colors duration-[120ms] ease-out",
-        "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2",
+        "fm-focus-ring",
         active
           ? "bg-white border-[var(--bc)] text-[#403770] font-semibold"
           : "bg-[#F7F5FA] border-[#D4CFE2] text-[#8A80A8] hover:bg-white opacity-72"

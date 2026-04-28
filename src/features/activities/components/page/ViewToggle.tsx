@@ -32,7 +32,7 @@ export default function ViewToggle({
             aria-selected={active}
             type="button"
             onClick={() => onChange(id)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+            className={`fm-focus-ring inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium [transition-duration:120ms] transition-colors ${
               active
                 ? "bg-white text-[#403770] shadow-sm"
                 : "text-[#8A80A8] hover:text-[#403770]"

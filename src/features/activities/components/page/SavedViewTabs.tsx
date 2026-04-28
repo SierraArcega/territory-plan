@@ -97,7 +97,7 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
               if (savedViewId === v.id) setSavedViewId(null);
               remove(v.id);
             }}
-            className="opacity-0 group-hover:opacity-100 ml-0.5 mr-1 mb-2.5 text-[#A69DC0] hover:text-[#F37167] transition-opacity focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2 rounded"
+            className="fm-focus-ring opacity-0 group-hover:opacity-100 ml-0.5 mr-1 mb-2.5 text-[#A69DC0] hover:text-[#F37167] transition-opacity focus-visible:opacity-100"
           >
             <X className="w-3 h-3" />
           </button>
@@ -125,7 +125,7 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
           <button
             type="button"
             onClick={commitSave}
-            className="px-2 py-0.5 text-xs font-medium text-white bg-[#403770] rounded-md hover:bg-[#322a5a]"
+            className="fm-focus-ring px-2 py-0.5 text-xs font-medium text-white bg-[#403770] rounded-md hover:bg-[#322a5a] [transition-duration:120ms] transition-colors"
           >
             Save
           </button>
@@ -134,7 +134,7 @@ export default function SavedViewTabs({ currentUserId }: { currentUserId: string
         <button
           type="button"
           onClick={() => setNaming(true)}
-          className="ml-1 mb-1 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] rounded-md transition-colors"
+          className="fm-focus-ring ml-1 mb-1 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] rounded-md [transition-duration:120ms] transition-colors"
         >
           <Plus className="w-3 h-3" />
           Save view

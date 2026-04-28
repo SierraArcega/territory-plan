@@ -132,11 +132,14 @@ export default function ActivitiesPageShell() {
           )}
         </div>
 
-        <UpcomingRail
-          activities={upcomingFiltered}
-          onActivityClick={setOpenActivityId}
-          scope={railScope}
-        />
+        <div className="hidden md:flex">
+          <UpcomingRail
+            activities={upcomingFiltered}
+            onActivityClick={setOpenActivityId}
+            scope={railScope}
+            onNewActivity={() => setCreatingActivity(true)}
+          />
+        </div>
       </div>
 
       <ActivityDetailDrawer

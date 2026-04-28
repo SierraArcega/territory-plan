@@ -45,8 +45,7 @@ export default function FilterVariantSwitcher({ inline, className }: FilterVaria
             aria-checked={active}
             onClick={() => setVariant(v.id)}
             className={cn(
-              "px-2.5 py-1 text-[11px] font-semibold rounded-full transition-colors duration-[120ms] ease-out",
-              "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2",
+              "fm-focus-ring px-2.5 py-1 text-[11px] font-semibold rounded-full transition-colors duration-[120ms] ease-out",
               active
                 ? "bg-[#403770] text-white"
                 : "text-[#6E6390] hover:text-[#403770]"

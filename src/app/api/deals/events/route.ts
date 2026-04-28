@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 
@@ -10,25 +11,47 @@ export const dynamic = "force-dynamic";
 // for the redesigned Activities surface (Month strip, Week pinned row,
 // Schedule Pipeline events section).
 //
-// Event kinds:
-//   created   — opportunity.createdAt falls inside [from, to]
-//   won       — opportunity transitioned to a "Closed Won" stage in window
-//   lost      — opportunity transitioned to a "Closed Lost" stage in window
-//   progressed— stage changed between two snapshots in window, neither closed
-//
-// Strategy: opportunity_snapshots is a once-per-week capture, so we approximate
-// a state-change feed by diffing the most-recent-before-window snapshot
-// against snapshots inside the window. Wave 6 may refine this against
-// stage_history when it lands; the response shape stays stable.
+// Event kinds and their date sources:
+//   created    — opportunity.createdAt falls inside [from, to]
+//   closing    — opportunity.closeDate falls inside [from, to] AND the deal
+//                is still open (stage is not Closed Won/Lost)
+//   won        — stage_history entry transitions to "Closed Won" with
+//                changed_at inside the window
+//   lost       — stage_history entry transitions to "Closed Lost" with
+//                changed_at inside the window
+//   progressed — any other stage transition with changed_at inside the window;
+//                the very first stage_history entry (initial state) is skipped
+//                because the "created" event already covers that moment
 
 const CLOSED_WON_RX = /closed[_ ]won/i;
 const CLOSED_LOST_RX = /closed[_ ]lost/i;
+
+// opportunity.created_at is unreliable for deals created before this date —
+// the field was overwritten with bulk-import timestamps during migration, so
+// pre-cutoff rows would all cluster on a few import days instead of their
+// real creation dates. Suppress 'created' events for any opp whose createdAt
+// falls before this cutoff.
+const CREATED_EVENT_CUTOFF = new Date("2026-04-15T00:00:00Z");
 
 function isClosedWon(stage: string | null) {
   return stage != null && CLOSED_WON_RX.test(stage);
 }
 function isClosedLost(stage: string | null) {
   return stage != null && CLOSED_LOST_RX.test(stage);
+}
+
+interface StageHistoryEntry {
+  stage: string;
+  changed_at: string;
+}
+
+function isStageHistoryEntry(v: unknown): v is StageHistoryEntry {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    typeof (v as { stage?: unknown }).stage === "string" &&
+    typeof (v as { changed_at?: unknown }).changed_at === "string"
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -56,103 +79,95 @@ export async function GET(request: NextRequest) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // Derive the salesRep filter — opportunities are linked to reps by uuid.
-  let salesRepFilter: { in: string[] } | string | null = null;
+  // Resolve the rep being filtered to {id, email}. Newly-synced Salesforce
+  // opps come in with sales_rep_email populated but sales_rep_id NULL — the
+  // UUID backfill is async — so we OR-match on both columns to keep brand-new
+  // deals visible in Your-pipeline scope.
+  let targetUser: { id: string; email: string | null } | null = null;
   if (ownerParam === "all") {
-    salesRepFilter = null;
-  } else if (ownerParam) {
-    salesRepFilter = ownerParam;
+    targetUser = null;
+  } else if (!ownerParam || ownerParam === user.id) {
+    targetUser = { id: user.id, email: user.email ?? null };
   } else {
-    salesRepFilter = user.id;
+    const profile = await prisma.userProfile.findFirst({
+      where: { id: ownerParam },
+      select: { id: true, email: true },
+    });
+    targetUser = profile
+      ? { id: profile.id, email: profile.email }
+      : { id: ownerParam, email: null };
   }
 
-  // ---------- "created" events: opportunity.createdAt inside window ----------
-  const createdOpps = await prisma.opportunity.findMany({
-    where: {
-      createdAt: { gte: from, lte: to },
-      ...(salesRepFilter && typeof salesRepFilter === "string"
-        ? { salesRepId: salesRepFilter }
-        : {}),
-      ...(stateAbbrevs.length > 0
-        ? { district: { is: { stateAbbrev: { in: stateAbbrevs } } } }
-        : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      stage: true,
-      createdAt: true,
-      netBookingAmount: true,
-      districtLeaId: true,
-      districtName: true,
-      salesRepId: true,
-    },
-    take: 500,
-  });
+  const userFilter = targetUser
+    ? targetUser.email
+      ? {
+          OR: [
+            { salesRepId: targetUser.id },
+            { salesRepEmail: targetUser.email },
+          ],
+        }
+      : { salesRepId: targetUser.id }
+    : {};
 
-  // ---------- snapshot-diff events ----------
-  // Pull all snapshots inside the window plus, per opp, the most recent
-  // snapshot strictly before the window. The "before" snapshot anchors the
-  // diff so we can tell what changed.
-  const snapsInWindow = await prisma.opportunitySnapshot.findMany({
-    where: {
-      snapshotDate: { gte: from, lte: to },
-      ...(salesRepFilter && typeof salesRepFilter === "string"
-        ? { salesRepId: salesRepFilter }
-        : {}),
-    },
-    select: {
-      opportunityId: true,
-      stage: true,
-      capturedAt: true,
-      snapshotDate: true,
-      netBookingAmount: true,
-      salesRepId: true,
-      districtLeaId: true,
-    },
-    orderBy: { capturedAt: "asc" },
-  });
+  // Stage 1 — find candidate opp IDs that could contribute an event in
+  // [from, to]. Three orthogonal triggers: createdAt in window, closeDate in
+  // window, or any stage_history entry whose changed_at is in window. We do
+  // this in raw SQL because Prisma can't filter inside a JSON array of
+  // {stage, changed_at}. Without this pre-filter we'd have to load every opp
+  // for the rep and walk them all in JS — which both blows past any take
+  // limit and silently drops recent rows when the team has more opps than
+  // the cap (the bug this query exists to fix).
+  const userSqlClause: Prisma.Sql = !targetUser
+    ? Prisma.sql`TRUE`
+    : targetUser.email
+      ? Prisma.sql`(sales_rep_id = ${targetUser.id}::uuid OR sales_rep_email = ${targetUser.email})`
+      : Prisma.sql`sales_rep_id = ${targetUser.id}::uuid`;
 
-  const oppIds = [...new Set(snapsInWindow.map((s) => s.opportunityId))];
-
-  // Latest snapshot strictly before the window for each opp — anchors the
-  // diff. N findFirst queries is fine for typical opp counts; if this grows
-  // hot, swap for a single DISTINCT ON raw query.
-  type PriorRow = { opportunityId: string; stage: string | null };
-  const priorRows: PriorRow[] = oppIds.length
-    ? await Promise.all(
-        oppIds.map(async (oppId) => {
-          const prior = await prisma.opportunitySnapshot.findFirst({
-            where: { opportunityId: oppId, snapshotDate: { lt: from } },
-            orderBy: { snapshotDate: "desc" },
-            select: { opportunityId: true, stage: true },
-          });
-          return prior ?? { opportunityId: oppId, stage: null };
-        })
+  const candidateRows = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+    SELECT id FROM opportunities
+    WHERE ${userSqlClause}
+      AND (
+        (created_at >= ${from} AND created_at <= ${to})
+        OR (close_date >= ${from} AND close_date <= ${to})
+        OR EXISTS (
+          SELECT 1 FROM jsonb_array_elements(stage_history) h
+          WHERE (h->>'changed_at')::timestamptz >= ${from}
+            AND (h->>'changed_at')::timestamptz <= ${to}
+        )
       )
-    : [];
-  const priorByOpp = new Map(priorRows.map((p) => [p.opportunityId, p.stage]));
+    LIMIT 5000
+  `);
+  const candidateIds = candidateRows.map((r) => r.id);
 
-  // Also need opp-level metadata (name, district, etc.) for the response.
-  const oppMeta = oppIds.length
-    ? await prisma.opportunity.findMany({
-        where: { id: { in: oppIds } },
-        select: {
-          id: true,
-          name: true,
-          districtLeaId: true,
-          districtName: true,
-          district: { select: { stateAbbrev: true } },
-        },
-      })
-    : [];
-  const oppMetaById = new Map(oppMeta.map((o) => [o.id, o]));
+  const opps =
+    candidateIds.length === 0
+      ? []
+      : await prisma.opportunity.findMany({
+          where: {
+            id: { in: candidateIds },
+            ...(stateAbbrevs.length > 0
+              ? { district: { is: { stateAbbrev: { in: stateAbbrevs } } } }
+              : {}),
+          },
+          select: {
+            id: true,
+            name: true,
+            stage: true,
+            createdAt: true,
+            closeDate: true,
+            netBookingAmount: true,
+            districtLeaId: true,
+            districtName: true,
+            salesRepId: true,
+            stageHistory: true,
+          },
+        });
 
   type OutEvent = {
     id: string;
     opportunityId: string;
     opportunityName: string | null;
-    kind: "won" | "lost" | "created" | "progressed";
+    kind: "won" | "lost" | "created" | "progressed" | "closing";
     occurredAt: string;
     amount: number | null;
     stage: string | null;
@@ -163,50 +178,82 @@ export async function GET(request: NextRequest) {
 
   const events: OutEvent[] = [];
 
-  // Created events — state filter is already applied by the createdOpps query.
-  for (const opp of createdOpps) {
-    events.push({
-      id: `created:${opp.id}`,
-      opportunityId: opp.id,
-      opportunityName: opp.name,
-      kind: "created",
-      occurredAt: opp.createdAt!.toISOString(),
-      amount: opp.netBookingAmount ? Number(opp.netBookingAmount) : null,
-      stage: opp.stage,
-      districtLeaid: opp.districtLeaId,
-      districtName: opp.districtName,
-      salesRepId: opp.salesRepId,
-    });
-  }
+  for (const opp of opps) {
+    const amount = opp.netBookingAmount ? Number(opp.netBookingAmount) : null;
 
-  // Snapshot-diff events — compare prior stage against each in-window snapshot
-  // for the same opp, in chronological order. First detected transition wins;
-  // we don't currently emit multiple progress steps inside one window.
-  const snapsByOpp = new Map<string, typeof snapsInWindow>();
-  for (const s of snapsInWindow) {
-    const arr = snapsByOpp.get(s.opportunityId) ?? [];
-    arr.push(s);
-    snapsByOpp.set(s.opportunityId, arr);
-  }
-
-  for (const [oppId, snaps] of snapsByOpp.entries()) {
-    const meta = oppMetaById.get(oppId);
     if (
-      stateAbbrevs.length > 0 &&
-      meta?.district?.stateAbbrev &&
-      !stateAbbrevs.includes(meta.district.stateAbbrev)
+      opp.createdAt &&
+      opp.createdAt >= from &&
+      opp.createdAt <= to &&
+      opp.createdAt >= CREATED_EVENT_CUTOFF
     ) {
-      continue;
+      events.push({
+        id: `created:${opp.id}`,
+        opportunityId: opp.id,
+        opportunityName: opp.name,
+        kind: "created",
+        occurredAt: opp.createdAt.toISOString(),
+        amount,
+        stage: opp.stage,
+        districtLeaid: opp.districtLeaId,
+        districtName: opp.districtName,
+        salesRepId: opp.salesRepId,
+      });
     }
 
-    let prevStage = priorByOpp.get(oppId) ?? null;
-    let emitted: OutEvent | null = null;
+    if (
+      opp.closeDate &&
+      opp.closeDate >= from &&
+      opp.closeDate <= to &&
+      !isClosedWon(opp.stage) &&
+      !isClosedLost(opp.stage)
+    ) {
+      // closeDate is conceptually a calendar date (Salesforce stores it as
+      // midnight UTC). Pin occurredAt to noon UTC of the same calendar day
+      // so the event lands on the intended date in any US timezone — raw
+      // midnight UTC would drift to the previous day in PT/MT/CT/ET.
+      const closeDay = opp.closeDate.toISOString().slice(0, 10);
+      events.push({
+        id: `closing:${opp.id}`,
+        opportunityId: opp.id,
+        opportunityName: opp.name,
+        kind: "closing",
+        occurredAt: `${closeDay}T12:00:00.000Z`,
+        amount,
+        stage: opp.stage,
+        districtLeaid: opp.districtLeaId,
+        districtName: opp.districtName,
+        salesRepId: opp.salesRepId,
+      });
+    }
 
-    for (const snap of snaps) {
-      const curStage = snap.stage;
-      const stageChanged = (prevStage ?? null) !== (curStage ?? null);
+    const rawHist: unknown[] = Array.isArray(opp.stageHistory)
+      ? (opp.stageHistory as unknown[])
+      : [];
+    const sorted = rawHist
+      .filter(isStageHistoryEntry)
+      .sort((a, b) => a.changed_at.localeCompare(b.changed_at));
 
-      if (!stageChanged) {
+    let prevStage: string | null = null;
+    for (const h of sorted) {
+      const t = new Date(h.changed_at);
+      if (isNaN(t.getTime())) continue;
+
+      if (t < from) {
+        prevStage = h.stage;
+        continue;
+      }
+      if (t > to) break;
+
+      const curStage: string | null = h.stage;
+
+      // The first-ever entry is the deal's initial stage, not a transition.
+      if (prevStage === null) {
+        prevStage = curStage;
+        continue;
+      }
+
+      if (curStage === prevStage) {
         prevStage = curStage;
         continue;
       }
@@ -221,31 +268,45 @@ export async function GET(request: NextRequest) {
       }
 
       if (kind) {
-        emitted = {
-          id: `${kind}:${oppId}:${snap.snapshotDate.toISOString().slice(0, 10)}`,
-          opportunityId: oppId,
-          opportunityName: meta?.name ?? null,
+        events.push({
+          id: `${kind}:${opp.id}:${h.changed_at}`,
+          opportunityId: opp.id,
+          opportunityName: opp.name,
           kind,
-          occurredAt: snap.capturedAt.toISOString(),
-          amount: snap.netBookingAmount ? Number(snap.netBookingAmount) : null,
+          occurredAt: t.toISOString(),
+          amount,
           stage: curStage,
-          districtLeaid: snap.districtLeaId ?? meta?.districtLeaId ?? null,
-          districtName: meta?.districtName ?? null,
-          salesRepId: snap.salesRepId,
-        };
-        // Won/Lost are terminal — stop scanning. Progressed keeps scanning so
-        // a later won/lost in the same window still surfaces.
-        if (kind === "won" || kind === "lost") break;
+          districtLeaid: opp.districtLeaId,
+          districtName: opp.districtName,
+          salesRepId: opp.salesRepId,
+        });
       }
       prevStage = curStage;
     }
-
-    if (emitted) events.push(emitted);
   }
 
-  // Sort by time, newest first. Cap to 500.
-  events.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
-  const sliced = events.slice(0, 500);
+  // Reps often correct stage assignments mid-day, so a single opp can have
+  // many stage_history entries on the same day. Surfacing each as its own
+  // event spams the calendar; keep only the latest progressed event per
+  // (opportunity, day). Won/lost/created/closing are one-per-deal already.
+  const latestProgressedByOppDay = new Map<string, OutEvent>();
+  const deduped: OutEvent[] = [];
+  for (const e of events) {
+    if (e.kind !== "progressed") {
+      deduped.push(e);
+      continue;
+    }
+    const day = e.occurredAt.slice(0, 10);
+    const key = `${e.opportunityId}:${day}`;
+    const existing = latestProgressedByOppDay.get(key);
+    if (!existing || existing.occurredAt < e.occurredAt) {
+      latestProgressedByOppDay.set(key, e);
+    }
+  }
+  for (const e of latestProgressedByOppDay.values()) deduped.push(e);
+
+  deduped.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
+  const sliced = deduped.slice(0, 500);
 
   return NextResponse.json({
     events: sliced,

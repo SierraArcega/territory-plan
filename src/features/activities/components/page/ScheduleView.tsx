@@ -3,14 +3,23 @@
 import { useMemo, useState } from "react";
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
 import { CalendarDays, MapPin, User } from "lucide-react";
-import type { ActivityListItem } from "@/features/shared/types/api-types";
+import type { ActivityListItem, OppEvent } from "@/features/shared/types/api-types";
 import {
   ACTIVITY_TYPE_LABELS,
   type ActivityCategory,
   type ActivityType,
 } from "@/features/activities/types";
-import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
+import {
+  useActivitiesChrome,
+  getRangeForChrome,
+  type DealKind,
+} from "@/features/activities/lib/filters-store";
+import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
 import WeekStrip, { type WeekStripDay } from "./WeekStrip";
+import DealChip from "./deals/DealChip";
+import OppSummaryStrip from "./deals/OppSummaryStrip";
+import OppDrawer, { type OppDrawerKind } from "./deals/OppDrawer";
+import type { ColdDistrict } from "./deals/ColdDistrictRow";
 
 const CATEGORY_STYLE: Record<ActivityCategory, { bg: string; ink: string; dot: string }> = {
   meetings: { bg: "#EFEDF5", ink: "#403770", dot: "#403770" },
@@ -43,6 +52,31 @@ function durationMinutes(act: ActivityListItem): number {
   return Math.max(15, Math.round((end - start) / 60000));
 }
 
+function drawerHeadingFor(kind: OppDrawerKind): string {
+  switch (kind) {
+    case "won":
+      return "Closed won";
+    case "lost":
+      return "Closed lost";
+    case "created":
+      return "New deals";
+    case "progressed":
+      return "Progressed deals";
+    case "closing":
+      return "Closing soon";
+    case "all":
+      return "All deal activity";
+    case "overdue":
+      return "Past-due open deals";
+    case "cold":
+      return "Districts going cold";
+  }
+}
+
+function fmtRange(range: { startIso: string; endIso: string }): string {
+  return `${format(new Date(range.startIso), "MMM d")} – ${format(new Date(range.endIso), "MMM d")}`;
+}
+
 export default function ScheduleView({
   activities,
   isLoading,
@@ -53,8 +87,49 @@ export default function ScheduleView({
   onActivityClick: (id: string) => void;
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
+  const grain = useActivitiesChrome((s) => s.grain);
   const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
+  const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
+  const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
+  const statesFilter = useActivitiesChrome((s) => s.filters.states);
+
   const showOpps = dealDisplay !== "overlay";
+  const showSummary = dealDisplay !== "objects";
+  const showObjects = dealDisplay !== "overlay";
+
+  const range = useMemo(
+    () => getRangeForChrome(anchorIso, grain),
+    [anchorIso, grain]
+  );
+  const ownerParam = ownersFilter.length === 1 ? ownersFilter[0] : "all";
+  const stateParam = statesFilter.length > 0 ? statesFilter : undefined;
+
+  const { data: dealEventsData } = useDealEvents({
+    from: range.startIso,
+    to: range.endIso,
+    ownerId: ownerParam,
+    state: stateParam,
+  });
+  const events = useMemo<OppEvent[]>(() => {
+    let list = dealEventsData?.events ?? [];
+    if (dealKindsFilter.length > 0) {
+      const set = new Set(dealKindsFilter);
+      list = list.filter((e) => set.has(e.kind));
+    }
+    return list;
+  }, [dealEventsData, dealKindsFilter]);
+
+  const { data: openDealsData } = useOpenDeals(
+    { ownerId: ownerParam, state: stateParam, limit: 200 },
+    { enabled: showSummary }
+  );
+  const overdueDeals = useMemo(
+    () => (openDealsData?.deals ?? []).filter((d) => (d.daysToClose ?? 0) < 0),
+    [openDealsData]
+  );
+
+  // TODO: cold districts data source — Wave 8
+  const coldList: ColdDistrict[] = useMemo(() => [], []);
 
   const weekAnchor = useMemo(() => new Date(anchorIso), [anchorIso]);
   const days = useMemo(() => {
@@ -78,21 +153,41 @@ export default function ScheduleView({
     return map;
   }, [activities]);
 
+  // Bucket deal events by yyyy-MM-dd for both the strip and the day list.
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, OppEvent[]>();
+    for (const e of events) {
+      if (!e.occurredAt) continue;
+      const k = format(new Date(e.occurredAt), "yyyy-MM-dd");
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(e);
+    }
+    return map;
+  }, [events]);
+
   const stripData: WeekStripDay[] = useMemo(
     () =>
       days.map((d) => {
-        const items = byDay.get(format(d, "yyyy-MM-dd")) ?? [];
+        const dayKey = format(d, "yyyy-MM-dd");
+        const items = byDay.get(dayKey) ?? [];
         const cats = Array.from(new Set(items.map((a) => a.category))) as ActivityCategory[];
+        const dayEvents = eventsByDay.get(dayKey) ?? [];
+        const dealKindSet = new Set<DealKind>();
+        let oppTotal = 0;
+        for (const e of dayEvents) {
+          dealKindSet.add(e.kind as DealKind);
+          oppTotal += typeof e.amount === "number" ? e.amount : 0;
+        }
         return {
           date: d,
           count: items.length,
           categories: cats,
-          dealKinds: [], // Wave 6 fills in real deal data
-          oppTotal: 0,
-          dealCount: 0,
+          dealKinds: Array.from(dealKindSet),
+          oppTotal,
+          dealCount: dayEvents.length,
         };
       }),
-    [days, byDay]
+    [days, byDay, eventsByDay]
   );
 
   const weekStartIso = days[0].toISOString();
@@ -121,11 +216,32 @@ export default function ScheduleView({
   const setSelectedDay = (d: Date) => setSelectedDayIso(d.toISOString());
 
   const selectedItems = byDay.get(format(selectedDay, "yyyy-MM-dd")) ?? [];
+  const selectedDayEvents =
+    eventsByDay.get(format(selectedDay, "yyyy-MM-dd")) ?? [];
   const isSelectedToday = isSameDay(selectedDay, today);
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKind, setDrawerKind] = useState<OppDrawerKind>("all");
+  const onOpenDrawer = (kind: OppDrawerKind) => {
+    setDrawerKind(kind);
+    setDrawerOpen(true);
+  };
+
+  const hasContent = selectedItems.length > 0 || selectedDayEvents.length > 0;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#FFFCFA]">
       <div className="flex flex-col gap-5 px-6 pt-4 pb-6 flex-1 min-h-0">
+        {showSummary && (
+          <OppSummaryStrip
+            events={events}
+            overdueDeals={overdueDeals}
+            coldList={coldList}
+            rangeLabel={fmtRange(range)}
+            onOpen={onOpenDrawer}
+          />
+        )}
+
         <WeekStrip
           weekAnchor={weekAnchor}
           daysData={stripData}
@@ -161,7 +277,7 @@ export default function ScheduleView({
               <div className="px-6 py-12 text-center text-sm text-[#8A80A8]">
                 Loading activities…
               </div>
-            ) : selectedItems.length === 0 ? (
+            ) : !hasContent ? (
               <div className="px-6 py-12 flex flex-col items-center gap-2.5 text-center">
                 <CalendarDays className="w-10 h-10 text-[#E2DEEC]" />
                 <div className="text-sm text-[#6E6390]">No activities on this day.</div>
@@ -171,19 +287,25 @@ export default function ScheduleView({
               </div>
             ) : (
               <>
-                {showOpps && (
-                  <div className="px-5 pt-2 pb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">
+                {showObjects && selectedDayEvents.length > 0 && (
+                  <div className="px-5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">
                     Pipeline events
-                    <span className="ml-2 text-[#C2BBD4] font-normal normal-case">
-                      Connect deals via the deal toggle to see events here.
-                    </span>
                   </div>
                 )}
-                {selectedItems.length > 0 && showOpps && (
-                  <div className="px-5 pt-2 pb-1 mt-1 border-t border-[#EFEDF5] text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">
-                    Activities
+                {showObjects && selectedDayEvents.length > 0 && (
+                  <div className="px-5 pb-2 flex flex-col gap-1.5">
+                    {selectedDayEvents.map((ev) => (
+                      <DealChip key={ev.id} density="row" deal={ev} />
+                    ))}
                   </div>
                 )}
+                {showObjects &&
+                  selectedDayEvents.length > 0 &&
+                  selectedItems.length > 0 && (
+                    <div className="px-5 pt-2 pb-1 mt-1 border-t border-[#EFEDF5] text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">
+                      Activities
+                    </div>
+                  )}
                 <ul>
                   {selectedItems.map((act) => {
                     const style = CATEGORY_STYLE[act.category];
@@ -269,6 +391,17 @@ export default function ScheduleView({
           </div>
         </div>
       </div>
+
+      <OppDrawer
+        open={drawerOpen}
+        kind={drawerKind}
+        heading={drawerHeadingFor(drawerKind)}
+        rangeLabel={fmtRange(range)}
+        events={events}
+        overdueDeals={overdueDeals}
+        coldList={coldList}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

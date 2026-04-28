@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ChevronDown, RotateCcw, Search } from "lucide-react";
+import { ChevronDown, Filter, RotateCcw, Search, X } from "lucide-react";
 import {
   CATEGORY_LABELS,
   ACTIVITY_TYPE_LABELS,
@@ -38,6 +38,7 @@ const DEAL_KINDS: DealKindMeta[] = [
   { id: "lost", label: "Lost", color: "#F37167", glyph: "↘" },
   { id: "created", label: "New", color: "#6EA3BE", glyph: "+" },
   { id: "progressed", label: "Progressed", color: "#403770", glyph: "→" },
+  { id: "closing", label: "Closing", color: "#9B7BC4", glyph: "◎" },
 ];
 
 interface ActivitiesFilterRailProps {
@@ -46,6 +47,7 @@ interface ActivitiesFilterRailProps {
 }
 
 export default function ActivitiesFilterRail({ onOpenCommandBar }: ActivitiesFilterRailProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const filters = useActivitiesChrome((s) => s.filters);
   const patchFilters = useActivitiesChrome((s) => s.patchFilters);
   const resetFilters = useActivitiesChrome((s) => s.resetFilters);
@@ -128,12 +130,51 @@ export default function ActivitiesFilterRail({ onOpenCommandBar }: ActivitiesFil
     filters.text.trim().length > 0;
 
   return (
-    <div className="flex items-center gap-2 px-6 py-2.5 bg-white border-b border-[#E2DEEC] flex-wrap">
+    <>
+      {/* Mobile-only filter trigger */}
+      <div className="md:hidden flex items-center gap-2 px-4 py-2 bg-white border-b border-[#E2DEEC]">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label={anyPartial ? "Open filters (filters active)" : "Open filters"}
+          className="fm-focus-ring inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors"
+        >
+          <Filter className="w-3.5 h-3.5 text-[#8A80A8]" />
+          Filters
+          {anyPartial && (
+            <span
+              aria-hidden
+              className="ml-0.5 inline-block w-1.5 h-1.5 rounded-full bg-[#F37167]"
+            />
+          )}
+        </button>
+      </div>
+
+      <div
+        className={cn(
+          mobileOpen
+            ? "fixed inset-0 z-50 bg-white p-4 overflow-y-auto flex flex-col items-stretch gap-3"
+            : "hidden md:flex items-center gap-2 px-6 py-2.5 bg-white border-b border-[#E2DEEC] flex-wrap"
+        )}
+      >
+        {mobileOpen && (
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-bold text-[#403770]">Filters</span>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close filters"
+              className="fm-focus-ring p-1 rounded-md hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors"
+            >
+              <X className="w-4 h-4 text-[#544A78]" />
+            </button>
+          </div>
+        )}
       {/* ⌘K command bar trigger */}
       <button
         type="button"
         onClick={onOpenCommandBar}
-        className="inline-flex items-center gap-2 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+        className="inline-flex items-center gap-2 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors fm-focus-ring"
       >
         <Search className="w-3.5 h-3.5 text-[#8A80A8]" />
         <span className="text-[#8A80A8]">Search or filter…</span>
@@ -259,14 +300,15 @@ export default function ActivitiesFilterRail({ onOpenCommandBar }: ActivitiesFil
                 patchFilters({ ...EMPTY_FILTERS, owners: [profile.id] });
               }
             }}
-            className="inline-flex items-center gap-1 h-8 px-2.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-1 h-8 px-2.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors fm-focus-ring"
           >
             <RotateCcw className="w-3 h-3" />
             Reset filters
           </button>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -319,7 +361,7 @@ function CategoryChip({
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium",
         "rounded-full border transition-colors duration-[120ms] ease-out",
-        "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2",
+        "fm-focus-ring",
         active
           ? "bg-white border-[var(--cat-color)] text-[#403770] font-semibold"
           : "bg-[#F7F5FA] border-[#D4CFE2] text-[#8A80A8] hover:bg-white",
@@ -356,7 +398,7 @@ function DealKindChip({
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium",
         "rounded-full border transition-colors duration-[120ms] ease-out",
-        "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2",
+        "fm-focus-ring",
         active
           ? "bg-white border-[var(--dk-color)] text-[#403770] font-semibold"
           : "bg-[#F7F5FA] border-[#D4CFE2] text-[#8A80A8] hover:bg-white",
@@ -423,7 +465,7 @@ function MultiSelectMenu({
         className={cn(
           "inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium",
           "rounded-full border transition-colors duration-[120ms]",
-          "focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2",
+          "fm-focus-ring",
           partial
             ? "bg-white border-[#403770] text-[#403770] font-bold"
             : selected.length === 0

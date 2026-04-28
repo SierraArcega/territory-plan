@@ -1,10 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
-import type { ActivityListItem } from "@/features/shared/types/api-types";
+import type { ActivityListItem, OppEvent } from "@/features/shared/types/api-types";
 import { type ActivityCategory } from "@/features/activities/types";
-import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
+import {
+  useActivitiesChrome,
+  getRangeForChrome,
+} from "@/features/activities/lib/filters-store";
+import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
+import DealChip from "./deals/DealChip";
+import { OPP_STYLE } from "./deals/oppStyle";
+import { formatMoney } from "./deals/formatMoney";
+import OppSummaryStrip from "./deals/OppSummaryStrip";
+import OppDrawer, { type OppDrawerKind } from "./deals/OppDrawer";
+import type { ColdDistrict } from "./deals/ColdDistrictRow";
 
 const CATEGORY_STYLE: Record<ActivityCategory, { bg: string; ink: string; dot: string }> = {
   meetings: { bg: "#EFEDF5", ink: "#403770", dot: "#403770" },
@@ -19,6 +29,7 @@ const HOUR_START = 7;
 const HOUR_END = 21;
 const PX_PER_HOUR = 52;
 const HOURS = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
+const MAX_PIPS_PER_DAY = 5;
 
 interface PlacedBlock {
   act: ActivityListItem;
@@ -49,6 +60,31 @@ function buildBlocks(activities: ActivityListItem[], day: Date): PlacedBlock[] {
     .sort((a, b) => (a.act.startDate ?? "").localeCompare(b.act.startDate ?? ""));
 }
 
+function drawerHeadingFor(kind: OppDrawerKind): string {
+  switch (kind) {
+    case "won":
+      return "Closed won";
+    case "lost":
+      return "Closed lost";
+    case "created":
+      return "New deals";
+    case "progressed":
+      return "Progressed deals";
+    case "closing":
+      return "Closing soon";
+    case "all":
+      return "All deal activity";
+    case "overdue":
+      return "Past-due open deals";
+    case "cold":
+      return "Districts going cold";
+  }
+}
+
+function fmtRange(range: { startIso: string; endIso: string }): string {
+  return `${format(new Date(range.startIso), "MMM d")} – ${format(new Date(range.endIso), "MMM d")}`;
+}
+
 export default function WeekGridView({
   activities,
   onActivityClick,
@@ -57,8 +93,49 @@ export default function WeekGridView({
   onActivityClick: (id: string) => void;
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
+  const grain = useActivitiesChrome((s) => s.grain);
   const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
+  const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
+  const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
+  const statesFilter = useActivitiesChrome((s) => s.filters.states);
+
   const showOpps = dealDisplay !== "overlay";
+  const showSummary = dealDisplay !== "objects";
+  const showObjects = dealDisplay !== "overlay";
+
+  const range = useMemo(
+    () => getRangeForChrome(anchorIso, grain),
+    [anchorIso, grain]
+  );
+  const ownerParam = ownersFilter.length === 1 ? ownersFilter[0] : "all";
+  const stateParam = statesFilter.length > 0 ? statesFilter : undefined;
+
+  const { data: dealEventsData } = useDealEvents({
+    from: range.startIso,
+    to: range.endIso,
+    ownerId: ownerParam,
+    state: stateParam,
+  });
+  const events = useMemo<OppEvent[]>(() => {
+    let list = dealEventsData?.events ?? [];
+    if (dealKindsFilter.length > 0) {
+      const set = new Set(dealKindsFilter);
+      list = list.filter((e) => set.has(e.kind));
+    }
+    return list;
+  }, [dealEventsData, dealKindsFilter]);
+
+  const { data: openDealsData } = useOpenDeals(
+    { ownerId: ownerParam, state: stateParam, limit: 200 },
+    { enabled: showSummary }
+  );
+  const overdueDeals = useMemo(
+    () => (openDealsData?.deals ?? []).filter((d) => (d.daysToClose ?? 0) < 0),
+    [openDealsData]
+  );
+
+  // TODO: cold districts data source — Wave 8
+  const coldList: ColdDistrict[] = useMemo(() => [], []);
 
   const days = useMemo(() => {
     const start = startOfWeek(new Date(anchorIso), { weekStartsOn: 0 });
@@ -76,12 +153,30 @@ export default function WeekGridView({
     return map;
   }, [activities]);
 
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, OppEvent[]>();
+    for (const e of events) {
+      if (!e.occurredAt) continue;
+      const k = format(new Date(e.occurredAt), "yyyy-MM-dd");
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(e);
+    }
+    return map;
+  }, [events]);
+
   const today = new Date();
   const isCurrentWeek = days.some((d) => isSameDay(d, today));
   const nowOffset =
     (today.getHours() + today.getMinutes() / 60 - HOUR_START) * PX_PER_HOUR;
 
   const headerColTemplate = "grid-cols-[64px_repeat(7,minmax(0,1fr))]";
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKind, setDrawerKind] = useState<OppDrawerKind>("all");
+  const onOpenDrawer = (kind: OppDrawerKind) => {
+    setDrawerKind(kind);
+    setDrawerOpen(true);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#FFFCFA]">
@@ -123,39 +218,108 @@ export default function WeekGridView({
           })}
         </div>
 
-        {/* Pinned Pipeline (deals-as-objects) row — Wave 6 fills with DealChip */}
-        <div
-          className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white border-t border-t-[#EFEDF5]`}
-        >
-          <div className="px-2 py-2 text-[9px] font-bold uppercase tracking-[0.06em] text-[#403770] flex items-start justify-end leading-tight">
-            Pipeline
-          </div>
-          {days.map((d) => (
-            <div
-              key={d.toISOString()}
-              className="border-l border-[#E2DEEC] p-1.5 flex flex-col gap-[3px] min-h-[32px]"
-              aria-hidden
+        {showSummary && (
+          <div className="mt-2">
+            <OppSummaryStrip
+              events={events}
+              overdueDeals={overdueDeals}
+              coldList={coldList}
+              rangeLabel={fmtRange(range)}
+              onOpen={onOpenDrawer}
             />
-          ))}
-        </div>
+          </div>
+        )}
 
-        {/* Deals overlay row (opp dots + totals) — placeholder for Wave 6 */}
+        {/* Pinned Pipeline (deals-as-objects) row — pip-density chips */}
+        {showObjects && (
+          <div
+            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white border-t border-t-[#EFEDF5] mt-2`}
+          >
+            <div className="px-2 py-2 text-[9px] font-bold uppercase tracking-[0.06em] text-[#403770] flex items-start justify-end leading-tight">
+              Pipeline
+            </div>
+            {days.map((d) => {
+              const dayEvents = eventsByDay.get(format(d, "yyyy-MM-dd")) ?? [];
+              const visible = dayEvents.slice(0, MAX_PIPS_PER_DAY);
+              const overflow = dayEvents.length - visible.length;
+              return (
+                <div
+                  key={d.toISOString()}
+                  className="border-l border-[#E2DEEC] p-1.5 flex flex-wrap gap-1 min-h-[32px] items-center"
+                >
+                  {visible.map((ev) => (
+                    <DealChip
+                      key={ev.id}
+                      density="pip"
+                      deal={ev}
+                      onClick={() => onOpenDrawer("all")}
+                    />
+                  ))}
+                  {overflow > 0 && (
+                    <span className="text-[9px] font-semibold text-[#8A80A8]">
+                      +{overflow}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Deals overlay row — per-day kind icons + total */}
         {showOpps && (
           <div
-            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-[#FBF9FC]`}
+            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-[#FBF9FC] ${showObjects ? "" : "mt-2 border-t border-t-[#EFEDF5]"}`}
           >
             <div className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#8A80A8] flex items-center justify-end">
               Deals
             </div>
-            {days.map((d) => (
-              <div
-                key={d.toISOString()}
-                className="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center gap-1 text-[10px] text-[#C2BBD4]"
-                aria-hidden
-              >
-                —
-              </div>
-            ))}
+            {days.map((d) => {
+              const dayEvents = eventsByDay.get(format(d, "yyyy-MM-dd")) ?? [];
+              if (dayEvents.length === 0) {
+                return (
+                  <div
+                    key={d.toISOString()}
+                    className="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center gap-1 text-[10px] text-[#C2BBD4]"
+                    aria-hidden
+                  >
+                    —
+                  </div>
+                );
+              }
+              const total = dayEvents.reduce(
+                (s, e) => s + (typeof e.amount === "number" ? e.amount : 0),
+                0
+              );
+              const kindsSeen = new Set(dayEvents.map((e) => e.kind));
+              return (
+                <button
+                  key={d.toISOString()}
+                  type="button"
+                  onClick={() => onOpenDrawer("all")}
+                  title={`${dayEvents.length} deal event${dayEvents.length === 1 ? "" : "s"} · ${formatMoney(total)}`}
+                  className="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center gap-1 text-[10px] font-semibold tabular-nums hover:bg-[#F2EFF7] transition-colors text-left"
+                >
+                  {Array.from(kindsSeen).map((k) => {
+                    const sty = OPP_STYLE[k];
+                    const Icon = sty.icon;
+                    return (
+                      <span
+                        key={k}
+                        className="inline-flex items-center"
+                        style={{ color: sty.color }}
+                        aria-label={sty.label}
+                      >
+                        <Icon className="w-2.5 h-2.5" strokeWidth={2.5} />
+                      </span>
+                    );
+                  })}
+                  <span className="ml-auto text-[#403770]">
+                    {formatMoney(total)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -272,6 +436,17 @@ export default function WeekGridView({
           </div>
         </div>
       </div>
+
+      <OppDrawer
+        open={drawerOpen}
+        kind={drawerKind}
+        heading={drawerHeadingFor(drawerKind)}
+        rangeLabel={fmtRange(range)}
+        events={events}
+        overdueDeals={overdueDeals}
+        coldList={coldList}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

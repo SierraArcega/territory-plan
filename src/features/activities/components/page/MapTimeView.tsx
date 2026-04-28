@@ -6,14 +6,21 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { ChevronLeft, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { createRoot, type Root } from "react-dom/client";
-import type { ActivityListItem } from "@/features/shared/types/api-types";
+import type {
+  ActivityListItem,
+  OppEvent,
+} from "@/features/shared/types/api-types";
 import {
   useActivitiesChrome,
   getRangeForChrome,
 } from "@/features/activities/lib/filters-store";
+import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
 import OffMapPanel from "./MapTimeView/OffMapPanel";
 import TimeRuler from "./MapTimeView/TimeRuler";
 import PinCluster, { type ClusterData } from "./MapTimeView/PinCluster";
+import OppSummaryStrip from "./deals/OppSummaryStrip";
+import OppDrawer, { type OppDrawerKind } from "./deals/OppDrawer";
+import type { ColdDistrict } from "./deals/ColdDistrictRow";
 
 // State bounding boxes (subset of MapV2Container's STATE_BBOX). Centroid =
 // midpoint of bbox. Used to position markers when ActivityListItem only has
@@ -92,6 +99,27 @@ interface MarkerHandle {
 
 const PANEL_STORAGE_KEY = "cal.map.panel.collapsed";
 
+function drawerHeadingFor(kind: OppDrawerKind): string {
+  switch (kind) {
+    case "won":
+      return "Closed won";
+    case "lost":
+      return "Closed lost";
+    case "created":
+      return "New deals";
+    case "progressed":
+      return "Progressed deals";
+    case "closing":
+      return "Closing soon";
+    case "all":
+      return "All deal activity";
+    case "overdue":
+      return "Past-due open deals";
+    case "cold":
+      return "Districts going cold";
+  }
+}
+
 export default function MapTimeView({
   activities,
   onActivityClick,
@@ -101,11 +129,53 @@ export default function MapTimeView({
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
   const grain = useActivitiesChrome((s) => s.grain);
+  const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
+  const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
+  const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
+  const statesFilter = useActivitiesChrome((s) => s.filters.states);
 
-  const range = useMemo(() => {
-    const { startIso, endIso } = getRangeForChrome(anchorIso, grain);
-    return { start: new Date(startIso), end: new Date(endIso) };
-  }, [anchorIso, grain]);
+  const showSummary = dealDisplay !== "objects";
+
+  const rangeIso = useMemo(
+    () => getRangeForChrome(anchorIso, grain),
+    [anchorIso, grain]
+  );
+  const range = useMemo(
+    () => ({ start: new Date(rangeIso.startIso), end: new Date(rangeIso.endIso) }),
+    [rangeIso]
+  );
+
+  const ownerParam = ownersFilter.length === 1 ? ownersFilter[0] : "all";
+  const stateParam = statesFilter.length > 0 ? statesFilter : undefined;
+
+  const { data: dealEventsData } = useDealEvents({
+    from: rangeIso.startIso,
+    to: rangeIso.endIso,
+    ownerId: ownerParam,
+    state: stateParam,
+  });
+  const dealEvents = useMemo<OppEvent[]>(() => {
+    let list = dealEventsData?.events ?? [];
+    if (dealKindsFilter.length > 0) {
+      const set = new Set(dealKindsFilter);
+      list = list.filter((e) => set.has(e.kind));
+    }
+    return list;
+  }, [dealEventsData, dealKindsFilter]);
+
+  const { data: openDealsData } = useOpenDeals(
+    { ownerId: ownerParam, state: stateParam, limit: 200 },
+    { enabled: showSummary }
+  );
+  const overdueDeals = useMemo(
+    () => (openDealsData?.deals ?? []).filter((d) => (d.daysToClose ?? 0) < 0),
+    [openDealsData]
+  );
+
+  // TODO: cold districts data source — Wave 8
+  const coldList: ColdDistrict[] = useMemo(() => [], []);
+
+  // TODO: deal pin layer + DealOutcomeRing — follow-up wave
 
   const rangeLabel = useMemo(() => {
     if (grain === "day") return format(range.start, "MMM d, yyyy");
@@ -314,6 +384,13 @@ export default function MapTimeView({
 
   const notOnMapCount = offMap.length + virtual.length;
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKind, setDrawerKind] = useState<OppDrawerKind>("all");
+  const onOpenDrawer = (kind: OppDrawerKind) => {
+    setDrawerKind(kind);
+    setDrawerOpen(true);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#FFFCFA]">
       <div className="flex flex-col gap-3 px-6 pt-4 pb-6 flex-1 min-h-0">
@@ -355,6 +432,16 @@ export default function MapTimeView({
           )}
         </div>
 
+        {showSummary && (
+          <OppSummaryStrip
+            events={dealEvents}
+            overdueDeals={overdueDeals}
+            coldList={coldList}
+            rangeLabel={rangeLabel}
+            onOpen={onOpenDrawer}
+          />
+        )}
+
         {/* Body: map + side panel */}
         <div className="flex-1 flex gap-3 min-h-0">
           <div className="flex-1 relative overflow-hidden rounded-xl border border-[#E2DEEC] min-w-0">
@@ -386,6 +473,17 @@ export default function MapTimeView({
           )}
         </div>
       </div>
+
+      <OppDrawer
+        open={drawerOpen}
+        kind={drawerKind}
+        heading={drawerHeadingFor(drawerKind)}
+        rangeLabel={rangeLabel}
+        events={dealEvents}
+        overdueDeals={overdueDeals}
+        coldList={coldList}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 }

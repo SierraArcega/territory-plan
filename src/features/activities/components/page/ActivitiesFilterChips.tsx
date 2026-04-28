@@ -35,6 +35,7 @@ const DEAL_KIND_LABELS: Record<DealKind, string> = {
   lost: "Lost",
   created: "New",
   progressed: "Progressed",
+  closing: "Closing",
 };
 
 interface ActivitiesFilterChipsProps {
@@ -154,7 +155,7 @@ export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFi
       <button
         type="button"
         onClick={onOpenCommandBar}
-        className="inline-flex items-center gap-2 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+        className="inline-flex items-center gap-2 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors fm-focus-ring"
       >
         <Search className="w-3.5 h-3.5 text-[#8A80A8]" />
         <span className="text-[#8A80A8]">Search…</span>
@@ -192,7 +193,7 @@ export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFi
                 patchFilters({ ...EMPTY_FILTERS, owners: [profile.id] });
               }
             }}
-            className="inline-flex items-center gap-1 h-8 px-2.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-1 h-8 px-2.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#544A78] bg-white border border-[#D4CFE2] rounded-lg hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors fm-focus-ring"
           >
             <RotateCcw className="w-3 h-3" />
             Reset filters
@@ -231,7 +232,7 @@ function ActiveChip({
         type="button"
         aria-label={`Remove filter: ${label}`}
         onClick={onRemove}
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[#8A80A8] hover:text-[#F37167] hover:bg-[#FEF2F1] transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[#8A80A8] hover:text-[#F37167] hover:bg-[#FEF2F1] [transition-duration:120ms] transition-colors fm-focus-ring"
       >
         <X className="w-3 h-3" />
       </button>
@@ -274,7 +275,7 @@ function AddFilterPopover() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-dashed border-[#D4CFE2] rounded-full hover:bg-[#F7F5FA] hover:border-solid transition-colors focus-visible:outline-2 focus-visible:outline-[#F37167] focus-visible:outline-offset-2"
+        className="inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium text-[#544A78] bg-white border border-dashed border-[#D4CFE2] rounded-full hover:bg-[#F7F5FA] hover:border-solid [transition-duration:120ms] transition-colors fm-focus-ring"
       >
         <Plus className="w-3 h-3" />
         Filter

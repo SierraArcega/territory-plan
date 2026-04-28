@@ -12,7 +12,7 @@ export type Grain = "day" | "week" | "month" | "quarter";
 export type FilterVariant = "rail" | "bar" | "chips";
 export type DealDisplay = "overlay" | "objects" | "both";
 export type SyncState = "connected" | "stale" | "disconnected";
-export type DealKind = "won" | "lost" | "created" | "progressed";
+export type DealKind = "won" | "lost" | "created" | "progressed" | "closing";
 
 export interface ActivitiesFilters {
   categories: ActivityCategory[];

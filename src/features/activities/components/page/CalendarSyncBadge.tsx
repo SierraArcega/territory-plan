@@ -34,11 +34,21 @@ export default function CalendarSyncBadge() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`Calendar sync: ${label}`}
-        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${styles.bg} ${styles.text} ${styles.border} transition-colors`}
+        className={`fm-focus-ring inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${styles.bg} ${styles.text} ${styles.border} [transition-duration:120ms] transition-colors`}
       >
-        <span
-          className={`w-2 h-2 rounded-full ${styles.dot} ${state === "connected" ? "animate-pulse" : ""}`}
-        />
+        <span className="relative inline-block w-2 h-2">
+          <span
+            className={`absolute inset-0 rounded-full ${styles.dot}`}
+            aria-hidden
+          />
+          {state === "connected" && (
+            <span
+              className={`absolute -inset-[3px] rounded-full ${styles.dot} opacity-35`}
+              style={{ animation: "fmPulseDot 1.8s ease-out infinite" }}
+              aria-hidden
+            />
+          )}
+        </span>
         {label}
       </button>
 
@@ -69,13 +79,13 @@ export default function CalendarSyncBadge() {
               type="button"
               disabled={!data?.connected || sync.isPending}
               onClick={() => sync.mutate()}
-              className="px-2.5 py-1 text-xs font-medium rounded-md bg-[#403770] text-white disabled:opacity-50 hover:bg-[#322a5a] transition-colors"
+              className="fm-focus-ring px-2.5 py-1 text-xs font-medium rounded-md bg-[#403770] text-white disabled:opacity-50 hover:bg-[#322a5a] [transition-duration:120ms] transition-colors"
             >
               {sync.isPending ? "Syncing…" : "Sync now"}
             </button>
             <a
               href="/settings/integrations"
-              className="px-2.5 py-1 text-xs font-medium rounded-md text-[#403770] hover:bg-[#F7F5FA] transition-colors"
+              className="fm-focus-ring px-2.5 py-1 text-xs font-medium rounded-md text-[#403770] hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors"
             >
               {data?.connected ? "Reconnect" : "Connect"}
             </a>

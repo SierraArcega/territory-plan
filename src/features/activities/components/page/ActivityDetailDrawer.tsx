@@ -140,8 +140,7 @@ function DrawerInner({
         role="dialog"
         aria-label="Activity detail"
         aria-modal="true"
-        className="fixed top-0 right-0 z-50 h-full w-full md:w-[520px] bg-white shadow-2xl flex flex-col"
-        style={{ animation: "fmSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}
+        className="fm-drawer-panel fixed z-50 bg-white shadow-2xl flex flex-col left-0 md:left-auto right-0 bottom-0 md:bottom-auto top-auto md:top-0 w-full md:w-[520px] max-h-[85vh] md:max-h-none md:h-full rounded-t-2xl md:rounded-none"
       >
         {isLoading || !activity ? (
           <div className="flex items-center justify-center h-full text-sm text-[#8A80A8]">
@@ -192,7 +191,7 @@ function DrawerInner({
                   type="button"
                   aria-label="More options"
                   title="More"
-                  className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA]"
+                  className="fm-focus-ring w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </button>
@@ -200,7 +199,7 @@ function DrawerInner({
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA]"
+                  className="fm-focus-ring w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA] [transition-duration:120ms] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -265,14 +264,14 @@ function DrawerInner({
                     <button
                       type="button"
                       onClick={onDelete}
-                      className="px-2.5 py-1 text-xs font-medium text-white bg-[#F37167] rounded-md hover:bg-[#e25b50]"
+                      className="fm-focus-ring px-2.5 py-1 text-xs font-medium text-white bg-[#F37167] rounded-md hover:bg-[#e25b50] [transition-duration:120ms] transition-colors"
                     >
                       Yes
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmingDelete(false)}
-                      className="px-2.5 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#F7F5FA] rounded-md"
+                      className="fm-focus-ring px-2.5 py-1 text-xs font-medium text-[#6E6390] hover:bg-[#F7F5FA] rounded-md [transition-duration:120ms] transition-colors"
                     >
                       No
                     </button>
@@ -282,7 +281,7 @@ function DrawerInner({
                     type="button"
                     aria-label="Delete activity"
                     onClick={() => setConfirmingDelete(true)}
-                    className="text-[#A69DC0] hover:text-[#F37167] inline-flex items-center gap-1 text-xs"
+                    className="fm-focus-ring text-[#A69DC0] hover:text-[#F37167] inline-flex items-center gap-1 text-xs [transition-duration:120ms] transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     Delete
@@ -302,7 +301,7 @@ function DrawerInner({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-1.5 text-xs font-medium text-[#6E6390] hover:bg-[#F7F5FA] rounded-md"
+                  className="fm-focus-ring px-3 py-1.5 text-xs font-medium text-[#6E6390] hover:bg-[#F7F5FA] rounded-md [transition-duration:120ms] transition-colors"
                 >
                   Close
                 </button>
@@ -311,41 +310,6 @@ function DrawerInner({
           </>
         )}
       </aside>
-
-      <style jsx global>{`
-        @keyframes fmFadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        @keyframes fmSlideIn {
-          from {
-            transform: translateX(100%);
-          }
-          to {
-            transform: translateX(0);
-          }
-        }
-        @keyframes fmFlashIn {
-          0% {
-            opacity: 0;
-            transform: translateY(-4px);
-          }
-          20% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          80% {
-            opacity: 1;
-          }
-          100% {
-            opacity: 0;
-          }
-        }
-      `}</style>
     </>
   );
 }

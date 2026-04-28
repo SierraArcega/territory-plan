@@ -6,6 +6,7 @@ import ViewToggle from "./ViewToggle";
 import CalendarSyncBadge from "./CalendarSyncBadge";
 import ActivitiesDateRange from "./ActivitiesDateRange";
 import ScopeToggle, { type ActivityScope } from "./ScopeToggle";
+import DealDisplayToggle from "./deals/DealDisplayToggle";
 
 interface ActivitiesPageHeaderProps {
   count: number;
@@ -38,6 +39,7 @@ export default function ActivitiesPageHeader({
         <div className="flex items-center gap-2">
           <ScopeToggle scope={scope} onChange={onScopeChange} />
           <CalendarSyncBadge />
+          <DealDisplayToggle />
           <ViewToggle value={view} onChange={setView} />
           <button
             type="button"

@@ -625,7 +625,7 @@ export interface ActivitiesParams {
 
 // ===== Deal data layer (Wave 1) =====
 
-export type OppEventKind = "won" | "lost" | "created" | "progressed";
+export type OppEventKind = "won" | "lost" | "created" | "progressed" | "closing";
 
 export interface OppEvent {
   id: string;
