@@ -9,7 +9,6 @@ import { useProfile } from "@/features/shared/lib/queries";
 
 export type CalendarView = "schedule" | "month" | "week" | "map";
 export type Grain = "day" | "week" | "month" | "quarter";
-export type DealDisplay = "overlay" | "objects" | "both";
 export type SyncState = "connected" | "stale" | "disconnected";
 export type DealKind = "won" | "lost" | "created" | "progressed" | "closing";
 
@@ -49,7 +48,6 @@ interface ChromeState {
   anchorIso: string; // ISO date string for the current period anchor
   savedViewId: string | null;
   railCollapsed: boolean;
-  dealDisplay: DealDisplay;
   syncState: SyncState;
   filters: ActivitiesFilters;
   // Setters
@@ -58,7 +56,6 @@ interface ChromeState {
   setAnchor: (iso: string) => void;
   setSavedViewId: (id: string | null) => void;
   setRailCollapsed: (collapsed: boolean) => void;
-  setDealDisplay: (d: DealDisplay) => void;
   setSyncState: (s: SyncState) => void;
   setFilters: (next: ActivitiesFilters | ((prev: ActivitiesFilters) => ActivitiesFilters)) => void;
   patchFilters: (patch: Partial<ActivitiesFilters>) => void;
@@ -73,7 +70,6 @@ export const useActivitiesChrome = create<ChromeState>()(
       anchorIso: new Date().toISOString(),
       savedViewId: null,
       railCollapsed: false,
-      dealDisplay: "overlay",
       syncState: "disconnected",
       filters: EMPTY_FILTERS,
 
@@ -82,7 +78,6 @@ export const useActivitiesChrome = create<ChromeState>()(
       setAnchor: (anchorIso) => set({ anchorIso }),
       setSavedViewId: (savedViewId) => set({ savedViewId }),
       setRailCollapsed: (railCollapsed) => set({ railCollapsed }),
-      setDealDisplay: (dealDisplay) => set({ dealDisplay }),
       setSyncState: (syncState) => set({ syncState }),
       setFilters: (next) =>
         set((s) => ({
@@ -100,7 +95,6 @@ export const useActivitiesChrome = create<ChromeState>()(
         grain: s.grain,
         savedViewId: s.savedViewId,
         railCollapsed: s.railCollapsed,
-        dealDisplay: s.dealDisplay,
       }),
     }
   )

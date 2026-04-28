@@ -3,7 +3,6 @@ import { render, screen } from "@testing-library/react";
 import OppSummaryStrip from "../deals/OppSummaryStrip";
 import UpcomingRail from "../UpcomingRail";
 import ScopeToggle from "../ScopeToggle";
-import DealDisplayToggle from "../deals/DealDisplayToggle";
 import type { OppEvent, OpenDeal } from "@/features/shared/types/api-types";
 import type { ColdDistrict } from "../deals/ColdDistrictRow";
 import type { ActivityListItem } from "@/features/shared/types/api-types";
@@ -189,16 +188,4 @@ describe("Activities page — accessibility", () => {
     });
   });
 
-  describe("DealDisplayToggle", () => {
-    it("renders a labelled segmented group with pressed state on each option", () => {
-      const { container } = render(<DealDisplayToggle />);
-      const group = screen.getByRole("group", { name: /deal display/i });
-      expect(group).toBeInTheDocument();
-      const buttons = container.querySelectorAll("button[aria-pressed]");
-      expect(buttons.length).toBeGreaterThan(0);
-      buttons.forEach((b) => {
-        expect(b.className).toMatch(/fm-focus-ring/);
-      });
-    });
-  });
 });

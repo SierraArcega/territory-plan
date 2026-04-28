@@ -205,16 +205,4 @@ describe("filters-store", () => {
     });
   });
 
-  describe("dealDisplay setter", () => {
-    beforeEach(() => {
-      act(() => {
-        useActivitiesChrome.getState().resetFilters();
-      });
-    });
-
-    it("setDealDisplay updates the store", () => {
-      act(() => useActivitiesChrome.getState().setDealDisplay("objects"));
-      expect(useActivitiesChrome.getState().dealDisplay).toBe("objects");
-    });
-  });
 });

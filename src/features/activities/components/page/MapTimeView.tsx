@@ -129,12 +129,12 @@ export default function MapTimeView({
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
   const grain = useActivitiesChrome((s) => s.grain);
-  const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
   const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
   const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
   const statesFilter = useActivitiesChrome((s) => s.filters.states);
 
-  const showSummary = dealDisplay !== "objects";
+  // Always render the deal summary (the former "both" mode).
+  const showSummary = true;
 
   const rangeIso = useMemo(
     () => getRangeForChrome(anchorIso, grain),

@@ -89,14 +89,14 @@ export default function MonthView({
   const grain = useActivitiesChrome((s) => s.grain);
   const setAnchor = useActivitiesChrome((s) => s.setAnchor);
   const setGrain = useActivitiesChrome((s) => s.setGrain);
-  const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
   const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
   const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
   const statesFilter = useActivitiesChrome((s) => s.filters.states);
 
-  const showOpps = dealDisplay !== "overlay";
-  const showSummary = dealDisplay !== "objects";
-  const showObjects = dealDisplay !== "overlay";
+  // Always render summary + per-deal objects (the former "both" mode).
+  const showOpps = true;
+  const showSummary = true;
+  const showObjects = true;
 
   const range = useMemo(
     () => getRangeForChrome(anchorIso, grain),

@@ -88,14 +88,14 @@ export default function ScheduleView({
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
   const grain = useActivitiesChrome((s) => s.grain);
-  const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
   const dealKindsFilter = useActivitiesChrome((s) => s.filters.dealKinds);
   const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
   const statesFilter = useActivitiesChrome((s) => s.filters.states);
 
-  const showOpps = dealDisplay !== "overlay";
-  const showSummary = dealDisplay !== "objects";
-  const showObjects = dealDisplay !== "overlay";
+  // Always render summary + per-deal objects (the former "both" mode).
+  const showOpps = true;
+  const showSummary = true;
+  const showObjects = true;
 
   const range = useMemo(
     () => getRangeForChrome(anchorIso, grain),
