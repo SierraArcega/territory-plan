@@ -14,16 +14,6 @@ interface RangeFilterProps {
   onApply: (column: string, min: number, max: number) => void;
 }
 
-export function formatCompact(v: number): string {
-  const abs = Math.abs(v);
-  if (abs >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (abs >= 10_000) return `${Math.round(v / 1_000)}K`;
-  if (abs >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  if (Number.isInteger(v)) return String(v);
-  return v.toFixed(1);
-}
-
 const thumbCls = [
   "absolute w-full appearance-none bg-transparent pointer-events-none",
   "[&::-webkit-slider-runnable-track]:bg-transparent",

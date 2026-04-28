@@ -120,6 +120,19 @@ describe("RangeFilter — clamping and swap", () => {
     expect(input.value).toBe("200000");
   });
 
+  it("clamps and applies via onApply when an active sub-range exists", () => {
+    const onApply = vi.fn();
+    storeState.searchFilters = [
+      { id: "f1", column: "enrollment", op: "between", value: [50, 100] },
+    ];
+    render(<RangeFilter {...baseProps} onApply={onApply} />);
+    const input = getMaxInput();
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "999999999" } });
+    fireEvent.blur(input);
+    expect(onApply).toHaveBeenCalledWith("enrollment", 50, 200000);
+  });
+
   it("clamps a negative min to range min", () => {
     const onApply = vi.fn();
     render(<RangeFilter {...baseProps} onApply={onApply} />);
