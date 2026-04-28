@@ -3,26 +3,34 @@
 import { useMemo } from "react";
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
 import type { ActivityListItem } from "@/features/shared/types/api-types";
+import { type ActivityCategory } from "@/features/activities/types";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 
-const HOUR_HEIGHT = 44;
-const FIRST_HOUR = 6;
-const LAST_HOUR = 22;
-const HOURS = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, i) => i + FIRST_HOUR);
-
-const CATEGORY_BORDERS: Record<string, string> = {
-  meetings: "#403770",
-  events: "#6EA3BE",
-  campaigns: "#FFCF70",
-  gift_drop: "#F37167",
-  sponsorships: "#8AA891",
-  thought_leadership: "#A78BCA",
+const CATEGORY_STYLE: Record<ActivityCategory, { bg: string; ink: string; dot: string }> = {
+  meetings: { bg: "#EFEDF5", ink: "#403770", dot: "#403770" },
+  events: { bg: "#EEF5F8", ink: "#3A6B85", dot: "#6EA3BE" },
+  campaigns: { bg: "#FFF8E6", ink: "#7A5F00", dot: "#FFCF70" },
+  gift_drop: { bg: "#FEF2F1", ink: "#A8463F", dot: "#F37167" },
+  sponsorships: { bg: "#EFF5F0", ink: "#5A6F61", dot: "#8AA891" },
+  thought_leadership: { bg: "#F5F0FA", ink: "#6B5292", dot: "#A78BCA" },
 };
+
+const HOUR_START = 7;
+const HOUR_END = 21;
+const PX_PER_HOUR = 52;
+const HOURS = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
 
 interface PlacedBlock {
   act: ActivityListItem;
   top: number;
   height: number;
+  durationMin: number;
+}
+
+function fmtHour(h: number): string {
+  const h12 = ((h + 11) % 12) + 1;
+  const ap = h >= 12 ? "PM" : "AM";
+  return `${h12} ${ap}`;
 }
 
 function buildBlocks(activities: ActivityListItem[], day: Date): PlacedBlock[] {
@@ -31,12 +39,14 @@ function buildBlocks(activities: ActivityListItem[], day: Date): PlacedBlock[] {
     .map((a) => {
       const start = new Date(a.startDate!);
       const end = a.endDate ? new Date(a.endDate) : new Date(start.getTime() + 60 * 60 * 1000);
-      const startHours = start.getHours() + start.getMinutes() / 60;
-      const endHours = Math.min(end.getHours() + end.getMinutes() / 60, LAST_HOUR + 1);
-      const top = (Math.max(startHours, FIRST_HOUR) - FIRST_HOUR) * HOUR_HEIGHT;
-      const height = Math.max(20, (endHours - Math.max(startHours, FIRST_HOUR)) * HOUR_HEIGHT);
-      return { act: a, top, height };
-    });
+      const startH = start.getHours() + start.getMinutes() / 60;
+      const durationMin = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000));
+      const durH = Math.max(0.5, durationMin / 60);
+      const top = Math.max(0, (startH - HOUR_START) * PX_PER_HOUR);
+      const height = Math.max(30, durH * PX_PER_HOUR - 2);
+      return { act: a, top, height, durationMin };
+    })
+    .sort((a, b) => (a.act.startDate ?? "").localeCompare(b.act.startDate ?? ""));
 }
 
 export default function WeekGridView({
@@ -47,104 +57,220 @@ export default function WeekGridView({
   onActivityClick: (id: string) => void;
 }) {
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
+  const dealDisplay = useActivitiesChrome((s) => s.dealDisplay);
+  const showOpps = dealDisplay !== "overlay";
+
   const days = useMemo(() => {
     const start = startOfWeek(new Date(anchorIso), { weekStartsOn: 0 });
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [anchorIso]);
 
+  const byDay = useMemo(() => {
+    const map = new Map<string, ActivityListItem[]>();
+    for (const a of activities) {
+      if (!a.startDate) continue;
+      const k = format(new Date(a.startDate), "yyyy-MM-dd");
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(a);
+    }
+    return map;
+  }, [activities]);
+
   const today = new Date();
   const isCurrentWeek = days.some((d) => isSameDay(d, today));
   const nowOffset =
-    (today.getHours() + today.getMinutes() / 60 - FIRST_HOUR) * HOUR_HEIGHT;
+    (today.getHours() + today.getMinutes() / 60 - HOUR_START) * PX_PER_HOUR;
+
+  const headerColTemplate = "grid-cols-[64px_repeat(7,minmax(0,1fr))]";
 
   return (
-    <div className="flex-1 overflow-auto bg-[#FFFCFA]">
-      <div className="grid grid-cols-[60px_repeat(7,minmax(0,1fr))] border-b border-[#E2DEEC] bg-white sticky top-0 z-10">
-        <div />
-        {days.map((d) => {
-          const isToday = isSameDay(d, today);
-          return (
+    <div className="flex flex-col h-full overflow-hidden bg-[#FFFCFA]">
+      <div className="flex flex-col px-6 pt-4 pb-6 flex-1 min-h-0">
+        {/* Day header row */}
+        <div
+          className={`grid ${headerColTemplate} bg-white border border-[#E2DEEC] rounded-t-xl`}
+        >
+          <div />
+          {days.map((d) => {
+            const items = byDay.get(format(d, "yyyy-MM-dd")) ?? [];
+            const isToday = isSameDay(d, today);
+            return (
+              <div
+                key={d.toISOString()}
+                className="px-2.5 py-3 text-center border-l border-[#E2DEEC]"
+              >
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A80A8]">
+                  {format(d, "EEE")}
+                </div>
+                <div className="mt-1 flex items-center justify-center gap-1.5">
+                  <div
+                    className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full text-base font-bold tabular-nums"
+                    style={{
+                      backgroundColor: isToday ? "#F37167" : "transparent",
+                      color: isToday ? "#fff" : "#403770",
+                    }}
+                  >
+                    {d.getDate()}
+                  </div>
+                </div>
+                <div className="mt-0.5 text-[10px] text-[#8A80A8]">
+                  {items.length === 0
+                    ? "No activity"
+                    : `${items.length} ${items.length === 1 ? "item" : "items"}`}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pinned Pipeline (deals-as-objects) row — Wave 6 fills with DealChip */}
+        <div
+          className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white border-t border-t-[#EFEDF5]`}
+        >
+          <div className="px-2 py-2 text-[9px] font-bold uppercase tracking-[0.06em] text-[#403770] flex items-start justify-end leading-tight">
+            Pipeline
+          </div>
+          {days.map((d) => (
             <div
               key={d.toISOString()}
-              className={`px-2 py-2 border-l border-[#E2DEEC] text-center ${
-                isToday ? "bg-[#FEF2F1]" : ""
-              }`}
-            >
-              <div className="text-[10px] uppercase tracking-wider font-bold text-[#8A80A8]">
-                {format(d, "EEE")}
-              </div>
-              <div className="text-base font-bold text-[#403770]">{format(d, "d")}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div
-        className="relative grid grid-cols-[60px_repeat(7,minmax(0,1fr))]"
-        style={{ height: HOURS.length * HOUR_HEIGHT }}
-      >
-        {/* Hour labels */}
-        <div className="border-r border-[#E2DEEC]">
-          {HOURS.map((h) => (
-            <div
-              key={h}
-              style={{ height: HOUR_HEIGHT }}
-              className="text-[10px] text-[#A69DC0] px-2 pt-0.5"
-            >
-              {format(new Date().setHours(h, 0, 0, 0), "h a")}
-            </div>
+              className="border-l border-[#E2DEEC] p-1.5 flex flex-col gap-[3px] min-h-[32px]"
+              aria-hidden
+            />
           ))}
         </div>
 
-        {/* Day columns */}
-        {days.map((day) => {
-          const blocks = buildBlocks(activities, day);
-          return (
-            <div
-              key={day.toISOString()}
-              className="relative border-l border-[#E2DEEC]"
-            >
-              {/* Hour gridlines */}
-              {HOURS.map((h) => (
+        {/* Deals overlay row (opp dots + totals) — placeholder for Wave 6 */}
+        {showOpps && (
+          <div
+            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-[#FBF9FC]`}
+          >
+            <div className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#8A80A8] flex items-center justify-end">
+              Deals
+            </div>
+            {days.map((d) => (
+              <div
+                key={d.toISOString()}
+                className="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center gap-1 text-[10px] text-[#C2BBD4]"
+                aria-hidden
+              >
+                —
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Hour body */}
+        <div
+          className="flex-1 overflow-auto bg-white border border-t-[#EFEDF5] border-[#E2DEEC] rounded-b-xl"
+        >
+          <div
+            className={`relative grid ${headerColTemplate}`}
+            style={{ height: HOURS.length * PX_PER_HOUR }}
+          >
+            {/* Hour labels */}
+            <div>
+              {HOURS.map((h, i) => (
                 <div
                   key={h}
-                  style={{ height: HOUR_HEIGHT }}
-                  className="border-b border-[#F0EDF7]"
-                />
+                  className={`text-right text-[10px] text-[#A69DC0] px-2 pt-1 ${
+                    i === 0 ? "" : "border-t border-[#EFEDF5]"
+                  }`}
+                  style={{ height: PX_PER_HOUR }}
+                >
+                  {fmtHour(h)}
+                </div>
               ))}
-
-              {/* Current time line */}
-              {isCurrentWeek && isSameDay(day, today) && (
-                <div
-                  className="absolute left-0 right-0 h-px bg-[#F37167] z-10 pointer-events-none"
-                  style={{ top: nowOffset }}
-                  aria-hidden
-                />
-              )}
-
-              {/* Blocks */}
-              {blocks.map(({ act, top, height }) => {
-                const border = CATEGORY_BORDERS[act.category] ?? "#A69DC0";
-                return (
-                  <button
-                    key={act.id}
-                    type="button"
-                    onClick={() => onActivityClick(act.id)}
-                    style={{ top, height, borderLeftColor: border }}
-                    className="absolute left-1 right-1 px-2 py-1 bg-white border border-[#E2DEEC] border-l-4 rounded-md text-left overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="text-[11px] font-semibold text-[#403770] truncate">
-                      {act.title}
-                    </div>
-                    <div className="text-[10px] text-[#8A80A8]">
-                      {act.startDate ? format(new Date(act.startDate), "h:mm a") : ""}
-                    </div>
-                  </button>
-                );
-              })}
             </div>
-          );
-        })}
+
+            {/* Day columns */}
+            {days.map((day) => {
+              const blocks = buildBlocks(byDay.get(format(day, "yyyy-MM-dd")) ?? [], day);
+              const isToday = isSameDay(day, today);
+              return (
+                <div
+                  key={day.toISOString()}
+                  className="relative border-l border-[#E2DEEC]"
+                  style={{
+                    backgroundColor: isToday ? "rgba(196, 231, 230, 0.15)" : "#fff",
+                  }}
+                >
+                  {/* Hour gridlines */}
+                  {HOURS.map((h, i) => (
+                    <div
+                      key={h}
+                      style={{ height: PX_PER_HOUR }}
+                      className={i === 0 ? "" : "border-t border-[#EFEDF5]"}
+                    />
+                  ))}
+
+                  {/* Now line */}
+                  {isCurrentWeek && isToday && nowOffset >= 0 && (
+                    <>
+                      <div
+                        className="absolute left-[-4px] right-0 z-[5]"
+                        style={{
+                          top: nowOffset,
+                          height: 2,
+                          backgroundColor: "#F37167",
+                        }}
+                        aria-hidden
+                      />
+                      <div
+                        className="absolute z-[6] rounded-full"
+                        style={{
+                          left: -8,
+                          top: nowOffset - 4,
+                          width: 10,
+                          height: 10,
+                          backgroundColor: "#F37167",
+                        }}
+                        aria-hidden
+                      />
+                    </>
+                  )}
+
+                  {/* Activity blocks */}
+                  {blocks.map(({ act, top, height }) => {
+                    const style = CATEGORY_STYLE[act.category];
+                    const district =
+                      act.stateAbbrevs.length > 0 ? act.stateAbbrevs[0] : null;
+                    return (
+                      <button
+                        key={act.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onActivityClick(act.id);
+                        }}
+                        title={act.title}
+                        className="absolute left-1 right-1 px-[7px] py-1 rounded-md text-left overflow-hidden flex flex-col gap-0.5 shadow-[0_1px_2px_rgba(64,55,112,0.06)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F37167] focus-visible:ring-offset-1"
+                        style={{
+                          top,
+                          height,
+                          backgroundColor: style.bg,
+                          color: style.ink,
+                          borderLeft: `3px solid ${style.dot}`,
+                        }}
+                      >
+                        <span className="text-[10px] font-bold tabular-nums opacity-80">
+                          {format(new Date(act.startDate!), "h:mm a")}
+                        </span>
+                        <span className="text-[11px] font-semibold leading-snug overflow-hidden text-ellipsis line-clamp-2">
+                          {act.title}
+                        </span>
+                        {height > 55 && district && (
+                          <span className="text-[10px] opacity-75 whitespace-nowrap overflow-hidden text-ellipsis">
+                            {district}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
