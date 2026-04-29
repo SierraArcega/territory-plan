@@ -217,16 +217,38 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     return result;
   }
 
-  // Decrypt tokens for use with Google API
-  const decryptedAccessToken = decrypt(integration.accessToken);
-  const decryptedRefreshToken = integration.refreshToken ? decrypt(integration.refreshToken) : "";
+  // Decrypt tokens for use with Google API. A throw here usually means
+  // the ENCRYPTION_KEY env var doesn't match what was used to encrypt the
+  // stored token (or the stored ciphertext is malformed) — surface the
+  // underlying message so the rep gets a useful hint instead of a 500.
+  let decryptedAccessToken: string;
+  let decryptedRefreshToken: string;
+  try {
+    decryptedAccessToken = decrypt(integration.accessToken);
+    decryptedRefreshToken = integration.refreshToken
+      ? decrypt(integration.refreshToken)
+      : "";
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "decrypt failed";
+    result.errors.push(
+      `Could not decrypt stored Google Calendar tokens (${message}). Reconnect your calendar to refresh them.`
+    );
+    return result;
+  }
 
   // Refresh the access token if it's expired
-  const tokenResult = await getValidAccessToken({
-    accessToken: decryptedAccessToken,
-    refreshToken: decryptedRefreshToken,
-    tokenExpiresAt: integration.tokenExpiresAt!,
-  });
+  let tokenResult: Awaited<ReturnType<typeof getValidAccessToken>>;
+  try {
+    tokenResult = await getValidAccessToken({
+      accessToken: decryptedAccessToken,
+      refreshToken: decryptedRefreshToken,
+      tokenExpiresAt: integration.tokenExpiresAt!,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    result.errors.push(`Token refresh threw an error: ${message}`);
+    return result;
+  }
 
   if (!tokenResult) {
     // Token refresh failed — mark the integration as errored so the UI can show a reconnect prompt

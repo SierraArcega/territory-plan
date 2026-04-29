@@ -1,6 +1,14 @@
 // Shared types used across multiple features, extracted from api.ts
 
-import type { ActivityType, ActivityCategory, ActivityStatus } from "@/features/activities/types";
+import type {
+  ActivityType,
+  ActivityCategory,
+  ActivityStatus,
+  ActivityOutcomeDisposition,
+  ActivitySentiment,
+  DealImpact,
+  ExpenseCategory,
+} from "@/features/activities/types";
 import type { TaskStatus, TaskPriority } from "@/features/tasks/types";
 
 // ===== District Types =====
@@ -488,6 +496,13 @@ export interface ActivityExpenseItem {
   id: string;
   description: string;
   amount: number;
+  // amountCents is the canonical integer representation; UI math should use
+  // it instead of `amount` to avoid floating-point drift.
+  amountCents: number;
+  category: ExpenseCategory;
+  incurredOn: string;
+  receiptStoragePath: string | null;
+  createdById: string | null;
 }
 
 export interface ActivityAttendeeItem {
@@ -506,12 +521,27 @@ export interface Activity {
   endDate: string | null;
   status: ActivityStatus;
   createdByUserId: string | null;
+  createdByUser: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   googleEventId: string | null;
   source: "manual" | "calendar_sync" | "gmail_sync" | "slack_sync";
   outcome: string | null;
   outcomeType: string | null;
+  // Wave 1 redesign fields — see VALID_* constants in activities/types.ts.
+  sentiment: ActivitySentiment | null;
+  nextStep: string | null;
+  followUpDate: string | null;
+  dealImpact: DealImpact;
+  outcomeDisposition: ActivityOutcomeDisposition | null;
+  address: string | null;
+  addressLat: number | null;
+  addressLng: number | null;
+  inPerson: boolean | null;
   metadata: Record<string, unknown> | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
@@ -522,6 +552,18 @@ export interface Activity {
   expenses: ActivityExpenseItem[];
   attendees: ActivityAttendeeItem[];
   relatedActivities: ActivityRelationLink[];
+  opportunities: ActivityOpportunityLink[];
+  rating: number | null;
+}
+
+export interface ActivityOpportunityLink {
+  id: string;
+  name: string;
+  stage: string | null;
+  netBookingAmount: number | null;
+  districtName: string | null;
+  districtLeaId: string | null;
+  closeDate: string | null;
 }
 
 export interface ActivityListItem {
@@ -552,23 +594,86 @@ export interface ActivitiesResponse {
   total: number;
 }
 
+// ActivitiesParams is the client-side filter shape sent to GET /api/activities.
+// Multi-value fields accept either a single string or an array; the hook
+// serializes arrays as comma-separated values and the route handler parses
+// them back into Prisma `in` clauses.
 export interface ActivitiesParams {
   planId?: string;
   districtLeaid?: string;
-  stateCode?: string;
-  type?: ActivityType;
-  category?: ActivityCategory;
-  status?: ActivityStatus;
+  // Multi-district filter — list of leaids, OR'd together server-side.
+  districtLeaids?: string | string[];
+  // Was `stateCode` — renamed to `state` to match the route handler. The
+  // serialized URL parameter is also `state`.
+  state?: string | string[];
+  type?: ActivityType | ActivityType[];
+  category?: ActivityCategory | ActivityCategory[];
+  status?: ActivityStatus | ActivityStatus[];
   startDateFrom?: string;
   startDateTo?: string;
   unscheduled?: boolean;
   needsPlanAssociation?: boolean;
   hasUnlinkedDistricts?: boolean;
   source?: string;
+  // ownerId stays single-string for backwards compat (`"all"` / specific id).
   ownerId?: string;
+  // owner accepts an explicit list of user IDs — used by the multi-owner
+  // filter rail. `ownerId` and `owner` are mutually exclusive on the wire.
+  owner?: string | string[];
+  // Filter to activities that include these user IDs as attendees.
+  attendeeIds?: string | string[];
+  // "yes" → only in-person; "no" → only virtual; both → exclude unset.
+  inPerson?: string | string[];
+  territory?: string | string[];
+  tags?: string | string[];
+  dealKinds?: string | string[];
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+// ===== Deal data layer (Wave 1) =====
+
+export type OppEventKind = "won" | "lost" | "created" | "progressed" | "closing";
+
+export interface OppEvent {
+  id: string;
+  opportunityId: string;
+  opportunityName: string | null;
+  kind: OppEventKind;
+  occurredAt: string;
+  amount: number | null;
+  stage: string | null;
+  districtLeaid: string | null;
+  districtName: string | null;
+  salesRepId: string | null;
+  // External CRM link to the opp record (HubSpot etc.) — null when not set.
+  detailsLink: string | null;
+}
+
+export interface OpenDeal {
+  id: string;
+  name: string | null;
+  stage: string | null;
+  amount: number | null;
+  closeDate: string | null;
+  districtLeaid: string | null;
+  districtName: string | null;
+  salesRepId: string | null;
+  // Days until closeDate; negative when closeDate is past.
+  daysToClose: number | null;
+  // External CRM link to the opp record (HubSpot etc.) — null when not set.
+  detailsLink: string | null;
+}
+
+export interface OppEventsResponse {
+  events: OppEvent[];
+  total: number;
+}
+
+export interface OpenDealsResponse {
+  deals: OpenDeal[];
+  total: number;
 }
 
 // ===== Task Types =====

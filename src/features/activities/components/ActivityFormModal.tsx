@@ -269,6 +269,19 @@ export default function ActivityFormModal({
     const isEvent = getCategoryForType(type) === "events";
     const hasMetadata = isEvent && Object.keys(metadata).length > 0;
 
+    // Address now lives on real columns. The type-specific sub-fields still
+    // collect it into the metadata bag for backwards compat — pull it out
+    // here and forward as top-level fields so the new columns stay in sync.
+    const meta = metadata as Record<string, unknown>;
+    const extractedAddress =
+      typeof meta.address === "string" && meta.address.trim()
+        ? meta.address.trim()
+        : null;
+    const extractedLat =
+      typeof meta.addressLat === "number" ? meta.addressLat : null;
+    const extractedLng =
+      typeof meta.addressLng === "number" ? meta.addressLng : null;
+
     setError(null);
     try {
       if (isEditMode && editActivityId) {
@@ -283,6 +296,9 @@ export default function ActivityFormModal({
           outcomeType: selectedOutcomes.length > 0 ? selectedOutcomes[0] : null,
           outcome: outcomeNote.trim() || null,
           rating: outcomeRating > 0 ? outcomeRating : undefined,
+          address: extractedAddress,
+          addressLat: extractedLat,
+          addressLng: extractedLng,
           metadata: hasMetadata ? metadata : null,
           attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : [],
           expenses: expenses.filter((e) => e.description.trim()),
@@ -307,6 +323,9 @@ export default function ActivityFormModal({
         status,
         planIds: selectedPlanIds.length > 0 ? selectedPlanIds : undefined,
         stateFips: selectedStateFips.length > 0 ? selectedStateFips : undefined,
+        address: extractedAddress ?? undefined,
+        addressLat: extractedLat ?? undefined,
+        addressLng: extractedLng ?? undefined,
         metadata: hasMetadata ? metadata : undefined,
         attendeeUserIds: attendeeUserIds.length > 0 ? attendeeUserIds : undefined,
         contactIds: (() => {

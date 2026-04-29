@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser, isAdmin } from "@/lib/supabase/server";
-import { getCategoryForType, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityType } from "@/features/activities/types";
+import {
+  getCategoryForType,
+  ALL_ACTIVITY_TYPES,
+  VALID_ACTIVITY_STATUSES,
+  VALID_ACTIVITY_OUTCOMES,
+  VALID_ACTIVITY_SENTIMENTS,
+  VALID_DEAL_IMPACTS,
+  type ActivityType,
+} from "@/features/activities/types";
 import { updateActivityOnCalendar, deleteActivityFromCalendar } from "@/features/calendar/lib/push";
 
 export const dynamic = "force-dynamic";
@@ -119,6 +127,13 @@ export async function GET(
       (d) => !d.isInPlan && !d.warningDismissed
     );
 
+    const createdByUser = activity.createdByUserId
+      ? await prisma.userProfile.findUnique({
+          where: { id: activity.createdByUserId },
+          select: { id: true, fullName: true, avatarUrl: true },
+        })
+      : null;
+
     return NextResponse.json({
       id: activity.id,
       type: activity.type,
@@ -133,8 +148,18 @@ export async function GET(
       source: activity.source || "manual",
       outcome: activity.outcome,
       outcomeType: activity.outcomeType,
+      sentiment: activity.sentiment,
+      nextStep: activity.nextStep,
+      followUpDate: activity.followUpDate?.toISOString() ?? null,
+      dealImpact: activity.dealImpact,
+      outcomeDisposition: activity.outcomeDisposition,
+      address: activity.address,
+      addressLat: activity.addressLat,
+      addressLng: activity.addressLng,
+      inPerson: activity.inPerson,
       rating: activity.rating,
       createdByUserId: activity.createdByUserId,
+      createdByUser,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
       needsPlanAssociation,
@@ -160,6 +185,11 @@ export async function GET(
         id: e.id,
         description: e.description,
         amount: Number(e.amount),
+        amountCents: Math.round(Number(e.amount) * 100),
+        category: e.category,
+        incurredOn: e.incurredOn.toISOString(),
+        receiptStoragePath: e.receiptStoragePath,
+        createdById: e.createdById,
       })),
       attendees: activity.attendees.map((a) => ({
         userId: a.user.id,
@@ -236,7 +266,10 @@ export async function PATCH(
     const body = await request.json();
     const {
       type, title, notes, startDate, endDate, status, outcome, outcomeType,
-      metadata, attendeeUserIds, expenses, rating, opportunityIds,
+      // Wave 1 redesigned outcome fields — see types.ts VALID_* constants
+      sentiment, nextStep, followUpDate, dealImpact, outcomeDisposition,
+      address, addressLat, addressLng, inPerson,
+      metadata, attendeeUserIds, contactIds, expenses, rating, opportunityIds,
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
@@ -296,6 +329,39 @@ export async function PATCH(
       );
     }
 
+    // Validate redesigned outcome fields. Treating null/empty string as
+    // "clear the value" so the auto-save model can revert a field cleanly.
+    if (sentiment != null && sentiment !== "" &&
+        !(VALID_ACTIVITY_SENTIMENTS as readonly string[]).includes(sentiment)) {
+      return NextResponse.json(
+        { error: `sentiment must be one of: ${VALID_ACTIVITY_SENTIMENTS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    if (dealImpact != null && dealImpact !== "" &&
+        !(VALID_DEAL_IMPACTS as readonly string[]).includes(dealImpact)) {
+      return NextResponse.json(
+        { error: `dealImpact must be one of: ${VALID_DEAL_IMPACTS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    if (outcomeDisposition != null && outcomeDisposition !== "" &&
+        !(VALID_ACTIVITY_OUTCOMES as readonly string[]).includes(outcomeDisposition)) {
+      return NextResponse.json(
+        { error: `outcomeDisposition must be one of: ${VALID_ACTIVITY_OUTCOMES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    if (followUpDate !== undefined && followUpDate !== null && followUpDate !== "") {
+      const parsedFollowUp = new Date(followUpDate);
+      if (isNaN(parsedFollowUp.getTime())) {
+        return NextResponse.json(
+          { error: "followUpDate must be a valid date" },
+          { status: 400 }
+        );
+      }
+    }
+
     const activity = await prisma.activity.update({
       where: { id },
       data: {
@@ -311,6 +377,29 @@ export async function PATCH(
         ...(status && { status }),
         ...(outcome !== undefined && { outcome: outcome?.trim() || null }),
         ...(outcomeType !== undefined && { outcomeType: outcomeType || null }),
+        ...(sentiment !== undefined && { sentiment: sentiment || null }),
+        ...(nextStep !== undefined && { nextStep: nextStep?.trim() || null }),
+        ...(followUpDate !== undefined && {
+          followUpDate: followUpDate ? new Date(followUpDate) : null,
+        }),
+        ...(dealImpact !== undefined && dealImpact !== null && dealImpact !== "" && {
+          dealImpact,
+        }),
+        ...(outcomeDisposition !== undefined && {
+          outcomeDisposition: outcomeDisposition || null,
+        }),
+        ...(address !== undefined && {
+          address: typeof address === "string" ? address.trim() || null : null,
+        }),
+        ...(addressLat !== undefined && {
+          addressLat: addressLat === null ? null : Number(addressLat),
+        }),
+        ...(addressLng !== undefined && {
+          addressLng: addressLng === null ? null : Number(addressLng),
+        }),
+        ...(inPerson !== undefined && {
+          inPerson: inPerson === null ? null : Boolean(inPerson),
+        }),
         ...(metadata !== undefined && { metadata: metadata }),
         ...(rating !== undefined && { rating: rating }),
       },
@@ -326,15 +415,43 @@ export async function PATCH(
       }
     }
 
-    // Update expenses if provided (replace all)
+    // Update contacts if provided (replace all)
+    if (contactIds !== undefined) {
+      await prisma.activityContact.deleteMany({ where: { activityId: id } });
+      if (Array.isArray(contactIds) && contactIds.length > 0) {
+        await prisma.activityContact.createMany({
+          data: (contactIds as number[]).map((contactId) => ({
+            activityId: id,
+            contactId,
+          })),
+        });
+      }
+    }
+
+    // Update expenses if provided (replace all). Legacy callers send only
+    // `{description, amount}`; the new schema requires `category` (defaults
+    // to "other" via the column DEFAULT) and `incurredOn` (NOT NULL — fall
+    // back to "now" for legacy payloads). Dedicated POST/DELETE expense
+    // routes handle the redesigned UI's per-line edits.
     if (expenses !== undefined) {
       await prisma.activityExpense.deleteMany({ where: { activityId: id } });
       if (expenses.length > 0) {
+        const incomingExpenses = expenses as Array<{
+          description: string;
+          amount: number;
+          category?: string;
+          incurredOn?: string;
+          receiptStoragePath?: string | null;
+        }>;
         await prisma.activityExpense.createMany({
-          data: expenses.map((e: { description: string; amount: number }) => ({
+          data: incomingExpenses.map((e) => ({
             activityId: id,
             description: e.description,
             amount: e.amount,
+            category: e.category ?? "other",
+            incurredOn: e.incurredOn ? new Date(e.incurredOn) : new Date(),
+            receiptStoragePath: e.receiptStoragePath ?? null,
+            createdById: user.id,
           })),
         });
       }
