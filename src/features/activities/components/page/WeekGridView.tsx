@@ -181,6 +181,18 @@ export default function WeekGridView({
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#FFFCFA]">
       <div className="flex flex-col px-6 pt-4 pb-6 flex-1 min-h-0">
+        {showSummary && (
+          <div className="mb-3">
+            <OppSummaryStrip
+              events={events}
+              overdueDeals={overdueDeals}
+              coldList={coldList}
+              rangeLabel={fmtRange(range)}
+              onOpen={onOpenDrawer}
+            />
+          </div>
+        )}
+
         {/* Day header row */}
         <div
           className={`grid ${headerColTemplate} bg-white border border-[#E2DEEC] rounded-t-xl`}
@@ -218,22 +230,10 @@ export default function WeekGridView({
           })}
         </div>
 
-        {showSummary && (
-          <div className="mt-2">
-            <OppSummaryStrip
-              events={events}
-              overdueDeals={overdueDeals}
-              coldList={coldList}
-              rangeLabel={fmtRange(range)}
-              onOpen={onOpenDrawer}
-            />
-          </div>
-        )}
-
         {/* Pinned Pipeline (deals-as-objects) row — pip-density chips */}
         {showObjects && (
           <div
-            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white border-t border-t-[#EFEDF5] mt-2`}
+            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white border-t border-t-[#EFEDF5]`}
           >
             <div className="px-2 py-2 text-[9px] font-bold uppercase tracking-[0.06em] text-[#403770] flex items-start justify-end leading-tight">
               Pipeline
