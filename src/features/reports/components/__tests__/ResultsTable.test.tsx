@@ -31,4 +31,17 @@ describe("ResultsTable", () => {
     render(<ResultsTable columns={["name"]} rows={[]} />);
     expect(screen.getByText(/no rows/i)).toBeInTheDocument();
   });
+
+  it("renders URL cell values as anchors that open in a new tab", () => {
+    render(
+      <ResultsTable
+        columns={["website_url"]}
+        rows={[{ website_url: "https://rsdshafter.org" }]}
+      />,
+    );
+    const link = screen.getByRole("link", { name: /rsdshafter\.org/i });
+    expect(link).toHaveAttribute("href", "https://rsdshafter.org");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
 });

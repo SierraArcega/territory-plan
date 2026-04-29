@@ -156,6 +156,11 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           isError: false,
           content: `run_sql ok — ${runSqlResult.rowCount} row(s) in ${runSqlResult.executionTimeMs}ms`,
         });
+        // Fallback so the chat rail always has SOMETHING when Claude skipped
+        // the brief preamble — keeps the UI feeling responsive.
+        const replyText =
+          assistantText ||
+          `Found ${runSqlResult.rowCount} row${runSqlResult.rowCount === 1 ? "" : "s"}.`;
         return {
           kind: "result",
           sql: runSqlResult.sql,
@@ -164,7 +169,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           rows: runSqlResult.rows,
           rowCount: runSqlResult.rowCount,
           executionTimeMs: runSqlResult.executionTimeMs,
-          assistantText,
+          assistantText: replyText,
           events,
           usage: totalUsage,
         };

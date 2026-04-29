@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { TABLE_REGISTRY } from "@/lib/district-column-metadata";
 import { formatCell, humanizeColumnName } from "../lib/format-cell";
 
@@ -15,6 +17,28 @@ function isIdColumn(columnName: string): boolean {
     if (match && (match.format as string) === "id") return true;
   }
   return /^(id|leaid|.*_id|uuid)$/i.test(columnName);
+}
+
+const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
+
+function renderCell(columnName: string, value: unknown): ReactNode {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (URL_PATTERN.test(trimmed)) {
+      return (
+        <a
+          href={trimmed}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-[#6EA3BE] underline transition-colors duration-100 hover:text-[#403770]"
+        >
+          {trimmed}
+          <ExternalLink size={11} aria-hidden="true" />
+        </a>
+      );
+    }
+  }
+  return formatCell(columnName, value);
 }
 
 export function ResultsTable({ columns, rows }: Props) {
@@ -77,7 +101,7 @@ export function ResultsTable({ columns, rows }: Props) {
                     key={c}
                     className="whitespace-nowrap px-4 py-2 text-[#403770]"
                   >
-                    {formatCell(c, row[c])}
+                    {renderCell(c, row[c])}
                   </td>
                 ))}
               </tr>
