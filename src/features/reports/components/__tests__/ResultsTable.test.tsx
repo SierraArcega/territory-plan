@@ -11,8 +11,8 @@ describe("ResultsTable", () => {
         rows={[{ leaid: "3100009", name: "Houston", state: "TX" }]}
       />,
     );
-    expect(screen.queryByText("leaid")).not.toBeInTheDocument();
-    expect(screen.getByText("name")).toBeInTheDocument();
+    expect(screen.queryByText(/leaid/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Name")).toBeInTheDocument();
   });
 
   it("reveals ID columns when 'show technical columns' is toggled", () => {
@@ -24,7 +24,7 @@ describe("ResultsTable", () => {
     );
     const toggle = screen.getByRole("button", { name: /technical/i });
     fireEvent.click(toggle);
-    expect(screen.getByText("leaid")).toBeInTheDocument();
+    expect(screen.getByText(/leaid/i)).toBeInTheDocument();
   });
 
   it("shows empty state when rows is []", () => {

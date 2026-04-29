@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TABLE_REGISTRY } from "@/lib/district-column-metadata";
+import { formatCell, humanizeColumnName } from "../lib/format-cell";
 
 interface Props {
   columns: string[];
@@ -63,7 +64,7 @@ export function ResultsTable({ columns, rows }: Props) {
                   scope="col"
                   className="whitespace-nowrap border-b border-[#E2DEEC] px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#544A78]"
                 >
-                  {c}
+                  {humanizeColumnName(c)}
                 </th>
               ))}
             </tr>
@@ -76,7 +77,7 @@ export function ResultsTable({ columns, rows }: Props) {
                     key={c}
                     className="whitespace-nowrap px-4 py-2 text-[#403770]"
                   >
-                    {formatCell(row[c])}
+                    {formatCell(c, row[c])}
                   </td>
                 ))}
               </tr>
@@ -88,9 +89,3 @@ export function ResultsTable({ columns, rows }: Props) {
   );
 }
 
-function formatCell(v: unknown): string {
-  if (v == null) return "—";
-  if (typeof v === "number") return v.toLocaleString();
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  return String(v);
-}

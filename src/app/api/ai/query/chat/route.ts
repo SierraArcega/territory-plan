@@ -34,29 +34,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     userId: user.id,
   });
 
-  if (result.kind === "result") {
-    await saveTurn({
-      userId: user.id,
-      conversationId,
-      question: body.message,
-      sql: result.sql,
-      summary: result.summary,
-      assistantText: result.assistantText,
-      events: result.events,
-      usage: result.usage,
-      rowCount: result.rowCount,
-      executionTimeMs: result.executionTimeMs,
-    });
-  } else {
-    await saveTurn({
-      userId: user.id,
-      conversationId,
-      question: body.message,
-      assistantText: result.text,
-      events: result.events,
-      usage: result.usage,
-      error: result.text,
-    });
+  // Persist the turn for history and observability. Never let a logging failure
+  // cost the user their result — log and continue.
+  try {
+    if (result.kind === "result") {
+      await saveTurn({
+        userId: user.id,
+        conversationId,
+        question: body.message,
+        sql: result.sql,
+        summary: result.summary,
+        assistantText: result.assistantText,
+        events: result.events,
+        usage: result.usage,
+        rowCount: result.rowCount,
+        executionTimeMs: result.executionTimeMs,
+      });
+    } else {
+      await saveTurn({
+        userId: user.id,
+        conversationId,
+        question: body.message,
+        assistantText: result.text,
+        events: result.events,
+        usage: result.usage,
+        error: result.text,
+      });
+    }
+  } catch (err) {
+    console.error("[chat route] saveTurn failed", err);
   }
 
   if (result.kind === "result") {
