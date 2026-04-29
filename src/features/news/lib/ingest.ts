@@ -82,6 +82,7 @@ async function ingestFeed(
  * Intended to run nightly from /api/cron/ingest-news-daily.
  */
 export async function ingestDailyLayers(): Promise<IngestStats> {
+  const t0 = Date.now();
   const stats = emptyStats();
   const queue = new PQueue({ concurrency: 4 });
 
@@ -122,6 +123,11 @@ export async function ingestDailyLayers(): Promise<IngestStats> {
   }
 
   await queue.onIdle();
+  const elapsedMs = Date.now() - t0;
+  console.log(
+    `[news.ingest.daily] articlesNew=${stats.articlesNew} articlesDup=${stats.articlesDup} ` +
+    `errors=${stats.errors.length} ms=${elapsedMs}`
+  );
   return stats;
 }
 
@@ -133,6 +139,7 @@ export async function ingestDailyLayers(): Promise<IngestStats> {
 export async function ingestRollingLayer(
   batchSize = ROLLING_BATCH_SIZE
 ): Promise<IngestStats> {
+  const t0 = Date.now();
   const stats = emptyStats();
   const queue = new PQueue({ concurrency: 4 });
 
@@ -169,6 +176,13 @@ export async function ingestRollingLayer(
   }
 
   await queue.onIdle();
+  const elapsedMs = Date.now() - t0;
+  console.log(
+    `[news.ingest.rolling] batch=${fetches.length} ` +
+    `articlesNew=${stats.articlesNew} articlesDup=${stats.articlesDup} ` +
+    `districtsProcessed=${stats.districtsProcessed} errors=${stats.errors.length} ` +
+    `ms=${elapsedMs}`
+  );
   return stats;
 }
 

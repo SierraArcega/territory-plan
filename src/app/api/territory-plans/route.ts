@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { awardPoints } from "@/features/leaderboard/lib/scoring";
 import { getFinancialValue } from "@/features/shared/lib/financial-helpers";
 export const dynamic = "force-dynamic";
 
@@ -217,11 +216,6 @@ export async function POST(request: NextRequest) {
         collaborators: { select: { user: { select: { id: true, fullName: true, avatarUrl: true } } } },
       },
     });
-
-    // Award leaderboard points for plan creation (non-blocking)
-    awardPoints(user.id, "plan_created").catch((err) =>
-      console.error("Failed to award plan_created points:", err)
-    );
 
     return NextResponse.json(
       {

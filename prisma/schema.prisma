@@ -129,6 +129,10 @@ model District {
   jobBoardUrl      String? @map("job_board_url") @db.VarChar(1000)
   jobBoardPlatform String? @map("job_board_platform") @db.VarChar(50)
 
+  // ===== Vacancy Scan Health (cron-side filtering) =====
+  vacancyConsecutiveFailures Int       @default(0) @map("vacancy_consecutive_failures")
+  vacancyLastFailureAt       DateTime? @map("vacancy_last_failure_at")
+
   // ===== User Edits =====
   // Source: App users (shared across team)
   notes          String?
@@ -764,7 +768,7 @@ model AuditLog {
 
 // Weekly snapshot of every opportunity's key fields. Written by the
 // /api/cron/pipeline-snapshot route. Lets us answer "what did pipeline look
-// like N weeks ago" without replaying the audit log. One row per opp per
+// like N days ago" without replaying the audit log. One row per opp per
 // snapshot_date; unique constraint prevents duplicates within a single day.
 model OpportunitySnapshot {
   id                    BigInt    @id @default(autoincrement())

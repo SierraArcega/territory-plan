@@ -10,11 +10,7 @@
     },
     {
       "path": "/api/cron/pipeline-snapshot?secret=${CRON_SECRET}",
-      "schedule": "0 7 * * 1"
-    },
-    {
-      "path": "/api/cron/leaderboard-slack-post?secret=${CRON_SECRET}",
-      "schedule": "0 13 * * 1-5"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/ingest-news-daily?secret=${CRON_SECRET}",

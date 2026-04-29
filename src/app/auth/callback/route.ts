@@ -27,7 +27,6 @@ export async function GET(request: Request) {
             await tx.$executeRaw`UPDATE territory_plans SET owner_id = ${data.user.id}::uuid WHERE owner_id = ${stub.id}::uuid`
             await tx.$executeRaw`UPDATE territory_plans SET user_id = ${data.user.id}::uuid WHERE user_id = ${stub.id}::uuid`
             await tx.$executeRaw`UPDATE territory_plan_collaborators SET user_id = ${data.user.id}::uuid WHERE user_id = ${stub.id}::uuid`
-            await tx.$executeRaw`UPDATE user_goals SET user_id = ${data.user.id}::uuid WHERE user_id = ${stub.id}::uuid`
             // Normalized FK columns
             await tx.$executeRaw`UPDATE districts SET owner_id = ${data.user.id}::uuid WHERE owner_id = ${stub.id}::uuid`
             await tx.$executeRaw`UPDATE districts SET sales_executive_id = ${data.user.id}::uuid WHERE sales_executive_id = ${stub.id}::uuid`

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ingestDailyLayers } from "@/features/news/lib/ingest";
 import { matchArticles } from "@/features/news/lib/matcher";
+import { sweepOrphanedNewsRuns } from "@/features/news/lib/orphan-sweep";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,6 +27,11 @@ export async function GET(request: NextRequest) {
 
   if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}` && secretParam !== CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const orphansSwept = await sweepOrphanedNewsRuns();
+  if (orphansSwept > 0) {
+    console.log(`[ingest-news-daily] swept ${orphansSwept} orphaned runs`);
   }
 
   const run = await prisma.newsIngestRun.create({

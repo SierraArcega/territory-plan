@@ -83,7 +83,7 @@ export async function POST(
     }
 
     if (allLeaids.length === 0) {
-      return NextResponse.json({ total: 0, skipped: 0, queued: 0 });
+      return NextResponse.json({ total: 0, skipped: 0, queued: 0, reason: "no-districts" });
     }
 
     const clayWebhookUrl = process.env.CLAY_WEBHOOK_URL;
@@ -155,7 +155,15 @@ export async function POST(
       });
 
       if (schools.length === 0) {
-        return NextResponse.json({ total: 0, skipped: 0, queued: 0 });
+        const anySchoolsOnRecord = await prisma.school.count({
+          where: { leaid: { in: allLeaids } },
+        });
+        return NextResponse.json({
+          total: 0,
+          skipped: 0,
+          queued: 0,
+          reason: anySchoolsOnRecord === 0 ? "no-schools-in-district" : "no-schools-at-levels",
+        });
       }
 
       // NOTE: the "already enriched as principal" heuristic matches title /principal/i.
