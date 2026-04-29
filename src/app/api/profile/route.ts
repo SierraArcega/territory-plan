@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { Decimal } from "@prisma/client/runtime/library";
-import { getFinancialValue, FULLMIND_FINANCIALS_SELECT } from "@/features/shared/lib/financial-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -12,70 +11,7 @@ function toNumber(val: Decimal | null | undefined): number {
   return val.toNumber();
 }
 
-// Calculate actual progress from user's territory plan districts
-// Aggregates revenue, take, pipeline, and new district counts by fiscal year
-async function calculateActuals(userId: string) {
-  // Get all districts in the user's territory plans with financial data
-  const userDistricts = await prisma.territoryPlanDistrict.findMany({
-    where: {
-      plan: { userId },
-    },
-    include: {
-      district: {
-        select: {
-          isCustomer: true,
-          districtFinancials: {
-            where: { vendor: "fullmind" },
-            select: FULLMIND_FINANCIALS_SELECT,
-          },
-        },
-      },
-    },
-  });
-
-  // Aggregate actuals from districtFinancials
-  const totals = userDistricts.reduce(
-    (acc, d) => {
-      const fin = d.district.districtFinancials;
-      acc.fy25Revenue += getFinancialValue(fin, "fullmind", "FY25", "invoicing");
-      acc.fy25Take += getFinancialValue(fin, "fullmind", "FY25", "totalTake");
-      acc.fy26Revenue += getFinancialValue(fin, "fullmind", "FY26", "invoicing");
-      acc.fy26Take += getFinancialValue(fin, "fullmind", "FY26", "totalTake");
-      acc.fy26Pipeline += getFinancialValue(fin, "fullmind", "FY26", "openPipeline");
-      acc.fy27Pipeline += getFinancialValue(fin, "fullmind", "FY27", "openPipeline");
-      return acc;
-    },
-    { fy25Revenue: 0, fy25Take: 0, fy26Revenue: 0, fy26Take: 0, fy26Pipeline: 0, fy27Pipeline: 0 }
-  );
-
-  // New districts = non-customers in plan (potential new business)
-  const fy26NewDistricts = userDistricts.filter(
-    (d) => !d.district.isCustomer
-  ).length;
-
-  return {
-    2025: {
-      revenueActual: totals.fy25Revenue,
-      takeActual: totals.fy25Take,
-      pipelineActual: 0, // No FY25 pipeline data
-      newDistrictsActual: 0, // Historical, not tracked
-    },
-    2026: {
-      revenueActual: totals.fy26Revenue,
-      takeActual: totals.fy26Take,
-      pipelineActual: totals.fy26Pipeline,
-      newDistrictsActual: fy26NewDistricts,
-    },
-    2027: {
-      revenueActual: 0, // Future year
-      takeActual: 0,
-      pipelineActual: totals.fy27Pipeline,
-      newDistrictsActual: 0,
-    },
-  };
-}
-
-// GET /api/profile - Get or create user profile with goals and progress
+// GET /api/profile - Get or create user profile
 export async function GET() {
   try {
     const user = await getUser();
@@ -94,11 +30,6 @@ export async function GET() {
     if (user.isImpersonating) {
       profile = await prisma.userProfile.findUnique({
         where: { id: user.id },
-        include: {
-          goals: {
-            orderBy: { fiscalYear: "desc" },
-          },
-        },
       });
 
       if (!profile) {
@@ -138,39 +69,8 @@ export async function GET() {
           hasCompletedSetup: false,
           lastLoginAt: new Date(),
         },
-        include: {
-          goals: {
-            orderBy: { fiscalYear: "desc" },
-          },
-        },
       });
     }
-
-    // Calculate actuals from user's territory plans
-    const actuals = await calculateActuals(user.id);
-
-    // Format response with goals including calculated actuals
-    const goalsWithActuals = profile.goals.map((goal) => {
-      const yearActuals = actuals[goal.fiscalYear as keyof typeof actuals] || {
-        revenueActual: 0,
-        takeActual: 0,
-        pipelineActual: 0,
-        newDistrictsActual: 0,
-      };
-
-      return {
-        id: goal.id,
-        fiscalYear: goal.fiscalYear,
-        earningsTarget: toNumber(goal.earningsTarget),
-        takeRatePercent: toNumber(goal.takeRatePercent),
-        renewalTarget: toNumber(goal.renewalTarget),
-        winbackTarget: toNumber(goal.winbackTarget),
-        expansionTarget: toNumber(goal.expansionTarget),
-        newBusinessTarget: toNumber(goal.newBusinessTarget),
-        newDistrictsTarget: goal.newDistrictsTarget,
-        ...yearActuals,
-      };
-    });
 
     return NextResponse.json({
       id: profile.id,
@@ -190,7 +90,6 @@ export async function GET() {
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
       lastLoginAt: profile.lastLoginAt?.toISOString() ?? null,
-      goals: goalsWithActuals,
     });
   } catch (error) {
     console.error("Error fetching profile:", error);
@@ -269,37 +168,6 @@ export async function PUT(request: NextRequest) {
     const profile = await prisma.userProfile.update({
       where: { id: user.id },
       data: updateData,
-      include: {
-        goals: {
-          orderBy: { fiscalYear: "desc" },
-        },
-      },
-    });
-
-    // Calculate actuals from user's territory plans
-    const actuals = await calculateActuals(user.id);
-
-    // Format response
-    const goalsWithActuals = profile.goals.map((goal) => {
-      const yearActuals = actuals[goal.fiscalYear as keyof typeof actuals] || {
-        revenueActual: 0,
-        takeActual: 0,
-        pipelineActual: 0,
-        newDistrictsActual: 0,
-      };
-
-      return {
-        id: goal.id,
-        fiscalYear: goal.fiscalYear,
-        earningsTarget: toNumber(goal.earningsTarget),
-        takeRatePercent: toNumber(goal.takeRatePercent),
-        renewalTarget: toNumber(goal.renewalTarget),
-        winbackTarget: toNumber(goal.winbackTarget),
-        expansionTarget: toNumber(goal.expansionTarget),
-        newBusinessTarget: toNumber(goal.newBusinessTarget),
-        newDistrictsTarget: goal.newDistrictsTarget,
-        ...yearActuals,
-      };
     });
 
     return NextResponse.json({
@@ -320,7 +188,6 @@ export async function PUT(request: NextRequest) {
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
       lastLoginAt: profile.lastLoginAt?.toISOString() ?? null,
-      goals: goalsWithActuals,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

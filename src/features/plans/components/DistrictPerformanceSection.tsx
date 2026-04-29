@@ -9,7 +9,6 @@ interface DistrictPerformanceSectionProps {
   actuals: PlanDistrictActuals | null;
   opportunities: PlanDistrictOpportunity[];
   revenueTarget: number;
-  goalTakeRatePercent: number | null;
 }
 
 function formatCurrency(value: number | null): string {
@@ -39,7 +38,6 @@ export default function DistrictPerformanceSection({
   actuals,
   opportunities,
   revenueTarget,
-  goalTakeRatePercent,
 }: DistrictPerformanceSectionProps) {
   if (!actuals) {
     return (
@@ -52,9 +50,6 @@ export default function DistrictPerformanceSection({
   const takeRateDisplay = actuals.takeRate != null
     ? `${(actuals.takeRate * 100).toFixed(1)}%`
     : "-";
-  const goalRateDisplay = goalTakeRatePercent != null
-    ? `Goal: ${goalTakeRatePercent}%`
-    : undefined;
   const yoyDisplay = actuals.yoyRevenueChange != null
     ? `${actuals.yoyRevenueChange > 0 ? "\u2191" : "\u2193"} ${Math.abs(actuals.yoyRevenueChange).toFixed(0)}% YoY`
     : undefined;
@@ -75,7 +70,7 @@ export default function DistrictPerformanceSection({
           value={formatCurrency(actuals.completedTake)}
           subtext={actuals.scheduledTake > 0 ? `+ ${formatCurrency(actuals.scheduledTake)} scheduled` : undefined}
         />
-        <MetricCard label="Take Rate" value={takeRateDisplay} subtext={goalRateDisplay} />
+        <MetricCard label="Take Rate" value={takeRateDisplay} />
         <MetricCard
           label="Pipeline"
           value={formatCurrency(actuals.weightedPipeline)}
