@@ -23,7 +23,6 @@ const ADMIN_SUB_ITEMS = [
   { id: "users", label: "Users" },
   { id: "integrations", label: "Integrations" },
   { id: "sync", label: "Data Sync" },
-  { id: "leaderboard", label: "Leaderboard" },
 ];
 
 // SVG icons for each tab - kept inline for simplicity
@@ -357,10 +356,9 @@ export default function Sidebar({
     <LeaderboardModal
       isOpen={showLeaderboard}
       onClose={() => setShowLeaderboard(false)}
-      onNavigateToDetails={() => onTabChange("leaderboard" as TabId)}
-      setActiveTab={(tab) => {
+      onNavigateToDetails={() => {
+        onTabChange("leaderboard" as TabId);
         setShowLeaderboard(false);
-        onTabChange(tab);
       }}
     />
     </>

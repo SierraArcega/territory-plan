@@ -1,25 +1,43 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useMyLeaderboardRank } from "../lib/queries";
-import TierBadge from "./TierBadge";
-import RankTicker from "./RankTicker";
-import { parseTierRank, TIER_COLORS } from "../lib/types";
+import { useRevenueRank } from "../lib/queries";
 
 interface LeaderboardHomeWidgetProps {
   onOpenModal: () => void;
 }
 
 const SHIMMER_INTERVAL = 5 * 60 * 1000;
+const FY_TOGGLE_KEY = "revenue-rank-fy";
+
+function formatCompactCurrency(n: number): string {
+  if (n === 0) return "$0";
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(n) >= 1_000) return `$${Math.round(n / 1_000)}K`;
+  return `$${n}`;
+}
+
+function fyLabels(): { current: string; next: string } {
+  const now = new Date();
+  const fy = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
+  return {
+    current: `FY${String(fy).slice(-2)}`,
+    next: `FY${String(fy + 1).slice(-2)}`,
+  };
+}
 
 export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWidgetProps) {
-  const { data, isLoading } = useMyLeaderboardRank();
+  const labels = fyLabels();
+  const [fy, setFy] = useState<"current" | "next">(() => {
+    if (typeof window === "undefined") return "current";
+    return (sessionStorage.getItem(FY_TOGGLE_KEY) as "current" | "next") ?? "current";
+  });
+  const { data, isLoading } = useRevenueRank(fy);
   const [shimmer, setShimmer] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const prevRankRef = useRef<number | null>(null);
   const [rankChanged, setRankChanged] = useState(false);
 
-  // Periodic shimmer
   useEffect(() => {
     const timer = setInterval(() => {
       setShimmer(true);
@@ -28,7 +46,6 @@ export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWi
     return () => clearInterval(timer);
   }, []);
 
-  // Detect rank changes
   useEffect(() => {
     if (data && prevRankRef.current !== null && prevRankRef.current !== data.rank) {
       setRankChanged(true);
@@ -37,67 +54,69 @@ export default function LeaderboardHomeWidget({ onOpenModal }: LeaderboardHomeWi
     if (data) prevRankRef.current = data.rank;
   }, [data?.rank]);
 
+  const handleToggle = (next: "current" | "next") => {
+    setFy(next);
+    sessionStorage.setItem(FY_TOGGLE_KEY, next);
+  };
+
   if (isLoading || !data) return null;
 
-  const tierRank = data.tier ?? "freshman";
-  const { tier } = parseTierRank(tierRank);
-  const colors = TIER_COLORS[tier];
-
-  // Build ticker lines
-  const tickerLines: { text: string; highlight?: boolean }[] = [];
-  if (data.above) {
-    const diff = data.above.totalPoints - data.totalPoints;
-    tickerLines.push({
-      text: `#${data.above.rank} ${data.above.fullName} — +${diff} pts ahead`,
-    });
-  }
-  tickerLines.push({
-    text: `You: #${data.rank} of ${data.totalReps} — ${data.totalPoints} pts`,
-    highlight: true,
-  });
-  if (data.below) {
-    const diff = data.totalPoints - data.below.totalPoints;
-    tickerLines.push({
-      text: `#${data.below.rank} ${data.below.fullName} — ${diff} pts behind`,
-    });
-  }
+  const inRoster = data.inRoster;
+  const rankLabel = inRoster ? `#${data.rank} of ${data.totalReps}` : "—";
+  const fyCurrent = fy === "current";
 
   return (
     <div
       onClick={onOpenModal}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="relative mb-6 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-100 overflow-hidden"
+      className="relative mb-6 px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-100 overflow-hidden bg-[#F7F5FA]"
       style={{
-        backgroundColor: colors.bg,
-        boxShadow: isHovered ? `0 0 20px ${colors.glow}` : "0 0 0 transparent",
+        boxShadow: isHovered ? "0 0 20px rgba(64, 55, 112, 0.15)" : "0 0 0 transparent",
         transform: rankChanged ? "scale(1.02)" : "scale(1)",
       }}
     >
-      {/* Shimmer overlay */}
       {shimmer && (
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `linear-gradient(90deg, transparent, ${colors.glow}, transparent)`,
+            background: "linear-gradient(90deg, transparent, rgba(64, 55, 112, 0.15), transparent)",
             animation: "shimmer-sweep 1s ease-in-out",
           }}
         />
       )}
 
-      {/* Top row: tier badge + rank */}
       <div className="flex items-center justify-between mb-2">
-        <TierBadge tierRank={tierRank} size="md" />
-        <span className="text-lg font-bold text-plum">#{data.rank}</span>
+        <p className="text-[11px] font-semibold text-[#403770]">Revenue Rank</p>
+        <span className="text-base font-bold text-plum">{rankLabel}</span>
       </div>
 
-      {/* Initiative name */}
-      <p className="text-[10px] font-medium text-[#8A80A8] mb-1.5">
-        {data.initiativeName}
-      </p>
+      <div className="flex gap-1 my-1.5" role="tablist">
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggle("current"); }}
+          className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+            fyCurrent ? "bg-[#403770] text-white" : "bg-[#EFEDF5] text-[#8A80A8]"
+          }`}
+          role="tab"
+          aria-selected={fyCurrent}
+        >
+          {labels.current}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleToggle("next"); }}
+          className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+            !fyCurrent ? "bg-[#403770] text-white" : "bg-[#EFEDF5] text-[#8A80A8]"
+          }`}
+          role="tab"
+          aria-selected={!fyCurrent}
+        >
+          {labels.next}
+        </button>
+      </div>
 
-      {/* Ticker */}
-      <RankTicker lines={tickerLines} />
+      <p className="text-base font-bold text-[#403770]">
+        {inRoster ? formatCompactCurrency(data.revenue) : ""}
+      </p>
     </div>
   );
 }

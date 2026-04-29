@@ -4,10 +4,9 @@ import { useProfile } from "@/features/shared/lib/queries";
 import type { TerritoryPlan } from "@/features/shared/types/api-types";
 import type {
   LeaderboardEntry,
-  LeaderboardMyRank,
-  InitiativeInfo,
   IncreaseTargetsResponse,
   IncreaseTargetBucket,
+  RevenueRankResponse,
 } from "./types";
 import { INCREASE_TARGET_BUCKET_FIELD } from "./types";
 
@@ -18,19 +17,9 @@ export interface LeaderboardFiscalYears {
 }
 
 export interface LeaderboardResponse {
-  initiative: InitiativeInfo;
   fiscalYears: LeaderboardFiscalYears;
   entries: LeaderboardEntry[];
-  metrics: { action: string; label: string; pointValue: number }[];
-  thresholds: { tier: string; minPoints: number }[];
-  /**
-   * Team-wide totals across all users including admins (which are filtered
-   * from `entries`). Single-FY columns are scalars; pipeline and targeted
-   * are shipped per-FY so the client can match its FY selectors.
-   * Optional so older clients during deploy don't crash.
-   */
-  teamTotals?: {
-    // Revenue: legacy scalar + per-FY pair
+  teamTotals: {
     revenue: number;
     revenueCurrentFY: number;
     revenuePriorFY: number;
@@ -38,7 +27,6 @@ export interface LeaderboardResponse {
     unassignedRevenueCurrentFY: number;
     unassignedRevenuePriorFY: number;
 
-    // Min Purchases: legacy alias (priorYearRevenue) + per-FY pair
     priorYearRevenue: number;
     minPurchasesCurrentFY: number;
     minPurchasesPriorFY: number;
@@ -66,47 +54,12 @@ export function useLeaderboard() {
   });
 }
 
-export function useMyLeaderboardRank() {
+export function useRevenueRank(fy: "current" | "next") {
   return useQuery({
-    queryKey: ["leaderboard", "me"],
-    queryFn: () => fetchJson<LeaderboardMyRank>(`${API_BASE}/leaderboard/me`),
-    staleTime: 2 * 60 * 1000,
-  });
-}
-
-export interface LeaderboardDetailEntry {
-  rank: number;
-  userId: string;
-  fullName: string;
-  avatarUrl: string | null;
-  totalPoints: number;
-  tier: string;
-  breakdown: {
-    action: string;
-    label: string;
-    pointValue: number;
-    count: number;
-    total: number;
-  }[];
-  items: {
-    action: string;
-    id: string;
-    title: string;
-    date: string;
-    type?: string;
-  }[];
-}
-
-interface LeaderboardDetailsResponse {
-  entries: LeaderboardDetailEntry[];
-  metrics: { action: string; label: string; pointValue: number }[];
-}
-
-export function useLeaderboardDetails() {
-  return useQuery({
-    queryKey: ["leaderboard", "details"],
-    queryFn: () => fetchJson<LeaderboardDetailsResponse>(`${API_BASE}/leaderboard/details`),
-    staleTime: 2 * 60 * 1000,
+    queryKey: ["revenue-rank", fy],
+    queryFn: () => fetchJson<RevenueRankResponse>(`${API_BASE}/leaderboard/revenue-rank?fy=${fy}`),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 
