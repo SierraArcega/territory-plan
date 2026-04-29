@@ -21,7 +21,9 @@ export default function ActivitiesPageHeader({
   onScopeChange,
 }: ActivitiesPageHeaderProps) {
   const view = useActivitiesChrome((s) => s.view);
+  const grain = useActivitiesChrome((s) => s.grain);
   const setView = useActivitiesChrome((s) => s.setView);
+  const setGrain = useActivitiesChrome((s) => s.setGrain);
 
   return (
     <header className="bg-white border-b border-[#E2DEEC] px-6 py-3">
@@ -38,7 +40,14 @@ export default function ActivitiesPageHeader({
         <div className="flex items-center gap-2">
           <ScopeToggle scope={scope} onChange={onScopeChange} />
           <CalendarSyncBadge />
-          <ViewToggle value={view} onChange={setView} />
+          <ViewToggle
+            view={view}
+            grain={grain}
+            onChange={({ view: v, grain: g }) => {
+              setView(v);
+              setGrain(g);
+            }}
+          />
           <button
             type="button"
             onClick={onNewActivity}

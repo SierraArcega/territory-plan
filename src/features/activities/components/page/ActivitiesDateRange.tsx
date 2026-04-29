@@ -4,13 +4,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useActivitiesChrome, type Grain } from "@/features/activities/lib/filters-store";
 
-const GRAINS: { id: Grain; label: string }[] = [
-  { id: "day", label: "Day" },
-  { id: "week", label: "Week" },
-  { id: "month", label: "Month" },
-  { id: "quarter", label: "Quarter" },
-];
-
 function shiftAnchor(iso: string, grain: Grain, dir: 1 | -1): string {
   const d = new Date(iso);
   switch (grain) {
@@ -52,13 +45,13 @@ function labelFor(iso: string, grain: Grain): string {
 }
 
 /**
- * One bordered pill: [Today] | [<] [label] [>] | [Day · Week · Month · Quarter].
- * Reference: design_handoff_activities_calendar/reference/components/CalendarChrome.jsx:150-234
+ * One bordered pill: [Today] | [<] [label] [>]. Grain is set implicitly by
+ * the upper-right ViewToggle (Schedule/Week/Month/Quarter/Map), so this row
+ * just owns navigation, not aggregation.
  */
 export default function ActivitiesDateRange() {
   const grain = useActivitiesChrome((s) => s.grain);
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
-  const setGrain = useActivitiesChrome((s) => s.setGrain);
   const setAnchor = useActivitiesChrome((s) => s.setAnchor);
 
   return (
@@ -94,28 +87,6 @@ export default function ActivitiesDateRange() {
       >
         <ChevronRight className="w-4 h-4" />
       </button>
-
-      <span aria-hidden="true" className="w-px h-5 bg-[#E2DEEC]" />
-
-      <div className="inline-flex p-0.5 ml-1 rounded-[7px] bg-[#F7F5FA]">
-        {GRAINS.map(({ id, label }) => {
-          const active = grain === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setGrain(id)}
-              className={`px-2.5 py-1 rounded-[5px] text-[11px] transition-all duration-[120ms] ease-out ${
-                active
-                  ? "bg-white text-[#403770] font-bold shadow-[0_1px_2px_rgba(64,55,112,0.08)]"
-                  : "text-[#6E6390] font-medium hover:text-[#403770]"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
