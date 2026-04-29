@@ -256,16 +256,16 @@ model District {
   districtTags       DistrictTag[]
   territoryPlans     TerritoryPlanDistrict[]
   districtFinancials DistrictFinancials[]
-  activityLinks   ActivityDistrict[]
-  taskLinks       TaskDistrict[]
-  schools         School[]
-  dataHistory     DistrictDataHistory[]
-  gradeEnrollment DistrictGradeEnrollment[]
-  vacancyScans    VacancyScan[]
-  vacancies       Vacancy[]
-  opportunities   Opportunity[]
-  newsArticles    NewsArticleDistrict[]
-  newsFetch       DistrictNewsFetch?
+  activityLinks      ActivityDistrict[]
+  taskLinks          TaskDistrict[]
+  schools            School[]
+  dataHistory        DistrictDataHistory[]
+  gradeEnrollment    DistrictGradeEnrollment[]
+  vacancyScans       VacancyScan[]
+  vacancies          Vacancy[]
+  opportunities      Opportunity[]
+  newsArticles       NewsArticleDistrict[]
+  newsFetch          DistrictNewsFetch?
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -345,20 +345,20 @@ model DistrictFinancials {
 }
 
 model Contact {
-  id             Int               @id @default(autoincrement())
-  leaid          String            @db.VarChar(7)
-  salutation     String?           @db.VarChar(20)
-  name           String            @db.VarChar(255)
-  title          String?           @db.VarChar(255)
-  email          String?           @db.VarChar(255)
-  phone          String?           @db.VarChar(50)
-  isPrimary      Boolean           @default(false) @map("is_primary")
-  linkedinUrl    String?           @map("linkedin_url") @db.VarChar(500)
-  persona        String?           @db.VarChar(100)
-  seniorityLevel String?           @map("seniority_level") @db.VarChar(100)
-  createdAt      DateTime          @default(now()) @map("created_at")
-  lastEnrichedAt DateTime?         @map("last_enriched_at")
-  district       District          @relation(fields: [leaid], references: [leaid])
+  id             Int                  @id @default(autoincrement())
+  leaid          String               @db.VarChar(7)
+  salutation     String?              @db.VarChar(20)
+  name           String               @db.VarChar(255)
+  title          String?              @db.VarChar(255)
+  email          String?              @db.VarChar(255)
+  phone          String?              @db.VarChar(50)
+  isPrimary      Boolean              @default(false) @map("is_primary")
+  linkedinUrl    String?              @map("linkedin_url") @db.VarChar(500)
+  persona        String?              @db.VarChar(100)
+  seniorityLevel String?              @map("seniority_level") @db.VarChar(100)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  lastEnrichedAt DateTime?            @map("last_enriched_at")
+  district       District             @relation(fields: [leaid], references: [leaid])
   activityLinks  ActivityContact[]
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
@@ -858,8 +858,6 @@ model UserProfile {
   updatedAt         DateTime  @updatedAt @map("updated_at")
   lastLoginAt       DateTime? @map("last_login_at")
 
-  // Relation to user's fiscal year goals
-  goals               UserGoal[]
   // Territory plan ownership and collaboration
   ownedPlans          TerritoryPlan[]             @relation("PlanOwner")
   collaboratingOn     TerritoryPlanCollaborator[] @relation("PlanCollaborator")
@@ -971,35 +969,6 @@ model MapView {
 
   @@index([ownerId])
   @@map("map_views")
-}
-
-// User goals by fiscal year - tracks revenue, margin, pipeline, and new district targets
-// One row per user per fiscal year (e.g., FY26, FY27)
-model UserGoal {
-  id         Int    @id @default(autoincrement())
-  userId     String @map("user_id") @db.Uuid
-  fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
-
-  // Target values
-  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2)
-  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2)
-  // Four business-category targets
-  renewalTarget      Decimal? @map("renewal_target") @db.Decimal(15, 2)
-  winbackTarget      Decimal? @map("winback_target") @db.Decimal(15, 2)
-  expansionTarget    Decimal? @map("expansion_target") @db.Decimal(15, 2)
-  newBusinessTarget  Decimal? @map("new_business_target") @db.Decimal(15, 2)
-  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
-  newDistrictsTarget Int?     @map("new_districts_target")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relation to user profile
-  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, fiscalYear]) // One goal record per user per fiscal year
-  @@index([userId])
-  @@map("user_goals")
 }
 
 // ===== Task Tracking System =====
@@ -1638,19 +1607,23 @@ model MetricRegistry {
 // saved_reports stores user-saved and team-pinned reports with stored SQL for re-run.
 
 model QueryLog {
-  id              Int      @id @default(autoincrement())
-  userId          String   @map("user_id") @db.Uuid
-  conversationId  String   @default(dbgenerated("gen_random_uuid()")) @map("conversation_id") @db.Uuid
-  question        String
-  sql             String?
-  params          Json?
-  rowCount        Int?     @map("row_count")
-  executionTimeMs Int?     @map("execution_time_ms")
-  error           String?
-  action          String?
-  actionParams    Json?    @map("action_params")
-  actionSuccess   Boolean? @map("action_success")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id                       Int      @id @default(autoincrement())
+  userId                   String   @map("user_id") @db.Uuid
+  conversationId           String   @default(dbgenerated("gen_random_uuid()")) @map("conversation_id") @db.Uuid
+  question                 String
+  sql                      String?
+  params                   Json?
+  rowCount                 Int?     @map("row_count")
+  executionTimeMs          Int?     @map("execution_time_ms")
+  error                    String?
+  action                   String?
+  actionParams             Json?    @map("action_params")
+  actionSuccess            Boolean? @map("action_success")
+  inputTokens              Int?     @map("input_tokens")
+  outputTokens             Int?     @map("output_tokens")
+  cacheCreationInputTokens Int?     @map("cache_creation_input_tokens")
+  cacheReadInputTokens     Int?     @map("cache_read_input_tokens")
+  createdAt                DateTime @default(now()) @map("created_at")
 
   user UserProfile @relation("UserQueryLogs", fields: [userId], references: [id])
 
@@ -1723,15 +1696,15 @@ model NewsArticle {
   stateAbbrevs String[] @map("state_abbrevs") @db.VarChar(2)
 
   // Classification — set by the Haiku classifier pass. Null until classified.
-  sentiment          String?   @db.VarChar(10)
-  categories         String[]  @default([]) @db.VarChar(40)
-  fullmindRelevance  String?   @map("fullmind_relevance") @db.VarChar(10)
-  classifiedAt       DateTime? @map("classified_at")
+  sentiment         String?   @db.VarChar(10)
+  categories        String[]  @default([]) @db.VarChar(40)
+  fullmindRelevance String?   @map("fullmind_relevance") @db.VarChar(10)
+  classifiedAt      DateTime? @map("classified_at")
 
-  districts   NewsArticleDistrict[]
-  schools     NewsArticleSchool[]
-  contacts    NewsArticleContact[]
-  queueEntry  NewsMatchQueue?
+  districts  NewsArticleDistrict[]
+  schools    NewsArticleSchool[]
+  contacts   NewsArticleContact[]
+  queueEntry NewsMatchQueue?
 
   @@index([publishedAt])
   @@index([feedSource])

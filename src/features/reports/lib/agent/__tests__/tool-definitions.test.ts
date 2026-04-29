@@ -17,15 +17,14 @@ describe("AGENT_TOOLS", () => {
     ]);
   });
 
-  it("run_sql requires a summary sibling object", () => {
+  it("run_sql requires a summary with a source field", () => {
     const tool = AGENT_TOOLS.find((t) => t.name === RUN_SQL_TOOL_NAME);
     const props = tool!.input_schema.properties as Record<string, unknown>;
     expect(props.sql).toBeDefined();
     expect(props.summary).toBeDefined();
-    const summary = props.summary as { required: string[] };
-    expect(summary.required).toContain("source");
-    expect(summary.required).toContain("filters");
-    expect(summary.required).toContain("columns");
+    const summary = props.summary as { required: string[]; properties: Record<string, unknown> };
+    expect(summary.required).toEqual(["source"]);
+    expect(summary.properties.source).toBeDefined();
   });
 
   it("every tool has a description with at least 20 characters", () => {

@@ -1,83 +1,54 @@
 // src/features/reports/lib/agent/types.ts
 
-/** The chip summary Claude returns alongside run_sql. Matches D6 in spec. */
-export interface ChipFilter {
-  /** Stable id assigned by Claude (used for chip-edit round-trips) */
-  id: string;
-  /** Human-readable label, e.g. "State" */
-  label: string;
-  /** Human-readable value, e.g. "Texas" */
-  value: string;
-  /** Optional operator for non-equality, e.g. ">" for "Bookings > $50K" */
-  operator?: string;
-}
-
-export interface ChipColumn {
-  id: string;
-  /** Human-readable column label (from metadata when possible) */
-  label: string;
-}
-
-export interface ChipSort {
-  /** Column label (must match one of `columns[].label`) */
-  column: string;
-  direction: "asc" | "desc";
-}
-
+/** Rep-friendly description of the query shown above the results table. */
 export interface QuerySummary {
-  /** Rep-friendly description of the source, e.g. "Districts with closed-won contracts" */
+  /** One-line description, e.g. "Open-pipeline opportunities stuck > 90 days in current stage". */
   source: string;
-  filters: ChipFilter[];
-  columns: ChipColumn[];
-  sort: ChipSort | null;
-  limit: number;
 }
 
-/** Chat message visible in the chat rail. */
-export type ChatMessage =
-  | { role: "user"; content: string; turnId: string }
-  | { role: "assistant"; content: string; turnId: string }
-  | {
-      role: "assistant";
-      content: "";
-      turnId: string;
-      toolCall: { name: string; summary: string };
-    }
-  | {
-      role: "result";
-      turnId: string;
-      sql: string; // only held on the server; UI strips before rendering
-      summary: QuerySummary;
-      rows: Array<Record<string, unknown>>;
-      rowCount: number;
-      executionTimeMs: number;
-    }
-  | { role: "error"; content: string; turnId: string };
-
-/** Chip edit actions posted to /api/ai/query/edit. Matches D8 in spec. */
-export type ChipEditAction =
-  | { type: "remove_filter"; chipId: string; label: string }
-  | { type: "change_filter"; chipId: string; label: string; from: string; to: string }
-  | { type: "remove_column"; columnId: string; label: string }
-  | { type: "add_column"; label: string }
-  | { type: "change_sort"; column: string; direction: "asc" | "desc" }
-  | { type: "remove_sort" }
-  | { type: "change_limit"; from: number; to: number };
-
-/** Request shapes for the chat and edit routes. */
 export interface ChatRequest {
   message: string;
   conversationId?: string;
 }
 
-export interface EditRequest {
-  action: ChipEditAction;
-  conversationId: string;
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationInputTokens: number;
+  cacheReadInputTokens: number;
 }
 
-export interface ChatResponse {
-  conversationId: string;
-  messages: ChatMessage[];
+export type TurnEvent =
+  | {
+      kind: "model_call";
+      iteration: number;
+      stopReason: string | null;
+      usage: TokenUsage;
+      assistantText: string | null;
+      toolUses: Array<{ id: string; name: string; input: unknown }>;
+    }
+  | {
+      kind: "tool_result";
+      toolUseId: string;
+      toolName: string;
+      isError: boolean;
+      content: string;
+    };
+
+export const ZERO_USAGE: TokenUsage = {
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheCreationInputTokens: 0,
+  cacheReadInputTokens: 0,
+};
+
+export function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
+  return {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cacheCreationInputTokens: a.cacheCreationInputTokens + b.cacheCreationInputTokens,
+    cacheReadInputTokens: a.cacheReadInputTokens + b.cacheReadInputTokens,
+  };
 }
 
 export const MAX_LIMIT = 500;

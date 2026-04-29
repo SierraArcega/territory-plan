@@ -14,6 +14,8 @@ export interface ChatTurnResult {
   } | null;
 }
 
+export type { ChatRequest, QuerySummary };
+
 export function useChatTurn() {
   return useMutation<ChatTurnResult, Error, ChatRequest>({
     mutationFn: async (body) => {

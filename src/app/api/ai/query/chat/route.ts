@@ -41,6 +41,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       question: body.message,
       sql: result.sql,
       summary: result.summary,
+      assistantText: result.assistantText,
+      events: result.events,
+      usage: result.usage,
       rowCount: result.rowCount,
       executionTimeMs: result.executionTimeMs,
     });
@@ -49,6 +52,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userId: user.id,
       conversationId,
       question: body.message,
+      assistantText: result.text,
+      events: result.events,
+      usage: result.usage,
       error: result.text,
     });
   }

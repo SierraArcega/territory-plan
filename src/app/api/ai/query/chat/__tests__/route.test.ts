@@ -15,12 +15,14 @@ vi.mock("@/features/reports/lib/agent/agent-loop", () => ({
   runAgentLoop: vi.fn(async () => ({
     kind: "result",
     sql: "SELECT 1 LIMIT 100",
-    summary: { source: "x", filters: [], columns: [{ id: "c1", label: "a" }], sort: null, limit: 100 },
+    summary: { source: "Test query" },
     columns: ["a"],
     rows: [{ a: 1 }],
     rowCount: 1,
     executionTimeMs: 5,
     assistantText: "",
+    events: [],
+    usage: { inputTokens: 10, outputTokens: 5, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
   })),
 }));
 
@@ -47,5 +49,6 @@ describe("POST /api/ai/query/chat", () => {
     const json = await res.json();
     expect(json.conversationId).toBeTruthy();
     expect(json.result.rows).toBeDefined();
+    expect(json.result.summary.source).toBe("Test query");
   });
 });

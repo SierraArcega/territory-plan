@@ -47,6 +47,7 @@ export function useRunSavedReport() {
   return useMutation<
     {
       summary: QuerySummary;
+      sql: string;
       columns: string[];
       rows: Array<Record<string, unknown>>;
       rowCount: number;

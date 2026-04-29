@@ -91,7 +91,7 @@ const sampleRows: Anthropic.Tool = {
 const runSql: Anthropic.Tool = {
   name: RUN_SQL_TOOL_NAME,
   description:
-    "TERMINAL. Execute the final query and send results to the user. Include a summary that describes the query in rep-friendly language (never show SQL to the user). Only call this once per turn — after this, the turn ends.",
+    "TERMINAL. Execute the final query and send results to the user. Include a one-line `summary.source` describing the query in rep-friendly language (never show SQL to the user). Only call this once per turn — after this, the turn ends.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -103,51 +103,15 @@ const runSql: Anthropic.Tool = {
       summary: {
         type: "object",
         description:
-          "Rep-friendly description of the query that will render as chips. Filter values must match what the SQL actually filters on.",
+          "One-line rep-friendly description of the query, shown as a header above the results table.",
         properties: {
           source: {
             type: "string",
             description:
-              "One-line description of what's being queried, e.g. 'Districts with closed-won contracts'.",
+              "One-line description of what's being queried and any constraints, e.g. 'Open-pipeline opportunities stuck > 90 days in current stage' or 'Texas districts with closed-won FY26 contracts'.",
           },
-          filters: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string", description: "Stable short id, e.g. 'f1', 'f2'." },
-                label: { type: "string", description: "Filter label, e.g. 'State'." },
-                value: { type: "string", description: "Filter value, e.g. 'Texas'." },
-                operator: {
-                  type: "string",
-                  description: "Optional, e.g. '>' for 'Bookings > $50,000'.",
-                },
-              },
-              required: ["id", "label", "value"],
-            },
-          },
-          columns: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                label: { type: "string" },
-              },
-              required: ["id", "label"],
-            },
-          },
-          sort: {
-            type: ["object", "null"],
-            properties: {
-              column: { type: "string" },
-              direction: { type: "string", enum: ["asc", "desc"] },
-            },
-            required: ["column", "direction"],
-          } as unknown as Anthropic.Tool["input_schema"],
-          limit: { type: "integer", minimum: 1, maximum: 500 },
         },
-        required: ["source", "filters", "columns", "limit"],
+        required: ["source"],
       },
     },
     required: ["sql", "summary"],

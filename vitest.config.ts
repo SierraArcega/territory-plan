@@ -8,7 +8,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
-    exclude: ["node_modules", "e2e", "e2e/**", "playwright.config.ts"],
+    exclude: ["node_modules", "e2e", "e2e/**", "playwright.config.ts", ".claude/**"],
     css: true,
   },
   resolve: {

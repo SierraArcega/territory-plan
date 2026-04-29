@@ -48,6 +48,8 @@ function makeScriptedAnthropic(responses: Array<unknown>) {
 
 import { runAgentLoop } from "../agent-loop";
 
+const summary: QuerySummary = { source: "Districts" };
+
 describe("runAgentLoop", () => {
   it("terminates on text-only response (clarifying question)", async () => {
     const anthropic = makeScriptedAnthropic([
@@ -69,16 +71,10 @@ describe("runAgentLoop", () => {
   });
 
   it("terminates on run_sql tool call", async () => {
-    const summary: QuerySummary = {
-      source: "Districts",
-      filters: [{ id: "f1", label: "State", value: "Texas" }],
-      columns: [{ id: "c1", label: "a" }],
-      sort: null,
-      limit: 100,
-    };
     const anthropic = makeScriptedAnthropic([
       {
         stop_reason: "tool_use",
+        usage: { input_tokens: 100, output_tokens: 50, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
         content: [
           {
             type: "tool_use",
@@ -98,14 +94,82 @@ describe("runAgentLoop", () => {
     expect(result.kind).toBe("result");
   });
 
+  it("captures token usage and events on a result turn", async () => {
+    const anthropic = makeScriptedAnthropic([
+      {
+        stop_reason: "tool_use",
+        usage: {
+          input_tokens: 1200,
+          output_tokens: 300,
+          cache_creation_input_tokens: 8000,
+          cache_read_input_tokens: 0,
+        },
+        content: [
+          { type: "text", text: "Looking up Texas." },
+          {
+            type: "tool_use",
+            id: "t1",
+            name: "run_sql",
+            input: { sql: "SELECT a FROM districts WHERE state='Texas' LIMIT 100", summary },
+          },
+        ],
+      },
+    ]);
+    const result = await runAgentLoop({
+      anthropic: anthropic as never,
+      userMessage: "Texas districts",
+      priorTurns: [],
+      userId: "u1",
+    });
+    expect(result.kind).toBe("result");
+    expect(result.usage.inputTokens).toBe(1200);
+    expect(result.usage.outputTokens).toBe(300);
+    expect(result.usage.cacheCreationInputTokens).toBe(8000);
+    expect(result.usage.cacheReadInputTokens).toBe(0);
+    // 1 model_call + 1 tool_result for the run_sql ok path
+    expect(result.events.length).toBe(2);
+    expect(result.events[0]!.kind).toBe("model_call");
+    expect(result.events[1]!.kind).toBe("tool_result");
+  });
+
+  it("sums token usage across multiple iterations", async () => {
+    const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
+    vi.mocked(runSqlMod.handleRunSql).mockResolvedValue({
+      kind: "ok",
+      sql: "SELECT a FROM districts LIMIT 100",
+      summary,
+      columns: ["a"],
+      rows: [{ a: 1 }],
+      rowCount: 1,
+      executionTimeMs: 5,
+    });
+    const anthropic = makeScriptedAnthropic([
+      {
+        stop_reason: "tool_use",
+        usage: { input_tokens: 100, output_tokens: 50, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+        content: [{ type: "tool_use", id: "e1", name: "list_tables", input: {} }],
+      },
+      {
+        stop_reason: "tool_use",
+        usage: { input_tokens: 200, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 100 },
+        content: [
+          { type: "tool_use", id: "e2", name: "run_sql", input: { sql: "SELECT a FROM districts LIMIT 100", summary } },
+        ],
+      },
+    ]);
+    const result = await runAgentLoop({
+      anthropic: anthropic as never,
+      userMessage: "Districts",
+      priorTurns: [],
+      userId: "u1",
+    });
+    expect(result.kind).toBe("result");
+    expect(result.usage.inputTokens).toBe(300);
+    expect(result.usage.outputTokens).toBe(110);
+    expect(result.usage.cacheReadInputTokens).toBe(100);
+  });
+
   it("retries up to 2x on run_sql error, then surrenders", async () => {
-    const badSummary: QuerySummary = {
-      source: "Districts",
-      filters: [],
-      columns: [{ id: "c1", label: "a" }],
-      sort: null,
-      limit: 100,
-    };
     const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
     const handleSpy = vi.mocked(runSqlMod.handleRunSql);
     handleSpy.mockResolvedValue({ kind: "error", message: 'column "x" does not exist' });
@@ -117,7 +181,7 @@ describe("runAgentLoop", () => {
           type: "tool_use",
           id: "t1",
           name: "run_sql",
-          input: { sql: "SELECT x FROM districts LIMIT 100", summary: badSummary },
+          input: { sql: "SELECT x FROM districts LIMIT 100", summary },
         },
       ],
     };
@@ -140,23 +204,16 @@ describe("runAgentLoop", () => {
   });
 
   it("validation_error feedback is surfaced distinctly and retry succeeds", async () => {
-    const validSummary: QuerySummary = {
-      source: "Districts",
-      filters: [],
-      columns: [{ id: "c1", label: "a" }],
-      sort: null,
-      limit: 100,
-    };
     const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
     vi.mocked(runSqlMod.handleRunSql)
       .mockResolvedValueOnce({
         kind: "validation_error",
-        errors: ["summary.columns has 2 entries but SQL SELECT has 3"],
+        errors: ["SQL is missing a LIMIT clause."],
       })
       .mockResolvedValueOnce({
         kind: "ok",
         sql: "SELECT a FROM districts LIMIT 100",
-        summary: validSummary,
+        summary,
         columns: ["a"],
         rows: [{ a: 1 }],
         rowCount: 1,
@@ -170,7 +227,7 @@ describe("runAgentLoop", () => {
           type: "tool_use",
           id: "t2",
           name: "run_sql",
-          input: { sql: "SELECT a FROM districts LIMIT 100", summary: validSummary },
+          input: { sql: "SELECT a FROM districts LIMIT 100", summary },
         },
       ],
     };
@@ -185,7 +242,6 @@ describe("runAgentLoop", () => {
     expect(result.kind).toBe("result");
     expect(runSqlMod.handleRunSql).toHaveBeenCalledTimes(2);
 
-    // The second call to anthropic.messages.create should have a tool_result with is_error: true
     const secondCallMessages = (anthropic.messages.create as ReturnType<typeof vi.fn>).mock.calls[1][0].messages as Array<{ role: string; content: unknown }>;
     const toolResultMsg = secondCallMessages.find(
       (m) => m.role === "user" && Array.isArray(m.content),
@@ -198,18 +254,11 @@ describe("runAgentLoop", () => {
   });
 
   it("exploratory-then-run_sql happy path", async () => {
-    const validSummary: QuerySummary = {
-      source: "Districts",
-      filters: [],
-      columns: [{ id: "c1", label: "a" }],
-      sort: null,
-      limit: 100,
-    };
     const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
     vi.mocked(runSqlMod.handleRunSql).mockResolvedValue({
       kind: "ok",
       sql: "SELECT a FROM districts LIMIT 100",
-      summary: validSummary,
+      summary,
       columns: ["a"],
       rows: [{ a: 1 }],
       rowCount: 1,
@@ -237,7 +286,7 @@ describe("runAgentLoop", () => {
             type: "tool_use",
             id: "e3",
             name: "run_sql",
-            input: { sql: "SELECT a FROM districts LIMIT 100", summary: validSummary },
+            input: { sql: "SELECT a FROM districts LIMIT 100", summary },
           },
         ],
       },
@@ -282,18 +331,11 @@ describe("runAgentLoop", () => {
   });
 
   it("mixed text+tool_use in one response is handled correctly", async () => {
-    const validSummary: QuerySummary = {
-      source: "Districts",
-      filters: [{ id: "f1", label: "State", value: "Texas" }],
-      columns: [{ id: "c1", label: "a" }],
-      sort: null,
-      limit: 100,
-    };
     const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
     vi.mocked(runSqlMod.handleRunSql).mockResolvedValue({
       kind: "ok",
       sql: "SELECT a FROM districts WHERE state='Texas' LIMIT 100",
-      summary: validSummary,
+      summary,
       columns: ["a"],
       rows: [{ a: 1 }],
       rowCount: 1,
@@ -311,7 +353,7 @@ describe("runAgentLoop", () => {
             name: "run_sql",
             input: {
               sql: "SELECT a FROM districts WHERE state='Texas' LIMIT 100",
-              summary: validSummary,
+              summary,
             },
           },
         ],

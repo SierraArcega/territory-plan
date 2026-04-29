@@ -30,6 +30,7 @@ export async function POST(
     });
     return NextResponse.json({
       summary: report.summary,
+      sql: report.sql,
       columns: res.fields?.map((f: { name: string }) => f.name) ?? [],
       rows: res.rows ?? [],
       rowCount: res.rowCount ?? 0,
