@@ -19,10 +19,10 @@ If 504s persist after this plan ships, the next plan should decouple `matchArtic
 **Working directory (IMPORTANT):** all work happens in the worktree, not the main checkout:
 
 ```
-/Users/sierraarcega/territory-plan/.claude/worktrees/vacancies-and-news
+/Users/sierraarcega/territory-plan/.claude/worktrees/news-stabilize
 ```
 
-Branch: `vacancies-and-news` (created fresh from `origin/main` at `4a76d081`).
+Branch: `fix/news-ingest-timeout` (off `vacancies-and-news`, which is itself off `origin/main` at `4a76d081`). The companion `fix/vacancy-scan-coverage` branch runs the parallel vacancy plan; the two branches don't share files and merge to main independently.
 
 **Verification tooling:** `psql "$DATABASE_URL"` for DB inspection (`DATABASE_URL` is in `.env.local`). `npm test` for Vitest. Production verification uses the Vercel and Supabase MCPs (the agent should ask the user to drive those if no MCP access).
 
@@ -53,11 +53,11 @@ No Prisma migration. No new cron routes. No new env vars.
 - [ ] **Step 1: `cd` into the worktree and confirm branch**
 
 ```bash
-cd /Users/sierraarcega/territory-plan/.claude/worktrees/vacancies-and-news
+cd /Users/sierraarcega/territory-plan/.claude/worktrees/news-stabilize
 git status
 ```
 
-Expected: `On branch vacancies-and-news` and a clean working tree.
+Expected: `On branch fix/news-ingest-timeout` and a clean working tree.
 
 - [ ] **Step 2: Make the change**
 
@@ -424,10 +424,10 @@ Expected: zero type errors; all tests pass.
 ```bash
 git status
 git log --oneline origin/main..HEAD
-git push -u origin vacancies-and-news
+git push -u origin fix/news-ingest-timeout
 ```
 
-Expected: status clean, ~6 commits ahead of origin/main, push succeeds.
+Expected: status clean, ~7 commits ahead of origin/main (6 from this plan + the plan-docs commit on `vacancies-and-news`), push succeeds.
 
 - [ ] **Step 3: Open the PR (or hand off to user)**
 
