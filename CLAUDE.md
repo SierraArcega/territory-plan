@@ -29,6 +29,7 @@ TanStack Query. Vitest for testing.
 - Fullmind brand — use tokens from `Documentation/UI Framework/tokens.md`
 - Never use Tailwind grays — use plum-derived neutrals (#F7F5FA, #EFEDF5)
 - Icons: Lucide only, `currentColor`, semantic sizing
+- **Narrow-width resilience** — every flex/grid containing text needs `whitespace-nowrap` on its text spans plus a planned overflow behavior (`overflow-x-auto`, `flex-wrap`, or vertical stack). Sidebars + right rails routinely squeeze the main column, so no chrome survives without it. See `Documentation/UI Framework/tokens.md` § Narrow-Width Resilience.
 
 ### Performance
 This is a daily-use tool for sales reps. It must feel smooth — no user action

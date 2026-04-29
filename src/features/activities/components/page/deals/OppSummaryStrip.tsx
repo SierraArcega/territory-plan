@@ -59,7 +59,7 @@ export default function OppSummaryStrip({
   const coldAmt = coldList.reduce((s, d) => s + (d.amount ?? 0), 0);
 
   return (
-    <div className="flex items-center gap-0 px-4 py-2.5 bg-[#FBF9FC] border border-[#E2DEEC] rounded-[10px]">
+    <div className="flex items-center gap-0 px-4 py-2.5 bg-[#FBF9FC] border border-[#E2DEEC] rounded-[10px] min-w-0 overflow-x-auto">
       {(scopeLabel || rangeLabel) && (
         <button
           type="button"
@@ -95,9 +95,9 @@ export default function OppSummaryStrip({
                 ? `No ${s.label.toLowerCase()} in range`
                 : `See ${n} ${s.label.toLowerCase()} ${n === 1 ? "deal" : "deals"} totaling ${formatMoney(amt)}`
             }
-            className="fm-focus-ring flex items-baseline gap-1.5 px-4 py-1.5 bg-transparent [transition-duration:120ms] transition-colors hover:enabled:bg-[#F2EFF7] disabled:opacity-55 disabled:cursor-default"
+            className="fm-focus-ring flex items-baseline gap-1.5 px-4 py-1.5 bg-transparent [transition-duration:120ms] transition-colors hover:enabled:bg-[#F2EFF7] disabled:opacity-55 disabled:cursor-default whitespace-nowrap flex-shrink-0"
             style={{
-              minWidth: 120,
+              minWidth: 160,
               borderLeft: i === 0 ? "none" : "1px solid #E2DEEC",
               cursor: disabled ? "default" : "pointer",
             }}
@@ -119,14 +119,14 @@ export default function OppSummaryStrip({
       })}
 
       {(overdueDeals.length > 0 || coldList.length > 0) && (
-        <div className="ml-auto flex items-center gap-2 pl-3">
+        <div className="ml-auto flex items-center gap-2 pl-3 flex-shrink-0">
           {overdueDeals.length > 0 && (
             <button
               type="button"
               onClick={() => onOpen("overdue")}
               title={`${overdueDeals.length} open ${overdueDeals.length === 1 ? "deal has" : "deals have"} a close date in the past`}
               aria-label={`See ${overdueDeals.length} past-due open ${overdueDeals.length === 1 ? "deal" : "deals"} totaling ${formatMoney(overdueAmt)}`}
-              className="fm-focus-ring flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF4E6] border border-[#F3B26A] cursor-pointer hover:bg-[#FFE9CC] hover:border-[#E09545] [transition-duration:120ms] transition-colors"
+              className="fm-focus-ring flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF4E6] border border-[#F3B26A] cursor-pointer hover:bg-[#FFE9CC] hover:border-[#E09545] [transition-duration:120ms] transition-colors whitespace-nowrap"
             >
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
@@ -137,7 +137,7 @@ export default function OppSummaryStrip({
                 {overdueDeals.length}
               </span>
               <span className="text-[11px] font-semibold text-[#8F5218]">
-                past-due close
+                Past due
               </span>
               <span className="text-[11px] font-semibold text-[#8F5218] tabular-nums opacity-70 pl-1 border-l border-[#8F521840]">
                 {formatMoney(overdueAmt)}
@@ -151,7 +151,7 @@ export default function OppSummaryStrip({
               onClick={() => onOpen("cold")}
               title={`${coldList.length} top ${coldList.length === 1 ? "district has" : "districts have"} had no logged activity in 21+ days`}
               aria-label={`See ${coldList.length} ${coldList.length === 1 ? "district" : "districts"} going cold totaling ${formatMoney(coldAmt)}`}
-              className="fm-focus-ring flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EEF3F7] border border-[#A9BFD0] cursor-pointer hover:bg-[#DCE6EF] hover:border-[#8AA4BB] [transition-duration:120ms] transition-colors"
+              className="fm-focus-ring flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EEF3F7] border border-[#A9BFD0] cursor-pointer hover:bg-[#DCE6EF] hover:border-[#8AA4BB] [transition-duration:120ms] transition-colors whitespace-nowrap"
             >
               <Snowflake
                 className="w-3 h-3 flex-shrink-0"

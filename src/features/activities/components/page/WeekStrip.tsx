@@ -1,6 +1,7 @@
 "use client";
 
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
+import { Briefcase, CalendarCheck2 } from "lucide-react";
 import type { ActivityCategory } from "@/features/activities/types";
 import type { DealKind } from "@/features/activities/lib/filters-store";
 
@@ -60,7 +61,7 @@ export default function WeekStrip({
             key={i}
             type="button"
             onClick={() => onDayClick?.(date)}
-            className={`flex flex-col gap-1.5 px-3 py-2.5 rounded-[10px] text-left transition-all duration-120 min-h-[82px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F37167] focus-visible:ring-offset-2 ${
+            className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-[10px] text-center transition-all duration-120 min-h-[82px] min-w-0 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F37167] focus-visible:ring-offset-2 ${
               isSelected
                 ? "bg-white border-[1.5px] border-[#403770] shadow-[0_2px_6px_rgba(64,55,112,0.08)]"
                 : isToday
@@ -68,7 +69,7 @@ export default function WeekStrip({
                   : "bg-white border border-[#E2DEEC] hover:border-[#C2BBD4]"
             }`}
           >
-            <div className="flex items-baseline justify-between">
+            <div className="flex flex-col items-center leading-none">
               <span
                 className={`text-[10px] uppercase tracking-[0.06em] font-semibold ${
                   isToday ? "text-[#F37167]" : "text-[#8A80A8]"
@@ -76,7 +77,7 @@ export default function WeekStrip({
               >
                 {format(date, "EEE")}
               </span>
-              <span className="text-lg font-bold text-[#403770] tabular-nums leading-none">
+              <span className="mt-0.5 text-lg font-bold text-[#403770] tabular-nums leading-none">
                 {format(date, "d")}
               </span>
             </div>
@@ -85,7 +86,7 @@ export default function WeekStrip({
               <span className="text-[10px] text-[#A69DC0] font-medium">No items</span>
             ) : (
               <>
-                <div className="flex items-center gap-[3px]">
+                <div className="flex items-center justify-center gap-[3px]">
                   {cats.slice(0, 4).map((c) => (
                     <span
                       key={c}
@@ -104,19 +105,30 @@ export default function WeekStrip({
                     />
                   ))}
                 </div>
-                <div className="text-[11px] font-semibold text-[#544A78] tabular-nums">
+                <div
+                  className="text-[11px] font-semibold tabular-nums leading-tight whitespace-nowrap flex flex-col items-center gap-0.5"
+                  aria-label={[
+                    itemCount > 0
+                      ? `${itemCount} ${itemCount === 1 ? "item" : "items"}`
+                      : null,
+                    dealCount > 0
+                      ? `${dealCount} deal${dealCount === 1 ? "" : "s"}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                >
                   {itemCount > 0 && (
-                    <span>
-                      {itemCount} {itemCount === 1 ? "item" : "items"}
-                    </span>
-                  )}
-                  {itemCount > 0 && dealCount > 0 && (
-                    <span className="text-[#C2BBD4]"> · </span>
+                    <div className="text-[#544A78] inline-flex items-center gap-1">
+                      <CalendarCheck2 className="w-2.5 h-2.5" aria-hidden />
+                      {itemCount}
+                    </div>
                   )}
                   {dealCount > 0 && (
-                    <span className="text-[#403770]">
-                      {dealCount} deal{dealCount === 1 ? "" : "s"}
-                    </span>
+                    <div className="text-[#403770] inline-flex items-center gap-1">
+                      <Briefcase className="w-2.5 h-2.5" aria-hidden />
+                      {dealCount}
+                    </div>
                   )}
                 </div>
               </>

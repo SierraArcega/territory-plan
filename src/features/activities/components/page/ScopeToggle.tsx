@@ -39,7 +39,7 @@ export default function ScopeToggle({ scope, onChange, className }: ScopeToggleP
             aria-checked={active}
             onClick={() => onChange(o.id)}
             className={cn(
-              "fm-focus-ring px-3 py-1.5 text-xs rounded-md transition-all duration-[120ms] ease-out",
+              "fm-focus-ring px-3 py-1.5 text-xs rounded-md transition-all duration-[120ms] ease-out whitespace-nowrap",
               "inline-flex items-center gap-1.5",
               active
                 ? "bg-[#403770] text-white font-semibold"
