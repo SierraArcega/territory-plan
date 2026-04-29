@@ -2434,23 +2434,6 @@ export const USER_PROFILE_COLUMNS: ColumnMetadata[] = [
   { field: "lastLoginAt", column: "last_login_at", label: "Last Login At", description: "Last session timestamp.", domain: "crm", format: "date", source: "user", queryable: true },
 ];
 
-/** user_goals — per-user fiscal-year targets; pair with district_opportunity_actuals for attainment */
-export const USER_GOAL_COLUMNS: ColumnMetadata[] = [
-  { field: "id", column: "id", label: "ID", description: "PK (autoincrement).", domain: "crm", format: "integer", source: "user", queryable: true },
-  { field: "userId", column: "user_id", label: "User ID", description: "FK to user_profiles.id.", domain: "crm", format: "text", source: "user", queryable: true },
-  { field: "fiscalYear", column: "fiscal_year", label: "Fiscal Year", description: "Numeric FY (2025, 2026, 2027).", domain: "crm", format: "year", source: "user", queryable: true },
-  { field: "earningsTarget", column: "earnings_target", label: "Earnings Target", description: "Rep's personal earnings goal for the FY.", domain: "crm", format: "currency", source: "user", queryable: true },
-  { field: "takeRatePercent", column: "take_rate_percent", label: "Take Rate %", description: "Target take rate as percentage.", domain: "crm", format: "percentage", source: "user", queryable: true },
-  { field: "renewalTarget", column: "renewal_target", label: "Renewal Target", description: "Target bookings for renewals.", domain: "crm", format: "currency", source: "user", queryable: true },
-  { field: "winbackTarget", column: "winback_target", label: "Winback Target", description: "Target bookings for winbacks.", domain: "crm", format: "currency", source: "user", queryable: true },
-  { field: "expansionTarget", column: "expansion_target", label: "Expansion Target", description: "Target bookings for expansions.", domain: "crm", format: "currency", source: "user", queryable: true },
-  { field: "newBusinessTarget", column: "new_business_target", label: "New Business Target", description: "Target bookings for new business.", domain: "crm", format: "currency", source: "user", queryable: true },
-  { field: "takeTarget", column: "take_target", label: "Take Target", description: "Target take (Fullmind margin) for the FY.", domain: "crm", format: "currency", source: "user", queryable: true },
-  { field: "newDistrictsTarget", column: "new_districts_target", label: "New Districts Target", description: "Target count of net-new districts.", domain: "crm", format: "integer", source: "user", queryable: true },
-  { field: "createdAt", column: "created_at", label: "Created At", description: "Record creation timestamp.", domain: "crm", format: "date", source: "user", queryable: true },
-  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "crm", format: "date", source: "user", queryable: true },
-];
-
 /** tasks — rep to-do items; kanban status + priority */
 export const TASK_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "Task ID", description: "UUID PK.", domain: "task", format: "text", source: "user", queryable: true },
@@ -3016,14 +2999,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
       "Fullmind teammates. The canonical user table — join target for plan owners, task assignees, district owners, state owners, school owners, and the email side of opportunities.sales_rep_email. Match opportunities.sales_rep_email → user_profiles.email to go from an opp to its rep's profile.",
     primaryKey: "id",
     columns: USER_PROFILE_COLUMNS,
-    relationships: [
-      {
-        toTable: "user_goals",
-        type: "one-to-many",
-        joinSql: "user_goals.user_id = user_profiles.id",
-        description: "Per-FY goals for this user",
-      },
-    ],
+    relationships: [],
   },
 
 
@@ -3547,7 +3523,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "opportunity_snapshots",
     "unmatched_accounts",
     "unmatched_opportunities",
-    "user_goals",
     "user_integrations",
     "vacancy_keyword_config",
     "vacancy_scans",
