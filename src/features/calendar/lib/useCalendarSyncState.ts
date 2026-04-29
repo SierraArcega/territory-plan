@@ -34,9 +34,11 @@ export function deriveSyncState(
   const lastSyncAt = data.connection.lastSyncAt
     ? new Date(data.connection.lastSyncAt).getTime()
     : null;
-  const pendingCount = data.pendingCount ?? 0;
 
-  if (pendingCount > 0) return "stale";
+  // pendingCount (events waiting in the inbox for the rep to log) is NOT a
+  // sync-staleness signal. The badge tracks "is the sync running and recent",
+  // not "have you cleaned out your inbox". Pending counts are surfaced
+  // separately in the popover with a link to the Feed tab.
   if (lastSyncAt == null) return "stale";
   if (now - lastSyncAt > staleMs) return "stale";
 

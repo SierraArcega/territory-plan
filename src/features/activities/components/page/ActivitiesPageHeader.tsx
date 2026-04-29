@@ -12,6 +12,7 @@ interface ActivitiesPageHeaderProps {
   onNewActivity: () => void;
   scope: ActivityScope;
   onScopeChange: (scope: ActivityScope) => void;
+  onReviewPending?: () => void;
 }
 
 export default function ActivitiesPageHeader({
@@ -19,6 +20,7 @@ export default function ActivitiesPageHeader({
   onNewActivity,
   scope,
   onScopeChange,
+  onReviewPending,
 }: ActivitiesPageHeaderProps) {
   const view = useActivitiesChrome((s) => s.view);
   const grain = useActivitiesChrome((s) => s.grain);
@@ -39,7 +41,7 @@ export default function ActivitiesPageHeader({
 
         <div className="flex items-center gap-2">
           <ScopeToggle scope={scope} onChange={onScopeChange} />
-          <CalendarSyncBadge />
+          <CalendarSyncBadge onReviewPending={onReviewPending} />
           <ViewToggle
             view={view}
             grain={grain}

@@ -20,6 +20,7 @@ import WeekGridView from "./WeekGridView";
 import MapTimeView from "./MapTimeView";
 import UpcomingRail from "./UpcomingRail";
 import ActivityDetailDrawer from "./ActivityDetailDrawer";
+import BackfillSetupModal from "@/features/calendar/components/backfill/BackfillSetupModal";
 import type { ActivityScope } from "./ScopeToggle";
 
 /**
@@ -45,6 +46,7 @@ export default function ActivitiesPageShell() {
   const [openActivityId, setOpenActivityId] = useState<string | null>(null);
   const [creatingActivity, setCreatingActivity] = useState(false);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [pendingModalOpen, setPendingModalOpen] = useState(false);
   useCommandBarHotkey(setCommandBarOpen);
 
   const params = useMemo(
@@ -96,6 +98,7 @@ export default function ActivitiesPageShell() {
         onNewActivity={() => setCreatingActivity(true)}
         scope={scope}
         onScopeChange={onScopeChange}
+        onReviewPending={() => setPendingModalOpen(true)}
       />
       <SavedViewTabs currentUserId={profile?.id ?? null} />
       <ActivitiesFilterChips onOpenCommandBar={() => setCommandBarOpen(true)} />
@@ -140,6 +143,11 @@ export default function ActivitiesPageShell() {
       )}
 
       <CommandBar open={commandBarOpen} onClose={() => setCommandBarOpen(false)} />
+      <BackfillSetupModal
+        isOpen={pendingModalOpen}
+        onClose={() => setPendingModalOpen(false)}
+        initialStep="wizard"
+      />
     </div>
   );
 }

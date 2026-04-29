@@ -28,9 +28,8 @@ export async function POST() {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Calendar sync error:", error);
-    return NextResponse.json(
-      { error: "Failed to sync calendar" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to sync calendar";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

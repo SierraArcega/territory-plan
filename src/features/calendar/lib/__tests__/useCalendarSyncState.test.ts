@@ -64,10 +64,14 @@ describe("deriveSyncState", () => {
     expect(deriveSyncState(buildStatus({ lastSyncAt: old }), NOW)).toBe("stale");
   });
 
-  it("returns 'stale' when pendingCount > 0 even if last sync is recent", () => {
-    expect(
-      deriveSyncState(buildStatus({ pendingCount: 3 }), NOW)
-    ).toBe("stale");
+  it("stays 'connected' when sync is recent, even with pending events to review", () => {
+    // pendingCount means "events synced from Google but not yet logged into
+    // Activities" — that's a separate inbox concept, not a sync-staleness
+    // signal. The badge should not flip to Stale just because the rep hasn't
+    // reviewed their inbox yet.
+    expect(deriveSyncState(buildStatus({ pendingCount: 3 }), NOW)).toBe(
+      "connected"
+    );
   });
 
   it("returns 'stale' when lastSyncAt is null", () => {
