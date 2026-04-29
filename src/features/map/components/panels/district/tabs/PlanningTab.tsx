@@ -177,7 +177,6 @@ function PlanAccordionContent({ planId, leaid }: { planId: string; leaid: string
             (planDistrict.expansionTarget || 0) +
             (planDistrict.newBusinessTarget || 0)
           }
-          goalTakeRatePercent={null}
         />
       </div>
     </div>

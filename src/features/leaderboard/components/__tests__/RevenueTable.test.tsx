@@ -8,8 +8,6 @@ import type { LeaderboardEntry } from "../../lib/types";
 const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string }): LeaderboardEntry => ({
   userId: crypto.randomUUID(),
   avatarUrl: null,
-  totalPoints: 0,
-  tier: "freshman",
   rank: 1,
   take: 0,
   pipeline: 0,
@@ -24,9 +22,6 @@ const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string }):
   revenueTargeted: 0,
   targetedCurrentFY: 0,
   targetedNextFY: 0,
-  combinedScore: 0,
-  initiativeScore: 0,
-  pointBreakdown: [],
   ...overrides,
 });
 
@@ -81,8 +76,6 @@ describe("RevenueTable", () => {
 describe("RevenueTable team totals footer", () => {
   const baseEntry = makeEntry({
     fullName: "Alex Rep",
-    totalPoints: 100,
-    tier: "honor_roll",
     rank: 1,
     pipeline: 1_000_000,
     pipelineCurrentFY: 600_000,
@@ -92,8 +85,6 @@ describe("RevenueTable team totals footer", () => {
     revenueTargeted: 2_000_000,
     targetedCurrentFY: 1_200_000,
     targetedNextFY: 800_000,
-    combinedScore: 80,
-    initiativeScore: 80,
   });
 
   const baseTotals: RevenueTableTotals = {

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import RangeFilter, { formatCompact } from "./controls/RangeFilter";
+import RangeFilter from "./controls/RangeFilter";
 import ToggleChips from "./controls/ToggleChips";
 import FilterSelect from "./controls/FilterSelect";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
@@ -93,9 +93,9 @@ export default function FullmindDropdown({ onClose }: FullmindDropdownProps) {
           />
         )}
 
-        <RangeFilter label={`${fyLabel} Pipeline Value`} column={`${selectedFY}_open_pipeline_value`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={(col, lo, hi) => addFilter(col, "between", [lo, hi])} />
-        <RangeFilter label={`${fyLabel} Bookings`} column={`${selectedFY}_closed_won_net_booking`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={(col, lo, hi) => addFilter(col, "between", [lo, hi])} />
-        <RangeFilter label={`${fyLabel} Invoicing`} column={`${selectedFY}_net_invoicing`} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={(col, lo, hi) => addFilter(col, "between", [lo, hi])} />
+        <RangeFilter label={`${fyLabel} Pipeline Value`} column={`${selectedFY}_open_pipeline_value`} min={0} max={500000} step={5000} prefix="$" onApply={(col, lo, hi) => addFilter(col, "between", [lo, hi])} />
+        <RangeFilter label={`${fyLabel} Bookings`} column={`${selectedFY}_closed_won_net_booking`} min={0} max={500000} step={5000} prefix="$" onApply={(col, lo, hi) => addFilter(col, "between", [lo, hi])} />
+        <RangeFilter label={`${fyLabel} Invoicing`} column={`${selectedFY}_net_invoicing`} min={0} max={500000} step={5000} prefix="$" onApply={(col, lo, hi) => addFilter(col, "between", [lo, hi])} />
 
         {plans.length > 0 && (
           <FilterMultiSelect

@@ -129,6 +129,10 @@ model District {
   jobBoardUrl      String? @map("job_board_url") @db.VarChar(1000)
   jobBoardPlatform String? @map("job_board_platform") @db.VarChar(50)
 
+  // ===== Vacancy Scan Health (cron-side filtering) =====
+  vacancyConsecutiveFailures Int       @default(0) @map("vacancy_consecutive_failures")
+  vacancyLastFailureAt       DateTime? @map("vacancy_last_failure_at")
+
   // ===== User Edits =====
   // Source: App users (shared across team)
   notes          String?
@@ -1002,35 +1006,6 @@ model MapView {
   @@map("map_views")
 }
 
-// User goals by fiscal year - tracks revenue, margin, pipeline, and new district targets
-// One row per user per fiscal year (e.g., FY26, FY27)
-model UserGoal {
-  id         Int    @id @default(autoincrement())
-  userId     String @map("user_id") @db.Uuid
-  fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
-
-  // Target values
-  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2)
-  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2)
-  // Four business-category targets
-  renewalTarget      Decimal? @map("renewal_target") @db.Decimal(15, 2)
-  winbackTarget      Decimal? @map("winback_target") @db.Decimal(15, 2)
-  expansionTarget    Decimal? @map("expansion_target") @db.Decimal(15, 2)
-  newBusinessTarget  Decimal? @map("new_business_target") @db.Decimal(15, 2)
-  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
-  newDistrictsTarget Int?     @map("new_districts_target")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relation to user profile
-  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, fiscalYear]) // One goal record per user per fiscal year
-  @@index([userId])
-  @@map("user_goals")
-}
-
 // ===== Task Tracking System =====
 // Tasks can be standalone or linked to any combination of districts, plans, activities, and contacts
 // Supports kanban board workflow with drag-and-drop reordering
@@ -1377,6 +1352,32 @@ model Opportunity {
   @@index([districtLeaId, schoolYr, stage])
   @@index([stateFips])
   @@map("opportunities")
+}
+
+// Daily snapshot of every opportunity's key fields. Written by the
+// /api/cron/pipeline-snapshot route. Lets us answer "what did pipeline look
+// like N days ago" without replaying the audit log. One row per opp per
+// snapshot_date; unique constraint prevents duplicates within a single day.
+model OpportunitySnapshot {
+  id                    BigInt    @id @default(autoincrement())
+  snapshotDate          DateTime  @map("snapshot_date") @db.Date
+  opportunityId         String    @map("opportunity_id") @db.Text
+  stage                 String?   @db.Text
+  netBookingAmount      Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  minimumPurchaseAmount Decimal?  @map("minimum_purchase_amount") @db.Decimal(15, 2)
+  maximumBudget         Decimal?  @map("maximum_budget") @db.Decimal(15, 2)
+  schoolYr              String?   @map("school_yr") @db.Text
+  salesRepId            String?   @map("sales_rep_id") @db.Uuid
+  districtLeaId         String?   @map("district_lea_id") @db.VarChar(7)
+  closeDate             DateTime? @map("close_date") @db.Timestamptz
+  expiration            DateTime? @map("expiration") @db.Timestamptz
+  capturedAt            DateTime  @default(now()) @map("captured_at") @db.Timestamptz
+
+  @@unique([opportunityId, snapshotDate])
+  @@index([snapshotDate])
+  @@index([schoolYr, snapshotDate])
+  @@index([opportunityId])
+  @@map("opportunity_snapshots")
 }
 
 // ===== Sessions =====

@@ -9,18 +9,9 @@ interface RangeFilterProps {
   min: number;
   max: number;
   step?: number;
-  formatValue?: (v: number) => string;
+  prefix?: string;
+  suffix?: string;
   onApply: (column: string, min: number, max: number) => void;
-}
-
-export function formatCompact(v: number): string {
-  const abs = Math.abs(v);
-  if (abs >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (abs >= 10_000) return `${Math.round(v / 1_000)}K`;
-  if (abs >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
-  if (Number.isInteger(v)) return String(v);
-  return v.toFixed(1);
 }
 
 const thumbCls = [
@@ -57,7 +48,8 @@ export default function RangeFilter({
   min,
   max,
   step = 1,
-  formatValue = formatCompact,
+  prefix,
+  suffix,
   onApply,
 }: RangeFilterProps) {
   const searchFilters = useMapV2Store((s) => s.searchFilters);
@@ -72,19 +64,22 @@ export default function RangeFilter({
 
   const [lo, setLo] = useState(existingValues ? existingValues[0] : min);
   const [hi, setHi] = useState(existingValues ? existingValues[1] : max);
+  const [loInput, setLoInput] = useState(String(existingValues ? existingValues[0] : min));
+  const [hiInput, setHiInput] = useState(String(existingValues ? existingValues[1] : max));
+  const [loFocused, setLoFocused] = useState(false);
+  const [hiFocused, setHiFocused] = useState(false);
   const applyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const filterRef = useRef(existingFilter);
   filterRef.current = existingFilter;
 
-  // Sync when filter changes externally (cleared from pills, etc.)
+  // Sync when filter changes externally (cleared from pills, etc.) or when slider moves while inputs aren't focused.
   useEffect(() => {
-    if (existingValues) {
-      setLo(existingValues[0]);
-      setHi(existingValues[1]);
-    } else {
-      setLo(min);
-      setHi(max);
-    }
+    const nextLo = existingValues ? existingValues[0] : min;
+    const nextHi = existingValues ? existingValues[1] : max;
+    setLo(nextLo);
+    setHi(nextHi);
+    if (!loFocused) setLoInput(String(nextLo));
+    if (!hiFocused) setHiInput(String(nextHi));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingFilter?.id, existingValues?.[0], existingValues?.[1], min, max]);
 
@@ -101,16 +96,75 @@ export default function RangeFilter({
     }, 300);
   };
 
-  const handleLo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const applyImmediate = (newLo: number, newHi: number) => {
+    clearTimeout(applyTimer.current);
+    if (newLo === min && newHi === max) {
+      if (filterRef.current) removeSearchFilter(filterRef.current.id);
+    } else {
+      onApply(column, newLo, newHi);
+    }
+  };
+
+  const handleSliderLo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Math.min(Number(e.target.value), hi);
     setLo(v);
+    if (!loFocused) setLoInput(String(v));
     scheduleApply(v, hi);
   };
 
-  const handleHi = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSliderHi = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Math.max(Number(e.target.value), lo);
     setHi(v);
+    if (!hiFocused) setHiInput(String(v));
     scheduleApply(lo, v);
+  };
+
+  const parseTyped = (raw: string): number | null => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return null;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return null;
+    return step < 1 ? n : Math.round(n);
+  };
+
+  const commitLo = () => {
+    const parsed = parseTyped(loInput);
+    if (parsed === null) {
+      setLoInput(String(lo));
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, parsed));
+    let nextLo = clamped;
+    let nextHi = hi;
+    if (clamped > hi) {
+      nextLo = hi;
+      nextHi = clamped;
+    }
+    setLo(nextLo);
+    setHi(nextHi);
+    setLoInput(String(nextLo));
+    setHiInput(String(nextHi));
+    applyImmediate(nextLo, nextHi);
+  };
+
+  const commitHi = () => {
+    const parsed = parseTyped(hiInput);
+    if (parsed === null) {
+      setHiInput(String(hi));
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, parsed));
+    let nextLo = lo;
+    let nextHi = clamped;
+    if (clamped < lo) {
+      nextLo = clamped;
+      nextHi = lo;
+    }
+    setLo(nextLo);
+    setHi(nextHi);
+    setLoInput(String(nextLo));
+    setHiInput(String(nextHi));
+    applyImmediate(nextLo, nextHi);
   };
 
   const handleRemove = () => {
@@ -121,6 +175,20 @@ export default function RangeFilter({
   const range = max - min || 1;
   const loPC = ((lo - min) / range) * 100;
   const hiPC = ((hi - min) / range) * 100;
+  const inputMode = step < 1 ? "decimal" : "numeric";
+
+  const inputCls = [
+    "w-16 px-1.5 py-0.5 text-[10px] tabular-nums rounded",
+    "bg-transparent border border-transparent",
+    "hover:border-[#D4CFE2]",
+    "focus:outline-none focus:ring-1 focus:ring-plum/30 focus:border-plum/30",
+    isActive ? "text-plum font-medium" : "text-[#A69DC0]",
+  ].join(" ");
+
+  const adornmentCls = [
+    "text-[10px] tabular-nums",
+    isActive ? "text-plum font-medium" : "text-[#A69DC0]",
+  ].join(" ");
 
   return (
     <div
@@ -146,7 +214,7 @@ export default function RangeFilter({
         )}
       </div>
 
-      {/* Dual-thumb range slider */}
+      {/* Slider step bounds drag granularity; typed input bypasses step. */}
       <div className="relative h-5 flex items-center">
         <div className="absolute inset-x-0 h-1 rounded-full bg-[#E2DEEC]" />
         <div
@@ -161,7 +229,8 @@ export default function RangeFilter({
           max={max}
           step={step}
           value={lo}
-          onChange={handleLo}
+          onChange={handleSliderLo}
+          aria-label={`${label} slider minimum`}
           className={`${thumbCls} z-10`}
         />
         <input
@@ -170,27 +239,71 @@ export default function RangeFilter({
           max={max}
           step={step}
           value={hi}
-          onChange={handleHi}
+          onChange={handleSliderHi}
+          aria-label={`${label} slider maximum`}
           className={`${thumbCls} z-20`}
         />
       </div>
 
-      {/* Value labels */}
-      <div className="flex justify-between">
-        <span
-          className={`text-[10px] tabular-nums ${
-            isActive ? "text-plum font-medium" : "text-[#A69DC0]"
-          }`}
-        >
-          {formatValue(lo)}
-        </span>
-        <span
-          className={`text-[10px] tabular-nums ${
-            isActive ? "text-plum font-medium" : "text-[#A69DC0]"
-          }`}
-        >
-          {formatValue(hi)}
-        </span>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-0.5">
+          {prefix && <span className={adornmentCls}>{prefix}</span>}
+          <input
+            type="text"
+            inputMode={inputMode}
+            value={loInput}
+            aria-label={`${label} minimum`}
+            placeholder={String(min)}
+            onChange={(e) => setLoInput(e.target.value)}
+            onFocus={(e) => {
+              setLoFocused(true);
+              e.currentTarget.select();
+            }}
+            onBlur={() => {
+              setLoFocused(false);
+              commitLo();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              } else if (e.key === "Escape") {
+                setLoInput(String(lo));
+                e.currentTarget.blur();
+              }
+            }}
+            className={inputCls}
+          />
+          {suffix && <span className={adornmentCls}>{suffix}</span>}
+        </div>
+        <div className="flex items-center gap-0.5">
+          {prefix && <span className={adornmentCls}>{prefix}</span>}
+          <input
+            type="text"
+            inputMode={inputMode}
+            value={hiInput}
+            aria-label={`${label} maximum`}
+            placeholder={String(max)}
+            onChange={(e) => setHiInput(e.target.value)}
+            onFocus={(e) => {
+              setHiFocused(true);
+              e.currentTarget.select();
+            }}
+            onBlur={() => {
+              setHiFocused(false);
+              commitHi();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              } else if (e.key === "Escape") {
+                setHiInput(String(hi));
+                e.currentTarget.blur();
+              }
+            }}
+            className={`${inputCls} text-right`}
+          />
+          {suffix && <span className={adornmentCls}>{suffix}</span>}
+        </div>
       </div>
     </div>
   );

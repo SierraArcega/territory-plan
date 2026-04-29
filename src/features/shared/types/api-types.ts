@@ -430,23 +430,6 @@ export interface UserSummary {
   jobTitle: string | null;
 }
 
-export interface UserGoal {
-  id: number;
-  fiscalYear: number;
-  earningsTarget: number | null;
-  takeRatePercent: number | null;
-  newDistrictsTarget: number | null;
-  renewalTarget: number | null;
-  winbackTarget: number | null;
-  expansionTarget: number | null;
-  newBusinessTarget: number | null;
-  takeTarget: number | null;
-  revenueActual: number;
-  takeActual: number;
-  pipelineActual: number;
-  newDistrictsActual: number;
-}
-
 export interface UserProfile {
   id: string;
   email: string;
@@ -465,7 +448,6 @@ export interface UserProfile {
   createdAt: string;
   updatedAt: string;
   lastLoginAt: string | null;
-  goals: UserGoal[];
 }
 
 // ===== Activity Types =====
@@ -944,61 +926,6 @@ export interface PlanDistrictDetail {
   newServices: Array<{ id: number; name: string; slug: string; color: string }>;
   actuals?: PlanDistrictActuals | null;
   opportunities?: PlanDistrictOpportunity[];
-}
-
-// ===== Goal Dashboard Types =====
-
-export interface GoalDashboard {
-  fiscalYear: number;
-  goals: {
-    earningsTarget: number | null;
-    takeRatePercent: number | null;
-    renewalTarget: number | null;
-    winbackTarget: number | null;
-    expansionTarget: number | null;
-    newBusinessTarget: number | null;
-    takeTarget: number | null;
-    newDistrictsTarget: number | null;
-  } | null;
-  planTotals: {
-    renewalTarget: number;
-    winbackTarget: number;
-    expansionTarget: number;
-    newBusinessTarget: number;
-    totalTarget: number;
-    districtCount: number;
-    planCount: number;
-  };
-  actuals: {
-    earnings: number;
-    revenue: number;
-    take: number;
-    completedTake: number;
-    scheduledTake: number;
-    pipeline: number;
-    bookings: number;
-    invoiced: number;
-    newDistricts: number;
-  };
-  leaderboard: {
-    rank: number;
-    totalReps: number;
-  };
-  plans: Array<{
-    id: string;
-    name: string;
-    color: string;
-    status: string;
-    districtCount: number;
-    renewalTarget: number;
-    winbackTarget: number;
-    expansionTarget: number;
-    newBusinessTarget: number;
-    totalTarget: number;
-    revenueActual: number;
-    takeActual: number;
-    bookingsActual: number;
-  }>;
 }
 
 export interface PlanDistrictActuals {
