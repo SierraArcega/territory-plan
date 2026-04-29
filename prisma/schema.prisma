@@ -129,6 +129,10 @@ model District {
   jobBoardUrl      String? @map("job_board_url") @db.VarChar(1000)
   jobBoardPlatform String? @map("job_board_platform") @db.VarChar(50)
 
+  // ===== Vacancy Scan Health (cron-side filtering) =====
+  vacancyConsecutiveFailures Int       @default(0) @map("vacancy_consecutive_failures")
+  vacancyLastFailureAt       DateTime? @map("vacancy_last_failure_at")
+
   // ===== User Edits =====
   // Source: App users (shared across team)
   notes          String?

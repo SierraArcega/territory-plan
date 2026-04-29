@@ -53,9 +53,14 @@ export async function GET(request: NextRequest) {
     // Warm shared job-board cache before grouping
     await loadSharedJobBoardUrls();
 
-    // Find all districts with job board URLs
+    // Find all districts with job board URLs.
+    // Skip districts at >=5 consecutive failures so dead URLs auto-shed
+    // from rotation; an admin can manually reset the counter if needed.
     const districts = await prisma.district.findMany({
-      where: { jobBoardUrl: { not: null } },
+      where: {
+        jobBoardUrl: { not: null },
+        vacancyConsecutiveFailures: { lt: 5 },
+      },
       select: { leaid: true, name: true, jobBoardUrl: true },
     });
 
@@ -121,11 +126,32 @@ export async function GET(request: NextRequest) {
       return b.districts.length - a.districts.length;
     });
 
+    // Cap unknown-platform groups in the per-run batch to MAX_UNKNOWN_PER_RUN.
+    // The Claude fallback path is failure-prone (~80% timeout rate as of the
+    // 2026-04-23 regression); reserving most slots for districts with a
+    // dedicated parser keeps the pipeline producing while the unknown URLs
+    // are addressed separately (backfill, manual triage).
+    const MAX_UNKNOWN_PER_RUN = 1;
+    const cappedGroups: typeof sortedGroups = [];
+    let unknownPicked = 0;
+    for (const g of sortedGroups) {
+      if (g.platform === "unknown") {
+        if (unknownPicked >= MAX_UNKNOWN_PER_RUN) continue;
+        unknownPicked++;
+      }
+      cappedGroups.push(g);
+      if (cappedGroups.length >= SCANS_PER_RUN) break;
+    }
+    // Append remaining sortedGroups after the capped batch so coverage stats
+    // (`remaining`, `neverScannedGroupsRemaining`) still reflect the full pool.
+    const tail = sortedGroups.filter((g) => !cappedGroups.includes(g));
+    const orderedGroups = [...cappedGroups, ...tail];
+
     // Run scans in parallel with capped concurrency
     const batchId = crypto.randomUUID();
     const results: { leaid: string; name: string; status: string; statewide: boolean }[] = [];
 
-    const batch = sortedGroups.slice(0, SCANS_PER_RUN);
+    const batch = orderedGroups.slice(0, SCANS_PER_RUN);
     const queue = new PQueue({ concurrency: CONCURRENCY });
 
     // Create all scan records upfront, then execute in parallel
@@ -188,7 +214,7 @@ export async function GET(request: NextRequest) {
     }, 0);
 
     const neverScannedGroupsPicked = batch.filter((g) => g.hasNeverScanned).length;
-    const neverScannedGroupsRemaining = sortedGroups
+    const neverScannedGroupsRemaining = orderedGroups
       .slice(batch.length)
       .filter((g) => g.hasNeverScanned).length;
 
