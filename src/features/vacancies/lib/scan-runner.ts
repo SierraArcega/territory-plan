@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { detectPlatform, isStatewideBoardAsync, getAppliTrackInstance } from "./platform-detector";
 import { processVacancies } from "./post-processor";
@@ -8,6 +9,23 @@ import type { RawVacancy } from "./parsers/types";
 
 /** Maximum time (ms) a single scan is allowed to run before timing out. */
 const SCAN_TIMEOUT_MS = 180_000; // 3 min for state-wide redistribution
+
+async function markDistrictScanSuccess(leaid: string) {
+  await prisma.district.update({
+    where: { leaid },
+    data: { vacancyConsecutiveFailures: 0, vacancyLastFailureAt: null },
+  });
+}
+
+async function markDistrictScanFailure(leaid: string) {
+  await prisma.district.update({
+    where: { leaid },
+    data: {
+      vacancyConsecutiveFailures: { increment: 1 },
+      vacancyLastFailureAt: new Date(),
+    },
+  });
+}
 
 /**
  * Orchestrates a single district vacancy scan:
@@ -23,9 +41,24 @@ export async function runScan(scanId: string): Promise<void> {
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), SCAN_TIMEOUT_MS);
 
+  // Hoisted so the catch block can reach it for the per-district health update.
+  let scan: Prisma.VacancyScanGetPayload<{
+    include: {
+      district: {
+        select: {
+          leaid: true;
+          name: true;
+          jobBoardUrl: true;
+          jobBoardPlatform: true;
+          enrollment: true;
+        };
+      };
+    };
+  }> | null = null;
+
   try {
     // Step 1: Fetch scan + district
-    const scan = await prisma.vacancyScan.findUnique({
+    scan = await prisma.vacancyScan.findUnique({
       where: { id: scanId },
       include: {
         district: {
@@ -54,6 +87,7 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
+      await markDistrictScanFailure(scan.district.leaid);
       return;
     }
 
@@ -140,6 +174,7 @@ export async function runScan(scanId: string): Promise<void> {
             completedAt: new Date(),
           },
         });
+        await markDistrictScanSuccess(scan.district.leaid);
         return;
       }
 
@@ -181,6 +216,7 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
+      await markDistrictScanSuccess(scan.district.leaid);
 
       // Redistribute remaining jobs to other districts in the background
       // — but ONLY if the URL is properly scoped (has applitrackclient param)
@@ -217,6 +253,7 @@ export async function runScan(scanId: string): Promise<void> {
               completedAt: new Date(),
             },
           });
+          await markDistrictScanSuccess(scan.district.leaid);
           return;
         }
       }
@@ -244,6 +281,7 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
+      await markDistrictScanSuccess(scan.district.leaid);
     }
   } catch (error) {
     const errorMessage =
@@ -260,6 +298,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
+      if (scan?.district?.leaid) {
+        await markDistrictScanFailure(scan.district.leaid);
+      }
     } catch (updateError) {
       console.error(
         `[scan-runner] Failed to update scan ${scanId} status:`,
