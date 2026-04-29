@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       districtLeaId: true,
       districtName: true,
       salesRepId: true,
+      detailsLink: true,
     },
     orderBy: [{ closeDate: { sort: "asc", nulls: "last" } }],
     take: limit * 2, // overshoot then trim after closed-stage filter
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
         districtName: o.districtName,
         salesRepId: o.salesRepId,
         daysToClose,
+        detailsLink: o.detailsLink,
       };
     });
 

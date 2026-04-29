@@ -6,7 +6,7 @@
 //   -8..-30 → med (orange)
 //   < -30   → high (red)
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 import type { OpenDeal } from "@/features/shared/types/api-types";
 import { formatMoney } from "./formatMoney";
 
@@ -81,22 +81,35 @@ export default function OverdueDealRow({ deal }: OverdueDealRowProps) {
             {formatMoney(deal.amount)}
           </div>
         </div>
-        <div className="mt-1 text-[11px] text-[#6E6390] flex items-center gap-2 flex-wrap">
-          <span
-            className="inline-flex items-center gap-1 rounded-full text-[10px] font-bold tabular-nums tracking-wide border px-1.5 py-0.5"
-            style={{
-              background: colors.bg,
-              color: colors.fg,
-              borderColor: colors.border,
-            }}
-          >
-            {overdue} {overdue === 1 ? "day" : "days"} overdue
-          </span>
-          <span className="text-[#8A80A8]">{deal.stage ?? "—"}</span>
-          <span className="text-[#C2BBD4]">·</span>
-          <span className="text-[#8A80A8]">
-            Close {fmtDateShort(deal.closeDate)}
-          </span>
+        <div className="mt-1 flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-[11px] text-[#6E6390] flex items-center gap-2 flex-wrap">
+            <span
+              className="inline-flex items-center gap-1 rounded-full text-[10px] font-bold tabular-nums tracking-wide border px-1.5 py-0.5"
+              style={{
+                background: colors.bg,
+                color: colors.fg,
+                borderColor: colors.border,
+              }}
+            >
+              {overdue} {overdue === 1 ? "day" : "days"} overdue
+            </span>
+            <span className="text-[#8A80A8]">{deal.stage ?? "—"}</span>
+            <span className="text-[#C2BBD4]">·</span>
+            <span className="text-[#8A80A8]">
+              Close {fmtDateShort(deal.closeDate)}
+            </span>
+          </div>
+          {deal.detailsLink && (
+            <a
+              href={deal.detailsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[#544A78] border border-[#D4CFE2] hover:bg-[#F7F5FA] transition-colors duration-100 fm-focus-ring"
+            >
+              Update
+              <ExternalLink className="w-3 h-3" strokeWidth={2} aria-hidden />
+            </a>
+          )}
         </div>
       </div>
     </div>

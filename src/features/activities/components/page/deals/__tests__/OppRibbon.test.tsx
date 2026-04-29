@@ -15,6 +15,7 @@ function evt(overrides: Partial<OppEvent>): OppEvent {
     districtLeaid: null,
     districtName: "District",
     salesRepId: null,
+    detailsLink: null,
     ...overrides,
   };
 }

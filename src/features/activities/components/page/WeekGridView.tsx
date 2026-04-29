@@ -2,14 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
-import type { ActivityListItem, OppEvent } from "@/features/shared/types/api-types";
+import type { ActivityListItem, OppEvent, OppEventKind } from "@/features/shared/types/api-types";
 import { type ActivityCategory } from "@/features/activities/types";
 import {
   useActivitiesChrome,
   getRangeForChrome,
 } from "@/features/activities/lib/filters-store";
 import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
-import DealChip from "./deals/DealChip";
 import { OPP_STYLE } from "./deals/oppStyle";
 import { formatMoney } from "./deals/formatMoney";
 import OppSummaryStrip from "./deals/OppSummaryStrip";
@@ -29,7 +28,17 @@ const HOUR_START = 7;
 const HOUR_END = 21;
 const PX_PER_HOUR = 52;
 const HOURS = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
-const MAX_PIPS_PER_DAY = 5;
+
+// One header row per kind, in the order the rep reads them. Won/Lost/New/
+// Closing show a $ rollup; Progressed shows a count because amount on a
+// stage move doesn't represent money won — only movement.
+const DEAL_ROLLUP_KINDS: OppEventKind[] = [
+  "won",
+  "lost",
+  "created",
+  "progressed",
+  "closing",
+];
 
 interface PlacedBlock {
   act: ActivityListItem;
@@ -98,10 +107,8 @@ export default function WeekGridView({
   const ownersFilter = useActivitiesChrome((s) => s.filters.owners);
   const statesFilter = useActivitiesChrome((s) => s.filters.states);
 
-  // Always render summary + per-deal objects (the former "both" mode).
   const showOpps = true;
   const showSummary = true;
-  const showObjects = true;
 
   const range = useMemo(
     () => getRangeForChrome(anchorIso, grain),
@@ -153,13 +160,23 @@ export default function WeekGridView({
     return map;
   }, [activities]);
 
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, OppEvent[]>();
+  // Per-kind buckets keyed by day, used by the Pipeline Updates rollup below.
+  const eventsByDayAndKind = useMemo(() => {
+    const map = new Map<string, Map<OppEventKind, OppEvent[]>>();
     for (const e of events) {
       if (!e.occurredAt) continue;
-      const k = format(new Date(e.occurredAt), "yyyy-MM-dd");
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(e);
+      const dayKey = format(new Date(e.occurredAt), "yyyy-MM-dd");
+      let day = map.get(dayKey);
+      if (!day) {
+        day = new Map();
+        map.set(dayKey, day);
+      }
+      let bucket = day.get(e.kind);
+      if (!bucket) {
+        bucket = [];
+        day.set(e.kind, bucket);
+      }
+      bucket.push(e);
     }
     return map;
   }, [events]);
@@ -173,8 +190,12 @@ export default function WeekGridView({
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerKind, setDrawerKind] = useState<OppDrawerKind>("all");
-  const onOpenDrawer = (kind: OppDrawerKind) => {
+  // When set, the drawer renders this scoped subset (e.g. "wins on Sunday")
+  // instead of the full range. null means "show everything".
+  const [drawerEvents, setDrawerEvents] = useState<OppEvent[] | null>(null);
+  const onOpenDrawer = (kind: OppDrawerKind, eventsOverride?: OppEvent[]) => {
     setDrawerKind(kind);
+    setDrawerEvents(eventsOverride ?? null);
     setDrawerOpen(true);
   };
 
@@ -230,94 +251,85 @@ export default function WeekGridView({
           })}
         </div>
 
-        {/* Pinned Pipeline (deals-as-objects) row — pip-density chips */}
-        {showObjects && (
+        {/* Pipeline Updates rollup — per-day in-cell stack of all five deal-
+             event kinds. Each populated kind is independently clickable and
+             opens the drawer pre-filtered to that kind+day. Progressed shows
+             count (a stage change isn't money won, so the amount would
+             mislead). Replaces the old per-deal Pipeline pip row, which was
+             duplicative once the rollup gave you the same scan. */}
+        {showOpps && (
           <div
-            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white border-t border-t-[#EFEDF5]`}
+            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-white`}
           >
-            <div className="px-2 py-2 text-[9px] font-bold uppercase tracking-[0.06em] text-[#403770] flex items-start justify-end leading-tight">
-              Pipeline
+            <div className="px-2 pt-2 text-[10px] font-bold uppercase tracking-wider text-[#544A78] flex items-start justify-end">
+              Pipeline Updates
             </div>
             {days.map((d) => {
-              const dayEvents = eventsByDay.get(format(d, "yyyy-MM-dd")) ?? [];
-              const visible = dayEvents.slice(0, MAX_PIPS_PER_DAY);
-              const overflow = dayEvents.length - visible.length;
+              const dayKey = format(d, "yyyy-MM-dd");
               return (
                 <div
                   key={d.toISOString()}
-                  className="border-l border-[#E2DEEC] p-1.5 flex flex-wrap gap-1 min-h-[32px] items-center"
+                  className="border-l border-[#E2DEEC] px-1.5 py-1.5 flex flex-col gap-0.5"
                 >
-                  {visible.map((ev) => (
-                    <DealChip
-                      key={ev.id}
-                      density="pip"
-                      deal={ev}
-                      onClick={() => onOpenDrawer("all")}
-                    />
-                  ))}
-                  {overflow > 0 && (
-                    <span className="text-[9px] font-semibold text-[#8A80A8]">
-                      +{overflow}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Deals overlay row — per-day kind icons + total */}
-        {showOpps && (
-          <div
-            className={`grid ${headerColTemplate} border-x border-[#E2DEEC] bg-[#FBF9FC] ${showObjects ? "" : "mt-2 border-t border-t-[#EFEDF5]"}`}
-          >
-            <div className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#8A80A8] flex items-center justify-end">
-              Deals
-            </div>
-            {days.map((d) => {
-              const dayEvents = eventsByDay.get(format(d, "yyyy-MM-dd")) ?? [];
-              if (dayEvents.length === 0) {
-                return (
-                  <div
-                    key={d.toISOString()}
-                    className="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center gap-1 text-[10px] text-[#C2BBD4]"
-                    aria-hidden
-                  >
-                    —
-                  </div>
-                );
-              }
-              const total = dayEvents.reduce(
-                (s, e) => s + (typeof e.amount === "number" ? e.amount : 0),
-                0
-              );
-              const kindsSeen = new Set(dayEvents.map((e) => e.kind));
-              return (
-                <button
-                  key={d.toISOString()}
-                  type="button"
-                  onClick={() => onOpenDrawer("all")}
-                  title={`${dayEvents.length} deal event${dayEvents.length === 1 ? "" : "s"} · ${formatMoney(total)}`}
-                  className="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center gap-1 text-[10px] font-semibold tabular-nums hover:bg-[#F2EFF7] transition-colors text-left"
-                >
-                  {Array.from(kindsSeen).map((k) => {
-                    const sty = OPP_STYLE[k];
+                  {DEAL_ROLLUP_KINDS.map((kind) => {
+                    const sty = OPP_STYLE[kind];
                     const Icon = sty.icon;
+                    const kindEvents =
+                      eventsByDayAndKind.get(dayKey)?.get(kind) ?? [];
+                    // Render every kind in every cell so each row aligns
+                    // vertically across the 7 days. Empty kinds show the icon
+                    // + em-dash in muted text per Display foundations'
+                    // disabled-stat pattern; non-interactive (nothing to drill
+                    // into) and aria-hidden so screen readers don't recite
+                    // five em-dashes per empty day.
+                    if (kindEvents.length === 0) {
+                      return (
+                        <div
+                          key={kind}
+                          className="h-5 flex items-center justify-between gap-1.5 px-1 text-[10px] text-[#A69DC0] tabular-nums"
+                          aria-hidden
+                        >
+                          <Icon
+                            className="w-3 h-3 flex-shrink-0"
+                            strokeWidth={2}
+                          />
+                          <span>—</span>
+                        </div>
+                      );
+                    }
+                    const total = kindEvents.reduce(
+                      (s, e) =>
+                        s + (typeof e.amount === "number" ? e.amount : 0),
+                      0
+                    );
+                    const isCount = kind === "progressed";
+                    const display = isCount
+                      ? String(kindEvents.length)
+                      : formatMoney(total);
+                    const noun = `deal${kindEvents.length === 1 ? "" : "s"}`;
+                    const title = isCount
+                      ? `${sty.label}: ${kindEvents.length} ${noun}`
+                      : `${sty.label}: ${kindEvents.length} ${noun} · ${formatMoney(total)}`;
                     return (
-                      <span
-                        key={k}
-                        className="inline-flex items-center"
-                        style={{ color: sty.color }}
-                        aria-label={sty.label}
+                      <button
+                        key={kind}
+                        type="button"
+                        onClick={() => onOpenDrawer(kind, kindEvents)}
+                        title={title}
+                        aria-label={title}
+                        className="h-5 flex items-center justify-between gap-1.5 px-1 rounded text-[10px] font-semibold tabular-nums hover:bg-[#F7F5FA] transition-colors duration-100 fm-focus-ring"
+                        style={{ color: sty.ink }}
                       >
-                        <Icon className="w-2.5 h-2.5" strokeWidth={2.5} />
-                      </span>
+                        <Icon
+                          className="w-3 h-3 flex-shrink-0"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        <span>{display}</span>
+                      </button>
                     );
                   })}
-                  <span className="ml-auto text-[#403770]">
-                    {formatMoney(total)}
-                  </span>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -442,7 +454,7 @@ export default function WeekGridView({
         kind={drawerKind}
         heading={drawerHeadingFor(drawerKind)}
         rangeLabel={fmtRange(range)}
-        events={events}
+        events={drawerEvents ?? events}
         overdueDeals={overdueDeals}
         coldList={coldList}
         onClose={() => setDrawerOpen(false)}

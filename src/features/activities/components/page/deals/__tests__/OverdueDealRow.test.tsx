@@ -14,6 +14,7 @@ function deal(overrides: Partial<OpenDeal>): OpenDeal {
     districtName: "Mapleton ISD",
     salesRepId: null,
     daysToClose: -10,
+    detailsLink: null,
     ...overrides,
   };
 }

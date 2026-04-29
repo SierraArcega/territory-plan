@@ -26,14 +26,7 @@ export interface WeekStripDay {
   count: number;
   categories: ActivityCategory[];
   dealKinds: DealKind[];
-  oppTotal?: number;
   dealCount?: number;
-}
-
-function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
-  return `$${n}`;
 }
 
 export default function WeekStrip({
@@ -41,13 +34,11 @@ export default function WeekStrip({
   daysData,
   selectedDate,
   onDayClick,
-  showOpps = false,
 }: {
   weekAnchor: Date;
   daysData: WeekStripDay[];
   selectedDate: Date;
   onDayClick?: (date: Date) => void;
-  showOpps?: boolean;
 }) {
   const weekStart = startOfWeek(weekAnchor, { weekStartsOn: 0 });
   const today = new Date();
@@ -63,7 +54,6 @@ export default function WeekStrip({
         const deals = data?.dealKinds ?? [];
         const itemCount = data?.count ?? 0;
         const dealCount = data?.dealCount ?? 0;
-        const oppTotal = data?.oppTotal ?? 0;
 
         return (
           <button
@@ -132,11 +122,6 @@ export default function WeekStrip({
               </>
             )}
 
-            {showOpps && oppTotal > 0 && (
-              <div className="mt-auto pt-1.5 border-t border-dashed border-[#E2DEEC] flex items-center gap-1 text-[10px] font-bold tabular-nums">
-                <span className="ml-auto text-[#403770]">{formatMoney(oppTotal)}</span>
-              </div>
-            )}
           </button>
         );
       })}

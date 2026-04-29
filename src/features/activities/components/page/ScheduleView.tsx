@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 import { addDays, format, isSameDay, startOfWeek } from "date-fns";
 import { CalendarDays, MapPin, User } from "lucide-react";
-import type { ActivityListItem, OppEvent } from "@/features/shared/types/api-types";
+import type {
+  ActivityListItem,
+  OppEvent,
+  OppEventKind,
+} from "@/features/shared/types/api-types";
 import {
   ACTIVITY_TYPE_LABELS,
   type ActivityCategory,
@@ -16,10 +20,20 @@ import {
 } from "@/features/activities/lib/filters-store";
 import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
 import WeekStrip, { type WeekStripDay } from "./WeekStrip";
-import DealChip from "./deals/DealChip";
+import { OPP_STYLE } from "./deals/oppStyle";
+import { formatMoney } from "./deals/formatMoney";
 import OppSummaryStrip from "./deals/OppSummaryStrip";
 import OppDrawer, { type OppDrawerKind } from "./deals/OppDrawer";
 import type { ColdDistrict } from "./deals/ColdDistrictRow";
+
+// Same canonical order used by WeekGridView's Pipeline Updates rollup.
+const DEAL_ROLLUP_KINDS: OppEventKind[] = [
+  "won",
+  "lost",
+  "created",
+  "progressed",
+  "closing",
+];
 
 const CATEGORY_STYLE: Record<ActivityCategory, { bg: string; ink: string; dot: string }> = {
   meetings: { bg: "#EFEDF5", ink: "#403770", dot: "#403770" },
@@ -93,9 +107,7 @@ export default function ScheduleView({
   const statesFilter = useActivitiesChrome((s) => s.filters.states);
 
   // Always render summary + per-deal objects (the former "both" mode).
-  const showOpps = true;
   const showSummary = true;
-  const showObjects = true;
 
   const range = useMemo(
     () => getRangeForChrome(anchorIso, grain),
@@ -173,17 +185,14 @@ export default function ScheduleView({
         const cats = Array.from(new Set(items.map((a) => a.category))) as ActivityCategory[];
         const dayEvents = eventsByDay.get(dayKey) ?? [];
         const dealKindSet = new Set<DealKind>();
-        let oppTotal = 0;
         for (const e of dayEvents) {
           dealKindSet.add(e.kind as DealKind);
-          oppTotal += typeof e.amount === "number" ? e.amount : 0;
         }
         return {
           date: d,
           count: items.length,
           categories: cats,
           dealKinds: Array.from(dealKindSet),
-          oppTotal,
           dealCount: dayEvents.length,
         };
       }),
@@ -222,10 +231,29 @@ export default function ScheduleView({
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerKind, setDrawerKind] = useState<OppDrawerKind>("all");
-  const onOpenDrawer = (kind: OppDrawerKind) => {
+  // When set, the drawer renders this scoped subset instead of the full
+  // range (e.g. "wins on Tuesday"). null means "show everything".
+  const [drawerEvents, setDrawerEvents] = useState<OppEvent[] | null>(null);
+  const onOpenDrawer = (kind: OppDrawerKind, eventsOverride?: OppEvent[]) => {
     setDrawerKind(kind);
+    setDrawerEvents(eventsOverride ?? null);
     setDrawerOpen(true);
   };
+
+  // Bucket the selected day's events by kind so the rollup rows can show
+  // per-kind totals and route per-kind clicks into the drawer.
+  const selectedEventsByKind = useMemo(() => {
+    const map = new Map<OppEventKind, OppEvent[]>();
+    for (const e of selectedDayEvents) {
+      let bucket = map.get(e.kind);
+      if (!bucket) {
+        bucket = [];
+        map.set(e.kind, bucket);
+      }
+      bucket.push(e);
+    }
+    return map;
+  }, [selectedDayEvents]);
 
   const hasContent = selectedItems.length > 0 || selectedDayEvents.length > 0;
 
@@ -247,7 +275,6 @@ export default function ScheduleView({
           daysData={stripData}
           selectedDate={selectedDay}
           onDayClick={setSelectedDay}
-          showOpps={showOpps}
         />
 
         <div className="flex-1 bg-white border border-[#E2DEEC] rounded-xl flex flex-col min-h-0 overflow-hidden">
@@ -287,25 +314,84 @@ export default function ScheduleView({
               </div>
             ) : (
               <>
-                {showObjects && selectedDayEvents.length > 0 && (
-                  <div className="px-5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">
-                    Pipeline events
-                  </div>
-                )}
-                {showObjects && selectedDayEvents.length > 0 && (
-                  <div className="px-5 pb-2 flex flex-col gap-1.5">
-                    {selectedDayEvents.map((ev) => (
-                      <DealChip key={ev.id} density="row" deal={ev} />
-                    ))}
-                  </div>
-                )}
-                {showObjects &&
-                  selectedDayEvents.length > 0 &&
-                  selectedItems.length > 0 && (
-                    <div className="px-5 pt-2 pb-1 mt-1 border-t border-[#EFEDF5] text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8]">
-                      Activities
+                {/* Pipeline Updates rollup — horizontal pill row. Each
+                     populated kind is a tinted pill (icon + label + $/count)
+                     that opens the drawer pre-filtered to that kind+day.
+                     Empty kinds render as outlined ghost pills so the row
+                     still aligns and "no wins today" is visible at a glance.
+                     Progressed shows count (a stage change isn't money won,
+                     so the amount would mislead). */}
+                {selectedDayEvents.length > 0 && (
+                  <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#544A78] flex-shrink-0">
+                      Pipeline Updates
+                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {DEAL_ROLLUP_KINDS.map((kind) => {
+                        const sty = OPP_STYLE[kind];
+                        const Icon = sty.icon;
+                        const kindEvents = selectedEventsByKind.get(kind) ?? [];
+                        if (kindEvents.length === 0) {
+                          return (
+                            <div
+                              key={kind}
+                              className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full text-[11px] font-semibold tabular-nums text-[#A69DC0] border border-[#E2DEEC]"
+                              aria-hidden
+                            >
+                              <Icon
+                                className="w-3 h-3 flex-shrink-0"
+                                strokeWidth={2}
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                                {sty.label}
+                              </span>
+                              <span>—</span>
+                            </div>
+                          );
+                        }
+                        const total = kindEvents.reduce(
+                          (s, e) =>
+                            s + (typeof e.amount === "number" ? e.amount : 0),
+                          0
+                        );
+                        const isCount = kind === "progressed";
+                        const display = isCount
+                          ? String(kindEvents.length)
+                          : formatMoney(total);
+                        const noun = `deal${kindEvents.length === 1 ? "" : "s"}`;
+                        const title = isCount
+                          ? `${sty.label}: ${kindEvents.length} ${noun}`
+                          : `${sty.label}: ${kindEvents.length} ${noun} · ${formatMoney(total)}`;
+                        return (
+                          <button
+                            key={kind}
+                            type="button"
+                            onClick={() => onOpenDrawer(kind, kindEvents)}
+                            title={title}
+                            aria-label={title}
+                            className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full text-[11px] font-semibold tabular-nums hover:brightness-95 transition-[filter] duration-100 fm-focus-ring"
+                            style={{ backgroundColor: sty.bg, color: sty.ink }}
+                          >
+                            <Icon
+                              className="w-3 h-3 flex-shrink-0"
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                              {sty.label}
+                            </span>
+                            <span>{display}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
+                )}
+                {selectedDayEvents.length > 0 && selectedItems.length > 0 && (
+                  <div className="px-5 pt-2 pb-1 mt-1 border-t border-[#EFEDF5] text-[10px] font-bold uppercase tracking-wider text-[#544A78]">
+                    Activities
+                  </div>
+                )}
                 <ul>
                   {selectedItems.map((act) => {
                     const style = CATEGORY_STYLE[act.category];
@@ -397,7 +483,7 @@ export default function ScheduleView({
         kind={drawerKind}
         heading={drawerHeadingFor(drawerKind)}
         rangeLabel={fmtRange(range)}
-        events={events}
+        events={drawerEvents ?? events}
         overdueDeals={overdueDeals}
         coldList={coldList}
         onClose={() => setDrawerOpen(false)}

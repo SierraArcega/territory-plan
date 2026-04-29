@@ -1,8 +1,10 @@
 "use client";
 
-// OppDayBar — small inline summary for month-view day cells.
-// Renders one count per kind (won/lost/created/progressed) with the kind icon,
-// followed by the total dollar amount on the right. Returns null for empty days.
+// OppDayBar — small inline summary for month-view day cells. Renders one
+// count per deal-event kind (won/lost/created/progressed/closing) with the
+// kind icon. Returns null for empty days. We intentionally don't show a
+// summed dollar amount — adding wins + losses produces a misleading single
+// figure; per-kind drill-in lives in the drawer.
 
 import type { OppEvent, OppEventKind } from "@/features/shared/types/api-types";
 import { OPP_STYLE } from "./oppStyle";
@@ -24,10 +26,8 @@ export default function OppDayBar({ opps }: OppDayBarProps) {
     progressed: 0,
     closing: 0,
   };
-  let total = 0;
   for (const o of opps) {
     byKind[o.kind] = (byKind[o.kind] ?? 0) + 1;
-    total += typeof o.amount === "number" ? o.amount : 0;
   }
 
   const tooltip = opps
@@ -40,7 +40,7 @@ export default function OppDayBar({ opps }: OppDayBarProps) {
   return (
     <div
       title={tooltip}
-      className="flex items-center gap-1 rounded-[3px] bg-[#FBF9FC] text-[9px] font-semibold tabular-nums"
+      className="flex items-center gap-1.5 rounded-[3px] bg-[#FBF9FC] text-[9px] font-semibold tabular-nums"
       style={{ padding: "2px 4px" }}
     >
       {KIND_ORDER.filter((k) => byKind[k] > 0).map((k) => {
@@ -50,17 +50,14 @@ export default function OppDayBar({ opps }: OppDayBarProps) {
           <span
             key={k}
             className="inline-flex items-center gap-0.5"
-            style={{ color: sty.color }}
+            style={{ color: sty.ink }}
             aria-label={`${byKind[k]} ${sty.label}`}
           >
-            <Icon className="w-2.5 h-2.5" strokeWidth={2.5} />
+            <Icon className="w-2.5 h-2.5" strokeWidth={2} />
             {byKind[k]}
           </span>
         );
       })}
-      <span className="ml-auto text-[#544A78] text-[9px]">
-        {formatMoney(total)}
-      </span>
     </div>
   );
 }

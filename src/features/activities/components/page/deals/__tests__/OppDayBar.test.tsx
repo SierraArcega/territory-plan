@@ -15,6 +15,7 @@ function evt(overrides: Partial<OppEvent>): OppEvent {
     districtLeaid: null,
     districtName: "Some District",
     salesRepId: null,
+    detailsLink: null,
     ...overrides,
   };
 }
@@ -25,7 +26,7 @@ describe("OppDayBar", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders each kind's count and the formatted total amount", () => {
+  it("renders each kind's count without a summed total", () => {
     render(
       <OppDayBar
         opps={[
@@ -40,7 +41,8 @@ describe("OppDayBar", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
     // Two "1"s render — for lost and created — getAllByText
     expect(screen.getAllByText("1").length).toBe(2);
-    // Total = 100000 → $100K
-    expect(screen.getByText("$100K")).toBeInTheDocument();
+    // We intentionally don't render a summed total — wins + losses would
+    // produce a misleading single figure.
+    expect(screen.queryByText("$100K")).not.toBeInTheDocument();
   });
 });

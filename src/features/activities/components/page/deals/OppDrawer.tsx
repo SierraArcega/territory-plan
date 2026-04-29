@@ -10,7 +10,7 @@
 //  - 'cold'                                             → ColdDistrict[] (snowflake)
 
 import { useEffect } from "react";
-import { X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import type { OppEvent, OpenDeal } from "@/features/shared/types/api-types";
 import { OPP_STYLE } from "./oppStyle";
 import { formatMoney } from "./formatMoney";
@@ -336,10 +336,23 @@ function OppDrawerEventRow({ deal }: { deal: OppEvent }) {
             {formatMoney(deal.amount)}
           </div>
         </div>
-        <div className="mt-0.5 text-[11px] text-[#6E6390] flex items-center gap-2 flex-wrap">
-          <span>{sty.label}</span>
-          <span className="text-[#C2BBD4]">·</span>
-          <span>{deal.stage ?? "—"}</span>
+        <div className="mt-0.5 flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-[11px] text-[#6E6390] flex items-center gap-2 flex-wrap">
+            <span>{sty.label}</span>
+            <span className="text-[#C2BBD4]">·</span>
+            <span>{deal.stage ?? "—"}</span>
+          </div>
+          {deal.detailsLink && (
+            <a
+              href={deal.detailsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold text-[#544A78] border border-[#D4CFE2] hover:bg-[#F7F5FA] transition-colors duration-100 fm-focus-ring"
+            >
+              View
+              <ExternalLink className="w-3 h-3" strokeWidth={2} aria-hidden />
+            </a>
+          )}
         </div>
       </div>
     </div>

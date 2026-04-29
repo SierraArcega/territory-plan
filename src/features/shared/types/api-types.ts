@@ -655,6 +655,8 @@ export interface OppEvent {
   districtLeaid: string | null;
   districtName: string | null;
   salesRepId: string | null;
+  // External CRM link to the opp record (HubSpot etc.) — null when not set.
+  detailsLink: string | null;
 }
 
 export interface OpenDeal {
@@ -668,6 +670,8 @@ export interface OpenDeal {
   salesRepId: string | null;
   // Days until closeDate; negative when closeDate is past.
   daysToClose: number | null;
+  // External CRM link to the opp record (HubSpot etc.) — null when not set.
+  detailsLink: string | null;
 }
 
 export interface OppEventsResponse {

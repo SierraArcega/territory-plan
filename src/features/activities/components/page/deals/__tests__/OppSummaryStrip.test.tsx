@@ -16,6 +16,7 @@ function evt(overrides: Partial<OppEvent>): OppEvent {
     districtLeaid: null,
     districtName: "District",
     salesRepId: null,
+    detailsLink: null,
     ...overrides,
   };
 }
@@ -31,6 +32,7 @@ function deal(overrides: Partial<OpenDeal>): OpenDeal {
     districtName: "District",
     salesRepId: null,
     daysToClose: -10,
+    detailsLink: null,
     ...overrides,
   };
 }

@@ -21,7 +21,6 @@ import {
   getRangeForChrome,
 } from "@/features/activities/lib/filters-store";
 import { useDealEvents, useOpenDeals } from "@/features/activities/lib/queries";
-import DealChip from "./deals/DealChip";
 import OppDayBar from "./deals/OppDayBar";
 import OppSummaryStrip from "./deals/OppSummaryStrip";
 import OppDrawer, { type OppDrawerKind } from "./deals/OppDrawer";
@@ -47,7 +46,6 @@ const WEEKDAY_LABELS = [
 ];
 
 const MAX_CHIPS_PER_DAY = 4;
-const MAX_DEAL_CHIPS_PER_DAY = 2;
 
 function fmtTime(iso: string): string {
   return format(new Date(iso), "h:mm a");
@@ -96,7 +94,6 @@ export default function MonthView({
   // Always render summary + per-deal objects (the former "both" mode).
   const showOpps = true;
   const showSummary = true;
-  const showObjects = true;
 
   const range = useMemo(
     () => getRangeForChrome(anchorIso, grain),
@@ -219,18 +216,8 @@ export default function MonthView({
             const key = format(day, "yyyy-MM-dd");
             const items = byDay.get(key) ?? [];
             const dayEvents = eventsByDay.get(key) ?? [];
-            const dealChipsToShow = showObjects
-              ? dayEvents.slice(0, MAX_DEAL_CHIPS_PER_DAY)
-              : [];
-            const remainingActivitySlots = Math.max(
-              0,
-              MAX_CHIPS_PER_DAY - dealChipsToShow.length
-            );
-            const visible = items.slice(0, remainingActivitySlots);
-            const overflow =
-              items.length -
-              visible.length +
-              (showObjects ? Math.max(0, dayEvents.length - dealChipsToShow.length) : 0);
+            const visible = items.slice(0, MAX_CHIPS_PER_DAY);
+            const overflow = items.length - visible.length;
             const dow = day.getDay();
             const weekend = dow === 0 || dow === 6;
             const colIdx = i % 7;
@@ -283,17 +270,11 @@ export default function MonthView({
                   <OppDayBar opps={dayEvents} />
                 )}
 
-                {/* Activity chips — category-filled with time prefix.
-                    When showObjects, render up to 2 deal chips above. */}
+                {/* Activity chips — category-filled with time prefix. The
+                    per-deal chip row that used to live here was duplicative
+                    with OppDayBar above; deal events now live solely in
+                    that summary row. */}
                 <div className="flex flex-col gap-[3px] min-h-0 overflow-hidden">
-                  {dealChipsToShow.map((ev) => (
-                    <DealChip
-                      key={ev.id}
-                      density="compact"
-                      deal={ev}
-                      onClick={() => onOpenDrawer("all")}
-                    />
-                  ))}
                   {visible.map((a) => {
                     const style = CATEGORY_STYLE[a.category];
                     return (

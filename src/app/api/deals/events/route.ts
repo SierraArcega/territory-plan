@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
             districtName: true,
             salesRepId: true,
             stageHistory: true,
+            detailsLink: true,
           },
         });
 
@@ -174,6 +175,7 @@ export async function GET(request: NextRequest) {
     districtLeaid: string | null;
     districtName: string | null;
     salesRepId: string | null;
+    detailsLink: string | null;
   };
 
   const events: OutEvent[] = [];
@@ -198,6 +200,7 @@ export async function GET(request: NextRequest) {
         districtLeaid: opp.districtLeaId,
         districtName: opp.districtName,
         salesRepId: opp.salesRepId,
+        detailsLink: opp.detailsLink,
       });
     }
 
@@ -224,6 +227,7 @@ export async function GET(request: NextRequest) {
         districtLeaid: opp.districtLeaId,
         districtName: opp.districtName,
         salesRepId: opp.salesRepId,
+        detailsLink: opp.detailsLink,
       });
     }
 
@@ -279,6 +283,7 @@ export async function GET(request: NextRequest) {
           districtLeaid: opp.districtLeaId,
           districtName: opp.districtName,
           salesRepId: opp.salesRepId,
+          detailsLink: opp.detailsLink,
         });
       }
       prevStage = curStage;

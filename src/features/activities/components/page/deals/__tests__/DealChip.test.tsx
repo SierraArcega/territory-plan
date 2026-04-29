@@ -15,6 +15,7 @@ function makeEvent(overrides: Partial<OppEvent> = {}): OppEvent {
     districtLeaid: "0900330",
     districtName: "Hartford Public Schools",
     salesRepId: "user-1",
+    detailsLink: null,
     ...overrides,
   };
 }
