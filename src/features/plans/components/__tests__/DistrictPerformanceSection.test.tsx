@@ -41,7 +41,6 @@ describe("DistrictPerformanceSection", () => {
         actuals={mockActuals}
         opportunities={mockOpportunities}
         revenueTarget={50000}
-        goalTakeRatePercent={20}
       />
     );
 
@@ -61,7 +60,6 @@ describe("DistrictPerformanceSection", () => {
         actuals={mockActuals}
         opportunities={mockOpportunities}
         revenueTarget={50000}
-        goalTakeRatePercent={20}
       />
     );
 
@@ -75,7 +73,6 @@ describe("DistrictPerformanceSection", () => {
         actuals={null}
         opportunities={[]}
         revenueTarget={50000}
-        goalTakeRatePercent={20}
       />
     );
 

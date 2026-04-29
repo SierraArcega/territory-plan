@@ -173,7 +173,6 @@ export function useAddDistrictsToPlan() {
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
       queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
-      queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       const leaids = variables.leaids;
       if (leaids) {
@@ -202,7 +201,6 @@ export function useRemoveDistrictFromPlan() {
       queryClient.invalidateQueries({ queryKey: ["territoryPlan", variables.planId] });
       queryClient.invalidateQueries({ queryKey: ["explore"] });
       queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
-      queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
@@ -501,7 +499,6 @@ export function useUpdateDistrictTargets() {
       // Background-refresh the single district detail (lightweight)
       queryClient.invalidateQueries({ queryKey: ["planDistrict", variables.planId, variables.leaid] });
       // Refresh dashboards that aggregate target data
-      queryClient.invalidateQueries({ queryKey: ["goalDashboard"] });
       queryClient.invalidateQueries({ queryKey: ["teamProgress"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
