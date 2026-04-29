@@ -94,15 +94,23 @@ function extractImage(item: RssItemNode): string | undefined {
 
 /** Fetch and parse an RSS 2.0 or Atom feed. Filters excluded domains. */
 export async function fetchRssFeed(url: string, defaultSource: string): Promise<RawArticle[]> {
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, Accept: "application/rss+xml, application/xml, text/xml, */*" },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) {
-    throw new Error(`RSS fetch failed: ${res.status} ${res.statusText} for ${url}`);
+  const t0 = Date.now();
+  let status: number | string = "err";
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/rss+xml, application/xml, text/xml, */*" },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    status = res.status;
+    if (!res.ok) {
+      throw new Error(`RSS fetch failed: ${res.status} ${res.statusText} for ${url}`);
+    }
+    const xml = await res.text();
+    return parseRssXml(xml, defaultSource);
+  } finally {
+    const ms = Date.now() - t0;
+    console.log(`[news.rss] source="${defaultSource.slice(0, 60)}" status=${status} ms=${ms}`);
   }
-  const xml = await res.text();
-  return parseRssXml(xml, defaultSource);
 }
 
 export function parseRssXml(xml: string, defaultSource: string): RawArticle[] {
@@ -201,5 +209,11 @@ export function buildGoogleNewsRssUrl(query: string): string {
 }
 
 export async function fetchGoogleNewsRss(query: string): Promise<RawArticle[]> {
-  return fetchRssFeed(buildGoogleNewsRssUrl(query), "news.google.com");
+  const t0 = Date.now();
+  try {
+    return await fetchRssFeed(buildGoogleNewsRssUrl(query), "news.google.com");
+  } finally {
+    const ms = Date.now() - t0;
+    console.log(`[news.rss] google_news q="${query.slice(0, 60)}" ms=${ms}`);
+  }
 }
