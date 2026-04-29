@@ -25,10 +25,10 @@
 **Working directory (IMPORTANT):** all work happens in the worktree, not the main checkout:
 
 ```
-/Users/sierraarcega/territory-plan/.claude/worktrees/vacancies-and-news
+/Users/sierraarcega/territory-plan/.claude/worktrees/vacancy-recovery
 ```
 
-Branch: `vacancies-and-news` (created fresh from `origin/main` at `4a76d081`).
+Branch: `fix/vacancy-scan-coverage` (off `vacancies-and-news`, which is itself off `origin/main` at `4a76d081`). The companion `fix/news-ingest-timeout` branch runs the parallel news plan; the two branches don't share files and merge to main independently.
 
 **Verification tooling:** `psql "$DATABASE_URL"` (`DATABASE_URL` is in `.env.local`). `npm test` for Vitest. Production verification uses Vercel and Supabase MCPs.
 
@@ -60,11 +60,11 @@ This is a one-shot script. It reads every district with `jobBoardUrl IS NOT NULL
 - [ ] **Step 1: `cd` into the worktree and confirm branch**
 
 ```bash
-cd /Users/sierraarcega/territory-plan/.claude/worktrees/vacancies-and-news
+cd /Users/sierraarcega/territory-plan/.claude/worktrees/vacancy-recovery
 git status
 ```
 
-Expected: `On branch vacancies-and-news`, clean tree.
+Expected: `On branch fix/vacancy-scan-coverage`, clean tree.
 
 - [ ] **Step 2: Capture pre-backfill platform distribution**
 
@@ -600,10 +600,10 @@ Expected: zero type errors; all tests pass.
 ```bash
 git status
 git log --oneline origin/main..HEAD
-git push -u origin vacancies-and-news
+git push -u origin fix/vacancy-scan-coverage
 ```
 
-Expected: status clean, ~5 commits ahead of origin/main, push succeeds.
+Expected: status clean, ~6 commits ahead of origin/main (5 from this plan + the plan-docs commit on `vacancies-and-news`), push succeeds.
 
 - [ ] **Step 3: Open the PR (or hand off to user)**
 
