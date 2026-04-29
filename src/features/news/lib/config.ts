@@ -111,5 +111,5 @@ export const TRACKING_PARAMS = new Set<string>([
   "igshid",
 ]);
 
-export const ROLLING_BATCH_SIZE = 50;
+export const ROLLING_BATCH_SIZE = 15;
 export const GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search";
