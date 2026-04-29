@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useActivities, useProfile } from "@/lib/api";
+import { usePrefetchActivity } from "@/features/activities/lib/queries";
 import { getCategoryForType } from "@/features/activities/types";
 import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import {
@@ -102,6 +103,15 @@ export default function ActivitiesPageShell() {
       nextId: idx < ordered.length - 1 ? ordered[idx + 1].id : null,
     };
   }, [filtered, openActivityId]);
+
+  // Warm the cache for the drawer's prev/next neighbors so chevron nav lands
+  // instantly. The prefetch is a no-op when the entry is already fresh.
+  const prefetchActivity = usePrefetchActivity();
+  useEffect(() => {
+    if (!openActivityId) return;
+    if (drawerNeighbors.prevId) prefetchActivity(drawerNeighbors.prevId);
+    if (drawerNeighbors.nextId) prefetchActivity(drawerNeighbors.nextId);
+  }, [openActivityId, drawerNeighbors.prevId, drawerNeighbors.nextId, prefetchActivity]);
 
   const onScopeChange = (next: ActivityScope) => {
     if (!profile?.id) return;

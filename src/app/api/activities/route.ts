@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
     const territories = readMulti(searchParams, "territory");
     const tags = readMulti(searchParams, "tags");
     const dealKinds = readMulti(searchParams, "dealKinds");
+    const districtLeaids = readMulti(searchParams, "districtLeaids");
+    const attendeeIds = readMulti(searchParams, "attendeeIds");
+    const inPersonValues = readMulti(searchParams, "inPerson");
 
     const planId = searchParams.get("planId");
     const districtLeaid = searchParams.get("districtLeaid");
@@ -103,9 +106,15 @@ export async function GET(request: NextRequest) {
       where.type = { in: allTypes };
     }
 
-    // Filter by district
-    if (districtLeaid) {
-      where.districts = { some: { districtLeaid } };
+    // Filter by district — single (legacy) and multi (new). When both are
+    // present, the multi list wins; the single param is treated as one entry.
+    const allDistrictLeaids = districtLeaid
+      ? [...new Set([districtLeaid, ...districtLeaids])]
+      : districtLeaids;
+    if (allDistrictLeaids.length === 1) {
+      where.districts = { some: { districtLeaid: allDistrictLeaids[0] } };
+    } else if (allDistrictLeaids.length > 1) {
+      where.districts = { some: { districtLeaid: { in: allDistrictLeaids } } };
     }
 
     // Filter by state — accepts a list of abbreviations (`CA,NY`).
@@ -113,6 +122,19 @@ export async function GET(request: NextRequest) {
       where.states = {
         some: { state: { abbrev: { in: states } } },
       };
+    }
+
+    // Filter by attendee user IDs.
+    if (attendeeIds.length > 0) {
+      where.attendees = { some: { userId: { in: attendeeIds } } };
+    }
+
+    // Filter by in-person flag. Empty array → no filter. ["yes"] / ["no"] →
+    // exact boolean match. Both → exclude unset (null) entries.
+    if (inPersonValues.length === 1) {
+      where.inPerson = inPersonValues[0] === "yes";
+    } else if (inPersonValues.length > 1) {
+      where.inPerson = { not: null };
     }
 
     // Filter by status
@@ -323,6 +345,10 @@ export async function POST(request: NextRequest) {
       contactIds = [],
       stateFips = [], // explicit states
       metadata = null,
+      address = null,
+      addressLat = null,
+      addressLng = null,
+      inPerson = null,
       attendeeUserIds = [],
       expenses = [],
       districts: districtDetails = [],
@@ -384,6 +410,10 @@ export async function POST(request: NextRequest) {
         outcome: outcome?.trim() || null,
         outcomeType: outcomeType || null,
         rating: rating != null ? Number(rating) : null,
+        address: typeof address === "string" ? address.trim() || null : null,
+        addressLat: addressLat == null ? null : Number(addressLat),
+        addressLng: addressLng == null ? null : Number(addressLng),
+        inPerson: inPerson == null ? null : Boolean(inPerson),
         metadata: metadata || undefined,
         createdByUserId: user.id,
         plans: {
@@ -546,6 +576,10 @@ export async function POST(request: NextRequest) {
       startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
+      address: activity.address,
+      addressLat: activity.addressLat,
+      addressLng: activity.addressLng,
+      inPerson: activity.inPerson,
       metadata: activity.metadata,
       createdByUserId: activity.createdByUserId,
       createdAt: activity.createdAt.toISOString(),

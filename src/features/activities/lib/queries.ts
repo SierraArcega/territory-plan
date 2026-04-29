@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { fetchJson, API_BASE } from "@/features/shared/lib/api-client";
 import type { ActivityType, ActivityStatus } from "@/features/activities/types";
 import type {
@@ -46,6 +47,12 @@ function buildActivitiesQueryString(params: ActivitiesParams): string {
   if (tags) sp.set("tags", tags);
   const dealKinds = csvParam(params.dealKinds);
   if (dealKinds) sp.set("dealKinds", dealKinds);
+  const districtLeaids = csvParam(params.districtLeaids);
+  if (districtLeaids) sp.set("districtLeaids", districtLeaids);
+  const attendeeIds = csvParam(params.attendeeIds);
+  if (attendeeIds) sp.set("attendeeIds", attendeeIds);
+  const inPerson = csvParam(params.inPerson);
+  if (inPerson) sp.set("inPerson", inPerson);
 
   if (params.startDateFrom) sp.set("startDateFrom", params.startDateFrom);
   if (params.startDateTo) sp.set("startDateTo", params.startDateTo);
@@ -81,13 +88,34 @@ export function useActivities(params: ActivitiesParams = {}, options?: { enabled
 }
 
 // Fetch single activity
+// placeholderData keeps the previously-shown activity visible while a new one
+// loads after a prev/next nav inside the drawer — without it, the panel would
+// unmount its chrome and flash a "Loading…" state for ~200ms per click.
 export function useActivity(activityId: string | null) {
   return useQuery({
     queryKey: ["activity", activityId],
     queryFn: () => fetchJson<Activity>(`${API_BASE}/activities/${activityId}`),
     enabled: !!activityId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    placeholderData: keepPreviousData,
   });
+}
+
+// Returns a prefetcher for activity detail. Used to warm the cache for the
+// drawer's prev/next neighbors so chevron clicks feel instant. The returned
+// function is memoized so it's safe to use as a useEffect dependency.
+export function usePrefetchActivity() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (activityId: string) => {
+      queryClient.prefetchQuery({
+        queryKey: ["activity", activityId],
+        queryFn: () => fetchJson<Activity>(`${API_BASE}/activities/${activityId}`),
+        staleTime: 2 * 60 * 1000,
+      });
+    },
+    [queryClient]
+  );
 }
 
 // Create activity mutation
@@ -107,6 +135,10 @@ export function useCreateActivity() {
       contactIds?: number[];
       stateFips?: string[];
       metadata?: Record<string, unknown> | null;
+      address?: string | null;
+      addressLat?: number | null;
+      addressLng?: number | null;
+      inPerson?: boolean | null;
       attendeeUserIds?: string[];
       expenses?: { description: string; amount: number }[];
       districts?: { leaid: string; visitDate?: string; visitEndDate?: string; position?: number; notes?: string }[];
@@ -152,6 +184,10 @@ export function useUpdateActivity() {
       outcomeDisposition?: "completed" | "no_show" | "rescheduled" | "cancelled" | null;
       rating?: number;
       opportunityIds?: string[];
+      address?: string | null;
+      addressLat?: number | null;
+      addressLng?: number | null;
+      inPerson?: boolean | null;
       metadata?: Record<string, unknown> | null;
       attendeeUserIds?: string[];
       contactIds?: number[];
@@ -162,7 +198,49 @@ export function useUpdateActivity() {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
-    onSuccess: (_, variables) => {
+    // Optimistic update: write scalar field changes into the cache before the
+    // network round-trip, so toggle/select-style edits feel instant. Relation
+    // edits (contactIds/attendeeUserIds/expenses/districts) need the server's
+    // joined data to render meaningfully, so we let those wait for the
+    // invalidate in onSettled.
+    onMutate: async ({ activityId, ...patch }) => {
+      const queryKey = ["activity", activityId] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Activity>(queryKey);
+      if (previous) {
+        queryClient.setQueryData<Activity>(queryKey, {
+          ...previous,
+          ...(patch.type !== undefined && { type: patch.type }),
+          ...(patch.title !== undefined && { title: patch.title }),
+          ...(patch.status !== undefined && { status: patch.status }),
+          ...(patch.startDate !== undefined && { startDate: patch.startDate }),
+          ...(patch.endDate !== undefined && { endDate: patch.endDate }),
+          ...(patch.notes !== undefined && { notes: patch.notes }),
+          ...(patch.outcome !== undefined && { outcome: patch.outcome }),
+          ...(patch.outcomeType !== undefined && { outcomeType: patch.outcomeType }),
+          ...(patch.sentiment !== undefined && { sentiment: patch.sentiment }),
+          ...(patch.nextStep !== undefined && { nextStep: patch.nextStep }),
+          ...(patch.followUpDate !== undefined && { followUpDate: patch.followUpDate }),
+          ...(patch.dealImpact !== undefined && { dealImpact: patch.dealImpact }),
+          ...(patch.outcomeDisposition !== undefined && {
+            outcomeDisposition: patch.outcomeDisposition,
+          }),
+          ...(patch.address !== undefined && { address: patch.address }),
+          ...(patch.addressLat !== undefined && { addressLat: patch.addressLat }),
+          ...(patch.addressLng !== undefined && { addressLng: patch.addressLng }),
+          ...(patch.inPerson !== undefined && { inPerson: patch.inPerson }),
+          ...(patch.rating !== undefined && { rating: patch.rating }),
+          ...(patch.metadata !== undefined && { metadata: patch.metadata }),
+        });
+      }
+      return { previous, queryKey };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous && context.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previous);
+      }
+    },
+    onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["activity", variables.activityId] });
     },
@@ -343,6 +421,7 @@ export function useActivityNotes(activityId: string | null) {
       ).then((res) => res.notes),
     enabled: !!activityId,
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -400,6 +479,7 @@ export function useActivityAttachments(activityId: string | null) {
       ).then((res) => res.attachments),
     enabled: !!activityId,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 

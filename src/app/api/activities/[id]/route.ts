@@ -153,6 +153,10 @@ export async function GET(
       followUpDate: activity.followUpDate?.toISOString() ?? null,
       dealImpact: activity.dealImpact,
       outcomeDisposition: activity.outcomeDisposition,
+      address: activity.address,
+      addressLat: activity.addressLat,
+      addressLng: activity.addressLng,
+      inPerson: activity.inPerson,
       rating: activity.rating,
       createdByUserId: activity.createdByUserId,
       createdByUser,
@@ -264,6 +268,7 @@ export async function PATCH(
       type, title, notes, startDate, endDate, status, outcome, outcomeType,
       // Wave 1 redesigned outcome fields — see types.ts VALID_* constants
       sentiment, nextStep, followUpDate, dealImpact, outcomeDisposition,
+      address, addressLat, addressLng, inPerson,
       metadata, attendeeUserIds, contactIds, expenses, rating, opportunityIds,
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
     } = body;
@@ -382,6 +387,18 @@ export async function PATCH(
         }),
         ...(outcomeDisposition !== undefined && {
           outcomeDisposition: outcomeDisposition || null,
+        }),
+        ...(address !== undefined && {
+          address: typeof address === "string" ? address.trim() || null : null,
+        }),
+        ...(addressLat !== undefined && {
+          addressLat: addressLat === null ? null : Number(addressLat),
+        }),
+        ...(addressLng !== undefined && {
+          addressLng: addressLng === null ? null : Number(addressLng),
+        }),
+        ...(inPerson !== undefined && {
+          inPerson: inPerson === null ? null : Boolean(inPerson),
         }),
         ...(metadata !== undefined && { metadata: metadata }),
         ...(rating !== undefined && { rating: rating }),

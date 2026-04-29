@@ -43,11 +43,6 @@ export default function ContactSearchInput({
   const { data, isLoading } = useSearchContacts(debouncedQuery, firstLeaid);
   const results = data?.contacts ?? [];
 
-  useEffect(() => {
-    if (debouncedQuery.length >= 1 || firstLeaid) setShowDropdown(true);
-    else setShowDropdown(false);
-  }, [debouncedQuery, firstLeaid, results.length]);
-
   const handleSelect = useCallback(
     (contact: { id: number; name: string; title: string | null }) => {
       if (excludeContactIds.includes(contact.id)) return;

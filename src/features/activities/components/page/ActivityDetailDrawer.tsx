@@ -42,6 +42,10 @@ type DrawerPatch = Partial<{
   followUpDate: string | null;
   dealImpact: "none" | "progressed" | "won" | "lost";
   outcomeDisposition: "completed" | "no_show" | "rescheduled" | "cancelled" | null;
+  address: string | null;
+  addressLat: number | null;
+  addressLng: number | null;
+  inPerson: boolean | null;
   metadata: Record<string, unknown> | null;
   attendeeUserIds: string[];
   contactIds: number[];
@@ -87,11 +91,12 @@ export default function ActivityDetailDrawer({
   }, [activityId, onClose, onNavigate, canPrev, canNext]);
 
   if (!activityId) return null;
-  // Key the inner panel by activityId so tab/confirm/saved state resets fresh
-  // when the drawer pivots to a different activity.
+  // Don't key by activityId — keying remounts the panel on prev/next nav,
+  // which throws away the useActivity cache state and flashes a blank
+  // "Loading…" panel for ~200ms per click. Inner resets transient state
+  // (tab, confirm, saved-flash) explicitly when activityId changes.
   return (
     <DrawerInner
-      key={activityId}
       activityId={activityId}
       onClose={onClose}
       onNavigate={onNavigate}
@@ -124,6 +129,15 @@ function DrawerInner({
   const [tab, setTab] = useState<TabId>("overview");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+
+  // Reset transient panel state when the drawer pivots to a different
+  // activity (replaces the previous key={activityId} approach so we keep
+  // useActivity's placeholderData bridge across the nav).
+  useEffect(() => {
+    setTab("overview");
+    setConfirmingDelete(false);
+    setSavedFlash(false);
+  }, [activityId]);
 
   const isAdmin = profile?.role === "admin";
   const isForeignOwned =

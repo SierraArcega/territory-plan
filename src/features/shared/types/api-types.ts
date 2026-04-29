@@ -556,6 +556,10 @@ export interface Activity {
   followUpDate: string | null;
   dealImpact: DealImpact;
   outcomeDisposition: ActivityOutcomeDisposition | null;
+  address: string | null;
+  addressLat: number | null;
+  addressLng: number | null;
+  inPerson: boolean | null;
   metadata: Record<string, unknown> | null;
   needsPlanAssociation: boolean;
   hasUnlinkedDistricts: boolean;
@@ -615,6 +619,8 @@ export interface ActivitiesResponse {
 export interface ActivitiesParams {
   planId?: string;
   districtLeaid?: string;
+  // Multi-district filter — list of leaids, OR'd together server-side.
+  districtLeaids?: string | string[];
   // Was `stateCode` — renamed to `state` to match the route handler. The
   // serialized URL parameter is also `state`.
   state?: string | string[];
@@ -632,6 +638,10 @@ export interface ActivitiesParams {
   // owner accepts an explicit list of user IDs — used by the multi-owner
   // filter rail. `ownerId` and `owner` are mutually exclusive on the wire.
   owner?: string | string[];
+  // Filter to activities that include these user IDs as attendees.
+  attendeeIds?: string | string[];
+  // "yes" → only in-person; "no" → only virtual; both → exclude unset.
+  inPerson?: string | string[];
   territory?: string | string[];
   tags?: string | string[];
   dealKinds?: string | string[];

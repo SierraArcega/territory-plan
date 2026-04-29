@@ -30,6 +30,10 @@ interface OverviewPanelProps {
       startDate: string | null;
       endDate: string | null;
       notes: string | null;
+      address: string | null;
+      addressLat: number | null;
+      addressLng: number | null;
+      inPerson: boolean | null;
       metadata: Record<string, unknown> | null;
       attendeeUserIds: string[];
       contactIds: number[];
@@ -93,9 +97,7 @@ export default function OverviewPanel({
   const unlinkDistrict = useUnlinkActivityDistrict();
   const linkedLeaids = activity.districts.map((d) => d.leaid);
 
-  const currentMetadata = (activity.metadata ?? {}) as Record<string, unknown>;
-  const currentAddress =
-    typeof currentMetadata.address === "string" ? currentMetadata.address : "";
+  const currentAddress = activity.address ?? "";
 
   return (
     <div className="space-y-5 px-5 py-5 overflow-auto h-full">
@@ -225,6 +227,35 @@ export default function OverviewPanel({
         </div>
       </div>
 
+      {/* In person? */}
+      <div>
+        <FieldLabel>In person?</FieldLabel>
+        <div className="inline-flex rounded-full border border-[#E2DEEC] bg-white p-0.5">
+          {[
+            { value: true, label: "Yes" },
+            { value: false, label: "No" },
+          ].map(({ value, label }) => {
+            const active = activity.inPerson === value;
+            return (
+              <button
+                key={label}
+                type="button"
+                disabled={readOnly}
+                aria-pressed={active}
+                onClick={() => onPatch({ inPerson: active ? null : value })}
+                className={`px-3 py-1 rounded-full text-xs font-medium [transition-duration:120ms] transition-colors ${
+                  active
+                    ? "bg-[#403770] text-white"
+                    : "text-[#6E6390] hover:text-[#403770] hover:bg-[#F7F5FA]"
+                } ${readOnly ? "opacity-60 cursor-default" : ""}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Address */}
       <div>
         <FieldLabel optional>Address</FieldLabel>
@@ -237,12 +268,9 @@ export default function OverviewPanel({
             value={currentAddress}
             onChange={(addr, lat, lng) =>
               onPatch({
-                metadata: {
-                  ...currentMetadata,
-                  address: addr || undefined,
-                  addressLat: lat,
-                  addressLng: lng,
-                },
+                address: addr || null,
+                addressLat: lat ?? null,
+                addressLng: lng ?? null,
               })
             }
           />

@@ -20,7 +20,10 @@ export interface ActivitiesFilters {
   dealMin: number;
   dealMax: number | null;
   statuses: string[];
-  owners: string[]; // user IDs; empty = team scope
+  owners: string[]; // user IDs (created by); empty = team scope
+  attendeeIds: string[]; // user IDs of attendees
+  districts: string[]; // district leaids
+  inPerson: ("yes" | "no")[]; // empty = no filter; ["yes"] / ["no"] / both
   states: string[]; // state codes
   territories: string[]; // plan IDs
   tags: string[];
@@ -36,6 +39,9 @@ export const EMPTY_FILTERS: ActivitiesFilters = {
   dealMax: null,
   statuses: [],
   owners: [],
+  attendeeIds: [],
+  districts: [],
+  inPerson: [],
   states: [],
   territories: [],
   tags: [],
@@ -199,6 +205,14 @@ export function deriveActivitiesParams(args: {
   if (args.filters.owners.length === 1) params.ownerId = args.filters.owners[0];
   if (args.filters.owners.length === 0) params.ownerId = "all";
   if (args.filters.text.trim()) params.search = args.filters.text.trim();
+
+  // Multi-value filters that the API now accepts directly. We send the full
+  // list so the server-side `where` does the work and the client doesn't have
+  // to re-filter post-fetch.
+  if (args.filters.owners.length > 1) params.owner = args.filters.owners;
+  if (args.filters.attendeeIds.length > 0) params.attendeeIds = args.filters.attendeeIds;
+  if (args.filters.districts.length > 0) params.districtLeaids = args.filters.districts;
+  if (args.filters.inPerson.length > 0) params.inPerson = args.filters.inPerson;
 
   return params;
 }
