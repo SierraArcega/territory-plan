@@ -263,6 +263,27 @@ export interface BulkEnrichError extends Error {
   body: unknown;
 }
 
+export interface ContactSourcePlan {
+  id: string;
+  name: string;
+  ownerName: string | null;
+  sharedDistrictCount: number;
+  contactCount: number;
+  lastEnrichedAt: string | null;
+}
+
+export function useContactSources(planId: string | null) {
+  return useQuery({
+    queryKey: ["planContactSources", planId],
+    queryFn: () =>
+      fetchJson<{ plans: ContactSourcePlan[] }>(
+        `${API_BASE}/territory-plans/${planId}/contact-sources`
+      ),
+    enabled: !!planId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useBulkEnrich() {
   const queryClient = useQueryClient();
 
@@ -307,7 +328,12 @@ export function useBulkEnrich() {
         err.body = body;
         throw err;
       }
-      return body as { total: number; skipped: number; queued: number };
+      return body as {
+        total: number;
+        skipped: number;
+        queued: number;
+        reason?: "no-districts" | "no-schools-in-district" | "no-schools-at-levels";
+      };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["planContacts", variables.planId] });
