@@ -1,7 +1,43 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+
+vi.mock("@/features/activities/lib/queries", () => ({
+  useLinkActivityDistricts: vi.fn(),
+  useUnlinkActivityDistrict: vi.fn(),
+  useSearchContacts: vi.fn(),
+}));
+
+vi.mock("@/features/shared/lib/queries", () => ({
+  useUsers: vi.fn(),
+}));
+
+import {
+  useLinkActivityDistricts,
+  useUnlinkActivityDistrict,
+  useSearchContacts,
+} from "@/features/activities/lib/queries";
+import { useUsers } from "@/features/shared/lib/queries";
 import OverviewPanel from "../OverviewPanel";
 import type { Activity } from "@/features/shared/types/api-types";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  (useLinkActivityDistricts as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  });
+  (useUnlinkActivityDistrict as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  });
+  (useSearchContacts as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: { contacts: [], total: 0 },
+    isLoading: false,
+  });
+  (useUsers as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: [],
+  });
+});
 
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
@@ -14,6 +50,7 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
     endDate: "2026-04-27T16:00:00.000Z",
     status: "planned",
     createdByUserId: "user-1",
+    createdByUser: null,
     createdAt: "2026-04-27T00:00:00.000Z",
     updatedAt: "2026-04-27T00:00:00.000Z",
     googleEventId: null,
@@ -35,6 +72,8 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
     expenses: [],
     attendees: [],
     relatedActivities: [],
+    opportunities: [],
+    rating: null,
     ...overrides,
   };
 }

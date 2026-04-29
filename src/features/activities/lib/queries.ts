@@ -154,6 +154,7 @@ export function useUpdateActivity() {
       opportunityIds?: string[];
       metadata?: Record<string, unknown> | null;
       attendeeUserIds?: string[];
+      contactIds?: number[];
       expenses?: { description: string; amount: number }[];
       districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[];
     }) =>

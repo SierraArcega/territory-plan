@@ -24,6 +24,7 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
     endDate: null,
     status: "planned",
     createdByUserId: "user-1",
+    createdByUser: null,
     createdAt: "2026-04-27T00:00:00.000Z",
     updatedAt: "2026-04-27T00:00:00.000Z",
     googleEventId: null,
@@ -45,6 +46,8 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
     expenses: [],
     attendees: [],
     relatedActivities: [],
+    opportunities: [],
+    rating: null,
     ...overrides,
   };
 }

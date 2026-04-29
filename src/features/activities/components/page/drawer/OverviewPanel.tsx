@@ -1,18 +1,27 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, MapPin, User2, FileText, DollarSign, Paperclip } from "lucide-react";
+import { Clock, MapPin, User2, FileText, DollarSign, Paperclip, X, Contact } from "lucide-react";
 import {
   ACTIVITY_STATUS_CONFIG,
   type ActivityStatus,
   type ActivityType,
 } from "@/features/activities/types";
 import FieldLabel from "@/features/shared/components/FieldLabel";
+import DistrictSearchInput from "@/features/activities/components/event-fields/DistrictSearchInput";
+import AddressInput from "@/features/activities/components/event-fields/AddressInput";
+import ContactSearchInput from "./ContactSearchInput";
+import AttendeeSearchInput from "./AttendeeSearchInput";
+import {
+  useLinkActivityDistricts,
+  useUnlinkActivityDistrict,
+} from "@/features/activities/lib/queries";
 import type { Activity } from "@/features/shared/types/api-types";
 
 interface OverviewPanelProps {
   activity: Activity;
   readOnly: boolean;
+  ownerName?: string | null;
   onPatch: (
     patch: Partial<{
       type: ActivityType;
@@ -21,6 +30,9 @@ interface OverviewPanelProps {
       startDate: string | null;
       endDate: string | null;
       notes: string | null;
+      metadata: Record<string, unknown> | null;
+      attendeeUserIds: string[];
+      contactIds: number[];
     }>
   ) => void;
   notesCount: number;
@@ -56,6 +68,7 @@ function durationMinutes(startIso: string | null, endIso: string | null): number
 export default function OverviewPanel({
   activity,
   readOnly,
+  ownerName,
   onPatch,
   notesCount,
   attachmentsCount,
@@ -75,6 +88,14 @@ export default function OverviewPanel({
   }
 
   const isLegacyStatus = (LEGACY_STATUSES as string[]).includes(activity.status);
+
+  const linkDistricts = useLinkActivityDistricts();
+  const unlinkDistrict = useUnlinkActivityDistrict();
+  const linkedLeaids = activity.districts.map((d) => d.leaid);
+
+  const currentMetadata = (activity.metadata ?? {}) as Record<string, unknown>;
+  const currentAddress =
+    typeof currentMetadata.address === "string" ? currentMetadata.address : "";
 
   return (
     <div className="space-y-5 px-5 py-5 overflow-auto h-full">
@@ -154,29 +175,127 @@ export default function OverviewPanel({
         </div>
       </div>
 
-      {/* Where */}
+      {/* Districts */}
       <div>
-        <FieldLabel>Where</FieldLabel>
-        <div className="flex flex-wrap gap-1.5">
-          {activity.districts.length === 0 && (
-            <span className="text-xs text-[#A69DC0] italic">
-              No district linked.{!readOnly && " Manage in activity form."}
-            </span>
+        <FieldLabel>Districts</FieldLabel>
+        <div className="space-y-2">
+          {activity.districts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activity.districts.map((d) => (
+                <span
+                  key={d.leaid}
+                  className="inline-flex items-center gap-1 pl-2 pr-1 py-1 text-xs rounded-md bg-[#F7F5FA] text-[#403770]"
+                >
+                  <MapPin className="w-3 h-3" />
+                  {d.name}
+                  <span className="text-[#A69DC0]">{d.stateAbbrev}</span>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${d.name}`}
+                      onClick={() =>
+                        unlinkDistrict.mutate({
+                          activityId: activity.id,
+                          leaid: d.leaid,
+                        })
+                      }
+                      className="fm-focus-ring ml-0.5 w-4 h-4 inline-flex items-center justify-center rounded text-[#8A80A8] hover:bg-[#EFEDF5] hover:text-[#403770] [transition-duration:120ms] transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
           )}
-          {activity.districts.slice(0, 6).map((d) => (
-            <span
-              key={d.leaid}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-[#F7F5FA] text-[#403770]"
-            >
-              <MapPin className="w-3 h-3" />
-              {d.name}
-              <span className="text-[#A69DC0]">{d.stateAbbrev}</span>
-            </span>
-          ))}
-          {activity.districts.length > 6 && (
-            <span className="text-xs text-[#8A80A8] self-center">
-              +{activity.districts.length - 6} more
-            </span>
+          {readOnly && activity.districts.length === 0 && (
+            <span className="text-xs text-[#A69DC0] italic">No district linked.</span>
+          )}
+          {!readOnly && (
+            <DistrictSearchInput
+              excludeLeaids={linkedLeaids}
+              onSelect={(d) =>
+                linkDistricts.mutate({
+                  activityId: activity.id,
+                  leaids: [d.leaid],
+                })
+              }
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Address */}
+      <div>
+        <FieldLabel optional>Address</FieldLabel>
+        {readOnly ? (
+          <span className="text-xs text-[#A69DC0] italic">
+            {currentAddress || "No address."}
+          </span>
+        ) : (
+          <AddressInput
+            value={currentAddress}
+            onChange={(addr, lat, lng) =>
+              onPatch({
+                metadata: {
+                  ...currentMetadata,
+                  address: addr || undefined,
+                  addressLat: lat,
+                  addressLng: lng,
+                },
+              })
+            }
+          />
+        )}
+      </div>
+
+      {/* Contacts */}
+      <div>
+        <FieldLabel>Contacts</FieldLabel>
+        <div className="space-y-2">
+          {activity.contacts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activity.contacts.map((c) => (
+                <span
+                  key={c.id}
+                  className="inline-flex items-center gap-1 pl-2 pr-1 py-1 text-xs rounded-md bg-[#F7F5FA] text-[#403770]"
+                >
+                  <Contact className="w-3 h-3" />
+                  {c.name}
+                  {c.title && <span className="text-[#A69DC0]">· {c.title}</span>}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${c.name}`}
+                      onClick={() =>
+                        onPatch({
+                          contactIds: activity.contacts
+                            .filter((x) => x.id !== c.id)
+                            .map((x) => x.id),
+                        })
+                      }
+                      className="fm-focus-ring ml-0.5 w-4 h-4 inline-flex items-center justify-center rounded text-[#8A80A8] hover:bg-[#EFEDF5] hover:text-[#403770] [transition-duration:120ms] transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          {readOnly && activity.contacts.length === 0 && (
+            <span className="text-xs text-[#A69DC0] italic">No contacts linked.</span>
+          )}
+          {!readOnly && (
+            <ContactSearchInput
+              excludeContactIds={activity.contacts.map((c) => c.id)}
+              districtLeaids={linkedLeaids}
+              onSelect={(c) =>
+                onPatch({
+                  contactIds: [...activity.contacts.map((x) => x.id), c.id],
+                })
+              }
+            />
           )}
         </div>
       </div>
@@ -184,19 +303,52 @@ export default function OverviewPanel({
       {/* Attendees */}
       <div>
         <FieldLabel>Attendees</FieldLabel>
-        <div className="flex flex-wrap gap-1.5">
-          {activity.attendees.length === 0 && (
+        <div className="space-y-2">
+          {activity.attendees.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activity.attendees.map((a) => (
+                <span
+                  key={a.userId}
+                  className="inline-flex items-center gap-1 pl-2 pr-1 py-1 text-xs rounded-md bg-[#EEEAF5] text-[#403770]"
+                >
+                  <User2 className="w-3 h-3" />
+                  {a.fullName || a.userId.slice(0, 6)}
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${a.fullName || "attendee"}`}
+                      onClick={() =>
+                        onPatch({
+                          attendeeUserIds: activity.attendees
+                            .filter((x) => x.userId !== a.userId)
+                            .map((x) => x.userId),
+                        })
+                      }
+                      className="fm-focus-ring ml-0.5 w-4 h-4 inline-flex items-center justify-center rounded text-[#8A80A8] hover:bg-[#E2DEEC] hover:text-[#403770] [transition-duration:120ms] transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          {readOnly && activity.attendees.length === 0 && (
             <span className="text-xs text-[#A69DC0] italic">No attendees yet.</span>
           )}
-          {activity.attendees.map((a) => (
-            <span
-              key={a.userId}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-[#EEEAF5] text-[#403770]"
-            >
-              <User2 className="w-3 h-3" />
-              {a.fullName || a.userId.slice(0, 6)}
-            </span>
-          ))}
+          {!readOnly && (
+            <AttendeeSearchInput
+              excludeUserIds={activity.attendees.map((a) => a.userId)}
+              onSelect={(u) =>
+                onPatch({
+                  attendeeUserIds: [
+                    ...activity.attendees.map((x) => x.userId),
+                    u.id,
+                  ],
+                })
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -236,8 +388,10 @@ export default function OverviewPanel({
       <div className="pt-3 text-[11px] text-[#A69DC0] border-t border-[#F0EDF7] flex items-center gap-2 flex-wrap">
         <Clock className="w-3 h-3" />
         <span>
-          {readOnly
-            ? "Team activity · read-only"
+          {ownerName
+            ? readOnly
+              ? `${ownerName}'s activity · read-only`
+              : `${ownerName}'s activity`
             : activity.googleEventId
             ? "Your activity · changes sync to Google Calendar"
             : "Your activity · manual entry"}

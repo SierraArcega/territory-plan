@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, MoreVertical, Trash2, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, MoreVertical, Trash2, X } from "lucide-react";
 import {
   useActivity,
   useUpdateActivity,
@@ -42,6 +42,11 @@ type DrawerPatch = Partial<{
   followUpDate: string | null;
   dealImpact: "none" | "progressed" | "won" | "lost";
   outcomeDisposition: "completed" | "no_show" | "rescheduled" | "cancelled" | null;
+  metadata: Record<string, unknown> | null;
+  attendeeUserIds: string[];
+  contactIds: number[];
+  rating: number;
+  opportunityIds: string[];
 }>;
 
 const FLASH_MS = 1400;
@@ -49,31 +54,65 @@ const FLASH_MS = 1400;
 export default function ActivityDetailDrawer({
   activityId,
   onClose,
+  onNavigate,
+  canPrev = false,
+  canNext = false,
 }: {
   activityId: string | null;
   onClose: () => void;
+  onNavigate?: (dir: "prev" | "next") => void;
+  canPrev?: boolean;
+  canNext?: boolean;
 }) {
   useEffect(() => {
     if (!activityId) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Skip arrow nav while typing in an input/textarea/contentEditable
+      const target = e.target as HTMLElement | null;
+      const isEditable =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+      if (isEditable) return;
+      if (e.key === "ArrowLeft" && canPrev) onNavigate?.("prev");
+      if (e.key === "ArrowRight" && canNext) onNavigate?.("next");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [activityId, onClose]);
+  }, [activityId, onClose, onNavigate, canPrev, canNext]);
 
   if (!activityId) return null;
   // Key the inner panel by activityId so tab/confirm/saved state resets fresh
   // when the drawer pivots to a different activity.
-  return <DrawerInner key={activityId} activityId={activityId} onClose={onClose} />;
+  return (
+    <DrawerInner
+      key={activityId}
+      activityId={activityId}
+      onClose={onClose}
+      onNavigate={onNavigate}
+      canPrev={canPrev}
+      canNext={canNext}
+    />
+  );
 }
 
 function DrawerInner({
   activityId,
   onClose,
+  onNavigate,
+  canPrev,
+  canNext,
 }: {
   activityId: string;
   onClose: () => void;
+  onNavigate?: (dir: "prev" | "next") => void;
+  canPrev: boolean;
+  canNext: boolean;
 }) {
   const { data: activity, isLoading } = useActivity(activityId);
   const { data: notes = [] } = useActivityNotes(activityId);
@@ -86,8 +125,11 @@ function DrawerInner({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
-  const readOnly =
+  const isAdmin = profile?.role === "admin";
+  const isForeignOwned =
     !!activity?.createdByUserId && activity.createdByUserId !== profile?.id;
+  const readOnly = isForeignOwned && !isAdmin;
+  const ownerName = activity?.createdByUser?.fullName ?? null;
 
   function flashSaved() {
     setSavedFlash(true);
@@ -169,9 +211,11 @@ function DrawerInner({
                       </span>
                     )}
                   />
-                  {readOnly && (
+                  {isForeignOwned && (
                     <span className="ml-auto text-[10px] font-semibold text-[#6E6390] bg-[#EFEDF5] px-2 py-0.5 rounded-full whitespace-nowrap">
-                      Read-only · team activity
+                      {readOnly
+                        ? `Read-only · ${ownerName ?? "teammate"}`
+                        : ownerName ?? "Teammate"}
                     </span>
                   )}
                 </div>
@@ -186,6 +230,26 @@ function DrawerInner({
                 />
               </div>
               <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.("prev")}
+                  disabled={!canPrev}
+                  aria-label="Previous activity"
+                  title="Previous activity (←)"
+                  className="fm-focus-ring w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed [transition-duration:120ms] transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate?.("next")}
+                  disabled={!canNext}
+                  aria-label="Next activity"
+                  title="Next activity (→)"
+                  className="fm-focus-ring w-8 h-8 inline-flex items-center justify-center rounded-md text-[#6E6390] hover:bg-[#F7F5FA] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed [transition-duration:120ms] transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
                 {/* TODO: overflow menu */}
                 <button
                   type="button"
@@ -220,6 +284,7 @@ function DrawerInner({
                 <OverviewPanel
                   activity={activity}
                   readOnly={readOnly}
+                  ownerName={isForeignOwned ? ownerName : null}
                   onPatch={patch}
                   notesCount={notes.length}
                   attachmentsCount={attachments.length}

@@ -86,6 +86,23 @@ export default function ActivitiesPageShell() {
 
   const railScope = scope === "mine" ? "mine" : "team";
 
+  // Drawer prev/next: walk the filtered list in chronological order so navigation
+  // matches the user's mental model of "next thing on the calendar."
+  const drawerNeighbors = useMemo(() => {
+    if (!openActivityId) return { prevId: null, nextId: null };
+    const ordered = [...filtered].sort((a, b) => {
+      const ta = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const tb = b.startDate ? new Date(b.startDate).getTime() : 0;
+      return ta - tb;
+    });
+    const idx = ordered.findIndex((a) => a.id === openActivityId);
+    if (idx === -1) return { prevId: null, nextId: null };
+    return {
+      prevId: idx > 0 ? ordered[idx - 1].id : null,
+      nextId: idx < ordered.length - 1 ? ordered[idx + 1].id : null,
+    };
+  }, [filtered, openActivityId]);
+
   const onScopeChange = (next: ActivityScope) => {
     if (!profile?.id) return;
     patchFilters({ owners: next === "mine" ? [profile.id] : [] });
@@ -136,6 +153,13 @@ export default function ActivitiesPageShell() {
       <ActivityDetailDrawer
         activityId={openActivityId}
         onClose={() => setOpenActivityId(null)}
+        canPrev={drawerNeighbors.prevId !== null}
+        canNext={drawerNeighbors.nextId !== null}
+        onNavigate={(dir) => {
+          const target =
+            dir === "next" ? drawerNeighbors.nextId : drawerNeighbors.prevId;
+          if (target) setOpenActivityId(target);
+        }}
       />
 
       {creatingActivity && (

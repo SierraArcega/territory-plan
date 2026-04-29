@@ -127,6 +127,13 @@ export async function GET(
       (d) => !d.isInPlan && !d.warningDismissed
     );
 
+    const createdByUser = activity.createdByUserId
+      ? await prisma.userProfile.findUnique({
+          where: { id: activity.createdByUserId },
+          select: { id: true, fullName: true, avatarUrl: true },
+        })
+      : null;
+
     return NextResponse.json({
       id: activity.id,
       type: activity.type,
@@ -148,6 +155,7 @@ export async function GET(
       outcomeDisposition: activity.outcomeDisposition,
       rating: activity.rating,
       createdByUserId: activity.createdByUserId,
+      createdByUser,
       createdAt: activity.createdAt.toISOString(),
       updatedAt: activity.updatedAt.toISOString(),
       needsPlanAssociation,
@@ -256,7 +264,7 @@ export async function PATCH(
       type, title, notes, startDate, endDate, status, outcome, outcomeType,
       // Wave 1 redesigned outcome fields — see types.ts VALID_* constants
       sentiment, nextStep, followUpDate, dealImpact, outcomeDisposition,
-      metadata, attendeeUserIds, expenses, rating, opportunityIds,
+      metadata, attendeeUserIds, contactIds, expenses, rating, opportunityIds,
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
     } = body;
 
@@ -386,6 +394,19 @@ export async function PATCH(
       if (attendeeUserIds.length > 0) {
         await prisma.activityAttendee.createMany({
           data: attendeeUserIds.map((userId: string) => ({ activityId: id, userId })),
+        });
+      }
+    }
+
+    // Update contacts if provided (replace all)
+    if (contactIds !== undefined) {
+      await prisma.activityContact.deleteMany({ where: { activityId: id } });
+      if (Array.isArray(contactIds) && contactIds.length > 0) {
+        await prisma.activityContact.createMany({
+          data: (contactIds as number[]).map((contactId) => ({
+            activityId: id,
+            contactId,
+          })),
         });
       }
     }

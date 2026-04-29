@@ -1,7 +1,21 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+
+vi.mock("@/features/activities/lib/queries", () => ({
+  useOpportunitySearch: vi.fn(),
+}));
+
+import { useOpportunitySearch } from "@/features/activities/lib/queries";
 import OutcomePanel from "../OutcomePanel";
 import type { Activity } from "@/features/shared/types/api-types";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  (useOpportunitySearch as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: [],
+    isLoading: false,
+  });
+});
 
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
@@ -14,6 +28,7 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
     endDate: "2026-04-27T16:00:00.000Z",
     status: "completed",
     createdByUserId: "user-1",
+    createdByUser: null,
     createdAt: "2026-04-27T00:00:00.000Z",
     updatedAt: "2026-04-27T00:00:00.000Z",
     googleEventId: null,
@@ -35,45 +50,48 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
     expenses: [],
     attendees: [],
     relatedActivities: [],
+    opportunities: [],
+    rating: null,
     ...overrides,
   };
 }
 
 describe("OutcomePanel", () => {
-  it("clicking the Completed card calls onPatch with outcomeDisposition: 'completed'", () => {
+  it("clicking a star calls onPatch with the rating", () => {
     const onPatch = vi.fn();
     render(<OutcomePanel activity={makeActivity()} readOnly={false} onPatch={onPatch} />);
-    fireEvent.click(screen.getByRole("button", { name: /^completed/i }));
-    expect(onPatch).toHaveBeenCalledWith({ outcomeDisposition: "completed" });
+    fireEvent.click(screen.getByRole("radio", { name: /rate 4 stars/i }));
+    expect(onPatch).toHaveBeenCalledWith({ rating: 4 });
   });
 
-  it("clicking sentiment Positive calls onPatch with sentiment: 'positive'", () => {
+  it("clicking an outcome pill calls onPatch with outcomeType", () => {
     const onPatch = vi.fn();
     render(<OutcomePanel activity={makeActivity()} readOnly={false} onPatch={onPatch} />);
-    fireEvent.click(screen.getByRole("button", { name: /^positive/i }));
-    expect(onPatch).toHaveBeenCalledWith({ sentiment: "positive" });
+    // meetings category => "Moved Forward" (positive_progress)
+    fireEvent.click(screen.getByRole("button", { name: /moved forward/i }));
+    expect(onPatch).toHaveBeenCalledWith({ outcomeType: "positive_progress" });
   });
 
-  it("renders the deal-impact select with the current value", () => {
+  it("clicking the active outcome pill clears it (toggle off)", () => {
+    const onPatch = vi.fn();
     render(
       <OutcomePanel
-        activity={makeActivity({ dealImpact: "won" })}
+        activity={makeActivity({ outcomeType: "positive_progress" })}
         readOnly={false}
-        onPatch={vi.fn()}
+        onPatch={onPatch}
       />
     );
-    expect(screen.getByRole("button", { name: /deal impact/i })).toHaveTextContent("Won");
+    fireEvent.click(screen.getByRole("button", { name: /moved forward/i }));
+    expect(onPatch).toHaveBeenCalledWith({ outcomeType: null });
   });
 
-  it("disables outcome cards when readOnly", () => {
+  it("disables outcome pills when readOnly", () => {
     render(<OutcomePanel activity={makeActivity()} readOnly onPatch={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /^completed/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /moved forward/i })).toBeDisabled();
   });
 
-  it("does not render the deprecated OutcomesTab content", () => {
+  it("renders the linked deals section", () => {
     render(<OutcomePanel activity={makeActivity()} readOnly={false} onPatch={vi.fn()} />);
-    // The legacy OutcomesTab rendered "outcome captured" / type-specific copy.
-    // The new panel never emits those literals.
-    expect(screen.queryByText(/outcome captured/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/linked deals/i)).toBeInTheDocument();
   });
 });

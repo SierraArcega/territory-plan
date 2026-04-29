@@ -539,6 +539,11 @@ export interface Activity {
   endDate: string | null;
   status: ActivityStatus;
   createdByUserId: string | null;
+  createdByUser: {
+    id: string;
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   googleEventId: string | null;
@@ -561,6 +566,18 @@ export interface Activity {
   expenses: ActivityExpenseItem[];
   attendees: ActivityAttendeeItem[];
   relatedActivities: ActivityRelationLink[];
+  opportunities: ActivityOpportunityLink[];
+  rating: number | null;
+}
+
+export interface ActivityOpportunityLink {
+  id: string;
+  name: string;
+  stage: string | null;
+  netBookingAmount: number | null;
+  districtName: string | null;
+  districtLeaId: string | null;
+  closeDate: string | null;
 }
 
 export interface ActivityListItem {
