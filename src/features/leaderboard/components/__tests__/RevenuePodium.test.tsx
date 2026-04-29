@@ -6,8 +6,6 @@ import type { LeaderboardEntry } from "../../lib/types";
 const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string; revenue: number }): LeaderboardEntry => ({
   userId: crypto.randomUUID(),
   avatarUrl: null,
-  totalPoints: 0,
-  tier: "freshman",
   rank: 1,
   take: 0,
   pipeline: 0,
@@ -21,9 +19,6 @@ const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string; re
   revenueTargeted: 0,
   targetedCurrentFY: 0,
   targetedNextFY: 0,
-  combinedScore: 0,
-  initiativeScore: 0,
-  pointBreakdown: [],
   ...overrides,
 });
 
