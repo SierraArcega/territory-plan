@@ -12,7 +12,6 @@ import {
 } from "../lib/filters";
 import LowHangingFruitFilterBar from "./LowHangingFruitFilterBar";
 import LhfPlanPicker from "./LhfPlanPicker";
-import Sparkline from "./Sparkline";
 
 const LMS_OPP_CREATE_URL =
   "https://lms.fullmindlearning.com/opportunities/kanban?_sort=close_date&_dir=asc&school_year=2026-27";
@@ -334,7 +333,6 @@ export default function LowHangingFruitView() {
                   <Th width={108} align="right">FY26 closed won</Th>
                   <Th width={108} align="right">FY27 pipeline</Th>
                   <Th width={96} align="right">Suggested</Th>
-                  <Th width={76}>Trend</Th>
                   <Th width={184}>Last sale</Th>
                   <Th
                     width={208}
@@ -411,9 +409,6 @@ export default function LowHangingFruitView() {
                       </Td>
                       <Td align="right" className="text-[#6E6390]">
                         {r.suggestedTarget != null ? formatCurrencyShort(r.suggestedTarget) : "—"}
-                      </Td>
-                      <Td>
-                        <Sparkline trend={r.revenueTrend} />
                       </Td>
                       <Td>
                         {lcw ? (
