@@ -1,3 +1,10 @@
+-- Re-create district_opportunity_actuals to expose sub_revenue as its own column
+-- (was only inside the combined total_revenue SUM). No semantic change to other
+-- columns. Source of truth: scripts/district-opportunity-actuals-view.sql.
+--
+-- Spec: Docs/superpowers/specs/2026-04-30-leaderboard-fy-attribution-fix-design.md
+-- Required by: Task 4 (getRepActuals rewrite reads sub_revenue independently of session revenue)
+
 -- scripts/district-opportunity-actuals-view.sql
 -- Materialized view: district_opportunity_actuals
 -- Aggregates opportunities by district, school year, sales rep, and category.
