@@ -40,6 +40,20 @@ function heroRevenue(r: IncreaseTarget): number {
   return r.category === "missing_renewal" ? r.fy26Revenue : r.priorYearRevenue;
 }
 
+// Most recent prior-year revenue + the FY label, regardless of category.
+// Winback rows already get this via priorYearRevenue/priorYearFy. Missing-
+// renewal rows have FY25/FY24 fullmind revenue in revenueTrend; surface
+// the most recent non-zero entry so reps can see growth vs. shrinkage.
+function priorRevenue(r: IncreaseTarget): { amount: number; fy: string | null } {
+  if (r.priorYearRevenue > 0) {
+    return { amount: r.priorYearRevenue, fy: r.priorYearFy };
+  }
+  const t = r.revenueTrend;
+  if (t.fy25 != null && t.fy25 > 0) return { amount: t.fy25, fy: "FY25" };
+  if (t.fy24 != null && t.fy24 > 0) return { amount: t.fy24, fy: "FY24" };
+  return { amount: 0, fy: null };
+}
+
 function fmtMonthYear(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", year: "numeric" });
@@ -67,21 +81,22 @@ function buildCsv(rows: IncreaseTarget[]): string {
     "Last rep",
     "Last close date",
   ];
-  const csvRows = rows.map((r) => [
-    r.districtName,
-    r.state,
-    CATEGORY_LABEL[r.category],
-    r.category !== "missing_renewal" && r.priorYearRevenue > 0
-      ? Math.round(r.priorYearRevenue)
-      : "",
-    r.category !== "missing_renewal" ? r.priorYearFy ?? "" : "",
-    r.category === "missing_renewal" ? Math.round(r.fy26Revenue) : "",
-    Math.round(r.fy26OppBookings),
-    Math.round(r.fy27OpenPipeline),
-    r.suggestedTarget != null ? Math.round(r.suggestedTarget) : "",
-    r.lastClosedWon?.repName ?? "",
-    r.lastClosedWon?.closeDate ?? "",
-  ]);
+  const csvRows = rows.map((r) => {
+    const p = priorRevenue(r);
+    return [
+      r.districtName,
+      r.state,
+      CATEGORY_LABEL[r.category],
+      p.amount > 0 ? Math.round(p.amount) : "",
+      p.fy ?? "",
+      r.category === "missing_renewal" ? Math.round(r.fy26Revenue) : "",
+      Math.round(r.fy26OppBookings),
+      Math.round(r.fy27OpenPipeline),
+      r.suggestedTarget != null ? Math.round(r.suggestedTarget) : "",
+      r.lastClosedWon?.repName ?? "",
+      r.lastClosedWon?.closeDate ?? "",
+    ];
+  });
   const escape = (v: string | number) => {
     const s = String(v);
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -394,23 +409,25 @@ export default function LowHangingFruitView() {
                       <Td
                         align="right"
                         className={
-                          r.category !== "missing_renewal" && r.priorYearRevenue > 0
+                          priorRevenue(r).amount > 0
                             ? "font-bold text-[#403770]"
                             : "text-[#A69DC0]"
                         }
                       >
-                        {r.category !== "missing_renewal" && r.priorYearRevenue > 0 ? (
-                          <>
-                            {formatCurrencyShort(r.priorYearRevenue)}
-                            {r.priorYearFy && (
-                              <div className="text-[10px] font-normal text-[#A69DC0]">
-                                {r.priorYearFy}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          "—"
-                        )}
+                        {(() => {
+                          const p = priorRevenue(r);
+                          if (p.amount <= 0) return "—";
+                          return (
+                            <>
+                              {formatCurrencyShort(p.amount)}
+                              {p.fy && (
+                                <div className="text-[10px] font-normal text-[#A69DC0]">
+                                  {p.fy}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </Td>
                       <Td
                         align="right"
