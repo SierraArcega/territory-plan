@@ -548,6 +548,7 @@ model TerritoryPlanDistrict {
   targetServices TerritoryPlanDistrictService[]
 
   @@id([planId, districtLeaid])
+  @@index([districtLeaid])
   @@map("territory_plan_districts")
 }
 
