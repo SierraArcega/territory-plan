@@ -20,7 +20,7 @@ import {
 const mockPrisma = vi.mocked(prisma) as any;
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("fiscalYearToSchoolYear", () => {
