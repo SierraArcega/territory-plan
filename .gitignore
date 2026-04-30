@@ -90,3 +90,4 @@ __pycache__/
 e2e/test-results/
 e2e/.auth/
 playwright-report/
+.worktrees/
