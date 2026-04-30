@@ -13,9 +13,11 @@ const CRON_SECRET = process.env.CRON_SECRET;
 /**
  * GET /api/cron/ingest-news-rolling
  *
- * Every-15-min rolling ingest: pulls the next batch of districts off the
- * DistrictNewsFetch queue (priority DESC, oldest-fetched first) and runs a
- * per-district Google News RSS query for each. Keyword matcher fires inline;
+ * Every-15-min rolling ingest: pulls the next batch of districts via
+ * selectNextRollingBatch (tier-first ordering — T1 customer/pipeline @ 6h SLA,
+ * T2 plan/recent-activity @ 24h, T3 long tail @ 30d, then oldest-fetched
+ * within tier) and runs a per-district Google News RSS query for each.
+ * Keyword matcher fires inline;
  * LLM-heavy steps are deferred to their dedicated crons (classify-news
  * hourly, drain-match-queue every 2h) so this stays under Vercel's 300s
  * maxDuration.

@@ -8,6 +8,7 @@ import {
   perStateQuery,
 } from "./config";
 import { fetchGoogleNewsRss, fetchRssFeed, type RawArticle } from "./rss";
+import { selectNextRollingBatch } from "./rolling-batch";
 import { upsertArticle } from "./store-article";
 
 export interface IngestStats {
@@ -132,31 +133,24 @@ export async function ingestDailyLayers(): Promise<IngestStats> {
 }
 
 /**
- * Layer 3: rolling per-district Google News RSS queries. Pulls oldest-priority
- * districts from the DistrictNewsFetch queue and fetches news for each.
- * Runs every 15 minutes on Vercel Pro cron.
+ * Layer 3: rolling per-district Google News RSS queries. Pulls the next batch
+ * via selectNextRollingBatch (T1 customer/pipeline @ 6h SLA, T2 plan/recent-
+ * activity @ 24h, T3 long tail @ 30d), tier-first then oldest-fetched within
+ * tier. Runs every 15 minutes on Vercel Pro cron.
  */
 export async function ingestRollingLayer(
   batchSize = ROLLING_BATCH_SIZE
 ): Promise<IngestStats> {
   const t0 = Date.now();
   const stats = emptyStats();
-  const queue = new PQueue({ concurrency: 4 });
+  const queue = new PQueue({ concurrency: 6 });
 
-  const fetches = await prisma.districtNewsFetch.findMany({
-    take: batchSize,
-    orderBy: [{ priority: "desc" }, { lastFetchedAt: { sort: "asc", nulls: "first" } }],
-    include: {
-      district: {
-        select: { leaid: true, name: true, cityLocation: true, stateAbbrev: true },
-      },
-    },
-  });
+  const fetches = await selectNextRollingBatch(batchSize);
 
   for (const row of fetches) {
     queue.add(async () => {
-      const disambig = row.district.cityLocation ?? row.district.stateAbbrev ?? "";
-      const query = `"${row.district.name}" ${disambig}`.trim();
+      const disambig = row.cityLocation ?? row.stateAbbrev ?? "";
+      const query = `"${row.name}" ${disambig}`.trim();
       try {
         const raws = await fetchGoogleNewsRss(query);
         await ingestFeed(raws, "google_news_district", stats, row.leaid);
