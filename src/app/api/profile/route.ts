@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { Decimal } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -39,37 +40,54 @@ export async function GET() {
         );
       }
     } else {
-      // Upsert the profile - create if doesn't exist, update lastLoginAt if it does
-      profile = await prisma.userProfile.upsert({
-        where: { id: user.id },
-        update: {
-          // Update user info from Supabase on each login
-          email: user.email!,
-          fullName:
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            null,
-          avatarUrl:
-            user.user_metadata?.avatar_url ||
-            user.user_metadata?.picture ||
-            null,
-          lastLoginAt: new Date(),
-        },
-        create: {
-          id: user.id,
-          email: user.email!,
-          fullName:
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            null,
-          avatarUrl:
-            user.user_metadata?.avatar_url ||
-            user.user_metadata?.picture ||
-            null,
-          hasCompletedSetup: false,
-          lastLoginAt: new Date(),
-        },
-      });
+      // Don't re-sync email/fullName/avatarUrl on update: email can collide with another row's @unique value, and the other two are user-edited in the form.
+      try {
+        profile = await prisma.userProfile.upsert({
+          where: { id: user.id },
+          update: {
+            lastLoginAt: new Date(),
+          },
+          create: {
+            id: user.id,
+            email: user.email!,
+            fullName:
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              null,
+            avatarUrl:
+              user.user_metadata?.avatar_url ||
+              user.user_metadata?.picture ||
+              null,
+            hasCompletedSetup: false,
+            lastLoginAt: new Date(),
+          },
+        });
+      } catch (err) {
+        // Recover from auth.users.id <-> user_profiles.id drift: if the create
+        // path 500s on the email @unique, an existing row already holds this
+        // user's email under a stale id. Look it up by email so the user is
+        // unblocked, and log loudly so ops can run the rekey SQL.
+        const isEmailCollision =
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002" &&
+          Array.isArray(err.meta?.target) &&
+          (err.meta?.target as string[]).includes("email");
+
+        if (!isEmailCollision) throw err;
+
+        const byEmail = await prisma.userProfile.findUnique({
+          where: { email: user.email! },
+        });
+
+        if (!byEmail) throw err;
+
+        console.warn(
+          `[profile-id-drift] auth.users.id ${user.id} (${user.email}) has no matching user_profiles row. ` +
+          `Falling back to user_profiles.id ${byEmail.id} via email match. Run the rekey SQL to repoint this row.`
+        );
+
+        profile = byEmail;
+      }
     }
 
     return NextResponse.json({
