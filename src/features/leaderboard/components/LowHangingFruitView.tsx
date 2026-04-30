@@ -12,6 +12,7 @@ import {
 } from "../lib/filters";
 import LowHangingFruitFilterBar from "./LowHangingFruitFilterBar";
 import LhfPlanPicker from "./LhfPlanPicker";
+import LhfBulkPlanPicker from "./LhfBulkPlanPicker";
 
 const LMS_OPP_CREATE_URL =
   "https://lms.fullmindlearning.com/opportunities/kanban?_sort=close_date&_dir=asc&school_year=2026-27";
@@ -218,6 +219,11 @@ export default function LowHangingFruitView() {
   const [filters, setFilters] = useState<LHFFilters>(DEFAULT_FILTERS);
   const [confirmed, setConfirmed] = useState<{ leaid: string; planName: string } | null>(null);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
+  const bulkBtnRef = useRef<HTMLButtonElement>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const allRows = query.data?.districts ?? [];
 
@@ -265,6 +271,49 @@ export default function LowHangingFruitView() {
   };
 
   const stripPrefix = (name: string) => name.replace(/^FY27\s*[·:|-]\s*/i, "");
+
+  const fireToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    toastTimer.current = setTimeout(() => {
+      setToast(null);
+      toastTimer.current = null;
+    }, 3000);
+  };
+
+  const toggleSelect = (leaid: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(leaid)) next.delete(leaid);
+      else next.add(leaid);
+      return next;
+    });
+  };
+
+  // Header checkbox: deselects all if every visible row is selected, else
+  // adds every visible row to the selection (additive across paginated views).
+  const allVisibleSelected =
+    filtered.length > 0 && filtered.every((r) => selected.has(r.leaid));
+  const toggleSelectAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const r of filtered) next.delete(r.leaid);
+      } else {
+        for (const r of filtered) next.add(r.leaid);
+      }
+      return next;
+    });
+  };
+
+  const selectedRows = useMemo(
+    () => allRows.filter((r) => selected.has(r.leaid)),
+    [allRows, selected],
+  );
+  const selectedTotal = useMemo(
+    () => selectedRows.reduce((s, r) => s + heroRevenue(r), 0),
+    [selectedRows],
+  );
 
   return (
     <div className="h-full bg-[#FFFCFA] overflow-hidden flex flex-col p-6">
@@ -346,7 +395,9 @@ export default function LowHangingFruitView() {
                   <Th width={36} className="pl-4 pr-2">
                     <input
                       type="checkbox"
-                      aria-label="Select all"
+                      aria-label={allVisibleSelected ? "Deselect all visible" : "Select all visible"}
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAllVisible}
                       className="w-3.5 h-3.5 rounded"
                       style={{ accentColor: "#403770" }}
                     />
@@ -371,15 +422,17 @@ export default function LowHangingFruitView() {
               <tbody>
                 {filtered.map((r, idx) => {
                   const isConfirmed = confirmed?.leaid === r.leaid;
+                  const isSelected = selected.has(r.leaid);
                   const isLast = idx === filtered.length - 1;
                   const lcw = r.lastClosedWon;
-                  const stickyBg = isConfirmed ? "#EDFFE3" : "white";
+                  const rowBg = isConfirmed ? "#EDFFE3" : isSelected ? "#EFEDF5" : undefined;
+                  const stickyBg = isConfirmed ? "#EDFFE3" : isSelected ? "#EFEDF5" : "white";
                   return (
                     <tr
                       key={r.leaid}
                       className="group hover:bg-[#F7F5FA] cursor-pointer"
                       style={{
-                        background: isConfirmed ? "#EDFFE3" : undefined,
+                        background: rowBg,
                         transition: "background 100ms",
                         borderBottom: isLast ? undefined : "1px solid #E2DEEC",
                       }}
@@ -387,6 +440,8 @@ export default function LowHangingFruitView() {
                       <Td className="pl-4 pr-2">
                         <input
                           type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(r.leaid)}
                           onClick={(e) => e.stopPropagation()}
                           aria-label={`Select ${r.districtName}`}
                           className="w-3.5 h-3.5 rounded"
@@ -522,6 +577,61 @@ export default function LowHangingFruitView() {
           </span>
         </div>
       </div>
+
+      {/* Bulk-action toolbar — appears when one or more rows are selected */}
+      {selected.size > 0 && (
+        <div className="flex-shrink-0 mt-3 flex items-center justify-between gap-3 rounded-xl px-4 py-3 bg-[#403770] text-white shadow-lg">
+          <span className="text-sm whitespace-nowrap">
+            <span className="tabular-nums font-semibold">{selected.size}</span> selected
+            {" · "}
+            <span className="tabular-nums">{formatCurrencyShort(selectedTotal)}</span> total
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="text-xs hover:underline"
+            >
+              Clear
+            </button>
+            <button
+              ref={bulkBtnRef}
+              type="button"
+              onClick={() => setBulkPickerOpen((v) => !v)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#403770] bg-white hover:bg-[#EFEDF5] whitespace-nowrap"
+            >
+              <Plus className="w-3 h-3" />
+              Add {selected.size} to plan
+              <ChevronDown className="w-2.5 h-2.5 opacity-80" />
+            </button>
+          </div>
+          {bulkPickerOpen && (
+            <LhfBulkPlanPicker
+              districts={selectedRows}
+              anchorRef={bulkBtnRef}
+              isOpen={bulkPickerOpen}
+              onClose={() => setBulkPickerOpen(false)}
+              onSuccess={(planName, addedCount) => {
+                setBulkPickerOpen(false);
+                setSelected(new Set());
+                fireToast(
+                  `Added ${addedCount} ${addedCount === 1 ? "district" : "districts"} to ${stripPrefix(planName)}`,
+                );
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Toast — bulk-add success message */}
+      {toast && (
+        <div
+          role="status"
+          className="fixed top-4 right-4 z-50 px-3 py-2 rounded-lg bg-[#EDFFE3] border border-[#8AC670] text-xs text-[#544A78] shadow-lg"
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
