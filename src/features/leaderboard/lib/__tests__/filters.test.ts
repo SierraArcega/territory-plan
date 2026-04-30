@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DEFAULT_FILTERS,
+  UNASSIGNED_REP,
   filtersFromSearchParams,
   filtersToSearchParams,
   applyFilters,
@@ -41,13 +42,15 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
   }) as IncreaseTarget;
 
 describe("filters", () => {
-  it("DEFAULT_FILTERS is all-empty", () => {
+  it("DEFAULT_FILTERS is all-empty except hideWithFy27Target", () => {
     expect(DEFAULT_FILTERS.categories).toEqual([]);
     expect(DEFAULT_FILTERS.states).toEqual([]);
     expect(DEFAULT_FILTERS.products).toEqual([]);
     expect(DEFAULT_FILTERS.revenueBand).toBeNull();
-    expect(DEFAULT_FILTERS.lastRep).toBe("anyone");
-    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(false);
+    expect(DEFAULT_FILTERS.lastReps).toEqual([]);
+    // The compact ledger surfaces actionable rows by default — districts
+    // already targeted in FY27 are hidden until the user opts back in.
+    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(true);
   });
 
   it("round-trips via URLSearchParams", () => {
@@ -56,12 +59,24 @@ describe("filters", () => {
       states: ["CA", "TX"],
       products: ["Live Instruction"],
       revenueBand: "250k-1m",
-      lastRep: "open",
+      lastReps: ["Jane Doe", UNASSIGNED_REP],
       hideWithFy27Target: true,
     };
     const params = filtersToSearchParams(filters);
     const restored = filtersFromSearchParams(params);
     expect(restored).toEqual(filters);
+  });
+
+  it("applyFilters keeps rows whose last rep is in the multi-select", () => {
+    const kept = applyFilters(
+      [
+        row({ leaid: "1", lastClosedWon: { repName: "Jane Doe", repEmail: null, closeDate: null, schoolYr: null, amount: null } }),
+        row({ leaid: "2", lastClosedWon: { repName: "John Smith", repEmail: null, closeDate: null, schoolYr: null, amount: null } }),
+        row({ leaid: "3", lastClosedWon: null }),
+      ],
+      { ...DEFAULT_FILTERS, lastReps: ["Jane Doe", UNASSIGNED_REP] },
+    );
+    expect(kept.map((r) => r.leaid).sort()).toEqual(["1", "3"]);
   });
 
   it("applyFilters keeps row when categories match", () => {
