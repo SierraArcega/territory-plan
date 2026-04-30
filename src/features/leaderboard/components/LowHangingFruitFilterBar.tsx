@@ -16,6 +16,8 @@ interface Props {
   filters: LHFFilters;
   facets: Facets;
   onChange: (next: LHFFilters) => void;
+  /** Right-aligned "Showing X of Y" readout. Hidden when omitted. */
+  showing?: { visible: number; total: number };
 }
 
 const CATEGORY_LABELS: Record<IncreaseTargetCategory, string> = {
@@ -130,7 +132,7 @@ function RadioOption({ checked, label, onChange }: { checked: boolean; label: st
   );
 }
 
-export default function LowHangingFruitFilterBar({ filters, facets, onChange }: Props) {
+export default function LowHangingFruitFilterBar({ filters, facets, onChange, showing }: Props) {
   const [stateQuery, setStateQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
 
@@ -328,6 +330,16 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
           <X className="w-3 h-3" />
           Clear all
         </button>
+      )}
+
+      {showing && (
+        <div className="ml-auto text-xs text-[#8A80A8] whitespace-nowrap">
+          Showing{" "}
+          <strong className="text-[#403770] font-semibold tabular-nums">
+            {showing.visible}
+          </strong>{" "}
+          of <span className="tabular-nums">{showing.total}</span>
+        </div>
       )}
     </div>
   );

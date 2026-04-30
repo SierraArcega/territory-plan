@@ -41,13 +41,15 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
   }) as IncreaseTarget;
 
 describe("filters", () => {
-  it("DEFAULT_FILTERS is all-empty", () => {
+  it("DEFAULT_FILTERS is all-empty except hideWithFy27Target", () => {
     expect(DEFAULT_FILTERS.categories).toEqual([]);
     expect(DEFAULT_FILTERS.states).toEqual([]);
     expect(DEFAULT_FILTERS.products).toEqual([]);
     expect(DEFAULT_FILTERS.revenueBand).toBeNull();
     expect(DEFAULT_FILTERS.lastRep).toBe("anyone");
-    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(false);
+    // The compact ledger surfaces actionable rows by default — districts
+    // already targeted in FY27 are hidden until the user opts back in.
+    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(true);
   });
 
   it("round-trips via URLSearchParams", () => {
