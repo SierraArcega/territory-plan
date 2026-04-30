@@ -1,0 +1,74 @@
+## Summary by Customer Segment
+Segment,Opps,Sum Min Booking,Sum Net Booking,Sum Max Booking,Closed Won Count,Closed Won Sum Min Commit,% of Pipeline
+Return (booked FY26),238,24832865.43,35631148.88,46392946.43,4,591978.00,78.1%
+New (no prior bookings),127,6173942.57,9602306.88,10984243.29,1,49785.26,21.0%
+Winback (booked pre-FY26 not FY26),9,299094.87,394570.40,788665.25,0,0.00,0.9%
+Total,374,31305902.87,45628026.16,58165854.97,5,641763.26,100%
+
+## Breakdown by Stage x Segment
+Stage,Segment,Opps,Sum Min Booking,Sum Net Booking,Sum Max Booking,% of Pipeline
+0 - Meeting Booked,Return,89,6185618.83,7800554.12,5461164.60,17.1%
+0 - Meeting Booked,New,31,867079.99,968080.00,756079.03,2.1%
+0 - Meeting Booked,Winback,2,40000.00,40000.00,30000.00,0.1%
+1 - Discovery,Return,49,6352706.70,9322732.67,11932932.70,20.4%
+1 - Discovery,New,35,1948080.94,3776081.00,3828321.00,8.3%
+1 - Discovery,Winback,3,105000.00,105000.00,550000.00,0.2%
+2 - Presentation,Return,36,5434188.00,6781434.00,11500135.99,14.9%
+2 - Presentation,New,42,1648137.57,2758581.61,2401280.00,6.0%
+2 - Presentation,Winback,2,100000.00,125000.00,135000.00,0.3%
+3 - Proposal,Return,37,5182578.75,8593436.84,12400840.20,18.8%
+3 - Proposal,New,5,1118500.00,1412421.20,3536000.00,3.1%
+3 - Proposal,Winback,1,25000.00,44570.40,44570.38,0.1%
+4 - Negotiation,Return,4,283218.30,349218.30,2940000.00,0.8%
+4 - Negotiation,New,2,132958.81,132958.81,142778.00,0.3%
+Closed Won,Return,4,591978.00,591978.00,918077.99,1.3%
+Closed Won,New,1,49785.26,49785.26,49785.26,0.1%
+Closed Lost,Return,19,802576.85,2191794.95,1239794.95,4.8%
+Closed Lost,New,11,409400.00,504399.00,270000.00,1.1%
+Closed Lost,Winback,1,29094.87,80000.00,29094.87,0.2%
+Total,,374,31305902.87,45628026.16,58165854.97,100%
+
+## Week-over-Week Changes (2026-04-20 -> 2026-04-27)
+
+### WoW Rollup by Segment
+Change Type,Segment,Count,Sum Net Booking Delta
+New opps,Return,2,12000.00
+New opps,New,16,893328.81
+Closed Won (advanced),Return,2,22151.00
+Stage changed,Return,14,824490.97
+Stage changed,New,3,150000.00
+Amount changed (same stage),Return,2,450000.00
+
+### WoW Per-Deal Changers (top 30 by |Δ net booking|)
+Change Type,District,Rep,Segment,From Stage,To Stage,Prev Net Booking,Curr Net Booking,Delta
+Stage change,Caddo Parish School Board,Jenn Russart,Return,0 - Meeting Booked,3 - Proposal,35800.00,720000.00,684200.00
+New,Richmond County School District,Jenn Russart,New,(none),3 - Proposal,0.00,627000.00,627000.00
+Amount,Dayton Public Schools,Jenn Russart,Return,2 - Presentation,2 - Presentation,500000.00,900000.00,400000.00
+Stage change,Richland County School District 1,Liz Winnen,New,2 - Presentation,3 - Proposal,250000.00,400000.00,150000.00
+Stage change,Caddo Parish School Board,Jenn Russart,Return,0 - Meeting Booked,3 - Proposal,617500.00,688000.00,70500.00
+New,Dighton Unified School District 482,Phil Dugliss,New,(none),4 - Negotiation,0.00,51548.81,51548.81
+Amount,Medina Central School District,Mike O'Donnell,Return,2 - Presentation,2 - Presentation,100000.00,150000.00,50000.00
+Stage change,Coon Rapids-Bayard Community School District,Liz Winnen,Return,2 - Presentation,3 - Proposal,58150.00,96140.97,37990.97
+Stage change,Joliet Public School District 86,Phil Dugliss,Return,0 - Meeting Booked,1 - Discovery,0.00,31800.00,31800.00
+New,Medford Township School District,Liz Winnen,New,(none),2 - Presentation,0.00,30000.00,30000.00
+New,Amherst Central School District,Mike O'Donnell,New,(none),2 - Presentation,0.00,25000.00,25000.00
+New,Marcellus School District,Mike O'Donnell,New,(none),2 - Presentation,0.00,23780.00,23780.00
+New,Kipp Columbus,Lauren Kleist,New,(none),2 - Presentation,0.00,20000.00,20000.00
+New,Jamesville-Dewitt Central School District,Mike O'Donnell,New,(none),2 - Presentation,0.00,15000.00,15000.00
+New,Lancaster School District,Mike O'Donnell,New,(none),1 - Discovery,0.00,15000.00,15000.00
+New,Lackawanna City School District,Mike O'Donnell,New,(none),0 - Meeting Booked,0.00,15000.00,15000.00
+New,Chatham School District,Kris Tedesco,Return,(none),2 - Presentation,0.00,12000.00,12000.00
+New,Paterson Public Schools,Brooke Fera,New,(none),2 - Presentation,0.00,11000.00,11000.00
+New,Gates-Chili Central School District,Mike O'Donnell,New,(none),1 - Discovery,0.00,10000.00,10000.00
+New,Dekalb Community Unit School District 428,Mike O'Donnell,New,(none),1 - Discovery,0.00,10000.00,10000.00
+New,Liverpool Central School District,Mike O'Donnell,New,(none),1 - Discovery,0.00,10000.00,10000.00
+New,Hornell City School District,Mike O'Donnell,New,(none),1 - Discovery,0.00,10000.00,10000.00
+New,Groton School District,Mike O'Donnell,New,(none),1 - Discovery,0.00,10000.00,10000.00
+New,Attica Central School District,Mike O'Donnell,New,(none),1 - Discovery,0.00,10000.00,10000.00
+New,Nassau BOCES,Paul Sheffield,Return,(none),2 - Presentation,0.00,0.00,0.00
+Stage change,Delavan Community Unit School District 703,Phil Dugliss,Return,0 - Meeting Booked,1 - Discovery,26360.00,26360.00,0.00
+Stage change,Redford Union School District No 1,Phil Dugliss,New,1 - Discovery,2 - Presentation,21400.00,21400.00,0.00
+Stage change,Northridge Local School District,Phil Dugliss,New,3 - Proposal,4 - Negotiation,81410.00,81410.00,0.00
+Stage change,Lancaster Independent School District,Liz Winnen,Return,0 - Meeting Booked,1 - Discovery,155000.00,155000.00,0.00
+Stage change,Duncanville Independent School,Liz Winnen,Return,2 - Presentation,3 - Proposal,250000.00,250000.00,0.00
+
