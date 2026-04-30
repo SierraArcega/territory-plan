@@ -59,6 +59,8 @@ function buildCsv(rows: IncreaseTarget[]): string {
     "State",
     "Category",
     "FY26 revenue",
+    "Prior revenue",
+    "Prior FY",
     "FY26 closed won",
     "FY27 pipeline",
     "Suggested target",
@@ -69,7 +71,11 @@ function buildCsv(rows: IncreaseTarget[]): string {
     r.districtName,
     r.state,
     CATEGORY_LABEL[r.category],
-    Math.round(heroRevenue(r)),
+    r.category === "missing_renewal" ? Math.round(r.fy26Revenue) : "",
+    r.category !== "missing_renewal" && r.priorYearRevenue > 0
+      ? Math.round(r.priorYearRevenue)
+      : "",
+    r.category !== "missing_renewal" ? r.priorYearFy ?? "" : "",
     Math.round(r.fy26OppBookings),
     Math.round(r.fy27OpenPipeline),
     r.suggestedTarget != null ? Math.round(r.suggestedTarget) : "",
@@ -329,7 +335,8 @@ export default function LowHangingFruitView() {
                   <Th minWidth={220}>District</Th>
                   <Th width={50}>St</Th>
                   <Th width={140}>Category</Th>
-                  <Th width={96} align="right">FY26 rev.</Th>
+                  <Th width={92} align="right">FY26 rev.</Th>
+                  <Th width={92} align="right">Prior rev.</Th>
                   <Th width={108} align="right">FY26 closed won</Th>
                   <Th width={108} align="right">FY27 pipeline</Th>
                   <Th width={96} align="right">Suggested</Th>
@@ -384,8 +391,38 @@ export default function LowHangingFruitView() {
                       <Td>
                         <CategoryPill category={r.category} />
                       </Td>
-                      <Td align="right" className="font-bold text-[#403770]">
-                        {formatCurrencyShort(heroRevenue(r))}
+                      <Td
+                        align="right"
+                        className={
+                          r.category === "missing_renewal"
+                            ? "font-bold text-[#403770]"
+                            : "text-[#A69DC0]"
+                        }
+                      >
+                        {r.category === "missing_renewal"
+                          ? formatCurrencyShort(r.fy26Revenue)
+                          : "—"}
+                      </Td>
+                      <Td
+                        align="right"
+                        className={
+                          r.category !== "missing_renewal" && r.priorYearRevenue > 0
+                            ? "font-bold text-[#403770]"
+                            : "text-[#A69DC0]"
+                        }
+                      >
+                        {r.category !== "missing_renewal" && r.priorYearRevenue > 0 ? (
+                          <>
+                            {formatCurrencyShort(r.priorYearRevenue)}
+                            {r.priorYearFy && (
+                              <div className="text-[10px] font-normal text-[#A69DC0]">
+                                {r.priorYearFy}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </Td>
                       <Td
                         align="right"
