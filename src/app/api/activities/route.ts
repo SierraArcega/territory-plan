@@ -4,9 +4,19 @@ import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { getCategoryForType, ACTIVITY_CATEGORIES, ALL_ACTIVITY_TYPES, VALID_ACTIVITY_STATUSES, type ActivityCategory, type ActivityType } from "@/features/activities/types";
 import { pushActivityToCalendar } from "@/features/calendar/lib/push";
-import { awardPoints } from "@/features/leaderboard/lib/scoring";
 
 export const dynamic = "force-dynamic";
+
+// Parse a `?key=a,b,c` query param into a non-empty string[]. Repeated params
+// (`?key=a&key=b`) are also accepted and merged. Empty values are dropped so
+// a stray `?status=` doesn't widen the filter to "everything".
+function readMulti(searchParams: URLSearchParams, key: string): string[] {
+  const raw = searchParams.getAll(key);
+  return raw
+    .flatMap((v) => v.split(","))
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
+}
 
 // GET /api/activities - List activities with filtering
 export async function GET(request: NextRequest) {
@@ -19,13 +29,31 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category") as ActivityCategory | null;
+    // Multi-value filters: client serializes arrays as CSV (`?status=a,b`) so
+    // we parse them all up-front. Single-value form (`?status=a`) works too —
+    // readMulti always returns a string[].
+    const categories = readMulti(searchParams, "category") as ActivityCategory[];
+    const types = readMulti(searchParams, "type");
+    const statuses = readMulti(searchParams, "status");
+    const states = readMulti(searchParams, "state");
+    // Back-compat aliases — older callers sent `stateAbbrev` (URL) or
+    // `stateCode` (queries.ts client). Treat both as `state`.
+    const stateAbbrev = searchParams.get("stateAbbrev");
+    if (stateAbbrev) states.push(stateAbbrev);
+    const stateCode = searchParams.get("stateCode");
+    if (stateCode) states.push(stateCode);
+    const owners = readMulti(searchParams, "owner");
+    const territories = readMulti(searchParams, "territory");
+    const tags = readMulti(searchParams, "tags");
+    const dealKinds = readMulti(searchParams, "dealKinds");
+    const districtLeaids = readMulti(searchParams, "districtLeaids");
+    const attendeeIds = readMulti(searchParams, "attendeeIds");
+    const inPersonValues = readMulti(searchParams, "inPerson");
+
     const planId = searchParams.get("planId");
     const districtLeaid = searchParams.get("districtLeaid");
-    const stateAbbrev = searchParams.get("stateAbbrev");
     const needsPlanAssociation = searchParams.get("needsPlanAssociation") === "true";
     const hasUnlinkedDistricts = searchParams.get("hasUnlinkedDistricts") === "true";
-    const status = searchParams.get("status");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const unscheduled = searchParams.get("unscheduled") === "true";
@@ -45,6 +73,9 @@ export async function GET(request: NextRequest) {
     if (planId) {
       // Show all activities in the plan, regardless of who created them
       where.plans = { some: { planId } };
+    } else if (owners.length > 0) {
+      // Multi-select owner filter wins over the legacy single-value path.
+      where.createdByUserId = { in: owners };
     } else if (ownerId === "all") {
       // Show everyone's activities
     } else if (ownerId) {
@@ -60,33 +91,79 @@ export async function GET(request: NextRequest) {
       where.title = { contains: search, mode: "insensitive" };
     }
 
-    // Filter by category (maps to types)
-    if (category && ACTIVITY_CATEGORIES[category]) {
-      where.type = { in: ACTIVITY_CATEGORIES[category] as unknown as string[] };
+    // Filter by category (maps each category to its types). When both
+    // category and explicit type are present, take the union of all types
+    // so reps can ask for "meetings + this one event type" in one click.
+    const categoryTypes: string[] = [];
+    for (const c of categories) {
+      if (ACTIVITY_CATEGORIES[c]) {
+        categoryTypes.push(...(ACTIVITY_CATEGORIES[c] as unknown as string[]));
+      }
+    }
+    const allTypes = [...new Set([...categoryTypes, ...types])];
+    if (allTypes.length > 0) {
+      where.type = { in: allTypes };
     }
 
-    // Filter by district
-    if (districtLeaid) {
-      where.districts = { some: { districtLeaid } };
+    // Filter by district — single (legacy) and multi (new). When both are
+    // present, the multi list wins; the single param is treated as one entry.
+    const allDistrictLeaids = districtLeaid
+      ? [...new Set([districtLeaid, ...districtLeaids])]
+      : districtLeaids;
+    if (allDistrictLeaids.length === 1) {
+      where.districts = { some: { districtLeaid: allDistrictLeaids[0] } };
+    } else if (allDistrictLeaids.length > 1) {
+      where.districts = { some: { districtLeaid: { in: allDistrictLeaids } } };
     }
 
-    // Filter by state
-    if (stateAbbrev) {
+    // Filter by state — accepts a list of abbreviations (`CA,NY`).
+    if (states.length > 0) {
       where.states = {
-        some: {
-          state: { abbrev: stateAbbrev },
-        },
+        some: { state: { abbrev: { in: states } } },
       };
     }
 
+    // Filter by attendee user IDs.
+    if (attendeeIds.length > 0) {
+      where.attendees = { some: { userId: { in: attendeeIds } } };
+    }
+
+    // Filter by in-person flag. Empty array → no filter. ["yes"] / ["no"] →
+    // exact boolean match. Both → exclude unset (null) entries.
+    if (inPersonValues.length === 1) {
+      where.inPerson = inPersonValues[0] === "yes";
+    } else if (inPersonValues.length > 1) {
+      where.inPerson = { not: null };
+    }
+
     // Filter by status
-    if (status) {
-      where.status = status;
+    if (statuses.length === 1) {
+      where.status = statuses[0];
+    } else if (statuses.length > 1) {
+      where.status = { in: statuses };
     }
 
     // Filter by source
     if (source) {
       where.source = source;
+    }
+
+    // Filter by territory (matches plan territory names linked through
+    // ActivityPlan). Skip when planId is already set — a single-plan filter
+    // is a stricter constraint than a territory list and the two would
+    // otherwise overwrite each other.
+    if (territories.length > 0 && !planId) {
+      where.plans = {
+        some: { plan: { name: { in: territories } } },
+      };
+    }
+
+    // Tags + dealKinds aren't backed by columns yet — accept the params so
+    // the client URL is stable, but log when they're set so we know if/when
+    // a downstream wave needs to wire them up.
+    if (tags.length > 0 || dealKinds.length > 0) {
+      // Intentionally a no-op until those features land. The params are
+      // already round-tripped through saved views via the URL.
     }
 
     // Filter for unscheduled activities (no startDate)
@@ -267,6 +344,10 @@ export async function POST(request: NextRequest) {
       contactIds = [],
       stateFips = [], // explicit states
       metadata = null,
+      address = null,
+      addressLat = null,
+      addressLng = null,
+      inPerson = null,
       attendeeUserIds = [],
       expenses = [],
       districts: districtDetails = [],
@@ -328,6 +409,10 @@ export async function POST(request: NextRequest) {
         outcome: outcome?.trim() || null,
         outcomeType: outcomeType || null,
         rating: rating != null ? Number(rating) : null,
+        address: typeof address === "string" ? address.trim() || null : null,
+        addressLat: addressLat == null ? null : Number(addressLat),
+        addressLng: addressLng == null ? null : Number(addressLng),
+        inPerson: inPerson == null ? null : Boolean(inPerson),
         metadata: metadata || undefined,
         createdByUserId: user.id,
         plans: {
@@ -366,9 +451,22 @@ export async function POST(request: NextRequest) {
           ],
         },
         expenses: {
-          create: expenses.map((e: { description: string; amount: number }) => ({
+          // Legacy callers send `{description, amount}` only; the new schema
+          // requires `incurredOn` (defaulted to "now") and a `category`
+          // (defaults to "other" via column DEFAULT).
+          create: (expenses as Array<{
+            description: string;
+            amount: number;
+            category?: string;
+            incurredOn?: string;
+            receiptStoragePath?: string | null;
+          }>).map((e) => ({
             description: e.description,
             amount: e.amount,
+            category: e.category ?? "other",
+            incurredOn: e.incurredOn ? new Date(e.incurredOn) : new Date(),
+            receiptStoragePath: e.receiptStoragePath ?? null,
+            createdById: user.id,
           })),
         },
         attendees: {
@@ -462,11 +560,6 @@ export async function POST(request: NextRequest) {
     // This is best-effort — if it fails, the activity is still created
     pushActivityToCalendar(user.id, activity.id);
 
-    // Award leaderboard points for activity logging (non-blocking)
-    awardPoints(user.id, "activity_logged").catch((err) =>
-      console.error("Failed to award activity_logged points:", err)
-    );
-
     // Transform the activity response inline (type-safe via Prisma inference)
     return NextResponse.json({
       id: activity.id,
@@ -477,6 +570,10 @@ export async function POST(request: NextRequest) {
       startDate: activity.startDate?.toISOString() ?? null,
       endDate: activity.endDate?.toISOString() ?? null,
       status: activity.status,
+      address: activity.address,
+      addressLat: activity.addressLat,
+      addressLng: activity.addressLng,
+      inPerson: activity.inPerson,
       metadata: activity.metadata,
       createdByUserId: activity.createdByUserId,
       createdAt: activity.createdAt.toISOString(),
@@ -514,6 +611,11 @@ export async function POST(request: NextRequest) {
         id: e.id,
         description: e.description,
         amount: Number(e.amount),
+        amountCents: Math.round(Number(e.amount) * 100),
+        category: e.category,
+        incurredOn: e.incurredOn.toISOString(),
+        receiptStoragePath: e.receiptStoragePath,
+        createdById: e.createdById,
       })),
       attendees: activity.attendees.map((a) => ({
         userId: a.user.id,

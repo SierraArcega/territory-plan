@@ -8,7 +8,7 @@ import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin";
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "reports" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin";
 
 interface Tab {
   id: TabId;
@@ -23,7 +23,6 @@ const ADMIN_SUB_ITEMS = [
   { id: "users", label: "Users" },
   { id: "integrations", label: "Integrations" },
   { id: "sync", label: "Data Sync" },
-  { id: "leaderboard", label: "Leaderboard" },
 ];
 
 // SVG icons for each tab - kept inline for simplicity
@@ -106,6 +105,18 @@ const LeaderboardIcon = () => (
   </svg>
 );
 
+// Reports bar-chart icon
+const ReportsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M9 19v-6m3 6V8m3 11v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"
+    />
+  </svg>
+);
+
 const LowHangingFruitIcon = () => <Apple className="w-5 h-5" />;
 
 // Admin gear icon
@@ -152,6 +163,7 @@ const MAIN_TABS: Tab[] = [
   { id: "plans", label: "Plans", icon: <PlansIcon /> },
   { id: "activities", label: "Activities", icon: <ActivitiesIcon /> },
   { id: "tasks", label: "Tasks", icon: <TasksIcon /> },
+  { id: "reports", label: "Reports", icon: <ReportsIcon /> },
   { id: "leaderboard", label: "Leaderboard", icon: <LeaderboardIcon /> },
   { id: "low-hanging-fruit", label: "Low Hanging Fruit", icon: <LowHangingFruitIcon /> },
   { id: "resources", label: "Resources", icon: <ResourcesIcon /> },
@@ -357,10 +369,9 @@ export default function Sidebar({
     <LeaderboardModal
       isOpen={showLeaderboard}
       onClose={() => setShowLeaderboard(false)}
-      onNavigateToDetails={() => onTabChange("leaderboard" as TabId)}
-      setActiveTab={(tab) => {
+      onNavigateToDetails={() => {
+        onTabChange("leaderboard" as TabId);
         setShowLeaderboard(false);
-        onTabChange(tab);
       }}
     />
     </>

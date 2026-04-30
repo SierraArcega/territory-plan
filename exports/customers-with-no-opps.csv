@@ -1,0 +1,64 @@
+leaid,district,state,is_customer,lifetime_revenue,fy26_revenue,fy_count,fiscal_years
+0643470,Yuba City Unified School District,CA,true,1586697.81,612717.81,2,"FY25, FY26"
+2721720,Onamia Public School District,MN,false,213707.5,213707.5,1,FY26
+3612360,Gouverneur Central School District,NY,true,157274.59,124069.59,2,"FY25, FY26"
+0602576,Shade Canyon District,CA,false,53122.74,53122.74,1,FY26
+3624000,Putnam Valley Central School District,NY,false,42353.76,42353.76,1,FY26
+3623010,Pine Bush Central School District,NY,true,201624.29,40260.29,2,"FY25, FY26"
+4502700,Lexington School District 1,SC,true,197534.46,29190.56,3,"FY24, FY25, FY26"
+3614640,Homer Central School District,NY,true,21753.78,21753.78,1,FY26
+0624690,Meridian Elementary School District,CA,true,31051.27,19304.27,2,"FY25, FY26"
+1722500,Lemont Township High School District 210,IL,true,17679.99,17679.99,1,FY26
+3620190,Nanuet Union Free School District,NY,true,34750.1,15655.1,3,"FY24, FY25, FY26"
+3606990,Chappaqua Central School District,NY,true,97857.18,15138.78,3,"FY24, FY25, FY26"
+0621480,Lewiston Elementary School District,CA,true,12448,12448,1,FY26
+0623800,Marcum-Illinois Union Elementary School District,CA,true,9785.37,9785.37,1,FY26
+9990002,American International School of Bamako,IN,false,9010.68,9010.68,1,FY26
+1907980,Columbus Community School District,IA,true,12546.92,8942.92,2,"FY25, FY26"
+1717520,Grayslake Consolidated Community School District 46,IL,true,7799.94,7799.94,1,FY26
+0627750,Nuestro Elementary School District,CA,true,5580.3,5580.3,1,FY26
+1734320,Rochester Community Unit School District 3A,IL,true,24206.33,4533.33,3,"FY24, FY25, FY26"
+3618660,Massena Central School District,NY,true,2746.68,2746.68,1,FY26
+4503912,Hampton County School District,SC,true,130065.18,1263.18,2,"FY25, FY26"
+0602260,Sonoma Charter District,CA,false,85099,750,2,"FY25, FY26"
+3612750,Greene Central School District,NY,false,20747.25,497.25,2,"FY25, FY26"
+4590019,South Carolina Public Charter District,SC,false,52034.08,437.08,2,"FY24, FY26"
+4590009,South Carolina Public Charter District,SC,false,437.08,437.08,1,FY26
+3170530,Falls City Public Schools,NE,true,2755,427.5,2,"FY25, FY26"
+5400720,Marion County School District,WV,false,2927409.33,0,2,"FY24, FY25"
+2101860,Fayette County School District,KY,false,943061,0,2,"FY24, FY25"
+3621210,North Syracuse Central School District,NY,true,524428.66,0,2,"FY24, FY25"
+4502190,Florence School District 3,SC,true,517008.37,0,2,"FY24, FY25"
+0640740,Vallejo City Unified School District,CA,true,348715,0,2,"FY24, FY25"
+3620880,Niskayuna Central School District,NY,true,112838,0,2,"FY24, FY25"
+0634680,San Leandro Unified School District,CA,true,101385,0,2,"FY24, FY25"
+2101440,Danville Independent School District,KY,true,97850,0,1,FY25
+4899147,Rural Schools Innovation Zone,TX,false,88231,0,2,"FY24, FY25"
+0613890,Folsom-Cordova Unified School District,CA,false,81932,0,1,FY24
+4899140,Rural Schools Innovation Zone,TX,false,74631,0,1,FY25
+0200070,Copper River School District,AK,true,66831,0,1,FY25
+4819820,Freer Independent School District,TX,true,64550,0,1,FY25
+0636780,Sierra-Plumas Joint Unified School District,CA,true,64497,0,1,FY25
+3628680,Ticonderoga Central School District,NY,true,41358,0,1,FY25
+3600131,NEW YORK STATE OFFICE OF CHILDREN AND FAMILY SERVICES (OCFS),NY,false,41046,0,2,"FY24, FY25"
+3608250,Cooperstown Central School District,NY,false,32040,0,2,"FY24, FY25"
+3629130,Tully Central School District,NY,false,25345.15,0,2,"FY24, FY25"
+3612120,Gilboa-Conesville Central School District,NY,false,25190,0,2,"FY24, FY25"
+3614130,Hempstead Union Free School District,NY,true,22851.78,0,2,"FY24, FY25"
+4200030,School Lane CS,PA,false,22279,0,1,FY25
+4200039,Alliance for Progress CS,PA,false,19859.58,0,1,FY25
+3609540,East Aurora Union Free School District,NY,true,14648.19,0,1,FY25
+3614700,Honeoye Falls-Lima Central School District,NY,true,13349,0,2,"FY24, FY25"
+3618450,Marathon Central School District,NY,true,13234.5,0,1,FY25
+3615980,Johnstown City School District,NY,false,11657,0,1,FY24
+3605940,Burnt Hills-Ballston Lake Central School District,NY,true,10580,0,1,FY24
+3618900,Mechanicville City School District,NY,false,10280.18,0,1,FY25
+3611190,Fonda-Fultonville Central School District,NY,true,9840,0,2,"FY24, FY25"
+5102790,Nottoway County Public Schools,VA,false,8251,0,2,"FY24, FY25"
+3680380,OTSEGO-DELAWARE-SCHOHARIE-GREENE BOCES,NY,false,5655,0,1,FY24
+4674520,Viborg Hurley School District 60-6,SD,true,5130,0,1,FY25
+3626730,Sherman Central School District,NY,true,4293.02,0,1,FY25
+0632550,West Contra Costa Unified School District,CA,true,2465,0,1,FY25
+3612300,Gorham-Middlesex Central School District (Marcus Whitman),NY,true,1847.11,0,1,FY25
+3300031,Seacoast Charter School,NH,false,1440,0,1,FY25
+3630930,Mount Markham Central School District,NY,false,464.12,0,1,FY25

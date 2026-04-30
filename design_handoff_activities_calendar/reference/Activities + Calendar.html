@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Activities + Calendar — Mapomatic</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  html, body, #root { margin: 0; padding: 0; height: 100%; font-family: var(--font-sans); background: var(--surface); }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="components/IconSystem.jsx"></script>
+<script type="text/babel" src="components/Primitives.jsx"></script>
+<script type="text/babel" src="components/Sidebar.jsx"></script>
+<script type="text/babel" src="components/CalendarData.jsx"></script>
+<script type="text/babel" src="components/CalendarChrome.jsx"></script>
+<script type="text/babel" src="components/FilterVariants.jsx"></script>
+<script type="text/babel" src="components/OppSignals.jsx"></script>
+<script type="text/babel" src="components/MonthView.jsx"></script>
+<script type="text/babel" src="components/WeekView.jsx"></script>
+<script type="text/babel" src="components/MapTimeView.jsx"></script>
+<script type="text/babel" src="components/ActivityDetailBits.jsx"></script>
+<script type="text/babel" src="components/ActivityDetailPanels.jsx"></script>
+<script type="text/babel" src="components/ActivityDetail.jsx"></script>
+<script type="text/babel" src="components/ActivitiesInbox.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect } = React;
+
+// Persisted tweaks
+const TWEAKS = /*EDITMODE-BEGIN*/{
+  "defaultView": "schedule",
+  "showInbox": true,
+  "compactChips": false,
+  "showOpps": true,
+  "dealDisplay": "both"
+}/*EDITMODE-END*/;
+
+function CalendarSyncBadge() {
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState(() => localStorage.getItem('cal.sync') || 'connected');
+  // states: connected | stale | disconnected
+  useEffect(() => { localStorage.setItem('cal.sync', state); }, [state]);
+
+  const cfg = {
+    connected:    { dot: '#69B34A', bg: '#F7FFF2', border: '#D6EFC6', label: 'Google Calendar connected', sub: 'Last sync 2 min ago · 14 events synced today' },
+    stale:        { dot: '#FFCF70', bg: '#fffaf1', border: '#ffd98d', label: 'Sync delayed',               sub: 'Last sync 47 min ago · retry running' },
+    disconnected: { dot: '#F37167', bg: '#fef1f0', border: '#f58d85', label: 'Google Calendar disconnected', sub: 'Reconnect to sync events automatically' },
+  }[state];
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '6px 10px 6px 8px', borderRadius: 999,
+          border: `1px solid ${cfg.border}`, background: cfg.bg,
+          fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: '#403770',
+          cursor: 'pointer',
+        }}
+        title={cfg.label}
+      >
+        <span style={{ position: 'relative', width: 8, height: 8 }}>
+          <span style={{
+            position: 'absolute', inset: 0, borderRadius: 999, background: cfg.dot,
+          }} />
+          {state === 'connected' && (
+            <span style={{
+              position: 'absolute', inset: -3, borderRadius: 999,
+              background: cfg.dot, opacity: 0.35,
+              animation: 'pulseDot 1.8s ease-out infinite',
+            }} />
+          )}
+        </span>
+        <span>Google Calendar</span>
+        <window.ChevronDownIcon size={12} style={{ color: '#8A80A8' }} />
+      </button>
+      <style>{`@keyframes pulseDot { 0% { transform: scale(0.6); opacity: 0.45; } 100% { transform: scale(1.6); opacity: 0; } }`}</style>
+
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 41,
+            width: 300, background: '#fff', border: '1px solid #D4CFE2', borderRadius: 12,
+            boxShadow: '0 10px 15px -3px rgba(64,55,112,0.10)',
+            padding: 14, fontSize: 13, color: '#403770',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: cfg.dot, marginTop: 5, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{cfg.label}</div>
+                <div style={{ marginTop: 2, fontSize: 11, color: '#8A80A8' }}>{cfg.sub}</div>
+              </div>
+            </div>
+            <div style={{ height: 1, background: '#EFEDF5', margin: '12px 0' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
+              <Row label="Account"  value="alex@fullmind.co" />
+              <Row label="Calendars" value="Primary · Team events · OOO" />
+              <Row label="Two-way sync" value={<span style={{ color: '#69B34A', fontWeight: 600 }}>On</span>} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              {state === 'connected' ? (
+                <>
+                  <button onClick={() => setState('disconnected')} style={btnGhost}>Disconnect</button>
+                  <button style={btnPrimary}>Sync now</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setState('connected')} style={btnPrimary}>
+                    {state === 'stale' ? 'Retry sync' : 'Reconnect'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+function Row({ label, value }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+      <span style={{ color: '#8A80A8' }}>{label}</span>
+      <span style={{ color: '#403770', fontWeight: 500, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
+    </div>
+  );
+}
+const btnGhost = { padding: '6px 10px', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', border: '1px solid #D4CFE2', borderRadius: 8, background: '#fff', color: '#544A78', cursor: 'pointer' };
+const btnPrimary = { padding: '6px 12px', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', border: 'none', borderRadius: 8, background: '#403770', color: '#fff', cursor: 'pointer' };
+
+function App() {
+  const [tab, setTab] = useState('activities');
+  const [collapsed, setCollapsed] = useState(false);
+  const [view, setView] = useState(() => {
+    return localStorage.getItem('cal.view') || TWEAKS.defaultView;
+  });
+  // NOTE: `scope` (mine | all) is derived from the owner filter — see below.
+  const [currentDate, setCurrentDate] = useState(() => new Date(window.TODAY));
+  const [filters, setFilters] = useState(() => {
+    // Unified filter state — all dimensions default to "all selected"
+    const allCats = ['meeting', 'event', 'campaign', 'fun'];
+    const allTypes = Object.keys(window.ACTIVITY_CATEGORY || {});
+    const allDeals = ['won', 'lost', 'created', 'progressed'];
+    const allStatuses = ['planned', 'in_progress', 'completed', 'tentative', 'cancelled'];
+    const uniqueTeammates = Object.values(window.TEAMMATES || {}).filter((t, i, arr) => arr.findIndex(x => x.name === t.name) === i);
+    // Default to "just me" to match the old Mine scope default. A persisted
+    // cal.scope key ('mine' | 'all') from prior sessions still steers this.
+    const persistedScope = localStorage.getItem('cal.scope') || 'mine';
+    const allOwners = persistedScope === 'mine' ? ['Alex Rivera'] : uniqueTeammates.map(t => t.name);
+    return {
+      categories:  new Set(allCats),
+      types:       new Set(allTypes),
+      dealKinds:   new Set(allDeals),
+      dealStages:  new Set(window.DEAL_STAGES || []),
+      dealMin:     0,
+      dealMax:     null, // null = no cap
+      statuses:    new Set(allStatuses),
+      owners:      new Set(allOwners),
+      states:      new Set(window.ALL_STATES || []),
+      territories: new Set(window.ALL_TERRITORIES || []),
+      tags:        new Set(window.ALL_TAGS || []),
+      text:        '',
+    };
+  });
+  const [savedView, setSavedView] = useState(() => localStorage.getItem('cal.savedView') || 'all');
+  useEffect(() => { localStorage.setItem('cal.savedView', savedView); }, [savedView]);
+  const [detail, setDetail] = useState(null);
+  const [showInbox, setShowInbox] = useState(TWEAKS.showInbox);
+  const [showOpps, setShowOpps] = useState(TWEAKS.showOpps ?? true);
+  const [dealDisplay, setDealDisplay] = useState(() => localStorage.getItem('cal.dealDisplay') || TWEAKS.dealDisplay || 'both');
+  useEffect(() => { localStorage.setItem('cal.dealDisplay', dealDisplay); }, [dealDisplay]);
+
+  // Grain (day/week/month/quarter) drives the unified date range selector.
+  // Defaults match the active view when none is stored.
+  const defaultGrainForView = (v) => (v === 'month' ? 'month' : v === 'map' ? 'week' : 'week');
+  const [grain, setGrain] = useState(() => localStorage.getItem('cal.grain') || defaultGrainForView(localStorage.getItem('cal.view') || TWEAKS.defaultView));
+
+  // When the user switches views, snap grain to that view's natural default
+  // (but only if the user hasn't explicitly picked a different grain for this view).
+  const prevViewRef = React.useRef(view);
+  useEffect(() => {
+    if (prevViewRef.current !== view) {
+      setGrain(defaultGrainForView(view));
+      prevViewRef.current = view;
+    }
+  }, [view]);
+
+  useEffect(() => { localStorage.setItem('cal.view', view); }, [view]);
+  useEffect(() => { localStorage.setItem('cal.grain', grain); }, [grain]);
+
+  // Collapsible rails
+  const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem('cal.rail.collapsed') === '1');
+  useEffect(() => { localStorage.setItem('cal.rail.collapsed', railCollapsed ? '1' : '0'); }, [railCollapsed]);
+
+  // Derived scope — replaces the removed Mine/Team toggle.
+  // Mirrors the rep filter: only "Alex Rivera" selected => 'mine'; otherwise 'all'.
+  // OppSignals, MonthView team badge, ActivitiesInbox copy, etc. all branch on this.
+  const scope = useMemo(() => {
+    const owners = filters.owners;
+    const isJustMe = owners.size === 1 && owners.has('Alex Rivera');
+    return isJustMe ? 'mine' : 'all';
+  }, [filters.owners]);
+  useEffect(() => { localStorage.setItem('cal.scope', scope); }, [scope]);
+  // Legacy setter — used by old Tweaks select. Flips the rep filter to just me / all reps.
+  const setScope = (s) => {
+    const unique = Object.values(window.TEAMMATES || {}).filter((t, i, arr) => arr.findIndex(x => x.name === t.name) === i);
+    setFilters(prev => ({
+      ...prev,
+      owners: s === 'mine' ? new Set(['Alex Rivera']) : new Set(unique.map(t => t.name)),
+    }));
+  };
+
+  // Filtered activities
+  const filtered = useMemo(() => {
+    const q = (filters.text || '').toLowerCase().trim();
+    return window.ACTIVITIES.filter(a => {
+      const cat = window.ACTIVITY_CATEGORY[a.type] || 'meeting';
+      if (!filters.categories.has(cat)) return false;
+      // Fine-grained type filter — only narrow when user has partial selection
+      const allTypeCount = Object.keys(window.ACTIVITY_CATEGORY || {}).length;
+      if (filters.types && filters.types.size > 0 && filters.types.size < allTypeCount && !filters.types.has(a.type)) return false;
+      if (a.status && !filters.statuses.has(a.status)) return false;
+      // Owner filter — applies to ALL activities, not just team scope
+      const ownerName = a.mine
+        ? (window.getTeammate('You')?.name || 'Alex Rivera')
+        : (window.getTeammate(a.owner)?.name || a.owner);
+      if (ownerName && !filters.owners.has(ownerName)) return false;
+      // State / territory filter (only apply when an activity has location data)
+      if (a._loc) {
+        if (a._loc.state && !filters.states.has(a._loc.state)) return false;
+        if (a._loc.territory && filters.territories.size < window.ALL_TERRITORIES.length && !filters.territories.has(a._loc.territory)) return false;
+      }
+      // Tags filter — require activity tags to intersect selected tags (if partial)
+      if (filters.tags && filters.tags.size < window.ALL_TAGS.length) {
+        if (!(a._tags || []).some(t => filters.tags.has(t))) return false;
+      }
+      // Text search
+      if (q) {
+        const hay = `${a.title} ${a.district || ''} ${a.attendee || ''} ${(a._tags||[]).join(' ')}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [scope, filters]);
+
+  const toggleFilter = (group, id) => {
+    setFilters(prev => {
+      const nextSet = new Set(prev[group]);
+      if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id);
+      // Keep at least one in a group (prevent empty) — except for dealKinds which may be fully off (hides overlay)
+      if (nextSet.size === 0 && group !== 'dealKinds') nextSet.add(id);
+      return { ...prev, [group]: nextSet };
+    });
+  };
+
+  const toggleMany = (group, ids) => {
+    setFilters(prev => ({ ...prev, [group]: new Set(ids.length ? ids : [Array.from(prev[group])[0]].filter(Boolean)) }));
+  };
+
+  const setText = (t) => setFilters(prev => ({ ...prev, text: t }));
+
+  const resetFilters = () => {
+    const allCats = ['meeting','event','campaign','fun'];
+    const allDeals = ['won','lost','created','progressed'];
+    const allStatuses = ['planned','in_progress','completed','tentative','cancelled'];
+    const uniqueTeammates = Object.values(window.TEAMMATES || {}).filter((t, i, arr) => arr.findIndex(x => x.name === t.name) === i);
+    setFilters({
+      categories:  new Set(allCats),
+      types:       new Set(Object.keys(window.ACTIVITY_CATEGORY || {})),
+      dealKinds:   new Set(allDeals),
+      dealStages:  new Set(window.DEAL_STAGES || []),
+      dealMin:     0,
+      dealMax:     null,
+      statuses:    new Set(allStatuses),
+      owners:      new Set(uniqueTeammates.map(t => t.name)),
+      states:      new Set(window.ALL_STATES || []),
+      territories: new Set(window.ALL_TERRITORIES || []),
+      tags:        new Set(window.ALL_TAGS || []),
+      text:        '',
+    });
+    setSavedView('all');
+  };
+
+  // Apply a saved view preset
+  const applySavedView = (viewId) => {
+    setSavedView(viewId);
+    const v = (window.DEFAULT_SAVED_VIEWS || []).find(x => x.id === viewId);
+    if (!v || !v.filters) {
+      resetFilters();
+      setSavedView(viewId);
+      return;
+    }
+    const uniqueTeammates = Object.values(window.TEAMMATES || {}).filter((t, i, arr) => arr.findIndex(x => x.name === t.name) === i);
+    const base = {
+      categories:  new Set(['meeting','event','campaign','fun']),
+      types:       new Set(Object.keys(window.ACTIVITY_CATEGORY || {})),
+      dealKinds:   new Set(['won','lost','created','progressed']),
+      dealStages:  new Set(window.DEAL_STAGES || []),
+      dealMin:     0,
+      dealMax:     null,
+      statuses:    new Set(['planned','in_progress','completed','tentative','cancelled']),
+      owners:      new Set(uniqueTeammates.map(t => t.name)),
+      states:      new Set(window.ALL_STATES || []),
+      territories: new Set(window.ALL_TERRITORIES || []),
+      tags:        new Set(window.ALL_TAGS || []),
+      text:        '',
+    };
+    if (v.filters.categories) base.categories = new Set(v.filters.categories);
+    if (v.filters.statuses) base.statuses = new Set(v.filters.statuses);
+    if (v.filters.states) base.states = new Set(v.filters.states);
+    if (v.filters.tags) base.tags = new Set(v.filters.tags);
+    if (v.filters.owners) base.owners = new Set(v.filters.owners);
+    setFilters(base);
+    if (v.filters.scope) setScope(v.filters.scope);
+  };
+
+  // Show opps overlay only when at least one deal kind is enabled AND showOpps tweak is on
+  const effShowOpps = showOpps && filters.dealKinds.size > 0;
+
+  // Filtered deal events — scoped to rep/team, then filtered by kind/stage/amount/territory.
+  // Used by views when rendering deals as first-class objects.
+  const filteredDeals = useMemo(() => {
+    if (!showOpps || filters.dealKinds.size === 0) return [];
+    const scoped = window.filterOppsByScope(window.OPP_EVENTS, scope);
+    return window.filterOpps(scoped, {
+      dealKinds:  filters.dealKinds,
+      dealStages: filters.dealStages,
+      dealMin:    filters.dealMin ?? 0,
+      dealMax:    filters.dealMax,
+      // Only narrow by territory when the user is actually filtering (partial set)
+      territories: filters.territories && filters.territories.size < window.ALL_TERRITORIES.length
+        ? new Set(Array.from(filters.territories).concat(
+            // Also allow deals whose district name matches even if not in ALL_TERRITORIES
+            window.OPP_EVENTS.map(e => e.district)
+          ))
+        : null,
+    });
+  }, [scope, showOpps, filters.dealKinds, filters.dealStages, filters.dealMin, filters.dealMax, filters.territories]);
+
+  // Deal display mode: 'overlay' (summary only) | 'objects' (chips only) | 'both'
+  const showDealObjects = dealDisplay === 'objects' || dealDisplay === 'both';
+  const showDealOverlay = dealDisplay === 'overlay' || dealDisplay === 'both';
+
+  // Header label + navigation — grain-aware
+  const { label, onPrev, onNext } = useMemo(() => {
+    if (grain === 'day') {
+      return {
+        label: window.fmtDateShort(currentDate) + ', ' + currentDate.getFullYear(),
+        onPrev: () => setCurrentDate(d => window.addDays(d, -1)),
+        onNext: () => setCurrentDate(d => window.addDays(d, 1)),
+      };
+    }
+    if (grain === 'month') {
+      return {
+        label: window.fmtMonthYear(currentDate),
+        onPrev: () => setCurrentDate(d => { const x = new Date(d); x.setMonth(x.getMonth() - 1); return x; }),
+        onNext: () => setCurrentDate(d => { const x = new Date(d); x.setMonth(x.getMonth() + 1); return x; }),
+      };
+    }
+    if (grain === 'quarter') {
+      const q = Math.floor(currentDate.getMonth() / 3);
+      return {
+        label: `Q${q + 1} ${currentDate.getFullYear()}`,
+        onPrev: () => setCurrentDate(d => { const x = new Date(d); x.setMonth(x.getMonth() - 3); return x; }),
+        onNext: () => setCurrentDate(d => { const x = new Date(d); x.setMonth(x.getMonth() + 3); return x; }),
+      };
+    }
+    // week
+    const ws = window.startOfWeek(currentDate);
+    const we = window.addDays(ws, 6);
+    const sameMonthWeek = ws.getMonth() === we.getMonth();
+    const lbl = sameMonthWeek
+      ? `${window.fmtMonthYear(ws).split(' ')[0]} ${ws.getDate()}–${we.getDate()}, ${ws.getFullYear()}`
+      : `${window.fmtDateShort(ws)} – ${window.fmtDateShort(we)}, ${we.getFullYear()}`;
+    return {
+      label: lbl,
+      onPrev: () => setCurrentDate(d => window.addDays(d, -7)),
+      onNext: () => setCurrentDate(d => window.addDays(d, 7)),
+    };
+  }, [grain, currentDate]);
+
+  const onToday = () => setCurrentDate(new Date(window.TODAY));
+
+  // Tweaks
+  useEffect(() => {
+    const listener = (e) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === '__activate_edit_mode') setTweakPanel(true);
+      if (e.data.type === '__deactivate_edit_mode') setTweakPanel(false);
+    };
+    window.addEventListener('message', listener);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', listener);
+  }, []);
+  const [tweakPanel, setTweakPanel] = useState(false);
+
+  const totalShown = filtered.length;
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--surface)' }}>
+      <window.Sidebar
+        activeTab={tab}
+        onTabChange={setTab}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(c => !c)}
+      />
+
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Page header */}
+        <div style={{
+          padding: '18px 24px 14px',
+          borderBottom: '1px solid #E2DEEC',
+          background: '#fff',
+          display: 'flex', flexDirection: 'column', gap: 14,
+        }}>
+          {/* Top: Title + view toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#403770', letterSpacing: '-0.015em' }}>
+                Activities
+              </h1>
+              <span style={{ fontSize: 12, color: '#8A80A8', fontWeight: 500 }}>
+                {totalShown} shown · {
+                  scope === 'mine' ? 'your calendar'
+                  : filters.owners.size === Object.values(window.TEAMMATES || {}).filter((t, i, arr) => arr.findIndex(x => x.name === t.name) === i).length
+                    ? 'full-team calendar'
+                    : `${filters.owners.size} reps`
+                }
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <CalendarSyncBadge />
+              <window.ViewToggle view={view} onChange={setView} />
+            </div>
+          </div>
+
+          {/* Middle row: date range */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+            <window.DateRangeSelector
+              grain={grain}
+              onGrainChange={setGrain}
+              label={label}
+              onPrev={onPrev}
+              onNext={onNext}
+              onToday={onToday}
+            />
+          </div>
+
+        </div>
+
+        {/* Saved view tabs + filter bar */}
+        <window.FilterBar
+          filters={filters}
+          onToggle={toggleFilter}
+          onToggleMany={toggleMany}
+          onReset={resetFilters}
+          setText={setText}
+          savedView={savedView}
+          onSavedView={applySavedView}
+          scope={scope}
+        />
+
+        {/* Body: calendar area + optional right rail */}
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, paddingTop: 20 }}>
+            {view === 'month' && (
+              <window.MonthView
+                currentDate={currentDate}
+                activities={filtered}
+                onActivityClick={setDetail}
+                onDayClick={(d) => { setCurrentDate(d); setView('schedule'); }}
+                scope={scope}
+                showOpps={effShowOpps && showDealOverlay}
+                dealKinds={filters.dealKinds}
+                deals={showDealObjects ? filteredDeals : []}
+                onDealClick={(d) => console.log('open deal', d.district)}
+              />
+            )}
+            {view === 'week' && (
+              <window.WeekGridView
+                currentDate={currentDate}
+                activities={filtered}
+                onActivityClick={setDetail}
+                scope={scope}
+                showOpps={effShowOpps && showDealOverlay}
+                dealKinds={filters.dealKinds}
+                deals={showDealObjects ? filteredDeals : []}
+                onDealClick={(d) => console.log('open deal', d.district)}
+              />
+            )}
+            {view === 'schedule' && (
+              <window.ScheduleView
+                currentDate={currentDate}
+                activities={filtered}
+                onActivityClick={setDetail}
+                scope={scope}
+                showOpps={effShowOpps && showDealOverlay}
+                dealKinds={filters.dealKinds}
+                deals={showDealObjects ? filteredDeals : []}
+                onDealClick={(d) => console.log('open deal', d.district)}
+              />
+            )}
+            {view === 'map' && (
+              <window.MapTimeView
+                currentDate={currentDate}
+                activities={filtered}
+                onActivityClick={setDetail}
+                grain={grain}
+                scope={scope}
+                deals={showDealObjects ? filteredDeals : []}
+                onDealClick={(d) => console.log('open deal', d.district)}
+              />
+            )}
+          </div>
+
+          {showInbox && !railCollapsed && (
+            <window.ActivitiesInbox
+              activities={filtered}
+              currentDate={currentDate}
+              onActivityClick={setDetail}
+              scope={scope}
+              onCollapse={() => setRailCollapsed(true)}
+            />
+          )}
+          {showInbox && railCollapsed && (
+            <window.CollapsedRail onExpand={() => setRailCollapsed(false)} />
+          )}
+        </div>
+      </main>
+
+      {/* Detail drawer */}
+      {detail && <window.ActivityDetail activity={detail} onClose={() => setDetail(null)} />}
+
+      {/* Tweaks panel */}
+      {tweakPanel && (
+        <div style={{
+          position: 'fixed', bottom: 16, right: 16, width: 280, zIndex: 100,
+          background: '#fff', border: '1px solid #D4CFE2', borderRadius: 12,
+          padding: 16, boxShadow: '0 10px 15px -3px rgba(64,55,112,0.10)',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#403770', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+            Tweaks
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: '#403770' }}>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Default view
+              <select value={view} onChange={e => setView(e.target.value)}
+                style={{ fontSize: 12, padding: '4px 8px', border: '1px solid #D4CFE2', borderRadius: 6, fontFamily: 'inherit' }}>
+                <option value="month">Month</option>
+                <option value="week">Week grid</option>
+                <option value="schedule">Schedule</option>
+                <option value="map">Map</option>
+              </select>
+            </label>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Show "Upcoming" rail
+              <input type="checkbox" checked={showInbox} onChange={e => setShowInbox(e.target.checked)} />
+            </label>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Show deal signals
+              <input type="checkbox" checked={showOpps} onChange={e => setShowOpps(e.target.checked)} />
+            </label>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Deals on calendar
+              <select value={dealDisplay} onChange={e => setDealDisplay(e.target.value)}
+                style={{ fontSize: 12, padding: '4px 8px', border: '1px solid #D4CFE2', borderRadius: 6, fontFamily: 'inherit' }}>
+                <option value="overlay">Summary only</option>
+                <option value="objects">As objects</option>
+                <option value="both">Both</option>
+              </select>
+            </label>
+            <div style={{ height: 1, background: '#EFEDF5', margin: '4px 0' }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

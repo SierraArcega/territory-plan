@@ -1,5 +1,8 @@
 # Claude Query Tool — Design Spec
 
+> ⚠️ **Superseded entirely by `specs/2026-04-21-query-tool-agentic-redesign.md`.**
+> This spec assumed single-shot SQL generation with user-visible SQL validation. The current direction is a multi-turn agent loop; Claude emits full SQL against a readonly pg role; chips describe the query; users never see SQL.
+
 **Date:** 2026-04-03
 **Status:** Design approved
 **Linear:** MAP-5

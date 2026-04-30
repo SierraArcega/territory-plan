@@ -10,6 +10,7 @@ import {
   useEnrichProgress,
   useExpandRollup,
 } from "@/features/plans/lib/queries";
+import ExistingContactsModal from "./ExistingContactsModal";
 
 interface ContactsActionBarProps {
   planId: string;
@@ -44,9 +45,13 @@ export default function ContactsActionBar({
     type: "info" | "success" | "warning" | "error";
     action?: { label: string; onClick: () => void };
   } | null>(null);
+  const [modalState, setModalState] = useState<
+    { variant: "queued-zero" | "partial"; districtCount: number; newCount?: number } | null
+  >(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEnrichedRef = useRef<number>(0);
+  const pendingPartialRef = useRef<{ newCount: number; skippedCount: number } | null>(null);
 
   const bulkEnrich = useBulkEnrich();
   const expandRollup = useExpandRollup();
@@ -101,6 +106,14 @@ export default function ContactsActionBar({
       setIsEnriching(false);
       setToast({ message: `Contact enrichment complete — ${progress.enriched} contact${progress.enriched !== 1 ? "s" : ""} found`, type: "success" });
       if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+      if (pendingPartialRef.current) {
+        setModalState({
+          variant: "partial",
+          districtCount: pendingPartialRef.current.skippedCount,
+          newCount: pendingPartialRef.current.newCount,
+        });
+        pendingPartialRef.current = null;
+      }
       return;
     }
 
@@ -140,8 +153,29 @@ export default function ContactsActionBar({
       });
 
       if (result.queued === 0) {
-        setToast({ message: "Nothing to enrich — all targets already have contacts", type: "info" });
+        if (result.skipped > 0) {
+          setModalState({ variant: "queued-zero", districtCount: result.skipped });
+        } else {
+          let message: string;
+          if (result.reason === "no-districts") {
+            message = "No districts to enrich — add districts to this plan first";
+          } else if (result.reason === "no-schools-in-district") {
+            message = "No schools on record for this district";
+          } else if (result.reason === "no-schools-at-levels") {
+            message = "No schools at the selected levels";
+          } else {
+            message =
+              selectedRole === "Principal"
+                ? "No schools to enrich"
+                : "No contacts to enrich";
+          }
+          setToast({ message, type: "info" });
+        }
         return;
+      }
+
+      if (result.skipped > 0) {
+        pendingPartialRef.current = { newCount: result.queued, skippedCount: result.skipped };
       }
 
       setIsEnriching(true);
@@ -398,6 +432,16 @@ export default function ContactsActionBar({
           Export CSV
         </button>
       </div>
+
+      {modalState && (
+        <ExistingContactsModal
+          planId={planId}
+          variant={modalState.variant}
+          districtCount={modalState.districtCount}
+          newCount={modalState.newCount}
+          onClose={() => setModalState(null)}
+        />
+      )}
 
       {/* Toast */}
       {toast && (

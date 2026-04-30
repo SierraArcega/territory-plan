@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
-import RangeFilter, { formatCompact } from "./controls/RangeFilter";
+import RangeFilter from "./controls/RangeFilter";
 
 
 interface DemographicsDropdownProps {
@@ -47,11 +47,11 @@ export default function DemographicsDropdown({ onClose }: DemographicsDropdownPr
 
       <div className="space-y-3">
         <RangeFilter label="Enrollment" column="enrollment" min={0} max={200000} step={500} onApply={handleApply} />
-        <RangeFilter label="ELL %" column="ell_percent" min={0} max={100} step={1} onApply={handleApply} />
-        <RangeFilter label="SWD %" column="sped_percent" min={0} max={100} step={1} onApply={handleApply} />
-        <RangeFilter label="Poverty %" column="free_lunch_percent" min={0} max={100} step={1} onApply={handleApply} />
-        <RangeFilter label="Median Household Income" column="medianHouseholdIncome" min={0} max={250000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleApply} />
-        <RangeFilter label="Enrollment Trend (3yr)" column="enrollmentTrend3yr" min={-50} max={50} step={0.5} formatValue={(v) => `${v}%`} onApply={handleApply} />
+        <RangeFilter label="ELL %" column="ell_percent" min={0} max={100} step={1} suffix="%" onApply={handleApply} />
+        <RangeFilter label="SWD %" column="sped_percent" min={0} max={100} step={1} suffix="%" onApply={handleApply} />
+        <RangeFilter label="Poverty %" column="free_lunch_percent" min={0} max={100} step={1} suffix="%" onApply={handleApply} />
+        <RangeFilter label="Median Household Income" column="medianHouseholdIncome" min={0} max={250000} step={5000} prefix="$" onApply={handleApply} />
+        <RangeFilter label="Enrollment Trend (3yr)" column="enrollmentTrend3yr" min={-50} max={50} step={0.5} suffix="%" onApply={handleApply} />
       </div>
     </div>
   );

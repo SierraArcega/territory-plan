@@ -19,6 +19,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     school: {
       findMany: vi.fn(),
+      count: vi.fn(),
     },
     schoolContact: {
       findMany: vi.fn(),
@@ -169,6 +170,48 @@ describe("POST /bulk-enrich — Principal", () => {
       params: Promise.resolve({ id: "plan-1" }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("returns reason=no-schools-in-district when Principal finds zero schools and none exist on record", async () => {
+    mockPrisma.school.findMany.mockResolvedValue([]);
+    mockPrisma.school.count.mockResolvedValue(0);
+
+    const res = await POST(buildRequest({ targetRole: "Principal", schoolLevels: [1, 2, 3] }), {
+      params: Promise.resolve({ id: "plan-1" }),
+    });
+    const data = await res.json();
+
+    expect(data).toEqual({ total: 0, skipped: 0, queued: 0, reason: "no-schools-in-district" });
+  });
+
+  it("returns reason=no-schools-at-levels when Principal finds zero at selected levels but schools exist on record", async () => {
+    mockPrisma.school.findMany.mockResolvedValue([]);
+    mockPrisma.school.count.mockResolvedValue(12);
+
+    const res = await POST(buildRequest({ targetRole: "Principal", schoolLevels: [3] }), {
+      params: Promise.resolve({ id: "plan-1" }),
+    });
+    const data = await res.json();
+
+    expect(data).toEqual({ total: 0, skipped: 0, queued: 0, reason: "no-schools-at-levels" });
+  });
+});
+
+describe("POST /bulk-enrich — empty-plan edge case", () => {
+  it("returns reason=no-districts when the plan has zero districts", async () => {
+    mockPrisma.territoryPlan.findUnique.mockResolvedValueOnce({
+      id: "plan-1",
+      enrichmentStartedAt: null,
+      enrichmentQueued: null,
+      districts: [],
+    });
+
+    const res = await POST(buildRequest({ targetRole: "Superintendent" }), {
+      params: Promise.resolve({ id: "plan-1" }),
+    });
+    const data = await res.json();
+
+    expect(data).toEqual({ total: 0, skipped: 0, queued: 0, reason: "no-districts" });
   });
 });
 

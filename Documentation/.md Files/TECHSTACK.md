@@ -142,6 +142,10 @@ Used for:
 
 /api/territory-plans        — Plan CRUD
 /api/territory-plans/[id]/districts — Manage districts in plans
+/api/territory-plans/[id]/contacts  — Contacts on a plan (via district leaid)
+/api/territory-plans/[id]/contacts/bulk-enrich — Trigger Clay enrichment
+/api/territory-plans/[id]/contacts/enrich-progress — Poll enrichment state
+/api/territory-plans/[id]/contact-sources — Other plans sharing districts with existing contacts
 
 /api/tiles/[z]/[x]/[y]      — Vector tile server
 /api/metrics/quantiles      — Choropleth breakpoints

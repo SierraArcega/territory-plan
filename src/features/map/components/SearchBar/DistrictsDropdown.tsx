@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
-import RangeFilter, { formatCompact } from "./controls/RangeFilter";
+import RangeFilter from "./controls/RangeFilter";
 import ToggleChips from "./controls/ToggleChips";
 import FilterMultiSelect from "./controls/FilterMultiSelect";
 
@@ -242,7 +242,8 @@ function FinancialRangeFilter({
   min,
   max,
   step,
-  formatValue,
+  prefix,
+  suffix,
   onApply,
 }: {
   label: string;
@@ -251,7 +252,8 @@ function FinancialRangeFilter({
   min: number;
   max: number;
   step: number;
-  formatValue: (v: number) => string;
+  prefix?: string;
+  suffix?: string;
   onApply: (column: string, min: number, max: number, fy: string) => void;
 }) {
   const [fy, setFy] = useState(defaultFy);
@@ -275,7 +277,8 @@ function FinancialRangeFilter({
         min={min}
         max={max}
         step={step}
-        formatValue={formatValue}
+        prefix={prefix}
+        suffix={suffix}
         onApply={(col, lo, hi) => onApply(col, lo, hi, fy)}
       />
     </div>
@@ -325,9 +328,9 @@ function FullmindContent({
         }}
       />
 
-      <FinancialRangeFilter label="Pipeline" column="open_pipeline" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
-      <FinancialRangeFilter label="Bookings" column="closed_won_bookings" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
-      <FinancialRangeFilter label="Invoicing" column="invoicing" defaultFy={defaultFy} min={0} max={500000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleFinancialRangeApply} />
+      <FinancialRangeFilter label="Pipeline" column="open_pipeline" defaultFy={defaultFy} min={0} max={500000} step={5000} prefix="$" onApply={handleFinancialRangeApply} />
+      <FinancialRangeFilter label="Bookings" column="closed_won_bookings" defaultFy={defaultFy} min={0} max={500000} step={5000} prefix="$" onApply={handleFinancialRangeApply} />
+      <FinancialRangeFilter label="Invoicing" column="invoicing" defaultFy={defaultFy} min={0} max={500000} step={5000} prefix="$" onApply={handleFinancialRangeApply} />
 
       <FilterMultiSelect
         label="Tags"
@@ -392,14 +395,14 @@ function CompetitorsContent({
 function FinanceContent({ handleRangeApply }: { handleRangeApply: (column: string, min: number, max: number) => void }) {
   return (
     <>
-      <RangeFilter label="Expenditure / Pupil" column="expenditurePerPupil" min={0} max={50000} step={500} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="Total Revenue" column="totalRevenue" min={0} max={2000000000} step={10000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="Federal Revenue" column="federalRevenue" min={0} max={500000000} step={5000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="State Revenue" column="stateRevenue" min={0} max={1000000000} step={10000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="Local Revenue" column="localRevenue" min={0} max={1000000000} step={10000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="Tech Spending" column="techSpending" min={0} max={50000000} step={500000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="Title I Revenue" column="titleIRevenue" min={0} max={50000000} step={500000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="ESSER Funding" column="esserFundingTotal" min={0} max={100000000} step={1000000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
+      <RangeFilter label="Expenditure / Pupil" column="expenditurePerPupil" min={0} max={50000} step={500} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="Total Revenue" column="totalRevenue" min={0} max={2000000000} step={10000000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="Federal Revenue" column="federalRevenue" min={0} max={500000000} step={5000000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="State Revenue" column="stateRevenue" min={0} max={1000000000} step={10000000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="Local Revenue" column="localRevenue" min={0} max={1000000000} step={10000000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="Tech Spending" column="techSpending" min={0} max={50000000} step={500000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="Title I Revenue" column="titleIRevenue" min={0} max={50000000} step={500000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="ESSER Funding" column="esserFundingTotal" min={0} max={100000000} step={1000000} prefix="$" onApply={handleRangeApply} />
     </>
   );
 }
@@ -408,11 +411,11 @@ function DemographicsContent({ handleRangeApply }: { handleRangeApply: (column: 
   return (
     <>
       <RangeFilter label="Enrollment" column="enrollment" min={0} max={200000} step={500} onApply={handleRangeApply} />
-      <RangeFilter label="ELL %" column="ell_percent" min={0} max={100} step={1} onApply={handleRangeApply} />
-      <RangeFilter label="SWD %" column="sped_percent" min={0} max={100} step={1} onApply={handleRangeApply} />
-      <RangeFilter label="Poverty %" column="free_lunch_percent" min={0} max={100} step={1} onApply={handleRangeApply} />
-      <RangeFilter label="Median Household Income" column="medianHouseholdIncome" min={0} max={250000} step={5000} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
-      <RangeFilter label="Enrollment Trend (3yr)" column="enrollmentTrend3yr" min={-50} max={50} step={0.5} formatValue={(v) => `${v}%`} onApply={handleRangeApply} />
+      <RangeFilter label="ELL %" column="ell_percent" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
+      <RangeFilter label="SWD %" column="sped_percent" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
+      <RangeFilter label="Poverty %" column="free_lunch_percent" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
+      <RangeFilter label="Median Household Income" column="medianHouseholdIncome" min={0} max={250000} step={5000} prefix="$" onApply={handleRangeApply} />
+      <RangeFilter label="Enrollment Trend (3yr)" column="enrollmentTrend3yr" min={-50} max={50} step={0.5} suffix="%" onApply={handleRangeApply} />
     </>
   );
 }
@@ -420,13 +423,13 @@ function DemographicsContent({ handleRangeApply }: { handleRangeApply: (column: 
 function AcademicsContent({ handleRangeApply }: { handleRangeApply: (column: string, min: number, max: number) => void }) {
   return (
     <>
-      <RangeFilter label="Graduation Rate %" column="graduationRate" min={0} max={100} step={1} onApply={handleRangeApply} />
-      <RangeFilter label="Math Proficiency %" column="mathProficiency" min={0} max={100} step={1} onApply={handleRangeApply} />
-      <RangeFilter label="Reading Proficiency %" column="readProficiency" min={0} max={100} step={1} onApply={handleRangeApply} />
-      <RangeFilter label="Chronic Absenteeism %" column="chronicAbsenteeismRate" min={0} max={100} step={1} onApply={handleRangeApply} />
+      <RangeFilter label="Graduation Rate %" column="graduationRate" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
+      <RangeFilter label="Math Proficiency %" column="mathProficiency" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
+      <RangeFilter label="Reading Proficiency %" column="readProficiency" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
+      <RangeFilter label="Chronic Absenteeism %" column="chronicAbsenteeismRate" min={0} max={100} step={1} suffix="%" onApply={handleRangeApply} />
       <RangeFilter label="Student-Teacher Ratio" column="studentTeacherRatio" min={0} max={50} step={0.5} onApply={handleRangeApply} />
       <RangeFilter label="Teacher FTE" column="teachersFte" min={0} max={10000} step={10} onApply={handleRangeApply} />
-      <RangeFilter label="SPED Expenditure / Student" column="spedExpenditurePerStudent" min={0} max={50000} step={500} formatValue={(v) => `$${formatCompact(v)}`} onApply={handleRangeApply} />
+      <RangeFilter label="SPED Expenditure / Student" column="spedExpenditurePerStudent" min={0} max={50000} step={500} prefix="$" onApply={handleRangeApply} />
     </>
   );
 }

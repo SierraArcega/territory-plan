@@ -6,7 +6,6 @@ import {
   syncMissingRenewalOppTagForDistrict,
 } from "@/features/shared/lib/auto-tags";
 import { syncPlanRollups } from "@/features/plans/lib/rollup-sync";
-import { awardPoints } from "@/features/leaderboard/lib/scoring";
 import {
   type FilterDef,
   buildWhereClause,
@@ -182,13 +181,6 @@ export async function POST(
     }
 
     await syncPlanRollups(planId);
-
-    // Award leaderboard points for each district added (non-blocking)
-    for (let i = 0; i < addedCount; i++) {
-      awardPoints(user.id, "district_added").catch((err) =>
-        console.error("Failed to award district_added points:", err)
-      );
-    }
 
     return NextResponse.json(
       {

@@ -47,11 +47,11 @@ model District {
 
   // ===== Fullmind CRM Data =====
   // Source: Fullmind CSV import via ETL
-  accountName              String?  @map("account_name") @db.VarChar(255)
-  lmsid                    String?  @db.VarChar(50)
+  accountName     String?  @map("account_name") @db.VarChar(255)
+  lmsid           String?  @db.VarChar(50)
   // Computed flags
-  isCustomer               Boolean? @default(false) @map("is_customer")
-  hasOpenPipeline          Boolean? @default(false) @map("has_open_pipeline")
+  isCustomer      Boolean? @default(false) @map("is_customer")
+  hasOpenPipeline Boolean? @default(false) @map("has_open_pipeline")
 
   // ===== Finance Data =====
   // Source: Urban Institute API (finance endpoint)
@@ -129,14 +129,18 @@ model District {
   jobBoardUrl      String? @map("job_board_url") @db.VarChar(1000)
   jobBoardPlatform String? @map("job_board_platform") @db.VarChar(50)
 
+  // ===== Vacancy Scan Health (cron-side filtering) =====
+  vacancyConsecutiveFailures Int       @default(0) @map("vacancy_consecutive_failures")
+  vacancyLastFailureAt       DateTime? @map("vacancy_last_failure_at")
+
   // ===== User Edits =====
   // Source: App users (shared across team)
   notes          String?
   notesUpdatedAt DateTime? @map("notes_updated_at")
 
   // Normalized person references (Phase 1: populated from string names)
-  ownerId            String?   @map("owner_id") @db.Uuid
-  salesExecutiveId   String?   @map("sales_executive_id") @db.Uuid
+  ownerId            String?      @map("owner_id") @db.Uuid
+  salesExecutiveId   String?      @map("sales_executive_id") @db.Uuid
   ownerUser          UserProfile? @relation("DistrictOwner", fields: [ownerId], references: [id])
   salesExecutiveUser UserProfile? @relation("DistrictSalesExec", fields: [salesExecutiveId], references: [id])
 
@@ -243,29 +247,29 @@ model District {
   expenditurePpQuartileState       String? @map("expenditure_pp_quartile_state") @db.VarChar(15)
 
   // ===== ICP Scoring =====
-  icpCompositeScore  Int?    @map("icp_composite_score")
-  icpFitScore        Int?    @map("icp_fit_score")
-  icpValueScore      Int?    @map("icp_value_score")
-  icpReadinessScore  Int?    @map("icp_readiness_score")
-  icpStateScore      Int?    @map("icp_state_score")
-  icpTier            String? @map("icp_tier") @db.VarChar(10)
+  icpCompositeScore Int?    @map("icp_composite_score")
+  icpFitScore       Int?    @map("icp_fit_score")
+  icpValueScore     Int?    @map("icp_value_score")
+  icpReadinessScore Int?    @map("icp_readiness_score")
+  icpStateScore     Int?    @map("icp_state_score")
+  icpTier           String? @map("icp_tier") @db.VarChar(10)
 
   // ===== Relations =====
-  state            State?                    @relation(fields: [stateFips], references: [fips])
-  contacts         Contact[]
-  districtTags     DistrictTag[]
-  territoryPlans   TerritoryPlanDistrict[]
+  state              State?                    @relation(fields: [stateFips], references: [fips])
+  contacts           Contact[]
+  districtTags       DistrictTag[]
+  territoryPlans     TerritoryPlanDistrict[]
   districtFinancials DistrictFinancials[]
-  activityLinks   ActivityDistrict[]
-  taskLinks       TaskDistrict[]
-  schools         School[]
-  dataHistory     DistrictDataHistory[]
-  gradeEnrollment DistrictGradeEnrollment[]
-  vacancyScans    VacancyScan[]
-  vacancies       Vacancy[]
-  opportunities   Opportunity[]
-  newsArticles    NewsArticleDistrict[]
-  newsFetch       DistrictNewsFetch?
+  activityLinks      ActivityDistrict[]
+  taskLinks          TaskDistrict[]
+  schools            School[]
+  dataHistory        DistrictDataHistory[]
+  gradeEnrollment    DistrictGradeEnrollment[]
+  vacancyScans       VacancyScan[]
+  vacancies          Vacancy[]
+  opportunities      Opportunity[]
+  newsArticles       NewsArticleDistrict[]
+  newsFetch          DistrictNewsFetch?
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -306,33 +310,33 @@ model DistrictTag {
 // Normalized financial metrics for all vendors (Fullmind + competitors)
 // Source: Fullmind CSV, GovSpend PO data, user-provided CSV
 model DistrictFinancials {
-  id                Int      @id @default(autoincrement())
-  leaid             String?  @db.VarChar(7)
-  vendor            String   @db.VarChar(20)
-  fiscalYear        String   @map("fiscal_year") @db.VarChar(4)
-  openPipeline      Decimal  @default(0) @map("open_pipeline") @db.Decimal(15, 2)
-  closedWonBookings Decimal  @default(0) @map("closed_won_bookings") @db.Decimal(15, 2)
-  invoicing         Decimal  @default(0) @map("invoicing") @db.Decimal(15, 2)
-  scheduledRevenue  Decimal  @default(0) @map("scheduled_revenue") @db.Decimal(15, 2)
-  completedRevenue  Decimal  @default(0) @map("completed_revenue") @db.Decimal(15, 2)
-  deferredRevenue   Decimal  @default(0) @map("deferred_revenue") @db.Decimal(15, 2)
-  totalRevenue      Decimal  @default(0) @map("total_revenue") @db.Decimal(15, 2)
-  completedTake     Decimal  @default(0) @map("completed_take") @db.Decimal(15, 2)
-  scheduledTake     Decimal  @default(0) @map("scheduled_take") @db.Decimal(15, 2)
-  totalTake         Decimal  @default(0) @map("total_take") @db.Decimal(15, 2)
+  id                   Int               @id @default(autoincrement())
+  leaid                String?           @db.VarChar(7)
+  vendor               String            @db.VarChar(20)
+  fiscalYear           String            @map("fiscal_year") @db.VarChar(4)
+  openPipeline         Decimal           @default(0) @map("open_pipeline") @db.Decimal(15, 2)
+  closedWonBookings    Decimal           @default(0) @map("closed_won_bookings") @db.Decimal(15, 2)
+  invoicing            Decimal           @default(0) @map("invoicing") @db.Decimal(15, 2)
+  scheduledRevenue     Decimal           @default(0) @map("scheduled_revenue") @db.Decimal(15, 2)
+  completedRevenue     Decimal           @default(0) @map("completed_revenue") @db.Decimal(15, 2)
+  deferredRevenue      Decimal           @default(0) @map("deferred_revenue") @db.Decimal(15, 2)
+  totalRevenue         Decimal           @default(0) @map("total_revenue") @db.Decimal(15, 2)
+  completedTake        Decimal           @default(0) @map("completed_take") @db.Decimal(15, 2)
+  scheduledTake        Decimal           @default(0) @map("scheduled_take") @db.Decimal(15, 2)
+  totalTake            Decimal           @default(0) @map("total_take") @db.Decimal(15, 2)
   // New columns for FY data migration (from districts table)
-  sessionCount        Int?     @default(0) @map("session_count")
+  sessionCount         Int?              @default(0) @map("session_count")
   // Count of Elevate K12 subscription line items rolled into this row
-  subscriptionCount   Int?     @default(0) @map("subscription_count")
-  closedWonOppCount   Int?     @default(0) @map("closed_won_opp_count")
-  openPipelineOppCount Int?    @default(0) @map("open_pipeline_opp_count")
-  weightedPipeline    Decimal? @default(0) @map("weighted_pipeline") @db.Decimal(15, 2)
+  subscriptionCount    Int?              @default(0) @map("subscription_count")
+  closedWonOppCount    Int?              @default(0) @map("closed_won_opp_count")
+  openPipelineOppCount Int?              @default(0) @map("open_pipeline_opp_count")
+  weightedPipeline     Decimal?          @default(0) @map("weighted_pipeline") @db.Decimal(15, 2)
   // From competitor_spend merger
-  poCount             Int?     @map("po_count")
+  poCount              Int?              @map("po_count")
   // Optional FK — for financial data linked to unmatched accounts (no leaid)
-  unmatchedAccountId  Int?     @map("unmatched_account_id")
-  unmatchedAccount    UnmatchedAccount? @relation(fields: [unmatchedAccountId], references: [id])
-  lastUpdated       DateTime @default(now()) @map("last_updated")
+  unmatchedAccountId   Int?              @map("unmatched_account_id")
+  unmatchedAccount     UnmatchedAccount? @relation(fields: [unmatchedAccountId], references: [id])
+  lastUpdated          DateTime          @default(now()) @map("last_updated")
 
   district District? @relation(fields: [leaid], references: [leaid])
 
@@ -345,20 +349,20 @@ model DistrictFinancials {
 }
 
 model Contact {
-  id             Int               @id @default(autoincrement())
-  leaid          String            @db.VarChar(7)
-  salutation     String?           @db.VarChar(20)
-  name           String            @db.VarChar(255)
-  title          String?           @db.VarChar(255)
-  email          String?           @db.VarChar(255)
-  phone          String?           @db.VarChar(50)
-  isPrimary      Boolean           @default(false) @map("is_primary")
-  linkedinUrl    String?           @map("linkedin_url") @db.VarChar(500)
-  persona        String?           @db.VarChar(100)
-  seniorityLevel String?           @map("seniority_level") @db.VarChar(100)
-  createdAt      DateTime          @default(now()) @map("created_at")
-  lastEnrichedAt DateTime?         @map("last_enriched_at")
-  district       District          @relation(fields: [leaid], references: [leaid])
+  id             Int                  @id @default(autoincrement())
+  leaid          String               @db.VarChar(7)
+  salutation     String?              @db.VarChar(20)
+  name           String               @db.VarChar(255)
+  title          String?              @db.VarChar(255)
+  email          String?              @db.VarChar(255)
+  phone          String?              @db.VarChar(50)
+  isPrimary      Boolean              @default(false) @map("is_primary")
+  linkedinUrl    String?              @map("linkedin_url") @db.VarChar(500)
+  persona        String?              @db.VarChar(100)
+  seniorityLevel String?              @map("seniority_level") @db.VarChar(100)
+  createdAt      DateTime             @default(now()) @map("created_at")
+  lastEnrichedAt DateTime?            @map("last_enriched_at")
+  district       District             @relation(fields: [leaid], references: [leaid])
   activityLinks  ActivityContact[]
   taskLinks      TaskContact[]
   schoolContacts SchoolContact[]
@@ -372,7 +376,7 @@ model Contact {
 model UnmatchedAccount {
   id                 Int      @id @default(autoincrement())
   accountName        String   @map("account_name") @db.VarChar(255)
-  salesExecutiveId String?     @map("sales_executive_id") @db.Uuid
+  salesExecutiveId   String?  @map("sales_executive_id") @db.Uuid
   stateAbbrev        String   @map("state_abbrev") @db.VarChar(2)
   stateFips          String?  @map("state_fips") @db.VarChar(2)
   lmsid              String?  @db.VarChar(50)
@@ -441,12 +445,12 @@ model State {
   icpAvgScore     Float? @map("icp_avg_score") @db.Real
   icpT1Count      Int    @default(0) @map("icp_t1_count")
   icpT2Count      Int    @default(0) @map("icp_t2_count")
-  icpChurnPenalty  Int    @default(0) @map("icp_churn_penalty")
+  icpChurnPenalty Int    @default(0) @map("icp_churn_penalty")
 
   // ===== Territory Management =====
-  territoryOwnerId String?     @map("territory_owner_id") @db.Uuid
+  territoryOwnerId   String?      @map("territory_owner_id") @db.Uuid
   territoryOwnerUser UserProfile? @relation("StateOwner", fields: [territoryOwnerId], references: [id])
-  notes          String?
+  notes              String?
 
   // ===== Timestamps =====
   aggregatesUpdatedAt DateTime? @map("aggregates_updated_at")
@@ -610,32 +614,55 @@ model Activity {
   mixmaxClickCount    Int?    @map("mixmax_click_count")
 
   // ===== Outcome Tracking =====
-  // Captures what resulted from the activity (set on completion)
-  outcome     String? @db.VarChar(500) // free-text outcome note
-  outcomeType String? @map("outcome_type") @db.VarChar(30) // positive_progress, neutral, negative, follow_up_needed, etc.
-  rating      Int?    // 1-5 star rating for activity outcome
+  // Captures what resulted from the activity (set on completion).
+  // `outcome` (free text) and `outcomeType` (legacy 30-char value) are retained
+  // for backwards compatibility; the redesigned drawer reads/writes the four
+  // structured fields below plus `outcome_disposition` for the 4-way enum.
+  outcome            String?   @db.VarChar(500) // free-text outcome notes
+  outcomeType        String?   @map("outcome_type") @db.VarChar(30) // legacy positive_progress / neutral / etc.
+  rating             Int? // 1-5 star rating for activity outcome
+  sentiment          String?   @db.VarChar(10) // positive | neutral | negative
+  nextStep           String?   @map("next_step") @db.Text
+  followUpDate       DateTime? @map("follow_up_date")
+  dealImpact         String    @default("none") @map("deal_impact") @db.VarChar(20) // none | progressed | won | lost
+  outcomeDisposition String?   @map("outcome_disposition") @db.VarChar(20) // completed | no_show | rescheduled | cancelled
+
+  // ===== Location =====
+  // Address text + geocoded coordinates for the visit/event. Promoted out of
+  // metadata so we can filter/sort/report on them. inPerson is nullable so the
+  // UI toggle can start unset (rep hasn't decided yet).
+  address    String?  @db.Text
+  addressLat Float?   @map("address_lat")
+  addressLng Float?   @map("address_lng")
+  inPerson   Boolean? @map("in_person")
 
   // ===== Type-Specific Fields =====
-  // JSON blob for scalar fields that vary by event type (address, urls, timezone, time, etc.)
+  // JSON blob for scalar fields that vary by event type (urls, timezone, time, etc.)
+  // Address-related keys (address, addressLat, addressLng) are kept here as a
+  // safety-net duplicate of the columns above and may be cleaned up in a future
+  // migration once all readers move to the columns.
   metadata Json? @map("metadata")
 
   // Relations (all many-to-many via junction tables)
-  plans     ActivityPlan[]
-  districts ActivityDistrict[]
-  contacts  ActivityContact[]
-  states    ActivityState[]
-  taskLinks  TaskActivity[]
-  expenses   ActivityExpense[]
-  attendees  ActivityAttendee[]
-  relations      ActivityRelation[] @relation("ActivityRelations")
-  relatedTo      ActivityRelation[] @relation("RelatedToActivities")
-  opportunities  ActivityOpportunity[]
+  plans         ActivityPlan[]
+  districts     ActivityDistrict[]
+  contacts      ActivityContact[]
+  states        ActivityState[]
+  taskLinks     TaskActivity[]
+  expenses      ActivityExpense[]
+  attendees     ActivityAttendee[]
+  relations     ActivityRelation[]    @relation("ActivityRelations")
+  relatedTo     ActivityRelation[]    @relation("RelatedToActivities")
+  opportunities ActivityOpportunity[]
+  noteEntries   ActivityNote[]
+  attachments   ActivityAttachment[]
 
   @@unique([slackChannelId, slackMessageTs])
   @@index([createdByUserId])
   @@index([type])
   @@index([startDate])
   @@index([type, startDate])
+  @@index([followUpDate])
   @@map("activities")
 }
 
@@ -677,9 +704,9 @@ model ActivityContact {
 }
 
 model ActivityOpportunity {
-  activityId    String   @map("activity_id")
-  opportunityId String   @map("opportunity_id")
-  createdAt     DateTime @default(now()) @map("created_at")
+  activityId    String      @map("activity_id")
+  opportunityId String      @map("opportunity_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
   activity      Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
   opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
@@ -701,14 +728,20 @@ model ActivityState {
 }
 
 model ActivityExpense {
-  id          String   @id @default(uuid())
-  activityId  String   @map("activity_id")
-  description String   @db.VarChar(255)
-  amount      Decimal  @db.Decimal(10, 2)
-  createdAt   DateTime @default(now()) @map("created_at")
-  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  activityId         String       @map("activity_id")
+  description        String       @db.VarChar(255)
+  amount             Decimal      @db.Decimal(10, 2)
+  category           String       @default("other") @db.VarChar(20) // travel | meals | lodging | swag | other
+  incurredOn         DateTime     @map("incurred_on")
+  receiptStoragePath String?      @map("receipt_storage_path") @db.VarChar(500)
+  createdById        String?      @map("created_by_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at")
+  activity           Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdBy          UserProfile? @relation("ActivityExpenseCreator", fields: [createdById], references: [id])
 
   @@index([activityId])
+  @@index([category])
   @@map("activity_expenses")
 }
 
@@ -735,6 +768,67 @@ model ActivityRelation {
   @@unique([activityId, relatedActivityId])
   @@index([relatedActivityId])
   @@map("activity_relations")
+}
+
+// Generic column-level audit log. Populated by Postgres triggers on the
+// tables whose columns we want to track (see migration 20260420). Each row
+// records a single column change on a single primary-key row.
+//
+// row_pk is text so composite keys serialize as "plan_id:district_leaid".
+// changed_by is populated from current_setting('app.user_id') if the app
+// sets it before running a mutation; otherwise NULL (we still get when + what).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  tableName  String   @map("table_name") @db.VarChar(64)
+  rowPk      String   @map("row_pk") @db.Text
+  columnName String   @map("column_name") @db.VarChar(64)
+  oldValue   String?  @map("old_value") @db.Text
+  newValue   String?  @map("new_value") @db.Text
+  changedAt  DateTime @default(now()) @map("changed_at") @db.Timestamptz
+  changedBy  String?  @map("changed_by") @db.Uuid
+
+  @@index([tableName, rowPk])
+  @@index([tableName, columnName, changedAt])
+  @@index([changedAt])
+  @@map("audit_log")
+}
+
+// Threaded note log on an activity. Distinct from Activity.notes (free-form
+// description on the activity itself) — this is one row per author entry,
+// shown as a chronological feed in the activity detail drawer.
+model ActivityNote {
+  id         String      @id @default(uuid())
+  activityId String      @map("activity_id")
+  authorId   String      @map("author_id") @db.Uuid
+  body       String
+  createdAt  DateTime    @default(now()) @map("created_at")
+  activity   Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author     UserProfile @relation("ActivityNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([activityId])
+  @@index([authorId])
+  @@map("activity_notes")
+}
+
+// File / photo attached to an activity. Blob lives in the Supabase Storage
+// bucket `activity-attachments`; storagePath is the bucket-relative path used
+// to mint signed URLs at read time.
+model ActivityAttachment {
+  id           String      @id @default(uuid())
+  activityId   String      @map("activity_id")
+  kind         String      @db.VarChar(10) // 'photo' | 'file'
+  name         String      @db.VarChar(255)
+  sizeBytes    Int         @map("size_bytes")
+  mime         String      @db.VarChar(100)
+  storagePath  String      @map("storage_path") @db.VarChar(500)
+  uploadedById String      @map("uploaded_by_id") @db.Uuid
+  uploadedAt   DateTime    @default(now()) @map("uploaded_at")
+  activity     Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  uploader     UserProfile @relation("ActivityAttachmentUploader", fields: [uploadedById], references: [id])
+
+  @@index([activityId])
+  @@index([uploadedById])
+  @@map("activity_attachments")
 }
 
 // ===== User Roles =====
@@ -769,26 +863,35 @@ model UserProfile {
   updatedAt         DateTime  @updatedAt @map("updated_at")
   lastLoginAt       DateTime? @map("last_login_at")
 
-  // Relation to user's fiscal year goals
-  goals           UserGoal[]
   // Territory plan ownership and collaboration
-  ownedPlans      TerritoryPlan[]             @relation("PlanOwner")
-  collaboratingOn TerritoryPlanCollaborator[] @relation("PlanCollaborator")
+  ownedPlans          TerritoryPlan[]             @relation("PlanOwner")
+  collaboratingOn     TerritoryPlanCollaborator[] @relation("PlanCollaborator")
   // Saved map view snapshots
-  savedMapViews      MapView[]                    @relation("MapViewOwner")
+  savedMapViews       MapView[]                   @relation("MapViewOwner")
   // Activity attendance
   activityAttendances ActivityAttendee[]
+  // Notes authored on activity logs
+  activityNotes       ActivityNote[]              @relation("ActivityNoteAuthor")
+  // Files / photos uploaded to activity drawers
+  activityAttachments ActivityAttachment[]        @relation("ActivityAttachmentUploader")
+  // Expenses entered on activities by this user
+  activityExpenses    ActivityExpense[]           @relation("ActivityExpenseCreator")
   // Tasks assigned to this user (not necessarily created by them)
-  assignedTasks   Task[] @relation("TaskAssignee")
+  assignedTasks       Task[]                      @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)
-  integrations    UserIntegration[]
+  integrations        UserIntegration[]
   // Initiative leaderboard scores
-  initiativeScores       InitiativeScore[]
+  initiativeScores    InitiativeScore[]
   // Inverse relations for normalized person FKs
-  ownedDistricts       District[] @relation("DistrictOwner")
-  assignedDistricts    District[] @relation("DistrictSalesExec")
-  ownedStates          State[]    @relation("StateOwner")
-  ownedSchools         School[]   @relation("SchoolOwner")
+  ownedDistricts      District[]                  @relation("DistrictOwner")
+  assignedDistricts   District[]                  @relation("DistrictSalesExec")
+  ownedStates         State[]                     @relation("StateOwner")
+  ownedSchools        School[]                    @relation("SchoolOwner")
+  // Query tool audit + saved reports
+  queryLogs           QueryLog[]                  @relation("UserQueryLogs")
+  savedReports        SavedReport[]               @relation("UserSavedReports")
+  // Query tool active draft (one per user)
+  reportDraft         ReportDraft?                @relation("UserReportDraft")
 
   @@map("user_profiles")
 }
@@ -814,7 +917,7 @@ model UserIntegration {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           UserProfile     @relation(fields: [userId], references: [id], onDelete: Cascade)
   calendarEvents CalendarEvent[]
 
   @@unique([userId, service])
@@ -875,47 +978,18 @@ model MapView {
   @@map("map_views")
 }
 
-// User goals by fiscal year - tracks revenue, margin, pipeline, and new district targets
-// One row per user per fiscal year (e.g., FY26, FY27)
-model UserGoal {
-  id         Int    @id @default(autoincrement())
-  userId     String @map("user_id") @db.Uuid
-  fiscalYear Int    @map("fiscal_year") // 2025, 2026, 2027
-
-  // Target values
-  earningsTarget     Decimal? @map("earnings_target") @db.Decimal(15, 2)
-  takeRatePercent    Decimal? @map("take_rate_percent") @db.Decimal(5, 2)
-  // Four business-category targets
-  renewalTarget      Decimal? @map("renewal_target") @db.Decimal(15, 2)
-  winbackTarget      Decimal? @map("winback_target") @db.Decimal(15, 2)
-  expansionTarget    Decimal? @map("expansion_target") @db.Decimal(15, 2)
-  newBusinessTarget  Decimal? @map("new_business_target") @db.Decimal(15, 2)
-  takeTarget         Decimal? @map("take_target") @db.Decimal(15, 2)
-  newDistrictsTarget Int?     @map("new_districts_target")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relation to user profile
-  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, fiscalYear]) // One goal record per user per fiscal year
-  @@index([userId])
-  @@map("user_goals")
-}
-
 // ===== Task Tracking System =====
 // Tasks can be standalone or linked to any combination of districts, plans, activities, and contacts
 // Supports kanban board workflow with drag-and-drop reordering
 
 model Task {
-  id              String    @id @default(uuid())
-  title           String    @db.VarChar(255)
-  description     String?
-  status          String    @default("todo") @db.VarChar(20) // todo, in_progress, blocked, done
-  priority        String    @default("medium") @db.VarChar(10) // low, medium, high, urgent
-  dueDate         DateTime? @map("due_date")
-  position        Int       @default(0) // ordering within kanban column
+  id               String    @id @default(uuid())
+  title            String    @db.VarChar(255)
+  description      String?
+  status           String    @default("todo") @db.VarChar(20) // todo, in_progress, blocked, done
+  priority         String    @default("medium") @db.VarChar(10) // low, medium, high, urgent
+  dueDate          DateTime? @map("due_date")
+  position         Int       @default(0) // ordering within kanban column
   createdByUserId  String    @map("created_by_user_id") @db.Uuid
   assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at")
@@ -926,7 +1000,7 @@ model Task {
   plans      TaskPlan[]
   activities TaskActivity[]
   contacts   TaskContact[]
-  assignedTo UserProfile? @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
+  assignedTo UserProfile?   @relation("TaskAssignee", fields: [assignedToUserId], references: [id])
 
   @@index([createdByUserId])
   @@index([assignedToUserId])
@@ -1075,9 +1149,9 @@ model School {
   ownerId        String?      @map("owner_id") @db.Uuid
   ownerUser      UserProfile? @relation("SchoolOwner", fields: [ownerId], references: [id])
   notes          String?
-  notesUpdatedAt DateTime? @map("notes_updated_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  notesUpdatedAt DateTime?    @map("notes_updated_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
   // ===== Relations =====
   district          District                  @relation(fields: [leaid], references: [leaid])
@@ -1196,40 +1270,40 @@ model DistrictGradeEnrollment {
 // Synced from OpenSearch by the opportunity scheduler.
 // Contains financial metrics computed from session data.
 model Opportunity {
-  id                 String    @id @db.Text
-  name               String?   @db.Text
-  schoolYr           String?   @map("school_yr") @db.Text
-  contractType       String?   @map("contract_type") @db.Text
-  state              String?   @db.Text
-  stateFips          String?   @map("state_fips") @db.VarChar(2)
-  salesRepName       String?   @map("sales_rep_name") @db.Text
-  salesRepEmail      String?   @map("sales_rep_email") @db.Text
-  salesRepId     String?   @map("sales_rep_id") @db.Uuid
-  districtName       String?   @map("district_name") @db.Text
-  districtLmsId      String?   @map("district_lms_id") @db.Text
-  districtNcesId     String?   @map("district_nces_id") @db.Text
-  districtLeaId      String?   @map("district_lea_id") @db.VarChar(7)
-  district           District? @relation(fields: [districtLeaId], references: [leaid])
-  createdAt          DateTime? @map("created_at") @db.Timestamptz
-  closeDate          DateTime? @map("close_date") @db.Timestamptz
-  brandAmbassador    String?   @map("brand_ambassador") @db.Text
-  stage              String?   @db.Text
-  netBookingAmount   Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
-  contractThrough    String?   @map("contract_through") @db.Text
-  fundingThrough     String?   @map("funding_through") @db.Text
-  paymentType        String?   @map("payment_type") @db.Text
-  paymentTerms       String?   @map("payment_terms") @db.Text
-  leadSource         String?   @map("lead_source") @db.Text
-  invoiced           Decimal?  @db.Decimal(15, 2)
-  credited           Decimal?  @db.Decimal(15, 2)
-  completedRevenue   Decimal?  @map("completed_revenue") @db.Decimal(15, 2)
-  completedTake      Decimal?  @map("completed_take") @db.Decimal(15, 2)
-  scheduledSessions  Int?      @map("scheduled_sessions")
-  scheduledRevenue   Decimal?  @map("scheduled_revenue") @db.Decimal(15, 2)
-  scheduledTake      Decimal?  @map("scheduled_take") @db.Decimal(15, 2)
-  totalRevenue       Decimal?  @map("total_revenue") @db.Decimal(15, 2)
-  totalTake          Decimal?  @map("total_take") @db.Decimal(15, 2)
-  averageTakeRate    Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
+  id                    String    @id @db.Text
+  name                  String?   @db.Text
+  schoolYr              String?   @map("school_yr") @db.Text
+  contractType          String?   @map("contract_type") @db.Text
+  state                 String?   @db.Text
+  stateFips             String?   @map("state_fips") @db.VarChar(2)
+  salesRepName          String?   @map("sales_rep_name") @db.Text
+  salesRepEmail         String?   @map("sales_rep_email") @db.Text
+  salesRepId            String?   @map("sales_rep_id") @db.Uuid
+  districtName          String?   @map("district_name") @db.Text
+  districtLmsId         String?   @map("district_lms_id") @db.Text
+  districtNcesId        String?   @map("district_nces_id") @db.Text
+  districtLeaId         String?   @map("district_lea_id") @db.VarChar(7)
+  district              District? @relation(fields: [districtLeaId], references: [leaid])
+  createdAt             DateTime? @map("created_at") @db.Timestamptz
+  closeDate             DateTime? @map("close_date") @db.Timestamptz
+  brandAmbassador       String?   @map("brand_ambassador") @db.Text
+  stage                 String?   @db.Text
+  netBookingAmount      Decimal?  @map("net_booking_amount") @db.Decimal(15, 2)
+  contractThrough       String?   @map("contract_through") @db.Text
+  fundingThrough        String?   @map("funding_through") @db.Text
+  paymentType           String?   @map("payment_type") @db.Text
+  paymentTerms          String?   @map("payment_terms") @db.Text
+  leadSource            String?   @map("lead_source") @db.Text
+  invoiced              Decimal?  @db.Decimal(15, 2)
+  credited              Decimal?  @db.Decimal(15, 2)
+  completedRevenue      Decimal?  @map("completed_revenue") @db.Decimal(15, 2)
+  completedTake         Decimal?  @map("completed_take") @db.Decimal(15, 2)
+  scheduledSessions     Int?      @map("scheduled_sessions")
+  scheduledRevenue      Decimal?  @map("scheduled_revenue") @db.Decimal(15, 2)
+  scheduledTake         Decimal?  @map("scheduled_take") @db.Decimal(15, 2)
+  totalRevenue          Decimal?  @map("total_revenue") @db.Decimal(15, 2)
+  totalTake             Decimal?  @map("total_take") @db.Decimal(15, 2)
+  averageTakeRate       Decimal?  @map("average_take_rate") @db.Decimal(5, 4)
   serviceTypes          Json      @default("[]") @map("service_types")
   minimumPurchaseAmount Decimal?  @map("minimum_purchase_amount") @db.Decimal(15, 2)
   maximumBudget         Decimal?  @map("maximum_budget") @db.Decimal(15, 2)
@@ -1282,18 +1356,18 @@ model OpportunitySnapshot {
 // Individual session records synced from OpenSearch.
 // Linked to opportunities by opportunity_id.
 model Session {
-  id                    String    @id @db.Text
-  opportunityId         String?   @map("opportunity_id") @db.Text
+  id                    String       @id @db.Text
+  opportunityId         String?      @map("opportunity_id") @db.Text
   opportunity           Opportunity? @relation(fields: [opportunityId], references: [id])
-  serviceType           String?   @map("service_type") @db.Text
-  sessionPrice          Decimal?  @map("session_price") @db.Decimal(15, 2)
-  educatorPrice         Decimal?  @map("educator_price") @db.Decimal(15, 2)
-  educatorApprovedPrice Decimal?  @map("educator_approved_price") @db.Decimal(15, 2)
-  startTime             DateTime? @map("start_time") @db.Timestamptz
-  type                  String?   @db.Text
-  status                String?   @db.Text
-  serviceName           String?   @map("service_name") @db.Text
-  syncedAt              DateTime? @map("synced_at") @db.Timestamptz
+  serviceType           String?      @map("service_type") @db.Text
+  sessionPrice          Decimal?     @map("session_price") @db.Decimal(15, 2)
+  educatorPrice         Decimal?     @map("educator_price") @db.Decimal(15, 2)
+  educatorApprovedPrice Decimal?     @map("educator_approved_price") @db.Decimal(15, 2)
+  startTime             DateTime?    @map("start_time") @db.Timestamptz
+  type                  String?      @db.Text
+  status                String?      @db.Text
+  serviceName           String?      @map("service_name") @db.Text
+  syncedAt              DateTime?    @map("synced_at") @db.Timestamptz
 
   @@index([opportunityId])
   @@index([opportunityId, serviceType])
@@ -1307,31 +1381,69 @@ model Session {
 // Parallel to Session — both feed refresh_fullmind_financials() so revenue
 // rolls into vendor='fullmind' rows in district_financials.
 model Subscription {
-  id                       String       @id @db.Text                                  // "SUB-0005591"
-  opportunityId            String       @map("opportunity_id") @db.Text
-  opportunity              Opportunity  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  contractNumber           String?      @map("contract_number") @db.Text
-  netPrice                 Decimal?     @map("net_price") @db.Decimal(15, 2)
-  quantity                 Int?                                                       // can be negative (credits)
-  netTotal                 Decimal?     @map("net_total") @db.Decimal(15, 2)          // signed; sums account for credits
-  product                  String?      @db.Text
-  productType              String?      @map("product_type") @db.Text
-  subProduct               String?      @map("sub_product") @db.Text
-  courseName               String?      @map("course_name") @db.Text
-  curriculumProvider       String?      @map("curriculum_provider") @db.Text
-  schoolName               String?      @map("school_name") @db.Text
-  grade                    String?      @db.Text
-  officeHours              String?      @map("office_hours") @db.Text
-  ccTeacherCollabMeetings  String?      @map("cc_teacher_collab_meetings") @db.Text
-  startDate                DateTime?    @map("start_date") @db.Date
-  deliveryEndDate          DateTime?    @map("delivery_end_date") @db.Date
-  subscriptionCreatedDate  DateTime?    @map("subscription_created_date") @db.Date
-  contractCreatedDate      DateTime?    @map("contract_created_date") @db.Date
-  contractOwnerName        String?      @map("contract_owner_name") @db.Text          // informational only, not a FK
-  syncedAt                 DateTime?    @default(now()) @map("synced_at") @db.Timestamptz
+  id                      String      @id @db.Text // "SUB-0005591"
+  opportunityId           String      @map("opportunity_id") @db.Text
+  opportunity             Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  contractNumber          String?     @map("contract_number") @db.Text
+  netPrice                Decimal?    @map("net_price") @db.Decimal(15, 2)
+  quantity                Int? // can be negative (credits)
+  netTotal                Decimal?    @map("net_total") @db.Decimal(15, 2) // signed; sums account for credits
+  product                 String?     @db.Text
+  productType             String?     @map("product_type") @db.Text
+  subProduct              String?     @map("sub_product") @db.Text
+  courseName              String?     @map("course_name") @db.Text
+  curriculumProvider      String?     @map("curriculum_provider") @db.Text
+  schoolName              String?     @map("school_name") @db.Text
+  grade                   String?     @db.Text
+  officeHours             String?     @map("office_hours") @db.Text
+  ccTeacherCollabMeetings String?     @map("cc_teacher_collab_meetings") @db.Text
+  startDate               DateTime?   @map("start_date") @db.Date
+  deliveryEndDate         DateTime?   @map("delivery_end_date") @db.Date
+  subscriptionCreatedDate DateTime?   @map("subscription_created_date") @db.Date
+  contractCreatedDate     DateTime?   @map("contract_created_date") @db.Date
+  contractOwnerName       String?     @map("contract_owner_name") @db.Text // informational only, not a FK
+  syncedAt                DateTime?   @default(now()) @map("synced_at") @db.Timestamptz
 
   @@index([opportunityId])
   @@map("subscriptions")
+}
+
+// ===== District Opportunity Actuals (materialized view) =====
+// Hourly-refreshed aggregation of opportunities (with EK12 subscription
+// revenue folded in) by (district, school_yr, sales_rep_email, category).
+// Single source of truth for rep-scoped and category-scoped opportunity
+// rollups — matches the leaderboard. Defined in migration
+// 20260416_actuals_view_min_purchase_strip_district_prefix (latest shape).
+//
+// This is a MATERIALIZED VIEW, not a table. The Prisma model exists so the
+// query tool's TABLE_REGISTRY schema-coverage test sees it and so we get
+// typed raw-query results. Reads happen via raw SQL (see
+// src/lib/opportunity-actuals.ts and the query tool engine). Do NOT use
+// prisma.districtOpportunityActuals — the model is @@ignored because
+// matviews can't be mutated by the client.
+model DistrictOpportunityActuals {
+  districtLeaId       String   @map("district_lea_id") @db.VarChar(7)
+  schoolYr            String   @map("school_yr") @db.Text
+  salesRepEmail       String?  @map("sales_rep_email") @db.Text
+  category            String   @db.Text
+  bookings            Decimal  @db.Decimal(15, 2)
+  minPurchaseBookings Decimal  @map("min_purchase_bookings") @db.Decimal(15, 2)
+  openPipeline        Decimal  @map("open_pipeline") @db.Decimal(15, 2)
+  weightedPipeline    Decimal  @map("weighted_pipeline") @db.Decimal(15, 2)
+  totalRevenue        Decimal  @map("total_revenue") @db.Decimal(15, 2)
+  completedRevenue    Decimal  @map("completed_revenue") @db.Decimal(15, 2)
+  scheduledRevenue    Decimal  @map("scheduled_revenue") @db.Decimal(15, 2)
+  totalTake           Decimal  @map("total_take") @db.Decimal(15, 2)
+  completedTake       Decimal  @map("completed_take") @db.Decimal(15, 2)
+  scheduledTake       Decimal  @map("scheduled_take") @db.Decimal(15, 2)
+  avgTakeRate         Decimal? @map("avg_take_rate")
+  invoiced            Decimal  @db.Decimal(15, 2)
+  credited            Decimal  @db.Decimal(15, 2)
+  oppCount            Int      @map("opp_count")
+  subscriptionCount   Int      @map("subscription_count")
+
+  @@map("district_opportunity_actuals")
+  @@ignore
 }
 
 // ===== Unmatched Opportunities =====
@@ -1409,10 +1521,10 @@ model Vacancy {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  district District  @relation(fields: [leaid], references: [leaid])
+  district District    @relation(fields: [leaid], references: [leaid])
   scan     VacancyScan @relation(fields: [scanId], references: [id])
-  school   School?   @relation(fields: [schoolNcessch], references: [ncessch])
-  contact  Contact?  @relation(fields: [contactId], references: [id])
+  school   School?     @relation(fields: [schoolNcessch], references: [ncessch])
+  contact  Contact?    @relation(fields: [contactId], references: [id])
 
   @@unique([fingerprint])
   @@index([leaid])
@@ -1440,26 +1552,26 @@ model VacancyKeywordConfig {
 // Gamified point system with tiered rankings and initiative-based rotation.
 
 model Initiative {
-  id               Int       @id @default(autoincrement())
-  name             String    @db.VarChar(100)
-  initiativeUid    String?   @unique @map("initiative_uid") @db.VarChar(30)
-  startDate        DateTime  @map("start_date") @db.Timestamptz
-  endDate          DateTime? @map("end_date") @db.Timestamptz
-  isActive         Boolean   @default(false) @map("is_active")
-  showName         Boolean   @default(true) @map("show_name")
-  showDates        Boolean   @default(true) @map("show_dates")
-  softResetTiers   Int       @default(1) @map("soft_reset_tiers")
-  initiativeWeight   Decimal   @default(0.4) @map("initiative_weight") @db.Decimal(3, 2)
-  pipelineWeight     Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
-  pipelineFiscalYear String?   @map("pipeline_fiscal_year") @db.VarChar(10)
-  takeWeight         Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
-  takeFiscalYear     String?   @map("take_fiscal_year") @db.VarChar(10)
-  revenueWeight           Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
-  revenueFiscalYear       String?   @map("revenue_fiscal_year") @db.VarChar(10)
-  revenueTargetedWeight   Decimal   @default(0.0) @map("revenue_targeted_weight") @db.Decimal(3, 2)
-  revenueTargetedFiscalYear String? @map("revenue_targeted_fiscal_year") @db.VarChar(10)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  id                        Int       @id @default(autoincrement())
+  name                      String    @db.VarChar(100)
+  initiativeUid             String?   @unique @map("initiative_uid") @db.VarChar(30)
+  startDate                 DateTime  @map("start_date") @db.Timestamptz
+  endDate                   DateTime? @map("end_date") @db.Timestamptz
+  isActive                  Boolean   @default(false) @map("is_active")
+  showName                  Boolean   @default(true) @map("show_name")
+  showDates                 Boolean   @default(true) @map("show_dates")
+  softResetTiers            Int       @default(1) @map("soft_reset_tiers")
+  initiativeWeight          Decimal   @default(0.4) @map("initiative_weight") @db.Decimal(3, 2)
+  pipelineWeight            Decimal   @default(0.2) @map("pipeline_weight") @db.Decimal(3, 2)
+  pipelineFiscalYear        String?   @map("pipeline_fiscal_year") @db.VarChar(10)
+  takeWeight                Decimal   @default(0.2) @map("take_weight") @db.Decimal(3, 2)
+  takeFiscalYear            String?   @map("take_fiscal_year") @db.VarChar(10)
+  revenueWeight             Decimal   @default(0.2) @map("revenue_weight") @db.Decimal(3, 2)
+  revenueFiscalYear         String?   @map("revenue_fiscal_year") @db.VarChar(10)
+  revenueTargetedWeight     Decimal   @default(0.0) @map("revenue_targeted_weight") @db.Decimal(3, 2)
+  revenueTargetedFiscalYear String?   @map("revenue_targeted_fiscal_year") @db.VarChar(10)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                 DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   metrics    InitiativeMetric[]
   scores     InitiativeScore[]
@@ -1483,15 +1595,15 @@ model InitiativeMetric {
 }
 
 model InitiativeScore {
-  id          Int      @id @default(autoincrement())
-  initiativeId Int     @map("initiative_id")
-  userId      String   @map("user_id") @db.Uuid
-  totalPoints Int      @default(0) @map("total_points")
-  tier        String   @default("freshman") @db.VarChar(20)
-  rank        Int      @default(0)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id           Int      @id @default(autoincrement())
+  initiativeId Int      @map("initiative_id")
+  userId       String   @map("user_id") @db.Uuid
+  totalPoints  Int      @default(0) @map("total_points")
+  tier         String   @default("freshman") @db.VarChar(20)
+  rank         Int      @default(0)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  initiative Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  initiative Initiative  @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
   user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([initiativeId, userId])
@@ -1522,6 +1634,75 @@ model MetricRegistry {
   @@map("metric_registry")
 }
 
+// ===== Query Tool Audit & Saved Reports =====
+// Added for the Claude query tool (MAP-5), agentic actions (MAP-3), and MCP (MAP-4).
+// query_log records every natural-language query, generated SQL, and action execution.
+// saved_reports stores user-saved and team-pinned reports with stored SQL for re-run.
+
+model QueryLog {
+  id              Int      @id @default(autoincrement())
+  userId          String   @map("user_id") @db.Uuid
+  conversationId  String   @default(dbgenerated("gen_random_uuid()")) @map("conversation_id") @db.Uuid
+  question        String
+  sql             String?
+  params          Json?
+  rowCount        Int?     @map("row_count")
+  executionTimeMs Int?     @map("execution_time_ms")
+  error           String?
+  action          String?
+  actionParams    Json?    @map("action_params")
+  actionSuccess   Boolean? @map("action_success")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user UserProfile @relation("UserQueryLogs", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([createdAt(sort: Desc)])
+  @@index([action])
+  @@map("query_log")
+}
+
+model SavedReport {
+  id             Int       @id @default(autoincrement())
+  userId         String    @map("user_id") @db.Uuid
+  title          String
+  question       String
+  sql            String?
+  params         Json?
+  summary        Json?
+  conversationId String?   @map("conversation_id") @db.Uuid
+  isTeamPinned   Boolean   @default(false) @map("is_team_pinned")
+  pinnedBy       String?   @map("pinned_by") @db.Uuid
+  lastRunAt      DateTime? @map("last_run_at")
+  runCount       Int       @default(0) @map("run_count")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user UserProfile @relation("UserSavedReports", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isTeamPinned])
+  @@map("saved_reports")
+}
+
+// Active report draft per user. One row per user (PK on user_id). Draft lives
+// here across sessions so "return within retention window" → Draft state works
+// across devices. No retention policy for MVP — drafts persist until explicit
+// discard via DELETE /api/ai/query/draft.
+model ReportDraft {
+  userId         String   @id @map("user_id") @db.Uuid
+  params         Json
+  conversationId String?  @map("conversation_id") @db.Uuid
+  chatHistory    Json?    @map("chat_history")
+  lastTouchedAt  DateTime @updatedAt @map("last_touched_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user UserProfile @relation("UserReportDraft", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("report_drafts")
+}
+
 // ==============================================================
 // News Events
 // Ingested RSS + Google News articles, matched to districts,
@@ -1544,15 +1725,15 @@ model NewsArticle {
   stateAbbrevs String[] @map("state_abbrevs") @db.VarChar(2)
 
   // Classification — set by the Haiku classifier pass. Null until classified.
-  sentiment          String?   @db.VarChar(10)
-  categories         String[]  @default([]) @db.VarChar(40)
-  fullmindRelevance  String?   @map("fullmind_relevance") @db.VarChar(10)
-  classifiedAt       DateTime? @map("classified_at")
+  sentiment         String?   @db.VarChar(10)
+  categories        String[]  @default([]) @db.VarChar(40)
+  fullmindRelevance String?   @map("fullmind_relevance") @db.VarChar(10)
+  classifiedAt      DateTime? @map("classified_at")
 
-  districts   NewsArticleDistrict[]
-  schools     NewsArticleSchool[]
-  contacts    NewsArticleContact[]
-  queueEntry  NewsMatchQueue?
+  districts  NewsArticleDistrict[]
+  schools    NewsArticleSchool[]
+  contacts   NewsArticleContact[]
+  queueEntry NewsMatchQueue?
 
   @@index([publishedAt])
   @@index([feedSource])
