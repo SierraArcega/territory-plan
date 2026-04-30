@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { useMyPlans, useAddDistrictToPlanMutation } from "../lib/queries";
 import { useCreateTerritoryPlan } from "@/features/plans/lib/queries";
@@ -154,12 +155,14 @@ export default function LhfPlanPicker({
     }
   };
 
-  return (
+  // Portal to body so the popover escapes the table's sticky-cell stacking
+  // contexts (without it, sticky <td>s in rows below paint over the popover).
+  return createPortal(
     <div
       ref={containerRef}
       role="dialog"
       aria-label={`Add ${district.districtName} to a plan`}
-      className="fixed z-30 w-60 rounded-xl bg-white shadow-lg border border-[#D4CFE2] overflow-hidden"
+      className="fixed z-50 w-60 rounded-xl bg-white shadow-lg border border-[#D4CFE2] overflow-hidden"
       style={{ top: coords.top, left: coords.left }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -256,6 +259,7 @@ export default function LhfPlanPicker({
           </button>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

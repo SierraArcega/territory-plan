@@ -14,6 +14,7 @@ export default defineConfig({
       "e2e/**",
       "playwright.config.ts",
       ".claude/worktrees/**",
+      ".worktrees/**",
     ],
     css: true,
   },
