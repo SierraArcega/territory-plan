@@ -10,8 +10,8 @@ const CANVA_EMBED_URL =
 
 export default function OrgChartPage() {
   return (
-    <div className="max-w-[720px]">
-      <header className="mb-6">
+    <div className="flex h-full flex-col">
+      <header className="mb-6 flex-shrink-0">
         <h1 className="text-2xl font-bold text-[#403770] tracking-tight">
           Fullmind Org Chart
         </h1>
@@ -22,9 +22,8 @@ export default function OrgChartPage() {
       </header>
 
       <div
-        className="relative w-full overflow-hidden rounded-lg"
+        className="relative w-full flex-1 min-h-[400px] overflow-hidden rounded-lg"
         style={{
-          paddingTop: "100%",
           boxShadow: "0 2px 8px 0 rgba(63,69,81,0.16)",
         }}
       >
@@ -38,7 +37,7 @@ export default function OrgChartPage() {
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-4 flex flex-shrink-0 flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-[#8A80A8]">
           Designed by Amy Warner · Kept current in Canva
         </p>
@@ -46,14 +45,14 @@ export default function OrgChartPage() {
           href={CANVA_ORG_CHART_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-md bg-[#F37167] px-4 py-2 text-sm font-medium text-white transition-colors duration-100 hover:bg-[#E85D52] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F37167] focus-visible:ring-offset-2"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#F37167] px-4 py-2 text-sm font-medium text-white transition-colors duration-100 hover:bg-[#E85D52] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F37167] focus-visible:ring-offset-2"
         >
           Open in Canva
           <ExternalLink className="h-4 w-4" />
         </a>
       </div>
 
-      <p className="mt-6 text-xs text-[#8A80A8]">
+      <p className="mt-3 flex-shrink-0 text-xs text-[#8A80A8]">
         Questions about structure or updates? Reach out to the team lead listed
         on the chart.
       </p>
