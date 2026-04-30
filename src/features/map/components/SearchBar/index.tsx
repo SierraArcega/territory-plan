@@ -85,7 +85,6 @@ function countPlanFilters(f: PlanLayerFilter): number {
   let n = 0;
   if (f.status?.length) n++;
   if (f.fiscalYear != null) n++;
-  if (f.ownerScope === "all") n++;
   if (f.planIds?.length) n++;
   if (f.ownerIds?.length) n++;
   return n;
@@ -362,53 +361,60 @@ export default function SearchBar() {
         <div className="w-px h-6 bg-[#D4CFE2]" />
 
         {/* Entity layer toggle + filter buttons — always visible */}
-        <div className="flex items-center gap-1">
-          {/* Districts — always active, not toggleable */}
-          <EntityLayerButton
-            label="Districts"
-            color="#403770"
-            active={true}
-            isOpen={openDropdown === "districts"}
-            onToggle={() => {/* Districts are always visible */}}
-            onChevronClick={() => handleEntityChevronClick("districts", "districts")}
-            count={countByDomain(searchFilters, "fullmind") + countByDomain(searchFilters, "competitors") + countByDomain(searchFilters, "finance") + countByDomain(searchFilters, "demographics") + countByDomain(searchFilters, "academics")}
-          />
-          <EntityLayerButton
-            label="Contacts"
-            color="#F37167"
-            active={activeLayers.has("contacts")}
-            isOpen={openDropdown === "contacts"}
-            onToggle={() => toggleLayer("contacts")}
-            onChevronClick={() => handleEntityChevronClick("contacts", "contacts")}
-            count={activeLayers.has("contacts") ? countContactFilters(contactFilters) : 0}
-          />
-          <EntityLayerButton
-            label="Vacancies"
-            color="#FFCF70"
-            active={activeLayers.has("vacancies")}
-            isOpen={openDropdown === "vacancies"}
-            onToggle={() => toggleLayer("vacancies")}
-            onChevronClick={() => handleEntityChevronClick("vacancies", "vacancies")}
-            count={activeLayers.has("vacancies") ? countVacancyFilters(vacancyFilters, vacancyDateRange) : 0}
-          />
-          <EntityLayerButton
-            label="Activities"
-            color="#6EA3BE"
-            active={activeLayers.has("activities")}
-            isOpen={openDropdown === "activities"}
-            onToggle={() => toggleLayer("activities")}
-            onChevronClick={() => handleEntityChevronClick("activities", "activities")}
-            count={activeLayers.has("activities") ? countActivityFilters(activityFilters, activityDateRange) : 0}
-          />
-          <EntityLayerButton
-            label="Plans"
-            color="#7B6BA4"
-            active={activeLayers.has("plans")}
-            isOpen={openDropdown === "plans"}
-            onToggle={() => toggleLayer("plans")}
-            onChevronClick={() => handleEntityChevronClick("plans", "plans")}
-            count={activeLayers.has("plans") ? countPlanFilters(planFilters) : 0}
-          />
+        <div className="flex flex-col gap-1.5">
+          {(["contacts", "vacancies", "activities", "plans"] as const).some((l) => !activeLayers.has(l)) && (
+            <span className="text-[10px] text-[#B8B0CF] select-none whitespace-nowrap leading-none pl-0.5">
+              Click a layer below to show it on the map
+            </span>
+          )}
+          <div className="flex items-center gap-1">
+            {/* Districts — always active, not toggleable */}
+            <EntityLayerButton
+              label="Districts"
+              color="#403770"
+              active={true}
+              isOpen={openDropdown === "districts"}
+              onToggle={() => {/* Districts are always visible */}}
+              onChevronClick={() => handleEntityChevronClick("districts", "districts")}
+              count={countByDomain(searchFilters, "fullmind") + countByDomain(searchFilters, "competitors") + countByDomain(searchFilters, "finance") + countByDomain(searchFilters, "demographics") + countByDomain(searchFilters, "academics")}
+            />
+            <EntityLayerButton
+              label="Contacts"
+              color="#F37167"
+              active={activeLayers.has("contacts")}
+              isOpen={openDropdown === "contacts"}
+              onToggle={() => activeLayers.has("contacts") ? toggleLayer("contacts") : handleEntityChevronClick("contacts", "contacts")}
+              onChevronClick={() => handleEntityChevronClick("contacts", "contacts")}
+              count={activeLayers.has("contacts") ? countContactFilters(contactFilters) : 0}
+            />
+            <EntityLayerButton
+              label="Vacancies"
+              color="#FFCF70"
+              active={activeLayers.has("vacancies")}
+              isOpen={openDropdown === "vacancies"}
+              onToggle={() => activeLayers.has("vacancies") ? toggleLayer("vacancies") : handleEntityChevronClick("vacancies", "vacancies")}
+              onChevronClick={() => handleEntityChevronClick("vacancies", "vacancies")}
+              count={activeLayers.has("vacancies") ? countVacancyFilters(vacancyFilters, vacancyDateRange) : 0}
+            />
+            <EntityLayerButton
+              label="Activities"
+              color="#6EA3BE"
+              active={activeLayers.has("activities")}
+              isOpen={openDropdown === "activities"}
+              onToggle={() => activeLayers.has("activities") ? toggleLayer("activities") : handleEntityChevronClick("activities", "activities")}
+              onChevronClick={() => handleEntityChevronClick("activities", "activities")}
+              count={activeLayers.has("activities") ? countActivityFilters(activityFilters, activityDateRange) : 0}
+            />
+            <EntityLayerButton
+              label="Plans"
+              color="#7B6BA4"
+              active={activeLayers.has("plans")}
+              isOpen={openDropdown === "plans"}
+              onToggle={() => activeLayers.has("plans") ? toggleLayer("plans") : handleEntityChevronClick("plans", "plans")}
+              onChevronClick={() => handleEntityChevronClick("plans", "plans")}
+              count={activeLayers.has("plans") ? countPlanFilters(planFilters) : 0}
+            />
+          </div>
         </div>
 
         {/* Clear filters */}
@@ -586,33 +592,32 @@ const EntityLayerButton = React.memo(function EntityLayerButton({
 }) {
   return (
     <div
-      className={`flex items-center rounded-lg text-xs font-semibold transition-colors ${
-        isOpen
-          ? "bg-white shadow-sm"
-          : active
-            ? "hover:bg-white hover:shadow-sm"
-            : "hover:bg-white/60"
-      }`}
+      className="flex items-center rounded-lg text-xs font-semibold transition-all duration-150"
       style={{
         borderWidth: "1px",
         borderStyle: "solid",
-        borderColor: isOpen ? `${color}60` : active && count > 0 ? `${color}40` : "transparent",
+        borderColor: isOpen ? `${color}70` : active ? `${color}55` : "transparent",
+        backgroundColor: isOpen ? `${color}18` : active ? `${color}12` : "transparent",
+        boxShadow: (isOpen || active) ? `0 0 0 0px ${color}20` : "none",
       }}
     >
       {/* Dot + label — toggles layer on/off */}
       <button
         onClick={onToggle}
-        className="flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-l-lg transition-colors hover:bg-[#EFEDF5]/60"
-        style={{ color: active ? undefined : "#8A80A8" }}
+        className="flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-l-lg transition-colors hover:brightness-95 cursor-pointer"
+        title={active ? `Hide ${label} layer` : `Enable ${label} and open filters`}
       >
         <span
-          className="w-2 h-2 rounded-full shrink-0 transition-opacity duration-150"
+          className="w-2 h-2 rounded-full shrink-0 transition-all duration-150"
           style={{
             backgroundColor: color,
-            opacity: active ? 1 : 0.4,
+            opacity: active ? 1 : 0.2,
           }}
         />
-        <span style={{ color: active ? "#544A78" : "#8A80A8" }}>
+        <span
+          className="whitespace-nowrap transition-colors duration-150"
+          style={{ color: active ? "#403770" : "#C0B8D8", fontWeight: active ? 600 : 400 }}
+        >
           {label}
         </span>
         {active && count > 0 && (
@@ -628,8 +633,9 @@ const EntityLayerButton = React.memo(function EntityLayerButton({
       {/* Chevron — opens filter dropdown */}
       <button
         onClick={onChevronClick}
-        className="flex items-center justify-center px-1.5 py-1.5 rounded-r-lg transition-colors hover:bg-[#EFEDF5]/80"
-        style={{ color: active ? "#544A78" : "#8A80A8" }}
+        className="flex items-center justify-center px-1.5 py-1.5 rounded-r-lg transition-colors hover:brightness-95 cursor-pointer"
+        title={active ? `Filter ${label}` : `Click to enable ${label} in view`}
+        style={{ color: active ? "#6B5FA8" : "#C0B8D8" }}
       >
         <svg
           className={`w-2.5 h-2.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
