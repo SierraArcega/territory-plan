@@ -70,6 +70,72 @@ describe("RevenueTable", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Unmatched-opp badge (Task 7)
+// ---------------------------------------------------------------------------
+
+describe("RevenueTable unmatched-opp badge", () => {
+  const noopSort = () => {};
+
+  it("renders the unmatched-opp badge when entry.unmatchedOppCount > 0", () => {
+    const entry = makeEntry({
+      fullName: "Dana Rep",
+      rank: 1,
+      unmatchedOppCount: 3,
+      unmatchedRevenue: 12500,
+    });
+    render(
+      <RevenueTable
+        entries={[entry]}
+        sortColumn="revenue"
+        sortDirection="desc"
+        onSort={noopSort}
+      />
+    );
+    expect(screen.getByText(/3 unmatched/i)).toBeInTheDocument();
+    // formatCurrencyShort(12500) → "$12.5K"
+    expect(screen.getByText(/\$12\.5K/i)).toBeInTheDocument();
+  });
+
+  it("hides the unmatched-opp badge when entry.unmatchedOppCount is 0", () => {
+    const entry = makeEntry({
+      fullName: "Even Rep",
+      rank: 1,
+      unmatchedOppCount: 0,
+      unmatchedRevenue: 0,
+    });
+    render(
+      <RevenueTable
+        entries={[entry]}
+        sortColumn="revenue"
+        sortDirection="desc"
+        onSort={noopSort}
+      />
+    );
+    expect(screen.queryByText(/unmatched/i)).toBeNull();
+  });
+
+  it("badge links to the admin unmatched-opportunities queue", () => {
+    const entry = makeEntry({
+      fullName: "Fran Rep",
+      rank: 1,
+      unmatchedOppCount: 5,
+      unmatchedRevenue: 25000,
+    });
+    render(
+      <RevenueTable
+        entries={[entry]}
+        sortColumn="revenue"
+        sortDirection="desc"
+        onSort={noopSort}
+      />
+    );
+    const badge = screen.getByText(/5 unmatched/i).closest("a");
+    expect(badge).not.toBeNull();
+    expect(badge?.getAttribute("href")).toContain("/admin/unmatched-opportunities");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Team totals footer (Tasks 5 + 6)
 // ---------------------------------------------------------------------------
 

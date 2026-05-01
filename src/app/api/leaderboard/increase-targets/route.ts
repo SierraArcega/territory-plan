@@ -128,7 +128,8 @@ export async function GET() {
           SUM(COALESCE(net_booking_amount, 0))::numeric AS bookings,
           SUM(COALESCE(minimum_purchase_amount, 0))::numeric AS min_commit
         FROM opportunities
-        WHERE school_yr='2025-26' AND stage ILIKE 'Closed Won%' AND district_lea_id IS NOT NULL
+        WHERE school_yr='2025-26' AND stage ILIKE 'Closed Won%'
+          AND district_lea_id IS NOT NULL AND district_lea_id != '_NOMAP'
         GROUP BY district_lea_id
         HAVING SUM(COALESCE(net_booking_amount,0))+SUM(COALESCE(minimum_purchase_amount,0)) > 0
       ),

@@ -20,6 +20,10 @@ export interface LeaderboardEntry {
   revenueTargeted: number;
   targetedCurrentFY: number;
   targetedNextFY: number;
+  // Unmatched-district opps for this rep (sourced from unmatched_opportunities).
+  // Renders the per-rep "N unmatched · $X" badge that links to the admin queue.
+  unmatchedOppCount: number;
+  unmatchedRevenue: number;
 }
 
 export interface RevenueRankResponse {

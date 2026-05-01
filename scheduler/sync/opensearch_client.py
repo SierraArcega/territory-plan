@@ -34,27 +34,40 @@ def scroll_all(
     size: int = 5000,
     sort_field: str = "_doc",
 ) -> list:
-    """Paginate through all results using search_after."""
+    """Paginate through all results using the legacy OpenSearch scroll API.
+
+    The scroll API maintains a server-side cursor that is stable under
+    concurrent index writes (in contrast to search_after, which can leak
+    or duplicate records when documents are added/reindexed mid-scroll).
+    The scroll context is opened on the first search() call (via the
+    `scroll` parameter), advanced via client.scroll(), and explicitly
+    cleared in a finally block so we don't leak server-side state.
+
+    `sort_field` is accepted for backwards compatibility but unused —
+    the scroll API doesn't require explicit sort.
+    """
+    scroll_id = None
     results = []
-    search_after = None
-
-    while True:
-        body = {
-            "size": size,
-            "query": query,
-            "_source": source_fields,
-            "sort": [{sort_field: "asc"}],
-        }
-        if search_after:
-            body["search_after"] = search_after
-
-        resp = client.search(index=index, body=body)
+    body = {
+        "size": size,
+        "query": query,
+        "_source": source_fields,
+    }
+    try:
+        resp = client.search(index=index, body=body, scroll="5m")
+        scroll_id = resp.get("_scroll_id")
         hits = resp["hits"]["hits"]
-        if not hits:
-            break
-
-        results.extend(hits)
-        search_after = hits[-1]["sort"]
-        logger.info(f"  Fetched {len(results)} records from {index}...")
+        while hits:
+            results.extend(hits)
+            logger.info(f"  Fetched {len(results)} records from {index}...")
+            resp = client.scroll(scroll_id=scroll_id, scroll="5m")
+            scroll_id = resp.get("_scroll_id")
+            hits = resp["hits"]["hits"]
+    finally:
+        if scroll_id:
+            try:
+                client.clear_scroll(scroll_id=scroll_id)
+            except Exception as e:
+                logger.warning(f"clear_scroll failed (scroll context will time out): {e}")
 
     return results

@@ -20,7 +20,7 @@ import {
 const mockPrisma = vi.mocked(prisma) as any;
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("fiscalYearToSchoolYear", () => {
@@ -87,24 +87,67 @@ describe("getDistrictActuals", () => {
 });
 
 describe("getRepActuals", () => {
-  it("returns rep-scoped aggregated actuals for a school year", async () => {
-    mockPrisma.$queryRaw.mockResolvedValue([
-      {
-        total_revenue: 200000,
-        total_take: 45000,
-        completed_take: 30000,
-        scheduled_take: 15000,
-        weighted_pipeline: 150000,
-        bookings: 180000,
-        invoiced: 160000,
-      },
-    ]);
+  it("sums session revenue (from rep_session_actuals) + sub revenue (from district_opportunity_actuals)", async () => {
+    // First call: rep_session_actuals — session_revenue
+    // Second call: district_opportunity_actuals — sub_revenue + everything else
+    mockPrisma.$queryRaw
+      .mockResolvedValueOnce([{ session_revenue: 100000 }])
+      .mockResolvedValueOnce([
+        {
+          sub_revenue: 25000,
+          total_take: 30000,
+          completed_take: 25000,
+          scheduled_take: 5000,
+          weighted_pipeline: 50000,
+          open_pipeline: 80000,
+          bookings: 200000,
+          min_purchase_bookings: 150000,
+          invoiced: 90000,
+        },
+      ]);
 
-    const result = await getRepActuals("rep@example.com", "2025-26");
-    expect(result.totalRevenue).toBe(200000);
-    expect(result.totalTake).toBe(45000);
-    expect(result.completedTake).toBe(30000);
-    expect(result.scheduledTake).toBe(15000);
+    const actuals = await getRepActuals("rep@example.com", "2025-26");
+
+    expect(actuals.totalRevenue).toBe(125000); // 100k sessions + 25k subs
+    expect(actuals.totalTake).toBe(30000);
+    expect(actuals.openPipeline).toBe(80000);
+    expect(actuals.minPurchaseBookings).toBe(150000);
+    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns zeros when both queries come back empty", async () => {
+    mockPrisma.$queryRaw
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const actuals = await getRepActuals("rep@example.com", "2025-26");
+
+    expect(actuals.totalRevenue).toBe(0);
+    expect(actuals.totalTake).toBe(0);
+    expect(actuals.openPipeline).toBe(0);
+  });
+
+  it("makes exactly 2 DB calls and session-only revenue comes from first call", async () => {
+    // Verify the two-query wiring: session revenue query (call 1) is independent
+    // from the opp actuals query (call 2). We confirm this by checking that:
+    // - exactly 2 calls are made (Promise.all fires both)
+    // - session_revenue = 50k, sub_revenue = 0 → totalRevenue = 50k (not 0)
+    mockPrisma.$queryRaw
+      .mockResolvedValueOnce([{ session_revenue: 50000 }])
+      .mockResolvedValueOnce([{
+        sub_revenue: 0, total_take: 0, completed_take: 0, scheduled_take: 0,
+        weighted_pipeline: 0, open_pipeline: 0, bookings: 0,
+        min_purchase_bookings: 0, invoiced: 0,
+      }]);
+
+    const actuals = await getRepActuals("rep@example.com", "2025-26");
+
+    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(2);
+    // Only session revenue contributes (sub_revenue = 0)
+    expect(actuals.totalRevenue).toBe(50000);
+    // No opp actuals → all other fields are 0
+    expect(actuals.totalTake).toBe(0);
+    expect(actuals.bookings).toBe(0);
   });
 });
 
