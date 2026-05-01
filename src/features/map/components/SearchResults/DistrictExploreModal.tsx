@@ -30,6 +30,7 @@ type Tab = "fullmind" | "competitors" | "finance" | "demographics" | "academics"
 interface DistrictExploreModalProps {
   leaid: string;
   onClose: () => void;
+  onNavigateToPlan?: (planId: string) => void;
   onPrev?: () => void;
   onNext?: () => void;
   currentIndex?: number;
@@ -37,7 +38,7 @@ interface DistrictExploreModalProps {
   initialTab?: Tab;
 }
 
-export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, currentIndex, totalCount, initialTab }: DistrictExploreModalProps) {
+export default function DistrictExploreModal({ leaid, onClose, onNavigateToPlan, onPrev, onNext, currentIndex, totalCount, initialTab }: DistrictExploreModalProps) {
   const { data, isLoading } = useDistrictDetail(leaid);
   const { data: plans } = useTerritoryPlans();
   const addDistricts = useAddDistrictsToPlan();
@@ -343,7 +344,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   territoryPlanIds={territoryPlanIds}
                   plans={plans || []}
                   activities={activitiesData?.activities || []}
-                  onClose={onClose}
+                  onNavigateToPlan={onNavigateToPlan}
                 />
               ) : activeTab === "competitors" ? (
                 <CompetitorsTab competitorData={competitorData ?? null} />
@@ -460,16 +461,15 @@ function FullmindTab({
   territoryPlanIds,
   plans,
   activities,
-  onClose,
+  onNavigateToPlan,
 }: {
   fullmindData: FullmindData | null;
   tags: Tag[];
   territoryPlanIds: string[];
   plans: TerritoryPlan[];
   activities: ActivityListItem[];
-  onClose: () => void;
+  onNavigateToPlan?: (planId: string) => void;
 }) {
-  const viewPlan = useMapV2Store((s) => s.viewPlan);
   const fmtMoney = (n: number) => (n > 0 ? `$${n.toLocaleString()}` : "—");
   const memberPlans = plans.filter((p) => territoryPlanIds.includes(p.id));
 
@@ -519,7 +519,7 @@ function FullmindTab({
                 key={plan.id}
                 type="button"
                 data-plan-id={plan.id}
-                onClick={() => { onClose(); viewPlan(plan.id); }}
+                onClick={() => onNavigateToPlan?.(plan.id)}
                 className="w-full text-left flex items-center gap-2.5 py-1.5 overflow-hidden cursor-pointer rounded hover:bg-[#F7F5FA] transition-colors focus:outline-none focus:ring-1 focus:ring-[#403770]/30"
               >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
