@@ -22,81 +22,97 @@ def test_get_client_returns_opensearch_instance():
 
 def test_scroll_all_paginates():
     mock_client = MagicMock()
-    mock_client.search.side_effect = [
-        {"hits": {"hits": [
-            {"_source": {"id": "1"}, "sort": [1]},
-            {"_source": {"id": "2"}, "sort": [2]},
-        ]}},
-        {"hits": {"hits": []}},
-    ]
+    # First search() opens a scroll with 2 hits, second scroll() returns 0 hits.
+    mock_client.search.return_value = {
+        "_scroll_id": "test_scroll_abc",
+        "hits": {"hits": [
+            {"_id": "1", "_source": {"id": "1"}},
+            {"_id": "2", "_source": {"id": "2"}},
+        ]},
+    }
+    mock_client.scroll.return_value = {
+        "_scroll_id": "test_scroll_abc",
+        "hits": {"hits": []},
+    }
     results = scroll_all(mock_client, "test-index", {"match_all": {}}, ["id"], size=2)
     assert len(results) == 2
     assert results[0]["_source"]["id"] == "1"
-    assert mock_client.search.call_count == 2
+    assert mock_client.search.call_count == 1
 
 
-def test_scroll_all_uses_pit_when_available():
+def test_scroll_all_uses_legacy_scroll_api():
     client = MagicMock()
-    # First search returns 2 hits, second returns 0 (terminating)
-    client.create_pit.return_value = {"pit_id": "test_pit_123"}
-    client.search.side_effect = [
-        {"hits": {"hits": [
-            {"_id": "1", "_source": {"x": 1}, "sort": [1]},
-            {"_id": "2", "_source": {"x": 2}, "sort": [2]},
-        ]}},
-        {"hits": {"hits": []}},
+    # First search() opens a scroll, returns 2 hits + scroll_id.
+    # Second client.scroll() returns 1 hit + same scroll_id.
+    # Third client.scroll() returns 0 hits — terminates.
+    client.search.return_value = {
+        "_scroll_id": "test_scroll_abc",
+        "hits": {"hits": [
+            {"_id": "1", "_source": {"x": 1}},
+            {"_id": "2", "_source": {"x": 2}},
+        ]},
+    }
+    client.scroll.side_effect = [
+        {"_scroll_id": "test_scroll_abc",
+         "hits": {"hits": [{"_id": "3", "_source": {"x": 3}}]}},
+        {"_scroll_id": "test_scroll_abc",
+         "hits": {"hits": []}},
     ]
 
-    results = scroll_all(client, "myindex", {"match_all": {}}, ["x"], size=5000)
+    results = scroll_all(client, "myindex", {"match_all": {}}, ["x"], size=100)
 
-    assert len(results) == 2
-    # PIT lifecycle assertions
-    client.create_pit.assert_called_once_with(index="myindex", keep_alive="5m")
-    client.delete_pit.assert_called_once_with(body={"pit_id": ["test_pit_123"]})
-
-    # When PIT is in use, search() should NOT be called with `index`
-    for call in client.search.call_args_list:
-        kwargs = call.kwargs
-        assert "index" not in kwargs, f"search called with index when PIT was open: {call}"
-        body = kwargs.get("body") or (call.args[0] if call.args else {})
-        # Body must contain pit, not index
-        assert "pit" in body, f"search body missing pit: {body}"
-        assert body["pit"]["id"] == "test_pit_123"
+    assert len(results) == 3
+    assert [r["_id"] for r in results] == ["1", "2", "3"]
+    # Verify scroll lifecycle: search opened with scroll="5m", scroll() called, clear_scroll called
+    client.search.assert_called_once()
+    search_call = client.search.call_args
+    assert search_call.kwargs.get("scroll") == "5m"
+    assert search_call.kwargs.get("index") == "myindex"
+    assert client.scroll.call_count == 2
+    client.clear_scroll.assert_called_once_with(scroll_id="test_scroll_abc")
 
 
-def test_scroll_all_falls_back_when_create_pit_fails():
+def test_scroll_all_clears_scroll_even_on_error():
     client = MagicMock()
-    client.create_pit.side_effect = Exception("PIT not supported")
-    client.search.side_effect = [
-        {"hits": {"hits": [{"_id": "1", "_source": {"x": 1}, "sort": [1]}]}},
-        {"hits": {"hits": []}},
-    ]
-
-    results = scroll_all(client, "myindex", {"match_all": {}}, ["x"], size=5000)
-
-    assert len(results) == 1
-    # Fallback path: search must be called with `index`, no PIT
-    for call in client.search.call_args_list:
-        kwargs = call.kwargs
-        body = kwargs.get("body") or (call.args[0] if call.args else {})
-        assert "pit" not in body
-    # No delete_pit call when PIT was never opened
-    client.delete_pit.assert_not_called()
-
-
-def test_scroll_all_closes_pit_even_on_error():
-    client = MagicMock()
-    client.create_pit.return_value = {"pit_id": "test_pit_123"}
-    # First page works, second page raises
-    client.search.side_effect = [
-        {"hits": {"hits": [{"_id": "1", "_source": {"x": 1}, "sort": [1]}]}},
-        Exception("network blip"),
-    ]
+    client.search.return_value = {
+        "_scroll_id": "test_scroll_abc",
+        "hits": {"hits": [{"_id": "1", "_source": {"x": 1}}]},
+    }
+    client.scroll.side_effect = Exception("network blip")
 
     try:
-        scroll_all(client, "myindex", {"match_all": {}}, ["x"], size=5000)
+        scroll_all(client, "myindex", {"match_all": {}}, ["x"])
     except Exception:
         pass
 
-    # PIT must always be closed, even if scroll errors out
-    client.delete_pit.assert_called_once_with(body={"pit_id": ["test_pit_123"]})
+    # Scroll context must always be cleared — even if scroll() raises mid-pagination
+    client.clear_scroll.assert_called_once_with(scroll_id="test_scroll_abc")
+
+
+def test_scroll_all_handles_empty_first_page():
+    client = MagicMock()
+    client.search.return_value = {
+        "_scroll_id": "test_scroll_abc",
+        "hits": {"hits": []},
+    }
+
+    results = scroll_all(client, "myindex", {"match_all": {}}, ["x"])
+
+    assert results == []
+    client.scroll.assert_not_called()  # Loop exits immediately on empty hits
+    client.clear_scroll.assert_called_once()
+
+
+def test_scroll_all_handles_clear_scroll_failure_gracefully():
+    """clear_scroll failures shouldn't propagate — scroll contexts time out anyway."""
+    client = MagicMock()
+    client.search.return_value = {
+        "_scroll_id": "test_scroll_abc",
+        "hits": {"hits": [{"_id": "1", "_source": {"x": 1}}]},
+    }
+    client.scroll.return_value = {"_scroll_id": "test_scroll_abc", "hits": {"hits": []}}
+    client.clear_scroll.side_effect = Exception("scroll already cleared")
+
+    # Should not raise
+    results = scroll_all(client, "myindex", {"match_all": {}}, ["x"])
+    assert len(results) == 1
