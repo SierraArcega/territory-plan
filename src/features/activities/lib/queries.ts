@@ -26,7 +26,7 @@ function csvParam(value: string | string[] | undefined): string | null {
 // Build a query string from ActivitiesParams. Returned in stable, sorted
 // form so it doubles as a TanStack Query key — matching CLAUDE.md's "stable
 // query keys must use serialized primitives, never raw objects" rule.
-function buildActivitiesQueryString(params: ActivitiesParams): string {
+export function buildActivitiesQueryString(params: ActivitiesParams): string {
   const sp = new URLSearchParams();
   if (params.planId) sp.set("planId", params.planId);
   if (params.districtLeaid) sp.set("districtLeaid", params.districtLeaid);
