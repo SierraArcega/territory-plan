@@ -233,19 +233,20 @@ export default function LowHangingFruitView() {
       fullmind_winback: 0,
       ek12_winback: 0,
     };
-    const states = new Set<string>();
+    const stateCounts: Record<string, number> = {};
     const products = new Set<string>();
     const reps = new Set<string>();
     for (const r of allRows) {
       counts[r.category]++;
-      if (r.state) states.add(r.state);
+      if (r.state) stateCounts[r.state] = (stateCounts[r.state] ?? 0) + 1;
       for (const p of r.productTypes) products.add(p);
       const rep = r.lastClosedWon?.repName;
       if (rep) reps.add(rep);
     }
     return {
       categoryCounts: counts,
-      states: [...states].sort(),
+      states: Object.keys(stateCounts).sort(),
+      stateCounts,
       products: [...products].sort(),
       reps: [...reps].sort((a, b) => a.localeCompare(b)),
     };
@@ -344,6 +345,22 @@ export default function LowHangingFruitView() {
             Export CSV
           </button>
         </header>
+
+        {/* Summary banner */}
+        <div className="flex-shrink-0 px-5 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
+          <p className="text-xs text-[#544A78] leading-relaxed">
+            You&apos;ll find 3 buckets of customers on this page:{" "}
+            <strong className="text-[#403770]">Missing Renewals</strong>,{" "}
+            <strong className="text-[#403770]">Fullmind Winbacks</strong>, and{" "}
+            <strong className="text-[#403770]">Elevate Winbacks</strong>.{" "}
+            All Winbacks are first-come, first-serve — it doesn&apos;t matter if you were the original rep or if the customer is from your company of origin.
+            Grab any winback that looks exciting and fits into the goals you have for your Book of Business!
+          </p>
+          <p className="text-xs text-[#544A78] mt-2">
+            <strong className="text-[#403770]">How to action them:</strong>{" "}
+            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity — or add to a plan and set a target to remove it from the list.
+          </p>
+        </div>
 
         <LowHangingFruitFilterBar
           filters={filters}
