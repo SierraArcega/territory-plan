@@ -50,18 +50,17 @@ export async function GET(
       );
     }
 
-    // Get centroid coordinates for tether line (PostGIS geometry → lat/lng)
-    const centroidResult = await prisma.$queryRaw<
-      { lat: number; lng: number }[]
-    >`SELECT
-  COALESCE(ST_Y(centroid::geometry), ST_Y(point_location::geometry)) as lat,
-  COALESCE(ST_X(centroid::geometry), ST_X(point_location::geometry)) as lng
-FROM districts WHERE leaid = ${leaid} LIMIT 1`;
-    const centroid = centroidResult.length > 0 ? centroidResult[0] : null;
+    // Run centroid lookup and rollup detection in parallel — they're independent
+    const [centroidResult, childLeaids] = await Promise.all([
+      prisma.$queryRaw<{ lat: number; lng: number }[]>`
+        SELECT
+          COALESCE(ST_Y(centroid::geometry), ST_Y(point_location::geometry)) as lat,
+          COALESCE(ST_X(centroid::geometry), ST_X(point_location::geometry)) as lng
+        FROM districts WHERE leaid = ${leaid} LIMIT 1`,
+      getChildren(leaid),
+    ]);
 
-    // Rollup composition: does this district have children (e.g., NYC DOE)?
-    // A rollup has 0 directly-attached schools; children hold the school data.
-    const childLeaids = await getChildren(leaid);
+    const centroid = centroidResult.length > 0 ? centroidResult[0] : null;
     const isRollup = childLeaids.length > 0;
     const schoolCount = isRollup
       ? await prisma.school.count({ where: { leaid: { in: childLeaids } } })
