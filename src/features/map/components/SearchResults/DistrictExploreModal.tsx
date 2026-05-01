@@ -30,6 +30,7 @@ type Tab = "fullmind" | "competitors" | "finance" | "demographics" | "academics"
 interface DistrictExploreModalProps {
   leaid: string;
   onClose: () => void;
+  onNavigateToPlan?: (planId: string) => void;
   onPrev?: () => void;
   onNext?: () => void;
   currentIndex?: number;
@@ -37,7 +38,7 @@ interface DistrictExploreModalProps {
   initialTab?: Tab;
 }
 
-export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, currentIndex, totalCount, initialTab }: DistrictExploreModalProps) {
+export default function DistrictExploreModal({ leaid, onClose, onNavigateToPlan, onPrev, onNext, currentIndex, totalCount, initialTab }: DistrictExploreModalProps) {
   const { data, isLoading } = useDistrictDetail(leaid);
   const { data: plans } = useTerritoryPlans();
   const addDistricts = useAddDistrictsToPlan();
@@ -343,6 +344,7 @@ export default function DistrictExploreModal({ leaid, onClose, onPrev, onNext, c
                   territoryPlanIds={territoryPlanIds}
                   plans={plans || []}
                   activities={activitiesData?.activities || []}
+                  onNavigateToPlan={onNavigateToPlan}
                 />
               ) : activeTab === "competitors" ? (
                 <CompetitorsTab competitorData={competitorData ?? null} />
@@ -459,12 +461,14 @@ function FullmindTab({
   territoryPlanIds,
   plans,
   activities,
+  onNavigateToPlan,
 }: {
   fullmindData: FullmindData | null;
   tags: Tag[];
   territoryPlanIds: string[];
   plans: TerritoryPlan[];
   activities: ActivityListItem[];
+  onNavigateToPlan?: (planId: string) => void;
 }) {
   const fmtMoney = (n: number) => (n > 0 ? `$${n.toLocaleString()}` : "—");
   const memberPlans = plans.filter((p) => territoryPlanIds.includes(p.id));
@@ -511,11 +515,20 @@ function FullmindTab({
           <SectionLabel>Plan Membership</SectionLabel>
           <div className="flex flex-col gap-1.5">
             {memberPlans.map((plan) => (
-              <div key={plan.id} className="flex items-center gap-2.5 py-1.5">
+              <button
+                key={plan.id}
+                type="button"
+                data-plan-id={plan.id}
+                onClick={() => onNavigateToPlan?.(plan.id)}
+                className="w-full text-left flex items-center gap-2.5 py-1.5 overflow-hidden cursor-pointer rounded hover:bg-[#F7F5FA] transition-colors focus:outline-none focus:ring-1 focus:ring-[#403770]/30"
+              >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
-                <span className="text-sm font-medium text-[#544A78]">{plan.name}</span>
-                <span className="text-[11px] text-[#A69DC0] capitalize">{plan.status}</span>
-              </div>
+                <span className="text-sm font-medium text-[#544A78] whitespace-nowrap">{plan.name}</span>
+                <span className="text-[11px] text-[#A69DC0] capitalize whitespace-nowrap">{plan.status}</span>
+                {plan.owner?.fullName && (
+                  <span className="text-[11px] text-[#A69DC0] truncate min-w-0">· {plan.owner.fullName}</span>
+                )}
+              </button>
             ))}
           </div>
         </div>
