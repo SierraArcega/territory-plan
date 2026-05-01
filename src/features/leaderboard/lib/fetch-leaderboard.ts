@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { getRepActuals } from "@/lib/opportunity-actuals";
+import { getUnmatchedCountsByRep } from "@/lib/unmatched-counts";
 import type { LeaderboardEntry } from "@/features/leaderboard/lib/types";
 
 export interface LeaderboardTeamTotals {
@@ -96,7 +97,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   for (const p of profiles) emailByUserId.set(p.id, p.email);
   const rosterEmails = [...emailByUserId.values()];
 
-  const [targetedCurrentFYDistricts, targetedNextFYDistricts, pipelineRows] = await Promise.all([
+  const [targetedCurrentFYDistricts, targetedNextFYDistricts, pipelineRows, unmatchedByRep] = await Promise.all([
     prisma.territoryPlanDistrict.findMany({
       where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
       select: {
@@ -125,6 +126,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
           GROUP BY sales_rep_email, district_lea_id, school_yr
           HAVING SUM(open_pipeline) > 0
         `,
+    getUnmatchedCountsByRep(rosterEmails),
   ]);
 
   const repPipelineMap = new Map<string, number>();
@@ -161,6 +163,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     };
     const targetedCurrentFY = targetedCurrentFYByUser.get(profile.id) ?? 0;
     const targetedNextFY = targetedNextFYByUser.get(profile.id) ?? 0;
+    const unmatched = unmatchedByRep.get(profile.email) ?? { count: 0, revenue: 0 };
     return {
       userId: profile.id,
       fullName: profile.fullName ?? "Unknown",
@@ -179,6 +182,8 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
       revenueTargeted: targetedCurrentFY + targetedNextFY,
       targetedCurrentFY,
       targetedNextFY,
+      unmatchedOppCount: unmatched.count,
+      unmatchedRevenue: unmatched.revenue,
     };
   });
 
