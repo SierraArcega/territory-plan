@@ -511,10 +511,13 @@ function FullmindTab({
           <SectionLabel>Plan Membership</SectionLabel>
           <div className="flex flex-col gap-1.5">
             {memberPlans.map((plan) => (
-              <div key={plan.id} className="flex items-center gap-2.5 py-1.5">
+              <div key={plan.id} className="flex items-center gap-2.5 py-1.5 overflow-hidden">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
-                <span className="text-sm font-medium text-[#544A78]">{plan.name}</span>
-                <span className="text-[11px] text-[#A69DC0] capitalize">{plan.status}</span>
+                <span className="text-sm font-medium text-[#544A78] whitespace-nowrap">{plan.name}</span>
+                <span className="text-[11px] text-[#A69DC0] capitalize whitespace-nowrap">{plan.status}</span>
+                {plan.owner?.fullName && (
+                  <span className="text-[11px] text-[#A69DC0] truncate min-w-0">· {plan.owner.fullName}</span>
+                )}
               </div>
             ))}
           </div>

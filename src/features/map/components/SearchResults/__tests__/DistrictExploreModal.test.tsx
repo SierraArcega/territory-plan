@@ -4,11 +4,33 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DistrictExploreModal from "../DistrictExploreModal";
 
 vi.mock("@/features/districts/lib/queries", () => ({
-  useDistrictDetail: () => ({ data: null, isLoading: true }),
+  useDistrictDetail: () => ({
+    data: {
+      leaid: "1234567",
+      name: "Test District",
+      territoryPlanIds: ["plan-1"],
+      state: "LA",
+      pipeline: {},
+      activities: [],
+    },
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/lib/api", () => ({
-  useTerritoryPlans: () => ({ data: [] }),
+  useTerritoryPlans: () => ({
+    data: [
+      {
+        id: "plan-1",
+        name: "Kleist Renewal",
+        color: "#7C3AED",
+        status: "working",
+        owner: { id: "user-1", fullName: "Sierra Arcega", avatarUrl: null },
+        description: null,
+        fiscalYear: 2026,
+      },
+    ],
+  }),
   useAddDistrictsToPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
@@ -46,5 +68,14 @@ describe("DistrictExploreModal — responsive sizing", () => {
     // Verify the 70vh height class is present
     const modalPanel = container.querySelector(".max-h-\\[745px\\]");
     expect(modalPanel?.className).toContain("h-[70vh]");
+  });
+});
+
+describe("DistrictExploreModal — plan membership owner", () => {
+  it("shows plan owner name after a dot separator when owner exists", () => {
+    const { container } = renderWithClient(
+      <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
+    );
+    expect(container.textContent).toContain("· Sierra Arcega");
   });
 });
