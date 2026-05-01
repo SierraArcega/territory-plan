@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useMapV2Store, type ExploreFilter } from "@/features/map/lib/store";
 import { getFinancial } from "@/features/shared/lib/financial-helpers";
 import type { DistrictFinancial } from "@/features/shared/types/api-types";
@@ -41,7 +42,7 @@ export default function DistrictSearchCard({
   const setHoveredLeaid = useMapV2Store((s) => s.setHoveredLeaid);
 
   const handleClick = () => {
-    onToggleSelect();
+    onExplore(district.leaid);
   };
 
   // Determine which adaptive metrics to show based on active filters
@@ -55,8 +56,16 @@ export default function DistrictSearchCard({
       onClick={handleClick}
       onMouseEnter={() => setHoveredLeaid(district.leaid)}
       onMouseLeave={() => setHoveredLeaid(null)}
+      data-testid="district-card"
     >
-      <div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+        className="absolute top-2 right-2 w-[18px] h-[18px] rounded-full flex items-center justify-center text-plum/50 bg-plum/10 hover:bg-red-100 hover:text-red-500 transition-colors"
+        title="Remove"
+      >
+        <X size={10} strokeWidth={2.5} />
+      </button>
+      <div className="pr-6">
         {/* Header: Name + Badge */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">

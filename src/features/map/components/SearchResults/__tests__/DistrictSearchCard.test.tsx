@@ -40,7 +40,7 @@ describe("DistrictSearchCard", () => {
   });
 
   it("clicking the card body calls onExplore, not onToggleSelect", () => {
-    const { container } = render(
+    const { getByTestId } = render(
       <DistrictSearchCard
         district={district}
         isSelected={false}
@@ -49,7 +49,7 @@ describe("DistrictSearchCard", () => {
         activeFilters={[]}
       />
     );
-    fireEvent.click(container.firstChild as HTMLElement);
+    fireEvent.click(getByTestId("district-card"));
     expect(onExplore).toHaveBeenCalledWith("0123456");
     expect(onToggleSelect).not.toHaveBeenCalled();
   });
