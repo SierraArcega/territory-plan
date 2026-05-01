@@ -233,19 +233,20 @@ export default function LowHangingFruitView() {
       fullmind_winback: 0,
       ek12_winback: 0,
     };
-    const states = new Set<string>();
+    const stateCounts: Record<string, number> = {};
     const products = new Set<string>();
     const reps = new Set<string>();
     for (const r of allRows) {
       counts[r.category]++;
-      if (r.state) states.add(r.state);
+      if (r.state) stateCounts[r.state] = (stateCounts[r.state] ?? 0) + 1;
       for (const p of r.productTypes) products.add(p);
       const rep = r.lastClosedWon?.repName;
       if (rep) reps.add(rep);
     }
     return {
       categoryCounts: counts,
-      states: [...states].sort(),
+      states: Object.keys(stateCounts).sort(),
+      stateCounts,
       products: [...products].sort(),
       reps: [...reps].sort((a, b) => a.localeCompare(b)),
     };

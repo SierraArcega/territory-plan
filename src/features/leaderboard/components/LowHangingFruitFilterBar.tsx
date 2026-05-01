@@ -9,6 +9,7 @@ import { DEFAULT_FILTERS, UNASSIGNED_REP } from "../lib/filters";
 interface Facets {
   categoryCounts: Record<IncreaseTargetCategory, number>;
   states: string[];
+  stateCounts: Record<string, number>;
   products: string[];
   /** Distinct rep names from `lastClosedWon`, sorted, never including the
    *  unassigned sentinel (the dropdown adds that as a fixed first row). */
@@ -239,6 +240,7 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange, sh
                     key={s}
                     checked={filters.states.includes(s)}
                     label={s}
+                    suffix={String(facets.stateCounts[s] ?? 0)}
                     onChange={() => toggleState(s)}
                   />
                 ))
