@@ -75,7 +75,7 @@ describe("LowHangingFruitView", () => {
     // Row data
     expect(screen.getByText("Pasadena USD")).toBeInTheDocument();
     expect(screen.getByText("CA")).toBeInTheDocument();
-    expect(screen.getByText(/Missing renewal/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Missing renewal/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Jordan Lee")).toBeInTheDocument();
 
     // Action bar

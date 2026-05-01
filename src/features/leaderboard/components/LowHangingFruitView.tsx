@@ -345,6 +345,22 @@ export default function LowHangingFruitView() {
           </button>
         </header>
 
+        {/* Summary banner */}
+        <div className="flex-shrink-0 px-5 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
+          <p className="text-xs text-[#544A78] leading-relaxed">
+            You&apos;ll find 3 buckets of customers on this page:{" "}
+            <strong className="text-[#403770]">Missing Renewals</strong>,{" "}
+            <strong className="text-[#403770]">Fullmind Winbacks</strong>, and{" "}
+            <strong className="text-[#403770]">Elevate Winbacks</strong>.{" "}
+            All Winbacks are first-come, first-serve — it doesn&apos;t matter if you were the original rep or if the customer is from your company of origin.
+            Grab any winback that looks exciting and fits into the goals you have for your Book of Business!
+          </p>
+          <p className="text-xs text-[#544A78] mt-2">
+            <strong className="text-[#403770]">How to action them:</strong>{" "}
+            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity — or add to a plan and set a target to remove it from the list.
+          </p>
+        </div>
+
         <LowHangingFruitFilterBar
           filters={filters}
           facets={facets}

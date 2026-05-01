@@ -194,22 +194,28 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange, sh
         Filters
       </span>
 
-      {/* Category */}
-      <Dropdown label="Category" activeCount={filters.categories.length} width={240}>
-        {() => (
-          <div className="py-1.5">
-            {(["missing_renewal", "fullmind_winback", "ek12_winback"] as IncreaseTargetCategory[]).map((c) => (
-              <CheckOption
-                key={c}
-                checked={filters.categories.includes(c)}
-                label={CATEGORY_LABELS[c]}
-                suffix={String(facets.categoryCounts[c] ?? 0)}
-                onChange={() => toggleCategory(c)}
-              />
-            ))}
-          </div>
-        )}
-      </Dropdown>
+      {/* Category chips — always-visible toggles with counts */}
+      {(["missing_renewal", "fullmind_winback", "ek12_winback"] as IncreaseTargetCategory[]).map((c) => {
+        const active = filters.categories.includes(c);
+        const count = facets.categoryCounts[c] ?? 0;
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => toggleCategory(c)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors whitespace-nowrap ${
+              active
+                ? "bg-[#EFEDF5] border-[#403770] text-[#403770]"
+                : "bg-white border-[#D4CFE2] text-[#6E6390] hover:border-[#C2BBD4]"
+            }`}
+          >
+            {CATEGORY_LABELS[c]}
+            <span className={`tabular-nums font-normal ${active ? "text-[#403770]" : "text-[#8A80A8]"}`}>
+              ({count})
+            </span>
+          </button>
+        );
+      })}
 
       {/* State */}
       <Dropdown label="State" activeCount={filters.states.length} width={260}>
