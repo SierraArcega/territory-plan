@@ -82,7 +82,6 @@ categorized_opps AS (
     END AS stage_prefix
   FROM opportunities o
   LEFT JOIN opp_subscriptions os ON os.opportunity_id = o.id
-  WHERE o.district_lea_id IS NOT NULL
 ),
 -- Per-chain closed-won contract floor. Salesforce stores each add-on's
 -- minimum_purchase_amount as the CUMULATIVE contract value at that point
@@ -93,14 +92,14 @@ categorized_opps AS (
 -- Tier 1 Renewal chain and a separate Tier 1 New Business chain).
 chain_floors AS (
   SELECT
-    district_lea_id,
+    COALESCE(district_lea_id, '_NOMAP') AS district_lea_id,
     school_yr,
     sales_rep_email,
     category,
     chain_key,
     MAX(minimum_purchase_amount) FILTER (WHERE stage_prefix >= 6) AS chain_floor
   FROM categorized_opps
-  GROUP BY district_lea_id, school_yr, sales_rep_email, category, chain_key
+  GROUP BY COALESCE(district_lea_id, '_NOMAP'), school_yr, sales_rep_email, category, chain_key
 ),
 bucket_min_purchase AS (
   SELECT
@@ -113,7 +112,7 @@ bucket_min_purchase AS (
   GROUP BY district_lea_id, school_yr, sales_rep_email, category
 )
 SELECT
-  co.district_lea_id,
+  COALESCE(co.district_lea_id, '_NOMAP') AS district_lea_id,
   co.school_yr,
   co.sales_rep_email,
   co.category,
@@ -133,6 +132,7 @@ SELECT
   COALESCE(SUM(co.total_revenue), 0)     + COALESCE(SUM(co.sub_revenue), 0) AS total_revenue,
   COALESCE(SUM(co.completed_revenue), 0) + COALESCE(SUM(co.sub_revenue), 0) AS completed_revenue,
   COALESCE(SUM(co.scheduled_revenue), 0) AS scheduled_revenue,
+  COALESCE(SUM(co.sub_revenue), 0) AS sub_revenue,
   -- Take (unchanged — no take rate concept for subscriptions)
   COALESCE(SUM(co.total_take), 0) AS total_take,
   COALESCE(SUM(co.completed_take), 0) AS completed_take,
@@ -154,11 +154,11 @@ SELECT
 FROM categorized_opps co
 LEFT JOIN stage_weights sw ON sw.prefix = co.stage_prefix
 LEFT JOIN bucket_min_purchase bmp
-  ON bmp.district_lea_id = co.district_lea_id
+  ON bmp.district_lea_id = COALESCE(co.district_lea_id, '_NOMAP')
  AND bmp.school_yr = co.school_yr
  AND (bmp.sales_rep_email IS NOT DISTINCT FROM co.sales_rep_email)
  AND bmp.category = co.category
-GROUP BY co.district_lea_id, co.school_yr, co.sales_rep_email, co.category;
+GROUP BY COALESCE(co.district_lea_id, '_NOMAP'), co.school_yr, co.sales_rep_email, co.category;
 
 -- Indexes for query patterns
 CREATE INDEX idx_doa_district ON district_opportunity_actuals (district_lea_id);

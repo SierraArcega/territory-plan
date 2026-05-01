@@ -1,14 +1,23 @@
 import type { IncreaseTarget, IncreaseTargetCategory } from "./types";
 
 export type RevenueBand = "lt-50k" | "50k-250k" | "250k-1m" | "1m+";
-export type LastRepFilter = "anyone" | "open";
+
+/**
+ * Sentinel value placed in `lastReps` to match rows whose lastClosedWon
+ * has no rep name (the previous "Unassigned / no previous rep" radio option).
+ */
+export const UNASSIGNED_REP = "__unassigned";
 
 export interface LHFFilters {
   categories: IncreaseTargetCategory[];
   states: string[];
   products: string[];
   revenueBand: RevenueBand | null;
-  lastRep: LastRepFilter;
+  /**
+   * Multi-select on `lastClosedWon.repName`. Empty array = no filter.
+   * Use `UNASSIGNED_REP` as a sentinel for rows with no prior rep.
+   */
+  lastReps: string[];
   hideWithFy27Target: boolean;
 }
 
@@ -17,8 +26,8 @@ export const DEFAULT_FILTERS: LHFFilters = {
   states: [],
   products: [],
   revenueBand: null,
-  lastRep: "anyone",
-  hideWithFy27Target: false,
+  lastReps: [],
+  hideWithFy27Target: true,
 };
 
 const BAND_RANGES: Record<RevenueBand, [number, number]> = {
@@ -49,7 +58,10 @@ export function applyFilters(
       const v = rowRevenue(r);
       if (v < lo || v >= hi) return false;
     }
-    if (f.lastRep === "open" && r.lastClosedWon?.repName) return false;
+    if (f.lastReps.length > 0) {
+      const repKey = r.lastClosedWon?.repName ?? UNASSIGNED_REP;
+      if (!f.lastReps.includes(repKey)) return false;
+    }
     if (f.hideWithFy27Target && r.hasFy27Target) return false;
     return true;
   });
@@ -65,7 +77,7 @@ export function filtersToSearchParams(f: LHFFilters): URLSearchParams {
   if (f.states.length) p.set("state", f.states.join(","));
   if (f.products.length) p.set("product", f.products.join(","));
   if (f.revenueBand) p.set("rev", f.revenueBand);
-  if (f.lastRep !== "anyone") p.set("lastRep", f.lastRep);
+  if (f.lastReps.length) p.set("lastRep", f.lastReps.join(","));
   if (f.hideWithFy27Target) p.set("hideTargeted", "1");
   return p;
 }
@@ -92,7 +104,7 @@ export function filtersFromSearchParams(
     states: csv("state").map((s) => s.toUpperCase()),
     products: csv("product"),
     revenueBand: band,
-    lastRep: get("lastRep") === "open" ? "open" : "anyone",
+    lastReps: csv("lastRep"),
     hideWithFy27Target: get("hideTargeted") === "1",
   };
 }

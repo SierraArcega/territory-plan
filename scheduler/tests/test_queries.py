@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, patch
-from sync.queries import fetch_opportunities, fetch_sessions, fetch_district_mappings
+from sync.queries import fetch_opportunities, fetch_sessions, fetch_district_mappings, fetch_opportunities_for_school_yrs
 
 OPPORTUNITY_SOURCE_FIELDS = [
     "id", "name", "stage", "school_yr", "state", "close_date", "created_at",
@@ -64,3 +64,26 @@ def test_fetch_district_mappings_rejects_non_seven_digit_ncesid():
         assert result["3"]["leaid"] is None
         assert result["3"]["nces_id"] is None
         assert result["4"]["leaid"] is None
+
+
+@patch("sync.queries.scroll_all")
+def test_fetch_opportunities_for_school_yrs_filters_by_provided_list(mock_scroll):
+    mock_scroll.return_value = []
+    client = MagicMock()
+    fetch_opportunities_for_school_yrs(client, ["2025-26", "2024-25"])
+    args = mock_scroll.call_args
+    body = args[0][2]  # (client, index, query, source_fields)
+    filters = body["bool"]["filter"]
+    yr_filter = next(f for f in filters if "terms" in f)
+    assert yr_filter["terms"]["school_yr.keyword"] == ["2025-26", "2024-25"]
+
+
+@patch("sync.queries.scroll_all")
+def test_fetch_opportunities_for_school_yrs_does_not_apply_since(mock_scroll):
+    mock_scroll.return_value = []
+    client = MagicMock()
+    fetch_opportunities_for_school_yrs(client, ["2025-26"])
+    body = mock_scroll.call_args[0][2]
+    filters = body["bool"]["filter"]
+    # No range filter on updated_at — every opp in the school year is fetched.
+    assert not any("range" in f and "updated_at" in (f.get("range") or {}) for f in filters)

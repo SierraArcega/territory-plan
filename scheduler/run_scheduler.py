@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from run_sync import run_sync
+from run_sync import run_sync, run_current_fy_backfill
 from monitor import run_checks, run_daily_summary
 
 LOG_DIR = Path("/app/logs") if os.path.isdir("/app") else Path("logs")
@@ -122,6 +122,50 @@ def append_sync_history(log_dir, result):
         f.write(json.dumps(entry) + "\n")
 
 
+def safe_current_fy_backfill():
+    """Run current-FY backfill with retry + state logging."""
+    max_retries = 3
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            result = run_current_fy_backfill()
+            result["attempts"] = attempt
+            return result
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"Backfill attempt {attempt}/{max_retries} failed: {e}")
+            logger.error(traceback.format_exc())
+            if attempt < max_retries:
+                wait = 2 ** attempt * 10
+                logger.info(f"Retrying in {wait}s...")
+                time.sleep(wait)
+    logger.error("All backfill attempts failed for this cycle")
+    return {
+        "status": "failed", "opps_synced": 0, "unmatched_count": None,
+        "error": last_error, "attempts": max_retries,
+    }
+
+
+def scheduled_sync():
+    result = safe_sync()
+    write_sync_state(LOG_DIR, result)
+    append_sync_history(LOG_DIR, result)
+
+
+def scheduled_current_fy_backfill():
+    result = safe_current_fy_backfill()
+    write_sync_state(LOG_DIR, result)
+    append_sync_history(LOG_DIR, result)
+
+
+def register_schedules():
+    """Register all recurring schedule entries. Extracted for testability."""
+    schedule.every(1).hour.do(scheduled_sync)
+    # Daily current-FY full re-sync at 04:00 UTC — catches sessions whose
+    # lastIndexedAt didn't advance and so missed the hourly incremental.
+    schedule.every().day.at("04:00").do(scheduled_current_fy_backfill)
+
+
 def write_heartbeat():
     """Write heartbeat file for monitoring."""
     HEARTBEAT_FILE.write_text(datetime.now(timezone.utc).isoformat())
@@ -139,13 +183,7 @@ if __name__ == "__main__":
     write_sync_state(LOG_DIR, result)
     append_sync_history(LOG_DIR, result)
 
-    def scheduled_sync():
-        result = safe_sync()
-        write_sync_state(LOG_DIR, result)
-        append_sync_history(LOG_DIR, result)
-
-    # Schedule hourly
-    schedule.every(1).hour.do(scheduled_sync)
+    register_schedules()
 
     # Run loop — heartbeat, monitor checks, and daily summary
     last_heartbeat = 0
