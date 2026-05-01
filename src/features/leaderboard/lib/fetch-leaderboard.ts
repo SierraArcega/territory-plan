@@ -121,6 +121,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
           FROM district_opportunity_actuals
           WHERE sales_rep_email = ANY(${rosterEmails})
             AND school_yr IN (${defaultSchoolYr}, ${nextFYSchoolYr})
+            AND district_lea_id != '_NOMAP'
           GROUP BY sales_rep_email, district_lea_id, school_yr
           HAVING SUM(open_pipeline) > 0
         `,
