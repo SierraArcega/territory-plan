@@ -1,8 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DistrictExploreModal from "../DistrictExploreModal";
 import * as libApi from "@/lib/api";
+
+const mockViewPlan = vi.fn();
+const mockOnClose = vi.fn();
+
+vi.mock("@/features/map/lib/store", () => ({
+  useMapV2Store: Object.assign(
+    vi.fn((selector: (s: any) => any) =>
+      selector({ exploreModalVacancyId: null, viewPlan: mockViewPlan })
+    ),
+    { getState: () => ({ exploreModalVacancyId: null }) }
+  ),
+}));
 
 // All tests in this file render against a fully-loaded district + plan (not a loading skeleton)
 vi.mock("@/features/districts/lib/queries", () => ({
@@ -42,6 +54,8 @@ beforeEach(() => {
       },
     ],
   } as any);
+  mockViewPlan.mockReset();
+  mockOnClose.mockReset();
 });
 
 function renderWithClient(ui: React.ReactElement) {
@@ -103,5 +117,18 @@ describe("DistrictExploreModal — plan membership owner", () => {
       <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
     );
     expect(container.textContent).not.toContain("·");
+  });
+});
+
+describe("DistrictExploreModal — plan membership navigation", () => {
+  it("calls onClose and viewPlan with the plan id when a plan row is clicked", () => {
+    const { container } = renderWithClient(
+      <DistrictExploreModal leaid="1234567" onClose={mockOnClose} />
+    );
+    const planButton = container.querySelector("button[data-plan-id='plan-1']");
+    expect(planButton).not.toBeNull();
+    fireEvent.click(planButton!);
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+    expect(mockViewPlan).toHaveBeenCalledWith("plan-1");
   });
 });
