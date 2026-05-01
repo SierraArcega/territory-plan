@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { LeaderboardEntry } from "../lib/types";
-import { formatRevenue, getInitials } from "../lib/format";
+import { formatRevenue, formatCurrencyShort, getInitials } from "../lib/format";
 
 export type RevenueSortColumn = "revenue" | "priorYearRevenue" | "pipeline" | "revenueTargeted";
 
@@ -108,9 +108,18 @@ export default function RevenueTable({
                     </span>
                   </div>
                 )}
-                <span className="text-sm font-medium text-[#2D2440]">
+                <span className="text-sm font-medium text-[#2D2440] whitespace-nowrap">
                   {entry.fullName}
                 </span>
+                {entry.unmatchedOppCount > 0 && (
+                  <a
+                    href={`/admin/unmatched-opportunities?rep=${encodeURIComponent(entry.userId)}`}
+                    className="ml-1 inline-flex items-center rounded bg-[#EFEDF5] px-2 py-0.5 text-xs whitespace-nowrap text-[#544A78] hover:bg-[#E2DEEC]"
+                    title={`${entry.unmatchedOppCount} opportunit${entry.unmatchedOppCount === 1 ? "y" : "ies"} awaiting district resolution — totaling ${formatCurrencyShort(entry.unmatchedRevenue)}`}
+                  >
+                    {entry.unmatchedOppCount} unmatched · {formatCurrencyShort(entry.unmatchedRevenue)}
+                  </a>
+                )}
               </div>
             </td>
             {COLUMNS.map((col) => {
