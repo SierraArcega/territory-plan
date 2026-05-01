@@ -58,13 +58,16 @@ export default function DistrictSearchCard({
       onMouseLeave={() => setHoveredLeaid(null)}
       data-testid="district-card"
     >
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-        className="absolute top-2 right-2 w-[18px] h-[18px] rounded-full flex items-center justify-center text-plum/50 bg-plum/10 hover:bg-red-100 hover:text-red-500 transition-colors"
-        title="Remove"
-      >
-        <X size={10} strokeWidth={2.5} />
-      </button>
+      {isSelected && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+          className="absolute top-2 right-2 w-[18px] h-[18px] rounded-full flex items-center justify-center text-plum/50 bg-plum/10 hover:bg-red-50 hover:text-red-500 transition-colors"
+          title="Remove"
+          aria-label="Remove district"
+        >
+          <X size={10} strokeWidth={2.5} />
+        </button>
+      )}
       <div className="pr-6">
         {/* Header: Name + Badge */}
         <div className="flex items-start justify-between gap-2">

@@ -83,4 +83,17 @@ describe("DistrictSearchCard", () => {
     expect(onExplore).toHaveBeenCalledWith("0123456");
     expect(onToggleSelect).not.toHaveBeenCalled();
   });
+
+  it("does not render the remove button when card is not selected", () => {
+    const { queryByTitle } = render(
+      <DistrictSearchCard
+        district={district}
+        isSelected={false}
+        onToggleSelect={onToggleSelect}
+        onExplore={onExplore}
+        activeFilters={[]}
+      />
+    );
+    expect(queryByTitle("Remove")).toBeNull();
+  });
 });
