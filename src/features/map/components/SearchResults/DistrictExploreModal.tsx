@@ -517,9 +517,10 @@ function FullmindTab({
             {memberPlans.map((plan) => (
               <button
                 key={plan.id}
+                type="button"
                 data-plan-id={plan.id}
                 onClick={() => { onClose(); viewPlan(plan.id); }}
-                className="w-full text-left flex items-center gap-2.5 py-1.5 overflow-hidden cursor-pointer rounded hover:bg-[#F7F5FA] transition-colors"
+                className="w-full text-left flex items-center gap-2.5 py-1.5 overflow-hidden cursor-pointer rounded hover:bg-[#F7F5FA] transition-colors focus:outline-none focus:ring-1 focus:ring-[#403770]/30"
               >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
                 <span className="text-sm font-medium text-[#544A78] whitespace-nowrap">{plan.name}</span>
