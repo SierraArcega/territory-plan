@@ -84,8 +84,8 @@ describe("DistrictSearchCard", () => {
     expect(onToggleSelect).not.toHaveBeenCalled();
   });
 
-  it("does not render the remove button when card is not selected", () => {
-    const { queryByTitle } = render(
+  it("renders the remove button even when card is not selected", () => {
+    const { getByTitle } = render(
       <DistrictSearchCard
         district={district}
         isSelected={false}
@@ -94,6 +94,6 @@ describe("DistrictSearchCard", () => {
         activeFilters={[]}
       />
     );
-    expect(queryByTitle("Remove")).toBeNull();
+    expect(getByTitle("Remove")).toBeTruthy();
   });
 });
