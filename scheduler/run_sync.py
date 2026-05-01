@@ -151,12 +151,15 @@ def run_sync():
                 opp, opp_sessions, district_mapping, now=now
             )
 
-            # Manual resolutions from unmatched_opportunities heal the mapping.
-            # opp["id"] arrives from OpenSearch as int for numeric IDs; the dict
-            # keys come from a Postgres text column and are str. Coerce both
-            # sides to str so the lookup matches.
+            # Manual resolutions are authoritative — they override whatever
+            # the sync derived (NULL or a different leaid). Without this, an
+            # upstream change that suddenly returns a leaid for a previously
+            # unmatched opp would silently revert the rep's curated mapping.
+            # opp["id"] arrives from OpenSearch as int for numeric IDs; dict
+            # keys come from a Postgres text column and are str — coerce so
+            # the lookup matches.
             opp_id_str = str(opp["id"])
-            if record["district_lea_id"] is None and opp_id_str in manual_resolutions:
+            if opp_id_str in manual_resolutions:
                 record["district_lea_id"] = manual_resolutions[opp_id_str]
                 unmatched = None
                 healed_count += 1
