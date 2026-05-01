@@ -28,6 +28,7 @@ export interface RevenueRankResponse {
   rank: number;
   totalReps: number;
   revenue: number;
+  bookings: number;
   inRoster: boolean;
 }
 

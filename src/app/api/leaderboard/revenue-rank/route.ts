@@ -34,9 +34,9 @@ export async function GET(request: Request) {
     profiles.map(async (p) => {
       try {
         const actuals = await getRepActuals(p.email, schoolYear);
-        return { id: p.id, revenue: actuals?.totalRevenue ?? 0 };
+        return { id: p.id, revenue: actuals?.totalRevenue ?? 0, bookings: actuals?.bookings ?? 0 };
       } catch {
-        return { id: p.id, revenue: 0 };
+        return { id: p.id, revenue: 0, bookings: 0 };
       }
     }),
   );
@@ -49,6 +49,7 @@ export async function GET(request: Request) {
 
   const rank = inRoster ? callerIndex + 1 : totalReps + 1;
   const revenue = inRoster ? withRevenue[callerIndex].revenue : 0;
+  const bookings = inRoster ? withRevenue[callerIndex].bookings : 0;
 
   return NextResponse.json({
     fy: fyParam,
@@ -56,6 +57,7 @@ export async function GET(request: Request) {
     rank,
     totalReps,
     revenue,
+    bookings,
     inRoster,
   });
 }

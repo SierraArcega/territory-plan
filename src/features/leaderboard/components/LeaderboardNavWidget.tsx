@@ -139,9 +139,20 @@ export default function LeaderboardNavWidget({
         </button>
       </div>
 
-      <p className="text-base font-bold text-[#403770]">
-        {inRoster ? formatCompactCurrency(data.revenue) : ""}
-      </p>
+      <div className="flex gap-4 mt-1">
+        <div>
+          <p className="text-[10px] text-[#8A80A8] whitespace-nowrap">Revenue</p>
+          <p className="text-sm font-bold text-[#403770] whitespace-nowrap">
+            {formatCompactCurrency(data.revenue)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#8A80A8] whitespace-nowrap">Bookings</p>
+          <p className="text-sm font-bold text-[#403770] whitespace-nowrap">
+            {formatCompactCurrency(data.bookings)}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
