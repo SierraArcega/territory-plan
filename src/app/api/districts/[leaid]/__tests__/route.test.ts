@@ -81,7 +81,6 @@ vi.mock("@/lib/prisma", () => ({
         ellPctQuartileState: null, mathProficiencyQuartileState: null,
         readProficiencyQuartileState: null, expenditurePpQuartileState: null,
       }),
-      $queryRaw: vi.fn().mockResolvedValue([{ lat: 30.2, lng: -97.7 }]),
     },
     $queryRaw: vi.fn().mockResolvedValue([{ lat: 30.2, lng: -97.7 }]),
     school: {
