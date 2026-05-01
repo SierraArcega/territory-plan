@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DistrictExploreModal from "../DistrictExploreModal";
+import * as libApi from "@/lib/api";
 
+// All tests in this file render against a fully-loaded district + plan (not a loading skeleton)
 vi.mock("@/features/districts/lib/queries", () => ({
   useDistrictDetail: () => ({
     data: {
@@ -18,7 +20,16 @@ vi.mock("@/features/districts/lib/queries", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
-  useTerritoryPlans: () => ({
+  useTerritoryPlans: vi.fn(),
+  useAddDistrictsToPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/features/activities/lib/queries", () => ({
+  useActivities: () => ({ data: null }),
+}));
+
+beforeEach(() => {
+  vi.mocked(libApi.useTerritoryPlans).mockReturnValue({
     data: [
       {
         id: "plan-1",
@@ -30,13 +41,8 @@ vi.mock("@/lib/api", () => ({
         fiscalYear: 2026,
       },
     ],
-  }),
-  useAddDistrictsToPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
-
-vi.mock("@/features/activities/lib/queries", () => ({
-  useActivities: () => ({ data: null }),
-}));
+  } as any);
+});
 
 function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -77,5 +83,25 @@ describe("DistrictExploreModal — plan membership owner", () => {
       <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
     );
     expect(container.textContent).toContain("· Sierra Arcega");
+  });
+
+  it("does not render a dot separator when owner is null", () => {
+    vi.mocked(libApi.useTerritoryPlans).mockReturnValueOnce({
+      data: [
+        {
+          id: "plan-1",
+          name: "Kleist Renewal",
+          color: "#7C3AED",
+          status: "working",
+          owner: null,
+          description: null,
+          fiscalYear: 2026,
+        },
+      ],
+    } as any);
+    const { container } = renderWithClient(
+      <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
+    );
+    expect(container.textContent).not.toContain("·");
   });
 });
