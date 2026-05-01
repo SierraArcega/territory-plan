@@ -152,3 +152,28 @@ def test_update_heartbeat_in_state():
         assert state_after["heartbeat_at"] > old_heartbeat
         assert state_after["last_sync_status"] == "success"
         assert state_after["opps_synced"] == 5
+
+
+@patch("run_scheduler.schedule")
+def test_daily_backfill_is_registered_at_04_00(mock_schedule):
+    from run_scheduler import register_schedules
+
+    register_schedules()
+
+    # schedule.every().day.at("04:00") should have been called
+    daily_chain_seen = any(
+        c.args == ("04:00",)
+        for c in mock_schedule.every.return_value.day.at.call_args_list
+    )
+    assert daily_chain_seen, "expected schedule.every().day.at('04:00').do(...) to be wired"
+
+
+@patch("run_scheduler.schedule")
+def test_hourly_sync_is_registered(mock_schedule):
+    from run_scheduler import register_schedules
+
+    register_schedules()
+
+    # schedule.every(1).hour should have been called
+    mock_schedule.every.assert_any_call(1)
+    mock_schedule.every.return_value.hour.do.assert_called_once()
