@@ -1,16 +1,14 @@
--- scripts/district-opportunity-actuals-view.sql
--- Materialized view: district_opportunity_actuals
--- Aggregates opportunities by district, school year, sales rep, and category.
--- Refreshed after each scheduler sync cycle (hourly).
+-- Re-create district_opportunity_actuals with _NOMAP sentinel for unmatched districts.
+-- Removes the WHERE district_lea_id IS NOT NULL filter from categorized_opps and uses
+-- COALESCE(district_lea_id, '_NOMAP') in the GROUP BY and SELECT. Opportunities without
+-- a resolved NCES district now contribute their revenue under district_lea_id='_NOMAP'
+-- instead of being silently dropped. Recovers ~$200K of FY26 revenue (Monica + others).
 --
--- Subscription handling: Elevate K12 contracts (acquired post-merger) live in
--- the opportunities table but their session-derived revenue columns are zero
--- because EK12 uses subscriptions, not sessions. The opp_subscriptions CTE
--- pre-aggregates subscription net_total per opportunity (signed sums so
--- credits offset positives), and that revenue is added into total_revenue
--- and completed_revenue at the final SELECT level. Take is intentionally
--- left untouched — we don't have an educator-cost / take rate concept for
--- subscriptions, so adding sub revenue to take would be invented data.
+-- The sentinel is computed at view time only — opportunities.district_lea_id keeps NULL
+-- for unmatched rows, so the FK constraint to districts.leaid is unaffected.
+--
+-- Spec: Docs/superpowers/specs/2026-04-30-leaderboard-fy-attribution-fix-design.md
+-- Source of truth: scripts/district-opportunity-actuals-view.sql
 
 DROP MATERIALIZED VIEW IF EXISTS district_opportunity_actuals;
 
@@ -173,8 +171,10 @@ CREATE UNIQUE INDEX idx_doa_unique ON district_opportunity_actuals (district_lea
 
 ANALYZE district_opportunity_actuals;
 
--- Verify
-SELECT COUNT(*) AS row_count,
-       COUNT(DISTINCT district_lea_id) AS district_count,
-       COUNT(DISTINCT school_yr) AS fy_count
-FROM district_opportunity_actuals;
+-- Verify: _NOMAP row should appear if any opportunities.district_lea_id IS NULL
+SELECT district_lea_id, COUNT(*) AS rows,
+       SUM(total_revenue) AS total_revenue,
+       SUM(bookings) AS bookings
+FROM district_opportunity_actuals
+WHERE district_lea_id = '_NOMAP'
+GROUP BY district_lea_id;
