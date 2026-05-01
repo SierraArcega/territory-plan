@@ -142,6 +142,7 @@ def run_sync():
         # Phase 4: Compute metrics and build records
         matched_records = []
         unmatched_records = []
+        healed_count = 0
 
         for h in opp_hits:
             opp = h["_source"]
@@ -150,14 +151,22 @@ def run_sync():
                 opp, opp_sessions, district_mapping, now=now
             )
 
-            # Manual resolutions from unmatched_opportunities heal the mapping
-            if record["district_lea_id"] is None and opp["id"] in manual_resolutions:
-                record["district_lea_id"] = manual_resolutions[opp["id"]]
+            # Manual resolutions from unmatched_opportunities heal the mapping.
+            # opp["id"] arrives from OpenSearch as int for numeric IDs; the dict
+            # keys come from a Postgres text column and are str. Coerce both
+            # sides to str so the lookup matches.
+            opp_id_str = str(opp["id"])
+            if record["district_lea_id"] is None and opp_id_str in manual_resolutions:
+                record["district_lea_id"] = manual_resolutions[opp_id_str]
                 unmatched = None
+                healed_count += 1
 
             matched_records.append(record)
             if unmatched is not None:
                 unmatched_records.append(unmatched)
+
+        if healed_count:
+            logger.info(f"Healed {healed_count} opps via manual resolutions")
 
         # Phase 5: Write to Supabase
         upsert_opportunities(conn, matched_records)
@@ -271,18 +280,24 @@ def run_current_fy_backfill():
         manual_resolutions = _load_manual_resolutions(conn)
         matched_records = []
         unmatched_records = []
+        healed_count = 0
         for h in opp_hits:
             opp = h["_source"]
             opp_sessions = sessions_by_opp.get(opp["id"], [])
             record, unmatched = _build_record_and_classify(
                 opp, opp_sessions, district_mapping, now=now
             )
-            if record["district_lea_id"] is None and opp["id"] in manual_resolutions:
-                record["district_lea_id"] = manual_resolutions[opp["id"]]
+            opp_id_str = str(opp["id"])
+            if record["district_lea_id"] is None and opp_id_str in manual_resolutions:
+                record["district_lea_id"] = manual_resolutions[opp_id_str]
                 unmatched = None
+                healed_count += 1
             matched_records.append(record)
             if unmatched is not None:
                 unmatched_records.append(unmatched)
+
+        if healed_count:
+            logger.info(f"Healed {healed_count} opps via manual resolutions")
 
         upsert_opportunities(conn, matched_records)
         if unmatched_records:

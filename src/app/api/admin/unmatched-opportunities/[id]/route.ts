@@ -119,13 +119,33 @@ export async function PATCH(
         }
       : { id };
 
-    const { count } = await prisma.unmatchedOpportunity.updateMany({
+    // Capture which IDs are about to be resolved so we can mirror the match
+    // onto the source opportunities table — without that step, downstream
+    // joins on opportunities.district_lea_id (district_financials, leaderboard,
+    // low-hanging-fruit) stay blind to the linkage.
+    const targets = await prisma.unmatchedOpportunity.findMany({
       where,
+      select: { id: true },
+    });
+    const targetIds = targets.map((t) => t.id);
+
+    const { count } = await prisma.unmatchedOpportunity.updateMany({
+      where: { id: { in: targetIds } },
       data: {
         resolved: true,
         resolvedDistrictLeaid,
       },
     });
+
+    if (targetIds.length > 0) {
+      // Only fill nulls — never overwrite a real leaid that arrived via sync.
+      await prisma.opportunity.updateMany({
+        where: { id: { in: targetIds }, districtLeaId: null },
+        data: { districtLeaId: resolvedDistrictLeaid },
+      });
+
+      await prisma.$executeRawUnsafe("SELECT refresh_fullmind_financials()");
+    }
 
     return NextResponse.json({ resolvedDistrict: district, resolvedCount: count });
   } catch (error) {
