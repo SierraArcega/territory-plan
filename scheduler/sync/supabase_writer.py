@@ -266,12 +266,26 @@ def refresh_fullmind_financials(conn):
 
 
 def refresh_opportunity_actuals(conn):
-    """Refresh district_opportunity_actuals materialized view."""
+    """Refresh leaderboard-feeding materialized views.
+
+    Both district_opportunity_actuals and rep_session_actuals are read by
+    getRepActuals on every leaderboard load. Without REFRESH the leaderboard
+    sees pre-sync data; if rep_session_actuals were left as a plain view it
+    would re-aggregate ~170k sessions on every page load (1.7s × 90 calls
+    per leaderboard fetch — many would time out and the rep-level catch in
+    fetch-leaderboard.ts would silently return $0 for those reps).
+    """
     logger.info("Refreshing district_opportunity_actuals...")
     with conn.cursor() as cur:
         cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY district_opportunity_actuals")
     conn.commit()
     logger.info("Refreshed district_opportunity_actuals")
+
+    logger.info("Refreshing rep_session_actuals...")
+    with conn.cursor() as cur:
+        cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY rep_session_actuals")
+    conn.commit()
+    logger.info("Refreshed rep_session_actuals")
 
 
 def get_last_synced_at(conn):
