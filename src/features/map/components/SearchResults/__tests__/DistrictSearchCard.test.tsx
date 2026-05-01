@@ -54,7 +54,7 @@ describe("DistrictSearchCard", () => {
     expect(onToggleSelect).not.toHaveBeenCalled();
   });
 
-  it("clicking the ✕ button calls onToggleSelect, not onExplore", () => {
+  it("clicking the X button on a selected card calls onToggleSelect, not onExplore", () => {
     const { getByTitle } = render(
       <DistrictSearchCard
         district={district}
@@ -65,6 +65,21 @@ describe("DistrictSearchCard", () => {
       />
     );
     fireEvent.click(getByTitle("Remove"));
+    expect(onToggleSelect).toHaveBeenCalledTimes(1);
+    expect(onExplore).not.toHaveBeenCalled();
+  });
+
+  it("clicking the + button on an unselected card calls onToggleSelect, not onExplore", () => {
+    const { getByTitle } = render(
+      <DistrictSearchCard
+        district={district}
+        isSelected={false}
+        onToggleSelect={onToggleSelect}
+        onExplore={onExplore}
+        activeFilters={[]}
+      />
+    );
+    fireEvent.click(getByTitle("Add to selection"));
     expect(onToggleSelect).toHaveBeenCalledTimes(1);
     expect(onExplore).not.toHaveBeenCalled();
   });
@@ -84,8 +99,18 @@ describe("DistrictSearchCard", () => {
     expect(onToggleSelect).not.toHaveBeenCalled();
   });
 
-  it("renders the remove button even when card is not selected", () => {
-    const { getByTitle } = render(
+  it("shows Remove title when selected and Add to selection title when not selected", () => {
+    const { getByTitle, rerender } = render(
+      <DistrictSearchCard
+        district={district}
+        isSelected={true}
+        onToggleSelect={onToggleSelect}
+        onExplore={onExplore}
+        activeFilters={[]}
+      />
+    );
+    expect(getByTitle("Remove")).toBeTruthy();
+    rerender(
       <DistrictSearchCard
         district={district}
         isSelected={false}
@@ -94,6 +119,6 @@ describe("DistrictSearchCard", () => {
         activeFilters={[]}
       />
     );
-    expect(getByTitle("Remove")).toBeTruthy();
+    expect(getByTitle("Add to selection")).toBeTruthy();
   });
 });
