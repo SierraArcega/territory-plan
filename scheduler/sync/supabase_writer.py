@@ -140,16 +140,20 @@ def upsert_unmatched(conn, records):
 
 
 def remove_matched_from_unmatched(conn, matched_ids):
-    """Delete unmatched_opportunities rows for opps that now have a district match.
+    """Delete UNRESOLVED unmatched_opportunities rows for opps that now have
+    a district match (sync caught up).
 
-    Removes both unresolved (stale from earlier sync) and resolved (manual
-    resolution already applied) records since they no longer need attention.
+    Resolved rows must persist so manual resolutions keep being re-applied on
+    every sync cycle by run_sync._load_manual_resolutions. Deleting them here
+    would drop the override the moment it took effect, and the next cycle that
+    produced a NULL or different leaid would silently revert the rep's work.
     """
     if not matched_ids:
         return
     with conn.cursor() as cur:
         cur.execute(
-            "DELETE FROM unmatched_opportunities WHERE id = ANY(%s::text[])",
+            "DELETE FROM unmatched_opportunities "
+            "WHERE id = ANY(%s::text[]) AND resolved = false",
             ([str(mid) for mid in matched_ids],),
         )
         deleted = cur.rowcount

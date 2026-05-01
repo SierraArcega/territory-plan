@@ -149,8 +149,11 @@ def run_sync():
                 opp, opp_sessions, district_mapping, now=now
             )
 
-            # Manual resolutions from unmatched_opportunities heal the mapping
-            if record["district_lea_id"] is None and opp["id"] in manual_resolutions:
+            # Manual resolutions are authoritative — they override whatever
+            # the sync derived (NULL or a different leaid). Without this, an
+            # upstream change that suddenly returns a leaid for a previously
+            # unmatched opp would silently revert the rep's curated mapping.
+            if opp["id"] in manual_resolutions:
                 record["district_lea_id"] = manual_resolutions[opp["id"]]
                 unmatched = None
 

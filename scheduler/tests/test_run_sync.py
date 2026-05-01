@@ -96,6 +96,56 @@ def test_run_sync_no_opportunities_skips(
     mock_conn.close.assert_called_once()
 
 
+@patch("run_sync.refresh_opportunity_actuals")
+@patch("run_sync.refresh_fullmind_financials")
+@patch("run_sync.refresh_map_features")
+@patch("run_sync.set_last_synced_at")
+@patch("run_sync.get_last_synced_at", return_value=None)
+@patch("run_sync.update_district_pipeline_aggregates")
+@patch("run_sync.remove_matched_from_unmatched")
+@patch("run_sync.upsert_unmatched")
+@patch("run_sync.upsert_sessions")
+@patch("run_sync.upsert_opportunities")
+@patch("run_sync.get_connection")
+@patch("run_sync.build_opportunity_record")
+@patch("run_sync.fetch_district_mappings")
+@patch("run_sync.fetch_sessions")
+@patch("run_sync.fetch_opportunities")
+@patch("run_sync.get_client")
+def test_manual_resolution_overrides_sync_leaid(
+    mock_get_client, mock_fetch_opps, mock_fetch_sessions,
+    mock_fetch_districts, mock_build, mock_get_conn,
+    mock_upsert_opps, mock_upsert_sessions, mock_upsert_unmatched,
+    mock_remove_matched, mock_update_agg, mock_get_last, mock_set_last,
+    mock_refresh_map, mock_refresh_fin, mock_refresh_actuals,
+):
+    """Manual resolutions in unmatched_opportunities must win over whatever
+    OpenSearch produced — including a non-NULL leaid that disagrees."""
+    mock_fetch_opps.return_value = [
+        {"_source": {"id": "opp1", "accounts": [{"id": "acc1"}]}}
+    ]
+    mock_fetch_sessions.return_value = []
+    mock_fetch_districts.return_value = {"acc1": {"nces_id": "123", "leaid": "0100001"}}
+    # Sync derives leaid 0100001; rep previously mapped this opp to 9999999.
+    mock_build.return_value = {
+        "id": "opp1", "district_lea_id": "0100001", "net_booking_amount": 5000,
+        "service_types": ["tutoring"],
+    }
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = [("opp1", "9999999")]
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+    mock_get_conn.return_value = mock_conn
+
+    run_sync()
+
+    upserted_records = mock_upsert_opps.call_args[0][1]
+    assert len(upserted_records) == 1
+    assert upserted_records[0]["district_lea_id"] == "9999999"
+    mock_upsert_unmatched.assert_not_called()
+
+
 def test_name_mismatch_opp_routes_to_unmatched_with_correct_reason():
     """Yuba City opp with Woodville's NCES ID should land in unmatched
     with reason='Name/LEAID mismatch', not the generic 'Needs Review'."""
