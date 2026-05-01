@@ -40,14 +40,33 @@ def get_connection():
 
 
 def upsert_opportunities(conn, records):
-    """Upsert opportunity records into the opportunities table."""
+    """Upsert opportunity records into the opportunities table.
+
+    `district_lea_id` is COALESCE'd to preserve a previously-set value when
+    the natural resolver returns NULL on a sync. The natural resolver fails
+    when OpenSearch returns malformed ncesId data (missing leading zeros,
+    trailing whitespace, school-level NCES IDs, M-prefixed sentinels). When
+    that happened, the previous behavior was to blindly overwrite the
+    column with NULL, silently dropping a previously-correct mapping and
+    surfacing the opp as "unmatched." We don't want a transient resolver
+    failure to clobber a known-good value — admin-driven corrections can
+    still write through `unmatched_opportunities.resolved_district_leaid`
+    via the heal step in run_sync.
+    """
     if not records:
         return
 
     cols = OPPORTUNITY_COLUMNS
     placeholders = ", ".join(["%s"] * len(cols))
     update_cols = [c for c in cols if c != "id"]
-    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in update_cols)
+    # Special-case district_lea_id: only overwrite when EXCLUDED brings a
+    # non-NULL value. Other columns clobber as before.
+    update_set = ", ".join(
+        "district_lea_id = COALESCE(EXCLUDED.district_lea_id, opportunities.district_lea_id)"
+        if c == "district_lea_id"
+        else f"{c} = EXCLUDED.{c}"
+        for c in update_cols
+    )
 
     sql = f"""
         INSERT INTO opportunities ({", ".join(cols)})
