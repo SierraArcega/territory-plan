@@ -86,6 +86,45 @@ def test_upsert_opportunities_coalesces_district_lea_id():
     assert sql.count("COALESCE(EXCLUDED") == 1
 
 
+def test_upsert_opportunities_returns_post_coalesce_matched_ids():
+    """The writer must report which opps ended up with a non-NULL leaid
+    AFTER the COALESCE in the UPDATE clause — not based on what the caller
+    passed in. A Python-level filter on the record value misses opps whose
+    leaid was preserved by COALESCE (compute returned NULL this cycle but
+    a prior leaid is still on the row), and those rows then keep getting
+    re-classified as unmatched on every sync. That's the Melodie symptom:
+    queue full of opps that already have a district_lea_id."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    # Two records — first ends up matched (COALESCE preserved a prior leaid),
+    # second stays NULL.
+    mock_cursor.fetchone.side_effect = [
+        ("opp-coalesced", "1234567"),  # post-COALESCE non-NULL
+        ("opp-unmatched", None),        # genuinely unmatched
+    ]
+
+    matched_ids = upsert_opportunities(mock_conn, [
+        {c: ("opp-coalesced" if c == "id" else None) for c in OPPORTUNITY_COLUMNS},
+        {c: ("opp-unmatched" if c == "id" else None) for c in OPPORTUNITY_COLUMNS},
+    ])
+
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "RETURNING id, district_lea_id" in sql
+    assert matched_ids == ["opp-coalesced"]
+
+
+def test_upsert_opportunities_empty_returns_empty_list():
+    """No records → no DB call AND a sane empty list (caller passes the
+    return straight to remove_matched_from_unmatched which expects iterable)."""
+    mock_conn = MagicMock()
+    result = upsert_opportunities(mock_conn, [])
+    assert result == []
+    mock_conn.cursor.assert_not_called()
+
+
 def test_upsert_unmatched_preserves_resolutions():
     mock_conn = MagicMock()
     mock_cursor = MagicMock()

@@ -36,6 +36,44 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _process_opp_hits(opp_hits, sessions_by_opp, district_mapping, manual_resolutions, now):
+    """Build records for each opp and classify into matched / unmatched.
+
+    Manual resolutions in unmatched_opportunities are AUTHORITATIVE — they
+    override whatever the natural resolver derived (NULL or any leaid).
+    Without this, an upstream change that suddenly returns a leaid for a
+    previously rep-curated opp would silently revert the rep's choice.
+
+    This helper exists so that run_sync (hourly incremental) and
+    run_current_fy_backfill (daily) cannot drift on this rule again — they
+    used to duplicate ~30 lines of nearly-identical logic, and a previous
+    fix patched only one copy. Single source of truth = single place to fix.
+
+    Returns (matched_records, unmatched_records, healed_count).
+    """
+    matched_records = []
+    unmatched_records = []
+    healed_count = 0
+    for h in opp_hits:
+        opp = h["_source"]
+        opp_sessions = sessions_by_opp.get(opp["id"], [])
+        record, unmatched = _build_record_and_classify(
+            opp, opp_sessions, district_mapping, now=now
+        )
+        # opp["id"] arrives from OpenSearch as int for numeric IDs; manual
+        # resolutions are keyed by str (Postgres text column) — coerce so
+        # the lookup matches.
+        opp_id_str = str(opp["id"])
+        if opp_id_str in manual_resolutions:
+            record["district_lea_id"] = manual_resolutions[opp_id_str]
+            unmatched = None
+            healed_count += 1
+        matched_records.append(record)
+        if unmatched is not None:
+            unmatched_records.append(unmatched)
+    return matched_records, unmatched_records, healed_count
+
+
 def _build_record_and_classify(opp, opp_sessions, district_mapping, now):
     """Build an opportunity record and classify the unmatched reason.
 
@@ -136,43 +174,20 @@ def run_sync():
     district_mapping = fetch_district_mappings(os_client, list(account_ids))
 
     try:
-        # Check for manual resolutions from unmatched_opportunities
+        # Phase 4: Compute metrics and build records (manual resolutions are
+        # authoritative — see _process_opp_hits).
         manual_resolutions = _load_manual_resolutions(conn)
-
-        # Phase 4: Compute metrics and build records
-        matched_records = []
-        unmatched_records = []
-        healed_count = 0
-
-        for h in opp_hits:
-            opp = h["_source"]
-            opp_sessions = sessions_by_opp.get(opp["id"], [])
-            record, unmatched = _build_record_and_classify(
-                opp, opp_sessions, district_mapping, now=now
-            )
-
-            # Manual resolutions are authoritative — they override whatever
-            # the sync derived (NULL or a different leaid). Without this, an
-            # upstream change that suddenly returns a leaid for a previously
-            # unmatched opp would silently revert the rep's curated mapping.
-            # opp["id"] arrives from OpenSearch as int for numeric IDs; dict
-            # keys come from a Postgres text column and are str — coerce so
-            # the lookup matches.
-            opp_id_str = str(opp["id"])
-            if opp_id_str in manual_resolutions:
-                record["district_lea_id"] = manual_resolutions[opp_id_str]
-                unmatched = None
-                healed_count += 1
-
-            matched_records.append(record)
-            if unmatched is not None:
-                unmatched_records.append(unmatched)
-
+        matched_records, unmatched_records, healed_count = _process_opp_hits(
+            opp_hits, sessions_by_opp, district_mapping, manual_resolutions, now
+        )
         if healed_count:
             logger.info(f"Healed {healed_count} opps via manual resolutions")
 
-        # Phase 5: Write to Supabase
-        upsert_opportunities(conn, matched_records)
+        # Phase 5: Write to Supabase. upsert_opportunities returns the ids
+        # whose POST-COALESCE leaid is non-NULL — that's the correct input
+        # to remove_matched_from_unmatched (a Python-level filter on the
+        # record value misses opps whose leaid was preserved by COALESCE).
+        matched_ids = upsert_opportunities(conn, matched_records)
         if unmatched_records:
             upsert_unmatched(conn, unmatched_records)
 
@@ -198,11 +213,8 @@ def run_sync():
         total_sessions = sum(len(v) for v in session_records_by_opp.values())
         upsert_sessions(conn, session_records_by_opp)
 
-        # Clean up: remove opps from unmatched that now have a district match
-        newly_matched_ids = [
-            r["id"] for r in matched_records if r.get("district_lea_id") is not None
-        ]
-        remove_matched_from_unmatched(conn, newly_matched_ids)
+        # Clean up: remove opps from unmatched that now have a district match.
+        remove_matched_from_unmatched(conn, matched_ids)
 
         update_district_pipeline_aggregates(conn)
         refresh_map_features(conn)
@@ -281,28 +293,13 @@ def run_current_fy_backfill():
 
     try:
         manual_resolutions = _load_manual_resolutions(conn)
-        matched_records = []
-        unmatched_records = []
-        healed_count = 0
-        for h in opp_hits:
-            opp = h["_source"]
-            opp_sessions = sessions_by_opp.get(opp["id"], [])
-            record, unmatched = _build_record_and_classify(
-                opp, opp_sessions, district_mapping, now=now
-            )
-            opp_id_str = str(opp["id"])
-            if record["district_lea_id"] is None and opp_id_str in manual_resolutions:
-                record["district_lea_id"] = manual_resolutions[opp_id_str]
-                unmatched = None
-                healed_count += 1
-            matched_records.append(record)
-            if unmatched is not None:
-                unmatched_records.append(unmatched)
-
+        matched_records, unmatched_records, healed_count = _process_opp_hits(
+            opp_hits, sessions_by_opp, district_mapping, manual_resolutions, now
+        )
         if healed_count:
             logger.info(f"Healed {healed_count} opps via manual resolutions")
 
-        upsert_opportunities(conn, matched_records)
+        matched_ids = upsert_opportunities(conn, matched_records)
         if unmatched_records:
             upsert_unmatched(conn, unmatched_records)
 
@@ -327,10 +324,7 @@ def run_current_fy_backfill():
         total_sessions = sum(len(v) for v in session_records_by_opp.values())
         upsert_sessions(conn, session_records_by_opp)
 
-        newly_matched_ids = [
-            r["id"] for r in matched_records if r.get("district_lea_id") is not None
-        ]
-        remove_matched_from_unmatched(conn, newly_matched_ids)
+        remove_matched_from_unmatched(conn, matched_ids)
 
         update_district_pipeline_aggregates(conn)
         refresh_map_features(conn)

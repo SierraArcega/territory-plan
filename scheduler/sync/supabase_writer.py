@@ -40,7 +40,8 @@ def get_connection():
 
 
 def upsert_opportunities(conn, records):
-    """Upsert opportunity records into the opportunities table.
+    """Upsert opportunity records and return ids whose post-COALESCE
+    district_lea_id is non-NULL.
 
     `district_lea_id` is COALESCE'd to preserve a previously-set value when
     the natural resolver returns NULL on a sync. The natural resolver fails
@@ -52,9 +53,15 @@ def upsert_opportunities(conn, records):
     failure to clobber a known-good value — admin-driven corrections can
     still write through `unmatched_opportunities.resolved_district_leaid`
     via the heal step in run_sync.
+
+    The returned id list is what the caller should pass to
+    `remove_matched_from_unmatched` — filtering on the Python-level record
+    value misses opps whose leaid was preserved by COALESCE (compute()
+    returned NULL this cycle but the prior leaid is still on the row),
+    leaving stale unresolved rows in `unmatched_opportunities` forever.
     """
     if not records:
-        return
+        return []
 
     cols = OPPORTUNITY_COLUMNS
     placeholders = ", ".join(["%s"] * len(cols))
@@ -72,15 +79,23 @@ def upsert_opportunities(conn, records):
         INSERT INTO opportunities ({", ".join(cols)})
         VALUES ({placeholders})
         ON CONFLICT (id) DO UPDATE SET {update_set}
+        RETURNING id, district_lea_id
     """
 
+    matched_ids = []
     with conn.cursor() as cur:
         for record in records:
             values = [record.get(c) for c in cols]
             cur.execute(sql, values)
+            row = cur.fetchone()
+            if row and row[1] is not None:
+                matched_ids.append(row[0])
 
     conn.commit()
-    logger.info(f"Upserted {len(records)} opportunities")
+    logger.info(
+        f"Upserted {len(records)} opportunities ({len(matched_ids)} now matched to a district)"
+    )
+    return matched_ids
 
 
 SESSION_COLUMNS = [
