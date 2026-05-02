@@ -10,7 +10,9 @@ import {
   useUpdateReportDetails,
   useUpdateReportSql,
 } from "../../lib/queries";
+import { useChatCollapsed } from "../../lib/use-chat-collapsed";
 import { BuilderChat } from "./BuilderChat";
+import { CollapsedChatRail } from "./CollapsedChatRail";
 import { ResultsPane } from "./ResultsPane";
 import type { SessionMode } from "./SaveButton";
 import type { BuilderTurn, BuilderVersion } from "./types";
@@ -58,6 +60,7 @@ export function ReportsBuilder({
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [savedReportTitle, setSavedReportTitle] = useState<string | null>(null);
   const [savedReportDescription, setSavedReportDescription] = useState<string>("");
+  const [chatCollapsed, setChatCollapsed] = useChatCollapsed();
   // True for the lifetime of a session that started from a saved report,
   // even after the user adds refining turns. Used by ResultsPane to show
   // "From saved report · refined".
@@ -323,19 +326,37 @@ export function ReportsBuilder({
     });
   }, [reportId, deleteReport, onAfterDelete]);
 
+  const handleCollapseChat = useCallback(() => {
+    setChatCollapsed(true);
+    onCollapseChat();
+  }, [onCollapseChat, setChatCollapsed]);
+
+  const handleExpandChat = useCallback(() => {
+    setChatCollapsed(false);
+  }, [setChatCollapsed]);
+
   return (
     <div className="flex h-full min-h-0 bg-[#FFFCFA]">
-      <BuilderChat
-        title={headerTitle}
-        turns={turns}
-        versions={versions}
-        selectedN={selectedVersion?.n ?? null}
-        inFlight={inFlight}
-        onSelectVersion={onSelectVersion}
-        onSubmit={submit}
-        onNewReport={onNewReport}
-        onCollapseChat={onCollapseChat}
-      />
+      {chatCollapsed ? (
+        <CollapsedChatRail
+          versions={versions}
+          selectedN={selectedVersion?.n ?? null}
+          onSelectVersion={onSelectVersion}
+          onExpand={handleExpandChat}
+        />
+      ) : (
+        <BuilderChat
+          title={headerTitle}
+          turns={turns}
+          versions={versions}
+          selectedN={selectedVersion?.n ?? null}
+          inFlight={inFlight}
+          onSelectVersion={onSelectVersion}
+          onSubmit={submit}
+          onNewReport={onNewReport}
+          onCollapseChat={handleCollapseChat}
+        />
+      )}
       <ResultsPane
         version={selectedVersion}
         sessionMode={sessionMode}
