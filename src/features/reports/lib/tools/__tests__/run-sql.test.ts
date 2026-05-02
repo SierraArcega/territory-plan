@@ -63,7 +63,7 @@ describe("handleRunSql", () => {
     }
   });
 
-  it("rejects empty summary.source", async () => {
+  it("rejects empty summary.source when no fallback is provided", async () => {
     const res = await handleRunSql(
       "SELECT name FROM districts WHERE state = 'Texas' LIMIT 100",
       { source: "" },
@@ -71,6 +71,43 @@ describe("handleRunSql", () => {
     expect(res.kind).toBe("validation_error");
     if (res.kind === "validation_error") {
       expect(res.errors[0]).toMatch(/summary\.source/);
+    }
+  });
+
+  it("auto-fills empty summary.source from the fallback (user question)", async () => {
+    const res = await handleRunSql(
+      "SELECT name FROM districts WHERE state = 'Texas' LIMIT 100",
+      { source: "" },
+      "show me Texas districts",
+    );
+    expect(res.kind).toBe("ok");
+    if (res.kind === "ok") {
+      expect(res.summary.source).toBe("show me Texas districts");
+    }
+  });
+
+  it("auto-fills missing summary entirely from the fallback", async () => {
+    const res = await handleRunSql(
+      "SELECT name FROM districts WHERE state = 'Texas' LIMIT 100",
+      undefined as unknown as QuerySummary,
+      "show me Texas districts",
+    );
+    expect(res.kind).toBe("ok");
+    if (res.kind === "ok") {
+      expect(res.summary.source).toBe("show me Texas districts");
+    }
+  });
+
+  it("trims and truncates very long fallback sources to 200 chars", async () => {
+    const long = "a".repeat(500);
+    const res = await handleRunSql(
+      "SELECT name FROM districts WHERE state = 'Texas' LIMIT 100",
+      { source: "" },
+      `   ${long}   `,
+    );
+    expect(res.kind).toBe("ok");
+    if (res.kind === "ok") {
+      expect(res.summary.source.length).toBe(200);
     }
   });
 

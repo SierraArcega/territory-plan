@@ -7,6 +7,7 @@ vi.mock("@/features/reports/lib/tools/list-tables", () => ({
 }));
 vi.mock("@/features/reports/lib/tools/describe-table", () => ({
   handleDescribeTable: vi.fn(async () => "columns..."),
+  buildCompactSchema: vi.fn((table: string) => `## ${table} — mock compact schema`),
 }));
 vi.mock("@/features/reports/lib/tools/search-metadata", () => ({
   handleSearchMetadata: vi.fn(async () => "no matches"),

@@ -100,15 +100,41 @@ function containsSqlFence(text: string): boolean {
 export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult> {
   const { anthropic, userMessage, priorTurns, userId, conversationId } = args;
 
+  // Replay prior turns as tool_use/tool_result pairs (not Markdown SQL blocks)
+  // so the model sees structured execution it can't mimic in plain-text replies.
+  // The old "SQL used (server-side only, not shown to user)" template was being
+  // copied into user-facing chat text by the model.
   const history: Anthropic.MessageParam[] = [];
   for (const t of priorTurns) {
     history.push({ role: "user", content: t.question });
-    const blocks: string[] = [];
-    if (t.summary?.source) blocks.push(`Source: ${t.summary.source}`);
-    if (t.sql) blocks.push(`SQL used (server-side only, not shown to user):\n\`\`\`sql\n${t.sql}\n\`\`\``);
-    if (t.assistantText) blocks.push(t.assistantText);
-    if (blocks.length > 0) {
-      history.push({ role: "assistant", content: blocks.join("\n\n") });
+    if (t.sql) {
+      const priorToolUseId = `prior_${t.createdAt.getTime()}`;
+      const summaryForReplay: QuerySummary = t.summary ?? {
+        source: t.question.slice(0, 200),
+      };
+      const assistantBlocks: Anthropic.ContentBlockParam[] = [];
+      if (t.assistantText) {
+        assistantBlocks.push({ type: "text", text: t.assistantText });
+      }
+      assistantBlocks.push({
+        type: "tool_use",
+        id: priorToolUseId,
+        name: RUN_SQL_TOOL_NAME,
+        input: { sql: t.sql, summary: summaryForReplay },
+      });
+      history.push({ role: "assistant", content: assistantBlocks });
+      history.push({
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: priorToolUseId,
+            content: `run_sql ok — ${summaryForReplay.source}`,
+          },
+        ],
+      });
+    } else if (t.assistantText) {
+      history.push({ role: "assistant", content: t.assistantText });
     }
   }
   history.push({ role: "user", content: userMessage });
@@ -155,7 +181,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       model: "claude-opus-4-7",
       max_tokens: 16000,
       thinking: { type: "adaptive" },
-      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } }],
       tools: AGENT_TOOLS,
       messages,
     });
@@ -255,7 +281,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
     let runSqlResult: RunSqlResult | null = null;
     if (runSqlUse) {
       const input = runSqlUse.input as { sql: string; summary: QuerySummary };
-      runSqlResult = await handleRunSql(input.sql, input.summary);
+      runSqlResult = await handleRunSql(input.sql, input.summary, userMessage);
 
       if (runSqlResult.kind === "ok") {
         events.push({

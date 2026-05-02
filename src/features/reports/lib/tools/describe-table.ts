@@ -1,5 +1,37 @@
 import { TABLE_REGISTRY, SEMANTIC_CONTEXT } from "@/lib/district-column-metadata";
 
+/**
+ * Slim schema for inclusion in the system prompt. Includes column name + type +
+ * one-liner only — no relationship paragraphs, no value examples. Used to
+ * eliminate per-conversation `describe_table` calls on the most common tables.
+ */
+export function buildCompactSchema(table: string): string {
+  const meta = TABLE_REGISTRY[table];
+  if (!meta) return "";
+  const out: string[] = [];
+  out.push(
+    `## ${meta.table} — ${meta.description.split("\n")[0].slice(0, 200)}`,
+  );
+  const pk = Array.isArray(meta.primaryKey) ? meta.primaryKey.join(", ") : meta.primaryKey;
+  out.push(`PK: ${pk}`);
+  for (const col of meta.columns) {
+    if (!col.queryable) continue;
+    const desc = col.description.split("\n")[0].slice(0, 120);
+    out.push(`- ${col.column} (${col.format}): ${desc}`);
+  }
+  if (meta.relationships.length > 0) {
+    const joins = meta.relationships
+      .map((r) => r.toTable)
+      .slice(0, 8)
+      .join(", ");
+    out.push(`Joins: ${joins}`);
+  }
+  if (meta.warnings && meta.warnings.length > 0) {
+    out.push(`Warnings: ${meta.warnings.join(" | ")}`);
+  }
+  return out.join("\n");
+}
+
 export async function handleDescribeTable(table: string): Promise<string> {
   const meta = TABLE_REGISTRY[table];
   if (!meta) {

@@ -31,12 +31,34 @@ describe("buildSystemPrompt", () => {
     expect(prompt.toLowerCase()).toMatch(/terminal|ends the turn|once per turn/);
   });
 
-  it("with no prior turns, omits the 'already explored' section header", async () => {
+  it("always includes the pre-loaded schemas section (covers districts, opportunities, etc.)", async () => {
     const prompt = await buildSystemPrompt();
-    expect(prompt).not.toContain("# Tables already explored in this conversation");
+    expect(prompt).toContain("# Pre-loaded table schemas");
+    expect(prompt).toContain("## districts");
+    expect(prompt).toContain("## opportunities");
   });
 
-  it("with a prior turn that queried districts, includes the 'already explored' section", async () => {
+  it("with no prior turns, omits the 'other tables explored' section header", async () => {
+    const prompt = await buildSystemPrompt();
+    expect(prompt).not.toContain("# Other tables already explored in this conversation");
+  });
+
+  it("with a prior turn that queried a non-pre-baked table, includes the explored section for that table", async () => {
+    const prior: PriorTurn[] = [
+      {
+        question: "Show me tasks for the rep",
+        sql: "SELECT id, title FROM tasks WHERE owner_id = '1' LIMIT 100",
+        summary: null,
+        assistantText: null,
+        createdAt: new Date(),
+      },
+    ];
+    const prompt = await buildSystemPrompt(prior);
+    expect(prompt).toContain("# Other tables already explored in this conversation");
+    expect(prompt).toContain("# tasks");
+  });
+
+  it("with a prior turn that queried only pre-baked tables, omits the explored section (no duplication)", async () => {
     const prior: PriorTurn[] = [
       {
         question: "Show me districts in Texas",
@@ -47,8 +69,9 @@ describe("buildSystemPrompt", () => {
       },
     ];
     const prompt = await buildSystemPrompt(prior);
-    expect(prompt).toContain("# Tables already explored in this conversation");
-    expect(prompt).toContain("# districts");
+    expect(prompt).not.toContain("# Other tables already explored in this conversation");
+    // districts compact schema still appears (in pre-baked section), exactly once
+    expect(prompt.match(/^## districts —/gm)?.length).toBe(1);
   });
 
   it("states the default-revenue rule (subscription fold-in)", async () => {
@@ -83,22 +106,22 @@ describe("buildSystemPrompt", () => {
     const prior: PriorTurn[] = [
       {
         question: "Q1",
-        sql: "SELECT * FROM districts d JOIN unknown_made_up_table u ON u.id = d.leaid",
+        sql: "SELECT * FROM tasks t JOIN unknown_made_up_table u ON u.id = t.id",
         summary: null,
         assistantText: null,
         createdAt: new Date(),
       },
       {
         question: "Q2",
-        sql: "SELECT * FROM districts WHERE state_abbrev = 'CA'",
+        sql: "SELECT * FROM tasks WHERE owner_id = 'abc'",
         summary: null,
         assistantText: null,
         createdAt: new Date(),
       },
     ];
     const prompt = await buildSystemPrompt(prior);
-    // districts schema appears exactly once
-    expect(prompt.match(/^# districts$/gm)?.length).toBe(1);
+    // tasks full schema (from describe_table) appears exactly once in the explored section
+    expect(prompt.match(/^# tasks$/gm)?.length).toBe(1);
     expect(prompt).not.toContain("unknown_made_up_table");
   });
 });
