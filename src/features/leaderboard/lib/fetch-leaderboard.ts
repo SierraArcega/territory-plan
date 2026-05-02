@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { getRepActuals } from "@/lib/opportunity-actuals";
+import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 import { getUnmatchedCountsByRep } from "@/lib/unmatched-counts";
 import type { LeaderboardEntry } from "@/features/leaderboard/lib/types";
 
@@ -47,40 +47,32 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
 
   const uniqueYears = [...new Set([priorSchoolYr, defaultSchoolYr, nextFYSchoolYr])];
 
-  const repActuals = await Promise.all(
-    profiles.map(async (profile) => {
-      const email = profile.email;
-      try {
-        const yearActuals = new Map<string, Awaited<ReturnType<typeof getRepActuals>>>();
-        await Promise.all(
-          uniqueYears.map(async (yr) => {
-            const actuals = await getRepActuals(email, yr);
-            yearActuals.set(yr, actuals);
-          }),
-        );
-        return {
-          userId: profile.id,
-          pipeline: yearActuals.get(defaultSchoolYr)?.openPipeline ?? 0,
-          pipelineCurrentFY: yearActuals.get(defaultSchoolYr)?.openPipeline ?? 0,
-          pipelineNextFY: yearActuals.get(nextFYSchoolYr)?.openPipeline ?? 0,
-          take: yearActuals.get(defaultSchoolYr)?.totalTake ?? 0,
-          revenue: yearActuals.get(defaultSchoolYr)?.totalRevenue ?? 0,
-          revenueCurrentFY: yearActuals.get(defaultSchoolYr)?.totalRevenue ?? 0,
-          revenuePriorFY: yearActuals.get(priorSchoolYr)?.totalRevenue ?? 0,
-          priorYearRevenue: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
-          minPurchasesCurrentFY: yearActuals.get(defaultSchoolYr)?.minPurchaseBookings ?? 0,
-          minPurchasesPriorFY: yearActuals.get(priorSchoolYr)?.minPurchaseBookings ?? 0,
-        };
-      } catch {
-        return {
-          userId: profile.id,
-          take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0,
-          revenue: 0, revenueCurrentFY: 0, revenuePriorFY: 0,
-          priorYearRevenue: 0, minPurchasesCurrentFY: 0, minPurchasesPriorFY: 0,
-        };
-      }
-    }),
-  );
+  // Single batched fetch — replaces a 30-rep × 3-year × 2-query fan-out
+  // (180 concurrent connections) that overran the pgbouncer pool and made
+  // a different subset of reps appear at $0 on every page load. If this
+  // throws, the route handler returns 500 instead of silently zeroing reps.
+  const emails = profiles.map((p) => p.email);
+  const yearActualsByEmail = await getRepActualsBatch(emails, uniqueYears);
+
+  const repActuals = profiles.map((profile) => {
+    const yearActuals = yearActualsByEmail.get(profile.email);
+    const cur = yearActuals?.get(defaultSchoolYr);
+    const prior = yearActuals?.get(priorSchoolYr);
+    const next = yearActuals?.get(nextFYSchoolYr);
+    return {
+      userId: profile.id,
+      pipeline: cur?.openPipeline ?? 0,
+      pipelineCurrentFY: cur?.openPipeline ?? 0,
+      pipelineNextFY: next?.openPipeline ?? 0,
+      take: cur?.totalTake ?? 0,
+      revenue: cur?.totalRevenue ?? 0,
+      revenueCurrentFY: cur?.totalRevenue ?? 0,
+      revenuePriorFY: prior?.totalRevenue ?? 0,
+      priorYearRevenue: prior?.minPurchaseBookings ?? 0,
+      minPurchasesCurrentFY: cur?.minPurchaseBookings ?? 0,
+      minPurchasesPriorFY: prior?.minPurchaseBookings ?? 0,
+    };
+  });
 
   const adminUserIds = new Set(profiles.filter((p) => p.role === "admin").map((p) => p.id));
   const rosterProfiles = profiles.filter((p) => !adminUserIds.has(p.id));

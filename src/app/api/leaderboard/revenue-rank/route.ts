@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
-import { getRepActuals } from "@/lib/opportunity-actuals";
+import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -30,16 +30,16 @@ export async function GET(request: Request) {
     select: { id: true, email: true },
   });
 
-  const withRevenue = await Promise.all(
-    profiles.map(async (p) => {
-      try {
-        const actuals = await getRepActuals(p.email, schoolYear);
-        return { id: p.id, revenue: actuals?.totalRevenue ?? 0, bookings: actuals?.bookings ?? 0 };
-      } catch {
-        return { id: p.id, revenue: 0, bookings: 0 };
-      }
-    }),
-  );
+  // Single batched fetch — see comment in fetch-leaderboard.ts. Letting
+  // errors propagate to the surrounding 500 is the right move; the
+  // previous per-rep silent catch zeroed callers under pool pressure.
+  const emails = profiles.map((p) => p.email);
+  const actualsByEmail = await getRepActualsBatch(emails, [schoolYear]);
+
+  const withRevenue = profiles.map((p) => {
+    const a = actualsByEmail.get(p.email)?.get(schoolYear);
+    return { id: p.id, revenue: a?.totalRevenue ?? 0, bookings: a?.bookings ?? 0 };
+  });
 
   withRevenue.sort((a, b) => b.revenue - a.revenue);
 

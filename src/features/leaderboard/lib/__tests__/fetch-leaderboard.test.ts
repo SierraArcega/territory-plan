@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@/lib/opportunity-actuals", () => ({
-  getRepActuals: vi.fn(),
+  getRepActualsBatch: vi.fn(),
 }));
 
 vi.mock("@/lib/unmatched-counts", () => ({
@@ -18,7 +18,7 @@ vi.mock("@/lib/unmatched-counts", () => ({
 
 import { fetchLeaderboardData } from "../fetch-leaderboard";
 import prisma from "@/lib/prisma";
-import { getRepActuals } from "@/lib/opportunity-actuals";
+import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 import { getUnmatchedCountsByRep } from "@/lib/unmatched-counts";
 
 const mockGetUnmatchedCountsByRep = vi.mocked(getUnmatchedCountsByRep);
@@ -26,7 +26,26 @@ const mockGetUnmatchedCountsByRep = vi.mocked(getUnmatchedCountsByRep);
 const mockUserProfile = vi.mocked(prisma.userProfile.findMany);
 const mockTerritoryPlanDistrict = vi.mocked(prisma.territoryPlanDistrict.findMany);
 const mockQueryRaw = vi.mocked(prisma.$queryRaw);
-const mockGetRepActuals = vi.mocked(getRepActuals);
+const mockGetRepActualsBatch = vi.mocked(getRepActualsBatch);
+
+const ZERO_ACTUALS = {
+  totalRevenue: 0, totalTake: 0, completedTake: 0, scheduledTake: 0,
+  weightedPipeline: 0, openPipeline: 0, bookings: 0,
+  minPurchaseBookings: 0, invoiced: 0,
+};
+
+/** Build the Map<email, Map<schoolYr, RepActuals>> shape getRepActualsBatch returns. */
+function batchOf(byEmail: Record<string, Record<string, Partial<typeof ZERO_ACTUALS>>>) {
+  const outer = new Map();
+  for (const [email, byYear] of Object.entries(byEmail)) {
+    const inner = new Map();
+    for (const [yr, partial] of Object.entries(byYear)) {
+      inner.set(yr, { ...ZERO_ACTUALS, ...partial });
+    }
+    outer.set(email, inner);
+  }
+  return outer;
+}
 
 describe("fetchLeaderboardData", () => {
   beforeEach(() => {
@@ -34,6 +53,7 @@ describe("fetchLeaderboardData", () => {
     mockTerritoryPlanDistrict.mockResolvedValue([]);
     mockQueryRaw.mockResolvedValue([]);
     mockGetUnmatchedCountsByRep.mockResolvedValue(new Map());
+    mockGetRepActualsBatch.mockResolvedValue(new Map());
   });
 
   it("sources roster from UserProfile (rep + manager), excludes admin", async () => {
@@ -42,9 +62,6 @@ describe("fetchLeaderboardData", () => {
       { id: "u2", fullName: "Bob Manager", avatarUrl: null, email: "bob@x.com", role: "manager" },
       { id: "u3", fullName: "Carol Admin", avatarUrl: null, email: "carol@x.com", role: "admin" },
     ] as never);
-    mockGetRepActuals.mockResolvedValue({
-      openPipeline: 0, totalTake: 0, totalRevenue: 0, minPurchaseBookings: 0,
-    } as never);
 
     const payload = await fetchLeaderboardData();
 
@@ -60,9 +77,11 @@ describe("fetchLeaderboardData", () => {
     mockUserProfile.mockResolvedValue([
       { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockResolvedValue({
-      openPipeline: 100, totalTake: 200, totalRevenue: 300, minPurchaseBookings: 50,
-    } as never);
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "alice@x.com": {
+        "2025-26": { openPipeline: 100, totalTake: 200, totalRevenue: 300, minPurchaseBookings: 50 },
+      },
+    }));
 
     const payload = await fetchLeaderboardData();
     const entry = payload.entries[0];
@@ -79,10 +98,10 @@ describe("fetchLeaderboardData", () => {
       { id: "low", fullName: "Low", avatarUrl: null, email: "l@x.com", role: "rep" },
       { id: "high", fullName: "High", avatarUrl: null, email: "h@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockImplementation(async (email: string) => {
-      const rev = email === "h@x.com" ? 5000 : 1000;
-      return { openPipeline: 0, totalTake: 0, totalRevenue: rev, minPurchaseBookings: 0 } as never;
-    });
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "h@x.com": { "2025-26": { totalRevenue: 5000 } },
+      "l@x.com": { "2025-26": { totalRevenue: 1000 } },
+    }));
 
     const payload = await fetchLeaderboardData();
 
@@ -110,12 +129,10 @@ describe("fetchLeaderboardData", () => {
       { id: "rep1", fullName: "Rep", avatarUrl: null, email: "r@x.com", role: "rep" },
       { id: "admin1", fullName: "Admin", avatarUrl: null, email: "a@x.com", role: "admin" },
     ] as never);
-    mockGetRepActuals.mockImplementation(async (email: string) => {
-      if (email === "a@x.com") {
-        return { openPipeline: 0, totalTake: 0, totalRevenue: 999, minPurchaseBookings: 0 } as never;
-      }
-      return { openPipeline: 0, totalTake: 0, totalRevenue: 100, minPurchaseBookings: 0 } as never;
-    });
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "r@x.com": { "2025-26": { totalRevenue: 100 } },
+      "a@x.com": { "2025-26": { totalRevenue: 999 } },
+    }));
 
     const payload = await fetchLeaderboardData();
 
@@ -130,9 +147,6 @@ describe("fetchLeaderboardData", () => {
       { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
       { id: "u2", fullName: "Bob", avatarUrl: null, email: "bob@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockResolvedValue({
-      openPipeline: 0, totalTake: 0, totalRevenue: 0, minPurchaseBookings: 0,
-    } as never);
     mockGetUnmatchedCountsByRep.mockResolvedValue(new Map([
       ["alice@x.com", { count: 3, revenue: 12500 }],
     ]));
@@ -145,5 +159,17 @@ describe("fetchLeaderboardData", () => {
     expect(alice.unmatchedRevenue).toBe(12500);
     expect(bob.unmatchedOppCount).toBe(0); // not in the map → defaults
     expect(bob.unmatchedRevenue).toBe(0);
+  });
+
+  it("propagates errors from the actuals batch instead of silently zeroing reps", async () => {
+    // Regression: the previous per-rep try/catch swallowed pool-pressure
+    // timeouts and showed reps at $0 on the leaderboard. With one batched
+    // query, the only correct response to a fetch error is to surface it.
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActualsBatch.mockRejectedValue(new Error("connection pool exhausted"));
+
+    await expect(fetchLeaderboardData()).rejects.toThrow("connection pool exhausted");
   });
 });
