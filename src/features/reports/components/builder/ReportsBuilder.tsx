@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { QuerySummary } from "../../lib/agent/types";
-import { useChatTurn } from "../../hooks/useChatTurn";
+import type { QuerySummary, TurnEvent } from "../../lib/agent/types";
+import { useChatTurnStream } from "../../hooks/useChatTurnStream";
 import { useRunSavedReport } from "../../hooks/useSavedReports";
 import {
   useCreateSavedReport,
@@ -63,7 +63,7 @@ export function ReportsBuilder({
   // "From saved report · refined".
   const fromSavedReportRef = useRef(false);
 
-  const chatTurn = useChatTurn();
+  const chatTurn = useChatTurnStream();
   const runSaved = useRunSavedReport();
   const createReport = useCreateSavedReport();
   const updateReportSql = useUpdateReportSql();
@@ -129,6 +129,7 @@ export function ReportsBuilder({
     (message: string) => {
       // Optimistically add an in-flight turn. Replaced on completion.
       const optimisticId = `turn-pending-${Date.now()}`;
+      const startedAt = Date.now();
       setTurns((prev) => [
         ...prev,
         {
@@ -138,15 +139,33 @@ export function ReportsBuilder({
           version: null,
           inFlight: true,
           error: null,
+          events: [],
         },
       ]);
 
-      chatTurn.mutate(
+      chatTurn.submit(
         { message, conversationId },
         {
-          onSuccess: (data) => {
+          onEvent: (event: TurnEvent) => {
+            // Append to the in-flight turn's events array. We mutate via map
+            // so React sees a fresh reference and the LiveTrace re-renders
+            // each tick.
+            setTurns((prev) =>
+              prev.map((t) =>
+                t.id === optimisticId
+                  ? { ...t, events: [...(t.events ?? []), event] }
+                  : t,
+              ),
+            );
+          },
+          onComplete: (data) => {
             setConversationId(data.conversationId);
+            const durationMs = Date.now() - startedAt;
             setTurns((prev) => {
+              // Pull the in-flight turn out and replace with the completed
+              // one — preserve the events array for the collapsed-toggle
+              // render on the assistant card.
+              const inFlightTurn = prev.find((t) => t.id === optimisticId);
               const filtered = prev.filter((t) => t.id !== optimisticId);
               const versionN = filtered.filter((t) => t.version != null).length + 1;
               const version: BuilderVersion | null = data.result
@@ -168,6 +187,8 @@ export function ReportsBuilder({
                 version,
                 inFlight: false,
                 error: null,
+                events: inFlightTurn?.events ?? [],
+                durationMs,
               };
               if (version) onSelectVersion(version.n);
               return [...filtered, next];
@@ -176,7 +197,9 @@ export function ReportsBuilder({
           onError: (err) => {
             setTurns((prev) =>
               prev.map((t) =>
-                t.id === optimisticId ? { ...t, inFlight: false, error: err.message } : t,
+                t.id === optimisticId
+                  ? { ...t, inFlight: false, error: err.message }
+                  : t,
               ),
             );
           },

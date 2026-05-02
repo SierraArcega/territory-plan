@@ -1,4 +1,4 @@
-import type { QuerySummary } from "../../lib/agent/types";
+import type { QuerySummary, TurnEvent } from "../../lib/agent/types";
 
 /**
  * One completed result inside a builder session — produced by a successful
@@ -29,4 +29,13 @@ export interface BuilderTurn {
   version: BuilderVersion | null;
   inFlight: boolean;
   error: string | null;
+  /**
+   * Streaming agent events captured during the turn. Populated incrementally
+   * while `inFlight` is true (one event per `turn_event` SSE message), and
+   * preserved on the completed turn so the LiveTrace toggle can render the
+   * full step list when expanded.
+   */
+  events?: TurnEvent[];
+  /** Wall-clock duration once completed — used in the `N steps · X.Xs` label. */
+  durationMs?: number;
 }

@@ -51,6 +51,14 @@ interface RunAgentLoopArgs {
   priorTurns: PriorTurn[];
   userId: string;
   conversationId?: string;
+  /**
+   * Optional streaming callback. Invoked once per `TurnEvent` as the loop
+   * produces it, in the same order they appear in the final
+   * `result.events` array. Streaming callers (the SSE chat route) use this
+   * to push events to the client in real time. Non-streaming callers can
+   * ignore it — the synchronous return shape is unchanged.
+   */
+  onEvent?: (event: TurnEvent) => void;
 }
 
 // Set AGENT_LOOP_DIAG=1 in the deployment env to capture full system-prompt +
@@ -98,7 +106,7 @@ function containsSqlFence(text: string): boolean {
 }
 
 export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult> {
-  const { anthropic, userMessage, priorTurns, userId, conversationId } = args;
+  const { anthropic, userMessage, priorTurns, userId, conversationId, onEvent } = args;
 
   // Replay prior turns as tool_use/tool_result pairs (not Markdown SQL blocks)
   // so the model sees structured execution it can't mimic in plain-text replies.
@@ -147,6 +155,14 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
   let assistantText = "";
   let iteration = 0;
   const events: TurnEvent[] = [];
+  // Push helper that also forwards to the streaming callback. Keeps the
+  // collected `events` array and the SSE stream in lockstep — same payload,
+  // same order — so the non-streaming return value matches what the client
+  // already saw.
+  const pushEvent = (e: TurnEvent): void => {
+    events.push(e);
+    onEvent?.(e);
+  };
   let totalUsage: TokenUsage = { ...ZERO_USAGE };
   const messages: Anthropic.MessageParam[] = [...history];
   const iterations: IterationDiag[] = [];
@@ -215,7 +231,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
 
-    events.push({
+    pushEvent({
       kind: "model_call",
       iteration,
       stopReason: (response as { stop_reason?: string | null }).stop_reason ?? null,
@@ -244,7 +260,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           "`run_sql`. Call `run_sql` now with the query you just described.";
         messages.push({ role: "assistant", content: response.content });
         messages.push({ role: "user", content: corrective });
-        events.push({
+        pushEvent({
           kind: "tool_result",
           toolUseId: "ghost-report-retry",
           toolName: "ghost_report_retry",
@@ -284,7 +300,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       runSqlResult = await handleRunSql(input.sql, input.summary, userMessage);
 
       if (runSqlResult.kind === "ok") {
-        events.push({
+        pushEvent({
           kind: "tool_result",
           toolUseId: runSqlUse.id,
           toolName: runSqlUse.name,
@@ -322,7 +338,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       });
 
       if (sqlRetriesUsed >= MAX_SQL_RETRIES) {
-        events.push({
+        pushEvent({
           kind: "tool_result",
           toolUseId: runSqlUse.id,
           toolName: runSqlUse.name,
@@ -361,7 +377,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           content: errorText,
           is_error: true,
         });
-        events.push({
+        pushEvent({
           kind: "tool_result",
           toolUseId: tu.id,
           toolName: tu.name,
@@ -389,7 +405,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
         tool_use_id: tu.id,
         content: toolResult,
       });
-      events.push({
+      pushEvent({
         kind: "tool_result",
         toolUseId: tu.id,
         toolName: tu.name,

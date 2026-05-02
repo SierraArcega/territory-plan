@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, ChevronRight, Database, Eye } from "lucide-react";
+import { Check, Database, Eye } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { LiveTrace } from "./LiveTrace";
 import { VersionPill } from "./VersionPill";
 import type { BuilderTurn } from "./types";
 
@@ -57,7 +58,7 @@ export function TurnBlock({ turn, selected, onSelect }: Props) {
 
       {/* Assistant card / in-flight placeholder / error */}
       {turn.inFlight ? (
-        <InFlightCard pendingN={v?.n} />
+        <InFlightCard turn={turn} />
       ) : turn.error ? (
         <ErrorCard message={turn.error} />
       ) : (
@@ -77,6 +78,10 @@ function AssistantCard({
   onSelect: (n: number) => void;
 }) {
   const v = turn.version;
+  // Filter to only tool_result events for the "have any trace?" decision —
+  // model_call-only events without any tool calls aren't worth a toggle.
+  const hasTrace =
+    !!turn.events && turn.events.some((e) => e.kind === "tool_result");
   return (
     <div
       className="rounded-xl px-3 py-2.5 text-[13px] leading-relaxed text-[#403770]"
@@ -87,6 +92,15 @@ function AssistantCard({
         boxShadow: selected ? "0 1px 2px rgba(64,55,112,0.05)" : "none",
       }}
     >
+      {hasTrace && (
+        <div className="mb-1.5">
+          <LiveTrace
+            events={turn.events ?? []}
+            completed
+            totalMs={turn.durationMs}
+          />
+        </div>
+      )}
       {turn.assistantText && <RenderMarkdown text={turn.assistantText} />}
       {v && (
         <div className="mt-2 flex items-center gap-2 border-t border-dashed border-[#E2DEEC] pt-2">
@@ -128,29 +142,42 @@ function AssistantCard({
   );
 }
 
-function InFlightCard({ pendingN }: { pendingN?: number }) {
-  // Slice 7 swaps the placeholder for a streaming live-trace; for now we show
-  // a quiet "Working…" card so the UI shape is right end-to-end.
+function InFlightCard({ turn }: { turn: BuilderTurn }) {
+  // Streaming live trace — Style B (Terminal). The pendingVersionN is the
+  // version this in-flight turn WILL produce when it lands. We don't know
+  // the index yet at submit time, so the parent passes it via turn.version
+  // (which stays null until the result event arrives — fall back to "next
+  // version" semantics by leaving it unset and letting LiveTrace render
+  // "Working" without the v{n} suffix until we have one).
+  const events = turn.events ?? [];
+  const hasAnyEvent = events.length > 0;
   return (
     <div
       className="rounded-xl border border-dashed border-[#C2BBD4] bg-[#FFFCFA] px-3 py-2.5 text-[12.5px] text-[#544A78]"
       style={{ maxWidth: "94%" }}
     >
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-block h-1.5 w-1.5 rounded-full bg-[#F37167]"
-          style={{
-            boxShadow: "0 0 0 3px rgba(243,113,103,0.2)",
-            animation: "fm-pulse 1.4s ease-in-out infinite",
-          }}
-        />
-        <span className="text-[11px] font-semibold">
-          Working{pendingN != null ? ` on v${pendingN}` : "…"}
-        </span>
-      </div>
-      <div className="mt-1.5 text-[11.5px] text-[#8A80A8]">
-        Searching schema and writing the query — usually 2–5 seconds.
-      </div>
+      {hasAnyEvent ? (
+        <LiveTrace events={events} completed={false} pendingVersionN={turn.version?.n} />
+      ) : (
+        // Pre-first-event placeholder: stream hasn't produced anything yet
+        // (typically <500ms after submit). Same brand decoration so the
+        // transition into the trace is calm.
+        <>
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block h-1.5 w-1.5 rounded-full bg-[#F37167]"
+              style={{
+                boxShadow: "0 0 0 3px rgba(243,113,103,0.2)",
+                animation: "fm-pulse 1.4s ease-in-out infinite",
+              }}
+            />
+            <span className="text-[11px] font-semibold">Working…</span>
+          </div>
+          <div className="mt-1.5 text-[11.5px] text-[#8A80A8]">
+            Searching schema and writing the query — usually 2–5 seconds.
+          </div>
+        </>
+      )}
     </div>
   );
 }
