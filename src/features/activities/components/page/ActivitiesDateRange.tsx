@@ -4,13 +4,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useActivitiesChrome, type Grain } from "@/features/activities/lib/filters-store";
 
-const GRAINS: { id: Grain; label: string }[] = [
-  { id: "day", label: "Day" },
-  { id: "week", label: "Week" },
-  { id: "month", label: "Month" },
-  { id: "quarter", label: "Quarter" },
-];
-
 function shiftAnchor(iso: string, grain: Grain, dir: 1 | -1): string {
   const d = new Date(iso);
   switch (grain) {
@@ -51,61 +44,49 @@ function labelFor(iso: string, grain: Grain): string {
   }
 }
 
+/**
+ * One bordered pill: [Today] | [<] [label] [>]. Grain is set implicitly by
+ * the upper-right ViewToggle (Schedule/Week/Month/Quarter/Map), so this row
+ * just owns navigation, not aggregation.
+ */
 export default function ActivitiesDateRange() {
   const grain = useActivitiesChrome((s) => s.grain);
   const anchorIso = useActivitiesChrome((s) => s.anchorIso);
-  const setGrain = useActivitiesChrome((s) => s.setGrain);
   const setAnchor = useActivitiesChrome((s) => s.setAnchor);
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="inline-flex items-center gap-0.5 p-0.5 bg-[#F7F5FA] border border-[#E2DEEC] rounded-lg">
-        {GRAINS.map(({ id, label }) => {
-          const active = grain === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setGrain(id)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                active
-                  ? "bg-white text-[#403770] shadow-sm"
-                  : "text-[#8A80A8] hover:text-[#403770]"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+    <div className="inline-flex items-center gap-0 p-[3px] rounded-[10px] bg-white border border-[#D4CFE2]">
+      <button
+        type="button"
+        onClick={() => setAnchor(new Date().toISOString())}
+        className="px-2.5 py-1 text-[11px] font-bold tracking-[0.06em] uppercase rounded-[7px] text-[#403770] hover:bg-[#EFEDF5]"
+      >
+        Today
+      </button>
+
+      <span aria-hidden="true" className="w-px h-5 bg-[#E2DEEC]" />
+
+      <button
+        type="button"
+        aria-label="Previous"
+        onClick={() => setAnchor(shiftAnchor(anchorIso, grain, -1))}
+        className="w-7 h-7 rounded-md inline-flex items-center justify-center text-[#544A78] hover:bg-[#EFEDF5]"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      <div className="min-w-[200px] max-w-[320px] px-2.5 text-sm font-bold text-[#403770] text-center tabular-nums truncate">
+        {labelFor(anchorIso, grain)}
       </div>
 
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          aria-label="Previous"
-          onClick={() => setAnchor(shiftAnchor(anchorIso, grain, -1))}
-          className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#F7F5FA] text-[#6E6390]"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setAnchor(new Date().toISOString())}
-          className="px-2 py-1 text-xs font-medium text-[#403770] hover:bg-[#F7F5FA] rounded-md"
-        >
-          Today
-        </button>
-        <button
-          type="button"
-          aria-label="Next"
-          onClick={() => setAnchor(shiftAnchor(anchorIso, grain, 1))}
-          className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#F7F5FA] text-[#6E6390]"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="text-sm font-semibold text-[#403770]">{labelFor(anchorIso, grain)}</div>
+      <button
+        type="button"
+        aria-label="Next"
+        onClick={() => setAnchor(shiftAnchor(anchorIso, grain, 1))}
+        className="w-7 h-7 rounded-md inline-flex items-center justify-center text-[#544A78] hover:bg-[#EFEDF5]"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
     </div>
   );
 }

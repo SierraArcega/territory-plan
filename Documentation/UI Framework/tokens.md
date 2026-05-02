@@ -231,6 +231,53 @@ All animations are defined in `globals.css`. Standard timing:
 
 ---
 
+## Narrow-Width Resilience
+
+Chrome must stay legible when squeezed — sidebars open, right rails open, smaller laptops, 100% zoom. Apply these rules whenever you build a flex/grid that contains text. Without one of them, flexbox quietly wraps text inside the offending child and produces classic baseline-collision bugs (e.g. "Closed   $141K / lost" stacking onto two lines).
+
+### 1. Plan a wrap behavior — don't leave it ambiguous
+
+Every flex/grid container with growable content (header strips, pill rows, summary tiles, day-card grids) needs an explicit overflow plan. Pick one:
+
+| Goal | Apply |
+|------|-------|
+| Single-row chrome that should never wrap (deal-summary strips, ribbons) | `whitespace-nowrap` on every text node + parent gets `min-w-0 overflow-x-auto` and children get `flex-shrink-0` |
+| Toolbar/header that should drop to a new row when narrow (page headers with title + controls) | `flex flex-wrap` on parent + `gap-y-3` so the wrapped row has breathing room |
+| Tile that should keep all content visible at any width (calendar day cells, KPI cards) | Stack content vertically (`flex flex-col items-center`) — never use `justify-between` between two text blocks under ~120px wide |
+
+### 2. Keep label + number + amount on one visual line
+
+Inside a fixed-size pill, stat tile, or chip:
+
+- **Every text span** (count, label, amount) gets `whitespace-nowrap`. Yes, all of them.
+- **Avoid `justify-between`** between two competing text spans in cells under ~120px wide — the smaller tier loses the width fight and wraps to a second line, with the larger tier baseline-aligned to the wrong line.
+- **Hyphens are line-break points.** `past-due close` wraps at the hyphen with one space of pressure. Reword (`Past due`) or use `whitespace-nowrap`.
+
+### 3. Compact cells: prefer icon + number over text labels
+
+When a cell, pill, or chip is narrower than ~80px, labels like `5 items` / `5 deals` won't fit. Use a Lucide icon + `tabular-nums` count, with the full text in `aria-label`:
+
+```tsx
+<div className="inline-flex items-center gap-1 text-[#544A78]"
+     aria-label={`${itemCount} items`}>
+  <CalendarCheck2 className="w-2.5 h-2.5" aria-hidden /> {itemCount}
+</div>
+```
+
+Reserve text labels for cells ≥ 120px wide.
+
+### 4. Sanity test before merging
+
+For any new chrome component, mentally check at three widths:
+
+1. **Wide** (everything has room) — should look balanced.
+2. **Medium** (sidebar + right rail open, ~700px content area) — labels still on one line, no clipping.
+3. **Narrow** (everything squeezed, ~480px) — content either wraps to a new row or scrolls horizontally; never silently overflows or word-by-word stacks.
+
+If case 3 fails, add `flex-wrap` on the parent or `overflow-x-auto` + `whitespace-nowrap` on the children before merging.
+
+---
+
 ## File Reference
 
 | What | Where |

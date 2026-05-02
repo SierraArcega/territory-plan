@@ -1,11 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, waitFor, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import {
   EMPTY_FILTERS,
   applyClientFilters,
   deriveActivitiesParams,
   getRangeForChrome,
+  useActivitiesChrome,
+  useDefaultOwnerHydration,
 } from "../filters-store";
 import { getCategoryForType } from "@/features/activities/types";
+
+// useDefaultOwnerHydration depends on useProfile() — mock the shared queries
+// module to avoid hitting the network in jsdom.
+vi.mock("@/features/shared/lib/queries", () => ({
+  useProfile: vi.fn(),
+}));
+
+import { useProfile } from "@/features/shared/lib/queries";
+const mockedUseProfile = useProfile as unknown as ReturnType<typeof vi.fn>;
 
 describe("filters-store", () => {
   describe("getRangeForChrome", () => {
@@ -97,4 +111,98 @@ describe("filters-store", () => {
       expect(out).toEqual([rows[1]]);
     });
   });
+
+  describe("useDefaultOwnerHydration", () => {
+    function wrapper() {
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, gcTime: 0 },
+        },
+      });
+      return ({ children }: { children: React.ReactNode }) =>
+        React.createElement(
+          QueryClientProvider,
+          { client },
+          children as React.ReactElement
+        );
+    }
+
+    beforeEach(() => {
+      // Reset zustand store to a clean state between tests so persisted state
+      // from a prior case doesn't leak (jsdom localStorage is shared).
+      act(() => {
+        useActivitiesChrome.getState().resetFilters();
+      });
+      mockedUseProfile.mockReset();
+    });
+
+    afterEach(() => {
+      act(() => {
+        useActivitiesChrome.getState().resetFilters();
+      });
+    });
+
+    it("seeds owners with the current user's id once profile loads", async () => {
+      mockedUseProfile.mockReturnValue({
+        data: { id: "u_alex", email: "alex@x.com" },
+      } as never);
+
+      renderHook(() => useDefaultOwnerHydration(), { wrapper: wrapper() });
+
+      await waitFor(() => {
+        expect(useActivitiesChrome.getState().filters.owners).toEqual(["u_alex"]);
+      });
+    });
+
+    it("does not run before profile resolves", () => {
+      mockedUseProfile.mockReturnValue({ data: undefined } as never);
+
+      renderHook(() => useDefaultOwnerHydration(), { wrapper: wrapper() });
+
+      expect(useActivitiesChrome.getState().filters.owners).toEqual([]);
+    });
+
+    it("does not overwrite a user-chosen owner selection", async () => {
+      // Simulate the user (or a saved-view click) having already chosen owners.
+      act(() => {
+        useActivitiesChrome.getState().patchFilters({ owners: ["u_priya"] });
+      });
+      mockedUseProfile.mockReturnValue({
+        data: { id: "u_alex", email: "alex@x.com" },
+      } as never);
+
+      renderHook(() => useDefaultOwnerHydration(), { wrapper: wrapper() });
+
+      await waitFor(() => {
+        // give the effect a chance to fire
+        expect(mockedUseProfile).toHaveBeenCalled();
+      });
+      expect(useActivitiesChrome.getState().filters.owners).toEqual(["u_priya"]);
+    });
+
+    it("only fires once per mount even if profile re-renders", async () => {
+      mockedUseProfile.mockReturnValue({
+        data: { id: "u_alex", email: "alex@x.com" },
+      } as never);
+
+      const { rerender } = renderHook(() => useDefaultOwnerHydration(), {
+        wrapper: wrapper(),
+      });
+
+      await waitFor(() => {
+        expect(useActivitiesChrome.getState().filters.owners).toEqual(["u_alex"]);
+      });
+
+      // User clears the filter manually after seeding…
+      act(() => {
+        useActivitiesChrome.getState().patchFilters({ owners: [] });
+      });
+      // …and the hook re-runs (e.g. because profile data refreshed).
+      rerender();
+
+      // The ref guard prevents re-seeding.
+      expect(useActivitiesChrome.getState().filters.owners).toEqual([]);
+    });
+  });
+
 });

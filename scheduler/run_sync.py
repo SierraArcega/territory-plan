@@ -8,6 +8,7 @@ from sync.opensearch_client import get_client
 from sync.queries import (
     fetch_opportunities,
     fetch_opportunities_by_ids,
+    fetch_opportunities_for_school_yrs,  # NEW
     fetch_changed_sessions,
     fetch_sessions,
     fetch_district_mappings,
@@ -141,6 +142,7 @@ def run_sync():
         # Phase 4: Compute metrics and build records
         matched_records = []
         unmatched_records = []
+        healed_count = 0
 
         for h in opp_hits:
             opp = h["_source"]
@@ -149,14 +151,25 @@ def run_sync():
                 opp, opp_sessions, district_mapping, now=now
             )
 
-            # Manual resolutions from unmatched_opportunities heal the mapping
-            if record["district_lea_id"] is None and opp["id"] in manual_resolutions:
-                record["district_lea_id"] = manual_resolutions[opp["id"]]
+            # Manual resolutions are authoritative — they override whatever
+            # the sync derived (NULL or a different leaid). Without this, an
+            # upstream change that suddenly returns a leaid for a previously
+            # unmatched opp would silently revert the rep's curated mapping.
+            # opp["id"] arrives from OpenSearch as int for numeric IDs; dict
+            # keys come from a Postgres text column and are str — coerce so
+            # the lookup matches.
+            opp_id_str = str(opp["id"])
+            if opp_id_str in manual_resolutions:
+                record["district_lea_id"] = manual_resolutions[opp_id_str]
                 unmatched = None
+                healed_count += 1
 
             matched_records.append(record)
             if unmatched is not None:
                 unmatched_records.append(unmatched)
+
+        if healed_count:
+            logger.info(f"Healed {healed_count} opps via manual resolutions")
 
         # Phase 5: Write to Supabase
         upsert_opportunities(conn, matched_records)
@@ -199,6 +212,133 @@ def run_sync():
 
         logger.info(
             f"=== Sync complete: {len(matched_records)} opps, "
+            f"{total_sessions} sessions, "
+            f"{len(unmatched_records)} unmatched ==="
+        )
+        return {
+            "status": "success",
+            "opps_synced": len(matched_records),
+            "sessions_stored": total_sessions,
+            "unmatched_count": len(unmatched_records),
+            "error": None,
+        }
+    finally:
+        conn.close()
+
+
+def _derive_current_and_prior_school_yrs(now: datetime) -> list[str]:
+    """e.g. now=2026-04-30 -> ['2024-25', '2025-26']. now=2025-09-01 -> ['2024-25', '2025-26']."""
+    if now.month >= 7:
+        current_start = now.year
+    else:
+        current_start = now.year - 1
+    current = f"{current_start}-{str(current_start + 1)[-2:]}"
+    prior_start = current_start - 1
+    prior = f"{prior_start}-{str(prior_start + 1)[-2:]}"
+    return [prior, current]
+
+
+def run_current_fy_backfill():
+    """Daily backfill: re-fetch all opps in current FY + prior FY unconditionally.
+
+    Bypasses incremental's `since` filter to catch sessions that landed in
+    OpenSearch without advancing `lastIndexedAt`. Reuses the same downstream
+    pipeline as run_sync() — district resolution, manual-resolution merge,
+    upsert, view refresh — but does NOT touch the last_synced_at watermark
+    (so the next hourly incremental still picks up everything since the
+    previous hourly run).
+
+    Spec: Docs/superpowers/specs/2026-04-30-leaderboard-fy-attribution-fix-design.md
+    """
+    now = datetime.now(timezone.utc)
+    school_yrs = _derive_current_and_prior_school_yrs(now)
+    logger.info(f"=== Starting current-FY backfill at {now.isoformat()} for {school_yrs} ===")
+
+    conn = get_connection()
+    os_client = get_client()
+    opp_hits = fetch_opportunities_for_school_yrs(os_client, school_yrs)
+    if not opp_hits:
+        logger.info("No opportunities returned, skipping backfill")
+        conn.close()
+        return {"status": "success", "opps_synced": 0, "sessions_stored": 0,
+                "unmatched_count": None, "error": None}
+
+    opp_ids = [h["_source"]["id"] for h in opp_hits]
+    session_hits = fetch_sessions(os_client, opp_ids)
+
+    sessions_by_opp = defaultdict(list)
+    for sh in session_hits:
+        src = sh["_source"]
+        src["_id"] = sh["_id"]
+        sessions_by_opp[src["opportunityId"]].append(src)
+
+    account_ids = set()
+    for h in opp_hits:
+        for acc in (h["_source"].get("accounts") or []):
+            if acc.get("id"):
+                account_ids.add(acc["id"])
+    district_mapping = fetch_district_mappings(os_client, list(account_ids))
+
+    try:
+        manual_resolutions = _load_manual_resolutions(conn)
+        matched_records = []
+        unmatched_records = []
+        healed_count = 0
+        for h in opp_hits:
+            opp = h["_source"]
+            opp_sessions = sessions_by_opp.get(opp["id"], [])
+            record, unmatched = _build_record_and_classify(
+                opp, opp_sessions, district_mapping, now=now
+            )
+            opp_id_str = str(opp["id"])
+            if record["district_lea_id"] is None and opp_id_str in manual_resolutions:
+                record["district_lea_id"] = manual_resolutions[opp_id_str]
+                unmatched = None
+                healed_count += 1
+            matched_records.append(record)
+            if unmatched is not None:
+                unmatched_records.append(unmatched)
+
+        if healed_count:
+            logger.info(f"Healed {healed_count} opps via manual resolutions")
+
+        upsert_opportunities(conn, matched_records)
+        if unmatched_records:
+            upsert_unmatched(conn, unmatched_records)
+
+        session_records_by_opp = {}
+        for opp_id, opp_sessions in sessions_by_opp.items():
+            session_records_by_opp[opp_id] = [
+                {
+                    "id": s["_id"],
+                    "opportunity_id": s["opportunityId"],
+                    "service_type": s.get("serviceType"),
+                    "session_price": _to_decimal(s.get("sessionPrice")),
+                    "educator_price": _to_decimal(s.get("educatorPrice")),
+                    "educator_approved_price": _to_decimal(s.get("educatorApprovedPrice")),
+                    "start_time": s.get("startTime"),
+                    "type": s.get("type"),
+                    "status": s.get("status"),
+                    "service_name": s.get("serviceName"),
+                    "synced_at": now,
+                }
+                for s in opp_sessions
+            ]
+        total_sessions = sum(len(v) for v in session_records_by_opp.values())
+        upsert_sessions(conn, session_records_by_opp)
+
+        newly_matched_ids = [
+            r["id"] for r in matched_records if r.get("district_lea_id") is not None
+        ]
+        remove_matched_from_unmatched(conn, newly_matched_ids)
+
+        update_district_pipeline_aggregates(conn)
+        refresh_map_features(conn)
+        refresh_fullmind_financials(conn)
+        refresh_opportunity_actuals(conn)
+
+        logger.info(
+            f"=== Backfill complete: {len(matched_records)} opps, "
             f"{total_sessions} sessions, "
             f"{len(unmatched_records)} unmatched ==="
         )

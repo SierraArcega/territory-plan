@@ -1,20 +1,60 @@
-import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DistrictExploreModal from "../DistrictExploreModal";
+import * as libApi from "@/lib/api";
 
+const mockOnNavigateToPlan = vi.fn();
+
+vi.mock("@/features/map/lib/store", () => ({
+  useMapV2Store: Object.assign(
+    vi.fn((selector: (s: any) => any) =>
+      selector({ exploreModalVacancyId: null })
+    ),
+    { getState: () => ({ exploreModalVacancyId: null }) }
+  ),
+}));
+
+// All tests in this file render against a fully-loaded district + plan (not a loading skeleton)
 vi.mock("@/features/districts/lib/queries", () => ({
-  useDistrictDetail: () => ({ data: null, isLoading: true }),
+  useDistrictDetail: () => ({
+    data: {
+      leaid: "1234567",
+      name: "Test District",
+      territoryPlanIds: ["plan-1"],
+      state: "LA",
+      pipeline: {},
+      activities: [],
+    },
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/lib/api", () => ({
-  useTerritoryPlans: () => ({ data: [] }),
+  useTerritoryPlans: vi.fn(),
   useAddDistrictsToPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@/features/activities/lib/queries", () => ({
   useActivities: () => ({ data: null }),
 }));
+
+beforeEach(() => {
+  vi.mocked(libApi.useTerritoryPlans).mockReturnValue({
+    data: [
+      {
+        id: "plan-1",
+        name: "Kleist Renewal",
+        color: "#7C3AED",
+        status: "working",
+        owner: { id: "user-1", fullName: "Sierra Arcega", avatarUrl: null },
+        description: null,
+        fiscalYear: 2026,
+      },
+    ],
+  } as any);
+  mockOnNavigateToPlan.mockReset();
+});
 
 function renderWithClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -46,5 +86,47 @@ describe("DistrictExploreModal — responsive sizing", () => {
     // Verify the 70vh height class is present
     const modalPanel = container.querySelector(".max-h-\\[745px\\]");
     expect(modalPanel?.className).toContain("h-[70vh]");
+  });
+});
+
+describe("DistrictExploreModal — plan membership owner", () => {
+  it("shows plan owner name after a dot separator when owner exists", () => {
+    const { container } = renderWithClient(
+      <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
+    );
+    expect(container.textContent).toContain("· Sierra Arcega");
+  });
+
+  it("does not render a dot separator when owner is null", () => {
+    vi.mocked(libApi.useTerritoryPlans).mockReturnValueOnce({
+      data: [
+        {
+          id: "plan-1",
+          name: "Kleist Renewal",
+          color: "#7C3AED",
+          status: "working",
+          owner: null,
+          description: null,
+          fiscalYear: 2026,
+        },
+      ],
+    } as any);
+    const { container } = renderWithClient(
+      <DistrictExploreModal leaid="1234567" onClose={vi.fn()} />
+    );
+    expect(container.textContent).not.toContain("·");
+  });
+});
+
+describe("DistrictExploreModal — plan membership navigation", () => {
+  it("calls onNavigateToPlan with the plan id when a plan row is clicked", () => {
+    const { container } = renderWithClient(
+      <DistrictExploreModal leaid="1234567" onClose={vi.fn()} onNavigateToPlan={mockOnNavigateToPlan} />
+    );
+    const planButton = container.querySelector("button[data-plan-id='plan-1']");
+    expect(planButton).not.toBeNull();
+    fireEvent.click(planButton!);
+    expect(mockOnNavigateToPlan).toHaveBeenCalledTimes(1);
+    expect(mockOnNavigateToPlan).toHaveBeenCalledWith("plan-1");
   });
 });

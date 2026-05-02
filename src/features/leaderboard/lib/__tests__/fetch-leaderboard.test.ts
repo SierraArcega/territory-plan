@@ -12,9 +12,16 @@ vi.mock("@/lib/opportunity-actuals", () => ({
   getRepActuals: vi.fn(),
 }));
 
+vi.mock("@/lib/unmatched-counts", () => ({
+  getUnmatchedCountsByRep: vi.fn(),
+}));
+
 import { fetchLeaderboardData } from "../fetch-leaderboard";
 import prisma from "@/lib/prisma";
 import { getRepActuals } from "@/lib/opportunity-actuals";
+import { getUnmatchedCountsByRep } from "@/lib/unmatched-counts";
+
+const mockGetUnmatchedCountsByRep = vi.mocked(getUnmatchedCountsByRep);
 
 const mockUserProfile = vi.mocked(prisma.userProfile.findMany);
 const mockTerritoryPlanDistrict = vi.mocked(prisma.territoryPlanDistrict.findMany);
@@ -26,6 +33,7 @@ describe("fetchLeaderboardData", () => {
     vi.resetAllMocks();
     mockTerritoryPlanDistrict.mockResolvedValue([]);
     mockQueryRaw.mockResolvedValue([]);
+    mockGetUnmatchedCountsByRep.mockResolvedValue(new Map());
   });
 
   it("sources roster from UserProfile (rep + manager), excludes admin", async () => {
@@ -115,5 +123,27 @@ describe("fetchLeaderboardData", () => {
     expect(payload.entries[0].userId).toBe("rep1");
     expect(payload.teamTotals.revenueCurrentFY).toBe(1099);
     expect(payload.teamTotals.unassignedRevenueCurrentFY).toBe(999);
+  });
+
+  it("populates unmatchedOppCount and unmatchedRevenue from getUnmatchedCountsByRep", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+      { id: "u2", fullName: "Bob", avatarUrl: null, email: "bob@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActuals.mockResolvedValue({
+      openPipeline: 0, totalTake: 0, totalRevenue: 0, minPurchaseBookings: 0,
+    } as never);
+    mockGetUnmatchedCountsByRep.mockResolvedValue(new Map([
+      ["alice@x.com", { count: 3, revenue: 12500 }],
+    ]));
+
+    const payload = await fetchLeaderboardData();
+
+    const alice = payload.entries.find((e) => e.userId === "u1")!;
+    const bob = payload.entries.find((e) => e.userId === "u2")!;
+    expect(alice.unmatchedOppCount).toBe(3);
+    expect(alice.unmatchedRevenue).toBe(12500);
+    expect(bob.unmatchedOppCount).toBe(0); // not in the map → defaults
+    expect(bob.unmatchedRevenue).toBe(0);
   });
 });

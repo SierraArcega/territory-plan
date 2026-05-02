@@ -9,6 +9,11 @@ import type { ChatRequest } from "@/features/reports/lib/agent/types";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+// Sentinel for query_log.error when the agent surrendered without a recoverable
+// SQL error (e.g. exploration cap, agent declined to attempt SQL). Distinguishes
+// real failures from the agent giving up so dashboards can quantify both.
+const SURRENDER_NO_SQL_SENTINEL = "agent_surrender_no_sql_error";
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const user = await getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,6 +37,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     userMessage: body.message,
     priorTurns,
     userId: user.id,
+    conversationId,
   });
 
   // Persist the turn for history and observability. Never let a logging failure
@@ -58,7 +64,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         assistantText: result.text,
         events: result.events,
         usage: result.usage,
-        error: result.text,
+        // clarifying turns are not errors — leave error null. Surrenders use a
+        // stable sentinel so dashboards can distinguish "agent gave up" from
+        // real SQL execution failures, without storing the agent's natural-
+        // language reply in query_log.error.
+        error:
+          result.kind === "surrender" ? SURRENDER_NO_SQL_SENTINEL : undefined,
       });
     }
   } catch (err) {

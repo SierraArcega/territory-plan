@@ -151,68 +151,99 @@ export interface RepActuals {
 
 /**
  * Get rep-scoped aggregated actuals across all districts for a school year.
- * Used by the goals dashboard.
+ * Used by the goals dashboard and leaderboard.
+ *
+ * totalRevenue = session_revenue (bucketed by session_fy(start_time)) +
+ *                sub_revenue (subscriptions only, bucketed by opp.school_yr).
+ * All other fields come from district_opportunity_actuals (opp.school_yr semantics).
+ *
+ * See spec: Docs/superpowers/specs/2026-04-30-leaderboard-fy-attribution-fix-design.md
  */
 export async function getRepActuals(
   salesRepEmail: string,
   schoolYr: string
 ): Promise<RepActuals> {
-  const rows = await safeQueryRaw(
-    prisma.$queryRaw<
-      {
-        total_revenue: number;
-        total_take: number;
-        completed_take: number;
-        scheduled_take: number;
-        weighted_pipeline: number;
-        open_pipeline: number;
-        bookings: number;
-        min_purchase_bookings: number;
-        invoiced: number;
-      }[]
-    >`
-      SELECT
-        COALESCE(SUM(total_revenue), 0) AS total_revenue,
-        COALESCE(SUM(total_take), 0) AS total_take,
-        COALESCE(SUM(completed_take), 0) AS completed_take,
-        COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
-        COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
-        COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
-        COALESCE(SUM(bookings), 0) AS bookings,
-        COALESCE(SUM(min_purchase_bookings), 0) AS min_purchase_bookings,
-        COALESCE(SUM(invoiced), 0) AS invoiced
-      FROM district_opportunity_actuals
-      WHERE sales_rep_email = ${salesRepEmail}
-        AND school_yr = ${schoolYr}
-    `,
-    []
-  );
+  // Sessions are bucketed by session.start_time → session_fy() → school_yr.
+  // Subscriptions, pipeline, take, bookings, min purchases continue to be
+  // bucketed by opp.school_yr per the existing semantics. The two streams
+  // share the same `school_yr` arg name but are sourced differently.
+  const [sessionRows, subAndOtherRows] = await Promise.all([
+    safeQueryRaw(
+      prisma.$queryRaw<{ session_revenue: number }[]>`
+        SELECT COALESCE(SUM(session_revenue), 0) AS session_revenue
+        FROM rep_session_actuals
+        WHERE sales_rep_email = ${salesRepEmail}
+          AND school_yr = ${schoolYr}
+      `,
+      [{ session_revenue: 0 }]
+    ),
+    safeQueryRaw(
+      prisma.$queryRaw<
+        {
+          sub_revenue: number;
+          total_take: number;
+          completed_take: number;
+          scheduled_take: number;
+          weighted_pipeline: number;
+          open_pipeline: number;
+          bookings: number;
+          min_purchase_bookings: number;
+          invoiced: number;
+        }[]
+      >`
+        SELECT
+          COALESCE(SUM(sub_revenue), 0) AS sub_revenue,
+          COALESCE(SUM(total_take), 0) AS total_take,
+          COALESCE(SUM(completed_take), 0) AS completed_take,
+          COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
+          COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
+          COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
+          COALESCE(SUM(bookings), 0) AS bookings,
+          COALESCE(SUM(min_purchase_bookings), 0) AS min_purchase_bookings,
+          COALESCE(SUM(invoiced), 0) AS invoiced
+        FROM district_opportunity_actuals
+        WHERE sales_rep_email = ${salesRepEmail}
+          AND school_yr = ${schoolYr}
+      `,
+      [
+        {
+          sub_revenue: 0,
+          total_take: 0,
+          completed_take: 0,
+          scheduled_take: 0,
+          weighted_pipeline: 0,
+          open_pipeline: 0,
+          bookings: 0,
+          min_purchase_bookings: 0,
+          invoiced: 0,
+        },
+      ]
+    ),
+  ]);
 
-  if (rows.length === 0) {
-    return {
-      totalRevenue: 0,
-      totalTake: 0,
-      completedTake: 0,
-      scheduledTake: 0,
-      weightedPipeline: 0,
-      openPipeline: 0,
-      bookings: 0,
-      minPurchaseBookings: 0,
-      invoiced: 0,
-    };
-  }
+  const sessionRevenue = Number(sessionRows[0]?.session_revenue ?? 0);
+  const r = subAndOtherRows[0] ?? {
+    sub_revenue: 0,
+    total_take: 0,
+    completed_take: 0,
+    scheduled_take: 0,
+    weighted_pipeline: 0,
+    open_pipeline: 0,
+    bookings: 0,
+    min_purchase_bookings: 0,
+    invoiced: 0,
+  };
 
-  const row = rows[0];
   return {
-    totalRevenue: Number(row.total_revenue),
-    totalTake: Number(row.total_take),
-    completedTake: Number(row.completed_take),
-    scheduledTake: Number(row.scheduled_take),
-    weightedPipeline: Number(row.weighted_pipeline),
-    openPipeline: Number(row.open_pipeline),
-    bookings: Number(row.bookings),
-    minPurchaseBookings: Number(row.min_purchase_bookings),
-    invoiced: Number(row.invoiced),
+    totalRevenue: sessionRevenue + Number(r.sub_revenue),
+    totalTake: Number(r.total_take),
+    completedTake: Number(r.completed_take),
+    scheduledTake: Number(r.scheduled_take),
+    weightedPipeline: Number(r.weighted_pipeline),
+    openPipeline: Number(r.open_pipeline),
+    bookings: Number(r.bookings),
+    minPurchaseBookings: Number(r.min_purchase_bookings),
+    invoiced: Number(r.invoiced),
   };
 }
 

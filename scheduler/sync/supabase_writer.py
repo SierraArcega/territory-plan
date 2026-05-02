@@ -40,14 +40,33 @@ def get_connection():
 
 
 def upsert_opportunities(conn, records):
-    """Upsert opportunity records into the opportunities table."""
+    """Upsert opportunity records into the opportunities table.
+
+    `district_lea_id` is COALESCE'd to preserve a previously-set value when
+    the natural resolver returns NULL on a sync. The natural resolver fails
+    when OpenSearch returns malformed ncesId data (missing leading zeros,
+    trailing whitespace, school-level NCES IDs, M-prefixed sentinels). When
+    that happened, the previous behavior was to blindly overwrite the
+    column with NULL, silently dropping a previously-correct mapping and
+    surfacing the opp as "unmatched." We don't want a transient resolver
+    failure to clobber a known-good value — admin-driven corrections can
+    still write through `unmatched_opportunities.resolved_district_leaid`
+    via the heal step in run_sync.
+    """
     if not records:
         return
 
     cols = OPPORTUNITY_COLUMNS
     placeholders = ", ".join(["%s"] * len(cols))
     update_cols = [c for c in cols if c != "id"]
-    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in update_cols)
+    # Special-case district_lea_id: only overwrite when EXCLUDED brings a
+    # non-NULL value. Other columns clobber as before.
+    update_set = ", ".join(
+        "district_lea_id = COALESCE(EXCLUDED.district_lea_id, opportunities.district_lea_id)"
+        if c == "district_lea_id"
+        else f"{c} = EXCLUDED.{c}"
+        for c in update_cols
+    )
 
     sql = f"""
         INSERT INTO opportunities ({", ".join(cols)})
@@ -140,16 +159,20 @@ def upsert_unmatched(conn, records):
 
 
 def remove_matched_from_unmatched(conn, matched_ids):
-    """Delete unmatched_opportunities rows for opps that now have a district match.
+    """Delete UNRESOLVED unmatched_opportunities rows for opps that now have
+    a district match (sync caught up).
 
-    Removes both unresolved (stale from earlier sync) and resolved (manual
-    resolution already applied) records since they no longer need attention.
+    Resolved rows must persist so manual resolutions keep being re-applied on
+    every sync cycle by run_sync._load_manual_resolutions. Deleting them here
+    would drop the override the moment it took effect, and the next cycle that
+    produced a NULL or different leaid would silently revert the rep's work.
     """
     if not matched_ids:
         return
     with conn.cursor() as cur:
         cur.execute(
-            "DELETE FROM unmatched_opportunities WHERE id = ANY(%s::text[])",
+            "DELETE FROM unmatched_opportunities "
+            "WHERE id = ANY(%s::text[]) AND resolved = false",
             ([str(mid) for mid in matched_ids],),
         )
         deleted = cur.rowcount
@@ -247,12 +270,26 @@ def refresh_fullmind_financials(conn):
 
 
 def refresh_opportunity_actuals(conn):
-    """Refresh district_opportunity_actuals materialized view."""
+    """Refresh leaderboard-feeding materialized views.
+
+    Both district_opportunity_actuals and rep_session_actuals are read by
+    getRepActuals on every leaderboard load. Without REFRESH the leaderboard
+    sees pre-sync data; if rep_session_actuals were left as a plain view it
+    would re-aggregate ~170k sessions on every page load (1.7s × 90 calls
+    per leaderboard fetch — many would time out and the rep-level catch in
+    fetch-leaderboard.ts would silently return $0 for those reps).
+    """
     logger.info("Refreshing district_opportunity_actuals...")
     with conn.cursor() as cur:
         cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY district_opportunity_actuals")
     conn.commit()
     logger.info("Refreshed district_opportunity_actuals")
+
+    logger.info("Refreshing rep_session_actuals...")
+    with conn.cursor() as cur:
+        cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY rep_session_actuals")
+    conn.commit()
+    logger.info("Refreshed rep_session_actuals")
 
 
 def get_last_synced_at(conn):

@@ -41,6 +41,7 @@ describe("buildSystemPrompt", () => {
         question: "Show me districts in Texas",
         sql: "SELECT name FROM districts WHERE state_abbrev = 'TX' LIMIT 100",
         summary: null,
+        assistantText: null,
         createdAt: new Date(),
       },
     ];
@@ -55,12 +56,14 @@ describe("buildSystemPrompt", () => {
         question: "Q1",
         sql: "SELECT * FROM districts d JOIN unknown_made_up_table u ON u.id = d.leaid",
         summary: null,
+        assistantText: null,
         createdAt: new Date(),
       },
       {
         question: "Q2",
         sql: "SELECT * FROM districts WHERE state_abbrev = 'CA'",
         summary: null,
+        assistantText: null,
         createdAt: new Date(),
       },
     ];

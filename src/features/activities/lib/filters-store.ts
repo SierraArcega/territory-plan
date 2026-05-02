@@ -1,16 +1,16 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { ActivitiesParams } from "@/features/shared/types/api-types";
 import type { ActivityCategory, ActivityType } from "@/features/activities/types";
+import { useProfile } from "@/features/shared/lib/queries";
 
 export type CalendarView = "schedule" | "month" | "week" | "map";
 export type Grain = "day" | "week" | "month" | "quarter";
-export type FilterVariant = "rail" | "bar" | "chips";
-export type DealDisplay = "overlay" | "objects" | "both";
 export type SyncState = "connected" | "stale" | "disconnected";
-export type DealKind = "won" | "lost" | "created" | "progressed";
+export type DealKind = "won" | "lost" | "created" | "progressed" | "closing";
 
 export interface ActivitiesFilters {
   categories: ActivityCategory[];
@@ -20,7 +20,10 @@ export interface ActivitiesFilters {
   dealMin: number;
   dealMax: number | null;
   statuses: string[];
-  owners: string[]; // user IDs; empty = team scope
+  owners: string[]; // user IDs (created by); empty = team scope
+  attendeeIds: string[]; // user IDs of attendees
+  districts: string[]; // district leaids
+  inPerson: ("yes" | "no")[]; // empty = no filter; ["yes"] / ["no"] / both
   states: string[]; // state codes
   territories: string[]; // plan IDs
   tags: string[];
@@ -36,6 +39,9 @@ export const EMPTY_FILTERS: ActivitiesFilters = {
   dealMax: null,
   statuses: [],
   owners: [],
+  attendeeIds: [],
+  districts: [],
+  inPerson: [],
   states: [],
   territories: [],
   tags: [],
@@ -46,20 +52,16 @@ interface ChromeState {
   view: CalendarView;
   grain: Grain;
   anchorIso: string; // ISO date string for the current period anchor
-  filterVariant: FilterVariant;
   savedViewId: string | null;
   railCollapsed: boolean;
-  dealDisplay: DealDisplay;
   syncState: SyncState;
   filters: ActivitiesFilters;
   // Setters
   setView: (v: CalendarView) => void;
   setGrain: (g: Grain) => void;
   setAnchor: (iso: string) => void;
-  setFilterVariant: (v: FilterVariant) => void;
   setSavedViewId: (id: string | null) => void;
   setRailCollapsed: (collapsed: boolean) => void;
-  setDealDisplay: (d: DealDisplay) => void;
   setSyncState: (s: SyncState) => void;
   setFilters: (next: ActivitiesFilters | ((prev: ActivitiesFilters) => ActivitiesFilters)) => void;
   patchFilters: (patch: Partial<ActivitiesFilters>) => void;
@@ -72,20 +74,16 @@ export const useActivitiesChrome = create<ChromeState>()(
       view: "schedule",
       grain: "week",
       anchorIso: new Date().toISOString(),
-      filterVariant: "rail",
       savedViewId: null,
       railCollapsed: false,
-      dealDisplay: "overlay",
       syncState: "disconnected",
       filters: EMPTY_FILTERS,
 
       setView: (view) => set({ view }),
       setGrain: (grain) => set({ grain }),
       setAnchor: (anchorIso) => set({ anchorIso }),
-      setFilterVariant: (filterVariant) => set({ filterVariant }),
       setSavedViewId: (savedViewId) => set({ savedViewId }),
       setRailCollapsed: (railCollapsed) => set({ railCollapsed }),
-      setDealDisplay: (dealDisplay) => set({ dealDisplay }),
       setSyncState: (syncState) => set({ syncState }),
       setFilters: (next) =>
         set((s) => ({
@@ -101,14 +99,43 @@ export const useActivitiesChrome = create<ChromeState>()(
       partialize: (s) => ({
         view: s.view,
         grain: s.grain,
-        filterVariant: s.filterVariant,
         savedViewId: s.savedViewId,
         railCollapsed: s.railCollapsed,
-        dealDisplay: s.dealDisplay,
       }),
     }
   )
 );
+
+// ===== Default-owner hydration =====
+
+/**
+ * Seeds `filters.owners` with the current user's ID once per page mount so the
+ * default scope is "My activities". Only fires when:
+ *   - profile has loaded
+ *   - filters.owners is currently empty (untouched by user/preset)
+ *
+ * The ref guard ensures we never overwrite a user's manual selection on
+ * subsequent renders or after they Reset and re-pick. Per CLAUDE.md UX rule:
+ * "default owner to current user" + "ref guard to set the default once".
+ */
+export function useDefaultOwnerHydration() {
+  const profileId = useProfile().data?.id ?? null;
+  const patchFilters = useActivitiesChrome((s) => s.patchFilters);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    if (hydrated.current) return;
+    if (!profileId) return;
+    // Read current state synchronously so we don't fight a user who has
+    // already touched the filter (e.g. via a saved-view click) before
+    // profile resolves.
+    const current = useActivitiesChrome.getState().filters.owners;
+    if (current.length === 0) {
+      patchFilters({ owners: [profileId] });
+    }
+    hydrated.current = true;
+  }, [profileId, patchFilters]);
+}
 
 // ===== Param derivation =====
 
@@ -178,6 +205,14 @@ export function deriveActivitiesParams(args: {
   if (args.filters.owners.length === 1) params.ownerId = args.filters.owners[0];
   if (args.filters.owners.length === 0) params.ownerId = "all";
   if (args.filters.text.trim()) params.search = args.filters.text.trim();
+
+  // Multi-value filters that the API now accepts directly. We send the full
+  // list so the server-side `where` does the work and the client doesn't have
+  // to re-filter post-fetch.
+  if (args.filters.owners.length > 1) params.owner = args.filters.owners;
+  if (args.filters.attendeeIds.length > 0) params.attendeeIds = args.filters.attendeeIds;
+  if (args.filters.districts.length > 0) params.districtLeaids = args.filters.districts;
+  if (args.filters.inPerson.length > 0) params.inPerson = args.filters.inPerson;
 
   return params;
 }

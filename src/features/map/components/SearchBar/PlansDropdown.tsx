@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { useMapV2Store } from "@/features/map/lib/store";
 import { useTerritoryPlans } from "@/features/plans/lib/queries";
+import { useProfile } from "@/features/shared/lib/queries";
 
 interface PlansDropdownProps {
   onClose: () => void;
@@ -27,8 +28,10 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
   const setLayerFilter = useMapV2Store((s) => s.setLayerFilter);
   const openResultsPanel = useMapV2Store((s) => s.openResultsPanel);
   const ref = useRef<HTMLDivElement>(null);
+  const defaultApplied = useRef(false);
 
   const { data: plans } = useTerritoryPlans();
+  const { data: profile } = useProfile();
 
   const [planSearch, setPlanSearch] = useState("");
   const [ownerSearch, setOwnerSearch] = useState("");
@@ -43,6 +46,16 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
+  // Set role-based default once on mount: reps see only their own plans, admins/managers see all
+  useEffect(() => {
+    if (!profile || defaultApplied.current || filters.ownerIds !== undefined) return;
+    defaultApplied.current = true;
+    if (profile.role === "rep") {
+      setLayerFilter("plans", { ownerIds: [profile.id] });
+    }
+    // admin/manager: ownerIds stays undefined → API returns all plans
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleStatus = useCallback((status: string) => {
     const current = filters.status ?? [];
     const next = current.includes(status)
@@ -53,10 +66,6 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
 
   const setFiscalYear = useCallback((fy: number | null) => {
     setLayerFilter("plans", { fiscalYear: fy });
-  }, [setLayerFilter]);
-
-  const setOwnerScope = useCallback((scope: "mine" | "all") => {
-    setLayerFilter("plans", { ownerScope: scope, ownerIds: null });
   }, [setLayerFilter]);
 
   const togglePlanId = useCallback((planId: string) => {
@@ -73,7 +82,7 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
     const next = current.includes(ownerId)
       ? current.filter((id) => id !== ownerId)
       : [...current, ownerId];
-    setLayerFilter("plans", { ownerIds: next.length ? next : null, ownerScope: "all" });
+    setLayerFilter("plans", { ownerIds: next.length ? next : null });
   }, [filters.ownerIds, setLayerFilter]);
 
   // Derive unique owners from plans data
@@ -91,6 +100,14 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
     }
     return [...seen.values()].sort((a, b) => a.fullName.localeCompare(b.fullName));
   }, [plans]);
+
+  const selectAllOwners = useCallback(() => {
+    setLayerFilter("plans", { ownerIds: owners.map((o) => o.id) });
+  }, [owners, setLayerFilter]);
+
+  const deselectAllOwners = useCallback(() => {
+    setLayerFilter("plans", { ownerIds: null });
+  }, [setLayerFilter]);
 
   // Filtered lists for search
   const filteredPlans = useMemo(() => {
@@ -197,31 +214,25 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
 
         {/* Owner */}
         <div>
-          <h4 className="text-[11px] font-semibold text-[#8A80A8] tracking-wider uppercase mb-2">Owner</h4>
-          <div className="flex items-center gap-1 mb-2">
-            <button
-              onClick={() => setOwnerScope("mine")}
-              className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                (filters.ownerScope ?? "mine") === "mine" && !selectedOwnerIds.length
-                  ? "bg-[#403770] text-white"
-                  : "bg-[#F0EDF5] text-[#544A78] hover:bg-[#E2DEEC]"
-              }`}
-            >
-              My Plans
-            </button>
-            <button
-              onClick={() => setOwnerScope("all")}
-              className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                filters.ownerScope === "all" && !selectedOwnerIds.length
-                  ? "bg-[#403770] text-white"
-                  : "bg-[#F0EDF5] text-[#544A78] hover:bg-[#E2DEEC]"
-              }`}
-            >
-              All Plans
-            </button>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-[11px] font-semibold text-[#8A80A8] tracking-wider uppercase">Owner</h4>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={selectAllOwners}
+                className="text-[10px] font-semibold text-[#7B6BA4] hover:text-[#403770] transition-colors"
+              >
+                Select All
+              </button>
+              <span className="text-[#D4CFE2] text-[10px]">·</span>
+              <button
+                onClick={deselectAllOwners}
+                className="text-[10px] font-semibold text-[#7B6BA4] hover:text-[#403770] transition-colors"
+              >
+                Deselect All
+              </button>
+            </div>
           </div>
 
-          {/* Specific owners */}
           <input
             type="text"
             value={ownerSearch}
@@ -254,7 +265,7 @@ export default function PlansDropdown({ onClose }: PlansDropdownProps) {
           </div>
           {selectedOwnerIds.length > 0 && (
             <button
-              onClick={() => setLayerFilter("plans", { ownerIds: null, ownerScope: "mine" })}
+              onClick={deselectAllOwners}
               className="mt-1 text-[10px] text-coral hover:text-coral/80 font-medium"
             >
               Clear {selectedOwnerIds.length} selected

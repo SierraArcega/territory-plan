@@ -49,6 +49,20 @@ interface RunAgentLoopArgs {
   userMessage: string;
   priorTurns: PriorTurn[];
   userId: string;
+  conversationId?: string;
+}
+
+// Set AGENT_LOOP_DIAG=1 in the deployment env to capture full system-prompt +
+// messages + per-iteration responses every time the loop returns a non-result
+// outcome (clarifying / surrender). Used to root-cause the rare bug where the
+// agent answers a normal data question with a fabricated "the database is
+// down" message and zero tool_use blocks. Disabled by default — output is
+// large and only useful when investigating live failures.
+const DIAG_ENABLED = process.env.AGENT_LOOP_DIAG === "1";
+
+interface IterationDiag {
+  stopReason: string | null;
+  blocks: Array<{ type: string; name?: string; id?: string }>;
 }
 
 function extractUsage(
@@ -71,7 +85,7 @@ function extractUsage(
 }
 
 export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult> {
-  const { anthropic, userMessage, priorTurns, userId } = args;
+  const { anthropic, userMessage, priorTurns, userId, conversationId } = args;
 
   const history: Anthropic.MessageParam[] = [];
   for (const t of priorTurns) {
@@ -95,6 +109,31 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
   const events: TurnEvent[] = [];
   let totalUsage: TokenUsage = { ...ZERO_USAGE };
   const messages: Anthropic.MessageParam[] = [...history];
+  const iterations: IterationDiag[] = [];
+
+  const logDiag = (
+    reason: "no_tools" | "sql_retries_exhausted" | "exploration_cap",
+    kind: AgentResult["kind"],
+    finalText: string,
+  ): void => {
+    if (!DIAG_ENABLED) return;
+    console.warn(
+      "[AGENT-DIAG] " +
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          conversationId: conversationId ?? null,
+          userId,
+          kind,
+          reason,
+          sqlRetriesUsed,
+          exploratoryCalls,
+          finalAssistantText: finalText,
+          iterations,
+          systemPrompt,
+          messagesSent: messages,
+        }),
+    );
+  };
 
   while (true) {
     iteration++;
@@ -109,6 +148,20 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
 
     const callUsage = extractUsage((response as { usage?: unknown }).usage);
     totalUsage = addUsage(totalUsage, callUsage);
+
+    if (DIAG_ENABLED) {
+      iterations.push({
+        stopReason: (response as { stop_reason?: string | null }).stop_reason ?? null,
+        blocks: response.content.map((b) => {
+          const entry: { type: string; name?: string; id?: string } = { type: b.type };
+          if (b.type === "tool_use") {
+            entry.name = b.name;
+            entry.id = b.id;
+          }
+          return entry;
+        }),
+      });
+    }
 
     const textBlocks = response.content.filter(
       (b): b is Anthropic.TextBlock => b.type === "text",
@@ -132,9 +185,11 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
     });
 
     if (toolUses.length === 0) {
+      const text = assistantText || "(no text)";
+      logDiag("no_tools", "clarifying", text);
       return {
         kind: "clarifying",
-        text: assistantText || "(no text)",
+        text,
         events,
         usage: totalUsage,
       };
@@ -197,11 +252,13 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
               ? `run_sql error: ${runSqlResult.message}`
               : `run_sql validation failed: ${runSqlResult.errors.join("; ")}`,
         });
+        const text =
+          assistantText ||
+          "I tried a few times but couldn't run that query. Could you tell me more about what you're looking for?";
+        logDiag("sql_retries_exhausted", "surrender", text);
         return {
           kind: "surrender",
-          text:
-            assistantText ||
-            "I tried a few times but couldn't run that query. Could you tell me more about what you're looking for?",
+          text,
           events,
           usage: totalUsage,
         };
@@ -236,10 +293,12 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
 
       exploratoryCalls++;
       if (exploratoryCalls > MAX_EXPLORATORY_CALLS_PER_TURN) {
+        const text =
+          "I'm having trouble narrowing this down. Could you give me more details about what you're looking for?";
+        logDiag("exploration_cap", "surrender", text);
         return {
           kind: "surrender",
-          text:
-            "I'm having trouble narrowing this down. Could you give me more details about what you're looking for?",
+          text,
           events,
           usage: totalUsage,
         };

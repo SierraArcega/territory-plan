@@ -9,6 +9,7 @@ os.environ["SUPABASE_DB_URL"] = "postgresql://test:test@localhost:5432/test"
 from sync.supabase_writer import (
     upsert_opportunities,
     upsert_unmatched,
+    remove_matched_from_unmatched,
     update_district_pipeline_aggregates,
     upsert_sessions,
     STAGE_WEIGHTS,
@@ -62,6 +63,29 @@ def test_upsert_opportunities_builds_correct_sql():
     assert "ON CONFLICT (id) DO UPDATE" in sql
 
 
+def test_upsert_opportunities_coalesces_district_lea_id():
+    """The natural resolver returns NULL when OpenSearch has malformed ncesId
+    data (missing leading zeros, trailing whitespace, school-level NCES IDs).
+    Pre-fix, the upsert blindly clobbered any previously-set district_lea_id
+    with NULL, surfacing the opp as 'unmatched' and silently dropping a
+    known-good mapping. The COALESCE keeps the prior value when the new one
+    is NULL; admin-driven corrections still flow through the heal step."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    upsert_opportunities(mock_conn, [{c: None for c in OPPORTUNITY_COLUMNS}])
+    sql = mock_cursor.execute.call_args[0][0]
+
+    # district_lea_id specifically must be preserved across NULL upserts.
+    assert "district_lea_id = COALESCE(EXCLUDED.district_lea_id, opportunities.district_lea_id)" in sql
+    # Other columns clobber as before.
+    assert "name = EXCLUDED.name" in sql
+    # Sanity: COALESCE pattern shouldn't accidentally apply to other columns.
+    assert sql.count("COALESCE(EXCLUDED") == 1
+
+
 def test_upsert_unmatched_preserves_resolutions():
     mock_conn = MagicMock()
     mock_cursor = MagicMock()
@@ -80,6 +104,28 @@ def test_upsert_unmatched_preserves_resolutions():
     sql = mock_cursor.execute.call_args[0][0]
     assert "ON CONFLICT (id) DO UPDATE" in sql
     assert "resolved = false" in sql.lower() or "resolved" in sql.lower()
+
+
+def test_remove_matched_from_unmatched_skips_resolved_rows():
+    """Resolved rows must persist so manual resolutions keep applying every
+    sync — only stale UNRESOLVED rows (sync caught up) get deleted."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 0
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    remove_matched_from_unmatched(mock_conn, ["opp1", "opp2"])
+
+    sql = mock_cursor.execute.call_args[0][0]
+    assert "DELETE FROM unmatched_opportunities" in sql
+    assert "resolved = false" in sql.lower()
+
+
+def test_remove_matched_from_unmatched_noop_on_empty():
+    mock_conn = MagicMock()
+    remove_matched_from_unmatched(mock_conn, [])
+    mock_conn.cursor.assert_not_called()
 
 
 def test_update_district_pipeline_aggregates():

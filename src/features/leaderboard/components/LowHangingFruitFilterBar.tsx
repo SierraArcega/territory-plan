@@ -4,18 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import type { IncreaseTargetCategory } from "../lib/types";
 import type { LHFFilters, RevenueBand } from "../lib/filters";
-import { DEFAULT_FILTERS } from "../lib/filters";
+import { DEFAULT_FILTERS, UNASSIGNED_REP } from "../lib/filters";
 
 interface Facets {
   categoryCounts: Record<IncreaseTargetCategory, number>;
   states: string[];
+  stateCounts: Record<string, number>;
   products: string[];
+  /** Distinct rep names from `lastClosedWon`, sorted, never including the
+   *  unassigned sentinel (the dropdown adds that as a fixed first row). */
+  reps: string[];
 }
 
 interface Props {
   filters: LHFFilters;
   facets: Facets;
   onChange: (next: LHFFilters) => void;
+  /** Right-aligned "Showing X of Y" readout. Hidden when omitted. */
+  showing?: { visible: number; total: number };
 }
 
 const CATEGORY_LABELS: Record<IncreaseTargetCategory, string> = {
@@ -130,9 +136,10 @@ function RadioOption({ checked, label, onChange }: { checked: boolean; label: st
   );
 }
 
-export default function LowHangingFruitFilterBar({ filters, facets, onChange }: Props) {
+export default function LowHangingFruitFilterBar({ filters, facets, onChange, showing }: Props) {
   const [stateQuery, setStateQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
+  const [repQuery, setRepQuery] = useState("");
 
   const toggleCategory = (c: IncreaseTargetCategory) => {
     const next = filters.categories.includes(c)
@@ -155,12 +162,19 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
     onChange({ ...filters, products: next });
   };
 
+  const toggleRep = (rep: string) => {
+    const next = filters.lastReps.includes(rep)
+      ? filters.lastReps.filter((x) => x !== rep)
+      : [...filters.lastReps, rep];
+    onChange({ ...filters, lastReps: next });
+  };
+
   const anyActive =
     filters.categories.length > 0 ||
     filters.states.length > 0 ||
     filters.products.length > 0 ||
     filters.revenueBand !== null ||
-    filters.lastRep !== "anyone" ||
+    filters.lastReps.length > 0 ||
     filters.hideWithFy27Target;
 
   const filteredStates = stateQuery
@@ -171,28 +185,38 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
     ? facets.products.filter((p) => p.toLowerCase().includes(productQuery.toLowerCase()))
     : facets.products;
 
+  const filteredReps = repQuery
+    ? facets.reps.filter((r) => r.toLowerCase().includes(repQuery.toLowerCase()))
+    : facets.reps;
+
   return (
     <div className="flex-shrink-0 flex flex-wrap items-center gap-2 px-6 py-3 border-b border-[#E2DEEC] bg-white">
       <span className="text-[10px] uppercase tracking-wider font-bold text-[#8A80A8] mr-1">
         Filters
       </span>
 
-      {/* Category */}
-      <Dropdown label="Category" activeCount={filters.categories.length} width={240}>
-        {() => (
-          <div className="py-1.5">
-            {(["missing_renewal", "fullmind_winback", "ek12_winback"] as IncreaseTargetCategory[]).map((c) => (
-              <CheckOption
-                key={c}
-                checked={filters.categories.includes(c)}
-                label={CATEGORY_LABELS[c]}
-                suffix={String(facets.categoryCounts[c] ?? 0)}
-                onChange={() => toggleCategory(c)}
-              />
-            ))}
-          </div>
-        )}
-      </Dropdown>
+      {/* Category chips — always-visible toggles with counts */}
+      {(["missing_renewal", "fullmind_winback", "ek12_winback"] as IncreaseTargetCategory[]).map((c) => {
+        const active = filters.categories.includes(c);
+        const count = facets.categoryCounts[c] ?? 0;
+        return (
+          <button
+            key={c}
+            type="button"
+            onClick={() => toggleCategory(c)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors whitespace-nowrap ${
+              active
+                ? "bg-[#EFEDF5] border-[#403770] text-[#403770]"
+                : "bg-white border-[#D4CFE2] text-[#6E6390] hover:border-[#C2BBD4]"
+            }`}
+          >
+            {CATEGORY_LABELS[c]}
+            <span className={`tabular-nums font-normal ${active ? "text-[#403770]" : "text-[#8A80A8]"}`}>
+              ({count})
+            </span>
+          </button>
+        );
+      })}
 
       {/* State */}
       <Dropdown label="State" activeCount={filters.states.length} width={260}>
@@ -216,6 +240,7 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
                     key={s}
                     checked={filters.states.includes(s)}
                     label={s}
+                    suffix={String(facets.stateCounts[s] ?? 0)}
                     onChange={() => toggleState(s)}
                   />
                 ))
@@ -283,27 +308,41 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
         )}
       </Dropdown>
 
-      {/* Last rep */}
-      <Dropdown label="Last Rep" activeCount={filters.lastRep !== "anyone" ? 1 : 0} width={220}>
-        {(close) => (
-          <div className="py-1.5">
-            <RadioOption
-              checked={filters.lastRep === "anyone"}
-              label="Anyone"
-              onChange={() => {
-                onChange({ ...filters, lastRep: "anyone" });
-                close();
-              }}
-            />
-            <RadioOption
-              checked={filters.lastRep === "open"}
-              label="Unassigned / no previous rep"
-              onChange={() => {
-                onChange({ ...filters, lastRep: "open" });
-                close();
-              }}
-            />
-          </div>
+      {/* Last rep — multi-select on actual rep names */}
+      <Dropdown label="Last Rep" activeCount={filters.lastReps.length} width={260}>
+        {() => (
+          <>
+            <div className="p-2 border-b border-[#E2DEEC]">
+              <input
+                type="text"
+                value={repQuery}
+                onChange={(e) => setRepQuery(e.target.value)}
+                placeholder="Search reps…"
+                className="w-full px-2 py-1 text-xs border border-[#C2BBD4] rounded text-[#403770]"
+              />
+            </div>
+            <div className="max-h-64 overflow-y-auto py-1.5">
+              <CheckOption
+                checked={filters.lastReps.includes(UNASSIGNED_REP)}
+                label="Unassigned / no previous rep"
+                onChange={() => toggleRep(UNASSIGNED_REP)}
+              />
+              {filteredReps.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-[#A69DC0]">
+                  {repQuery ? "No matches" : "No reps in this dataset"}
+                </div>
+              ) : (
+                filteredReps.map((rep) => (
+                  <CheckOption
+                    key={rep}
+                    checked={filters.lastReps.includes(rep)}
+                    label={rep}
+                    onChange={() => toggleRep(rep)}
+                  />
+                ))
+              )}
+            </div>
+          </>
         )}
       </Dropdown>
 
@@ -328,6 +367,16 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
           <X className="w-3 h-3" />
           Clear all
         </button>
+      )}
+
+      {showing && (
+        <div className="ml-auto text-xs text-[#8A80A8] whitespace-nowrap">
+          Showing{" "}
+          <strong className="text-[#403770] font-semibold tabular-nums">
+            {showing.visible}
+          </strong>{" "}
+          of <span className="tabular-nums">{showing.total}</span>
+        </div>
       )}
     </div>
   );

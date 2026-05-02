@@ -548,6 +548,7 @@ model TerritoryPlanDistrict {
   targetServices TerritoryPlanDistrictService[]
 
   @@id([planId, districtLeaid])
+  @@index([districtLeaid])
   @@map("territory_plan_districts")
 }
 
@@ -614,13 +615,33 @@ model Activity {
   mixmaxClickCount    Int?    @map("mixmax_click_count")
 
   // ===== Outcome Tracking =====
-  // Captures what resulted from the activity (set on completion)
-  outcome     String? @db.VarChar(500) // free-text outcome note
-  outcomeType String? @map("outcome_type") @db.VarChar(30) // positive_progress, neutral, negative, follow_up_needed, etc.
-  rating      Int? // 1-5 star rating for activity outcome
+  // Captures what resulted from the activity (set on completion).
+  // `outcome` (free text) and `outcomeType` (legacy 30-char value) are retained
+  // for backwards compatibility; the redesigned drawer reads/writes the four
+  // structured fields below plus `outcome_disposition` for the 4-way enum.
+  outcome            String?   @db.VarChar(500) // free-text outcome notes
+  outcomeType        String?   @map("outcome_type") @db.VarChar(30) // legacy positive_progress / neutral / etc.
+  rating             Int? // 1-5 star rating for activity outcome
+  sentiment          String?   @db.VarChar(10) // positive | neutral | negative
+  nextStep           String?   @map("next_step") @db.Text
+  followUpDate       DateTime? @map("follow_up_date")
+  dealImpact         String    @default("none") @map("deal_impact") @db.VarChar(20) // none | progressed | won | lost
+  outcomeDisposition String?   @map("outcome_disposition") @db.VarChar(20) // completed | no_show | rescheduled | cancelled
+
+  // ===== Location =====
+  // Address text + geocoded coordinates for the visit/event. Promoted out of
+  // metadata so we can filter/sort/report on them. inPerson is nullable so the
+  // UI toggle can start unset (rep hasn't decided yet).
+  address    String?  @db.Text
+  addressLat Float?   @map("address_lat")
+  addressLng Float?   @map("address_lng")
+  inPerson   Boolean? @map("in_person")
 
   // ===== Type-Specific Fields =====
-  // JSON blob for scalar fields that vary by event type (address, urls, timezone, time, etc.)
+  // JSON blob for scalar fields that vary by event type (urls, timezone, time, etc.)
+  // Address-related keys (address, addressLat, addressLng) are kept here as a
+  // safety-net duplicate of the columns above and may be cleaned up in a future
+  // migration once all readers move to the columns.
   metadata Json? @map("metadata")
 
   // Relations (all many-to-many via junction tables)
@@ -642,6 +663,7 @@ model Activity {
   @@index([type])
   @@index([startDate])
   @@index([type, startDate])
+  @@index([followUpDate])
   @@map("activities")
 }
 
@@ -707,14 +729,20 @@ model ActivityState {
 }
 
 model ActivityExpense {
-  id          String   @id @default(uuid())
-  activityId  String   @map("activity_id")
-  description String   @db.VarChar(255)
-  amount      Decimal  @db.Decimal(10, 2)
-  createdAt   DateTime @default(now()) @map("created_at")
-  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  activityId         String       @map("activity_id")
+  description        String       @db.VarChar(255)
+  amount             Decimal      @db.Decimal(10, 2)
+  category           String       @default("other") @db.VarChar(20) // travel | meals | lodging | swag | other
+  incurredOn         DateTime     @map("incurred_on")
+  receiptStoragePath String?      @map("receipt_storage_path") @db.VarChar(500)
+  createdById        String?      @map("created_by_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at")
+  activity           Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  createdBy          UserProfile? @relation("ActivityExpenseCreator", fields: [createdById], references: [id])
 
   @@index([activityId])
+  @@index([category])
   @@map("activity_expenses")
 }
 
@@ -873,6 +901,8 @@ model UserProfile {
   activityNotes       ActivityNote[]              @relation("ActivityNoteAuthor")
   // Files / photos uploaded to activity drawers
   activityAttachments ActivityAttachment[]        @relation("ActivityAttachmentUploader")
+  // Expenses entered on activities by this user
+  activityExpenses    ActivityExpense[]           @relation("ActivityExpenseCreator")
   // Tasks assigned to this user (not necessarily created by them)
   assignedTasks       Task[]                      @relation("TaskAssignee")
   // OAuth service integrations (Gmail, Google Calendar, Slack, Mixmax)

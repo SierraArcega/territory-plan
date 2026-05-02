@@ -5,49 +5,38 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import {
-  useCalendarConnection,
-  useTriggerCalendarSync,
-} from "@/lib/api";
+import { useTriggerCalendarSync } from "@/lib/api";
+import { useCalendarSyncState } from "@/features/calendar/lib/useCalendarSyncState";
+
+const DOT_CLASS = {
+  connected: "bg-[#69B34A]",
+  stale: "bg-[#FFCF70]",
+  disconnected: "bg-[#F37167]",
+} as const;
 
 export default function CalendarSyncBadge() {
-  const { data: connectionData } = useCalendarConnection();
+  const { state, lastSyncAt, email, data } = useCalendarSyncState();
   const syncMutation = useTriggerCalendarSync();
 
-  if (!connectionData?.connected || !connectionData.connection) return null;
-
-  const { connection } = connectionData;
-  const lastSync = connection.lastSyncAt ? new Date(connection.lastSyncAt) : null;
+  if (!data?.connected || !data.connection) return null;
 
   return (
-    <div className="flex items-center gap-2 text-xs text-gray-500">
-      {/* Connection status dot */}
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${
-          connection.status === "connected"
-            ? "bg-green-400"
-            : connection.status === "error"
-            ? "bg-red-400"
-            : "bg-gray-400"
-        }`}
-      />
+    <div className="flex items-center gap-2 text-xs text-[#8A80A8]">
+      <span className={`w-1.5 h-1.5 rounded-full ${DOT_CLASS[state]}`} />
 
-      {/* Connected account */}
-      <span className="truncate max-w-[160px]" title={connection.googleAccountEmail}>
-        {connection.googleAccountEmail}
+      <span className="truncate max-w-[160px]" title={email ?? undefined}>
+        {email}
       </span>
 
-      {/* Last sync time */}
-      {lastSync && (
+      {lastSyncAt && (
         <span
-          className="text-gray-400"
-          title={format(lastSync, "MMM d, yyyy h:mm a")}
+          className="text-[#A69DC0]"
+          title={format(lastSyncAt, "MMM d, yyyy h:mm a")}
         >
-          · Synced {formatDistanceToNow(lastSync, { addSuffix: true })}
+          · Synced {formatDistanceToNow(lastSyncAt, { addSuffix: true })}
         </span>
       )}
 
-      {/* Sync Now button */}
       <button
         onClick={() => syncMutation.mutate()}
         disabled={syncMutation.isPending}
@@ -70,11 +59,10 @@ export default function CalendarSyncBadge() {
         {syncMutation.isPending ? "Syncing..." : "Sync"}
       </button>
 
-      {/* Sync error */}
-      {connection.status === "error" && (
-        <span className="text-red-500 text-xs">
+      {state === "disconnected" && data.connection.status === "error" && (
+        <span className="text-[#c25a52] text-xs">
           · Connection issue —{" "}
-          <a href="/api/calendar/connect" className="underline hover:text-red-600">
+          <a href="/api/calendar/connect" className="underline hover:text-[#a04a44]">
             reconnect
           </a>
         </span>

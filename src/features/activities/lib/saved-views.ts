@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { ActivitiesFilters } from "./filters-store";
+import { type ActivitiesFilters } from "./filters-store";
 
 export interface SavedView {
   id: string;

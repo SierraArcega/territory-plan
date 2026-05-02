@@ -1,6 +1,6 @@
 "use client";
 
-import { useMapV2Store } from "@/features/map/lib/store";
+import { useMapV2Store, type OverlayLayerType } from "@/features/map/lib/store";
 import { LAYER_ORDER, LAYER_COLORS, type LayerType } from "@/features/map/lib/layers";
 
 const LAYER_LABELS: Record<LayerType, string> = {
@@ -19,6 +19,8 @@ interface ResultsTabStripProps {
 export default function ResultsTabStrip({ counts, onCollapse }: ResultsTabStripProps) {
   const activeResultsTab = useMapV2Store((s) => s.activeResultsTab);
   const setActiveResultsTab = useMapV2Store((s) => s.setActiveResultsTab);
+  const activeLayers = useMapV2Store((s) => s.activeLayers);
+  const switchToLayer = useMapV2Store((s) => s.switchToLayer);
 
   return (
     <div className="shrink-0 border-b border-[#E2DEEC] flex items-center">
@@ -27,11 +29,18 @@ export default function ResultsTabStrip({ counts, onCollapse }: ResultsTabStripP
           const isActive = activeResultsTab === layer;
           const color = LAYER_COLORS[layer];
           const count = counts[layer];
+          const isLayerOn = layer === "districts" || activeLayers.has(layer as OverlayLayerType);
 
           return (
             <button
               key={layer}
-              onClick={() => setActiveResultsTab(layer)}
+              onClick={() => {
+                if (!isLayerOn) {
+                  switchToLayer(layer as OverlayLayerType);
+                } else {
+                  setActiveResultsTab(layer);
+                }
+              }}
               className="relative shrink-0 px-4 py-2.5 text-xs font-medium transition-colors whitespace-nowrap"
               style={{
                 color: isActive ? "#403770" : "#8A80A8",

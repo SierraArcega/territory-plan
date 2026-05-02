@@ -17,6 +17,7 @@ import type { DistrictFinancial } from "@/features/shared/types/api-types";
 import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import DistrictSearchCard from "./DistrictSearchCard";
 import DistrictExploreModal from "./DistrictExploreModal";
+import PlanDetailModal from "./PlanDetailModal";
 import ResultsTabStrip from "./ResultsTabStrip";
 
 interface SearchResultDistrict {
@@ -90,6 +91,7 @@ export default function SearchResults() {
   const exploreModalLeaid = useMapV2Store((s) => s.exploreModalLeaid);
   const setExploreModalLeaid = useMapV2Store((s) => s.setExploreModalLeaid);
   const [showMyPlansOnly, setShowMyPlansOnly] = useState(true);
+  const [planModalId, setPlanModalId] = useState<string | null>(null);
 
   // Extract geographic state filters from searchFilters to apply to overlay layers
   const geoStates = useMemo(() => {
@@ -939,11 +941,19 @@ export default function SearchResults() {
       )}
 
       {/* Explore modal — rendered via portal into document.body to escape stacking context */}
-      {/* Explore modal — rendered via portal into document.body to escape stacking context */}
+      {planModalId && createPortal(
+        <PlanDetailModal
+          planId={planModalId}
+          onClose={() => setPlanModalId(null)}
+        />,
+        document.body
+      )}
+
       {exploreModalLeaid && createPortal(
         <DistrictExploreModal
           leaid={exploreModalLeaid}
           onClose={() => setExploreModalLeaid(null)}
+          onNavigateToPlan={(planId) => { setExploreModalLeaid(null); setPlanModalId(planId); }}
           onPrev={canGoPrev ? handleExplorePrev : undefined}
           onNext={canGoNext ? handleExploreNext : undefined}
           currentIndex={currentExploreIndex}

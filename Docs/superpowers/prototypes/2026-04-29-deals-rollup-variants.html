@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deals Rollup — Variants</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+      :root {
+        --plum-50: #f7f5fa;
+        --plum-100: #efedf5;
+        --plum-200: #e2deec;
+        --plum-300: #d4cfe2;
+        --plum-500: #8a80a8;
+        --plum-600: #6e6390;
+        --plum-700: #544a78;
+        --plum-800: #403770;
+        --coral: #f37167;
+        --bg: #fffcfa;
+      }
+      html,
+      body {
+        font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--plum-800);
+        font-feature-settings: "tnum" 1;
+      }
+      .grid-7 {
+        grid-template-columns: 64px repeat(7, minmax(0, 1fr));
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body class="px-8 py-10">
+    <header class="max-w-[1200px] mx-auto mb-10">
+      <h1 class="text-2xl font-extrabold tracking-tight">
+        Deals rollup — variants
+      </h1>
+      <p class="mt-2 text-sm text-[#544A78] max-w-2xl">
+        Same week of mock data across all four prototypes. Sun
+        $200K won + $369K lost (the original ambiguous $569K from
+        the screenshot), plus assorted activity through the week.
+        Each variant trades density vs. clarity differently.
+      </p>
+    </header>
+
+    <main class="max-w-[1200px] mx-auto space-y-12">
+      <!-- =================================================== -->
+      <!-- Shared: day header used by all variants             -->
+      <!-- =================================================== -->
+      <template id="day-header">
+        <div
+          class="grid grid-7 bg-white border border-[#E2DEEC] rounded-t-xl"
+        >
+          <div></div>
+          <!-- 7 cells injected -->
+        </div>
+      </template>
+
+      <!-- =================================================== -->
+      <!-- VARIANT A — current implementation: 5 stacked rows -->
+      <!-- =================================================== -->
+      <section>
+        <h2 class="text-base font-extrabold uppercase tracking-[0.06em] text-[#544A78]">
+          A · Stacked rows, colored label cells
+          <span class="ml-2 text-xs font-medium normal-case tracking-normal text-[#8A80A8]">
+            current implementation
+          </span>
+        </h2>
+        <p class="mt-1 text-xs text-[#6E6390] max-w-xl">
+          One row per kind. Tinted label cell + colored cell text. Highest
+          clarity, biggest vertical footprint (~120px).
+        </p>
+        <div class="mt-3" data-variant="A"></div>
+      </section>
+
+      <!-- =================================================== -->
+      <!-- VARIANT B — left accent bar, neutral row bg         -->
+      <!-- =================================================== -->
+      <section>
+        <h2 class="text-base font-extrabold uppercase tracking-[0.06em] text-[#544A78]">
+          B · Stacked rows, slim color accent
+        </h2>
+        <p class="mt-1 text-xs text-[#6E6390] max-w-xl">
+          Same five rows but the kind color is reduced to a 3px left edge
+          and an icon. Quieter — looks more like the rest of the calendar.
+        </p>
+        <div class="mt-3" data-variant="B"></div>
+      </section>
+
+      <!-- =================================================== -->
+      <!-- VARIANT C — net + activity (2 summary rows)         -->
+      <!-- =================================================== -->
+      <section>
+        <h2 class="text-base font-extrabold uppercase tracking-[0.06em] text-[#544A78]">
+          C · Two summary rows: Net booked + Activity
+        </h2>
+        <p class="mt-1 text-xs text-[#6E6390] max-w-xl">
+          Compress 5 rows into 2. <strong>Net</strong> = Won − Lost (green
+          if positive, coral if negative, with breakdown on hover).
+          <strong>Activity</strong> = count of new/progressed/closing,
+          color-segmented.
+        </p>
+        <div class="mt-3" data-variant="C"></div>
+      </section>
+
+      <!-- =================================================== -->
+      <!-- VARIANT D — single row, in-cell mini-stack          -->
+      <!-- =================================================== -->
+      <section>
+        <h2 class="text-base font-extrabold uppercase tracking-[0.06em] text-[#544A78]">
+          D · Single dense row, in-cell breakdown
+        </h2>
+        <p class="mt-1 text-xs text-[#6E6390] max-w-xl">
+          Back to one row, but each cell stacks the breakdown internally.
+          Smallest vertical footprint, most visual noise per cell. Best for
+          power users who want everything at once.
+        </p>
+        <div class="mt-3" data-variant="D"></div>
+      </section>
+
+      <!-- =================================================== -->
+      <!-- VARIANT E — money row + count row                   -->
+      <!-- =================================================== -->
+      <section>
+        <h2 class="text-base font-extrabold uppercase tracking-[0.06em] text-[#544A78]">
+          E · Two rows split by data type
+        </h2>
+        <p class="mt-1 text-xs text-[#6E6390] max-w-xl">
+          One row stacks dollar bars (won + closing positive, lost
+          negative). One row stacks count chips (new, progressed). Mixes
+          visual encoding with text — heavier render but fastest scan.
+        </p>
+        <div class="mt-3" data-variant="E"></div>
+      </section>
+    </main>
+
+    <script>
+      // ----- Mock week data -----
+      // Sun 26 — Sat (7 days)
+      const DAYS = [
+        { label: "Sun", date: 26, key: "sun" },
+        { label: "Mon", date: 27, key: "mon" },
+        { label: "Tue", date: 28, key: "tue" },
+        { label: "Wed", date: 29, key: "wed", today: true },
+        { label: "Thu", date: 30, key: "thu" },
+        { label: "Fri", date: 1, key: "fri" },
+        { label: "Sat", date: 2, key: "sat" },
+      ];
+
+      const KIND_STYLE = {
+        won:        { color: "#2D6B4D", bg: "#DDEFE3", label: "Won",        icon: "trending-up" },
+        lost:       { color: "#9B3A2E", bg: "#F5D4CF", label: "Lost",       icon: "trending-down" },
+        created:    { color: "#3F5A72", bg: "#DCE6EF", label: "New",        icon: "plus" },
+        progressed: { color: "#9C6A1B", bg: "#FCEFC7", label: "Moved",      icon: "arrow-right" },
+        closing:    { color: "#5E4691", bg: "#F2EBFA", label: "Closing",    icon: "calendar-clock" },
+      };
+
+      // Per-day-per-kind: { amount: number|null, count: number }
+      const DATA = {
+        sun: { won: { amount: 200000, count: 1 }, lost: { amount: 369000, count: 1 } },
+        mon: { created: { amount: 75000, count: 2 }, progressed: { amount: 0, count: 4 } },
+        tue: { closing: { amount: 120000, count: 1 } },
+        wed: { won: { amount: 45000, count: 1 }, created: { amount: 30000, count: 1 }, progressed: { amount: 0, count: 2 } },
+        thu: { created: { amount: 22000, count: 1 } },
+        fri: { won: { amount: 88000, count: 2 }, lost: { amount: 14000, count: 1 }, closing: { amount: 60000, count: 1 } },
+        sat: {},
+      };
+
+      function formatMoney(n) {
+        if (n == null || n === 0) return "$0";
+        const abs = Math.abs(n);
+        const sign = n < 0 ? "-" : "";
+        if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+        if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}K`;
+        return `${sign}$${abs}`;
+      }
+
+      function dayHeader(extraClass = "rounded-t-xl") {
+        const cells = DAYS.map((d) => {
+          const isToday = d.today;
+          return `
+            <div class="px-2.5 py-3 text-center border-l border-[#E2DEEC]">
+              <div class="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A80A8]">${d.label}</div>
+              <div class="mt-1 flex items-center justify-center">
+                <div class="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full text-base font-bold num"
+                     style="background:${isToday ? "#F37167" : "transparent"}; color:${isToday ? "#fff" : "#403770"};">
+                  ${d.date}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+        return `
+          <div class="grid grid-7 bg-white border border-[#E2DEEC] ${extraClass}">
+            <div></div>
+            ${cells}
+          </div>
+        `;
+      }
+
+      function frame(innerHtml) {
+        return `
+          <div class="border border-t-0 border-[#E2DEEC] rounded-b-xl overflow-hidden">
+            ${innerHtml}
+          </div>
+        `;
+      }
+
+      // -------- VARIANT A — current --------
+      function renderA() {
+        const KINDS = ["won", "lost", "created", "progressed", "closing"];
+        const rows = KINDS.map((kind) => {
+          const sty = KIND_STYLE[kind];
+          const cells = DAYS.map((d) => {
+            const k = DATA[d.key]?.[kind];
+            if (!k) {
+              return `<div class="border-l border-[#E2DEEC] px-2 py-1 min-h-[24px] flex items-center justify-end text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+            }
+            const isCount = kind === "progressed";
+            const display = isCount ? String(k.count) : formatMoney(k.amount);
+            return `
+              <button class="border-l border-[#E2DEEC] px-2 py-1 min-h-[24px] flex items-center justify-end text-[10px] font-semibold num text-right hover:bg-[#F7F5FA] transition-colors"
+                      style="color:${sty.color};">
+                ${display}
+              </button>
+            `;
+          }).join("");
+          return `
+            <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white">
+              <div class="px-2 py-1 text-[9px] font-bold uppercase tracking-[0.06em] flex items-center justify-end gap-1"
+                   style="background:${sty.bg}; color:${sty.color};">
+                <i data-lucide="${sty.icon}" class="w-2.5 h-2.5" stroke-width="2.5"></i>
+                ${sty.label}
+              </div>
+              ${cells}
+            </div>
+          `;
+        }).join("");
+        return frame(dayHeader() + rows);
+      }
+
+      // -------- VARIANT B — slim accent --------
+      function renderB() {
+        const KINDS = ["won", "lost", "created", "progressed", "closing"];
+        const rows = KINDS.map((kind) => {
+          const sty = KIND_STYLE[kind];
+          const cells = DAYS.map((d) => {
+            const k = DATA[d.key]?.[kind];
+            if (!k) {
+              return `<div class="border-l border-[#E2DEEC] px-2 py-1 min-h-[22px] flex items-center justify-end text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+            }
+            const isCount = kind === "progressed";
+            const display = isCount ? String(k.count) : formatMoney(k.amount);
+            return `
+              <button class="border-l border-[#E2DEEC] px-2 py-1 min-h-[22px] flex items-center justify-end text-[10px] font-semibold num text-[#403770] hover:bg-[#F7F5FA] transition-colors">${display}</button>
+            `;
+          }).join("");
+          return `
+            <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white relative">
+              <div class="px-2 py-1 text-[9px] font-bold uppercase tracking-[0.06em] text-[#544A78] flex items-center justify-end gap-1.5 relative">
+                <span class="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-sm" style="background:${sty.color};"></span>
+                <i data-lucide="${sty.icon}" class="w-2.5 h-2.5" stroke-width="2.5" style="color:${sty.color};"></i>
+                ${sty.label}
+              </div>
+              ${cells}
+            </div>
+          `;
+        }).join("");
+        return frame(dayHeader() + rows);
+      }
+
+      // -------- VARIANT C — net + activity --------
+      function renderC() {
+        const netCells = DAYS.map((d) => {
+          const won = DATA[d.key]?.won?.amount ?? 0;
+          const lost = DATA[d.key]?.lost?.amount ?? 0;
+          const net = won - lost;
+          if (won === 0 && lost === 0) {
+            return `<div class="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center justify-end text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+          }
+          const isPositive = net >= 0;
+          const color = isPositive ? "#2D6B4D" : "#9B3A2E";
+          const bg = isPositive ? "#DDEFE3" : "#F5D4CF";
+          return `
+            <button class="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex flex-col items-end justify-center gap-0 text-right hover:brightness-95 transition"
+                    title="Won ${formatMoney(won)} · Lost ${formatMoney(lost)}">
+              <span class="inline-flex items-center gap-1 text-[11px] font-bold num" style="color:${color};">
+                <span class="inline-block w-1.5 h-1.5 rounded-sm" style="background:${color};"></span>
+                ${formatMoney(net)}
+              </span>
+              <span class="text-[9px] text-[#8A80A8] num">${formatMoney(won)} / -${formatMoney(lost).replace("$","$")}</span>
+            </button>
+          `;
+        }).join("");
+
+        const activityCells = DAYS.map((d) => {
+          const created = DATA[d.key]?.created?.count ?? 0;
+          const progressed = DATA[d.key]?.progressed?.count ?? 0;
+          const closing = DATA[d.key]?.closing?.count ?? 0;
+          const total = created + progressed + closing;
+          if (total === 0) {
+            return `<div class="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center justify-end text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+          }
+          const seg = (n, color, label) =>
+            n > 0
+              ? `<span class="inline-flex items-center gap-0.5 text-[10px] font-semibold num" style="color:${color};" title="${n} ${label}">
+                   <span class="inline-block w-1 h-1 rounded-full" style="background:${color};"></span>${n}
+                 </span>`
+              : "";
+          return `
+            <button class="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[28px] flex items-center justify-end gap-2 hover:bg-[#F7F5FA] transition">
+              ${seg(created, KIND_STYLE.created.color, "new")}
+              ${seg(progressed, KIND_STYLE.progressed.color, "moved")}
+              ${seg(closing, KIND_STYLE.closing.color, "closing")}
+            </button>
+          `;
+        }).join("");
+
+        return frame(
+          dayHeader() +
+            `
+              <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white">
+                <div class="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#544A78] flex items-center justify-end">
+                  Net $
+                </div>
+                ${netCells}
+              </div>
+              <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white">
+                <div class="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#544A78] flex items-center justify-end">
+                  Activity
+                </div>
+                ${activityCells}
+              </div>
+            `
+        );
+      }
+
+      // -------- VARIANT D — single dense row --------
+      function renderD() {
+        const KINDS = ["won", "lost", "created", "progressed", "closing"];
+        const cells = DAYS.map((d) => {
+          const present = KINDS.filter((k) => DATA[d.key]?.[k]);
+          if (present.length === 0) {
+            return `<div class="border-l border-[#E2DEEC] px-2 py-2 min-h-[64px] flex items-center justify-center text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+          }
+          const lines = present
+            .map((k) => {
+              const sty = KIND_STYLE[k];
+              const data = DATA[d.key][k];
+              const isCount = k === "progressed";
+              const display = isCount ? `${data.count}` : formatMoney(data.amount);
+              return `
+                <span class="flex items-center justify-between gap-1.5 text-[10px] font-semibold num" style="color:${sty.color};">
+                  <i data-lucide="${sty.icon}" class="w-2.5 h-2.5" stroke-width="2.5"></i>
+                  <span>${display}</span>
+                </span>
+              `;
+            })
+            .join("");
+          return `
+            <button class="border-l border-[#E2DEEC] px-2 py-1.5 min-h-[64px] flex flex-col gap-0.5 hover:bg-[#F7F5FA] transition">
+              ${lines}
+            </button>
+          `;
+        }).join("");
+
+        return frame(
+          dayHeader() +
+            `
+              <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white">
+                <div class="px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.06em] text-[#544A78] flex items-start justify-end pt-2">
+                  Deals
+                </div>
+                ${cells}
+              </div>
+            `
+        );
+      }
+
+      // -------- VARIANT E — bars + counts --------
+      function renderE() {
+        // Money row: bar magnitude vs week max; positive (won+closing) up, lost down
+        const weekMax = Math.max(
+          ...DAYS.flatMap((d) => [
+            (DATA[d.key]?.won?.amount ?? 0) + (DATA[d.key]?.closing?.amount ?? 0),
+            DATA[d.key]?.lost?.amount ?? 0,
+          ])
+        );
+
+        const moneyCells = DAYS.map((d) => {
+          const won = DATA[d.key]?.won?.amount ?? 0;
+          const closing = DATA[d.key]?.closing?.amount ?? 0;
+          const lost = DATA[d.key]?.lost?.amount ?? 0;
+          if (won + closing + lost === 0) {
+            return `<div class="border-l border-[#E2DEEC] px-2 py-1 min-h-[44px] flex items-center justify-end text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+          }
+          const wonH = weekMax ? (won / weekMax) * 18 : 0;
+          const closingH = weekMax ? (closing / weekMax) * 18 : 0;
+          const lostH = weekMax ? (lost / weekMax) * 18 : 0;
+          return `
+            <button class="border-l border-[#E2DEEC] px-2 py-1 min-h-[44px] flex items-center justify-between gap-2 hover:bg-[#F7F5FA] transition"
+                    title="Won ${formatMoney(won)} · Closing ${formatMoney(closing)} · Lost ${formatMoney(lost)}">
+              <span class="inline-flex items-end gap-0.5 h-[36px]">
+                <span class="w-1.5 rounded-t-sm" style="height:${wonH}px;background:${KIND_STYLE.won.color};"></span>
+                <span class="w-1.5 rounded-t-sm" style="height:${closingH}px;background:${KIND_STYLE.closing.color};"></span>
+                <span class="w-1.5 rounded-b-sm self-start" style="height:${lostH}px;background:${KIND_STYLE.lost.color};"></span>
+              </span>
+              <span class="flex flex-col items-end leading-none">
+                ${won > 0 ? `<span class="text-[10px] font-bold num" style="color:${KIND_STYLE.won.color};">${formatMoney(won)}</span>` : ""}
+                ${lost > 0 ? `<span class="text-[10px] font-bold num" style="color:${KIND_STYLE.lost.color};">-${formatMoney(lost)}</span>` : ""}
+              </span>
+            </button>
+          `;
+        }).join("");
+
+        const countCells = DAYS.map((d) => {
+          const created = DATA[d.key]?.created?.count ?? 0;
+          const progressed = DATA[d.key]?.progressed?.count ?? 0;
+          const total = created + progressed;
+          if (total === 0) {
+            return `<div class="border-l border-[#E2DEEC] px-2 py-1 min-h-[24px] flex items-center justify-end text-[10px] text-[#C2BBD4]" aria-hidden>—</div>`;
+          }
+          const chip = (n, sty, label) =>
+            n > 0
+              ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold num"
+                       style="background:${sty.bg}; color:${sty.color};"
+                       title="${n} ${label}">
+                   <i data-lucide="${sty.icon}" class="w-2 h-2" stroke-width="2.5"></i>${n}
+                 </span>`
+              : "";
+          return `
+            <button class="border-l border-[#E2DEEC] px-2 py-1 min-h-[24px] flex items-center justify-end gap-1 hover:bg-[#F7F5FA] transition">
+              ${chip(created, KIND_STYLE.created, "new")}
+              ${chip(progressed, KIND_STYLE.progressed, "moved")}
+            </button>
+          `;
+        }).join("");
+
+        return frame(
+          dayHeader() +
+            `
+              <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white">
+                <div class="px-2 py-1 text-[9px] font-bold uppercase tracking-[0.06em] text-[#544A78] flex items-center justify-end">
+                  $
+                </div>
+                ${moneyCells}
+              </div>
+              <div class="grid grid-7 border-t border-t-[#EFEDF5] bg-white">
+                <div class="px-2 py-1 text-[9px] font-bold uppercase tracking-[0.06em] text-[#544A78] flex items-center justify-end">
+                  Count
+                </div>
+                ${countCells}
+              </div>
+            `
+        );
+      }
+
+      // ----- Mount -----
+      const renderers = { A: renderA, B: renderB, C: renderC, D: renderD, E: renderE };
+      document.querySelectorAll("[data-variant]").forEach((el) => {
+        const v = el.getAttribute("data-variant");
+        el.innerHTML = renderers[v]();
+      });
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

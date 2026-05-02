@@ -89,6 +89,25 @@ def fetch_sessions(client, opportunity_ids):
     return all_hits
 
 
+def fetch_opportunities_for_school_yrs(client, school_yrs):
+    """Fetch opportunities for an explicit list of school years, ignoring incremental.
+
+    Used by the daily current-FY backfill (run_current_fy_backfill): re-fetches
+    every opp in the supplied school years regardless of opp.updated_at, so
+    sessions whose lastIndexedAt didn't advance still get pulled into Supabase
+    via the downstream pipeline's full session refresh.
+    """
+    logger.info(f"Full re-fetch of opportunities for school years: {school_yrs}")
+    query = {
+        "bool": {
+            "filter": [{"terms": {"school_yr.keyword": school_yrs}}],
+        }
+    }
+    hits = scroll_all(client, "clj-prod-opportunities", query, OPPORTUNITY_SOURCE_FIELDS)
+    logger.info(f"Fetched {len(hits)} opportunities for {school_yrs}")
+    return hits
+
+
 def fetch_district_mappings(client, account_ids):
     """Batch lookup account IDs against clj-prod-districts for NCES/LEAID mapping.
     Returns dict: {account_id_str: {ncesId, name, type, ...}}
