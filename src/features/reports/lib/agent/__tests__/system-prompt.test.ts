@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt, extractTablesFromSql } from "../system-prompt";
 import type { PriorTurn } from "../conversation";
+import { SEMANTIC_CONTEXT } from "@/lib/district-column-metadata";
 
 describe("buildSystemPrompt", () => {
   it("includes the never-show-SQL rule", async () => {
@@ -71,6 +72,22 @@ describe("buildSystemPrompt", () => {
     // districts schema appears exactly once
     expect(prompt.match(/^# districts$/gm)?.length).toBe(1);
     expect(prompt).not.toContain("unknown_made_up_table");
+  });
+});
+
+describe("SEMANTIC_CONTEXT", () => {
+  it("exposes default_revenue concept for the agent", () => {
+    const ctx = SEMANTIC_CONTEXT.conceptMappings.default_revenue;
+    expect(ctx).toBeDefined();
+    expect(ctx.dealLevel).toMatch(/COALESCE/);
+    expect(ctx.aggregated).toMatch(/district_opportunity_actuals|district_financials/);
+    expect(ctx.note).toMatch(/session_vs_subscription_revenue/);
+  });
+
+  it("session_vs_subscription_revenue points back to default_revenue for the combined default", () => {
+    const ctx = SEMANTIC_CONTEXT.conceptMappings.session_vs_subscription_revenue;
+    expect(ctx).toBeDefined();
+    expect(ctx.note).toMatch(/default_revenue/);
   });
 });
 

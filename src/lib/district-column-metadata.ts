@@ -3397,10 +3397,17 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
         "district_opportunity_actuals.sales_rep_email — filter or GROUP BY this column for any rep-scoped question.",
       note: "DOA and raw opportunities are the only sources with a rep column. Raw opportunities is unsafe for aggregates (no text-stage closed-won, no EK12 fold-in, no add-on chain dedup) — always prefer DOA for rep rollups. DF has no rep column and CANNOT answer rep-scoped questions.",
     },
+    default_revenue: {
+      dealLevel:
+        "When a rep asks about 'revenue' for a single deal or for per-deal results, the default is session+subscription folded together: COALESCE(o.total_revenue, 0) + COALESCE((SELECT SUM(s.net_total) FROM subscriptions s WHERE s.opportunity_id = o.id), 0) AS revenue. Apply this fold-in by default — do NOT use raw o.total_revenue (session-only) unless the rep explicitly says 'session revenue', 'session-only', or asks for a delivered/scheduled split.",
+      aggregated:
+        "For revenue aggregates across many deals (rep totals, district totals, state totals, FY totals), use district_opportunity_actuals.total_revenue (rep/category-scoped) or district_financials.total_revenue WHERE vendor='fullmind' (rep-agnostic). Both already fold EK12 subscription revenue in via refresh_fullmind_financials() / opp_subscriptions CTE — do NOT re-add subscriptions on top.",
+      note: "The single most common revenue mistake on this agent is reaching for opportunities.total_revenue as the default and silently producing session-only numbers. Reps don't think in modalities — when they say 'revenue' they mean 'all the dollars on this deal'. This mapping makes the right default explicit. If the user asks for the SPLIT (session vs subscription), see session_vs_subscription_revenue.",
+    },
     session_vs_subscription_revenue: {
       dealLevel:
         "session_revenue: SUM(opportunities.total_revenue) across opportunities in scope. subscription_revenue: SUM(subscriptions.net_total) where subscriptions.opportunity_id IN (<scope>). subscriptions.net_total is SIGNED — credits/cancellations reduce the sum.",
-      note: "Neither DOA nor DF exposes session and subscription revenue separately — both fold them together in total_revenue. When a user explicitly asks for the split, compute deal-level: query opportunities and subscriptions separately and report both. If this breakdown becomes a frequent request, add session_revenue / subscription_revenue columns to DOA as a follow-up.",
+      note: "Neither DOA nor DF exposes session and subscription revenue separately — both fold them together in total_revenue. When a user explicitly asks for the split, compute deal-level: query opportunities and subscriptions separately and report both. If this breakdown becomes a frequent request, add session_revenue / subscription_revenue columns to DOA as a follow-up. For the combined default when a rep just says 'revenue', see default_revenue.",
     },
     delivered_vs_scheduled_revenue: {
       dealLevel:
