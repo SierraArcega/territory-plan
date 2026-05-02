@@ -374,4 +374,124 @@ describe("runAgentLoop", () => {
     }
     expect(runSqlMod.handleRunSql).toHaveBeenCalledTimes(1);
   });
+
+  describe("ghost-report retry", () => {
+    it("retries once when the model returns SQL in text but no tool_use", async () => {
+      const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
+      vi.mocked(runSqlMod.handleRunSql).mockResolvedValueOnce({
+        kind: "ok",
+        sql: "SELECT name FROM districts LIMIT 100",
+        summary: { source: "Districts" },
+        columns: ["name"],
+        rows: [{ name: "Test ISD" }],
+        rowCount: 1,
+        executionTimeMs: 10,
+      });
+
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "end_turn",
+          usage: { input_tokens: 10, output_tokens: 5 },
+          content: [
+            {
+              type: "text",
+              text: "Here's the updated query:\n\n```sql\nSELECT name FROM districts LIMIT 100\n```\n\nThis pulls the names.",
+            },
+          ],
+        },
+        {
+          stop_reason: "tool_use",
+          usage: { input_tokens: 12, output_tokens: 8 },
+          content: [
+            { type: "text", text: "Pulling districts." },
+            {
+              type: "tool_use",
+              id: "t1",
+              name: "run_sql",
+              input: { sql: "SELECT name FROM districts LIMIT 100", summary: { source: "Districts" } },
+            },
+          ],
+        },
+      ]);
+
+      const result = await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+      });
+
+      expect(anthropic.messages.create).toHaveBeenCalledTimes(2);
+      expect(result.kind).toBe("result");
+      // Telemetry: an event marking the corrective injection
+      const correctiveEvent = result.events.find(
+        (e) => e.kind === "tool_result" && e.toolName === "ghost_report_retry",
+      );
+      expect(correctiveEvent).toBeDefined();
+      // Verify the second API call's messages include the corrective user turn.
+      // Note: messages is a shared mutable array, so we check via the corrective
+      // event's content rather than positional indexing.
+      const secondCallArgs = (anthropic.messages.create as ReturnType<typeof vi.fn>).mock.calls[1][0];
+      const allMessages = secondCallArgs.messages as Array<{ role: string; content: unknown }>;
+      const correctiveUserMsg = allMessages.find(
+        (m) => m.role === "user" && typeof m.content === "string" && (m.content as string).includes("run_sql"),
+      );
+      expect(correctiveUserMsg).toBeDefined();
+    });
+
+    it("surrenders after the corrective retry also fails to invoke run_sql", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "end_turn",
+          usage: { input_tokens: 10, output_tokens: 5 },
+          content: [
+            {
+              type: "text",
+              text: "```sql\nSELECT * FROM districts\n```",
+            },
+          ],
+        },
+        {
+          stop_reason: "end_turn",
+          usage: { input_tokens: 10, output_tokens: 5 },
+          content: [
+            {
+              type: "text",
+              text: "```sql\nSELECT * FROM districts\n```",
+            },
+          ],
+        },
+      ]);
+
+      const result = await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+      });
+
+      expect(anthropic.messages.create).toHaveBeenCalledTimes(2); // initial + 1 corrective retry, then surrender
+      expect(result.kind).toBe("surrender"); // ghost-retry exhausted — real failure, not a clarifying turn
+    });
+
+    it("does NOT retry when text contains no SQL fence (true clarifying turn)", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "end_turn",
+          usage: { input_tokens: 5, output_tokens: 3 },
+          content: [{ type: "text", text: "Did you mean closed-won or all stages?" }],
+        },
+      ]);
+
+      const result = await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me deals",
+        priorTurns: [],
+        userId: "u1",
+      });
+
+      expect(anthropic.messages.create).toHaveBeenCalledTimes(1);
+      expect(result.kind).toBe("clarifying");
+    });
+  });
 });

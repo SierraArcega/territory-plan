@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt, extractTablesFromSql } from "../system-prompt";
 import type { PriorTurn } from "../conversation";
+import { SEMANTIC_CONTEXT } from "@/lib/district-column-metadata";
 
 describe("buildSystemPrompt", () => {
   it("includes the never-show-SQL rule", async () => {
@@ -73,6 +74,34 @@ describe("buildSystemPrompt", () => {
     expect(prompt.match(/^## districts —/gm)?.length).toBe(1);
   });
 
+  it("states the default-revenue rule (subscription fold-in)", async () => {
+    const prompt = await buildSystemPrompt();
+    expect(prompt.toLowerCase()).toMatch(/default[\s\S]{0,50}revenue/);
+    expect(prompt).toMatch(/COALESCE|fold[\s-]?in|subscription/i);
+  });
+
+  it("requires the agent to narrate what's shown including caveats", async () => {
+    const prompt = await buildSystemPrompt();
+    expect(prompt.toLowerCase()).toMatch(/caveat|surface|explain what/);
+  });
+
+  it("forbids text-only SQL output (anti-ghost-report)", async () => {
+    const prompt = await buildSystemPrompt();
+    // Anchor on the named failure mode 'ghost report' — most stable phrase
+    // that survives reasonable rule rewordings.
+    expect(prompt.toLowerCase()).toMatch(/ghost.?report/);
+    expect(prompt.toLowerCase()).toMatch(/must invoke[\s\S]{0,10}run_sql/);
+  });
+
+  it("instructs the agent to keep currency tokens in column aliases", async () => {
+    const prompt = await buildSystemPrompt();
+    // Pin the rule heading so the rule itself can't be silently removed.
+    expect(prompt.toLowerCase()).toMatch(/keep currency tokens in column aliases/);
+    // Spot-check that the enumerated token list survives — pick a less-common
+    // token (`bookings`) so a future trim that drops half the list still fails.
+    expect(prompt).toMatch(/`bookings`/);
+  });
+
   it("dedupes tables across prior turns and skips unknown ones", async () => {
     const prior: PriorTurn[] = [
       {
@@ -94,6 +123,22 @@ describe("buildSystemPrompt", () => {
     // tasks full schema (from describe_table) appears exactly once in the explored section
     expect(prompt.match(/^# tasks$/gm)?.length).toBe(1);
     expect(prompt).not.toContain("unknown_made_up_table");
+  });
+});
+
+describe("SEMANTIC_CONTEXT", () => {
+  it("exposes default_revenue concept for the agent", () => {
+    const ctx = SEMANTIC_CONTEXT.conceptMappings.default_revenue;
+    expect(ctx).toBeDefined();
+    expect(ctx.dealLevel).toMatch(/COALESCE/);
+    expect(ctx.aggregated).toMatch(/district_opportunity_actuals|district_financials/);
+    expect(ctx.note).toMatch(/session_vs_subscription_revenue/);
+  });
+
+  it("session_vs_subscription_revenue points back to default_revenue for the combined default", () => {
+    const ctx = SEMANTIC_CONTEXT.conceptMappings.session_vs_subscription_revenue;
+    expect(ctx).toBeDefined();
+    expect(ctx.note).toMatch(/default_revenue/);
   });
 });
 

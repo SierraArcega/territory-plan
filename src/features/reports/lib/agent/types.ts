@@ -55,3 +55,4 @@ export const MAX_LIMIT = 500;
 export const DEFAULT_LIMIT = 100;
 export const MAX_EXPLORATORY_CALLS_PER_TURN = 20;
 export const MAX_SQL_RETRIES = 2;
+export const MAX_GHOST_REPORT_RETRIES = 1;
