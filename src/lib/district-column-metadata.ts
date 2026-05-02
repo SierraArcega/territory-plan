@@ -36,7 +36,8 @@ export type ColumnDomain =
   | "state"
   | "history"
   | "unmatched"
-  | "audit";
+  | "audit"
+  | "news";
 
 export type DataFormat =
   | "text"
@@ -62,7 +63,8 @@ export type DataSource =
   | "opensearch"        // opportunities, sessions (Railway scheduler sync)
   | "elevate_k12"       // subscriptions (Elevate import pipeline)
   | "scraper"           // vacancies, vacancy_scans
-  | "query_tool";       // query_log, saved_reports
+  | "query_tool"        // query_log, saved_reports
+  | "news_ingest";      // news_articles + junctions (RSS/Google News + Haiku classifier)
 
 export interface ColumnMetadata {
   /** Prisma camelCase field name */
@@ -2583,6 +2585,31 @@ export const VACANCY_COLUMNS: ColumnMetadata[] = [
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last update timestamp.", domain: "vacancy", format: "date", source: "scraper", queryable: true },
 ];
 
+/**
+ * news_articles — RSS + Google News ingestion of K-12 news, matched to
+ * districts/schools/contacts via junction tables and classified by a Haiku
+ * pass for sentiment, topic categories, and Fullmind sales relevance.
+ */
+export const NEWS_ARTICLE_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "Article ID", description: "cuid PK.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "url", column: "url", label: "URL", description: "Canonical article URL. Rep questions linking out to the original story should expose this column.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "urlHash", column: "url_hash", label: "URL Hash", description: "Internal dedup key (sha256 of url). Not user-relevant — never SELECT for reps.", domain: "news", format: "text", source: "news_ingest", queryable: false },
+  { field: "title", column: "title", label: "Title", description: "Headline. Use ILIKE for keyword search ('news mentioning Algebra', 'articles about ESSER').", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "description", column: "description", label: "Description", description: "1-sentence summary from the feed (often null for Google News results).", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "content", column: "content", label: "Full Content", description: "Full article body when available. Large text — only include in SELECT when the rep asks for the article body or wants a deep keyword scan.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "imageUrl", column: "image_url", label: "Image URL", description: "Lead image URL when present in the feed.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "author", column: "author", label: "Author", description: "Article byline (often null).", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "source", column: "source", label: "Source", description: "Publication name as parsed from the feed (e.g., 'Chalkbeat', 'EdSurge', a local paper). For 'news from Chalkbeat' style filters use this column. For the originating ingest pipeline use feed_source.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "feedSource", column: "feed_source", label: "Feed Source", description: "Which ingest pipeline produced this row. Full enum: 'chalkbeat', 'k12dive', 'the74', 'edsurge', 'google_news_query' (industry-wide topic searches), 'google_news_district' (per-district name searches), 'manual_refresh' (admin-triggered). Industry-trends questions favor the first 4 + google_news_query; per-district coverage favors google_news_district plus the junction.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "publishedAt", column: "published_at", label: "Published At", description: "When the article was published per the source feed. Default sort/filter column for 'recent news' / 'this week' / 'last 30 days' rep questions. Indexed.", domain: "news", format: "date", source: "news_ingest", queryable: true },
+  { field: "fetchedAt", column: "fetched_at", label: "Fetched At", description: "When our ingestor first saw the article. Use published_at for rep-facing recency questions; fetched_at is mainly for ops/freshness debugging.", domain: "news", format: "date", source: "news_ingest", queryable: true },
+  { field: "stateAbbrevs", column: "state_abbrevs", label: "State Abbreviations", description: "Array of 2-letter state codes the article was geo-tagged to (e.g., {'TX','OK'}). Sourced from feed metadata + district junction backfill. Use the postgres array operator: state_abbrevs && ARRAY['TX'] for 'news in TX', or 'TX' = ANY(state_abbrevs). For multi-state queries use the && (overlap) operator. May be empty when geo couldn't be inferred.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "sentiment", column: "sentiment", label: "Sentiment", description: "Haiku classifier output. Full enum: 'positive', 'neutral', 'negative'. NULL until the article is classified — filtering on sentiment IS NOT NULL excludes the unclassified backlog. For 'negative news' / 'bad news at <district>' rep questions, filter sentiment = 'negative'.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "categories", column: "categories", label: "Categories", description: "Haiku-assigned topic tags (text[]). Full enum: 'budget_funding', 'leadership_change', 'academic_performance', 'enrollment_trends', 'labor_contract', 'curriculum_adoption', 'technology_edtech', 'policy_regulation', 'facility_operations', 'student_services', 'scandal_incident'. Use postgres array ops: categories && ARRAY['budget_funding','leadership_change'] for any-match, or 'student_services' = ANY(categories). Empty array means classifier ran but nothing applied; NULL means not yet classified.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "fullmindRelevance", column: "fullmind_relevance", label: "Fullmind Relevance", description: "Sales-actionability tier from the Haiku classifier. Full enum: 'high' (direct sales signal — RFPs, Title I, intervention budget, ESSER), 'medium' (priorities affected but not a direct selling moment — general budget, curriculum, enrollment, SEL), 'low' (K-12 news but not sales-actionable — facilities, scheduling, sports), 'none' (off-topic). NULL until classified. For 'high-priority news' / 'sales-relevant news' default to fullmind_relevance IN ('high','medium'). Indexed alongside published_at.", domain: "news", format: "text", source: "news_ingest", queryable: true },
+  { field: "classifiedAt", column: "classified_at", label: "Classified At", description: "When the Haiku classifier ran. NULL = not yet classified (sentiment / categories / fullmind_relevance will all be null on those rows).", domain: "news", format: "date", source: "news_ingest", queryable: true },
+];
+
 /** query_log — audit log of every natural-language query and agentic action */
 export const QUERY_LOG_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "Auto-increment primary key.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
@@ -2785,6 +2812,12 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "district_tags.district_leaid = districts.leaid",
         description: "Junction to tags",
       },
+      {
+        toTable: "news_article_districts",
+        type: "one-to-many",
+        joinSql: "news_article_districts.leaid = districts.leaid",
+        description: "Junction to news articles (join news_articles via article_id; default confidence IN ('high','llm'))",
+      },
     ],
   },
 
@@ -2867,7 +2900,7 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   contacts: {
     table: "contacts",
     description:
-      "District-level people records — superintendents, admins, principals, curriculum directors, etc. One district can have many contacts. Rep questions: 'who do we know at <district>', 'all superintendents in CA', 'HR directors we've reached', 'primary contact at <district>', 'stale contacts', 'contacts at <specific school>' (via the school_contacts junction), 'contacts who attended <event>' (via the activity_contacts junction), 'contacts assigned to <task>' (via task_contacts). Use persona / seniority_level for role-based filtering (both columns' value sets live in the data — call get_column_values to confirm). For contacts-at-a-school questions, the school_contacts junction is the right hop (still excluded from TABLE_REGISTRY; use raw Prisma join).",
+      "District-level people records — superintendents, admins, principals, curriculum directors, etc. One district can have many contacts. Rep questions: 'who do we know at <district>', 'all superintendents in CA', 'HR directors we've reached', 'primary contact at <district>', 'stale contacts', 'contacts at <specific school>' (via the school_contacts junction), 'contacts who attended <event>' (via the activity_contacts junction), 'contacts assigned to <task>' (via task_contacts), 'contacts mentioned in recent news' (via the news_article_contacts junction). Use persona / seniority_level for role-based filtering (both columns' value sets live in the data — call get_column_values to confirm). For contacts-at-a-school questions, the school_contacts junction is the right hop (still excluded from TABLE_REGISTRY; use raw Prisma join).",
     primaryKey: "id",
     columns: CONTACT_COLUMNS,
     relationships: [
@@ -2876,6 +2909,12 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         type: "many-to-one",
         joinSql: "contacts.leaid = districts.leaid",
         description: "Parent district",
+      },
+      {
+        toTable: "news_article_contacts",
+        type: "one-to-many",
+        joinSql: "news_article_contacts.contact_id = contacts.id",
+        description: "Junction to news articles mentioning this contact (default confidence IN ('high','llm'))",
       },
     ],
   },
@@ -3044,6 +3083,12 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
         joinSql: "school_enrollment_history.ncessch = schools.ncessch",
         description: "Historical enrollment snapshots per year (trend / growth / shrinkage)",
       },
+      {
+        toTable: "news_article_schools",
+        type: "one-to-many",
+        joinSql: "news_article_schools.ncessch = schools.ncessch",
+        description: "Junction to news articles mentioning this school (default confidence IN ('high','llm'))",
+      },
     ],
   },
   district_data_history: {
@@ -3135,6 +3180,67 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
       },
     ],
   },
+  news_articles: {
+    table: "news_articles",
+    description:
+      "K-12 news articles ingested from RSS (Chalkbeat, K12 Dive, The 74, EdSurge), Google News (industry-topic + per-district queries), and admin manual refreshes. Classified by a Haiku pass for sentiment, topic categories, and Fullmind sales relevance — those columns are NULL until the classifier runs. Article-to-entity matching is many-to-many via three junctions: news_article_districts, news_article_schools, news_article_contacts. Rep questions split three ways: (1) per-entity coverage ('news at <district>', 'recent news at my schools', 'articles mentioning <superintendent>') — go through the junction, (2) per-state recency ('news in TX this week', 'recent CA coverage') — use state_abbrevs (postgres text[]) WITHOUT the junction, (3) industry trends ('what's been hot in K-12 news this month', 'most-covered topics') — group by categories or feed_source on news_articles directly. For 'sales-relevant news' default to fullmind_relevance IN ('high','medium'). Articles can outlive their classification window — when filtering by sentiment / categories / fullmind_relevance, surface a brief caveat that unclassified articles are excluded. Always order by published_at DESC for recency questions.",
+    primaryKey: "id",
+    columns: NEWS_ARTICLE_COLUMNS,
+    relationships: [
+      {
+        toTable: "news_article_districts",
+        type: "one-to-many",
+        joinSql: "news_article_districts.article_id = news_articles.id",
+        description: "Junction to districts (each row carries a confidence tier)",
+      },
+      {
+        toTable: "news_article_schools",
+        type: "one-to-many",
+        joinSql: "news_article_schools.article_id = news_articles.id",
+        description: "Junction to schools",
+      },
+      {
+        toTable: "news_article_contacts",
+        type: "one-to-many",
+        joinSql: "news_article_contacts.article_id = news_articles.id",
+        description: "Junction to contacts (named people mentioned in the article)",
+      },
+    ],
+  },
+  news_article_districts: {
+    table: "news_article_districts",
+    description:
+      "Junction between news articles and districts. confidence column is critical: full enum 'high' (exact-name match against district directory, ~5% false-positive rate), 'llm' (LLM-confirmed match against ambiguous candidates, the medium-quality tier), 'low' (uncertain — usually filtered out). DEFAULT filter for rep-facing news: confidence IN ('high','llm'). Use 'high' alone for the strictest accuracy.",
+    primaryKey: ["articleId", "leaid"],
+    columns: [],
+    relationships: [
+      { toTable: "news_articles", type: "many-to-one", joinSql: "news_article_districts.article_id = news_articles.id", description: "Parent article" },
+      { toTable: "districts", type: "many-to-one", joinSql: "news_article_districts.leaid = districts.leaid", description: "Matched district" },
+    ],
+  },
+  news_article_schools: {
+    table: "news_article_schools",
+    description:
+      "Junction between news articles and schools. Same confidence semantics as news_article_districts: full enum 'high' / 'llm' / 'low'. DEFAULT filter for rep-facing news: confidence IN ('high','llm'). School matches are a subset of high-confidence district matches (we only scan school names within an article's matched districts).",
+    primaryKey: ["articleId", "ncessch"],
+    columns: [],
+    relationships: [
+      { toTable: "news_articles", type: "many-to-one", joinSql: "news_article_schools.article_id = news_articles.id", description: "Parent article" },
+      { toTable: "schools", type: "many-to-one", joinSql: "news_article_schools.ncessch = schools.ncessch", description: "Matched school" },
+    ],
+  },
+  news_article_contacts: {
+    table: "news_article_contacts",
+    description:
+      "Junction between news articles and contacts (named people: superintendents, CFOs, board members, principals, etc.). Same confidence semantics as the other news junctions: full enum 'high' / 'llm' / 'low'. DEFAULT filter for rep-facing news: confidence IN ('high','llm'). Contact matches require both name co-occurrence AND a title-keyword co-occurrence in the article — so this surface is good for 'news mentioning <superintendent>' or 'recent coverage of leadership at <district>'.",
+    primaryKey: ["articleId", "contactId"],
+    columns: [],
+    relationships: [
+      { toTable: "news_articles", type: "many-to-one", joinSql: "news_article_contacts.article_id = news_articles.id", description: "Parent article" },
+      { toTable: "contacts", type: "many-to-one", joinSql: "news_article_contacts.contact_id = contacts.id", description: "Matched contact" },
+    ],
+  },
+
   query_log: {
     table: "query_log",
     description:
@@ -3506,6 +3612,17 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
         "EK12 MASTER/ADD-ON DATA GAP: Elevate K12 deals follow a master-renewal-contract + add-ons structure that the data model does NOT yet capture. A master contract opportunity has minimum_purchase_amount and maximum_budget; add-on opportunities are separate rows in the same table and consume budget against the master's max — but there is NO parent_opportunity_id linking them. Implications: SUM(maximum_budget) across opportunities will roughly DOUBLE-COUNT the EK12 ceiling because both the master max and the add-on maxes are summed independently. SUM(minimum_purchase_amount) has the same trap but there IS a safe alternative: district_opportunity_actuals.min_purchase_bookings chain-deduplicates the add-on cumulative values correctly — prefer it for any closed-won contracted-floor aggregate. SUM(opportunities.net_booking_amount) is safe because add-ons add real incremental signed dollars. MAX(maximum_budget) per district is still misleading. When the user asks about 'upside', 'ceiling', 'potential', 'max FY26 pipeline', or any aggregation of maximum_budget, you MUST either refuse or surface a heavy caveat that the answer overcounts because we cannot distinguish master contracts from add-ons. Per-deal questions (single opportunity's min/max/budget) are fine. Tracked in Docs/superpowers/followups/2026-04-12-ek12-master-addon-data-gap.md.",
     },
     {
+      triggerTables: [
+        "news_articles",
+        "news_article_districts",
+        "news_article_schools",
+        "news_article_contacts",
+      ],
+      severity: "mandatory",
+      message:
+        "NEWS QUERY DEFAULTS: (1) When joining any of the three news junctions (news_article_districts / news_article_schools / news_article_contacts), DEFAULT to confidence IN ('high','llm'). The third value 'low' is uncertain matches and pollutes rep-facing results — only include it when the rep explicitly asks for everything. There is no 'medium' value; 'llm' IS the medium tier. (2) Classification columns (sentiment, categories, fullmind_relevance, classified_at) are NULL on the unclassified backlog. Filtering on any of them silently drops those rows — when a rep asks 'all news at <district>' or 'this week's coverage' WITHOUT a sentiment/category/relevance filter, do NOT add one (you'll under-count). When a rep DOES filter on classification ('negative news', 'sales-relevant news'), add a brief caveat that unclassified articles are excluded. (3) Always order by published_at DESC for recency questions; the (published_at) and (fullmind_relevance, published_at) indexes make this fast. (4) For per-state recency ('news in TX'), use news_articles.state_abbrevs (postgres text[]) directly with the && or = ANY operators — going through the district junction is slower and unnecessary unless the rep wants per-district drill-in. (5) For 'sales-relevant news' default fullmind_relevance IN ('high','medium').",
+    },
+    {
       triggerTables: ["opportunities"],
       severity: "mandatory",
       message:
@@ -3528,10 +3645,6 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "initiatives",
     "map_views",
     "metric_registry",
-    "news_article_contacts",
-    "news_article_districts",
-    "news_article_schools",
-    "news_articles",
     "news_ingest_runs",
     "news_match_queue",
     "opportunity_snapshots",
