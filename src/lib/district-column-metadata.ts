@@ -1906,8 +1906,8 @@ export const OPPORTUNITY_COLUMNS: ColumnMetadata[] = [
   {
     field: "totalRevenue",
     column: "total_revenue",
-    label: "Total Revenue (session-only)",
-    description: "completed_revenue + scheduled_revenue on this deal. The delivered-plus-committed total for a single session-based opportunity. SESSION-ONLY — missing EK12 subscription revenue. For inclusive 'total revenue' / 'how much revenue is this deal worth' questions that need to include EK12 subscriptions, use district_financials.total_revenue (rep-agnostic) or DOA.total_revenue (rep/category-scoped); both fold in EK12 subs via refresh_fullmind_financials(). For the delivered-vs-scheduled split, query completed_revenue and scheduled_revenue separately.",
+    label: "Total Revenue (deal, session-only)",
+    description: "Session-only deal revenue (completed_revenue + scheduled_revenue). DOES NOT include EK12 subscription revenue — subscriptions are a separate table linked by opportunity_id. RULE OF THUMB: when a rep asks about 'revenue' on a deal, default to the SUBSCRIPTION-FOLDED total: COALESCE(o.total_revenue, 0) + COALESCE((SELECT SUM(s.net_total) FROM subscriptions s WHERE s.opportunity_id = o.id), 0). Applies to single-deal lookups only — for multi-deal aggregates this correlated subquery is both slow and error-prone, so use district_opportunity_actuals.total_revenue instead. Skip the COALESCE fold and use this column directly ONLY when the rep explicitly asks for 'session revenue', 'session-only', or the delivered/scheduled split (in which case also pair with completed_revenue + scheduled_revenue). If the rep asks for the session-vs-subscription split rather than a folded total, see SEMANTIC_CONTEXT.conceptMappings.session_vs_subscription_revenue. For aggregated revenue across many deals, prefer district_opportunity_actuals.total_revenue or district_financials.total_revenue — both fold subscriptions in already.",
     domain: "opportunity",
     format: "currency",
     source: "opensearch",
