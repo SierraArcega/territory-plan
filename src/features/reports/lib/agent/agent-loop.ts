@@ -15,6 +15,7 @@ import { buildSystemPrompt } from "./system-prompt";
 import type { PriorTurn } from "./conversation";
 import {
   MAX_EXPLORATORY_CALLS_PER_TURN,
+  MAX_GHOST_REPORT_RETRIES,
   MAX_SQL_RETRIES,
   ZERO_USAGE,
   addUsage,
@@ -84,6 +85,18 @@ function extractUsage(
   };
 }
 
+// Detects a SQL code fence in assistant text — the signature of a "ghost
+// report" turn where the model wrote SQL in prose instead of calling run_sql.
+// Matches ```sql ... ``` (case-insensitive) and bare ``` ... ``` blocks
+// containing SELECT/INSERT/UPDATE/DELETE/WITH at the start of a line.
+function containsSqlFence(text: string): boolean {
+  if (!text) return false;
+  if (/```sql/i.test(text)) return true;
+  // Bare fences with a SQL-looking opener
+  const bareFence = /```\s*\n\s*(SELECT|INSERT|UPDATE|DELETE|WITH)\b/i;
+  return bareFence.test(text);
+}
+
 export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult> {
   const { anthropic, userMessage, priorTurns, userId, conversationId } = args;
 
@@ -103,6 +116,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
   const systemPrompt = await buildSystemPrompt(priorTurns);
 
   let sqlRetriesUsed = 0;
+  let ghostReportRetriesUsed = 0;
   let exploratoryCalls = 0;
   let assistantText = "";
   let iteration = 0;
@@ -186,6 +200,46 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
 
     if (toolUses.length === 0) {
       const text = assistantText || "(no text)";
+
+      // Ghost-report detection: model wrote SQL in text without calling
+      // run_sql. Inject a corrective user-turn message and let the loop
+      // continue — gives the model one chance to invoke the tool properly.
+      if (
+        containsSqlFence(text) &&
+        ghostReportRetriesUsed < MAX_GHOST_REPORT_RETRIES
+      ) {
+        ghostReportRetriesUsed++;
+        // Reset assistantText so the ghost turn's SQL prose doesn't leak
+        // into the user-visible output if the retry succeeds.
+        assistantText = "";
+        const corrective =
+          "You wrote SQL in a text block but did not call `run_sql`. " +
+          "The user cannot see SQL — the table only updates when you call " +
+          "`run_sql`. Call `run_sql` now with the query you just described.";
+        messages.push({ role: "assistant", content: response.content });
+        messages.push({ role: "user", content: corrective });
+        events.push({
+          kind: "tool_result",
+          toolUseId: "ghost-report-retry",
+          toolName: "ghost_report_retry",
+          isError: true,
+          content: corrective,
+        });
+        continue; // back to the top of while(true)
+      }
+
+      // After ghost-retry exhausted, classify as surrender (real failure)
+      // rather than clarifying (chat-only response).
+      if (ghostReportRetriesUsed > 0) {
+        logDiag("no_tools", "surrender", text);
+        return {
+          kind: "surrender",
+          text,
+          events,
+          usage: totalUsage,
+        };
+      }
+
       logDiag("no_tools", "clarifying", text);
       return {
         kind: "clarifying",

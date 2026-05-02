@@ -20,6 +20,28 @@ describe("formatCell — currency", () => {
   it("renders zero correctly", () => {
     expect(formatCell("invoiced", 0)).toBe("$0.00");
   });
+
+  it("formats commit aliases as currency", () => {
+    expect(formatCell("min_commit", 8399.6)).toBe("$8,399.60");
+    expect(formatCell("max_commit", 12500)).toBe("$12,500.00");
+    expect(formatCell("contracted_commit", 50000)).toBe("$50,000.00");
+  });
+
+  it("formats size aliases as currency", () => {
+    expect(formatCell("deal_size", 40859.5)).toBe("$40,859.50");
+    expect(formatCell("contract_size", "100000")).toBe("$100,000.00");
+  });
+
+  it("formats abbreviated revenue aliases as currency", () => {
+    expect(formatCell("rev", 1234.5)).toBe("$1,234.50");
+    expect(formatCell("total_rev", 5000)).toBe("$5,000.00");
+    expect(formatCell("net_rev", 2500.75)).toBe("$2,500.75");
+  });
+
+  it("formats fee/charge aliases as currency", () => {
+    expect(formatCell("setup_fee", 500)).toBe("$500.00");
+    expect(formatCell("monthly_charge", 99.99)).toBe("$99.99");
+  });
 });
 
 describe("formatCell — dates", () => {
@@ -67,6 +89,23 @@ describe("formatCell — other types", () => {
 
   it("renders text columns as-is", () => {
     expect(formatCell("name", "Houston ISD")).toBe("Houston ISD");
+  });
+
+  it("does NOT format these as currency (no false positives)", () => {
+    // size-but-not-money words
+    expect(formatCell("font_size", 14)).toBe("14");
+    expect(formatCell("page_size", 50)).toBe("50");
+    // rev-but-not-revenue words
+    expect(formatCell("revision", 3)).toBe("3");
+    expect(formatCell("reverse", 1)).toBe("1");
+    // commit-but-not-money words
+    expect(formatCell("commitment_level", 5)).toBe("5");
+    expect(formatCell("recommit", 2)).toBe("2");
+    expect(formatCell("commit_count", 100)).toBe("100");
+    // charge-but-rate (NOT a dollar amount)
+    expect(formatCell("charge_rate", 0.05)).toBe("5%");
+    // gross-but-margin (rate/percentage, not dollar amount)
+    expect(formatCell("gross_margin_pct", 0.27)).toBe("27%");
   });
 });
 

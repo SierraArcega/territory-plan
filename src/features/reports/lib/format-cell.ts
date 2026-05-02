@@ -1,6 +1,6 @@
 import { TABLE_REGISTRY, type DataFormat } from "@/lib/district-column-metadata";
 
-const CURRENCY_HINT = /(amount|budget|revenue|bookings|take|price|cost|value|pipeline|purchase|invoiced|credited|spend)/i;
+const CURRENCY_HINT = /(amount|budget|revenue|bookings|take|price|cost|value|pipeline|purchase|invoiced|credited|spend|_commit\b|deal_size|contract_size|\brev\b|_rev\b|fee|_charge\b|earnings|\bgross\b|net_total|net_booking)/i;
 const PERCENT_HINT = /(_pct|_rate|_ratio|percent)/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 
