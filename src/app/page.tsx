@@ -14,7 +14,7 @@ import ProfileView from "@/features/shared/components/views/ProfileView";
 import AdminDashboard from "@/features/admin/components/AdminDashboard";
 import ResourcesView from "@/features/shared/components/views/ResourcesView";
 import LeaderboardDetailView from "@/features/leaderboard/components/LeaderboardDetailView";
-import { ReportsView } from "@/features/reports/components/ReportsView";
+import { ReportsTab } from "@/features/reports/components/ReportsTab";
 import LowHangingFruitView from "@/features/leaderboard/components/LowHangingFruitView";
 
 // Dynamic import for MapV2Shell — SSR disabled because MapLibre GL requires the browser DOM
@@ -197,7 +197,7 @@ function HomeContent() {
       case "home":
         return <HomeView />;
       case "reports":
-        return <ReportsView />;
+        return <ReportsTab />;
       case "leaderboard":
         return <LeaderboardDetailView />;
       case "low-hanging-fruit":
