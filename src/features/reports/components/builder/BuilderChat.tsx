@@ -40,6 +40,9 @@ export function BuilderChat({
   }, [turns.length, inFlight]);
 
   const latestVersionN = versions.at(-1)?.n ?? null;
+  // Synthetic turns from the saved-report rerun have empty userMessage —
+  // they seed the rail/results without showing in chat.
+  const visibleTurns = turns.filter((t) => t.userMessage.trim() !== "");
 
   return (
     <div className="flex h-full min-w-0 flex-col" style={{ maxWidth: 560, borderRight: "1px solid #E2DEEC" }}>
@@ -75,8 +78,8 @@ export function BuilderChat({
 
       {/* Messages */}
       <div ref={scrollRef} className="fm-scrollbar min-h-0 flex-1 overflow-y-auto">
-        {turns.length === 0 ? (
-          <EmptyChat />
+        {visibleTurns.length === 0 ? (
+          <EmptyChat hasSilentVersion={turns.length > 0} />
         ) : (
           <div className="relative px-4 pb-4 pt-3" style={{ paddingLeft: 44 }}>
             {/* Continuous dashed connector line in the gutter */}
@@ -91,7 +94,7 @@ export function BuilderChat({
                 backgroundSize: "1.5px 6px",
               }}
             />
-            {turns.map((t) => (
+            {visibleTurns.map((t) => (
               <TurnBlock
                 key={t.id}
                 turn={t}
@@ -108,14 +111,26 @@ export function BuilderChat({
   );
 }
 
-function EmptyChat() {
+function EmptyChat({ hasSilentVersion }: { hasSilentVersion: boolean }) {
   return (
     <div className="flex h-full items-center justify-center px-6">
       <div className="max-w-[360px] text-center">
-        <div className="text-[13px] font-semibold text-[#403770]">Ask a question to start</div>
+        <div className="text-[13px] font-semibold text-[#403770]">
+          {hasSilentVersion ? "Saved report loaded" : "Ask a question to start"}
+        </div>
         <div className="mt-1 text-[12px] leading-relaxed text-[#8A80A8]">
-          Try something like <em className="font-medium">my open opps stuck more than 90 days</em>.
-          Each answer becomes a saved version you can refine or jump back to.
+          {hasSilentVersion ? (
+            <>
+              The result is on the right as <strong className="font-semibold">v1</strong>. Ask a
+              follow-up below to refine it.
+            </>
+          ) : (
+            <>
+              Try something like{" "}
+              <em className="font-medium">my open opps stuck more than 90 days</em>. Each answer
+              becomes a saved version you can refine or jump back to.
+            </>
+          )}
         </div>
       </div>
     </div>

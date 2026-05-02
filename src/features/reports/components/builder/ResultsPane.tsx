@@ -6,12 +6,19 @@ import { ResultsTable } from "../ResultsTable";
 import { SqlPreviewModal } from "../SqlPreviewModal";
 import { downloadCsv, rowsToCsv, slugifyForFilename } from "../../lib/csv";
 import { ChipStrip } from "./ChipStrip";
+import { SaveButton, type SessionMode } from "./SaveButton";
 import type { BuilderVersion } from "./types";
 
 interface Props {
   version: BuilderVersion | null;
-  isFromSavedReport: boolean;
-  hasRefinements: boolean;
+  sessionMode: SessionMode;
+  savedReportTitle: string;
+  savedReportDescription: string;
+  saveBusy: boolean;
+  onSaveNew: (title: string, description: string) => void;
+  onUpdateSavedReport: () => void;
+  onEditDetails: (title: string, description: string) => void;
+  onDelete: () => void;
 }
 
 /**
@@ -19,8 +26,20 @@ interface Props {
  * CSV) + existing ResultsTable. Slice 5 layers in the chip strip and split
  * Save button; slice 6 wires the save modal.
  */
-export function ResultsPane({ version, isFromSavedReport, hasRefinements }: Props) {
+export function ResultsPane({
+  version,
+  sessionMode,
+  savedReportTitle,
+  savedReportDescription,
+  saveBusy,
+  onSaveNew,
+  onUpdateSavedReport,
+  onEditDetails,
+  onDelete,
+}: Props) {
   const [sqlOpen, setSqlOpen] = useState(false);
+  const isFromSavedReport = sessionMode !== "fresh";
+  const hasRefinements = sessionMode === "loaded-refined";
 
   if (!version) {
     return (
@@ -76,6 +95,16 @@ export function ResultsPane({ version, isFromSavedReport, hasRefinements }: Prop
           >
             Export CSV
           </HeaderButton>
+          <SaveButton
+            sessionMode={sessionMode}
+            initialTitle={savedReportTitle || version.summary.source}
+            initialDescription={savedReportDescription}
+            busy={saveBusy}
+            onSaveNew={onSaveNew}
+            onUpdateSavedReport={onUpdateSavedReport}
+            onEditDetails={onEditDetails}
+            onDelete={onDelete}
+          />
         </div>
       </div>
 

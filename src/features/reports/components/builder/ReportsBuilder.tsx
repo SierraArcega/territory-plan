@@ -4,8 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { QuerySummary } from "../../lib/agent/types";
 import { useChatTurn } from "../../hooks/useChatTurn";
 import { useRunSavedReport } from "../../hooks/useSavedReports";
+import {
+  useCreateSavedReport,
+  useDeleteReport,
+  useUpdateReportDetails,
+  useUpdateReportSql,
+} from "../../lib/queries";
 import { BuilderChat } from "./BuilderChat";
 import { ResultsPane } from "./ResultsPane";
+import type { SessionMode } from "./SaveButton";
 import type { BuilderTurn, BuilderVersion } from "./types";
 
 interface Props {
@@ -19,6 +26,13 @@ interface Props {
   onSelectVersion: (n: number) => void;
   onNewReport: () => void;
   onCollapseChat: () => void;
+  /** Called when a save creates a new SavedReport row — typically routes to
+   *  ?report=<newId>&view=builder so the session continues with the saved
+   *  context. */
+  onAfterSaveNew?: (newReportId: number) => void;
+  /** Called when the user deletes a loaded saved report; should navigate
+   *  back to the library. */
+  onAfterDelete?: () => void;
 }
 
 interface Result {
@@ -37,10 +51,13 @@ export function ReportsBuilder({
   onSelectVersion,
   onNewReport,
   onCollapseChat,
+  onAfterSaveNew,
+  onAfterDelete,
 }: Props) {
   const [turns, setTurns] = useState<BuilderTurn[]>([]);
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [savedReportTitle, setSavedReportTitle] = useState<string | null>(null);
+  const [savedReportDescription, setSavedReportDescription] = useState<string>("");
   // True for the lifetime of a session that started from a saved report,
   // even after the user adds refining turns. Used by ResultsPane to show
   // "From saved report · refined".
@@ -48,6 +65,15 @@ export function ReportsBuilder({
 
   const chatTurn = useChatTurn();
   const runSaved = useRunSavedReport();
+  const createReport = useCreateSavedReport();
+  const updateReportSql = useUpdateReportSql();
+  const updateReportDetails = useUpdateReportDetails();
+  const deleteReport = useDeleteReport();
+  const saveBusy =
+    createReport.isPending ||
+    updateReportSql.isPending ||
+    updateReportDetails.isPending ||
+    deleteReport.isPending;
 
   const versions = useMemo<BuilderVersion[]>(
     () => turns.flatMap((t) => (t.version ? [t.version] : [])),
@@ -183,6 +209,8 @@ export function ReportsBuilder({
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
           if (j?.report?.title) setSavedReportTitle(j.report.title);
+          if (typeof j?.report?.description === "string")
+            setSavedReportDescription(j.report.description);
         })
         .catch(() => {});
       return;
@@ -200,7 +228,77 @@ export function ReportsBuilder({
     return "New report";
   }, [savedReportTitle, versions]);
 
-  const hasRefinements = fromSavedReportRef.current && versions.length > 1;
+  // Refined = loaded-from-saved AND user added at least one new (non-synthetic)
+  // turn. Synthetic turns from the saved-report rerun have empty userMessage.
+  const hasRefinements =
+    fromSavedReportRef.current && turns.some((t) => t.userMessage.trim() !== "");
+
+  const sessionMode: SessionMode = !fromSavedReportRef.current
+    ? "fresh"
+    : hasRefinements
+      ? "loaded-refined"
+      : "loaded-unmodified";
+
+  const handleSaveNew = useCallback(
+    (title: string, description: string) => {
+      const v = selectedVersion;
+      if (!v) return;
+      const lastUserMessage = [...turns].reverse().find((t) => t.userMessage.trim())?.userMessage;
+      createReport.mutate(
+        {
+          title,
+          description: description || null,
+          question: lastUserMessage ?? v.summary.source,
+          sql: v.sql,
+          summary: v.summary,
+          conversationId,
+        },
+        {
+          onSuccess: (data) => {
+            if (data.report?.id != null) onAfterSaveNew?.(data.report.id);
+          },
+        },
+      );
+    },
+    [selectedVersion, turns, conversationId, createReport, onAfterSaveNew],
+  );
+
+  const handleUpdateSavedReport = useCallback(() => {
+    if (reportId == null) return;
+    const v = selectedVersion;
+    if (!v) return;
+    const lastUserMessage = [...turns].reverse().find((t) => t.userMessage.trim())?.userMessage;
+    updateReportSql.mutate({
+      id: reportId,
+      sql: v.sql,
+      summary: v.summary,
+      question: lastUserMessage ?? v.summary.source,
+    });
+  }, [reportId, selectedVersion, turns, updateReportSql]);
+
+  const handleEditDetails = useCallback(
+    (title: string, description: string) => {
+      if (reportId == null) return;
+      updateReportDetails.mutate(
+        { id: reportId, title, description: description || null },
+        {
+          onSuccess: () => {
+            setSavedReportTitle(title);
+            setSavedReportDescription(description);
+          },
+        },
+      );
+    },
+    [reportId, updateReportDetails],
+  );
+
+  const handleDelete = useCallback(() => {
+    if (reportId == null) return;
+    if (!window.confirm("Delete this saved report? This can't be undone.")) return;
+    deleteReport.mutate(reportId, {
+      onSuccess: () => onAfterDelete?.(),
+    });
+  }, [reportId, deleteReport, onAfterDelete]);
 
   return (
     <div className="flex h-full min-h-0 bg-[#FFFCFA]">
@@ -217,8 +315,14 @@ export function ReportsBuilder({
       />
       <ResultsPane
         version={selectedVersion}
-        isFromSavedReport={fromSavedReportRef.current}
-        hasRefinements={hasRefinements}
+        sessionMode={sessionMode}
+        savedReportTitle={savedReportTitle ?? ""}
+        savedReportDescription={savedReportDescription}
+        saveBusy={saveBusy}
+        onSaveNew={handleSaveNew}
+        onUpdateSavedReport={handleUpdateSavedReport}
+        onEditDetails={handleEditDetails}
+        onDelete={handleDelete}
       />
     </div>
   );

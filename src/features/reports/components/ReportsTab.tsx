@@ -75,29 +75,39 @@ export function ReportsTab() {
     const promptParam = searchParams.get("prompt");
     const vParam = searchParams.get("v");
     const selectedV = vParam ? Number(vParam) : NaN;
+    // ReportsBuilder keys off ?report and ?prompt for its mount-time effect.
+    // Remount it whenever those params change so a "+ New" reset clears in-
+    // memory turns too. Without this key, dropping ?report/?prompt would
+    // leave the previous session's turns stranded.
+    const builderKey = `${reportIdParam ?? ""}::${promptParam ?? ""}`;
     return (
       <ReportsBuilder
+        key={builderKey}
         reportId={Number.isFinite(reportId) ? reportId : null}
         initialPrompt={promptParam}
         selectedVersionN={Number.isFinite(selectedV) ? selectedV : null}
         onSelectVersion={handleSelectVersion}
         onNewReport={() => {
-          // Hard reset — drop ?report, ?prompt, ?v, then route back to a blank
-          // builder so all in-memory turns clear. Same effect as clicking the
-          // header "+ New" while inside an existing session.
           updateParams((p) => {
             p.delete("report");
             p.delete("prompt");
             p.delete("v");
           });
-          // Force a remount of ReportsBuilder by briefly toggling view; in
-          // practice the param reset triggers fresh state because the builder
-          // keys off ?report and ?prompt. If we wanted truly fresh state we'd
-          // also navigate to library and back — keep it simple for slice 4.
         }}
         onCollapseChat={() => {
-          // Slice 8 wires the actual collapsed-rail. For now this is a no-op
-          // that we leave in the contract so the chat header chevron works.
+          // Slice 8 wires the actual collapsed-rail. For now a no-op; the
+          // chevron in the chat header still renders so the visual contract
+          // is in place.
+        }}
+        onAfterSaveNew={(newId) => {
+          updateParams((p) => {
+            p.set("report", String(newId));
+            p.delete("prompt");
+            p.delete("v");
+          });
+        }}
+        onAfterDelete={() => {
+          goToLibrary();
         }}
       />
     );
