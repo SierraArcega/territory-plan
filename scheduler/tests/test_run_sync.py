@@ -251,6 +251,9 @@ def test_manual_resolution_heals_when_opp_id_is_int(
     mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
     mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
     mock_get_conn.return_value = mock_conn
+    # upsert_opportunities now returns the post-COALESCE matched-ids list;
+    # simulate the writer reporting this opp landed with a leaid set.
+    mock_upsert_opps.return_value = [OPP_ID_INT]
 
     result = run_sync()
 
@@ -265,3 +268,95 @@ def test_manual_resolution_heals_when_opp_id_is_int(
     # And the now-matched id must be sent to remove_matched_from_unmatched
     removed_ids = mock_remove_matched.call_args[0][1]
     assert OPP_ID_INT in removed_ids
+
+
+@patch("run_sync.refresh_opportunity_actuals")
+@patch("run_sync.refresh_fullmind_financials")
+@patch("run_sync.refresh_map_features")
+@patch("run_sync.set_last_synced_at")
+@patch("run_sync.get_last_synced_at", return_value=None)
+@patch("run_sync.update_district_pipeline_aggregates")
+@patch("run_sync.remove_matched_from_unmatched")
+@patch("run_sync.upsert_unmatched")
+@patch("run_sync.upsert_sessions")
+@patch("run_sync.upsert_opportunities")
+@patch("run_sync.get_connection")
+@patch("run_sync.build_opportunity_record")
+@patch("run_sync.fetch_district_mappings")
+@patch("run_sync.fetch_sessions")
+@patch("run_sync.fetch_opportunities")
+@patch("run_sync.get_client")
+def test_run_sync_uses_writer_returned_matched_ids_for_cleanup(
+    mock_get_client, mock_fetch_opps, mock_fetch_sessions,
+    mock_fetch_districts, mock_build, mock_get_conn,
+    mock_upsert_opps, mock_upsert_sessions, mock_upsert_unmatched,
+    mock_remove_matched, mock_update_agg, mock_get_last, mock_set_last,
+    mock_refresh, mock_refresh_fin, mock_refresh_actuals,
+):
+    """remove_matched_from_unmatched must be driven by the writer's RETURNING
+    list (post-COALESCE state), not by the Python record's district_lea_id.
+
+    Scenario: compute() returns NULL this cycle for an opp that already had
+    a leaid in the DB. The COALESCE in upsert_opportunities preserves the
+    prior leaid, and the writer reports this opp as still matched. The old
+    (pre-Bug-2) code filtered the cleanup list on the Python record value
+    and would have left a stale `resolved=false` row in unmatched_opportunities
+    every cycle — that's what made queue counts pile up for reps like Melodie.
+    """
+    mock_fetch_opps.return_value = [
+        {"_source": {"id": "opp-coalesced", "accounts": [{"id": "acc1"}]}}
+    ]
+    mock_fetch_sessions.return_value = []
+    mock_fetch_districts.return_value = {}  # natural resolver fails this cycle
+    mock_build.return_value = {
+        "id": "opp-coalesced",
+        "district_lea_id": None,  # compute returned NULL
+        "net_booking_amount": 0,
+        "service_types": [],
+    }
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = []  # no manual resolutions
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+    mock_get_conn.return_value = mock_conn
+    # Writer reports the row landed with a leaid — preserved by COALESCE
+    # against the prior DB value.
+    mock_upsert_opps.return_value = ["opp-coalesced"]
+
+    run_sync()
+
+    removed_ids = mock_remove_matched.call_args[0][1]
+    assert "opp-coalesced" in removed_ids
+
+
+def test_process_opp_hits_manual_resolution_overrides_compute_leaid():
+    """Direct test of the shared helper: manual resolutions are authoritative
+    even when compute() returns a non-NULL leaid. Prevents the per-entrypoint
+    drift that produced Bug 1 (backfill missed PR #158's fix)."""
+    from run_sync import _process_opp_hits
+    from datetime import datetime, timezone
+
+    opp_hits = [
+        {"_source": {
+            "id": 17592305692725,  # int from OpenSearch
+            "name": "Yuba City",
+            "accounts": [{"id": "ACC", "name": "Yuba City Unified School District"}],
+            "stage": "3 - Proposal", "school_yr": "2025-26", "state": "CA",
+            "invoices": [], "credit_memos": [], "sales_rep": {},
+        }}
+    ]
+    mapping = {"ACC": {"nces_id": "0643470", "leaid": "0643470",
+                       "name": "Yuba City Unified School District", "type": "district"}}
+    # Rep's manual resolution disagrees with compute — must win.
+    manual_resolutions = {"17592305692725": "9999999"}
+    now = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    matched, unmatched, healed = _process_opp_hits(
+        opp_hits, {}, mapping, manual_resolutions, now
+    )
+
+    assert healed == 1
+    assert len(matched) == 1
+    assert matched[0]["district_lea_id"] == "9999999"
+    assert unmatched == []  # heal collapses the unmatched classification

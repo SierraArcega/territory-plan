@@ -107,3 +107,60 @@ def test_run_current_fy_backfill_does_not_touch_watermark(
     # Backfill must NOT advance the watermark — the hourly incremental still
     # needs to catch up from where it last left off.
     mock_set_last.assert_not_called()
+
+
+@patch("run_sync.refresh_opportunity_actuals")
+@patch("run_sync.refresh_fullmind_financials")
+@patch("run_sync.refresh_map_features")
+@patch("run_sync.update_district_pipeline_aggregates")
+@patch("run_sync.remove_matched_from_unmatched")
+@patch("run_sync.upsert_unmatched")
+@patch("run_sync.upsert_sessions")
+@patch("run_sync.upsert_opportunities")
+@patch("run_sync.get_connection")
+@patch("run_sync.build_opportunity_record")
+@patch("run_sync.fetch_district_mappings")
+@patch("run_sync.fetch_sessions")
+@patch("run_sync.fetch_opportunities_for_school_yrs")
+@patch("run_sync.get_client")
+def test_run_current_fy_backfill_manual_resolution_overrides_sync_leaid(
+    mock_get_client, mock_fetch_yrs, mock_fetch_sessions,
+    mock_fetch_districts, mock_build, mock_get_conn,
+    mock_upsert_opps, mock_upsert_sessions, mock_upsert_unmatched,
+    mock_remove_matched, mock_update_agg, mock_refresh_map,
+    mock_refresh_fin, mock_refresh_actuals,
+):
+    """The daily backfill must respect manual resolutions even when
+    OpenSearch produces a non-NULL leaid that disagrees. Mirrors the
+    run_sync regression in test_run_sync.py — the missing parallel for the
+    backfill is what let manual-mapping reverts slip through PR #158."""
+    OPP_ID = "opp-backfill-1"
+    REP_LEAID = "9999999"
+    SYNC_LEAID = "0100001"
+
+    mock_fetch_yrs.return_value = [
+        {"_source": {"id": OPP_ID, "accounts": [{"id": "acc1"}]}}
+    ]
+    mock_fetch_sessions.return_value = []
+    mock_fetch_districts.return_value = {"acc1": {"nces_id": "123", "leaid": SYNC_LEAID}}
+    # Sync derives a leaid; rep previously mapped this opp to a different one.
+    mock_build.return_value = {
+        "id": OPP_ID, "district_lea_id": SYNC_LEAID,
+        "net_booking_amount": 5000, "service_types": [],
+    }
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = [(OPP_ID, REP_LEAID)]
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+    mock_get_conn.return_value = mock_conn
+    mock_upsert_opps.return_value = [OPP_ID]
+
+    run_current_fy_backfill()
+
+    upserted = mock_upsert_opps.call_args[0][1]
+    assert len(upserted) == 1
+    # Rep's choice MUST win — even though compute returned a non-NULL leaid.
+    assert upserted[0]["district_lea_id"] == REP_LEAID
+    # Resolved row must NOT be re-inserted as unmatched.
+    mock_upsert_unmatched.assert_not_called()
