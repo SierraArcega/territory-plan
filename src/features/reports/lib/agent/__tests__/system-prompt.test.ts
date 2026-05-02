@@ -51,6 +51,34 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("# districts");
   });
 
+  it("states the default-revenue rule (subscription fold-in)", async () => {
+    const prompt = await buildSystemPrompt();
+    expect(prompt.toLowerCase()).toMatch(/default[\s\S]{0,50}revenue/);
+    expect(prompt).toMatch(/COALESCE|fold[\s-]?in|subscription/i);
+  });
+
+  it("requires the agent to narrate what's shown including caveats", async () => {
+    const prompt = await buildSystemPrompt();
+    expect(prompt.toLowerCase()).toMatch(/caveat|surface|explain what/);
+  });
+
+  it("forbids text-only SQL output (anti-ghost-report)", async () => {
+    const prompt = await buildSystemPrompt();
+    // Anchor on the named failure mode 'ghost report' — most stable phrase
+    // that survives reasonable rule rewordings.
+    expect(prompt.toLowerCase()).toMatch(/ghost.?report/);
+    expect(prompt.toLowerCase()).toMatch(/must invoke[\s\S]{0,10}run_sql/);
+  });
+
+  it("instructs the agent to keep currency tokens in column aliases", async () => {
+    const prompt = await buildSystemPrompt();
+    // Pin the rule heading so the rule itself can't be silently removed.
+    expect(prompt.toLowerCase()).toMatch(/keep currency tokens in column aliases/);
+    // Spot-check that the enumerated token list survives — pick a less-common
+    // token (`bookings`) so a future trim that drops half the list still fails.
+    expect(prompt).toMatch(/`bookings`/);
+  });
+
   it("dedupes tables across prior turns and skips unknown ones", async () => {
     const prior: PriorTurn[] = [
       {
