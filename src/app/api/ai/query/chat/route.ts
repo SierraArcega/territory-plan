@@ -37,6 +37,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     userMessage: body.message,
     priorTurns,
     userId: user.id,
+    conversationId,
   });
 
   if (result.kind === "result") {
