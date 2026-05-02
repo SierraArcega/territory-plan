@@ -25,6 +25,7 @@ function findLimit(sql: string): number | null {
 export async function handleRunSql(
   sql: string,
   summary: QuerySummary,
+  fallbackSource?: string,
 ): Promise<RunSqlResult> {
   if (!SELECT_ONLY.test(sql.trim())) {
     return {
@@ -48,11 +49,21 @@ export async function handleRunSql(
       errors: [`SQL LIMIT ${limit} exceeds MAX_LIMIT ${MAX_LIMIT}.`],
     };
   }
-  if (!summary?.source || typeof summary.source !== "string") {
-    return {
-      kind: "validation_error",
-      errors: ["summary.source must be a non-empty string describing the query."],
-    };
+  let effectiveSummary = summary;
+  const sourceIsValid =
+    summary?.source &&
+    typeof summary.source === "string" &&
+    summary.source.trim().length > 0;
+  if (!sourceIsValid) {
+    const cleanedFallback = fallbackSource?.trim().slice(0, 200);
+    if (cleanedFallback) {
+      effectiveSummary = { ...(summary ?? {}), source: cleanedFallback };
+    } else {
+      return {
+        kind: "validation_error",
+        errors: ["summary.source must be a non-empty string describing the query."],
+      };
+    }
   }
 
   const startedAt = Date.now();
@@ -71,7 +82,7 @@ export async function handleRunSql(
   return {
     kind: "ok",
     sql,
-    summary,
+    summary: effectiveSummary,
     columns,
     rows: res.rows ?? [],
     rowCount: res.rowCount ?? (res.rows ?? []).length,

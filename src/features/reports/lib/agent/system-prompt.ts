@@ -1,6 +1,25 @@
 import { TABLE_REGISTRY, SEMANTIC_CONTEXT } from "@/lib/district-column-metadata";
-import { handleDescribeTable } from "@/features/reports/lib/tools/describe-table";
+import {
+  buildCompactSchema,
+  handleDescribeTable,
+} from "@/features/reports/lib/tools/describe-table";
 import type { PriorTurn } from "./conversation";
+
+// Top tables by query frequency (from QueryLog usage analysis). Their compact
+// schemas are baked into the system prompt so the model can run_sql against
+// them without first calling describe_table — saves several thousand tokens
+// per cold-start turn and a couple of seconds of latency.
+const PREBAKED_TABLES = [
+  "opportunities",
+  "districts",
+  "district_opportunity_actuals",
+  "district_financials",
+  "user_profiles",
+  "activities",
+  "vacancies",
+  "subscriptions",
+  "sessions",
+] as const;
 
 export function extractTablesFromSql(sql: string): string[] {
   const matches = sql.matchAll(/(?:from|join)\s+["`]?([a-zA-Z_][\w]*)["`]?/gi);
@@ -19,16 +38,25 @@ export async function buildSystemPrompt(priorTurns: PriorTurn[] = []): Promise<s
     .map((w) => `- ${w.message}`)
     .join("\n");
 
+  const prebakedSet = new Set<string>(PREBAKED_TABLES);
+  const prebakedSection = `# Pre-loaded table schemas (use directly, no describe_table needed)\n\nThe schemas below cover ~90% of common questions. Call \`run_sql\` directly against any of these tables — no \`describe_table\` step required. If a column you need is not listed here for a pre-loaded table (rare), you may still call \`describe_table\` on it.\n\n${PREBAKED_TABLES.map(
+    (name) => buildCompactSchema(name),
+  )
+    .filter(Boolean)
+    .join("\n\n")}`;
+
   const exploredTables = new Set<string>();
   for (const t of priorTurns) {
     if (!t.sql) continue;
     for (const name of extractTablesFromSql(t.sql)) {
-      if (name in TABLE_REGISTRY) exploredTables.add(name);
+      if (name in TABLE_REGISTRY && !prebakedSet.has(name)) {
+        exploredTables.add(name);
+      }
     }
   }
 
   const exploredSection = exploredTables.size
-    ? `\n\n# Tables already explored in this conversation\n\nThe schemas below were examined in earlier turns. You may use these tables directly in \`run_sql\` without calling \`describe_table\` again. For any table NOT listed below, \`describe_table\` is still required before \`run_sql\`.\n\n${(
+    ? `\n\n# Other tables already explored in this conversation\n\nThe schemas below were examined in earlier turns. You may use these tables directly in \`run_sql\` without calling \`describe_table\` again. For any table NOT listed here AND NOT in the pre-loaded section above, \`describe_table\` is still required before \`run_sql\`.\n\n${(
         await Promise.all([...exploredTables].map((name) => handleDescribeTable(name)))
       ).join("\n\n")}`
     : "";
@@ -37,10 +65,10 @@ export async function buildSystemPrompt(priorTurns: PriorTurn[] = []): Promise<s
 
 # How you work
 
-You have tools to explore the database. **For tables you haven't seen yet, always explore before \`run_sql\`** — guessing column names burns retries. A typical first encounter with a table needs:
+You have tools to explore the database. **For pre-loaded tables (see the "Pre-loaded table schemas" section below), skip exploration and call \`run_sql\` directly** — those columns are already authoritative. For other tables, always explore before \`run_sql\` — guessing column names burns retries. A typical first encounter with an unlisted table needs:
 
 1. \`search_metadata\` when the user mentions a concept (bookings, renewal, pipeline, win rate) — returns the right columns and any gotchas.
-2. \`describe_table\` on every table you plan to reference in \`run_sql\` — UNLESS the table appears under "Tables already explored in this conversation," in which case you may skip this step and use the schema shown there.
+2. \`describe_table\` on every UNLISTED table you plan to reference. Pre-loaded tables don't need this step.
 3. \`get_column_values\` on any filter column whose value shape you're not sure about (e.g. stage strings, category strings).
 4. Optionally \`count_rows\` or \`sample_rows\` to sanity-check.
 5. \`run_sql\` with the final query. This ends the turn.
@@ -78,17 +106,19 @@ Bad (too verbose / over-explained):
 - "I'll now construct a SQL query against the opportunities table to filter for stages 0-5 with created_at greater than 7 days ago, ordered by created_at descending, with a limit of 200."
 - "Sure! Let me help you with that. I'll need to..."
 
-**Refinement happens in chat — and you have the prior SQL.** When the user is following up on a prior turn (e.g. "now only TX", "exclude closed-won", "sort by bookings desc", "yes", "good, also add the rep name"), the previous turn's SQL is included in the conversation history under "SQL used (server-side only, not shown to user)". Use it:
-- Modify it minimally — preserve CTEs, joins, and column shape unless the user's change requires altering them.
+**Refinement happens in chat — and you have the prior SQL.** When the user is following up on a prior turn (e.g. "now only TX", "exclude closed-won", "sort by bookings desc", "yes", "good, also add the rep name"), the previous turn's \`run_sql\` calls and their results are visible in the conversation history as tool_use/tool_result pairs. Use them:
+- Modify the prior SQL minimally — preserve CTEs, joins, and column shape unless the user's change requires altering them.
 - Don't re-explore tables that already appear under "Tables already explored in this conversation."
 - Don't repeat your prior assistant explanation verbatim — refer back to it briefly if needed.
-- Re-run \`run_sql\` with the modified query.
+- Call \`run_sql\` again with the modified query. **Pasting the SQL into your chat reply does not execute it. Only the \`run_sql\` tool actually runs anything.**
 
 Short ambiguous follow-ups ("yes", "do it", "ok") almost always mean "execute what you just proposed." Look at your prior assistant text to see what was proposed; don't ask the user to repeat themselves.
 
 **Handle SQL errors.** If \`run_sql\` returns an error, read it, fix your query, and try again. You get 2 retries. After that, apologize in plain language (not SQL jargon) and ask the user to clarify. Most errors come from guessing column names — use \`describe_table\` before retrying, not after.
 
-# Available tables
+${prebakedSection}
+
+# All available tables (full registry — call \`describe_table\` for any not pre-loaded above)
 
 ${tableList}
 
