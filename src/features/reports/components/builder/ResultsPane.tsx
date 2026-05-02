@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ResultsTable } from "../ResultsTable";
 import { SqlPreviewModal } from "../SqlPreviewModal";
 import { downloadCsv, rowsToCsv, slugifyForFilename } from "../../lib/csv";
+import { ChipStrip } from "./ChipStrip";
 import type { BuilderVersion } from "./types";
 
 interface Props {
@@ -77,6 +78,8 @@ export function ResultsPane({ version, isFromSavedReport, hasRefinements }: Prop
           </HeaderButton>
         </div>
       </div>
+
+      <ChipStrip summary={version.summary} />
 
       <div className="min-h-0 flex-1 px-[18px] pb-[18px]">
         <ResultsTable columns={version.columns} rows={version.rows} />
