@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ReportsLibrary } from "./ReportsLibrary";
+import { ReportsBuilder } from "./builder/ReportsBuilder";
 import type { LibraryTab } from "./library/LibraryTabs";
 
 const VALID_LIBRARY_TABS: LibraryTab[] = ["mine", "starred", "team"];
@@ -58,8 +59,48 @@ export function ReportsTab() {
     [updateParams],
   );
 
+  const handleSelectVersion = useCallback(
+    (n: number) => {
+      updateParams((p) => {
+        if (n <= 1) p.delete("v");
+        else p.set("v", String(n));
+      });
+    },
+    [updateParams],
+  );
+
   if (view === "builder") {
-    return <BuilderPlaceholder onBack={goToLibrary} />;
+    const reportIdParam = searchParams.get("report");
+    const reportId = reportIdParam ? Number(reportIdParam) : NaN;
+    const promptParam = searchParams.get("prompt");
+    const vParam = searchParams.get("v");
+    const selectedV = vParam ? Number(vParam) : NaN;
+    return (
+      <ReportsBuilder
+        reportId={Number.isFinite(reportId) ? reportId : null}
+        initialPrompt={promptParam}
+        selectedVersionN={Number.isFinite(selectedV) ? selectedV : null}
+        onSelectVersion={handleSelectVersion}
+        onNewReport={() => {
+          // Hard reset — drop ?report, ?prompt, ?v, then route back to a blank
+          // builder so all in-memory turns clear. Same effect as clicking the
+          // header "+ New" while inside an existing session.
+          updateParams((p) => {
+            p.delete("report");
+            p.delete("prompt");
+            p.delete("v");
+          });
+          // Force a remount of ReportsBuilder by briefly toggling view; in
+          // practice the param reset triggers fresh state because the builder
+          // keys off ?report and ?prompt. If we wanted truly fresh state we'd
+          // also navigate to library and back — keep it simple for slice 4.
+        }}
+        onCollapseChat={() => {
+          // Slice 8 wires the actual collapsed-rail. For now this is a no-op
+          // that we leave in the contract so the chat header chevron works.
+        }}
+      />
+    );
   }
 
   return (
@@ -73,28 +114,5 @@ export function ReportsTab() {
         goToBuilder(extras);
       }}
     />
-  );
-}
-
-// Placeholder until slice 4 lands the real builder. Lets the navigation flow
-// be exercised end-to-end without the full chat UI.
-function BuilderPlaceholder({ onBack }: { onBack: () => void }) {
-  return (
-    <div className="flex h-full items-center justify-center bg-[#FFFCFA] p-6">
-      <div className="max-w-md rounded-xl border border-dashed border-[#D4CFE2] bg-white px-6 py-10 text-center">
-        <div className="text-sm font-semibold text-[#403770]">Builder coming online next slice</div>
-        <div className="mt-1 text-xs text-[#8A80A8]">
-          The new chat-as-timeline builder lands in slice 4. The library nav and URL state are
-          already wired so you can click around.
-        </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-[#D4CFE2] bg-white px-3.5 py-1.5 text-xs font-medium text-[#544A78] transition-colors hover:bg-[#F7F5FA]"
-        >
-          <span className="whitespace-nowrap">Back to library</span>
-        </button>
-      </div>
-    </div>
   );
 }
