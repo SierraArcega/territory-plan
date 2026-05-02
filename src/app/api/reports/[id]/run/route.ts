@@ -14,7 +14,7 @@ export async function POST(
 
   const { id } = await params;
   const report = await prisma.savedReport.findUnique({ where: { id: Number(id) } });
-  if (!report || report.userId !== user.id) {
+  if (!report) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (!report.sql) {
@@ -24,16 +24,17 @@ export async function POST(
   const startedAt = Date.now();
   try {
     const res = await readonlyPool.query(report.sql);
+    const rowCount = res.rowCount ?? 0;
     await prisma.savedReport.update({
       where: { id: report.id },
-      data: { runCount: { increment: 1 }, lastRunAt: new Date() },
+      data: { runCount: { increment: 1 }, lastRunAt: new Date(), rowCount },
     });
     return NextResponse.json({
       summary: report.summary,
       sql: report.sql,
       columns: res.fields?.map((f: { name: string }) => f.name) ?? [],
       rows: res.rows ?? [],
-      rowCount: res.rowCount ?? 0,
+      rowCount,
       executionTimeMs: Date.now() - startedAt,
     });
   } catch (err) {
