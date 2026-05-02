@@ -247,6 +247,135 @@ export async function getRepActuals(
   };
 }
 
+const EMPTY_REP_ACTUALS: RepActuals = {
+  totalRevenue: 0,
+  totalTake: 0,
+  completedTake: 0,
+  scheduledTake: 0,
+  weightedPipeline: 0,
+  openPipeline: 0,
+  bookings: 0,
+  minPurchaseBookings: 0,
+  invoiced: 0,
+};
+
+/**
+ * Batched variant of getRepActuals — fetches actuals for many (email, schoolYr)
+ * pairs in 2 round-trips (one per matview) instead of 2-per-pair.
+ *
+ * Why this exists: the leaderboard endpoint previously called getRepActuals
+ * inside Promise.all over reps × years = 30 × 3 = 90 concurrent invocations,
+ * each making 2 DB queries → 180 simultaneous connections to the pgbouncer
+ * pool (default size 15-25). Tail-end queries time out under load, the
+ * caller's per-rep silent catch swallowed the error and returned all-zeros,
+ * and a different subset of reps showed $0 on every page load — exactly the
+ * symptom that made Melodie/Liz/Paul appear at $0 on 2026-05-02 even though
+ * the matview had their data.
+ *
+ * Returns Map<email, Map<schoolYr, RepActuals>>. Missing combinations are
+ * absent from the inner map; callers should treat absence as zeros.
+ */
+export async function getRepActualsBatch(
+  emails: string[],
+  schoolYrs: string[],
+): Promise<Map<string, Map<string, RepActuals>>> {
+  const result = new Map<string, Map<string, RepActuals>>();
+  if (emails.length === 0 || schoolYrs.length === 0) return result;
+
+  const [sessionRows, doaRows] = await Promise.all([
+    safeQueryRaw(
+      prisma.$queryRaw<
+        { sales_rep_email: string; school_yr: string; session_revenue: number }[]
+      >`
+        SELECT sales_rep_email, school_yr,
+               COALESCE(SUM(session_revenue), 0) AS session_revenue
+        FROM rep_session_actuals
+        WHERE sales_rep_email = ANY(${emails})
+          AND school_yr = ANY(${schoolYrs})
+        GROUP BY sales_rep_email, school_yr
+      `,
+      [],
+    ),
+    safeQueryRaw(
+      prisma.$queryRaw<
+        {
+          sales_rep_email: string;
+          school_yr: string;
+          sub_revenue: number;
+          total_take: number;
+          completed_take: number;
+          scheduled_take: number;
+          weighted_pipeline: number;
+          open_pipeline: number;
+          bookings: number;
+          min_purchase_bookings: number;
+          invoiced: number;
+        }[]
+      >`
+        SELECT sales_rep_email, school_yr,
+               COALESCE(SUM(sub_revenue), 0) AS sub_revenue,
+               COALESCE(SUM(total_take), 0) AS total_take,
+               COALESCE(SUM(completed_take), 0) AS completed_take,
+               COALESCE(SUM(scheduled_take), 0) AS scheduled_take,
+               COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline,
+               COALESCE(SUM(open_pipeline), 0) AS open_pipeline,
+               COALESCE(SUM(bookings), 0) AS bookings,
+               COALESCE(SUM(min_purchase_bookings), 0) AS min_purchase_bookings,
+               COALESCE(SUM(invoiced), 0) AS invoiced
+        FROM district_opportunity_actuals
+        WHERE sales_rep_email = ANY(${emails})
+          AND school_yr = ANY(${schoolYrs})
+        GROUP BY sales_rep_email, school_yr
+      `,
+      [],
+    ),
+  ]);
+
+  const sessionRevByKey = new Map<string, number>();
+  for (const row of sessionRows) {
+    sessionRevByKey.set(
+      `${row.sales_rep_email}::${row.school_yr}`,
+      Number(row.session_revenue),
+    );
+  }
+
+  const ensure = (email: string): Map<string, RepActuals> => {
+    let perRep = result.get(email);
+    if (!perRep) {
+      perRep = new Map<string, RepActuals>();
+      result.set(email, perRep);
+    }
+    return perRep;
+  };
+
+  // DOA rows carry every field except session revenue — start there.
+  for (const row of doaRows) {
+    const key = `${row.sales_rep_email}::${row.school_yr}`;
+    const sessionRev = sessionRevByKey.get(key) ?? 0;
+    sessionRevByKey.delete(key); // mark consumed so the leftover pass below sees only sessions-only rows
+    ensure(row.sales_rep_email).set(row.school_yr, {
+      totalRevenue: sessionRev + Number(row.sub_revenue),
+      totalTake: Number(row.total_take),
+      completedTake: Number(row.completed_take),
+      scheduledTake: Number(row.scheduled_take),
+      weightedPipeline: Number(row.weighted_pipeline),
+      openPipeline: Number(row.open_pipeline),
+      bookings: Number(row.bookings),
+      minPurchaseBookings: Number(row.min_purchase_bookings),
+      invoiced: Number(row.invoiced),
+    });
+  }
+
+  // Sessions-only (rep, year) pairs with no DOA row — emit a record carrying
+  // just session revenue, all other fields zero.
+  for (const [key, sessionRev] of sessionRevByKey.entries()) {
+    const [email, schoolYr] = key.split("::");
+    ensure(email).set(schoolYr, { ...EMPTY_REP_ACTUALS, totalRevenue: sessionRev });
+  }
+
+  return result;
+}
+
 /**
  * Count districts that have current FY opportunities but no prior FY opportunities.
  * Used for "new districts" actual on the goals dashboard.

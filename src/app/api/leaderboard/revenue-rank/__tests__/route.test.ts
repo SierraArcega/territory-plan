@@ -11,17 +11,36 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@/lib/opportunity-actuals", () => ({
-  getRepActuals: vi.fn(),
+  getRepActualsBatch: vi.fn(),
 }));
 
 import { GET } from "../route";
 import { getUser } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
-import { getRepActuals } from "@/lib/opportunity-actuals";
+import { getRepActualsBatch } from "@/lib/opportunity-actuals";
 
 const mockGetUser = vi.mocked(getUser);
 const mockUserProfile = vi.mocked(prisma.userProfile.findMany);
-const mockGetRepActuals = vi.mocked(getRepActuals);
+const mockGetRepActualsBatch = vi.mocked(getRepActualsBatch);
+
+const ZERO_ACTUALS = {
+  totalRevenue: 0, totalTake: 0, completedTake: 0, scheduledTake: 0,
+  weightedPipeline: 0, openPipeline: 0, bookings: 0,
+  minPurchaseBookings: 0, invoiced: 0,
+};
+
+/** Build the Map<email, Map<schoolYr, RepActuals>> shape getRepActualsBatch returns. */
+function batchOf(byEmail: Record<string, Record<string, { totalRevenue: number; bookings?: number }>>) {
+  const outer = new Map();
+  for (const [email, byYear] of Object.entries(byEmail)) {
+    const inner = new Map();
+    for (const [yr, partial] of Object.entries(byYear)) {
+      inner.set(yr, { ...ZERO_ACTUALS, ...partial });
+    }
+    outer.set(email, inner);
+  }
+  return outer;
+}
 
 function makeRequest(fy: string): Request {
   return new Request(`http://localhost/api/leaderboard/revenue-rank?fy=${fy}`);
@@ -44,9 +63,14 @@ describe("GET /api/leaderboard/revenue-rank", () => {
       { id: "u1", email: "u1@x.com", role: "rep" },
       { id: "u2", email: "u2@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockImplementation(async (email: string) => {
-      const rev = email === "u1@x.com" ? 100 : 500;
-      return { totalRevenue: rev } as never;
+    // school year for fy=current with mocked Date is "<currentFY-1>-<currentFY%100>".
+    // Match every key — the helper's inner map lookup falls back to undefined → 0.
+    mockGetRepActualsBatch.mockImplementation(async (_emails, schoolYrs) => {
+      const yr = schoolYrs[0];
+      return batchOf({
+        "u1@x.com": { [yr]: { totalRevenue: 100 } },
+        "u2@x.com": { [yr]: { totalRevenue: 500 } },
+      });
     });
 
     const res = await GET(makeRequest("current"));
@@ -65,7 +89,9 @@ describe("GET /api/leaderboard/revenue-rank", () => {
     mockUserProfile.mockResolvedValue([
       { id: "u1", email: "u1@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockResolvedValue({ totalRevenue: 250 } as never);
+    mockGetRepActualsBatch.mockImplementation(async (_emails, schoolYrs) => {
+      return batchOf({ "u1@x.com": { [schoolYrs[0]]: { totalRevenue: 250 } } });
+    });
 
     const res = await GET(makeRequest("next"));
     const body = await res.json();
@@ -81,7 +107,7 @@ describe("GET /api/leaderboard/revenue-rank", () => {
     mockUserProfile.mockResolvedValue([
       { id: "u1", email: "u1@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockResolvedValue({ totalRevenue: 0 } as never);
+    mockGetRepActualsBatch.mockResolvedValue(new Map());
 
     const res = await GET(makeRequest("current"));
     const body = await res.json();
@@ -96,7 +122,9 @@ describe("GET /api/leaderboard/revenue-rank", () => {
     mockUserProfile.mockResolvedValue([
       { id: "u1", email: "u1@x.com", role: "rep" },
     ] as never);
-    mockGetRepActuals.mockResolvedValue({ totalRevenue: 100 } as never);
+    mockGetRepActualsBatch.mockImplementation(async (_emails, schoolYrs) => {
+      return batchOf({ "u1@x.com": { [schoolYrs[0]]: { totalRevenue: 100 } } });
+    });
 
     const res = await GET(makeRequest("current"));
     const body = await res.json();
