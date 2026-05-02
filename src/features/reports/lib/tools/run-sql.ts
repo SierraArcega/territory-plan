@@ -1,6 +1,5 @@
 import { readonlyPool } from "@/lib/db-readonly";
-import { validateSummary } from "../agent/summary-validator";
-import type { QuerySummary } from "../agent/types";
+import { MAX_LIMIT, type QuerySummary } from "../agent/types";
 
 const SELECT_ONLY = /^\s*(with\s+[\s\S]+?\s+)?select\b/i;
 
@@ -16,6 +15,12 @@ export type RunSqlResult =
     }
   | { kind: "validation_error"; errors: string[] }
   | { kind: "error"; message: string };
+
+function findLimit(sql: string): number | null {
+  const stripped = sql.replace(/--.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  const m = /\blimit\s+(\d+)\b/i.exec(stripped);
+  return m ? Number(m[1]) : null;
+}
 
 export async function handleRunSql(
   sql: string,
@@ -33,10 +38,21 @@ export async function handleRunSql(
       errors: ["run_sql rejects SQL containing semicolons."],
     };
   }
-
-  const validation = validateSummary(sql, summary);
-  if (!validation.valid) {
-    return { kind: "validation_error", errors: validation.errors };
+  const limit = findLimit(sql);
+  if (limit == null) {
+    return { kind: "validation_error", errors: ["SQL is missing a LIMIT clause."] };
+  }
+  if (limit > MAX_LIMIT) {
+    return {
+      kind: "validation_error",
+      errors: [`SQL LIMIT ${limit} exceeds MAX_LIMIT ${MAX_LIMIT}.`],
+    };
+  }
+  if (!summary?.source || typeof summary.source !== "string") {
+    return {
+      kind: "validation_error",
+      errors: ["summary.source must be a non-empty string describing the query."],
+    };
   }
 
   const startedAt = Date.now();

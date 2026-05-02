@@ -13,7 +13,7 @@ export default defineConfig({
       "e2e",
       "e2e/**",
       "playwright.config.ts",
-      ".claude/worktrees/**",
+      ".claude/**",
       ".worktrees/**",
     ],
     css: true,

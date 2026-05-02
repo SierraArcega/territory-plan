@@ -10,10 +10,9 @@ const CRON_SECRET = process.env.CRON_SECRET;
  * GET /api/cron/pipeline-snapshot
  *
  * Writes one row per opportunity to opportunity_snapshots for the current
- * snapshot_date. Intended to run weekly (see vercel.json). Re-running on the
- * same day is safe — the unique (opportunity_id, snapshot_date) constraint
- * combined with ON CONFLICT DO UPDATE means the row is refreshed, not
- * duplicated.
+ * snapshot_date. Runs daily (see vercel.json). Re-running on the same day is
+ * safe — the unique (opportunity_id, snapshot_date) constraint combined with
+ * ON CONFLICT DO UPDATE means the row is refreshed, not duplicated.
  *
  * Auth: CRON_SECRET via Authorization: Bearer ... or ?secret=... query param.
  */

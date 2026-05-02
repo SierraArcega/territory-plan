@@ -16,22 +16,33 @@ import type { PriorTurn } from "./conversation";
 import {
   MAX_EXPLORATORY_CALLS_PER_TURN,
   MAX_SQL_RETRIES,
+  ZERO_USAGE,
+  addUsage,
   type QuerySummary,
+  type TokenUsage,
+  type TurnEvent,
 } from "./types";
 
-export type AgentResult =
-  | {
-      kind: "result";
-      sql: string;
-      summary: QuerySummary;
-      columns: string[];
-      rows: Array<Record<string, unknown>>;
-      rowCount: number;
-      executionTimeMs: number;
-      assistantText: string;
-    }
-  | { kind: "clarifying"; text: string }
-  | { kind: "surrender"; text: string };
+export interface AgentTelemetry {
+  events: TurnEvent[];
+  usage: TokenUsage;
+}
+
+export type AgentResult = AgentTelemetry &
+  (
+    | {
+        kind: "result";
+        sql: string;
+        summary: QuerySummary;
+        columns: string[];
+        rows: Array<Record<string, unknown>>;
+        rowCount: number;
+        executionTimeMs: number;
+        assistantText: string;
+      }
+    | { kind: "clarifying"; text: string }
+    | { kind: "surrender"; text: string }
+  );
 
 interface RunAgentLoopArgs {
   anthropic: Anthropic;
@@ -54,26 +65,49 @@ interface IterationDiag {
   blocks: Array<{ type: string; name?: string; id?: string }>;
 }
 
+function extractUsage(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  raw: any,
+): TokenUsage {
+  const u = raw ?? {};
+  return {
+    inputTokens: typeof u.input_tokens === "number" ? u.input_tokens : 0,
+    outputTokens: typeof u.output_tokens === "number" ? u.output_tokens : 0,
+    cacheCreationInputTokens:
+      typeof u.cache_creation_input_tokens === "number"
+        ? u.cache_creation_input_tokens
+        : 0,
+    cacheReadInputTokens:
+      typeof u.cache_read_input_tokens === "number"
+        ? u.cache_read_input_tokens
+        : 0,
+  };
+}
+
 export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult> {
   const { anthropic, userMessage, priorTurns, userId, conversationId } = args;
 
   const history: Anthropic.MessageParam[] = [];
   for (const t of priorTurns) {
     history.push({ role: "user", content: t.question });
-    if (t.summary) {
-      history.push({
-        role: "assistant",
-        content: `[Previous turn result — ${t.summary.source}, ${t.summary.filters.length} filters, ${t.summary.columns.length} columns, limit ${t.summary.limit}]`,
-      });
+    const blocks: string[] = [];
+    if (t.summary?.source) blocks.push(`Source: ${t.summary.source}`);
+    if (t.sql) blocks.push(`SQL used (server-side only, not shown to user):\n\`\`\`sql\n${t.sql}\n\`\`\``);
+    if (t.assistantText) blocks.push(t.assistantText);
+    if (blocks.length > 0) {
+      history.push({ role: "assistant", content: blocks.join("\n\n") });
     }
   }
   history.push({ role: "user", content: userMessage });
 
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = await buildSystemPrompt(priorTurns);
 
   let sqlRetriesUsed = 0;
   let exploratoryCalls = 0;
   let assistantText = "";
+  let iteration = 0;
+  const events: TurnEvent[] = [];
+  let totalUsage: TokenUsage = { ...ZERO_USAGE };
   const messages: Anthropic.MessageParam[] = [...history];
   const iterations: IterationDiag[] = [];
 
@@ -102,6 +136,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
   };
 
   while (true) {
+    iteration++;
     const response = await anthropic.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 16000,
@@ -110,6 +145,9 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       tools: AGENT_TOOLS,
       messages,
     });
+
+    const callUsage = extractUsage((response as { usage?: unknown }).usage);
+    totalUsage = addUsage(totalUsage, callUsage);
 
     if (DIAG_ENABLED) {
       iterations.push({
@@ -128,18 +166,33 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
     const textBlocks = response.content.filter(
       (b): b is Anthropic.TextBlock => b.type === "text",
     );
+    const turnText = textBlocks.map((b) => b.text).join("\n");
     if (textBlocks.length > 0) {
-      assistantText += (assistantText ? "\n" : "") + textBlocks.map((b) => b.text).join("\n");
+      assistantText += (assistantText ? "\n" : "") + turnText;
     }
 
     const toolUses = response.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
 
+    events.push({
+      kind: "model_call",
+      iteration,
+      stopReason: (response as { stop_reason?: string | null }).stop_reason ?? null,
+      usage: callUsage,
+      assistantText: turnText || null,
+      toolUses: toolUses.map((t) => ({ id: t.id, name: t.name, input: t.input })),
+    });
+
     if (toolUses.length === 0) {
       const text = assistantText || "(no text)";
       logDiag("no_tools", "clarifying", text);
-      return { kind: "clarifying", text };
+      return {
+        kind: "clarifying",
+        text,
+        events,
+        usage: totalUsage,
+      };
     }
 
     messages.push({ role: "assistant", content: response.content });
@@ -151,6 +204,18 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       runSqlResult = await handleRunSql(input.sql, input.summary);
 
       if (runSqlResult.kind === "ok") {
+        events.push({
+          kind: "tool_result",
+          toolUseId: runSqlUse.id,
+          toolName: runSqlUse.name,
+          isError: false,
+          content: `run_sql ok — ${runSqlResult.rowCount} row(s) in ${runSqlResult.executionTimeMs}ms`,
+        });
+        // Fallback so the chat rail always has SOMETHING when Claude skipped
+        // the brief preamble — keeps the UI feeling responsive.
+        const replyText =
+          assistantText ||
+          `Found ${runSqlResult.rowCount} row${runSqlResult.rowCount === 1 ? "" : "s"}.`;
         return {
           kind: "result",
           sql: runSqlResult.sql,
@@ -159,7 +224,9 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           rows: runSqlResult.rows,
           rowCount: runSqlResult.rowCount,
           executionTimeMs: runSqlResult.executionTimeMs,
-          assistantText,
+          assistantText: replyText,
+          events,
+          usage: totalUsage,
         };
       }
 
@@ -175,11 +242,26 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       });
 
       if (sqlRetriesUsed >= MAX_SQL_RETRIES) {
+        events.push({
+          kind: "tool_result",
+          toolUseId: runSqlUse.id,
+          toolName: runSqlUse.name,
+          isError: true,
+          content:
+            runSqlResult.kind === "error"
+              ? `run_sql error: ${runSqlResult.message}`
+              : `run_sql validation failed: ${runSqlResult.errors.join("; ")}`,
+        });
         const text =
           assistantText ||
           "I tried a few times but couldn't run that query. Could you tell me more about what you're looking for?";
         logDiag("sql_retries_exhausted", "surrender", text);
-        return { kind: "surrender", text };
+        return {
+          kind: "surrender",
+          text,
+          events,
+          usage: totalUsage,
+        };
       }
       sqlRetriesUsed++;
     }
@@ -199,6 +281,13 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           content: errorText,
           is_error: true,
         });
+        events.push({
+          kind: "tool_result",
+          toolUseId: tu.id,
+          toolName: tu.name,
+          isError: true,
+          content: errorText,
+        });
         continue;
       }
 
@@ -207,12 +296,24 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
         const text =
           "I'm having trouble narrowing this down. Could you give me more details about what you're looking for?";
         logDiag("exploration_cap", "surrender", text);
-        return { kind: "surrender", text };
+        return {
+          kind: "surrender",
+          text,
+          events,
+          usage: totalUsage,
+        };
       }
       const toolResult = await executeExploratoryTool(tu, userId);
       toolResults.push({
         type: "tool_result",
         tool_use_id: tu.id,
+        content: toolResult,
+      });
+      events.push({
+        kind: "tool_result",
+        toolUseId: tu.id,
+        toolName: tu.name,
+        isError: false,
         content: toolResult,
       });
     }

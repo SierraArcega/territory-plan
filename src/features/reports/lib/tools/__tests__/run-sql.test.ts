@@ -18,22 +18,13 @@ vi.mock("@/lib/db-readonly", () => ({
 import { handleRunSql } from "../run-sql";
 import type { QuerySummary } from "../../agent/types";
 
-const validSummary: QuerySummary = {
-  source: "Districts",
-  filters: [{ id: "f1", label: "State", value: "Texas" }],
-  columns: [
-    { id: "c1", label: "name" },
-    { id: "c2", label: "bookings" },
-  ],
-  sort: null,
-  limit: 100,
-};
+const summary: QuerySummary = { source: "Texas districts with FY26 bookings" };
 
 describe("handleRunSql", () => {
   it("returns rows on success", async () => {
     const res = await handleRunSql(
       "SELECT name, bookings FROM districts WHERE state = 'Texas' LIMIT 100",
-      validSummary,
+      summary,
     );
     expect(res.kind).toBe("ok");
     if (res.kind === "ok") {
@@ -45,23 +36,56 @@ describe("handleRunSql", () => {
   it("surfaces pg errors as 'error' result", async () => {
     const res = await handleRunSql(
       "SELECT BOOM, other FROM districts WHERE state = 'Texas' LIMIT 100",
-      validSummary,
+      summary,
     );
     expect(res.kind).toBe("error");
   });
 
-  it("fails validation when summary doesn't match SQL", async () => {
+  it("rejects SQL without LIMIT", async () => {
     const res = await handleRunSql(
-      "SELECT name, bookings FROM districts WHERE state = 'Ohio' LIMIT 100",
-      validSummary,
+      "SELECT name FROM districts WHERE state = 'Texas'",
+      summary,
     );
     expect(res.kind).toBe("validation_error");
+    if (res.kind === "validation_error") {
+      expect(res.errors[0]).toMatch(/LIMIT/);
+    }
+  });
+
+  it("rejects SQL with LIMIT > MAX_LIMIT (500)", async () => {
+    const res = await handleRunSql(
+      "SELECT name FROM districts WHERE state = 'Texas' LIMIT 1000",
+      summary,
+    );
+    expect(res.kind).toBe("validation_error");
+    if (res.kind === "validation_error") {
+      expect(res.errors[0]).toMatch(/exceeds MAX_LIMIT/);
+    }
+  });
+
+  it("rejects empty summary.source", async () => {
+    const res = await handleRunSql(
+      "SELECT name FROM districts WHERE state = 'Texas' LIMIT 100",
+      { source: "" },
+    );
+    expect(res.kind).toBe("validation_error");
+    if (res.kind === "validation_error") {
+      expect(res.errors[0]).toMatch(/summary\.source/);
+    }
   });
 
   it("rejects non-SELECT statements", async () => {
     const res = await handleRunSql(
       "UPDATE districts SET name = 'x' WHERE state = 'Texas'",
-      { ...validSummary, columns: [] },
+      summary,
+    );
+    expect(res.kind).toBe("validation_error");
+  });
+
+  it("rejects SQL with semicolons", async () => {
+    const res = await handleRunSql(
+      "SELECT name FROM districts LIMIT 100; DROP TABLE districts",
+      summary,
     );
     expect(res.kind).toBe("validation_error");
   });

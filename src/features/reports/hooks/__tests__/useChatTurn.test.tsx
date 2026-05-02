@@ -18,7 +18,7 @@ describe("useChatTurn", () => {
           assistantText: "here",
           result: {
             sql: "SELECT 1 LIMIT 100",
-            summary: { source: "x", filters: [], columns: [], sort: null, limit: 100 },
+            summary: { source: "x" },
             columns: [],
             rows: [],
             rowCount: 0,

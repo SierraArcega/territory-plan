@@ -37,7 +37,7 @@ beforeEach(() => {
         title: "A",
         question: "q",
         sql: "SELECT 1 LIMIT 100",
-        summary: { source: "x", filters: [], columns: [], sort: null, limit: 100 },
+        summary: { source: "x" },
         runCount: 0,
       };
     }
@@ -66,7 +66,7 @@ describe("saved reports CRUD", () => {
         title: "New",
         question: "q",
         sql: "SELECT 1 LIMIT 100",
-        summary: { source: "x", filters: [], columns: [], sort: null, limit: 100 },
+        summary: { source: "x" },
         conversationId: "c1",
       }),
       headers: { "content-type": "application/json" },
@@ -99,5 +99,6 @@ describe("saved reports CRUD", () => {
     const res = await runPost({} as NextRequest, { params: Promise.resolve({ id: "1" }) });
     const json = await res.json();
     expect(json.rows).toBeDefined();
+    expect(json.sql).toBe("SELECT 1 LIMIT 100");
   });
 });

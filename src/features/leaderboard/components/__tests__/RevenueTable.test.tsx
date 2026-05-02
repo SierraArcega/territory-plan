@@ -22,6 +22,8 @@ const makeEntry = (overrides: Partial<LeaderboardEntry> & { fullName: string }):
   revenueTargeted: 0,
   targetedCurrentFY: 0,
   targetedNextFY: 0,
+  unmatchedOppCount: 0,
+  unmatchedRevenue: 0,
   ...overrides,
 });
 
