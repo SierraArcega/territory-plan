@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { QuerySummary, TurnEvent } from "../../lib/agent/types";
 import { useChatTurnStream } from "../../hooks/useChatTurnStream";
-import { useRunSavedReport } from "../../hooks/useSavedReports";
 import {
   useCreateSavedReport,
   useDeleteReport,
+  useRunSavedReport,
   useUpdateReportDetails,
   useUpdateReportSql,
 } from "../../lib/queries";

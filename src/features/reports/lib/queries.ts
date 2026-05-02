@@ -114,6 +114,28 @@ export function useCreateSavedReport() {
   });
 }
 
+export interface RunSavedReportResponse {
+  summary: QuerySummary;
+  sql: string;
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+  rowCount: number;
+  executionTimeMs: number;
+}
+
+export function useRunSavedReport() {
+  return useMutation<RunSavedReportResponse, Error, number>({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/reports/${id}/run`, { method: "POST" });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(json.error ?? "Run failed");
+      }
+      return res.json();
+    },
+  });
+}
+
 export function useUpdateReportSql() {
   const qc = useQueryClient();
   return useMutation<
