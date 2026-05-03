@@ -49,6 +49,22 @@ describe("resolveSchoolSpringSource", () => {
           headers: { get: () => null },
         };
       }
+      if (calledUrl.startsWith("https://api.schoolspring.com/")) {
+        // Validation probe for brimfieldma.schoolspring.com — single employer.
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            value: {
+              page: 1,
+              size: 1,
+              jobsList: [
+                { jobId: 1, employer: "Brimfield MA", title: "T", location: "Brimfield, MA", displayDate: "2026-04-28" },
+              ],
+            },
+          }),
+        };
+      }
       throw new Error(`Unexpected fetch: ${calledUrl}`);
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -57,6 +73,125 @@ describe("resolveSchoolSpringSource", () => {
       "https://www.schoolspring.com/jobs/?iframe=1&employer=19502"
     );
 
+    expect(result).toEqual({ hostname: "brimfieldma.schoolspring.com" });
+  });
+
+  it("discovery probe rejects subdomains that don't validate as single-employer", async () => {
+    const fetchMock = vi.fn(async (calledUrl: string) => {
+      if (calledUrl.startsWith("https://www.schoolspring.com/jobs/")) {
+        // Discovery returns a CDN subdomain (infrastructure, not employer-scoped).
+        return {
+          ok: true,
+          text: async () =>
+            `<html><body><img src="https://cdn.schoolspring.com/img.png" /></body></html>`,
+          headers: { get: () => null },
+        };
+      }
+      if (calledUrl.startsWith("https://api.schoolspring.com/")) {
+        if (calledUrl.includes("domainName=cdn.schoolspring.com")) {
+          // Validation probe for cdn — returns mixed employers.
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              value: {
+                page: 1,
+                size: 3,
+                jobsList: [
+                  { jobId: 1, employer: "Fresno Unified", title: "T1", location: "Fresno, CA", displayDate: "2026-04-28" },
+                  { jobId: 2, employer: "San Jose Unified", title: "T2", location: "San Jose, CA", displayDate: "2026-04-28" },
+                  { jobId: 3, employer: "Monroe County", title: "T3", location: "Monroe, NC", displayDate: "2026-04-28" },
+                ],
+              },
+            }),
+          };
+        }
+        // Fallthrough: org-filter probe for www.schoolspring.com with organization=19502.
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            value: {
+              page: 1,
+              size: 1,
+              jobsList: [
+                { jobId: 7, employer: "Brimfield MA", title: "T", location: "Brimfield, MA", displayDate: "2026-04-28" },
+              ],
+            },
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch: ${calledUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await resolveSchoolSpringSource(
+      "https://www.schoolspring.com/jobs/?iframe=1&employer=19502"
+    );
+
+    // cdn.schoolspring.com failed validation → fell through to org-filter probe.
+    expect(result).toEqual({
+      hostname: "www.schoolspring.com",
+      organizationFilter: "19502",
+    });
+  });
+
+  it("discovery probe accepts the second candidate when first one fails validation", async () => {
+    const fetchMock = vi.fn(async (calledUrl: string) => {
+      if (calledUrl.startsWith("https://www.schoolspring.com/jobs/")) {
+        // Discovery HTML contains two subdomains: cdn first, then brimfieldma.
+        return {
+          ok: true,
+          text: async () =>
+            `<html><body><img src="https://cdn.schoolspring.com/img.png" /><script src="https://brimfieldma.schoolspring.com/static/x.js"></script></body></html>`,
+          headers: { get: () => null },
+        };
+      }
+      if (calledUrl.startsWith("https://api.schoolspring.com/")) {
+        if (calledUrl.includes("domainName=cdn.schoolspring.com")) {
+          // First candidate fails — mixed employers.
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              value: {
+                page: 1,
+                size: 3,
+                jobsList: [
+                  { jobId: 1, employer: "Fresno Unified", title: "T1", location: "Fresno, CA", displayDate: "2026-04-28" },
+                  { jobId: 2, employer: "San Jose Unified", title: "T2", location: "San Jose, CA", displayDate: "2026-04-28" },
+                  { jobId: 3, employer: "Monroe County", title: "T3", location: "Monroe, NC", displayDate: "2026-04-28" },
+                ],
+              },
+            }),
+          };
+        }
+        if (calledUrl.includes("domainName=brimfieldma.schoolspring.com")) {
+          // Second candidate passes — single distinct employer.
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              value: {
+                page: 1,
+                size: 1,
+                jobsList: [
+                  { jobId: 5, employer: "Brimfield MA", title: "Math Teacher", location: "Brimfield, MA", displayDate: "2026-04-28" },
+                ],
+              },
+            }),
+          };
+        }
+      }
+      throw new Error(`Unexpected fetch: ${calledUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await resolveSchoolSpringSource(
+      "https://www.schoolspring.com/jobs/?iframe=1&employer=19502"
+    );
+
+    // First candidate rejected, second accepted.
     expect(result).toEqual({ hostname: "brimfieldma.schoolspring.com" });
   });
 

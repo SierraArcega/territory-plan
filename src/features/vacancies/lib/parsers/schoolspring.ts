@@ -94,16 +94,42 @@ export async function resolveSchoolSpringSource(
 
 const SCHOOLSPRING_SUBDOMAIN_RE = /https?:\/\/([a-z0-9-]+)\.schoolspring\.com/gi;
 
+/**
+ * Issue a single-row API probe and return true iff the response contains at
+ * least one job and all jobs share a single distinct employer name.
+ *
+ * Used both for validating discovery-found subdomains (no organizationFilter)
+ * and for the fallback API organization-filter probe (with organizationFilter).
+ */
+async function probeSingleEmployer(
+  hostname: string,
+  organizationFilter?: string
+): Promise<boolean> {
+  const orgParam = organizationFilter ? encodeURIComponent(organizationFilter) : "";
+  const probeUrl = `${SCHOOLSPRING_API}?domainName=${encodeURIComponent(hostname)}&keyword=&location=&category=&gradelevel=&jobtype=&organization=${orgParam}&swLat=&swLon=&neLat=&neLon=&page=1&size=5&sortDateAscending=false`;
+  try {
+    const res = await fetch(probeUrl, {
+      headers: { "User-Agent": "TerritoryPlanBuilder/1.0 (vacancy-scanner)", Accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return false;
+    const data: SchoolSpringResponse = await res.json();
+    const jobs = data?.value?.jobsList ?? [];
+    const distinctEmployers = new Set(
+      jobs.map((j) => (j.employer ?? "").trim()).filter((s) => s.length > 0)
+    );
+    return jobs.length > 0 && distinctEmployers.size === 1;
+  } catch (err) {
+    console.warn(`[schoolspring] probe fetch failed for ${hostname} org=${organizationFilter ?? ""}:`, err);
+    return false;
+  }
+}
+
 async function recoverFromUnscopedUrl(
   url: string
 ): Promise<ResolvedSchoolSpringSource | null> {
-  const employer = (() => {
-    try {
-      return new URL(url).searchParams.get("employer");
-    } catch {
-      return null;
-    }
-  })();
+  // URL was already validated by resolveSchoolSpringSource — new URL() cannot throw.
+  const employer = new URL(url).searchParams.get("employer");
 
   if (!employer) {
     console.warn(
@@ -113,7 +139,8 @@ async function recoverFromUnscopedUrl(
   }
 
   // Probe 1: HTML discovery — fetch the iframe URL and look for an embedded
-  // per-employer subdomain.
+  // per-employer subdomain. Each candidate is validated via a single-row API
+  // probe to ensure it actually scopes to the target employer.
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "TerritoryPlanBuilder/1.0 (vacancy-scanner)" },
@@ -127,9 +154,12 @@ async function recoverFromUnscopedUrl(
       while ((match = SCHOOLSPRING_SUBDOMAIN_RE.exec(body))) {
         const sub = match[1].toLowerCase();
         if (sub !== "www" && sub !== "api") {
-          const discovered = `${sub}.schoolspring.com`;
-          console.log(`[schoolspring] Discovery probe: ${url} → ${discovered}`);
-          return { hostname: discovered };
+          const candidate = `${sub}.schoolspring.com`;
+          console.log(`[schoolspring] Discovery probe: ${url} → ${candidate}`);
+          if (await probeSingleEmployer(candidate)) {
+            return { hostname: candidate };
+          }
+          console.warn(`[schoolspring] Discovery candidate ${candidate} failed single-employer validation — continuing scan`);
         }
       }
     }
@@ -137,34 +167,15 @@ async function recoverFromUnscopedUrl(
     console.warn(`[schoolspring] Discovery probe failed for ${url}:`, err);
   }
 
-  // Probe 2: API organization-filter — single-row sample call.
-  try {
-    const probeUrl = `${SCHOOLSPRING_API}?domainName=www.schoolspring.com&keyword=&location=&category=&gradelevel=&jobtype=&organization=${encodeURIComponent(employer)}&swLat=&swLon=&neLat=&neLon=&page=1&size=5&sortDateAscending=false`;
-    const res = await fetch(probeUrl, {
-      headers: {
-        "User-Agent": "TerritoryPlanBuilder/1.0 (vacancy-scanner)",
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (res.ok) {
-      const data: SchoolSpringResponse = await res.json();
-      const jobs = data?.value?.jobsList ?? [];
-      const distinctEmployers = new Set(
-        jobs.map((j) => (j.employer ?? "").trim()).filter((s) => s.length > 0)
-      );
-      if (jobs.length > 0 && distinctEmployers.size === 1) {
-        console.log(
-          `[schoolspring] API filter probe honored organization=${employer} for ${url}`
-        );
-        return {
-          hostname: "www.schoolspring.com",
-          organizationFilter: employer,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn(`[schoolspring] API filter probe failed for ${url}:`, err);
+  // Probe 2: API organization-filter — single-row sample call against www.
+  if (await probeSingleEmployer("www.schoolspring.com", employer)) {
+    console.log(
+      `[schoolspring] API filter probe honored organization=${employer} for ${url}`
+    );
+    return {
+      hostname: "www.schoolspring.com",
+      organizationFilter: employer,
+    };
   }
 
   console.warn(`[schoolspring] All recovery failed — skipping: ${url}`);
