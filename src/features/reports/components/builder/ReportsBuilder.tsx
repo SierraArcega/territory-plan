@@ -29,6 +29,8 @@ interface Props {
   selectedVersionN: number | null;
   onNewReport: () => void;
   onCollapseChat: () => void;
+  /** Navigate back to the library (clears ?view, ?report, ?prompt, ?v). */
+  onBackToLibrary: () => void;
   /** Called when a save creates a new SavedReport row — typically routes to
    *  ?report=<newId>&view=builder so the session continues with the saved
    *  context. */
@@ -53,6 +55,7 @@ export function ReportsBuilder({
   selectedVersionN,
   onNewReport,
   onCollapseChat,
+  onBackToLibrary,
   onAfterSaveNew,
   onAfterDelete,
 }: Props) {
@@ -427,6 +430,7 @@ export function ReportsBuilder({
           onSubmit={submit}
           onNewReport={onNewReport}
           onCollapseChat={handleCollapseChat}
+          onBackToLibrary={onBackToLibrary}
         />
       )}
       <ResultsPane

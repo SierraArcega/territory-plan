@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Clock, Star } from "lucide-react";
+import { ChevronRight, Clock, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ReportListItem } from "../../lib/queries";
 import { initials, ownerColor } from "./initials";
@@ -9,8 +9,12 @@ interface Props {
   report: ReportListItem;
   showOwner: boolean;
   isAdmin: boolean;
+  /** When true, the row reveals a delete icon on hover and forwards clicks
+   *  to onDelete. Caller is responsible for confirming and invalidating. */
+  canDelete: boolean;
   onOpen: (id: number) => void;
   onToggleStar: (id: number, next: boolean) => void;
+  onDelete: (id: number, title: string) => void;
 }
 
 const FORMATTER = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -27,12 +31,25 @@ function relativeTime(iso: string | null): string {
   return FORMATTER.format(Math.round(diffSec / (86400 * 30)), "month");
 }
 
-export function LibraryRow({ report, showOwner, isAdmin, onOpen, onToggleStar }: Props) {
+export function LibraryRow({
+  report,
+  showOwner,
+  isAdmin,
+  canDelete,
+  onOpen,
+  onToggleStar,
+  onDelete,
+}: Props) {
   const [hover, setHover] = useState(false);
 
   const handleStarClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleStar(report.id, !report.isTeamPinned);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(report.id, report.title);
   };
 
   return (
@@ -97,6 +114,18 @@ export function LibraryRow({ report, showOwner, isAdmin, onOpen, onToggleStar }:
             {report.owner.fullName ?? "Unknown"}
           </div>
         </div>
+      )}
+
+      {canDelete && hover && (
+        <button
+          type="button"
+          onClick={handleDeleteClick}
+          aria-label={`Delete ${report.title}`}
+          title="Delete saved report"
+          className="inline-flex shrink-0 items-center justify-center rounded-md border border-transparent p-1 text-[#A69DC0] transition-colors hover:border-[#f58d85] hover:bg-[#fef1f0] hover:text-[#c25a52]"
+        >
+          <Trash2 size={14} />
+        </button>
       )}
 
       <ChevronRight

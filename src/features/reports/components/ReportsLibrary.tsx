@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useReportsLibrary, useToggleStar, type LibraryResponse } from "../lib/queries";
+import {
+  useDeleteReport,
+  useReportsLibrary,
+  useToggleStar,
+  type LibraryResponse,
+} from "../lib/queries";
 import { useProfile } from "@/features/shared/lib/queries";
 import { WelcomeStrip } from "./library/WelcomeStrip";
 import { LibraryTabs, type LibraryTab } from "./library/LibraryTabs";
@@ -26,6 +31,7 @@ export function ReportsLibrary({ initialTab, onTabChange, onOpenReport, onNewRep
   const isAdmin = profile?.role === "admin";
 
   const toggleStar = useToggleStar();
+  const deleteReport = useDeleteReport();
 
   const handleTabChange = (next: LibraryTab) => {
     setTab(next);
@@ -35,6 +41,11 @@ export function ReportsLibrary({ initialTab, onTabChange, onOpenReport, onNewRep
 
   const handleToggleStar = (id: number, next: boolean) => {
     toggleStar.mutate({ id, isTeamPinned: next });
+  };
+
+  const handleDelete = (id: number, title: string) => {
+    if (!window.confirm(`Delete "${title}"? This can't be undone.`)) return;
+    deleteReport.mutate(id);
   };
 
   const data = library ?? EMPTY;
@@ -68,8 +79,10 @@ export function ReportsLibrary({ initialTab, onTabChange, onOpenReport, onNewRep
               kind={tab}
               searchQuery={searchQuery}
               isAdmin={isAdmin}
+              currentUserId={profile?.id ?? null}
               onOpen={onOpenReport}
               onToggleStar={handleToggleStar}
+              onDelete={handleDelete}
               onNewReport={() => onNewReport()}
             />
           )}

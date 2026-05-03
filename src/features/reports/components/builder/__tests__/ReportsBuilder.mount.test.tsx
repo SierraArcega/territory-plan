@@ -55,6 +55,7 @@ describe("ReportsBuilder mount effect", () => {
         selectedVersionN={null}
         onNewReport={() => {}}
         onCollapseChat={() => {}}
+        onBackToLibrary={() => {}}
       />,
     );
 
@@ -78,6 +79,7 @@ describe("ReportsBuilder mount effect", () => {
         selectedVersionN={null}
         onNewReport={() => {}}
         onCollapseChat={() => {}}
+        onBackToLibrary={() => {}}
       />,
     );
 

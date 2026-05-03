@@ -24,8 +24,10 @@ describe("LibraryRow", () => {
         report={baseReport}
         showOwner={false}
         isAdmin={false}
+        canDelete={false}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
       />,
     );
     expect(screen.getByText("Texas open opps stuck > 90 days")).toBeInTheDocument();
@@ -40,8 +42,10 @@ describe("LibraryRow", () => {
         report={baseReport}
         showOwner={false}
         isAdmin={false}
+        canDelete={false}
         onOpen={onOpen}
         onToggleStar={() => {}}
+        onDelete={() => {}}
       />,
     );
     fireEvent.click(screen.getByText("Texas open opps stuck > 90 days"));
@@ -58,8 +62,10 @@ describe("LibraryRow", () => {
         report={withOwner}
         showOwner={false}
         isAdmin={false}
+        canDelete={false}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
       />,
     );
     expect(screen.queryByText("Maddie Park")).not.toBeInTheDocument();
@@ -69,8 +75,10 @@ describe("LibraryRow", () => {
         report={withOwner}
         showOwner
         isAdmin={false}
+        canDelete={false}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
       />,
     );
     expect(screen.getByText("Maddie Park")).toBeInTheDocument();
@@ -85,8 +93,10 @@ describe("LibraryRow", () => {
         report={baseReport}
         showOwner={false}
         isAdmin
+        canDelete={false}
         onOpen={onOpen}
         onToggleStar={onToggleStar}
+        onDelete={() => {}}
       />,
     );
     fireEvent.click(screen.getByLabelText(/star report/i));
@@ -101,8 +111,10 @@ describe("LibraryRow", () => {
         report={pinned}
         showOwner={false}
         isAdmin={false}
+        canDelete={false}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
       />,
     );
     expect(screen.queryByLabelText(/star report/i)).not.toBeInTheDocument();

@@ -95,6 +95,7 @@ export function ReportsTab() {
           // chevron in the chat header still renders so the visual contract
           // is in place.
         }}
+        onBackToLibrary={goToLibrary}
         onAfterSaveNew={(newId) => {
           updateParams((p) => {
             p.set("report", String(newId));

@@ -13,8 +13,13 @@ interface Props {
   kind: "mine" | "starred" | "team";
   searchQuery: string;
   isAdmin: boolean;
+  /** Current user's id — used per-row to decide whether to show the delete
+   *  affordance. Reports owned by the current user (or any report when the
+   *  user is admin) are deletable. */
+  currentUserId: string | null;
   onOpen: (id: number) => void;
   onToggleStar: (id: number, next: boolean) => void;
+  onDelete: (id: number, title: string) => void;
   onNewReport: () => void;
 }
 
@@ -23,8 +28,10 @@ export function LibraryList({
   kind,
   searchQuery,
   isAdmin,
+  currentUserId,
   onOpen,
   onToggleStar,
+  onDelete,
   onNewReport,
 }: Props) {
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -61,8 +68,10 @@ export function LibraryList({
               report={r}
               showOwner={showOwner}
               isAdmin={isAdmin}
+              canDelete={isAdmin || (!!currentUserId && r.owner?.id === currentUserId)}
               onOpen={onOpen}
               onToggleStar={onToggleStar}
+              onDelete={onDelete}
             />
           </div>
         ))}

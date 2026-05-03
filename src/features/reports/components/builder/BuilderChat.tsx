@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Plus } from "lucide-react";
+import { ArrowLeft, ChevronLeft, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Composer } from "./Composer";
 import { JumpNav } from "./JumpNav";
@@ -17,6 +17,7 @@ interface Props {
   onSubmit: (text: string) => void;
   onNewReport: () => void;
   onCollapseChat: () => void;
+  onBackToLibrary: () => void;
 }
 
 export function BuilderChat({
@@ -29,6 +30,7 @@ export function BuilderChat({
   onSubmit,
   onNewReport,
   onCollapseChat,
+  onBackToLibrary,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -49,9 +51,14 @@ export function BuilderChat({
       {/* Header */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-[#E2DEEC] px-4 py-2.5">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8]">
-            Conversation
-          </div>
+          <button
+            type="button"
+            onClick={onBackToLibrary}
+            className="inline-flex items-center gap-1 border-0 bg-transparent p-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8] transition-colors hover:text-[#403770]"
+          >
+            <ArrowLeft size={10} />
+            <span className="whitespace-nowrap">Library</span>
+          </button>
           <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-[#403770]">
             {title}
           </div>

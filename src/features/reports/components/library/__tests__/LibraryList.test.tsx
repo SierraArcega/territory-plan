@@ -28,8 +28,10 @@ describe("LibraryList", () => {
         kind="mine"
         searchQuery="texas"
         isAdmin={false}
+        currentUserId={null}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
         onNewReport={() => {}}
       />,
     );
@@ -45,8 +47,10 @@ describe("LibraryList", () => {
         kind="mine"
         searchQuery="xxx"
         isAdmin={false}
+        currentUserId={null}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
         onNewReport={() => {}}
       />,
     );
@@ -61,8 +65,10 @@ describe("LibraryList", () => {
         kind="mine"
         searchQuery=""
         isAdmin={false}
+        currentUserId={null}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
         onNewReport={() => {}}
       />,
     );
@@ -81,8 +87,10 @@ describe("LibraryList", () => {
         kind="team"
         searchQuery=""
         isAdmin={false}
+        currentUserId={null}
         onOpen={() => {}}
         onToggleStar={() => {}}
+        onDelete={() => {}}
         onNewReport={() => {}}
       />,
     );
