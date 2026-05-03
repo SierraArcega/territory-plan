@@ -7,14 +7,19 @@ import { prisma } from "@/lib/prisma";
 export const NEWS_CATEGORIES = [
   "budget_funding",
   "leadership_change",
+  "vacancies_staffing",
   "academic_performance",
   "enrollment_trends",
   "labor_contract",
   "curriculum_adoption",
   "technology_edtech",
+  "school_choice",
+  "procurement_rfp",
   "policy_regulation",
   "facility_operations",
   "student_services",
+  "tutoring_intervention",
+  "homeschool",
   "scandal_incident",
 ] as const;
 
