@@ -25,14 +25,10 @@ export const NEWS_CATEGORIES = [
 
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 
-export const SENTIMENTS = ["positive", "neutral", "negative"] as const;
-export type Sentiment = (typeof SENTIMENTS)[number];
-
 export const RELEVANCE_TIERS = ["high", "medium", "low", "none"] as const;
 export type Relevance = (typeof RELEVANCE_TIERS)[number];
 
 export interface ClassificationResult {
-  sentiment: Sentiment;
   categories: NewsCategory[];
   fullmindRelevance: Relevance;
 }
@@ -42,13 +38,9 @@ export interface ClassificationResult {
 export function parseClassificationResult(raw: unknown): ClassificationResult | null {
   if (!raw || typeof raw !== "object") return null;
   const out = raw as {
-    sentiment?: string;
     categories?: string[];
     fullmindRelevance?: string;
   };
-  const sentiment = (SENTIMENTS as readonly string[]).includes(out.sentiment ?? "")
-    ? (out.sentiment as Sentiment)
-    : "neutral";
   const fullmindRelevance = (RELEVANCE_TIERS as readonly string[]).includes(
     out.fullmindRelevance ?? ""
   )
@@ -57,7 +49,7 @@ export function parseClassificationResult(raw: unknown): ClassificationResult | 
   const categories = (out.categories ?? []).filter((c): c is NewsCategory =>
     (NEWS_CATEGORIES as readonly string[]).includes(c)
   );
-  return { sentiment, categories, fullmindRelevance };
+  return { categories, fullmindRelevance };
 }
 
 export interface ClassifyStats {
@@ -70,16 +62,10 @@ export interface ClassifyStats {
 const CLASSIFY_TOOL = {
   name: "classify_article",
   description:
-    "Classify a K-12 news article for Fullmind's sales team: sentiment, topic categories, and sales relevance.",
+    "Classify a K-12 news article for Fullmind's sales team: topic categories and sales relevance.",
   input_schema: {
     type: "object" as const,
     properties: {
-      sentiment: {
-        type: "string" as const,
-        enum: SENTIMENTS as unknown as string[],
-        description:
-          "Overall tone of the article toward its subject(s): positive (good news, awards, growth), neutral (informational), or negative (scandal, crisis, cuts).",
-      },
       categories: {
         type: "array" as const,
         description: "Zero or more topic tags. Pick all that substantively apply.",
@@ -92,7 +78,7 @@ const CLASSIFY_TOOL = {
           "How actionable is this article for Fullmind's K-12 tutoring sales team? Use the rubric in the system prompt.",
       },
     },
-    required: ["sentiment", "categories", "fullmindRelevance"] as const,
+    required: ["categories", "fullmindRelevance"] as const,
   },
 };
 
@@ -163,7 +149,7 @@ async function classifyOne(article: {
 }
 
 /** Run the classifier over a specific article list. Used right after ingest
- *  so newly-landed articles get sentiment/categories/relevance immediately. */
+ *  so newly-landed articles get categories/relevance immediately. */
 export async function classifyArticles(
   articleIds: string[],
   concurrency = 4,
@@ -220,7 +206,6 @@ async function classifyMany(
         await prisma.newsArticle.update({
           where: { id: a.id },
           data: {
-            sentiment: result.sentiment,
             categories: result.categories,
             fullmindRelevance: result.fullmindRelevance,
             classifiedAt: new Date(),

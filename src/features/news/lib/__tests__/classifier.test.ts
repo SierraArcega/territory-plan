@@ -16,22 +16,28 @@ describe("NEWS_CATEGORIES", () => {
 });
 
 describe("parseClassificationResult", () => {
-  it("returns a typed result for valid input", () => {
+  it("returns a typed result for valid input (no sentiment field)", () => {
     const result = parseClassificationResult({
-      sentiment: "positive",
       categories: ["budget_funding"],
       fullmindRelevance: "high",
     });
     expect(result).toEqual({
-      sentiment: "positive",
       categories: ["budget_funding"],
       fullmindRelevance: "high",
     });
   });
 
+  it("ignores sentiment if the LLM returns it", () => {
+    const result = parseClassificationResult({
+      sentiment: "positive",
+      categories: [],
+      fullmindRelevance: "high",
+    });
+    expect(result).not.toHaveProperty("sentiment");
+  });
+
   it("defaults invalid fullmindRelevance to 'none'", () => {
     const result = parseClassificationResult({
-      sentiment: "neutral",
       categories: [],
       fullmindRelevance: "super-high",
     });
@@ -40,7 +46,6 @@ describe("parseClassificationResult", () => {
 
   it("filters out categories not in the enum", () => {
     const result = parseClassificationResult({
-      sentiment: "neutral",
       categories: ["budget_funding", "not_a_real_category", "homeschool"],
       fullmindRelevance: "medium",
     });
