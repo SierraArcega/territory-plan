@@ -57,7 +57,7 @@ export function ReportsLibrary({ initialTab, onTabChange, onOpenReport, onNewRep
       <div className="mx-auto max-w-[1080px] px-7 py-7 pb-10">
         <WelcomeStrip
           onNewReport={() => onNewReport()}
-          onTryExample={(prompt) => onNewReport(prompt)}
+          onSubmitPrompt={(prompt) => onNewReport(prompt)}
         />
         <div className="mt-6">
           <LibraryTabs
