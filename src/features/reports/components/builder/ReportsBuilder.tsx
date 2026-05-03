@@ -6,7 +6,6 @@ import { useChatTurnStream } from "../../hooks/useChatTurnStream";
 import {
   useCreateSavedReport,
   useDeleteReport,
-  useRunSavedReport,
   useUpdateReportDetails,
   useUpdateReportSql,
 } from "../../lib/queries";
@@ -65,6 +64,9 @@ export function ReportsBuilder({
   // Surface saved-report load failures (bad SQL, missing summary, server error)
   // so the user sees an actionable message instead of an empty results pane.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // True while the mount-time POST /api/reports/{id}/run is in flight. Used to
+  // lock the composer until the saved report's v1 lands.
+  const [loadingSaved, setLoadingSaved] = useState(false);
   // Selected version is owned locally so flipping pills doesn't trigger a
   // Next.js soft navigation (router.push) — that re-renders the entire page
   // tree (sidebar, builder, 100+ row results table) and adds noticeable lag.
@@ -77,7 +79,6 @@ export function ReportsBuilder({
   const fromSavedReportRef = useRef(false);
 
   const chatTurn = useChatTurnStream();
-  const runSaved = useRunSavedReport();
   const createReport = useCreateSavedReport();
   const updateReportSql = useUpdateReportSql();
   const updateReportDetails = useUpdateReportDetails();
@@ -93,7 +94,7 @@ export function ReportsBuilder({
     [turns],
   );
 
-  const inFlight = chatTurn.isPending || runSaved.isPending;
+  const inFlight = chatTurn.isPending || loadingSaved;
 
   // Resolve the selected version. Falls back to the latest if the URL ?v= is
   // out of range or missing.
@@ -254,27 +255,34 @@ export function ReportsBuilder({
     if (reportId != null) {
       autoSubmittedRef.current = true;
       fromSavedReportRef.current = true;
-      runSaved.mutate(reportId, {
-        onSuccess: (data) => {
-          // Saved report rerun bypasses the agent loop, so there's no
-          // assistant text and no conversationId — empty chat with a v1.
-          // Coerce a missing summary so the version still renders (the DB
-          // column has been nullable historically and a few legacy rows
-          // landed without one).
+      setLoadingSaved(true);
+      // Direct fetch instead of useRunSavedReport.mutate — the TanStack mutate
+      // path was eating onSuccess in dev. We do NOT abort on cleanup: in
+      // StrictMode dev the synthetic unmount would cancel the in-flight fetch
+      // and `autoSubmittedRef` (preserved across the re-mount) prevents a
+      // second one from firing, so onSuccess would never run.
+      (async () => {
+        try {
+          const res = await fetch(`/api/reports/${reportId}/run`, { method: "POST" });
+          if (!res.ok) {
+            const j = (await res.json().catch(() => ({}))) as { error?: string };
+            throw new Error(j.error ?? `Run failed (${res.status})`);
+          }
+          const data = (await res.json()) as Result;
           const safeData: Result = {
             ...data,
             summary: data.summary ?? { source: savedReportTitle ?? "Saved report" },
           };
           appendTurnFromResult("", null, safeData);
-          // Selected version is the new v1.
           handleSelectVersion(1);
-        },
-        onError: (err) => {
-          console.error("[ReportsBuilder] runSaved failed", err);
-          setLoadError(err.message || "Couldn't run this saved report.");
-        },
-      });
-      // Try to fetch the saved report's title for the chat header.
+        } catch (err) {
+          console.error("[ReportsBuilder] /run failed", err);
+          setLoadError(err instanceof Error ? err.message : String(err));
+        } finally {
+          setLoadingSaved(false);
+        }
+      })();
+      // Title fetch — independent of /run so a slow run doesn't delay the header.
       fetch(`/api/reports/${reportId}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
@@ -289,7 +297,11 @@ export function ReportsBuilder({
       autoSubmittedRef.current = true;
       submit(initialPrompt);
     }
-  }, [reportId, initialPrompt, runSaved, appendTurnFromResult, submit, handleSelectVersion]);
+    // savedReportTitle is intentionally left out of deps — autoSubmittedRef
+    // gates re-runs anyway and we don't want the title fetch landing to
+    // re-fire the run fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportId, initialPrompt, appendTurnFromResult, submit, handleSelectVersion]);
 
   const headerTitle = useMemo(() => {
     if (savedReportTitle) return savedReportTitle;

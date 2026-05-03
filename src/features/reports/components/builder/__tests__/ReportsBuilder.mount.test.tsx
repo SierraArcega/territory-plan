@@ -1,40 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-// We mock the network layer so the real /api/reports/{id}/run is never hit —
-// we only need to verify the mount effect *invokes* the mutation, not that it
-// completes against a real server.
-const mutateMock = vi.fn();
-
-vi.mock("../../../lib/queries", async () => {
-  const actual = await vi.importActual<typeof import("../../../lib/queries")>(
-    "../../../lib/queries",
-  );
-  return {
-    ...actual,
-    useRunSavedReport: () => ({
-      mutate: mutateMock,
-      isPending: false,
-      isError: false,
-      error: null,
-    }),
-  };
-});
 
 vi.mock("../../../hooks/useChatTurnStream", () => ({
   useChatTurnStream: () => ({ submit: vi.fn(), isPending: false }),
 }));
 
-// jsdom doesn't ship a fetch polyfill — give it a noop so the title-fetch in
-// the mount effect resolves silently.
+// Capture what fetch was called with so we can assert the /run endpoint was hit
+// and feed back a realistic response.
+const fetchMock = vi.fn();
+
 beforeEach(() => {
-  mutateMock.mockReset();
-  // @ts-expect-error - jsdom has no fetch by default
-  global.fetch = vi.fn(() =>
-    Promise.resolve({ ok: true, json: () => Promise.resolve({ report: null }) }),
-  );
+  fetchMock.mockReset();
+  fetchMock.mockImplementation((url: string) => {
+    if (url.endsWith("/run")) {
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sql: "SELECT 1",
+            summary: { source: "Mock saved report" },
+            columns: ["a"],
+            rows: [{ a: 1 }, { a: 2 }, { a: 3 }],
+            rowCount: 3,
+            executionTimeMs: 12,
+          }),
+      });
+    }
+    // Title fetch.
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ report: { title: "Stub", description: "" } }),
+    });
+  });
+  global.fetch = fetchMock as unknown as typeof fetch;
 });
 
 import { ReportsBuilder } from "../ReportsBuilder";
@@ -47,7 +47,7 @@ function renderWithClient(ui: React.ReactElement) {
 }
 
 describe("ReportsBuilder mount effect", () => {
-  it("fires runSaved.mutate when reportId is provided", async () => {
+  it("POSTs /api/reports/{id}/run and renders the result when reportId is provided", async () => {
     renderWithClient(
       <ReportsBuilder
         reportId={42}
@@ -59,12 +59,18 @@ describe("ReportsBuilder mount effect", () => {
     );
 
     await waitFor(() => {
-      expect(mutateMock).toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/reports/42/run",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
-    expect(mutateMock.mock.calls[0]![0]).toBe(42);
+    // The synthetic v1 turn lands → the row count surfaces in the results pane.
+    await waitFor(() => {
+      expect(screen.getAllByText(/3 rows/).length).toBeGreaterThan(0);
+    });
   });
 
-  it("does not fire runSaved.mutate when reportId is null", async () => {
+  it("does not POST /run when reportId is null", async () => {
     renderWithClient(
       <ReportsBuilder
         reportId={null}
@@ -77,6 +83,9 @@ describe("ReportsBuilder mount effect", () => {
 
     // Give effects time to run.
     await new Promise((r) => setTimeout(r, 50));
-    expect(mutateMock).not.toHaveBeenCalled();
+    const runCalls = fetchMock.mock.calls.filter((c) =>
+      String(c[0]).endsWith("/run"),
+    );
+    expect(runCalls).toHaveLength(0);
   });
 });

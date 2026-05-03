@@ -79,7 +79,7 @@ export function ResultsPane({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8]">
             <span className="whitespace-nowrap">
-              Result · v{version.n} · {version.rowCount.toLocaleString()} rows
+              Result · v{version.n} · {(version.rowCount ?? 0).toLocaleString()} rows
             </span>
             {isFromSavedReport && (
               <>
@@ -129,7 +129,7 @@ export function ResultsPane({
 
       <div className="flex shrink-0 items-center justify-between border-t border-[#E2DEEC] bg-[#FFFCFA] px-[18px] py-1.5 text-[11px] text-[#8A80A8]">
         <span className="whitespace-nowrap">
-          {version.rowCount.toLocaleString()} rows · {version.columns.length} columns
+          {(version.rowCount ?? 0).toLocaleString()} rows · {(version.columns?.length ?? 0)} columns
         </span>
         <span className="tabular-nums text-[#A69DC0]">
           {(version.executionTimeMs / 1000).toFixed(1)}s
