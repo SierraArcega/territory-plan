@@ -18,6 +18,9 @@ interface Props {
   /** Surfaces a saved-report load failure so the user sees an actionable
    *  message instead of the generic "No result yet" empty state. */
   loadError?: string | null;
+  /** Inline confirmation surfaced inside the SaveButton/SavePopover after a
+   *  save/update succeeds. Cleared automatically by the parent. */
+  saveConfirmation?: string | null;
   onSaveNew: (title: string, description: string) => void;
   onUpdateSavedReport: () => void;
   onEditDetails: (title: string, description: string) => void;
@@ -36,6 +39,7 @@ export function ResultsPane({
   savedReportDescription,
   saveBusy,
   loadError,
+  saveConfirmation,
   onSaveNew,
   onUpdateSavedReport,
   onEditDetails,
@@ -113,6 +117,7 @@ export function ResultsPane({
             initialTitle={savedReportTitle || version.summary.source}
             initialDescription={savedReportDescription}
             busy={saveBusy}
+            confirmation={saveConfirmation}
             onSaveNew={onSaveNew}
             onUpdateSavedReport={onUpdateSavedReport}
             onEditDetails={onEditDetails}

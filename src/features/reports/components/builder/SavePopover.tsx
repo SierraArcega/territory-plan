@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export type SaveMode = "save-new" | "update-or-save-new" | "edit-details";
@@ -17,6 +17,10 @@ interface Props {
   /** "Save" submit in edit-details mode — patches title/description only. */
   onEditDetails?: (title: string, description: string) => void;
   busy?: boolean;
+  /** When set, the popover swaps form for a green inline confirmation
+   *  (e.g. "Report updated"). The parent (SaveButton) is responsible for
+   *  auto-closing the popover after a beat. */
+  confirmation?: string | null;
 }
 
 const TITLE_MAX = 120;
@@ -31,6 +35,7 @@ export function SavePopover({
   onUpdate,
   onEditDetails,
   busy = false,
+  confirmation = null,
 }: Props) {
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
@@ -96,7 +101,17 @@ export function SavePopover({
         </button>
       </div>
 
-      <div className="mt-2.5">
+      {confirmation ? (
+        <div
+          role="status"
+          className="mt-3 flex items-center gap-2 rounded-md border border-[#8AC670] bg-[#F7FFF2] px-3 py-2.5"
+        >
+          <Check size={14} className="shrink-0 text-[#69B34A]" />
+          <span className="text-[12.5px] font-medium text-[#403770]">{confirmation}</span>
+        </div>
+      ) : null}
+
+      <div className={confirmation ? "pointer-events-none mt-2.5 opacity-50" : "mt-2.5"}>
         <label className="mb-1 block text-[11px] font-medium text-[#8A80A8]">Title</label>
         <input
           ref={titleRef}

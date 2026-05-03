@@ -67,6 +67,15 @@ export function ReportsBuilder({
   // True while the mount-time POST /api/reports/{id}/run is in flight. Used to
   // lock the composer until the saved report's v1 lands.
   const [loadingSaved, setLoadingSaved] = useState(false);
+  // Transient confirmation toast — set to a string to show, auto-clears after
+  // ~2.5s. Used after save/update/edit-details so the user gets feedback even
+  // when no other UI changes (e.g. updating a report that's already loaded).
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [toast]);
   // Selected version is owned locally so flipping pills doesn't trigger a
   // Next.js soft navigation (router.push) — that re-renders the entire page
   // tree (sidebar, builder, 100+ row results table) and adds noticeable lag.
@@ -337,6 +346,7 @@ export function ReportsBuilder({
         },
         {
           onSuccess: (data) => {
+            setToast("Report saved");
             if (data.report?.id != null) onAfterSaveNew?.(data.report.id);
           },
         },
@@ -350,12 +360,17 @@ export function ReportsBuilder({
     const v = selectedVersion;
     if (!v) return;
     const lastUserMessage = [...turns].reverse().find((t) => t.userMessage.trim())?.userMessage;
-    updateReportSql.mutate({
-      id: reportId,
-      sql: v.sql,
-      summary: v.summary,
-      question: lastUserMessage ?? v.summary.source,
-    });
+    updateReportSql.mutate(
+      {
+        id: reportId,
+        sql: v.sql,
+        summary: v.summary,
+        question: lastUserMessage ?? v.summary.source,
+      },
+      {
+        onSuccess: () => setToast("Report updated"),
+      },
+    );
   }, [reportId, selectedVersion, turns, updateReportSql]);
 
   const handleEditDetails = useCallback(
@@ -367,6 +382,7 @@ export function ReportsBuilder({
           onSuccess: () => {
             setSavedReportTitle(title);
             setSavedReportDescription(description);
+            setToast("Details updated");
           },
         },
       );
@@ -420,6 +436,7 @@ export function ReportsBuilder({
         savedReportDescription={savedReportDescription}
         saveBusy={saveBusy}
         loadError={loadError}
+        saveConfirmation={toast}
         onSaveNew={handleSaveNew}
         onUpdateSavedReport={handleUpdateSavedReport}
         onEditDetails={handleEditDetails}
