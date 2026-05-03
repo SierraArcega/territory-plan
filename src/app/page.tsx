@@ -98,9 +98,12 @@ function HomeContent() {
   const initializedRef = useRef(false);
   // Tracks whether the current state change came from browser back/forward
   const isPopstateRef = useRef(false);
-  // Tracks the previous activeTab so the sync effect can detect sidebar tab
-  // changes vs. in-tab URL pushes (e.g. ReportsTab opening a saved report).
-  const prevActiveTabRef = useRef<TabId>(activeTab);
+  // Set true exactly when the sidebar's onTabChange handler fires. Read by the
+  // sync effect to decide whether to clear Reports builder URL params (so
+  // re-entering Reports from another tab lands on the library). Anything else
+  // that updates activeTab/searchParams (URL-driven init, ReportsTab pushing
+  // ?view=builder) leaves this false → params preserved.
+  const sidebarTabChangeRef = useRef(false);
 
   // Initialize state from URL params on mount
   useEffect(() => {
@@ -144,7 +147,6 @@ function HomeContent() {
     // Skip URL push if this change came from browser back/forward
     if (isPopstateRef.current) {
       isPopstateRef.current = false;
-      prevActiveTabRef.current = activeTab;
       return;
     }
 
@@ -152,34 +154,46 @@ function HomeContent() {
     // (e.g. calendarConnected=true) that other components manage.
     const params = new URLSearchParams(searchParams.toString());
 
-    const tabChanged = prevActiveTabRef.current !== activeTab;
-
-    // Sync the tab param
-    if (activeTab === "home") {
-      params.delete("tab");
-    } else {
-      params.set("tab", activeTab);
+    // Only clear Reports builder URL state when the user explicitly clicked a
+    // sidebar tab (sidebarTabChangeRef set in onTabChange). URL-driven init
+    // and in-tab pushes (ReportsTab opening ?view=builder&report=N) must NOT
+    // wipe these — that's what was leaving the builder mounted with reportId
+    // null and causing the blank state.
+    const isSidebarChange = sidebarTabChangeRef.current;
+    if (isSidebarChange) {
+      sidebarTabChangeRef.current = false;
     }
 
-    // Sync the plan param
-    if (activeTab === "plans" && selectedPlanId) {
-      params.set("plan", selectedPlanId);
-    } else {
-      params.delete("plan");
-    }
-
-    // When the sidebar tab actually changes, clear Reports builder state so
-    // re-entering Reports lands on the library, not the previous session.
-    // Skipped when only searchParams changed (e.g. ReportsTab opening a report).
-    if (tabChanged) {
+    // Sync the tab param. Only when this run came from a sidebar click — the
+    // sync effect's closure can lag the live URL (the init effect's
+    // setActiveTab and the user-driven URL can be out of phase across renders),
+    // so blindly rewriting `tab=` on every run would bounce the URL and remount
+    // child trees.
+    if (isSidebarChange) {
+      if (activeTab === "home") {
+        params.delete("tab");
+      } else {
+        params.set("tab", activeTab);
+      }
+      // Plan param is only meaningful while on the plans tab; reset on switch.
+      if (activeTab === "plans" && selectedPlanId) {
+        params.set("plan", selectedPlanId);
+      } else {
+        params.delete("plan");
+      }
       params.delete("view");
       params.delete("report");
       params.delete("prompt");
       params.delete("v");
       params.delete("libraryTab");
+    } else if (activeTab === "plans") {
+      // Plan-id changes within the plans tab still need to be reflected.
+      if (selectedPlanId) {
+        params.set("plan", selectedPlanId);
+      } else {
+        params.delete("plan");
+      }
     }
-
-    prevActiveTabRef.current = activeTab;
 
     // Build the new URL
     const newUrl = params.toString() ? `?${params.toString()}` : "/";
@@ -242,6 +256,9 @@ function HomeContent() {
     <AppShell
       activeTab={activeTab}
       onTabChange={(tab, section) => {
+        // Mark this state update as a sidebar click so the URL sync effect
+        // clears Reports builder params (?view=, ?report=, etc.).
+        sidebarTabChangeRef.current = true;
         setActiveTab(tab);
         // Clear plan selection when switching away from plans
         if (tab !== "plans") {

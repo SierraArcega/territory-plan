@@ -15,6 +15,9 @@ interface Props {
   savedReportTitle: string;
   savedReportDescription: string;
   saveBusy: boolean;
+  /** Surfaces a saved-report load failure so the user sees an actionable
+   *  message instead of the generic "No result yet" empty state. */
+  loadError?: string | null;
   onSaveNew: (title: string, description: string) => void;
   onUpdateSavedReport: () => void;
   onEditDetails: (title: string, description: string) => void;
@@ -32,6 +35,7 @@ export function ResultsPane({
   savedReportTitle,
   savedReportDescription,
   saveBusy,
+  loadError,
   onSaveNew,
   onUpdateSavedReport,
   onEditDetails,
@@ -44,13 +48,22 @@ export function ResultsPane({
   if (!version) {
     return (
       <div className="flex flex-1 items-center justify-center bg-[#FFFCFA] px-6">
-        <div className="max-w-[420px] rounded-xl border border-dashed border-[#D4CFE2] bg-white px-6 py-8 text-center">
-          <div className="text-[13px] font-semibold text-[#403770]">No result yet</div>
-          <div className="mt-1 text-[12px] leading-relaxed text-[#8A80A8]">
-            Submit a question on the left and Claude&apos;s first result lands here. Each
-            refinement becomes a new version you can flip between.
+        {loadError ? (
+          <div className="max-w-[420px] rounded-xl border border-[#f58d85] bg-[#fef1f0] px-6 py-8 text-center">
+            <div className="text-[13px] font-semibold text-[#c25a52]">
+              Couldn&apos;t load this saved report
+            </div>
+            <div className="mt-1 text-[12px] leading-relaxed text-[#8a4a44]">{loadError}</div>
           </div>
-        </div>
+        ) : (
+          <div className="max-w-[420px] rounded-xl border border-dashed border-[#D4CFE2] bg-white px-6 py-8 text-center">
+            <div className="text-[13px] font-semibold text-[#403770]">No result yet</div>
+            <div className="mt-1 text-[12px] leading-relaxed text-[#8A80A8]">
+              Submit a question on the left and Claude&apos;s first result lands here. Each
+              refinement becomes a new version you can flip between.
+            </div>
+          </div>
+        )}
       </div>
     );
   }

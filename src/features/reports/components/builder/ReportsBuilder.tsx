@@ -62,6 +62,9 @@ export function ReportsBuilder({
   const [savedReportTitle, setSavedReportTitle] = useState<string | null>(null);
   const [savedReportDescription, setSavedReportDescription] = useState<string>("");
   const [chatCollapsed, setChatCollapsed] = useChatCollapsed();
+  // Surface saved-report load failures (bad SQL, missing summary, server error)
+  // so the user sees an actionable message instead of an empty results pane.
+  const [loadError, setLoadError] = useState<string | null>(null);
   // Selected version is owned locally so flipping pills doesn't trigger a
   // Next.js soft navigation (router.push) — that re-renders the entire page
   // tree (sidebar, builder, 100+ row results table) and adds noticeable lag.
@@ -255,9 +258,20 @@ export function ReportsBuilder({
         onSuccess: (data) => {
           // Saved report rerun bypasses the agent loop, so there's no
           // assistant text and no conversationId — empty chat with a v1.
-          appendTurnFromResult("", null, data);
+          // Coerce a missing summary so the version still renders (the DB
+          // column has been nullable historically and a few legacy rows
+          // landed without one).
+          const safeData: Result = {
+            ...data,
+            summary: data.summary ?? { source: savedReportTitle ?? "Saved report" },
+          };
+          appendTurnFromResult("", null, safeData);
           // Selected version is the new v1.
           handleSelectVersion(1);
+        },
+        onError: (err) => {
+          console.error("[ReportsBuilder] runSaved failed", err);
+          setLoadError(err.message || "Couldn't run this saved report.");
         },
       });
       // Try to fetch the saved report's title for the chat header.
@@ -393,6 +407,7 @@ export function ReportsBuilder({
         savedReportTitle={savedReportTitle ?? ""}
         savedReportDescription={savedReportDescription}
         saveBusy={saveBusy}
+        loadError={loadError}
         onSaveNew={handleSaveNew}
         onUpdateSavedReport={handleUpdateSavedReport}
         onEditDetails={handleEditDetails}
