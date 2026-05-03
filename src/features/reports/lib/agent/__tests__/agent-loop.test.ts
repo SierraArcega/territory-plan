@@ -494,4 +494,89 @@ describe("runAgentLoop", () => {
       expect(result.kind).toBe("clarifying");
     });
   });
+
+  describe("streaming via onEvent", () => {
+    it("invokes onEvent in the same order as result.events for a happy-path turn", async () => {
+      const runSqlMod = await import("@/features/reports/lib/tools/run-sql");
+      vi.mocked(runSqlMod.handleRunSql).mockResolvedValue({
+        kind: "ok",
+        sql: "SELECT a FROM districts LIMIT 100",
+        summary,
+        columns: ["a"],
+        rows: [{ a: 1 }],
+        rowCount: 1,
+        executionTimeMs: 5,
+      });
+
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "tool_use",
+          content: [{ type: "tool_use", id: "e1", name: "list_tables", input: {} }],
+        },
+        {
+          stop_reason: "tool_use",
+          content: [
+            {
+              type: "tool_use",
+              id: "e2",
+              name: "run_sql",
+              input: { sql: "SELECT a FROM districts LIMIT 100", summary },
+            },
+          ],
+        },
+      ]);
+
+      const streamed: Array<{ kind: string; toolName?: string }> = [];
+      const result = await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "show me districts",
+        priorTurns: [],
+        userId: "u1",
+        onEvent: (e) => {
+          streamed.push({
+            kind: e.kind,
+            toolName: e.kind === "tool_result" ? e.toolName : undefined,
+          });
+        },
+      });
+
+      expect(result.kind).toBe("result");
+      // Sanity: streamed must contain exactly the same number of events as
+      // result.events, in the same order (kind + toolName for tool_result).
+      expect(streamed.length).toBe(result.events.length);
+      result.events.forEach((e, i) => {
+        expect(streamed[i]!.kind).toBe(e.kind);
+        if (e.kind === "tool_result") {
+          expect(streamed[i]!.toolName).toBe(e.toolName);
+        }
+      });
+      // And the expected sequence: model_call, tool_result(list_tables),
+      // model_call, tool_result(run_sql).
+      expect(streamed.map((s) => s.kind)).toEqual([
+        "model_call",
+        "tool_result",
+        "model_call",
+        "tool_result",
+      ]);
+      expect(streamed[1]!.toolName).toBe("list_tables");
+      expect(streamed[3]!.toolName).toBe("run_sql");
+    });
+
+    it("does not require onEvent — non-streaming callers still work", async () => {
+      const anthropic = makeScriptedAnthropic([
+        {
+          stop_reason: "end_turn",
+          content: [{ type: "text", text: "What kind of report?" }],
+        },
+      ]);
+      const result = await runAgentLoop({
+        anthropic: anthropic as never,
+        userMessage: "anything",
+        priorTurns: [],
+        userId: "u1",
+      });
+      expect(result.kind).toBe("clarifying");
+      expect(result.events.length).toBe(1);
+    });
+  });
 });

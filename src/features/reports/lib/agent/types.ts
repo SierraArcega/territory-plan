@@ -4,6 +4,30 @@
 export interface QuerySummary {
   /** One-line description, e.g. "Open-pipeline opportunities stuck > 90 days in current stage". */
   source: string;
+  /**
+   * Human-readable filter clauses applied, one per element. Used to render the
+   * display-only chip strip beneath the result title. Each entry is a complete
+   * label like "State: Texas" or "Days in stage > 90". Optional — older saved
+   * reports persisted before this field existed will simply render no filter
+   * chips.
+   */
+  filters?: string[];
+  /**
+   * Ordered list of result columns shown in the chip strip's "COLUMNS" group.
+   * Match the order of the SELECT projection. Optional for backward compat.
+   */
+  columns?: string[];
+  /**
+   * Human-readable sort description, e.g. "Close date ↓". Null/undefined when
+   * no ORDER BY is present.
+   */
+  sort?: string | null;
+  /**
+   * Short plain-English label for this run, e.g. "sorted by close date
+   * descending". Rendered next to the version pill in the chat gutter and on
+   * collapsed-rail tile hover tooltips. Optional — falls back to `v{n}` only.
+   */
+  versionLabel?: string;
 }
 
 export interface ChatRequest {

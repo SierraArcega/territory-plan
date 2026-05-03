@@ -15,9 +15,24 @@ describe("agent types", () => {
     expect(MAX_SQL_RETRIES).toBe(2);
   });
 
-  it("QuerySummary has just a source field", () => {
-    const s: QuerySummary = { source: "Texas districts" };
-    expectTypeOf(s).toMatchTypeOf<QuerySummary>();
+  it("QuerySummary requires source and accepts optional chip-strip fields", () => {
+    const minimal: QuerySummary = { source: "Texas districts" };
+    expectTypeOf(minimal).toMatchTypeOf<QuerySummary>();
+
+    const full: QuerySummary = {
+      source: "Texas open opps stuck > 90 days",
+      filters: ["State: Texas", "Days in stage > 90"],
+      columns: ["District", "Stage", "Days in stage", "Amount"],
+      sort: "Close date ↓",
+      versionLabel: "narrowed to Texas",
+    };
+    expectTypeOf(full).toMatchTypeOf<QuerySummary>();
+
+    const partial: QuerySummary = {
+      source: "Pipeline by stage",
+      columns: ["Stage", "Count", "Total amount"],
+    };
+    expectTypeOf(partial).toMatchTypeOf<QuerySummary>();
   });
 
   it("ChatRequest accepts message + optional conversationId", () => {

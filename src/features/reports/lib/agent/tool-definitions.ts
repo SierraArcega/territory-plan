@@ -103,12 +103,34 @@ const runSql: Anthropic.Tool = {
       summary: {
         type: "object",
         description:
-          "One-line rep-friendly description of the query, shown as a header above the results table.",
+          "Rep-friendly description of the query, shown as a header above the results table plus a chip strip and version label.",
         properties: {
           source: {
             type: "string",
             description:
               "One-line description of what's being queried and any constraints, e.g. 'Open-pipeline opportunities stuck > 90 days in current stage' or 'Texas districts with closed-won FY26 contracts'.",
+          },
+          filters: {
+            type: "array",
+            description:
+              "Human-readable filter clauses applied. One label per element, complete and self-contained, e.g. ['State: Texas', 'Days in stage > 90']. Maps WHERE clauses to user-facing language. Empty or omitted when there are no filters.",
+            items: { type: "string" },
+          },
+          columns: {
+            type: "array",
+            description:
+              "Ordered list of result columns as the user will see them in the table header. Match the SELECT projection order. Use rep-friendly labels (e.g. 'District', 'Days in stage'), not raw SQL aliases.",
+            items: { type: "string" },
+          },
+          sort: {
+            type: "string",
+            description:
+              "Human-readable sort description, e.g. 'Close date ↓' or 'Bookings ↑'. Omit when there is no ORDER BY clause.",
+          },
+          versionLabel: {
+            type: "string",
+            description:
+              "Short plain-English label for this run, e.g. 'sorted by close date descending' or 'narrowed to Texas'. Rendered next to the version pill in the chat. Keep under 50 chars; describe what changed from the prior version when refining.",
           },
         },
         required: ["source"],

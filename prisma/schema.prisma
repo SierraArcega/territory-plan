@@ -1672,6 +1672,7 @@ model SavedReport {
   id             Int       @id @default(autoincrement())
   userId         String    @map("user_id") @db.Uuid
   title          String
+  description    String?
   question       String
   sql            String?
   params         Json?
@@ -1681,6 +1682,7 @@ model SavedReport {
   pinnedBy       String?   @map("pinned_by") @db.Uuid
   lastRunAt      DateTime? @map("last_run_at")
   runCount       Int       @default(0) @map("run_count")
+  rowCount       Int?      @map("row_count")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 

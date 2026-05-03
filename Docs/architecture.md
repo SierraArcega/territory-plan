@@ -26,6 +26,7 @@ Each feature follows the pattern `src/features/{name}/`:
 | `mixmax` | Mixmax campaign integration | `components/CampaignStatsPanel.tsx` |
 | `admin` | Admin tools (unmatched accounts, ICP scoring) | `components/` |
 | `news` | K-12 news ingest + entity matching (RSS + Google News + LLM disambiguator) — backend only; UI pending | `lib/ingest.ts`, `lib/matcher.ts` |
+| `reports` | AI-driven query builder — chat-as-timeline, saved-report library, SSE streaming live trace | `components/ReportsTab.tsx` -> `ReportsLibrary.tsx` \| `builder/ReportsBuilder.tsx` |
 | `shared` | Cross-feature components, hooks, utilities | `components/`, `lib/`, `hooks/` |
 
 ### The `map` Feature (Largest)
@@ -90,6 +91,57 @@ The map feature is the app's core and has the deepest nesting:
 - `shared` is imported by everything — never import from `shared` into `shared`
 - `explore` queries feed into `map/components/explore/` overlay
 - `progress` reads from `activities` and `plans` data
+- `reports` runs against the readonly Postgres pool (`@/lib/db-readonly`) for
+  user-facing queries; agent metadata (`@/lib/district-column-metadata`) seeds
+  the system prompt with table descriptions
+
+### The `reports` Feature
+
+URL state lives under the `reports` tab in `src/app/page.tsx`:
+- `?tab=reports` → library home (Mine / Starred / Team)
+- `?tab=reports&view=builder` → builder shell
+- `?tab=reports&view=builder&report=<id>` → loaded from saved report
+- `?tab=reports&view=builder&report=<id>&v=<n>` → with version selected
+
+```
+src/features/reports/
++-- components/
+|   +-- ReportsTab.tsx                 <- Tab entry; routes between library/builder
+|   +-- ReportsLibrary.tsx             <- Welcome strip + tabs + list
+|   +-- ResultsTable.tsx               <- Shared table renderer
+|   +-- SqlPreviewModal.tsx            <- View-SQL modal
+|   +-- library/                       <- /reports library page
+|   |   +-- WelcomeStrip.tsx
+|   |   +-- LibraryTabs.tsx
+|   |   +-- LibraryList.tsx + LibraryRow.tsx
+|   |   +-- EmptyLibrary.tsx + LibrarySkeleton.tsx
+|   +-- builder/                       <- /reports/new builder
+|       +-- ReportsBuilder.tsx         <- Top-level orchestrator (turns, conv id)
+|       +-- BuilderChat.tsx            <- Chat-as-timeline column
+|       +-- TurnBlock.tsx              <- Gutter pill + user msg + assistant card
+|       +-- VersionPill.tsx + JumpNav.tsx
+|       +-- LiveTrace.tsx + TraceLine.tsx  <- Style B Terminal trace renderer
+|       +-- Composer.tsx               <- Input + send + helper text
+|       +-- ResultsPane.tsx            <- Header + ChipStrip + table + Save
+|       +-- ChipStrip.tsx              <- Display-only filter/column/sort chips
+|       +-- SaveButton.tsx + SavePopover.tsx
+|       +-- CollapsedChatRail.tsx      <- 44px slim rail when chat collapsed
++-- hooks/
+|   +-- useChatTurn.ts                 <- Non-streaming mutation (legacy)
+|   +-- useChatTurnStream.ts           <- SSE-streaming submit + isPending
++-- lib/
+|   +-- queries.ts                     <- TanStack Query hooks for the new API
+|   +-- agent/
+|   |   +-- agent-loop.ts              <- The Claude agent loop
+|   |   +-- types.ts                   <- TurnEvent, QuerySummary
+|   |   +-- system-prompt.ts
+|   |   +-- tool-definitions.ts        <- run_sql + the explorers
+|   |   +-- conversation.ts            <- queryLog persistence
+|   +-- tools/                         <- One handler per Claude tool
+|   +-- csv.ts + format-cell.ts
+|   +-- use-chat-collapsed.ts          <- localStorage hook
++-- API routes (under src/app/api/reports/ and src/app/api/ai/query/)
+```
 
 ## Key Metrics (Fullmind Business Model)
 
