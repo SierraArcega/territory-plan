@@ -9,6 +9,9 @@
  *
  * Preserves rows where vacancies.district_verified = true.
  */
+// Rescan iterates ALL districts matching the broken URL pattern, including
+// those with zero current vacancies — they may finally produce real data
+// with the fixed parser.
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { runScan } from "../src/features/vacancies/lib/scan-runner";
@@ -26,6 +29,13 @@ type AffectedDistrict = {
   preserved_verified: number;
 };
 
+type BrokenDistrict = {
+  leaid: string;
+  name: string;
+  state_abbrev: string;
+  job_board_url: string;
+};
+
 type SampleRow = {
   district: string;
   state: string;
@@ -34,7 +44,19 @@ type SampleRow = {
   source_url: string | null;
 };
 
-async function selectAffected(): Promise<AffectedDistrict[]> {
+/** All districts matching the broken URL pattern, regardless of vacancy rows. Used by --rescan. */
+async function selectBrokenDistricts(): Promise<BrokenDistrict[]> {
+  return prisma.$queryRawUnsafe<BrokenDistrict[]>(`
+    SELECT d.leaid, d.name, d.state_abbrev, d.job_board_url
+    FROM districts d
+    WHERE d.job_board_platform = 'schoolspring'
+      AND d.job_board_url ~* '${URL_PATTERN}'
+    ORDER BY d.state_abbrev, d.name
+  `);
+}
+
+/** Districts matching the broken URL pattern that have vacancy rows, with deletion counts. Used for dry-run/apply. */
+async function selectAffectedWithCounts(): Promise<AffectedDistrict[]> {
   return prisma.$queryRawUnsafe<AffectedDistrict[]>(`
     SELECT
       d.leaid,
@@ -99,7 +121,7 @@ async function main() {
     `[purge-unscoped-schoolspring] mode=${rescan ? "RESCAN" : apply ? "APPLY" : "DRY-RUN"}`
   );
 
-  const districts = await selectAffected();
+  const districts = await selectAffectedWithCounts();
   const sample = await sampleRows();
   reportPlan(districts, sample);
 
@@ -120,45 +142,35 @@ async function main() {
 
   if (!rescan) return;
 
-  console.log(`\n[rescan] Re-scanning ${districts.length} districts via runScan()...`);
+  const brokenDistricts = await selectBrokenDistricts();
+  console.log(`\n[rescan] Re-scanning ${brokenDistricts.length} districts via runScan()...`);
 
   let recovered = 0;
   let skipped = 0;
-  let errored = 0;
 
-  for (const d of districts) {
-    try {
-      const scan = await prisma.vacancyScan.create({
-        data: {
-          leaid: d.leaid,
-          status: "pending",
-          triggeredBy: "purge-unscoped-schoolspring-vacancies",
-        },
-      });
-      await runScan(scan.id);
+  for (const d of brokenDistricts) {
+    const scan = await prisma.vacancyScan.create({
+      data: { leaid: d.leaid, status: "pending", triggeredBy: "purge-unscoped-schoolspring-vacancies" },
+    });
+    await runScan(scan.id);
 
-      const updated = await prisma.vacancyScan.findUnique({
-        where: { id: scan.id },
-        select: { status: true, vacancyCount: true },
-      });
+    const updated = await prisma.vacancyScan.findUnique({
+      where: { id: scan.id },
+      select: { status: true, vacancyCount: true },
+    });
 
-      const found = updated?.vacancyCount ?? 0;
-      if (found > 0) {
-        recovered++;
-        console.log(`  ✓ ${d.name} (${d.state_abbrev}, ${d.leaid}): ${found} vacancies`);
-      } else {
-        skipped++;
-        console.log(`  · ${d.name} (${d.state_abbrev}, ${d.leaid}): 0 (recovery failed or no jobs)`);
-      }
-    } catch (err) {
-      errored++;
-      console.error(`  ✗ ${d.name} (${d.state_abbrev}, ${d.leaid}):`, err);
+    const found = updated?.vacancyCount ?? 0;
+    if (found > 0) {
+      recovered++;
+      console.log(`  ✓ ${d.name} (${d.state_abbrev}, ${d.leaid}): ${found} vacancies`);
+    } else {
+      skipped++;
+      // status will be 'failed' if runScan errored internally; 'completed' with 0 jobs is also possible
+      console.log(`  · ${d.name} (${d.state_abbrev}, ${d.leaid}): 0 (status=${updated?.status ?? "unknown"})`);
     }
   }
 
-  console.log(
-    `\n[rescan] Done: ${recovered} recovered, ${skipped} skipped, ${errored} errored.`
-  );
+  console.log(`\n[rescan] Done: ${recovered} recovered, ${skipped} skipped (zero vacancies or runScan failure).`);
 }
 
 main()
