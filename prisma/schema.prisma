@@ -1737,6 +1737,11 @@ model NewsArticle {
   fullmindRelevance String?   @map("fullmind_relevance") @db.VarChar(10)
   classifiedAt      DateTime? @map("classified_at")
 
+  // Set by Pass 1 of the matcher (keyword + LLM-queue prep). Null until the
+  // /api/cron/match-articles cron has processed this article. Decoupled from
+  // ingest so the rolling cron stays well under Vercel's 300s maxDuration.
+  matchedAt DateTime? @map("matched_at")
+
   districts  NewsArticleDistrict[]
   schools    NewsArticleSchool[]
   contacts   NewsArticleContact[]
@@ -1746,6 +1751,7 @@ model NewsArticle {
   @@index([feedSource])
   @@index([fullmindRelevance, publishedAt])
   @@index([title, publishedAt])
+  @@index([matchedAt])
   @@map("news_articles")
 }
 
