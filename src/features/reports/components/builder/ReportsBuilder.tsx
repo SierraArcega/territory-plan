@@ -23,9 +23,11 @@ interface Props {
   reportId: number | null;
   /** When set, the builder auto-submits this prompt as the first turn. */
   initialPrompt: string | null;
-  /** Selected version index from URL ?v=. Falls back to the latest version. */
+  /** Initial selected version (read from ?v= on mount). After mount the
+   *  builder owns selection locally and mirrors back to the URL silently —
+   *  prop changes after mount are ignored on purpose, to keep pill toggles
+   *  free of router.push churn. */
   selectedVersionN: number | null;
-  onSelectVersion: (n: number) => void;
   onNewReport: () => void;
   onCollapseChat: () => void;
   /** Called when a save creates a new SavedReport row — typically routes to
@@ -50,7 +52,6 @@ export function ReportsBuilder({
   reportId,
   initialPrompt,
   selectedVersionN,
-  onSelectVersion,
   onNewReport,
   onCollapseChat,
   onAfterSaveNew,
@@ -61,6 +62,12 @@ export function ReportsBuilder({
   const [savedReportTitle, setSavedReportTitle] = useState<string | null>(null);
   const [savedReportDescription, setSavedReportDescription] = useState<string>("");
   const [chatCollapsed, setChatCollapsed] = useChatCollapsed();
+  // Selected version is owned locally so flipping pills doesn't trigger a
+  // Next.js soft navigation (router.push) — that re-renders the entire page
+  // tree (sidebar, builder, 100+ row results table) and adds noticeable lag.
+  // We seed from the URL prop on mount and silently mirror back via
+  // history.replaceState so deep-linking still works.
+  const [localSelectedN, setLocalSelectedN] = useState<number | null>(selectedVersionN);
   // True for the lifetime of a session that started from a saved report,
   // even after the user adds refining turns. Used by ResultsPane to show
   // "From saved report · refined".
@@ -89,12 +96,35 @@ export function ReportsBuilder({
   // out of range or missing.
   const selectedVersion = useMemo<BuilderVersion | null>(() => {
     if (versions.length === 0) return null;
-    if (selectedVersionN != null) {
-      const v = versions.find((x) => x.n === selectedVersionN);
+    if (localSelectedN != null) {
+      const v = versions.find((x) => x.n === localSelectedN);
       if (v) return v;
     }
     return versions[versions.length - 1];
-  }, [versions, selectedVersionN]);
+  }, [versions, localSelectedN]);
+
+  const handleSelectVersion = useCallback(
+    (n: number) => {
+      setLocalSelectedN(n);
+      // Mirror to URL silently — a real router.push would re-render the page
+      // tree on every pill click. history.replaceState updates the bar without
+      // triggering React/Next routing.
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (n <= 1) params.delete("v");
+        else params.set("v", String(n));
+        const qs = params.toString();
+        window.history.replaceState(
+          window.history.state,
+          "",
+          qs ? `?${qs}` : window.location.pathname,
+        );
+      } catch {
+        // SSR or restricted env — ignore; selection still updates locally.
+      }
+    },
+    [],
+  );
 
   const appendTurnFromResult = useCallback(
     (userMessage: string, assistantText: string | null, result: Result | null) => {
@@ -193,7 +223,7 @@ export function ReportsBuilder({
                 events: inFlightTurn?.events ?? [],
                 durationMs,
               };
-              if (version) onSelectVersion(version.n);
+              if (version) handleSelectVersion(version.n);
               return [...filtered, next];
             });
           },
@@ -209,7 +239,7 @@ export function ReportsBuilder({
         },
       );
     },
-    [chatTurn, conversationId, onSelectVersion],
+    [chatTurn, conversationId, handleSelectVersion],
   );
 
   // Mount: load saved report (if requested) or auto-submit initial prompt.
@@ -227,7 +257,7 @@ export function ReportsBuilder({
           // assistant text and no conversationId — empty chat with a v1.
           appendTurnFromResult("", null, data);
           // Selected version is the new v1.
-          onSelectVersion(1);
+          handleSelectVersion(1);
         },
       });
       // Try to fetch the saved report's title for the chat header.
@@ -245,7 +275,7 @@ export function ReportsBuilder({
       autoSubmittedRef.current = true;
       submit(initialPrompt);
     }
-  }, [reportId, initialPrompt, runSaved, appendTurnFromResult, submit, onSelectVersion]);
+  }, [reportId, initialPrompt, runSaved, appendTurnFromResult, submit, handleSelectVersion]);
 
   const headerTitle = useMemo(() => {
     if (savedReportTitle) return savedReportTitle;
@@ -341,7 +371,7 @@ export function ReportsBuilder({
         <CollapsedChatRail
           versions={versions}
           selectedN={selectedVersion?.n ?? null}
-          onSelectVersion={onSelectVersion}
+          onSelectVersion={handleSelectVersion}
           onExpand={handleExpandChat}
         />
       ) : (
@@ -351,7 +381,7 @@ export function ReportsBuilder({
           versions={versions}
           selectedN={selectedVersion?.n ?? null}
           inFlight={inFlight}
-          onSelectVersion={onSelectVersion}
+          onSelectVersion={handleSelectVersion}
           onSubmit={submit}
           onNewReport={onNewReport}
           onCollapseChat={handleCollapseChat}

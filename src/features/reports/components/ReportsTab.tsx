@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ReportsLibrary } from "./ReportsLibrary";
 import { ReportsBuilder } from "./builder/ReportsBuilder";
@@ -19,6 +19,12 @@ export function ReportsTab() {
   const view = searchParams.get("view");
   const libraryTabParam = searchParams.get("libraryTab");
   const initialLibraryTab: LibraryTab = isLibraryTab(libraryTabParam) ? libraryTabParam : "mine";
+
+  // Bumped on every "+ New" click so the builder remounts even when the URL
+  // params (?report=, ?prompt=) didn't actually change — e.g. clicking "+ New"
+  // while already on a blank builder. Without this, the URL-derived key stays
+  // identical and the in-memory state never resets.
+  const [newReportNonce, setNewReportNonce] = useState(0);
 
   const updateParams = useCallback(
     (mutate: (p: URLSearchParams) => void) => {
@@ -59,16 +65,6 @@ export function ReportsTab() {
     [updateParams],
   );
 
-  const handleSelectVersion = useCallback(
-    (n: number) => {
-      updateParams((p) => {
-        if (n <= 1) p.delete("v");
-        else p.set("v", String(n));
-      });
-    },
-    [updateParams],
-  );
-
   if (view === "builder") {
     const reportIdParam = searchParams.get("report");
     const reportId = reportIdParam ? Number(reportIdParam) : NaN;
@@ -79,15 +75,15 @@ export function ReportsTab() {
     // Remount it whenever those params change so a "+ New" reset clears in-
     // memory turns too. Without this key, dropping ?report/?prompt would
     // leave the previous session's turns stranded.
-    const builderKey = `${reportIdParam ?? ""}::${promptParam ?? ""}`;
+    const builderKey = `${reportIdParam ?? ""}::${promptParam ?? ""}::${newReportNonce}`;
     return (
       <ReportsBuilder
         key={builderKey}
         reportId={Number.isFinite(reportId) ? reportId : null}
         initialPrompt={promptParam}
         selectedVersionN={Number.isFinite(selectedV) ? selectedV : null}
-        onSelectVersion={handleSelectVersion}
         onNewReport={() => {
+          setNewReportNonce((n) => n + 1);
           updateParams((p) => {
             p.delete("report");
             p.delete("prompt");

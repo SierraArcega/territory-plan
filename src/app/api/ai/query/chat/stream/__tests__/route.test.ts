@@ -53,13 +53,20 @@ function parseSse(raw: string): ParsedEvent[] {
     if (!chunk.trim()) continue;
     let event = "message";
     const dataLines: string[] = [];
+    let hasField = false;
     for (const line of chunk.split("\n")) {
+      // SSE comment lines start with ":" — skip entirely (no event emitted).
+      if (line.startsWith(":")) continue;
       if (line.startsWith("event:")) {
         event = line.slice(6).trim();
+        hasField = true;
       } else if (line.startsWith("data:")) {
         dataLines.push(line.slice(5).trim());
+        hasField = true;
       }
     }
+    // Comment-only frame (e.g. the immediate-flush "stream-open") — skip.
+    if (!hasField) continue;
     const dataStr = dataLines.join("\n");
     out.push({ event, data: dataStr ? JSON.parse(dataStr) : null });
   }

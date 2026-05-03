@@ -98,6 +98,9 @@ function HomeContent() {
   const initializedRef = useRef(false);
   // Tracks whether the current state change came from browser back/forward
   const isPopstateRef = useRef(false);
+  // Tracks the previous activeTab so the sync effect can detect sidebar tab
+  // changes vs. in-tab URL pushes (e.g. ReportsTab opening a saved report).
+  const prevActiveTabRef = useRef<TabId>(activeTab);
 
   // Initialize state from URL params on mount
   useEffect(() => {
@@ -141,12 +144,15 @@ function HomeContent() {
     // Skip URL push if this change came from browser back/forward
     if (isPopstateRef.current) {
       isPopstateRef.current = false;
+      prevActiveTabRef.current = activeTab;
       return;
     }
 
     // Start from the current URL params so we preserve any extra params
     // (e.g. calendarConnected=true) that other components manage.
     const params = new URLSearchParams(searchParams.toString());
+
+    const tabChanged = prevActiveTabRef.current !== activeTab;
 
     // Sync the tab param
     if (activeTab === "home") {
@@ -161,6 +167,19 @@ function HomeContent() {
     } else {
       params.delete("plan");
     }
+
+    // When the sidebar tab actually changes, clear Reports builder state so
+    // re-entering Reports lands on the library, not the previous session.
+    // Skipped when only searchParams changed (e.g. ReportsTab opening a report).
+    if (tabChanged) {
+      params.delete("view");
+      params.delete("report");
+      params.delete("prompt");
+      params.delete("v");
+      params.delete("libraryTab");
+    }
+
+    prevActiveTabRef.current = activeTab;
 
     // Build the new URL
     const newUrl = params.toString() ? `?${params.toString()}` : "/";

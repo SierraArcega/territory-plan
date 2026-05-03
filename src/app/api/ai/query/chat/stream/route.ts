@@ -70,6 +70,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
       };
 
+      // Immediately flush an SSE comment so any intermediate buffer (Next dev,
+      // proxy) sees bytes and the client's reader unblocks. Without this the
+      // first paint of the trace can lag the first model_call by 5–15s.
+      try {
+        controller.enqueue(new TextEncoder().encode(": stream-open\n\n"));
+      } catch {
+        // Stream closed before we could write — fall through.
+      }
+
       try {
         const result = await runAgentLoop({
           anthropic,
@@ -158,6 +167,9 @@ export async function POST(request: NextRequest): Promise<Response> {
       "content-type": "text/event-stream",
       "cache-control": "no-cache, no-transform",
       connection: "keep-alive",
+      // Disables nginx-style proxy buffering so each SSE event is forwarded as
+      // soon as it's written. Required for live trace responsiveness.
+      "x-accel-buffering": "no",
     },
   });
 }
