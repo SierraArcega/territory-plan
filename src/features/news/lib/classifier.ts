@@ -31,10 +31,33 @@ export type Sentiment = (typeof SENTIMENTS)[number];
 export const RELEVANCE_TIERS = ["high", "medium", "low", "none"] as const;
 export type Relevance = (typeof RELEVANCE_TIERS)[number];
 
-interface ClassificationResult {
+export interface ClassificationResult {
   sentiment: Sentiment;
   categories: NewsCategory[];
   fullmindRelevance: Relevance;
+}
+
+/** Pure parser for the classify_article tool's input — pulled out of
+ *  classifyOne so it can be unit-tested without mocking the LLM. */
+export function parseClassificationResult(raw: unknown): ClassificationResult | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out = raw as {
+    sentiment?: string;
+    categories?: string[];
+    fullmindRelevance?: string;
+  };
+  const sentiment = (SENTIMENTS as readonly string[]).includes(out.sentiment ?? "")
+    ? (out.sentiment as Sentiment)
+    : "neutral";
+  const fullmindRelevance = (RELEVANCE_TIERS as readonly string[]).includes(
+    out.fullmindRelevance ?? ""
+  )
+    ? (out.fullmindRelevance as Relevance)
+    : "none";
+  const categories = (out.categories ?? []).filter((c): c is NewsCategory =>
+    (NEWS_CATEGORIES as readonly string[]).includes(c)
+  );
+  return { sentiment, categories, fullmindRelevance };
 }
 
 export interface ClassifyStats {
@@ -135,25 +158,8 @@ async function classifyOne(article: {
 
   const tool = findToolUse(content, "classify_article");
   if (!tool) return null;
-  const out = tool.input as {
-    sentiment?: string;
-    categories?: string[];
-    fullmindRelevance?: string;
-  };
 
-  const sentiment = (SENTIMENTS as readonly string[]).includes(out.sentiment ?? "")
-    ? (out.sentiment as Sentiment)
-    : "neutral";
-  const fullmindRelevance = (RELEVANCE_TIERS as readonly string[]).includes(
-    out.fullmindRelevance ?? ""
-  )
-    ? (out.fullmindRelevance as Relevance)
-    : "none";
-  const categories = (out.categories ?? []).filter((c): c is NewsCategory =>
-    (NEWS_CATEGORIES as readonly string[]).includes(c)
-  );
-
-  return { sentiment, categories, fullmindRelevance };
+  return parseClassificationResult(tool.input);
 }
 
 /** Run the classifier over a specific article list. Used right after ingest

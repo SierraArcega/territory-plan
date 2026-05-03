@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NEWS_CATEGORIES } from "../classifier";
+import { NEWS_CATEGORIES, parseClassificationResult } from "../classifier";
 
 describe("NEWS_CATEGORIES", () => {
   it("contains the 5 expanded categories", () => {
@@ -12,5 +12,44 @@ describe("NEWS_CATEGORIES", () => {
 
   it("has exactly 16 categories", () => {
     expect(NEWS_CATEGORIES).toHaveLength(16);
+  });
+});
+
+describe("parseClassificationResult", () => {
+  it("returns a typed result for valid input", () => {
+    const result = parseClassificationResult({
+      sentiment: "positive",
+      categories: ["budget_funding"],
+      fullmindRelevance: "high",
+    });
+    expect(result).toEqual({
+      sentiment: "positive",
+      categories: ["budget_funding"],
+      fullmindRelevance: "high",
+    });
+  });
+
+  it("defaults invalid fullmindRelevance to 'none'", () => {
+    const result = parseClassificationResult({
+      sentiment: "neutral",
+      categories: [],
+      fullmindRelevance: "super-high",
+    });
+    expect(result?.fullmindRelevance).toBe("none");
+  });
+
+  it("filters out categories not in the enum", () => {
+    const result = parseClassificationResult({
+      sentiment: "neutral",
+      categories: ["budget_funding", "not_a_real_category", "homeschool"],
+      fullmindRelevance: "medium",
+    });
+    expect(result?.categories).toEqual(["budget_funding", "homeschool"]);
+  });
+
+  it("returns null for non-object input", () => {
+    expect(parseClassificationResult(null)).toBeNull();
+    expect(parseClassificationResult("nope")).toBeNull();
+    expect(parseClassificationResult(42)).toBeNull();
   });
 });
