@@ -21,6 +21,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/match-articles?secret=${CRON_SECRET}",
+      "schedule": "5,20,35,50 * * * *"
+    },
+    {
       "path": "/api/cron/classify-news?secret=${CRON_SECRET}",
       "schedule": "30 * * * *"
     },
