@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
           tpd.expansion_target AS "expansionTarget"
         FROM territory_plans tp
         INNER JOIN territory_plan_districts tpd ON tp.id = tpd.plan_id
-        INNER JOIN districts d ON tpd.district_leaid = d.leaid
+        INNER JOIN district_map_features d ON tpd.district_leaid = d.leaid
         ${whereClause}
         `,
         params

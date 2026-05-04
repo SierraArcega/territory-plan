@@ -89,6 +89,22 @@ describe("GET /api/map/plans/list", () => {
     expect(params).toEqual(["u1", "u2"]);
   });
 
+  it("filters by single planId param", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    await GET(buildRequest({ planId: "plan-uuid-1" }));
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("tp.id = $1");
+    expect(params).toEqual(["plan-uuid-1"]);
+  });
+
+  it("filters by planIds list with IN clause", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    await GET(buildRequest({ planIds: "p1,p2,p3" }));
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/tp\.id IN \(\$1,\$2,\$3\)/);
+    expect(params).toEqual(["p1", "p2", "p3"]);
+  });
+
   it("returns 400 on invalid fiscalYear", async () => {
     const res = await GET(buildRequest({ fiscalYear: "abc" }));
     expect(res.status).toBe(400);
@@ -105,5 +121,14 @@ describe("GET /api/map/plans/list", () => {
     mockQuery.mockResolvedValue({ rows: [] });
     const res = await GET(buildRequest());
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=120");
+  });
+
+  it("returns 500 and does not release the client when pool.connect fails", async () => {
+    vi.mocked(pool.connect).mockRejectedValueOnce(new Error("Pool exhausted"));
+    const res = await GET(buildRequest());
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Failed to fetch plan list");
+    expect(mockRelease).not.toHaveBeenCalled();
   });
 });
