@@ -19,7 +19,6 @@ export interface NewsArticleDto {
   source: string;
   feedSource: string;
   publishedAt: string;
-  sentiment: string | null;
   categories: string[];
   fullmindRelevance: string | null;
   confidence?: string;
@@ -238,7 +237,6 @@ function toDto(
     source: string;
     feedSource: string;
     publishedAt: Date;
-    sentiment: string | null;
     categories: string[];
     fullmindRelevance: string | null;
   },
@@ -256,7 +254,6 @@ function toDto(
     source: article.source,
     feedSource: article.feedSource,
     publishedAt: article.publishedAt.toISOString(),
-    sentiment: article.sentiment,
     categories: article.categories,
     fullmindRelevance: article.fullmindRelevance,
     confidence,
