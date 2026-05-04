@@ -400,6 +400,12 @@ export async function runScan(scanId: string): Promise<void> {
         errorMessage,
         context: "thrown_error",
       });
+      // Capture outcome state BEFORE the DB write so the finally-block log
+      // still records status="failed" if the update itself throws (double-
+      // failure path). Otherwise the log would emit status="unknown" for a
+      // scan that unambiguously failed.
+      finalStatus = "failed";
+      finalFailureReason = failureReason;
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
@@ -409,8 +415,6 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      finalStatus = "failed";
-      finalFailureReason = failureReason;
       if (scan?.district?.leaid) {
         finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
       }
