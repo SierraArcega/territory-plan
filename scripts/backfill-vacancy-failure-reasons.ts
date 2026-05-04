@@ -7,6 +7,9 @@
  *
  * Idempotent — safe to re-run; the WHERE clause skips already-categorized rows.
  */
+import { config } from "dotenv";
+config();
+
 import prisma from "@/lib/prisma";
 import { categorizeFailure } from "@/features/vacancies/lib/failure-reasons";
 import type { VacancyFailureReason } from "@prisma/client";
@@ -72,8 +75,8 @@ async function main() {
 }
 
 main()
-  .then(() => process.exit(0))
   .catch((err) => {
     console.error("[backfill] failed:", err);
     process.exit(1);
-  });
+  })
+  .finally(() => prisma.$disconnect());
