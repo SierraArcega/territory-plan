@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const reason = searchParams.get("reason");
     const hasDistrictId = searchParams.get("has_district_id");
     const stageGroup = searchParams.get("stage_group");
+    const rep = searchParams.get("rep");
     const sortBy = searchParams.get("sort_by") || "netBookingAmount";
     const sortDir = searchParams.get("sort_dir") === "asc" ? "asc" : "desc";
     const search = searchParams.get("search") || "";
@@ -79,6 +80,28 @@ export async function GET(request: NextRequest) {
         { name: { contains: search, mode: "insensitive" } },
         { accountName: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    if (rep) {
+      const profile = await prisma.userProfile.findUnique({
+        where: { id: rep },
+        select: { email: true },
+      });
+      if (!profile?.email) {
+        return NextResponse.json({
+          items: [],
+          pagination: { page, pageSize, total: 0 },
+        });
+      }
+      // Bounded by a single rep's lifetime opportunity count (~hundreds typical).
+      // The 5000 cap is a tripwire: if a rep ever exceeds it, the chip will under-count
+      // and we should add an index on opportunities.sales_rep_email + tighten this.
+      const oppRows = await prisma.opportunity.findMany({
+        where: { salesRepEmail: profile.email },
+        select: { id: true },
+        take: 5000,
+      });
+      where.id = { in: oppRows.map((o) => o.id) };
     }
 
     const orderByColumn = SORTABLE_COLUMNS.has(sortBy) ? sortBy : "netBookingAmount";

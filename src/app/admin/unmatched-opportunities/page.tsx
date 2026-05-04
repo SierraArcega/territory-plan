@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, Suspense } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { unmatchedOpportunityColumns } from "./columns";
 import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
@@ -11,6 +12,7 @@ import AdminColumnPicker from "./AdminColumnPicker";
 import { US_STATES } from "@/lib/states";
 import { ACCOUNT_TYPES } from "@/features/shared/types/account-types";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
+import { useUsers } from "@/features/shared/lib/queries";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +67,7 @@ async function fetchOpportunities(params: {
   search?: string;
   has_district_id?: string;
   stage_group?: string;
+  rep?: string;
   sort_by?: string;
   sort_dir?: string;
   page: number;
@@ -79,6 +82,7 @@ async function fetchOpportunities(params: {
   if (params.search) qs.set("search", params.search);
   if (params.has_district_id) qs.set("has_district_id", params.has_district_id);
   if (params.stage_group) qs.set("stage_group", params.stage_group);
+  if (params.rep) qs.set("rep", params.rep);
   if (params.sort_by) qs.set("sort_by", params.sort_by);
   if (params.sort_dir) qs.set("sort_dir", params.sort_dir);
   qs.set("page", String(params.page));
@@ -1178,8 +1182,16 @@ function DistrictSearchModal({
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function UnmatchedOpportunitiesPage() {
+function UnmatchedOpportunitiesContent() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  // Mount-only seed: reading ?rep= here is intentional. We do NOT sync
+  // searchParams -> filters via useEffect because that would clobber chips
+  // the user adds via the filter bar after arriving on the page.
+  const initialRepId = searchParams?.get("rep") ?? null;
+
+  const { data: users } = useUsers();
 
   // Summary stats for KPI cards
   const { data: summary } = useQuery({
@@ -1197,13 +1209,18 @@ export default function UnmatchedOpportunitiesPage() {
 
   // Hydrate column defs with facet values
   const hydratedColumns = useMemo(() => {
-    if (!facets) return unmatchedOpportunityColumns;
     return unmatchedOpportunityColumns.map((col) => {
-      if (col.key === "stage") return { ...col, enumValues: facets.stages };
-      if (col.key === "reason") return { ...col, enumValues: facets.reasons };
+      if (col.key === "stage" && facets) return { ...col, enumValues: facets.stages };
+      if (col.key === "reason" && facets) return { ...col, enumValues: facets.reasons };
+      if (col.key === "rep") {
+        const repOptions = (users ?? [])
+          .filter((u) => u.fullName)
+          .map((u) => ({ value: u.id, label: u.fullName as string }));
+        return { ...col, enumValues: repOptions };
+      }
       return col;
     });
-  }, [facets]);
+  }, [facets, users]);
 
   // DataGrid state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
@@ -1214,9 +1231,15 @@ export default function UnmatchedOpportunitiesPage() {
   ]);
   const [page, setPage] = useState(1);
   // Start with "unresolved" filter active (same default as current page)
-  const [filters, setFilters] = useState<FilterRule[]>([
-    { column: "resolved", operator: "is_false", value: false },
-  ]);
+  const [filters, setFilters] = useState<FilterRule[]>(() => {
+    const base: FilterRule[] = [
+      { column: "resolved", operator: "is_false", value: false },
+    ];
+    if (initialRepId) {
+      base.push({ column: "rep", operator: "eq", value: initialRepId });
+    }
+    return base;
+  });
 
   const [activeCard, setActiveCard] = useState<CardKey | null>(null);
   const [resolvingOpp, setResolvingOpp] = useState<UnmatchedOpportunity | null>(null);
@@ -1256,6 +1279,8 @@ export default function UnmatchedOpportunitiesPage() {
   const stageFilter = filters.find((f) => f.column === "stage" && f.operator === "eq");
   const reasonFilter = filters.find((f) => f.column === "reason" && f.operator === "eq");
   const searchFilter = filters.find((f) => f.column === "name" && f.operator === "contains");
+  const repFilter = filters.find((f) => f.column === "rep" && f.operator === "eq");
+  const repFilterId = repFilter ? String(repFilter.value) : undefined;
 
   // Derive card-based API params
   const cardParams: { has_district_id?: string; stage_group?: string } = {};
@@ -1267,7 +1292,7 @@ export default function UnmatchedOpportunitiesPage() {
   const sortRule = sorts[0];
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["unmatched-opportunities", filters, sorts, page, activeCard],
+    queryKey: ["unmatched-opportunities", filters, sorts, page, activeCard, repFilterId],
     queryFn: () =>
       fetchOpportunities({
         resolved: resolvedParam,
@@ -1276,6 +1301,7 @@ export default function UnmatchedOpportunitiesPage() {
         stage: stageFilter ? String(stageFilter.value) : undefined,
         reason: reasonFilter ? String(reasonFilter.value) : undefined,
         search: searchFilter ? String(searchFilter.value) : undefined,
+        rep: repFilterId,
         ...cardParams,
         sort_by: sortRule?.column,
         sort_dir: sortRule?.direction,
@@ -1473,7 +1499,18 @@ export default function UnmatchedOpportunitiesPage() {
           columnDefs={hydratedColumns}
           filters={filters}
           onAddFilter={(f) => { setFilters((prev) => [...prev, f]); setPage(1); }}
-          onRemoveFilter={(i) => { setFilters((prev) => prev.filter((_, idx) => idx !== i)); setPage(1); }}
+          onRemoveFilter={(i) => {
+            setFilters((prev) => {
+              const removed = prev[i];
+              if (removed?.column === "rep") {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("rep");
+                router.replace(url.pathname + url.search);
+              }
+              return prev.filter((_, idx) => idx !== i);
+            });
+            setPage(1);
+          }}
           onUpdateFilter={(i, f) => { setFilters((prev) => prev.map((existing, idx) => idx === i ? f : existing)); setPage(1); }}
         />
         <div className="ml-auto">
@@ -1568,5 +1605,13 @@ export default function UnmatchedOpportunitiesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function UnmatchedOpportunitiesPage() {
+  return (
+    <Suspense fallback={null}>
+      <UnmatchedOpportunitiesContent />
+    </Suspense>
   );
 }
