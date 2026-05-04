@@ -9,7 +9,7 @@ const vacancyScanFindUnique = vi.fn();
 const vacancyScanUpdate = vi.fn();
 const getParserMock = vi.fn();
 const parseWithClaudeMock = vi.fn();
-const isStatewideBoardAsyncMock = vi.fn(async () => false);
+const isStatewideBoardAsyncMock = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => false);
 
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -25,7 +25,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/features/vacancies/lib/platform-detector", () => ({
   detectPlatform: () => "applitrack",
-  isStatewideBoardAsync: (...args: unknown[]) => (isStatewideBoardAsyncMock as (...a: unknown[]) => unknown)(...args),
+  isStatewideBoardAsync: (...args: unknown[]) => isStatewideBoardAsyncMock(...args),
   getAppliTrackInstance: () => null,
 }));
 vi.mock("@/features/vacancies/lib/post-processor", () => ({
