@@ -7,8 +7,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const districtUpdate = vi.fn();
 const vacancyScanFindUnique = vi.fn();
 const vacancyScanUpdate = vi.fn();
+const vacancyScanCount = vi.fn();
 const getParserMock = vi.fn();
 const parseWithClaudeMock = vi.fn();
+const isStatewideBoardAsyncMock = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => false);
 
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -18,13 +20,14 @@ vi.mock("@/lib/prisma", () => ({
     vacancyScan: {
       findUnique: (...args: unknown[]) => vacancyScanFindUnique(...args),
       update: (...args: unknown[]) => vacancyScanUpdate(...args),
+      count: (...args: unknown[]) => vacancyScanCount(...args),
     },
   },
 }));
 
 vi.mock("@/features/vacancies/lib/platform-detector", () => ({
   detectPlatform: () => "applitrack",
-  isStatewideBoardAsync: async () => false,
+  isStatewideBoardAsync: (...args: unknown[]) => isStatewideBoardAsyncMock(...args),
   getAppliTrackInstance: () => null,
 }));
 vi.mock("@/features/vacancies/lib/post-processor", () => ({
@@ -58,9 +61,11 @@ beforeEach(() => {
   districtUpdate.mockReset().mockResolvedValue({});
   vacancyScanFindUnique.mockReset().mockResolvedValue(baseScan);
   vacancyScanUpdate.mockReset().mockResolvedValue({});
+  vacancyScanCount.mockReset().mockResolvedValue(0); // default: first attempt
   // Default parser: returns 0 vacancies — drives runScan to the success path.
   getParserMock.mockReset().mockImplementation(() => async () => []);
   parseWithClaudeMock.mockReset().mockResolvedValue([]);
+  isStatewideBoardAsyncMock.mockReset().mockResolvedValue(false);
 });
 
 describe("runScan health-column updates", () => {
@@ -94,6 +99,19 @@ describe("runScan health-column updates", () => {
     expect(last?.data?.vacancyLastFailureAt).toBeInstanceOf(Date);
   });
 
+  it("on failed: writes failureReason via categorizeFailure", async () => {
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("Request failed with status 404");
+    });
+
+    await runScan("scan_abc");
+
+    const failedCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "failed",
+    );
+    expect((failedCall?.[0] as any)?.data?.failureReason).toBe("http_4xx");
+  });
+
   it("on no-jobBoardUrl early-return: counts as a failure", async () => {
     vacancyScanFindUnique.mockResolvedValueOnce({
       ...baseScan,
@@ -108,5 +126,250 @@ describe("runScan health-column updates", () => {
     expect(districtCalls.length).toBeGreaterThan(0);
     const last = districtCalls.at(-1)?.[0] as any;
     expect(last?.data?.vacancyConsecutiveFailures).toMatchObject({ increment: 1 });
+
+    const failedScanCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "failed",
+    );
+    expect((failedScanCall?.[0] as any)?.data?.failureReason).toBe("no_job_board_url");
+  });
+
+  it("on scan_timeout: writes failureReason='scan_timeout'", async () => {
+    // Make the parser hang past the timeout. The runner aborts via the controller
+    // and throws "Scan timed out" — caught by the outer catch.
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("Scan timed out");
+    });
+
+    await runScan("scan_abc");
+
+    const failedCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "failed",
+    );
+    expect((failedCall?.[0] as any)?.data?.failureReason).toBe("scan_timeout");
+  });
+});
+
+describe("runScan completed_partial paths write failureReason", () => {
+  it("statewide_unattributable: >50% missing employerName", async () => {
+    // Override the mocked isStatewideBoardAsync for this test only
+    isStatewideBoardAsyncMock.mockResolvedValueOnce(true);
+
+    // Parser returns 25 jobs, 20 without employerName -> 80% missing -> trigger
+    const rawJobs = Array.from({ length: 25 }, (_, i) => ({
+      title: `Job ${i}`,
+      url: `https://example.com/${i}`,
+      ...(i < 5 ? { employerName: "Test District" } : {}),
+    }));
+    getParserMock.mockImplementation(() => async () => rawJobs);
+
+    await runScan("scan_abc");
+
+    const partialCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "completed_partial",
+    );
+    expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+      "statewide_unattributable",
+    );
+  });
+
+  it("enrollment_ratio_skip: too many vacancies for enrollment", async () => {
+    // 600 vacancies on a district with enrollment 1000 -> ratio 0.6 > 0.5 -> trigger
+    getParserMock.mockImplementation(() => async () =>
+      Array.from({ length: 600 }, (_, i) => ({
+        title: `Job ${i}`,
+        url: `https://example.com/${i}`,
+        employerName: "Test District",
+      })),
+    );
+
+    await runScan("scan_abc");
+
+    const partialCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "completed_partial",
+    );
+    expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+      "enrollment_ratio_skip",
+    );
+  });
+
+  it("claude_fallback_failed: serverless Claude returns []", async () => {
+    // Force the no-parser path (getParser returns null), set serverless +
+    // an API key so the runner actually invokes Claude, then have Claude
+    // return [].
+    getParserMock.mockReturnValue(null);
+    process.env.VERCEL = "1";
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    parseWithClaudeMock.mockResolvedValue([]);
+
+    try {
+      await runScan("scan_abc");
+
+      const partialCall = vacancyScanUpdate.mock.calls.find(
+        (c) => (c[0] as any)?.data?.status === "completed_partial",
+      );
+      expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+        "claude_fallback_failed",
+      );
+      expect((partialCall?.[0] as any)?.data?.errorMessage).toBe(
+        "Claude fallback returned no vacancies",
+      );
+
+      // District counter must increment (B1 policy) — markDistrictScanFailure path
+      const districtFailureCall = districtUpdate.mock.calls.find(
+        (c) =>
+          (c[0] as any)?.where?.leaid === "0100001" &&
+          (c[0] as any)?.data?.vacancyConsecutiveFailures?.increment === 1,
+      );
+      expect(districtFailureCall).toBeDefined();
+    } finally {
+      delete process.env.VERCEL;
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
+
+  it("claude_fallback_failed: serverless without ANTHROPIC_API_KEY", async () => {
+    // No-key serverless path: Claude is never invoked, but the symptom is
+    // the same as a Claude empty-return. B1 policy still fires; the
+    // errorMessage distinguishes the cause.
+    getParserMock.mockReturnValue(null);
+    process.env.VERCEL = "1";
+    delete process.env.ANTHROPIC_API_KEY;
+
+    try {
+      await runScan("scan_abc");
+
+      const partialCall = vacancyScanUpdate.mock.calls.find(
+        (c) => (c[0] as any)?.data?.status === "completed_partial",
+      );
+      expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+        "claude_fallback_failed",
+      );
+      expect((partialCall?.[0] as any)?.data?.errorMessage).toBe(
+        "Serverless: no ANTHROPIC_API_KEY — cannot parse",
+      );
+
+      const districtFailureCall = districtUpdate.mock.calls.find(
+        (c) =>
+          (c[0] as any)?.where?.leaid === "0100001" &&
+          (c[0] as any)?.data?.vacancyConsecutiveFailures?.increment === 1,
+      );
+      expect(districtFailureCall).toBeDefined();
+    } finally {
+      delete process.env.VERCEL;
+    }
+  });
+});
+
+describe("runScan tarpit-admission log", () => {
+  it("logs vacancy_tarpit_admission when consecutive_failures hits 5", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Simulate the fifth failure: districtUpdate returns counter = 5
+    districtUpdate.mockResolvedValue({
+      leaid: "0100001",
+      name: "Test District",
+      jobBoardPlatform: "applitrack",
+      jobBoardUrl: "https://example.applitrack.com/onlineapp",
+      vacancyConsecutiveFailures: 5,
+    });
+
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("Request failed with status 404");
+    });
+
+    await runScan("scan_abc");
+
+    const tarpitLog = consoleLogSpy.mock.calls.find((args) => {
+      const first = args[0];
+      if (typeof first !== "string") return false;
+      try {
+        const parsed = JSON.parse(first);
+        return parsed.event === "vacancy_tarpit_admission";
+      } catch {
+        return false;
+      }
+    });
+    expect(tarpitLog).toBeDefined();
+    const parsed = JSON.parse(tarpitLog![0] as string);
+    expect(parsed).toMatchObject({
+      event: "vacancy_tarpit_admission",
+      leaid: "0100001",
+      name: "Test District",
+      platform: "applitrack",
+      last_failure_reason: "http_4xx",
+    });
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it.each([4, 6])(
+    "does NOT log vacancy_tarpit_admission when counter is %i (not exactly 5)",
+    async (counterValue) => {
+      const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      districtUpdate.mockResolvedValue({
+        leaid: "0100001",
+        name: "Test District",
+        jobBoardPlatform: "applitrack",
+        jobBoardUrl: "https://example.applitrack.com/onlineapp",
+        vacancyConsecutiveFailures: counterValue,
+      });
+
+      getParserMock.mockImplementation(() => async () => {
+        throw new Error("boom");
+      });
+
+      await runScan("scan_abc");
+
+      const tarpitLog = consoleLogSpy.mock.calls.find((args) => {
+        const first = args[0];
+        return typeof first === "string" && first.includes("vacancy_tarpit_admission");
+      });
+      expect(tarpitLog).toBeUndefined();
+
+      consoleLogSpy.mockRestore();
+    },
+  );
+});
+
+describe("runScan per-scan outcome log", () => {
+  it("emits vacancy_scan_outcome with all required fields", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Successful scan path
+    getParserMock.mockImplementation(() => async () => []);
+    districtUpdate.mockResolvedValue({
+      leaid: "0100001",
+      name: "Test District",
+      jobBoardPlatform: "applitrack",
+      jobBoardUrl: "https://example.applitrack.com/onlineapp",
+      vacancyConsecutiveFailures: 0,
+    });
+
+    await runScan("scan_abc");
+
+    const outcomeLog = consoleLogSpy.mock.calls
+      .map((args) => {
+        try {
+          return JSON.parse(args[0] as string);
+        } catch {
+          return null;
+        }
+      })
+      .find((p) => p?.event === "vacancy_scan_outcome");
+    expect(outcomeLog).toBeDefined();
+    expect(outcomeLog).toMatchObject({
+      event: "vacancy_scan_outcome",
+      leaid: "0100001",
+      platform: "applitrack",
+      status: "completed",
+      failure_reason: null,
+      vacancy_count: 0,
+      consecutive_failures_after: 0,
+    });
+    expect(typeof outcomeLog.duration_ms).toBe("number");
+    expect(typeof outcomeLog.was_first_attempt).toBe("boolean");
+
+    consoleLogSpy.mockRestore();
   });
 });

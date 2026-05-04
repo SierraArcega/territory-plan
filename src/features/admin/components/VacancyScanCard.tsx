@@ -9,6 +9,12 @@ interface VacancyScanStats {
   totalDistrictsWithUrl: number;
   districtsScanned: number;
   coveragePct: number;
+  adjustedCoveragePct: number;
+  tarpit: {
+    total: number;
+    byPlatform: { platform: string; count: number }[];
+  };
+  topFailureReason7d: { reason: string; pct: number } | null;
   scansLast7d: number;
   failedLast24h: number;
   lastScanAt: string | null;
@@ -47,8 +53,12 @@ export default function VacancyScanCard() {
     );
   }
 
+  const tarpitRatio = data.totalDistrictsWithUrl > 0
+    ? data.tarpit.total / data.totalDistrictsWithUrl
+    : 0;
+
   const healthColor =
-    data.failedLast24h > 5
+    data.failedLast24h > 5 || tarpitRatio > 0.30
       ? "#F37167"
       : data.coveragePct < 10
         ? "#E5A53D"
@@ -86,6 +96,37 @@ export default function VacancyScanCard() {
           value={data.scansLast7d.toLocaleString()}
           sub={data.failedLast24h > 0 ? `${data.failedLast24h} failed (24h)` : "0 failed"}
           alert={data.failedLast24h > 0}
+        />
+      </div>
+
+      {/* Diagnostics row */}
+      <div className="grid grid-cols-3 gap-4">
+        <Stat
+          label="Tarpit"
+          value={data.tarpit.total.toLocaleString()}
+          sub={
+            data.tarpit.total > 0
+              ? data.tarpit.byPlatform
+                  .slice(0, 2)
+                  .map((p) => `${p.platform} (${p.count})`)
+                  .join(", ")
+              : undefined
+          }
+          alert={data.tarpit.total > 0}
+        />
+        <Stat
+          label="Adjusted Coverage"
+          value={`${data.adjustedCoveragePct}%`}
+          sub="of reachable pool"
+        />
+        <Stat
+          label="Top Failure Reason"
+          value={data.topFailureReason7d?.reason ?? "—"}
+          sub={
+            data.topFailureReason7d
+              ? `${data.topFailureReason7d.pct}% of failures (7d)`
+              : "no failures"
+          }
         />
       </div>
 
@@ -135,13 +176,13 @@ function Stat({
   alert?: boolean;
 }) {
   return (
-    <div>
-      <div className="text-[11px] text-[#8A80A8] font-medium uppercase tracking-wider">
+    <div className="min-w-0">
+      <div className="text-[11px] text-[#8A80A8] font-medium uppercase tracking-wider whitespace-nowrap">
         {label}
       </div>
-      <div className="text-lg font-bold text-[#403770] mt-0.5">{value}</div>
+      <div className="text-lg font-bold text-[#403770] mt-0.5 truncate">{value}</div>
       {sub && (
-        <div className={`text-[11px] mt-0.5 ${alert ? "text-[#F37167]" : "text-[#A69DC0]"}`}>
+        <div className={`text-[11px] mt-0.5 truncate ${alert ? "text-[#F37167]" : "text-[#A69DC0]"}`}>
           {sub}
         </div>
       )}

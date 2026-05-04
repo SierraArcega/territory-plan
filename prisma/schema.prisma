@@ -867,6 +867,21 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum VacancyFailureReason {
+  http_4xx
+  http_5xx
+  network_timeout
+  scan_timeout
+  parser_empty
+  claude_fallback_failed
+  statewide_unattributable
+  enrollment_ratio_skip
+  no_job_board_url
+  unknown_error
+
+  @@map("vacancy_failure_reason")
+}
+
 // ===== User Profile & Goals =====
 // User profile - synced from Supabase Auth on login
 // Stores user preferences and tracks whether they've completed the initial setup wizard
@@ -1483,6 +1498,7 @@ model VacancyScan {
   startedAt             DateTime  @default(now()) @map("started_at")
   completedAt           DateTime? @map("completed_at")
   errorMessage          String?   @map("error_message") @db.Text
+  failureReason         VacancyFailureReason? @map("failure_reason")
   triggeredBy           String    @map("triggered_by") @db.VarChar(100)
   batchId               String?   @map("batch_id") @db.VarChar(50)
 
