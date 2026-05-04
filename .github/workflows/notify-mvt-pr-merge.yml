@@ -1,0 +1,140 @@
+name: Notify on map-plans MVT PR merge
+
+# Fires when a PR whose head branch matches one of the map-plans-MVT
+# rollout branches merges to main, and opens a follow-up issue
+# describing the next stage. Lets us hand off cleanly between the
+# three sequenced PRs (backend → client → cleanup) without anyone
+# having to remember "what's next?" off the top of their head.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  notify:
+    if: >-
+      github.event.pull_request.merged == true && (
+        github.event.pull_request.head.ref == 'feat/map-plans-mvt-backend' ||
+        github.event.pull_request.head.ref == 'feat/map-plans-mvt-client' ||
+        github.event.pull_request.head.ref == 'chore/map-plans-mvt-remove-legacy'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      # Pass dynamic data through env, never inline into the shell, so
+      # PR titles or branch names with backticks / $ / quotes can't
+      # affect the script.
+      MERGED_BRANCH: ${{ github.event.pull_request.head.ref }}
+      MERGED_PR_NUMBER: ${{ github.event.pull_request.number }}
+      MERGED_PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_USER: ${{ github.event.pull_request.user.login }}
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Build issue title and body
+        run: |
+          set -euo pipefail
+          case "$MERGED_BRANCH" in
+            feat/map-plans-mvt-backend)
+              ISSUE_TITLE="Map plans MVT — start PR 2 of 3 (client cutover)"
+              cat > /tmp/body.md <<'EOF'
+          @PR_USER — PR #PR_NUMBER (PR_TITLE) just merged to `main`.
+
+          Next: **PR 2 of 3** — client cutover. Branch: `feat/map-plans-mvt-client` off latest `main`.
+
+          ## Resume prompt for a fresh Claude Code session
+
+          Paste the contents of [`Docs/superpowers/notes/2026-05-04-pr2-resume-prompt.md`](../blob/main/Docs/superpowers/notes/2026-05-04-pr2-resume-prompt.md) into a new Claude session. It is self-contained — no need to reference prior conversation history.
+
+          ## What PR 2 does, in one paragraph
+
+          Flips the React client off the legacy `/api/map/plans` GeoJSON endpoint:
+          - MapLibre swaps from a GeoJSON source to a vector source pointed at `/api/map/plans/{z}/{x}/{y}.mvt`. Plan layers get `'source-layer': 'plans'`.
+          - `useMapPlans`, `PlansTab`, `PlanCard`, `SearchResults` tab counts, `useCrossFilter`, and the Zustand store stop consuming `FeatureCollection<Geometry>` and start consuming `PlanFeatureRow[]` from `/api/map/plans/list`.
+          - The legacy `/api/map/plans` route stays on disk untouched so PR 2 reverts cleanly. PR 3 deletes it after ~1 week of soak.
+
+          ## References
+
+          - Plan: `Docs/superpowers/plans/2026-05-04-map-plans-vector-tiles.md` (Tasks 9 onward)
+          - Spec: `Docs/superpowers/specs/2026-05-01-map-plans-vector-tiles-design.md`
+
+          Close this issue once PR 2 is merged.
+          EOF
+              ;;
+
+            feat/map-plans-mvt-client)
+              ISSUE_TITLE="Map plans MVT — start PR 3 of 3 (delete legacy GeoJSON route after soak)"
+              cat > /tmp/body.md <<'EOF'
+          @PR_USER — PR #PR_NUMBER (PR_TITLE) just merged to `main`. The client now uses vector tiles in production.
+
+          Next: **PR 3 of 3** — delete the legacy `/api/map/plans` GeoJSON route. Branch: `chore/map-plans-mvt-remove-legacy` off latest `main`.
+
+          ## Wait first
+
+          Let PR 2 soak in production for **at least one week** before opening PR 3, so we have time to catch regressions on the new MVT path while the legacy route is still available as a one-line revert.
+
+          ## What PR 3 does
+
+          - Delete `src/app/api/map/plans/route.ts` (the GeoJSON endpoint).
+          - Tighten the Supabase auth middleware allowlist if anything still references the old path.
+          - Confirm no client code paths import from the old route.
+          - Run the full test suite + manual smoke of the map.
+
+          ## References
+
+          - Plan: `Docs/superpowers/plans/2026-05-04-map-plans-vector-tiles.md`
+          - Spec: `Docs/superpowers/specs/2026-05-01-map-plans-vector-tiles-design.md`
+
+          Close this issue once PR 3 is merged.
+          EOF
+              ;;
+
+            chore/map-plans-mvt-remove-legacy)
+              ISSUE_TITLE="Map plans MVT — rollout complete"
+              cat > /tmp/body.md <<'EOF'
+          @PR_USER — PR #PR_NUMBER (PR_TITLE) just merged to `main`.
+
+          The map-plans-MVT rollout is **complete**. The legacy GeoJSON route is gone and the client runs entirely on vector tiles.
+
+          Worth doing before closing this issue:
+          - Confirm production map performance matches expectations (pan/zoom feel instant on the unfiltered case).
+          - Note any dashboard / Vercel / Postgres cost deltas worth recording in the spec doc as a postmortem.
+          - Disable the `notify-mvt-pr-merge.yml` workflow if you don't want it lying around (or leave it — it'll never fire again since all three branches are gone).
+
+          Done.
+          EOF
+              ;;
+
+            *)
+              # Unreachable given the job-level if guard, but fail loud if hit.
+              echo "Unrecognised branch: $MERGED_BRANCH" >&2
+              exit 1
+              ;;
+          esac
+
+          # Substitute placeholders. Use a temp file + python so JSON-style
+          # quoting is safe regardless of what's in the PR title (no shell
+          # interpolation of user-controlled strings).
+          python3 - <<'PY'
+          import os, pathlib
+          p = pathlib.Path('/tmp/body.md')
+          body = p.read_text()
+          body = body.replace('@PR_USER', '@' + os.environ['PR_USER'])
+          body = body.replace('PR_NUMBER', os.environ['MERGED_PR_NUMBER'])
+          body = body.replace('PR_TITLE', os.environ['MERGED_PR_TITLE'])
+          p.write_text(body)
+          PY
+
+          printf '%s' "$ISSUE_TITLE" > /tmp/title.txt
+
+      - name: Open follow-up issue
+        run: |
+          set -euo pipefail
+          ISSUE_TITLE=$(cat /tmp/title.txt)
+          gh issue create \
+            --repo "$REPO" \
+            --title "$ISSUE_TITLE" \
+            --body-file /tmp/body.md \
+            --assignee "$PR_USER"
