@@ -38,6 +38,11 @@ async function markDistrictScanFailure(
     },
   });
 
+  // Strict equality: fires exactly once per district at the 4→5 transition.
+  // The cron filter excludes districts at >= 5 from the pool, so this counter
+  // never re-increments through normal scheduling. Manual re-enqueue past 5
+  // (admin trigger, future feature) intentionally does not re-fire the log —
+  // tarpit admission is a one-time event.
   if (updated.vacancyConsecutiveFailures === 5) {
     console.log(
       JSON.stringify({

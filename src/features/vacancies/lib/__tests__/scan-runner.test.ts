@@ -299,29 +299,32 @@ describe("runScan tarpit-admission log", () => {
     consoleLogSpy.mockRestore();
   });
 
-  it("does NOT log vacancy_tarpit_admission when counter is 4 or 6", async () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  it.each([4, 6])(
+    "does NOT log vacancy_tarpit_admission when counter is %i (not exactly 5)",
+    async (counterValue) => {
+      const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    districtUpdate.mockResolvedValue({
-      leaid: "0100001",
-      name: "Test District",
-      jobBoardPlatform: "applitrack",
-      jobBoardUrl: "https://example.applitrack.com/onlineapp",
-      vacancyConsecutiveFailures: 4,
-    });
+      districtUpdate.mockResolvedValue({
+        leaid: "0100001",
+        name: "Test District",
+        jobBoardPlatform: "applitrack",
+        jobBoardUrl: "https://example.applitrack.com/onlineapp",
+        vacancyConsecutiveFailures: counterValue,
+      });
 
-    getParserMock.mockImplementation(() => async () => {
-      throw new Error("boom");
-    });
+      getParserMock.mockImplementation(() => async () => {
+        throw new Error("boom");
+      });
 
-    await runScan("scan_abc");
+      await runScan("scan_abc");
 
-    const tarpitLog = consoleLogSpy.mock.calls.find((args) => {
-      const first = args[0];
-      return typeof first === "string" && first.includes("vacancy_tarpit_admission");
-    });
-    expect(tarpitLog).toBeUndefined();
+      const tarpitLog = consoleLogSpy.mock.calls.find((args) => {
+        const first = args[0];
+        return typeof first === "string" && first.includes("vacancy_tarpit_admission");
+      });
+      expect(tarpitLog).toBeUndefined();
 
-    consoleLogSpy.mockRestore();
-  });
+      consoleLogSpy.mockRestore();
+    },
+  );
 });
