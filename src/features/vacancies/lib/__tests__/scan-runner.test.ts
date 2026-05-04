@@ -190,8 +190,9 @@ describe("runScan completed_partial paths write failureReason", () => {
   });
 
   it("claude_fallback_failed: serverless Claude returns []", async () => {
-    // Force the dispatch into the Claude-fallback branch:
-    // 1) no parser for the platform, 2) running serverless, 3) Claude returns []
+    // Force the no-parser path (getParser returns null), set serverless +
+    // an API key so the runner actually invokes Claude, then have Claude
+    // return [].
     getParserMock.mockReturnValue(null);
     process.env.VERCEL = "1";
     process.env.ANTHROPIC_API_KEY = "test-key";
@@ -206,6 +207,9 @@ describe("runScan completed_partial paths write failureReason", () => {
       expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
         "claude_fallback_failed",
       );
+      expect((partialCall?.[0] as any)?.data?.errorMessage).toBe(
+        "Claude fallback returned no vacancies",
+      );
 
       // District counter must increment (B1 policy) — markDistrictScanFailure path
       const districtFailureCall = districtUpdate.mock.calls.find(
@@ -217,6 +221,38 @@ describe("runScan completed_partial paths write failureReason", () => {
     } finally {
       delete process.env.VERCEL;
       delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
+
+  it("claude_fallback_failed: serverless without ANTHROPIC_API_KEY", async () => {
+    // No-key serverless path: Claude is never invoked, but the symptom is
+    // the same as a Claude empty-return. B1 policy still fires; the
+    // errorMessage distinguishes the cause.
+    getParserMock.mockReturnValue(null);
+    process.env.VERCEL = "1";
+    delete process.env.ANTHROPIC_API_KEY;
+
+    try {
+      await runScan("scan_abc");
+
+      const partialCall = vacancyScanUpdate.mock.calls.find(
+        (c) => (c[0] as any)?.data?.status === "completed_partial",
+      );
+      expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+        "claude_fallback_failed",
+      );
+      expect((partialCall?.[0] as any)?.data?.errorMessage).toBe(
+        "Serverless: no ANTHROPIC_API_KEY — cannot parse",
+      );
+
+      const districtFailureCall = districtUpdate.mock.calls.find(
+        (c) =>
+          (c[0] as any)?.where?.leaid === "0100001" &&
+          (c[0] as any)?.data?.vacancyConsecutiveFailures?.increment === 1,
+      );
+      expect(districtFailureCall).toBeDefined();
+    } finally {
+      delete process.env.VERCEL;
     }
   });
 });

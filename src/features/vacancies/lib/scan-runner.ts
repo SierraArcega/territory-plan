@@ -123,6 +123,7 @@ export async function runScan(scanId: string): Promise<void> {
     const parser = getParser(platform);
     let rawVacancies: RawVacancy[];
     let usedClaudeFallback = false;
+    let claudeFallbackMessage = "Claude fallback returned no vacancies";
     const isServerless = !!process.env.VERCEL;
 
     // Unknown platforms fall back to Playwright locally or Claude on Vercel.
@@ -143,6 +144,7 @@ export async function runScan(scanId: string): Promise<void> {
         console.log(`[scan-runner] Serverless env, no ANTHROPIC_API_KEY — cannot parse "${platform}"`);
         rawVacancies = [];
         usedClaudeFallback = true;
+        claudeFallbackMessage = "Serverless: no ANTHROPIC_API_KEY — cannot parse";
       }
     } else {
       // Local / self-hosted: try Playwright first (free, no API cost),
@@ -165,14 +167,16 @@ export async function runScan(scanId: string): Promise<void> {
     // B1: Claude-fallback returning [] is the dominant silent-failure mode.
     // Mark as completed_partial + claude_fallback_failed AND increment the
     // district failure counter so these districts become eligible for the
-    // future failure-reset job.
+    // future failure-reset job. Also fires for the serverless-no-API-key
+    // case — Claude wasn't actually called, but the symptom is the same
+    // (silent zero-vacancy completion); the errorMessage distinguishes them.
     if (usedClaudeFallback && rawVacancies.length === 0) {
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
           status: "completed_partial",
           vacancyCount: 0,
-          errorMessage: "Claude fallback returned no vacancies",
+          errorMessage: claudeFallbackMessage,
           failureReason: categorizeFailure({
             errorMessage: "",
             context: "claude_fallback_empty",
