@@ -47,6 +47,7 @@ export default function AdminColumnPicker({
   const groups = useMemo(() => {
     const map = new Map<string, ColumnDef[]>();
     for (const col of columnDefs) {
+      if (col.isFilterOnly) continue; // virtual filter-only columns never appear in the picker
       const group = col.group || "Other";
       if (!map.has(group)) map.set(group, []);
       map.get(group)!.push(col);
@@ -55,7 +56,7 @@ export default function AdminColumnPicker({
   }, [columnDefs]);
 
   const defaultColumns = useMemo(
-    () => columnDefs.filter((c) => c.isDefault).map((c) => c.key),
+    () => columnDefs.filter((c) => c.isDefault && !c.isFilterOnly).map((c) => c.key),
     [columnDefs]
   );
 
