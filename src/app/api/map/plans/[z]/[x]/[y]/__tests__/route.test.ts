@@ -208,4 +208,72 @@ describe("GET /api/map/plans/[z]/[x]/[y]", () => {
       expect(queryParams).toEqual([7, 10, 20, "working", 2026, "u1"]);
     });
   });
+
+  describe("response handling", () => {
+    it("returns 204 with vector-tile content type when MVT is null", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      const res = await callGET("7", "10", "20");
+      expect(res.status).toBe(204);
+      expect(res.headers.get("Content-Type")).toBe("application/vnd.mapbox-vector-tile");
+      expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
+    });
+
+    it("returns 204 when MVT buffer is empty", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: Buffer.alloc(0) }] });
+      const res = await callGET("7", "10", "20");
+      expect(res.status).toBe(204);
+    });
+
+    it("returns 204 when rows are empty", async () => {
+      mockQuery.mockResolvedValue({ rows: [] });
+      const res = await callGET("7", "10", "20");
+      expect(res.status).toBe(204);
+    });
+
+    it("returns 200 with binary MVT and correct headers", async () => {
+      const tileData = Buffer.from("mock-tile-data");
+      mockQuery.mockResolvedValue({ rows: [{ mvt: tileData }] });
+      const res = await callGET("7", "10", "20");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("application/vnd.mapbox-vector-tile");
+      expect(res.headers.get("Content-Length")).toBe(String(tileData.length));
+      expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
+    });
+  });
+
+  describe("error handling", () => {
+    it("returns 500 on database query error", async () => {
+      mockQuery.mockRejectedValue(new Error("DB connection failed"));
+      const res = await callGET("7", "10", "20");
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.error).toBe("Failed to generate tile");
+    });
+
+    it("returns 500 on pool.connect error", async () => {
+      vi.mocked(pool.connect).mockRejectedValueOnce(new Error("Pool exhausted"));
+      const res = await callGET("7", "10", "20");
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("connection management", () => {
+    it("releases client after successful query", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: Buffer.from("tile") }] });
+      await callGET("7", "10", "20");
+      expect(mockRelease).toHaveBeenCalledOnce();
+    });
+
+    it("releases client after empty result (204)", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20");
+      expect(mockRelease).toHaveBeenCalledOnce();
+    });
+
+    it("releases client even when query throws", async () => {
+      mockQuery.mockRejectedValue(new Error("query failed"));
+      await callGET("7", "10", "20");
+      expect(mockRelease).toHaveBeenCalledOnce();
+    });
+  });
 });
