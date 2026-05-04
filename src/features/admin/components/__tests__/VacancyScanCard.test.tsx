@@ -1,13 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import VacancyScanCard from "../VacancyScanCard";
 
 const mockFetch = vi.fn();
+let originalFetch: typeof global.fetch;
 
 beforeEach(() => {
+  originalFetch = global.fetch;
   mockFetch.mockReset();
   global.fetch = mockFetch as never;
+});
+
+afterEach(() => {
+  global.fetch = originalFetch;
 });
 
 function renderCard() {

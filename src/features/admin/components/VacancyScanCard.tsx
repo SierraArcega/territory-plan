@@ -176,13 +176,13 @@ function Stat({
   alert?: boolean;
 }) {
   return (
-    <div>
-      <div className="text-[11px] text-[#8A80A8] font-medium uppercase tracking-wider">
+    <div className="min-w-0">
+      <div className="text-[11px] text-[#8A80A8] font-medium uppercase tracking-wider whitespace-nowrap">
         {label}
       </div>
-      <div className="text-lg font-bold text-[#403770] mt-0.5">{value}</div>
+      <div className="text-lg font-bold text-[#403770] mt-0.5 truncate">{value}</div>
       {sub && (
-        <div className={`text-[11px] mt-0.5 ${alert ? "text-[#F37167]" : "text-[#A69DC0]"}`}>
+        <div className={`text-[11px] mt-0.5 truncate ${alert ? "text-[#F37167]" : "text-[#A69DC0]"}`}>
           {sub}
         </div>
       )}
