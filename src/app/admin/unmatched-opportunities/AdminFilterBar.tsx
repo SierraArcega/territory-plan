@@ -6,6 +6,17 @@ import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 import type { FilterRule } from "@/features/shared/components/DataGrid/types";
 
 // ---------------------------------------------------------------------------
+// Normalization helper
+// ---------------------------------------------------------------------------
+
+function normalizeEnumValues(
+  values: Array<string | { value: string; label: string }> | undefined
+): { value: string; label: string }[] {
+  if (!values) return [];
+  return values.map((v) => (typeof v === "string" ? { value: v, label: v } : v));
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -65,7 +76,15 @@ function formatFilterLabel(columnDefs: ColumnDef[], filter: FilterRule): string 
   if (opDef && !opDef.needsValue) {
     return `${label} ${opLabel}`;
   }
-  return `${label} ${opLabel} "${filter.value}"`;
+  // For enum columns with object-form values, render the human label, not the raw id.
+  let displayValue: string = String(filter.value);
+  if (col?.filterType === "enum" && col.enumValues) {
+    const match = normalizeEnumValues(col.enumValues).find(
+      (v) => v.value === String(filter.value)
+    );
+    if (match) displayValue = match.label;
+  }
+  return `${label} ${opLabel} "${displayValue}"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +369,7 @@ export default function AdminFilterBar({
                     <Dropdown
                       value={filterValue}
                       placeholder="Select value..."
-                      options={colDef.enumValues.map((v) => (typeof v === "string" ? { value: v, label: v } : v))}
+                      options={normalizeEnumValues(colDef.enumValues)}
                       onChange={setFilterValue}
                     />
                   </div>
