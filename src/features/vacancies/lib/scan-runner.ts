@@ -85,6 +85,10 @@ export async function runScan(scanId: string): Promise<void> {
         data: {
           status: "failed",
           errorMessage: "District has no job board URL",
+          failureReason: categorizeFailure({
+            errorMessage: "",
+            context: "no_job_board_url",
+          }),
           completedAt: new Date(),
         },
       });

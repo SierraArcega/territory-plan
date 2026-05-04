@@ -121,5 +121,25 @@ describe("runScan health-column updates", () => {
     expect(districtCalls.length).toBeGreaterThan(0);
     const last = districtCalls.at(-1)?.[0] as any;
     expect(last?.data?.vacancyConsecutiveFailures).toMatchObject({ increment: 1 });
+
+    const failedScanCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "failed",
+    );
+    expect((failedScanCall?.[0] as any)?.data?.failureReason).toBe("no_job_board_url");
+  });
+
+  it("on scan_timeout: writes failureReason='scan_timeout'", async () => {
+    // Make the parser hang past the timeout. The runner aborts via the controller
+    // and throws "Scan timed out" — caught by the outer catch.
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("Scan timed out");
+    });
+
+    await runScan("scan_abc");
+
+    const failedCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "failed",
+    );
+    expect((failedCall?.[0] as any)?.data?.failureReason).toBe("scan_timeout");
   });
 });
