@@ -94,6 +94,19 @@ describe("runScan health-column updates", () => {
     expect(last?.data?.vacancyLastFailureAt).toBeInstanceOf(Date);
   });
 
+  it("on failed: writes failureReason via categorizeFailure", async () => {
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("Request failed with status 404");
+    });
+
+    await runScan("scan_abc");
+
+    const failedCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "failed",
+    );
+    expect((failedCall?.[0] as any)?.data?.failureReason).toBe("http_4xx");
+  });
+
   it("on no-jobBoardUrl early-return: counts as a failure", async () => {
     vacancyScanFindUnique.mockResolvedValueOnce({
       ...baseScan,

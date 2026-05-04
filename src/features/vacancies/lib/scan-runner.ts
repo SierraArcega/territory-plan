@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { detectPlatform, isStatewideBoardAsync, getAppliTrackInstance } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
+import { categorizeFailure } from "./failure-reasons";
 import { parseWithPlaywright } from "./parsers/playwright-fallback";
 import { parseWithClaude } from "./parsers/claude-fallback";
 import type { RawVacancy } from "./parsers/types";
@@ -290,11 +291,16 @@ export async function runScan(scanId: string): Promise<void> {
     console.error(`[scan-runner] Scan ${scanId} failed:`, errorMessage);
 
     try {
+      const failureReason = categorizeFailure({
+        errorMessage,
+        context: "thrown_error",
+      });
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
           status: "failed",
           errorMessage,
+          failureReason,
           completedAt: new Date(),
         },
       });
@@ -304,7 +310,7 @@ export async function runScan(scanId: string): Promise<void> {
     } catch (updateError) {
       console.error(
         `[scan-runner] Failed to update scan ${scanId} status:`,
-        updateError
+        updateError,
       );
     }
   } finally {
