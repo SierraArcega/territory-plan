@@ -45,9 +45,7 @@ beforeEach(() => {
 function setupHappyPath() {
   vacancyCount.mockResolvedValueOnce(120).mockResolvedValueOnce(100); // total, verified
   vacancyGroupBy.mockResolvedValueOnce([{ leaid: "1" }, { leaid: "2" }]); // districts with vacancies
-  districtCount
-    .mockResolvedValueOnce(1000) // totalDistrictsWithUrl
-    .mockResolvedValueOnce(50); // tarpit total
+  districtCount.mockResolvedValueOnce(1000); // totalDistrictsWithUrl (tarpit derived from groupBy)
   vacancyScanCount.mockResolvedValueOnce(60).mockResolvedValueOnce(2); // 7d scans, 24h failures
   vacancyScanFindFirst.mockResolvedValueOnce({
     completedAt: new Date("2026-05-03T12:00:00Z"),
@@ -65,10 +63,11 @@ function setupHappyPath() {
       { failureReason: "claude_fallback_failed", _count: 18 },
       { failureReason: "scan_timeout", _count: 6 },
     ]); // 7d failure-reason mix
+  // Tarpit by platform sums to 50 (was previously a separate count mock).
   districtGroupBy.mockResolvedValueOnce([
     { jobBoardPlatform: "claude", _count: 38 },
     { jobBoardPlatform: null, _count: 12 },
-  ]); // tarpit by platform
+  ]);
 }
 
 describe("GET /api/admin/vacancy-scan-stats — new fields", () => {
@@ -95,7 +94,7 @@ describe("GET /api/admin/vacancy-scan-stats — new fields", () => {
   it("returns adjustedCoveragePct == coveragePct when tarpit is empty", async () => {
     vacancyCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
     vacancyGroupBy.mockResolvedValueOnce([]);
-    districtCount.mockResolvedValueOnce(100).mockResolvedValueOnce(0);
+    districtCount.mockResolvedValueOnce(100);
     vacancyScanCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
     vacancyScanFindFirst.mockResolvedValueOnce(null);
     vacancyScanGroupBy
@@ -116,18 +115,46 @@ describe("GET /api/admin/vacancy-scan-stats — new fields", () => {
   it("floors the adjusted denominator at 1 when every district is tarpitted", async () => {
     vacancyCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
     vacancyGroupBy.mockResolvedValueOnce([]);
-    districtCount.mockResolvedValueOnce(50).mockResolvedValueOnce(50);
+    districtCount.mockResolvedValueOnce(50);
     vacancyScanCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
     vacancyScanFindFirst.mockResolvedValueOnce(null);
     vacancyScanGroupBy
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    districtGroupBy.mockResolvedValueOnce([]);
+    // Whole pool is in the tarpit (sums to 50, matches totalWithUrl).
+    districtGroupBy.mockResolvedValueOnce([
+      { jobBoardPlatform: "applitrack", _count: 50 },
+    ]);
 
     const res = await GET();
     const body = await res.json();
     // 0 / max(1, 0) = 0%
     expect(body.adjustedCoveragePct).toBe(0);
+    expect(body.tarpit.total).toBe(50);
+  });
+
+  it("clamps adjustedCoveragePct at 100 when scan history exceeds reachable pool", async () => {
+    // Long-running system: 1000 districts with URL, 900 in the tarpit, but
+    // 850 districts have at least one historical successful scan. Naive
+    // formula: 850 / max(1, 1000-900) = 850/100 = 850%. Should clamp to 100.
+    vacancyCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    vacancyGroupBy.mockResolvedValueOnce([]);
+    districtCount.mockResolvedValueOnce(1000);
+    vacancyScanCount.mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    vacancyScanFindFirst.mockResolvedValueOnce(null);
+    vacancyScanGroupBy
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(
+        Array.from({ length: 850 }, (_, i) => ({ leaid: String(i) })),
+      )
+      .mockResolvedValueOnce([]);
+    districtGroupBy.mockResolvedValueOnce([
+      { jobBoardPlatform: "applitrack", _count: 900 },
+    ]);
+
+    const res = await GET();
+    const body = await res.json();
+    expect(body.adjustedCoveragePct).toBe(100);
   });
 });

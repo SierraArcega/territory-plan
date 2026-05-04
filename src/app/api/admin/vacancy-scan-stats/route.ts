@@ -23,7 +23,6 @@ export async function GET() {
       verifiedVacancies,
       districtsWithVacancies,
       totalDistrictsWithUrl,
-      tarpitTotal,
       recentScans,
       failedScans24h,
       lastScan,
@@ -36,9 +35,6 @@ export async function GET() {
       prisma.vacancy.count({ where: { status: "open", districtVerified: true } }),
       prisma.vacancy.groupBy({ by: ["leaid"], where: { status: "open", districtVerified: true } }),
       prisma.district.count({ where: { jobBoardUrl: { not: null } } }),
-      prisma.district.count({
-        where: { jobBoardUrl: { not: null }, vacancyConsecutiveFailures: { gte: 5 } },
-      }),
       prisma.vacancyScan.count({
         where: {
           status: { in: ["completed", "completed_partial"] },
@@ -84,13 +80,20 @@ export async function GET() {
       }),
     ]);
 
+    // Derive tarpit total from the per-platform groupBy to avoid a redundant count query.
+    const tarpitTotal = tarpitByPlatformRaw.reduce((s, r) => s + r._count, 0);
+
     const coveragePct = totalDistrictsWithUrl > 0
       ? Math.round((scannedDistricts.length / totalDistrictsWithUrl) * 100)
       : 0;
 
+    // Clamp at 100: if scannedDistricts (all-time) exceeds the current
+    // reachable pool (totalWithUrl - tarpit), the ratio could exceed 1.0
+    // when the tarpit grows faster than new districts get added.
     const adjustedDenominator = Math.max(1, totalDistrictsWithUrl - tarpitTotal);
-    const adjustedCoveragePct = Math.round(
-      (scannedDistricts.length / adjustedDenominator) * 100,
+    const adjustedCoveragePct = Math.min(
+      100,
+      Math.round((scannedDistricts.length / adjustedDenominator) * 100),
     );
 
     const tarpitByPlatform = tarpitByPlatformRaw
