@@ -3,11 +3,16 @@
  * job_board_url is on the unscoped main domain www.schoolspring.com.
  *
  * Modes:
- *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts            # dry-run
- *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts --apply    # delete
- *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts --rescan   # delete + re-scan
+ *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts                       # dry-run
+ *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts --apply               # delete
+ *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts --rescan              # delete + re-scan
+ *   npx tsx scripts/purge-unscoped-schoolspring-vacancies.ts --apply --ignore-verified
  *
- * Preserves rows where vacancies.district_verified = true.
+ * By default, preserves rows where vacancies.district_verified = true. Add
+ * --ignore-verified when the verified flag is known to be unreliable on the
+ * affected districts (e.g., a heuristic auto-verifier mass-set true on data
+ * that's clearly mis-attributed). With --ignore-verified, every row on every
+ * matching district is deleted.
  */
 // Rescan iterates ALL districts matching the broken URL pattern, including
 // those with zero current vacancies — they may finally produce real data
@@ -56,15 +61,17 @@ async function selectBrokenDistricts(): Promise<BrokenDistrict[]> {
 }
 
 /** Districts matching the broken URL pattern that have vacancy rows, with deletion counts. Used for dry-run/apply. */
-async function selectAffectedWithCounts(): Promise<AffectedDistrict[]> {
+async function selectAffectedWithCounts(ignoreVerified: boolean): Promise<AffectedDistrict[]> {
+  const toDeleteFilter = ignoreVerified ? "TRUE" : "v.district_verified = false";
+  const preservedFilter = ignoreVerified ? "FALSE" : "v.district_verified = true";
   return prisma.$queryRawUnsafe<AffectedDistrict[]>(`
     SELECT
       d.leaid,
       d.name,
       d.state_abbrev,
       d.job_board_url,
-      COUNT(*) FILTER (WHERE v.district_verified = false)::int AS to_delete,
-      COUNT(*) FILTER (WHERE v.district_verified = true)::int  AS preserved_verified
+      COUNT(*) FILTER (WHERE ${toDeleteFilter})::int AS to_delete,
+      COUNT(*) FILTER (WHERE ${preservedFilter})::int AS preserved_verified
     FROM districts d
     JOIN vacancies v ON v.leaid = d.leaid
     WHERE d.job_board_platform = 'schoolspring'
@@ -74,7 +81,8 @@ async function selectAffectedWithCounts(): Promise<AffectedDistrict[]> {
   `);
 }
 
-async function sampleRows(): Promise<SampleRow[]> {
+async function sampleRows(ignoreVerified: boolean): Promise<SampleRow[]> {
+  const verifiedFilter = ignoreVerified ? "" : "AND v.district_verified = false";
   return prisma.$queryRawUnsafe<SampleRow[]>(`
     SELECT d.name AS district, d.state_abbrev AS state,
            v.title, v.school_name, v.source_url
@@ -82,7 +90,7 @@ async function sampleRows(): Promise<SampleRow[]> {
     JOIN districts d ON d.leaid = v.leaid
     WHERE d.job_board_platform = 'schoolspring'
       AND d.job_board_url ~* '${URL_PATTERN}'
-      AND v.district_verified = false
+      ${verifiedFilter}
     ORDER BY random()
     LIMIT 5
   `);
@@ -116,13 +124,14 @@ async function main() {
   const args = new Set(process.argv.slice(2));
   const apply = args.has("--apply") || args.has("--rescan");
   const rescan = args.has("--rescan");
+  const ignoreVerified = args.has("--ignore-verified");
 
-  console.log(
-    `[purge-unscoped-schoolspring] mode=${rescan ? "RESCAN" : apply ? "APPLY" : "DRY-RUN"}`
-  );
+  const modeLabel = rescan ? "RESCAN" : apply ? "APPLY" : "DRY-RUN";
+  const verifiedLabel = ignoreVerified ? " ignore-verified=true" : "";
+  console.log(`[purge-unscoped-schoolspring] mode=${modeLabel}${verifiedLabel}`);
 
-  const districts = await selectAffectedWithCounts();
-  const sample = await sampleRows();
+  const districts = await selectAffectedWithCounts(ignoreVerified);
+  const sample = await sampleRows(ignoreVerified);
   reportPlan(districts, sample);
 
   if (!apply) {
@@ -130,13 +139,14 @@ async function main() {
     return;
   }
 
+  const verifiedFilter = ignoreVerified ? "" : "AND v.district_verified = false";
   const deleted = await prisma.$executeRawUnsafe(`
     DELETE FROM vacancies v
     USING districts d
     WHERE v.leaid = d.leaid
       AND d.job_board_platform = 'schoolspring'
       AND d.job_board_url ~* '${URL_PATTERN}'
-      AND v.district_verified = false
+      ${verifiedFilter}
   `);
   console.log(`\n[apply] Deleted ${deleted} vacancy rows.`);
 
