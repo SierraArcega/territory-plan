@@ -55,8 +55,8 @@ describe("GET /api/admin/unmatched-opportunities — rep filter", () => {
       select: { id: true },
       take: 5000,
     });
-    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0][0];
-    expect(findManyCall.where).toMatchObject({ id: { in: ["175922", "175923"] } });
+    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0]![0];
+    expect(findManyCall!.where).toMatchObject({ id: { in: ["175922", "175923"] } });
   });
 
   it("returns empty page when rep UUID has no matching profile", async () => {
@@ -91,8 +91,8 @@ describe("GET /api/admin/unmatched-opportunities — rep filter", () => {
 
     await GET(makeRequest("rep=619f3009&resolved=false"));
 
-    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0][0];
-    expect(findManyCall.where).toMatchObject({
+    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0]![0];
+    expect(findManyCall!.where).toMatchObject({
       resolved: false,
       id: { in: ["175922"] },
     });
@@ -106,8 +106,8 @@ describe("GET /api/admin/unmatched-opportunities — rep filter", () => {
 
     await GET(makeRequest("rep=619f3009-0966-47ec-a09a-5f406d1da596"));
 
-    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0][0];
-    expect(findManyCall.where).toMatchObject({ id: { in: [] } });
+    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0]![0];
+    expect(findManyCall!.where).toMatchObject({ id: { in: [] } });
   });
 
   it("ignores rep param when not provided (regression guard)", async () => {
@@ -115,7 +115,7 @@ describe("GET /api/admin/unmatched-opportunities — rep filter", () => {
 
     expect(prisma.userProfile.findUnique).not.toHaveBeenCalled();
     expect(prisma.opportunity.findMany).not.toHaveBeenCalled();
-    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0][0];
-    expect(findManyCall.where).not.toHaveProperty("id");
+    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0]![0];
+    expect(findManyCall!.where).not.toHaveProperty("id");
   });
 });
