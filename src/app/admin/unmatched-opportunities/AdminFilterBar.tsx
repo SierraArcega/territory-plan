@@ -117,7 +117,9 @@ function Dropdown({
   const filteredOptions = useMemo(() => {
     if (!search) return options;
     const q = search.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
+    return options.filter(
+      (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)
+    );
   }, [options, search]);
 
   const openDropdown = () => {

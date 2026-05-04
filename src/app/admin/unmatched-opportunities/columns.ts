@@ -2,7 +2,7 @@
 // Keys match the field names returned by the unmatched opportunities API.
 
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
-import { US_STATES } from "@/lib/states";
+import { US_STATES, stateDisplayName } from "@/lib/states";
 
 export const unmatchedOpportunityColumns: ColumnDef[] = [
   // ---- Core ----
@@ -44,7 +44,10 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     group: "Core",
     isDefault: true,
     filterType: "enum",
-    enumValues: US_STATES,
+    enumValues: US_STATES.map((abbrev) => ({
+      value: abbrev,
+      label: `${stateDisplayName(abbrev)} (${abbrev})`,
+    })),
     width: 60,
   },
   {
