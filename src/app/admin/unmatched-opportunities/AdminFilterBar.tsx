@@ -350,7 +350,7 @@ export default function AdminFilterBar({
                     <Dropdown
                       value={filterValue}
                       placeholder="Select value..."
-                      options={colDef.enumValues.map((v) => ({ value: v, label: v }))}
+                      options={colDef.enumValues.map((v) => (typeof v === "string" ? { value: v, label: v } : v))}
                       onChange={setFilterValue}
                     />
                   </div>
