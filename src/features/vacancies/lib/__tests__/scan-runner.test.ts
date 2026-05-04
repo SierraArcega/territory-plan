@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const districtUpdate = vi.fn();
 const vacancyScanFindUnique = vi.fn();
 const vacancyScanUpdate = vi.fn();
+const vacancyScanCount = vi.fn();
 const getParserMock = vi.fn();
 const parseWithClaudeMock = vi.fn();
 const isStatewideBoardAsyncMock = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => false);
@@ -19,6 +20,7 @@ vi.mock("@/lib/prisma", () => ({
     vacancyScan: {
       findUnique: (...args: unknown[]) => vacancyScanFindUnique(...args),
       update: (...args: unknown[]) => vacancyScanUpdate(...args),
+      count: (...args: unknown[]) => vacancyScanCount(...args),
     },
   },
 }));
@@ -59,6 +61,7 @@ beforeEach(() => {
   districtUpdate.mockReset().mockResolvedValue({});
   vacancyScanFindUnique.mockReset().mockResolvedValue(baseScan);
   vacancyScanUpdate.mockReset().mockResolvedValue({});
+  vacancyScanCount.mockReset().mockResolvedValue(0); // default: first attempt
   // Default parser: returns 0 vacancies — drives runScan to the success path.
   getParserMock.mockReset().mockImplementation(() => async () => []);
   parseWithClaudeMock.mockReset().mockResolvedValue([]);
@@ -327,4 +330,46 @@ describe("runScan tarpit-admission log", () => {
       consoleLogSpy.mockRestore();
     },
   );
+});
+
+describe("runScan per-scan outcome log", () => {
+  it("emits vacancy_scan_outcome with all required fields", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Successful scan path
+    getParserMock.mockImplementation(() => async () => []);
+    districtUpdate.mockResolvedValue({
+      leaid: "0100001",
+      name: "Test District",
+      jobBoardPlatform: "applitrack",
+      jobBoardUrl: "https://example.applitrack.com/onlineapp",
+      vacancyConsecutiveFailures: 0,
+    });
+
+    await runScan("scan_abc");
+
+    const outcomeLog = consoleLogSpy.mock.calls
+      .map((args) => {
+        try {
+          return JSON.parse(args[0] as string);
+        } catch {
+          return null;
+        }
+      })
+      .find((p) => p?.event === "vacancy_scan_outcome");
+    expect(outcomeLog).toBeDefined();
+    expect(outcomeLog).toMatchObject({
+      event: "vacancy_scan_outcome",
+      leaid: "0100001",
+      platform: "applitrack",
+      status: "completed",
+      failure_reason: null,
+      vacancy_count: 0,
+      consecutive_failures_after: 0,
+    });
+    expect(typeof outcomeLog.duration_ms).toBe("number");
+    expect(typeof outcomeLog.was_first_attempt).toBe("boolean");
+
+    consoleLogSpy.mockRestore();
+  });
 });

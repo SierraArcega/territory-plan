@@ -88,6 +88,14 @@ export async function runScan(scanId: string): Promise<void> {
     };
   }> | null = null;
 
+  const scanStartMs = Date.now();
+  let finalStatus: string = "unknown";
+  let finalFailureReason: VacancyFailureReason | null = null;
+  let finalVacancyCount = 0;
+  let finalConsecutiveFailures = 0;
+  let detectedPlatform: string | null = null;
+  let hadPriorCompletedScan = false;
+
   try {
     // Step 1: Fetch scan + district
     scan = await prisma.vacancyScan.findUnique({
@@ -110,6 +118,15 @@ export async function runScan(scanId: string): Promise<void> {
       return;
     }
 
+    const priorCount = await prisma.vacancyScan.count({
+      where: {
+        leaid: scan.district.leaid,
+        status: { in: ["completed", "completed_partial"] },
+        NOT: { id: scanId },
+      },
+    });
+    hadPriorCompletedScan = priorCount > 0;
+
     if (!scan.district.jobBoardUrl) {
       const failureReason = categorizeFailure({
         errorMessage: "",
@@ -124,7 +141,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      await markDistrictScanFailure(scan.district.leaid, failureReason);
+      finalStatus = "failed";
+      finalFailureReason = failureReason;
+      finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
       return;
     }
 
@@ -136,6 +155,7 @@ export async function runScan(scanId: string): Promise<void> {
 
     // Step 3: Detect platform
     const platform = detectPlatform(scan.district.jobBoardUrl);
+    detectedPlatform = platform;
 
     // Update district platform if different
     if (platform !== scan.district.jobBoardPlatform) {
@@ -217,7 +237,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      await markDistrictScanFailure(scan.district.leaid, failureReason);
+      finalStatus = "completed_partial";
+      finalFailureReason = failureReason;
+      finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
       return;
     }
 
@@ -246,7 +268,9 @@ export async function runScan(scanId: string): Promise<void> {
             completedAt: new Date(),
           },
         });
-        await markDistrictScanSuccess(scan.district.leaid);
+        finalStatus = "completed_partial";
+        finalFailureReason = "statewide_unattributable";
+        finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
         return;
       }
 
@@ -288,7 +312,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      await markDistrictScanSuccess(scan.district.leaid);
+      finalStatus = "completed";
+      finalVacancyCount = result.vacancyCount;
+      finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
 
       // Redistribute remaining jobs to other districts in the background
       // — but ONLY if the URL is properly scoped (has applitrackclient param)
@@ -329,7 +355,9 @@ export async function runScan(scanId: string): Promise<void> {
               completedAt: new Date(),
             },
           });
-          await markDistrictScanSuccess(scan.district.leaid);
+          finalStatus = "completed_partial";
+          finalFailureReason = "enrollment_ratio_skip";
+          finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
           return;
         }
       }
@@ -357,7 +385,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      await markDistrictScanSuccess(scan.district.leaid);
+      finalStatus = "completed";
+      finalVacancyCount = result.vacancyCount;
+      finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
     }
   } catch (error) {
     const errorMessage =
@@ -379,8 +409,10 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
+      finalStatus = "failed";
+      finalFailureReason = failureReason;
       if (scan?.district?.leaid) {
-        await markDistrictScanFailure(scan.district.leaid, failureReason);
+        finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
       }
     } catch (updateError) {
       console.error(
@@ -390,6 +422,19 @@ export async function runScan(scanId: string): Promise<void> {
     }
   } finally {
     clearTimeout(timeoutId);
+    console.log(
+      JSON.stringify({
+        event: "vacancy_scan_outcome",
+        leaid: scan?.district.leaid ?? null,
+        platform: detectedPlatform,
+        status: finalStatus,
+        failure_reason: finalFailureReason,
+        vacancy_count: finalVacancyCount,
+        duration_ms: Date.now() - scanStartMs,
+        was_first_attempt: !hadPriorCompletedScan,
+        consecutive_failures_after: finalConsecutiveFailures,
+      }),
+    );
   }
 }
 
