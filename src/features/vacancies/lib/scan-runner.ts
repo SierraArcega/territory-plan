@@ -176,6 +176,10 @@ export async function runScan(scanId: string): Promise<void> {
             status: "completed_partial",
             vacancyCount: 0,
             errorMessage: `Skipped: statewide board returned ${rawVacancies.length} vacancies but ${withoutEmployer} lack employer info (cannot attribute to district)`,
+            failureReason: categorizeFailure({
+              errorMessage: "",
+              context: "statewide_unattributable",
+            }),
             completedAt: new Date(),
           },
         });
@@ -255,6 +259,10 @@ export async function runScan(scanId: string): Promise<void> {
               status: "completed_partial",
               vacancyCount: 0,
               errorMessage: `Skipped: ${rawVacancies.length} vacancies looks like a regional aggregator (enrollment: ${enrollment}, ratio: ${ratio.toFixed(2)})`,
+              failureReason: categorizeFailure({
+                errorMessage: "",
+                context: "enrollment_ratio_skip",
+              }),
               completedAt: new Date(),
             },
           });

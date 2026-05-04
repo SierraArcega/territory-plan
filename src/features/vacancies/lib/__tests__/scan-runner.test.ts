@@ -9,6 +9,7 @@ const vacancyScanFindUnique = vi.fn();
 const vacancyScanUpdate = vi.fn();
 const getParserMock = vi.fn();
 const parseWithClaudeMock = vi.fn();
+const isStatewideBoardAsyncMock = vi.fn(async () => false);
 
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -24,7 +25,7 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/features/vacancies/lib/platform-detector", () => ({
   detectPlatform: () => "applitrack",
-  isStatewideBoardAsync: async () => false,
+  isStatewideBoardAsync: (...args: unknown[]) => (isStatewideBoardAsyncMock as (...a: unknown[]) => unknown)(...args),
   getAppliTrackInstance: () => null,
 }));
 vi.mock("@/features/vacancies/lib/post-processor", () => ({
@@ -61,6 +62,7 @@ beforeEach(() => {
   // Default parser: returns 0 vacancies — drives runScan to the success path.
   getParserMock.mockReset().mockImplementation(() => async () => []);
   parseWithClaudeMock.mockReset().mockResolvedValue([]);
+  isStatewideBoardAsyncMock.mockReset().mockResolvedValue(false);
 });
 
 describe("runScan health-column updates", () => {
@@ -141,5 +143,49 @@ describe("runScan health-column updates", () => {
       (c) => (c[0] as any)?.data?.status === "failed",
     );
     expect((failedCall?.[0] as any)?.data?.failureReason).toBe("scan_timeout");
+  });
+});
+
+describe("runScan completed_partial paths write failureReason", () => {
+  it("statewide_unattributable: >50% missing employerName", async () => {
+    // Override the mocked isStatewideBoardAsync for this test only
+    isStatewideBoardAsyncMock.mockResolvedValueOnce(true);
+
+    // Parser returns 25 jobs, 20 without employerName -> 80% missing -> trigger
+    const rawJobs = Array.from({ length: 25 }, (_, i) => ({
+      title: `Job ${i}`,
+      url: `https://example.com/${i}`,
+      ...(i < 5 ? { employerName: "Test District" } : {}),
+    }));
+    getParserMock.mockImplementation(() => async () => rawJobs);
+
+    await runScan("scan_abc");
+
+    const partialCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "completed_partial",
+    );
+    expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+      "statewide_unattributable",
+    );
+  });
+
+  it("enrollment_ratio_skip: too many vacancies for enrollment", async () => {
+    // 600 vacancies on a district with enrollment 1000 -> ratio 0.6 > 0.5 -> trigger
+    getParserMock.mockImplementation(() => async () =>
+      Array.from({ length: 600 }, (_, i) => ({
+        title: `Job ${i}`,
+        url: `https://example.com/${i}`,
+        employerName: "Test District",
+      })),
+    );
+
+    await runScan("scan_abc");
+
+    const partialCall = vacancyScanUpdate.mock.calls.find(
+      (c) => (c[0] as any)?.data?.status === "completed_partial",
+    );
+    expect((partialCall?.[0] as any)?.data?.failureReason).toBe(
+      "enrollment_ratio_skip",
+    );
   });
 });
