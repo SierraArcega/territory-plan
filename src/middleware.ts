@@ -80,7 +80,11 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public files (images, etc.)
      * - API routes that should be public (tiles for map rendering)
+     *   `api/map/plans/\d+` allowlists the per-tile MVT endpoint
+     *   (`/api/map/plans/[z]/[x]/[y].mvt`) without exposing the legacy
+     *   `/api/map/plans` GeoJSON endpoint or the lightweight `/api/map/plans/list`
+     *   JSON endpoint, which stay session-gated for the React app.
      */
-    '/((?!_next|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/tiles|api/cron|api/webhooks).*)',
+    '/((?!_next|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api/tiles|api/map/plans/\\d+|api/cron|api/webhooks).*)',
   ],
 }
