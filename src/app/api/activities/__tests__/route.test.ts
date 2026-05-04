@@ -23,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
     activityPlan: { findFirst: vi.fn() },
     district: { findMany: vi.fn() },
     territoryPlanDistrict: { findMany: vi.fn() },
+    userProfile: { findUnique: vi.fn() },
   },
 }));
 

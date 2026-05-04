@@ -18,7 +18,7 @@ const STATE_NAME_TO_ABBREV: Record<string, string> = {
   WISCONSIN: "WI", WYOMING: "WY",
 };
 
-const STATE_ABBREV_TO_NAME: Record<string, string> = Object.fromEntries(
+export const STATE_ABBREV_TO_NAME: Record<string, string> = Object.fromEntries(
   Object.entries(STATE_NAME_TO_ABBREV).map(([name, abbrev]) => [
     abbrev,
     name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bOf\b/g, "of"),

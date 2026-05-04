@@ -867,6 +867,21 @@ enum UserRole {
   @@map("user_role")
 }
 
+enum VacancyFailureReason {
+  http_4xx
+  http_5xx
+  network_timeout
+  scan_timeout
+  parser_empty
+  claude_fallback_failed
+  statewide_unattributable
+  enrollment_ratio_skip
+  no_job_board_url
+  unknown_error
+
+  @@map("vacancy_failure_reason")
+}
+
 // ===== User Profile & Goals =====
 // User profile - synced from Supabase Auth on login
 // Stores user preferences and tracks whether they've completed the initial setup wizard
@@ -1483,6 +1498,7 @@ model VacancyScan {
   startedAt             DateTime  @default(now()) @map("started_at")
   completedAt           DateTime? @map("completed_at")
   errorMessage          String?   @map("error_message") @db.Text
+  failureReason         VacancyFailureReason? @map("failure_reason")
   triggeredBy           String    @map("triggered_by") @db.VarChar(100)
   batchId               String?   @map("batch_id") @db.VarChar(50)
 
@@ -1732,10 +1748,14 @@ model NewsArticle {
   stateAbbrevs String[] @map("state_abbrevs") @db.VarChar(2)
 
   // Classification — set by the Haiku classifier pass. Null until classified.
-  sentiment         String?   @db.VarChar(10)
   categories        String[]  @default([]) @db.VarChar(40)
   fullmindRelevance String?   @map("fullmind_relevance") @db.VarChar(10)
   classifiedAt      DateTime? @map("classified_at")
+
+  // Set by Pass 1 of the matcher (keyword + LLM-queue prep). Null until the
+  // /api/cron/match-articles cron has processed this article. Decoupled from
+  // ingest so the rolling cron stays well under Vercel's 300s maxDuration.
+  matchedAt DateTime? @map("matched_at")
 
   districts  NewsArticleDistrict[]
   schools    NewsArticleSchool[]
@@ -1746,6 +1766,7 @@ model NewsArticle {
   @@index([feedSource])
   @@index([fullmindRelevance, publishedAt])
   @@index([title, publishedAt])
+  @@index([matchedAt])
   @@map("news_articles")
 }
 

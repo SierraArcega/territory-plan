@@ -232,6 +232,17 @@ export async function matchArticles(articleIds: string[]): Promise<MatchStats> {
         stats.errors.push(`queue for LLM ${article.id}: ${String(err)}`);
       }
     }
+
+    // Mark Pass 1 done. Set even when no matches were found so the
+    // matcher cron doesn't keep re-processing the same article.
+    try {
+      await prisma.newsArticle.update({
+        where: { id: article.id },
+        data: { matchedAt: new Date() },
+      });
+    } catch (err) {
+      stats.errors.push(`mark matched ${article.id}: ${String(err)}`);
+    }
   }
 
   return stats;

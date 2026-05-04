@@ -1,8 +1,9 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type VacancyFailureReason } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { detectPlatform, isStatewideBoardAsync, getAppliTrackInstance } from "./platform-detector";
 import { processVacancies } from "./post-processor";
 import { getParser } from "./parsers";
+import { categorizeFailure } from "./failure-reasons";
 import { parseWithPlaywright } from "./parsers/playwright-fallback";
 import { parseWithClaude } from "./parsers/claude-fallback";
 import type { RawVacancy } from "./parsers/types";
@@ -10,21 +11,52 @@ import type { RawVacancy } from "./parsers/types";
 /** Maximum time (ms) a single scan is allowed to run before timing out. */
 const SCAN_TIMEOUT_MS = 180_000; // 3 min for state-wide redistribution
 
-async function markDistrictScanSuccess(leaid: string) {
+async function markDistrictScanSuccess(leaid: string): Promise<number> {
   await prisma.district.update({
     where: { leaid },
     data: { vacancyConsecutiveFailures: 0, vacancyLastFailureAt: null },
   });
+  return 0;
 }
 
-async function markDistrictScanFailure(leaid: string) {
-  await prisma.district.update({
+async function markDistrictScanFailure(
+  leaid: string,
+  failureReason: VacancyFailureReason | null = null,
+): Promise<number> {
+  const updated = await prisma.district.update({
     where: { leaid },
     data: {
       vacancyConsecutiveFailures: { increment: 1 },
       vacancyLastFailureAt: new Date(),
     },
+    select: {
+      leaid: true,
+      name: true,
+      jobBoardPlatform: true,
+      jobBoardUrl: true,
+      vacancyConsecutiveFailures: true,
+    },
   });
+
+  // Strict equality: fires exactly once per district at the 4→5 transition.
+  // The cron filter excludes districts at >= 5 from the pool, so this counter
+  // never re-increments through normal scheduling. Manual re-enqueue past 5
+  // (admin trigger, future feature) intentionally does not re-fire the log —
+  // tarpit admission is a one-time event.
+  if (updated.vacancyConsecutiveFailures === 5) {
+    console.log(
+      JSON.stringify({
+        event: "vacancy_tarpit_admission",
+        leaid: updated.leaid,
+        name: updated.name,
+        platform: updated.jobBoardPlatform,
+        job_board_url: updated.jobBoardUrl,
+        last_failure_reason: failureReason,
+      }),
+    );
+  }
+
+  return updated.vacancyConsecutiveFailures;
 }
 
 /**
@@ -56,6 +88,14 @@ export async function runScan(scanId: string): Promise<void> {
     };
   }> | null = null;
 
+  const scanStartMs = Date.now();
+  let finalStatus: string = "unknown";
+  let finalFailureReason: VacancyFailureReason | null = null;
+  let finalVacancyCount = 0;
+  let finalConsecutiveFailures = 0;
+  let detectedPlatform: string | null = null;
+  let hadPriorCompletedScan = false;
+
   try {
     // Step 1: Fetch scan + district
     scan = await prisma.vacancyScan.findUnique({
@@ -78,16 +118,32 @@ export async function runScan(scanId: string): Promise<void> {
       return;
     }
 
+    const priorCount = await prisma.vacancyScan.count({
+      where: {
+        leaid: scan.district.leaid,
+        status: { in: ["completed", "completed_partial"] },
+        NOT: { id: scanId },
+      },
+    });
+    hadPriorCompletedScan = priorCount > 0;
+
     if (!scan.district.jobBoardUrl) {
+      const failureReason = categorizeFailure({
+        errorMessage: "",
+        context: "no_job_board_url",
+      });
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
           status: "failed",
           errorMessage: "District has no job board URL",
+          failureReason,
           completedAt: new Date(),
         },
       });
-      await markDistrictScanFailure(scan.district.leaid);
+      finalStatus = "failed";
+      finalFailureReason = failureReason;
+      finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
       return;
     }
 
@@ -99,6 +155,7 @@ export async function runScan(scanId: string): Promise<void> {
 
     // Step 3: Detect platform
     const platform = detectPlatform(scan.district.jobBoardUrl);
+    detectedPlatform = platform;
 
     // Update district platform if different
     if (platform !== scan.district.jobBoardPlatform) {
@@ -117,6 +174,8 @@ export async function runScan(scanId: string): Promise<void> {
     // Step 4: Get parser and run it
     const parser = getParser(platform);
     let rawVacancies: RawVacancy[];
+    let usedClaudeFallback = false;
+    let claudeFallbackMessage = "Claude fallback returned no vacancies";
     const isServerless = !!process.env.VERCEL;
 
     // Unknown platforms fall back to Playwright locally or Claude on Vercel.
@@ -132,9 +191,12 @@ export async function runScan(scanId: string): Promise<void> {
       if (process.env.ANTHROPIC_API_KEY) {
         console.log(`[scan-runner] Serverless env, using Claude fallback for "${platform}"...`);
         rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+        usedClaudeFallback = true;
       } else {
         console.log(`[scan-runner] Serverless env, no ANTHROPIC_API_KEY — cannot parse "${platform}"`);
         rawVacancies = [];
+        usedClaudeFallback = true;
+        claudeFallbackMessage = "Serverless: no ANTHROPIC_API_KEY — cannot parse";
       }
     } else {
       // Local / self-hosted: try Playwright first (free, no API cost),
@@ -145,12 +207,40 @@ export async function runScan(scanId: string): Promise<void> {
       if (rawVacancies.length === 0 && process.env.ANTHROPIC_API_KEY) {
         console.log(`[scan-runner] Playwright found nothing, trying Claude fallback...`);
         rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+        usedClaudeFallback = true;
       }
     }
 
     // Check if aborted
     if (timeoutController.signal.aborted) {
       throw new Error("Scan timed out");
+    }
+
+    // B1: Claude-fallback returning [] is the dominant silent-failure mode.
+    // Mark as completed_partial + claude_fallback_failed AND increment the
+    // district failure counter so these districts become eligible for the
+    // future failure-reset job. Also fires for the serverless-no-API-key
+    // case — Claude wasn't actually called, but the symptom is the same
+    // (silent zero-vacancy completion); the errorMessage distinguishes them.
+    if (usedClaudeFallback && rawVacancies.length === 0) {
+      const failureReason = categorizeFailure({
+        errorMessage: "",
+        context: "claude_fallback_empty",
+      });
+      await prisma.vacancyScan.update({
+        where: { id: scanId },
+        data: {
+          status: "completed_partial",
+          vacancyCount: 0,
+          errorMessage: claudeFallbackMessage,
+          failureReason,
+          completedAt: new Date(),
+        },
+      });
+      finalStatus = "completed_partial";
+      finalFailureReason = failureReason;
+      finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
+      return;
     }
 
     // Step 5: Post-process
@@ -171,10 +261,16 @@ export async function runScan(scanId: string): Promise<void> {
             status: "completed_partial",
             vacancyCount: 0,
             errorMessage: `Skipped: statewide board returned ${rawVacancies.length} vacancies but ${withoutEmployer} lack employer info (cannot attribute to district)`,
+            failureReason: categorizeFailure({
+              errorMessage: "",
+              context: "statewide_unattributable",
+            }),
             completedAt: new Date(),
           },
         });
-        await markDistrictScanSuccess(scan.district.leaid);
+        finalStatus = "completed_partial";
+        finalFailureReason = "statewide_unattributable";
+        finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
         return;
       }
 
@@ -216,7 +312,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      await markDistrictScanSuccess(scan.district.leaid);
+      finalStatus = "completed";
+      finalVacancyCount = result.vacancyCount;
+      finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
 
       // Redistribute remaining jobs to other districts in the background
       // — but ONLY if the URL is properly scoped (has applitrackclient param)
@@ -250,10 +348,16 @@ export async function runScan(scanId: string): Promise<void> {
               status: "completed_partial",
               vacancyCount: 0,
               errorMessage: `Skipped: ${rawVacancies.length} vacancies looks like a regional aggregator (enrollment: ${enrollment}, ratio: ${ratio.toFixed(2)})`,
+              failureReason: categorizeFailure({
+                errorMessage: "",
+                context: "enrollment_ratio_skip",
+              }),
               completedAt: new Date(),
             },
           });
-          await markDistrictScanSuccess(scan.district.leaid);
+          finalStatus = "completed_partial";
+          finalFailureReason = "enrollment_ratio_skip";
+          finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
           return;
         }
       }
@@ -281,7 +385,9 @@ export async function runScan(scanId: string): Promise<void> {
           completedAt: new Date(),
         },
       });
-      await markDistrictScanSuccess(scan.district.leaid);
+      finalStatus = "completed";
+      finalVacancyCount = result.vacancyCount;
+      finalConsecutiveFailures = await markDistrictScanSuccess(scan.district.leaid);
     }
   } catch (error) {
     const errorMessage =
@@ -290,25 +396,49 @@ export async function runScan(scanId: string): Promise<void> {
     console.error(`[scan-runner] Scan ${scanId} failed:`, errorMessage);
 
     try {
+      const failureReason = categorizeFailure({
+        errorMessage,
+        context: "thrown_error",
+      });
+      // Capture outcome state BEFORE the DB write so the finally-block log
+      // still records status="failed" if the update itself throws (double-
+      // failure path). Otherwise the log would emit status="unknown" for a
+      // scan that unambiguously failed.
+      finalStatus = "failed";
+      finalFailureReason = failureReason;
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
           status: "failed",
           errorMessage,
+          failureReason,
           completedAt: new Date(),
         },
       });
       if (scan?.district?.leaid) {
-        await markDistrictScanFailure(scan.district.leaid);
+        finalConsecutiveFailures = await markDistrictScanFailure(scan.district.leaid, failureReason);
       }
     } catch (updateError) {
       console.error(
         `[scan-runner] Failed to update scan ${scanId} status:`,
-        updateError
+        updateError,
       );
     }
   } finally {
     clearTimeout(timeoutId);
+    console.log(
+      JSON.stringify({
+        event: "vacancy_scan_outcome",
+        leaid: scan?.district.leaid ?? null,
+        platform: detectedPlatform,
+        status: finalStatus,
+        failure_reason: finalFailureReason,
+        vacancy_count: finalVacancyCount,
+        duration_ms: Date.now() - scanStartMs,
+        was_first_attempt: !hadPriorCompletedScan,
+        consecutive_failures_after: finalConsecutiveFailures,
+      }),
+    );
   }
 }
 

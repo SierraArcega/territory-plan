@@ -7,11 +7,12 @@ export interface ColumnDef {
   group: string;
   isDefault: boolean;
   filterType: "text" | "enum" | "number" | "boolean" | "date" | "tags" | "relation";
-  enumValues?: string[];
+  enumValues?: Array<string | { value: string; label: string }>;
   relationSource?: string; // intentionally wide per spec (existing districtColumns uses "tags" | "plans")
   width?: number;    // explicit column width in px (applied as min-width + max-width)
   editable?: boolean;
   sortable?: boolean; // defaults to true; set false to disable sorting
+  isFilterOnly?: boolean; // virtual column — appears in filter picker but never rendered as a row cell
 }
 
 export type SortRule = {

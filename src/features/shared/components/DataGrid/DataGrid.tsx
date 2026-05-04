@@ -131,9 +131,10 @@ export function DataGrid({
 
   // ---- Build TanStack columns ----
   const columns = useMemo<TanStackColumnDef<Record<string, unknown>>[]>(() => {
-    const cols: TanStackColumnDef<Record<string, unknown>>[] = visibleColumns.map((key) => {
+    const cols: TanStackColumnDef<Record<string, unknown>>[] = visibleColumns.flatMap((key) => {
       const colDef = columnDefs.find((c) => c.key === key);
-      return {
+      if (colDef?.isFilterOnly) return []; // never render filter-only columns
+      return [{
         id: key,
         accessorFn: (row: Record<string, unknown>) => row[key],
         header: () => resolveLabel(key),
@@ -145,7 +146,7 @@ export function DataGrid({
           }
           return renderCell(value, key, colDef);
         },
-      };
+      }];
     });
 
     // Prepend expand column
