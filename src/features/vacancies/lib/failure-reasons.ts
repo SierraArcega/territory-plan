@@ -17,15 +17,24 @@ const CONTEXT_MAP: Partial<Record<FailureContext, VacancyFailureReason>> = {
 };
 
 // Order matters: first match wins. More-specific patterns precede more-generic ones.
+// Digit tokens use \b boundaries so "took 500ms" doesn't match http_5xx.
+// Bare ambiguous English words ("gone", "network") were intentionally NOT
+// included — "410 Gone" is caught by the \b4\d\d\b digit, and the network
+// alternatives (econnrefused, enotfound, fetch failed, getaddrinfo) cover
+// the real failure modes without false-matching phrases like "social network".
+//
+// Note: `parser_empty` is reserved in the schema for a future detection path
+// (parser ran cleanly but page format changed) and is intentionally not
+// reachable from this helper today — see the design spec.
 const PATTERNS: Array<{ regex: RegExp; reason: VacancyFailureReason }> = [
-  { regex: /timed out|aborted|abort/i, reason: "scan_timeout" },
+  { regex: /timed out|abort/i, reason: "scan_timeout" },
   { regex: /anthropic|claude api/i, reason: "claude_fallback_failed" },
   { regex: /statewide board returned/i, reason: "statewide_unattributable" },
   { regex: /regional aggregator/i, reason: "enrollment_ratio_skip" },
   { regex: /no job board url/i, reason: "no_job_board_url" },
-  { regex: /4\d\d|not found|forbidden|gone/i, reason: "http_4xx" },
-  { regex: /5\d\d|server error|bad gateway|service unavailable/i, reason: "http_5xx" },
-  { regex: /econnrefused|enotfound|network|fetch failed|getaddrinfo/i, reason: "network_timeout" },
+  { regex: /\b4\d\d\b|\bnot found\b|\bforbidden\b/i, reason: "http_4xx" },
+  { regex: /\b5\d\d\b|\bserver error\b|\bbad gateway\b|\bservice unavailable\b/i, reason: "http_5xx" },
+  { regex: /econnrefused|enotfound|fetch failed|getaddrinfo/i, reason: "network_timeout" },
 ];
 
 export function categorizeFailure(args: {

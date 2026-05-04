@@ -62,3 +62,16 @@ describe("categorizeFailure — first-match-wins ordering", () => {
     ).toBe("claude_fallback_failed");
   });
 });
+
+describe("categorizeFailure — bounded patterns reject numeric false-positives", () => {
+  it.each([
+    ["took 500ms to load", "unknown_error"],
+    ["processed 4000 records", "unknown_error"],
+    ["1500 items found", "unknown_error"],
+    ["port 4444 unreachable", "unknown_error"],
+    ["long gone session", "unknown_error"],
+    ["social network failure", "unknown_error"],
+  ] as const)("%s -> %s", (errorMessage, expected) => {
+    expect(categorizeFailure({ errorMessage, context: "thrown_error" })).toBe(expected);
+  });
+});
