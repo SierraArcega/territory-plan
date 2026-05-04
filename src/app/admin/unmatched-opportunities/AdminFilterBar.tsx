@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { ColumnDef } from "@/features/shared/components/DataGrid/types";
 import type { FilterRule } from "@/features/shared/components/DataGrid/types";
@@ -103,13 +103,25 @@ function Dropdown({
   onChange: (value: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState({ top: -9999, left: -9999, width: 0 });
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
 
+  // Show typeahead only when there are enough options to make scrolling painful.
+  const showSearch = options.length > 7;
+
+  const filteredOptions = useMemo(() => {
+    if (!search) return options;
+    const q = search.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, search]);
+
   const openDropdown = () => {
+    setSearch("");
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
@@ -137,6 +149,12 @@ function Dropdown({
       document.removeEventListener("keydown", handleKey);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && showSearch) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [isOpen, showSearch]);
 
   return (
     <>
@@ -168,24 +186,40 @@ function Dropdown({
           className="fixed z-[9999] bg-white rounded-xl shadow-xl border border-[#D4CFE2] max-h-60 overflow-y-auto py-1"
           style={{ top: pos.top, left: pos.left, width: Math.max(pos.width, 180) }}
         >
-          {options.map((opt) => {
-            const isSelected = value === opt.value;
-            return (
-              <li
-                key={opt.value}
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                  isSelected
-                    ? "bg-[#F7F5FA] font-medium text-[#403770]"
-                    : "text-[#403770] hover:bg-[#EFEDF5]"
-                }`}
-              >
-                {opt.label}
-              </li>
-            );
-          })}
+          {showSearch && (
+            <li className="sticky top-0 bg-white px-2 pt-1 pb-1.5 border-b border-[#E2DEEC]">
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full text-sm text-[#403770] border border-[#C2BBD4] rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#403770]/30 focus:border-[#403770] placeholder:text-[#A69DC0]"
+              />
+            </li>
+          )}
+          {filteredOptions.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-[#A69DC0]">No matches</li>
+          ) : (
+            filteredOptions.map((opt) => {
+              const isSelected = value === opt.value;
+              return (
+                <li
+                  key={opt.value}
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                  className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                    isSelected
+                      ? "bg-[#F7F5FA] font-medium text-[#403770]"
+                      : "text-[#403770] hover:bg-[#EFEDF5]"
+                  }`}
+                >
+                  {opt.label}
+                </li>
+              );
+            })
+          )}
         </ul>,
         document.body
       )}
