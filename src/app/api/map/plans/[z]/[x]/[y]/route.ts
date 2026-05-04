@@ -23,9 +23,65 @@ export async function GET(
     // Zoom-aware simplification (matches /api/tiles)
     const simplifyTolerance = zoom < 7 ? 0.01 : zoom < 11 ? 0.005 : 0.001;
 
-    // Plan filter parsing — added in Task 4.
-    const planFilters = "";
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+    const fiscalYearRaw = searchParams.get("fiscalYear");
+    const planId = searchParams.get("planId");
+    const planIdsParam = searchParams.get("planIds");
+    const ownerIdsParam = searchParams.get("ownerIds");
+
+    const conditions: string[] = [];
     const filterParams: (string | number)[] = [];
+    // z/x/y consume $1/$2/$3, so filter placeholders start at $4.
+    const placeholderFor = (val: string | number) => {
+      filterParams.push(val);
+      return `$${3 + filterParams.length}`;
+    };
+
+    if (status) {
+      const statuses = status.split(",").filter(Boolean);
+      if (statuses.length === 1) {
+        conditions.push(`tp.status = ${placeholderFor(statuses[0])}`);
+      } else if (statuses.length > 1) {
+        const ph = statuses.map((s) => placeholderFor(s)).join(",");
+        conditions.push(`tp.status IN (${ph})`);
+      }
+    }
+
+    if (fiscalYearRaw) {
+      const fy = parseInt(fiscalYearRaw, 10);
+      if (isNaN(fy)) {
+        return NextResponse.json(
+          { error: "Invalid fiscalYear format" },
+          { status: 400 }
+        );
+      }
+      conditions.push(`tp.fiscal_year = ${placeholderFor(fy)}`);
+    }
+
+    if (planId) {
+      conditions.push(`tp.id = ${placeholderFor(planId)}`);
+    }
+
+    if (planIdsParam) {
+      const ids = planIdsParam.split(",").filter(Boolean);
+      if (ids.length > 0) {
+        const ph = ids.map((id) => placeholderFor(id)).join(",");
+        conditions.push(`tp.id IN (${ph})`);
+      }
+    }
+
+    if (ownerIdsParam) {
+      const ids = ownerIdsParam.split(",").filter(Boolean);
+      if (ids.length > 0) {
+        const ph = ids.map((id) => placeholderFor(id)).join(",");
+        conditions.push(`tp.owner_id IN (${ph})`);
+      }
+    }
+
+    const planFilters = conditions.length > 0
+      ? "AND " + conditions.join(" AND ")
+      : "";
 
     const query = `
       WITH tile_bounds AS (

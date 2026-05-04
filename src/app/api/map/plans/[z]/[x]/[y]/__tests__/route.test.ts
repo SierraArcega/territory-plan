@@ -126,4 +126,86 @@ describe("GET /api/map/plans/[z]/[x]/[y]", () => {
       expect(queryParams.slice(0, 3)).toEqual([7, 10, 20]);
     });
   });
+
+  describe("filter handling", () => {
+    it("emits no extra WHERE clause when no filters are present", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20");
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(queryParams).toEqual([7, 10, 20]);
+      expect(sql).not.toContain("AND tp.status");
+      expect(sql).not.toContain("AND tp.fiscal_year");
+      expect(sql).not.toContain("AND tp.owner_id");
+      expect(sql).not.toMatch(/AND tp\.id\s*(=|IN)/);
+    });
+
+    it("filters by single status", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", { status: "working" });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toContain("AND tp.status = $4");
+      expect(queryParams).toEqual([7, 10, 20, "working"]);
+    });
+
+    it("filters by multiple statuses with IN clause", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", { status: "working,planning" });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toMatch(/AND tp\.status IN \(\$4,\$5\)/);
+      expect(queryParams).toEqual([7, 10, 20, "working", "planning"]);
+    });
+
+    it("returns 400 for non-numeric fiscalYear", async () => {
+      const res = await callGET("7", "10", "20", { fiscalYear: "abc" });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("Invalid fiscalYear format");
+    });
+
+    it("filters by integer fiscalYear", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", { fiscalYear: "2026" });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toContain("AND tp.fiscal_year = $4");
+      expect(queryParams).toEqual([7, 10, 20, 2026]);
+    });
+
+    it("filters by single planId param (legacy compat)", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", { planId: "plan-uuid-1" });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toContain("AND tp.id = $4");
+      expect(queryParams).toEqual([7, 10, 20, "plan-uuid-1"]);
+    });
+
+    it("filters by planIds list with IN clause", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", { planIds: "p1,p2,p3" });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toMatch(/AND tp\.id IN \(\$4,\$5,\$6\)/);
+      expect(queryParams).toEqual([7, 10, 20, "p1", "p2", "p3"]);
+    });
+
+    it("filters by ownerIds list with IN clause", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", { ownerIds: "u1,u2" });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toMatch(/AND tp\.owner_id IN \(\$4,\$5\)/);
+      expect(queryParams).toEqual([7, 10, 20, "u1", "u2"]);
+    });
+
+    it("combines multiple filters with AND", async () => {
+      mockQuery.mockResolvedValue({ rows: [{ mvt: null }] });
+      await callGET("7", "10", "20", {
+        status: "working",
+        fiscalYear: "2026",
+        ownerIds: "u1",
+      });
+      const [sql, queryParams] = mockQuery.mock.calls[0];
+      expect(sql).toContain("AND tp.status = $4");
+      expect(sql).toContain("AND tp.fiscal_year = $5");
+      expect(sql).toContain("AND tp.owner_id IN ($6)");
+      expect(queryParams).toEqual([7, 10, 20, "working", 2026, "u1"]);
+    });
+  });
 });
