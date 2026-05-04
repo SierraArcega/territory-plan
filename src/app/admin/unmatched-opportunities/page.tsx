@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1182,10 +1182,13 @@ function DistrictSearchModal({
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function UnmatchedOpportunitiesPage() {
+function UnmatchedOpportunitiesContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
+  // Mount-only seed: reading ?rep= here is intentional. We do NOT sync
+  // searchParams -> filters via useEffect because that would clobber chips
+  // the user adds via the filter bar after arriving on the page.
   const initialRepId = searchParams?.get("rep") ?? null;
 
   const { data: users } = useUsers();
@@ -1502,7 +1505,7 @@ export default function UnmatchedOpportunitiesPage() {
               if (removed?.column === "rep") {
                 const url = new URL(window.location.href);
                 url.searchParams.delete("rep");
-                router.replace(url.pathname + (url.search ? url.search : ""));
+                router.replace(url.pathname + url.search);
               }
               return prev.filter((_, idx) => idx !== i);
             });
@@ -1602,5 +1605,13 @@ export default function UnmatchedOpportunitiesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function UnmatchedOpportunitiesPage() {
+  return (
+    <Suspense fallback={null}>
+      <UnmatchedOpportunitiesContent />
+    </Suspense>
   );
 }
