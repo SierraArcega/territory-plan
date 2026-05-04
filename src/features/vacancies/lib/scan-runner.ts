@@ -122,6 +122,7 @@ export async function runScan(scanId: string): Promise<void> {
     // Step 4: Get parser and run it
     const parser = getParser(platform);
     let rawVacancies: RawVacancy[];
+    let usedClaudeFallback = false;
     const isServerless = !!process.env.VERCEL;
 
     // Unknown platforms fall back to Playwright locally or Claude on Vercel.
@@ -137,9 +138,11 @@ export async function runScan(scanId: string): Promise<void> {
       if (process.env.ANTHROPIC_API_KEY) {
         console.log(`[scan-runner] Serverless env, using Claude fallback for "${platform}"...`);
         rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+        usedClaudeFallback = true;
       } else {
         console.log(`[scan-runner] Serverless env, no ANTHROPIC_API_KEY — cannot parse "${platform}"`);
         rawVacancies = [];
+        usedClaudeFallback = true;
       }
     } else {
       // Local / self-hosted: try Playwright first (free, no API cost),
@@ -150,12 +153,35 @@ export async function runScan(scanId: string): Promise<void> {
       if (rawVacancies.length === 0 && process.env.ANTHROPIC_API_KEY) {
         console.log(`[scan-runner] Playwright found nothing, trying Claude fallback...`);
         rawVacancies = await parseWithClaude(scan.district.jobBoardUrl);
+        usedClaudeFallback = true;
       }
     }
 
     // Check if aborted
     if (timeoutController.signal.aborted) {
       throw new Error("Scan timed out");
+    }
+
+    // B1: Claude-fallback returning [] is the dominant silent-failure mode.
+    // Mark as completed_partial + claude_fallback_failed AND increment the
+    // district failure counter so these districts become eligible for the
+    // future failure-reset job.
+    if (usedClaudeFallback && rawVacancies.length === 0) {
+      await prisma.vacancyScan.update({
+        where: { id: scanId },
+        data: {
+          status: "completed_partial",
+          vacancyCount: 0,
+          errorMessage: "Claude fallback returned no vacancies",
+          failureReason: categorizeFailure({
+            errorMessage: "",
+            context: "claude_fallback_empty",
+          }),
+          completedAt: new Date(),
+        },
+      });
+      await markDistrictScanFailure(scan.district.leaid);
+      return;
     }
 
     // Step 5: Post-process
