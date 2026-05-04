@@ -100,4 +100,15 @@ export const unmatchedOpportunityColumns: ColumnDef[] = [
     filterType: "number",
     width: 120,
   },
+
+  // ---- Filters only (virtual — not a row field) ----
+  {
+    key: "rep",
+    label: "Rep",
+    group: "Filters",
+    isDefault: false,
+    isFilterOnly: true,
+    filterType: "enum",
+    enumValues: [], // populated at runtime from useUsers() data
+  },
 ];
