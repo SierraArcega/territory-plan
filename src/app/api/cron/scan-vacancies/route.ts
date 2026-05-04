@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import PQueue from "p-queue";
+import type { VacancyFailureReason } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { detectPlatform, isStatewideBoard, loadSharedJobBoardUrls, normalizeJobBoardKey } from "@/features/vacancies/lib/platform-detector";
 import { runScan } from "@/features/vacancies/lib/scan-runner";
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
       leaid: string;
       name: string;
       status: string;
-      failureReason: string | null;
+      failureReason: VacancyFailureReason | null;
       statewide: boolean;
     }[] = [];
 
