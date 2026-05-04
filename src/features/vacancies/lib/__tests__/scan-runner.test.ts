@@ -256,3 +256,72 @@ describe("runScan completed_partial paths write failureReason", () => {
     }
   });
 });
+
+describe("runScan tarpit-admission log", () => {
+  it("logs vacancy_tarpit_admission when consecutive_failures hits 5", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Simulate the fifth failure: districtUpdate returns counter = 5
+    districtUpdate.mockResolvedValue({
+      leaid: "0100001",
+      name: "Test District",
+      jobBoardPlatform: "applitrack",
+      jobBoardUrl: "https://example.applitrack.com/onlineapp",
+      vacancyConsecutiveFailures: 5,
+    });
+
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("Request failed with status 404");
+    });
+
+    await runScan("scan_abc");
+
+    const tarpitLog = consoleLogSpy.mock.calls.find((args) => {
+      const first = args[0];
+      if (typeof first !== "string") return false;
+      try {
+        const parsed = JSON.parse(first);
+        return parsed.event === "vacancy_tarpit_admission";
+      } catch {
+        return false;
+      }
+    });
+    expect(tarpitLog).toBeDefined();
+    const parsed = JSON.parse(tarpitLog![0] as string);
+    expect(parsed).toMatchObject({
+      event: "vacancy_tarpit_admission",
+      leaid: "0100001",
+      name: "Test District",
+      platform: "applitrack",
+      last_failure_reason: "http_4xx",
+    });
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it("does NOT log vacancy_tarpit_admission when counter is 4 or 6", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    districtUpdate.mockResolvedValue({
+      leaid: "0100001",
+      name: "Test District",
+      jobBoardPlatform: "applitrack",
+      jobBoardUrl: "https://example.applitrack.com/onlineapp",
+      vacancyConsecutiveFailures: 4,
+    });
+
+    getParserMock.mockImplementation(() => async () => {
+      throw new Error("boom");
+    });
+
+    await runScan("scan_abc");
+
+    const tarpitLog = consoleLogSpy.mock.calls.find((args) => {
+      const first = args[0];
+      return typeof first === "string" && first.includes("vacancy_tarpit_admission");
+    });
+    expect(tarpitLog).toBeUndefined();
+
+    consoleLogSpy.mockRestore();
+  });
+});

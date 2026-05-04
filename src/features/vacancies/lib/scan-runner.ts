@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type VacancyFailureReason } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { detectPlatform, isStatewideBoardAsync, getAppliTrackInstance } from "./platform-detector";
 import { processVacancies } from "./post-processor";
@@ -11,21 +11,47 @@ import type { RawVacancy } from "./parsers/types";
 /** Maximum time (ms) a single scan is allowed to run before timing out. */
 const SCAN_TIMEOUT_MS = 180_000; // 3 min for state-wide redistribution
 
-async function markDistrictScanSuccess(leaid: string) {
+async function markDistrictScanSuccess(leaid: string): Promise<number> {
   await prisma.district.update({
     where: { leaid },
     data: { vacancyConsecutiveFailures: 0, vacancyLastFailureAt: null },
   });
+  return 0;
 }
 
-async function markDistrictScanFailure(leaid: string) {
-  await prisma.district.update({
+async function markDistrictScanFailure(
+  leaid: string,
+  failureReason: VacancyFailureReason | null = null,
+): Promise<number> {
+  const updated = await prisma.district.update({
     where: { leaid },
     data: {
       vacancyConsecutiveFailures: { increment: 1 },
       vacancyLastFailureAt: new Date(),
     },
+    select: {
+      leaid: true,
+      name: true,
+      jobBoardPlatform: true,
+      jobBoardUrl: true,
+      vacancyConsecutiveFailures: true,
+    },
   });
+
+  if (updated.vacancyConsecutiveFailures === 5) {
+    console.log(
+      JSON.stringify({
+        event: "vacancy_tarpit_admission",
+        leaid: updated.leaid,
+        name: updated.name,
+        platform: updated.jobBoardPlatform,
+        job_board_url: updated.jobBoardUrl,
+        last_failure_reason: failureReason,
+      }),
+    );
+  }
+
+  return updated.vacancyConsecutiveFailures;
 }
 
 /**
@@ -80,19 +106,20 @@ export async function runScan(scanId: string): Promise<void> {
     }
 
     if (!scan.district.jobBoardUrl) {
+      const failureReason = categorizeFailure({
+        errorMessage: "",
+        context: "no_job_board_url",
+      });
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
           status: "failed",
           errorMessage: "District has no job board URL",
-          failureReason: categorizeFailure({
-            errorMessage: "",
-            context: "no_job_board_url",
-          }),
+          failureReason,
           completedAt: new Date(),
         },
       });
-      await markDistrictScanFailure(scan.district.leaid);
+      await markDistrictScanFailure(scan.district.leaid, failureReason);
       return;
     }
 
@@ -171,20 +198,21 @@ export async function runScan(scanId: string): Promise<void> {
     // case — Claude wasn't actually called, but the symptom is the same
     // (silent zero-vacancy completion); the errorMessage distinguishes them.
     if (usedClaudeFallback && rawVacancies.length === 0) {
+      const failureReason = categorizeFailure({
+        errorMessage: "",
+        context: "claude_fallback_empty",
+      });
       await prisma.vacancyScan.update({
         where: { id: scanId },
         data: {
           status: "completed_partial",
           vacancyCount: 0,
           errorMessage: claudeFallbackMessage,
-          failureReason: categorizeFailure({
-            errorMessage: "",
-            context: "claude_fallback_empty",
-          }),
+          failureReason,
           completedAt: new Date(),
         },
       });
-      await markDistrictScanFailure(scan.district.leaid);
+      await markDistrictScanFailure(scan.district.leaid, failureReason);
       return;
     }
 
@@ -347,7 +375,7 @@ export async function runScan(scanId: string): Promise<void> {
         },
       });
       if (scan?.district?.leaid) {
-        await markDistrictScanFailure(scan.district.leaid);
+        await markDistrictScanFailure(scan.district.leaid, failureReason);
       }
     } catch (updateError) {
       console.error(
