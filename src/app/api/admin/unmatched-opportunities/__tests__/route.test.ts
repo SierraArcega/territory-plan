@@ -53,6 +53,7 @@ describe("GET /api/admin/unmatched-opportunities — rep filter", () => {
     expect(prisma.opportunity.findMany).toHaveBeenCalledWith({
       where: { salesRepEmail: "monica@fullmindlearning.com" },
       select: { id: true },
+      take: 5000,
     });
     const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0][0];
     expect(findManyCall.where).toMatchObject({ id: { in: ["175922", "175923"] } });
@@ -95,6 +96,18 @@ describe("GET /api/admin/unmatched-opportunities — rep filter", () => {
       resolved: false,
       id: { in: ["175922"] },
     });
+  });
+
+  it("returns where.id = { in: [] } when rep has zero opportunities", async () => {
+    vi.mocked(prisma.userProfile.findUnique).mockResolvedValue({
+      email: "newhire@fullmindlearning.com",
+    } as never);
+    // opportunity.findMany defaults to [] via beforeEach
+
+    await GET(makeRequest("rep=619f3009-0966-47ec-a09a-5f406d1da596"));
+
+    const findManyCall = vi.mocked(prisma.unmatchedOpportunity.findMany).mock.calls[0][0];
+    expect(findManyCall.where).toMatchObject({ id: { in: [] } });
   });
 
   it("ignores rep param when not provided (regression guard)", async () => {

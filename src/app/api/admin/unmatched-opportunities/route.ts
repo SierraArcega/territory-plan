@@ -93,9 +93,13 @@ export async function GET(request: NextRequest) {
           pagination: { page, pageSize, total: 0 },
         });
       }
+      // Bounded by a single rep's lifetime opportunity count (~hundreds typical).
+      // The 5000 cap is a tripwire: if a rep ever exceeds it, the chip will under-count
+      // and we should add an index on opportunities.sales_rep_email + tighten this.
       const oppRows = await prisma.opportunity.findMany({
         where: { salesRepEmail: profile.email },
         select: { id: true },
+        take: 5000,
       });
       where.id = { in: oppRows.map((o) => o.id) };
     }
