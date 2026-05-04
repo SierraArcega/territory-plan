@@ -46,7 +46,7 @@ jobs:
 
           ## Resume prompt for a fresh Claude Code session
 
-          Paste the contents of `docs/superpowers/notes/2026-05-04-pr2-resume-prompt.md` (in the `feat/map-plans-mvt-backend` worktree) into a new Claude session. It is self-contained — no need to reference prior conversation history.
+          Paste the contents of [`Docs/superpowers/notes/2026-05-04-pr2-resume-prompt.md`](../blob/main/Docs/superpowers/notes/2026-05-04-pr2-resume-prompt.md) into a new Claude session. It is self-contained — no need to reference prior conversation history.
 
           ## What PR 2 does, in one paragraph
 
@@ -57,7 +57,7 @@ jobs:
 
           ## References
 
-          - Plan: `docs/superpowers/plans/2026-05-04-map-plans-vector-tiles.md` (Tasks 9 onward)
+          - Plan: `Docs/superpowers/plans/2026-05-04-map-plans-vector-tiles.md` (Tasks 9 onward)
           - Spec: `Docs/superpowers/specs/2026-05-01-map-plans-vector-tiles-design.md`
 
           Close this issue once PR 2 is merged.
@@ -84,7 +84,7 @@ jobs:
 
           ## References
 
-          - Plan: `docs/superpowers/plans/2026-05-04-map-plans-vector-tiles.md`
+          - Plan: `Docs/superpowers/plans/2026-05-04-map-plans-vector-tiles.md`
           - Spec: `Docs/superpowers/specs/2026-05-01-map-plans-vector-tiles-design.md`
 
           Close this issue once PR 3 is merged.
