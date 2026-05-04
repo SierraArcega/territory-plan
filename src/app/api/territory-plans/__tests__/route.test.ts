@@ -9,6 +9,7 @@ vi.mock("@/lib/supabase/server", () => ({
 // Mock auto-tags and rollup-sync (used by district routes)
 vi.mock("@/features/shared/lib/auto-tags", () => ({
   syncClassificationTagsForDistrict: vi.fn().mockResolvedValue(undefined),
+  syncMissingRenewalOppTagForDistrict: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/features/plans/lib/rollup-sync", () => ({
