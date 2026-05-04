@@ -50,6 +50,13 @@ export async function GET(request: NextRequest) {
     const staleDate = new Date();
     staleDate.setDate(staleDate.getDate() - staleDays);
 
+    const tarpitSize = await prisma.district.count({
+      where: {
+        jobBoardUrl: { not: null },
+        vacancyConsecutiveFailures: { gte: 5 },
+      },
+    });
+
     // Warm shared job-board cache before grouping
     await loadSharedJobBoardUrls();
 
@@ -149,7 +156,13 @@ export async function GET(request: NextRequest) {
 
     // Run scans in parallel with capped concurrency
     const batchId = crypto.randomUUID();
-    const results: { leaid: string; name: string; status: string; statewide: boolean }[] = [];
+    const results: {
+      leaid: string;
+      name: string;
+      status: string;
+      failureReason: string | null;
+      statewide: boolean;
+    }[] = [];
 
     const batch = orderedGroups.slice(0, SCANS_PER_RUN);
     const queue = new PQueue({ concurrency: CONCURRENCY });
@@ -178,7 +191,13 @@ export async function GET(request: NextRequest) {
 
         const result = await prisma.vacancyScan.findUnique({
           where: { id: scan.id },
-          select: { status: true, platform: true, startedAt: true, completedAt: true },
+          select: {
+            status: true,
+            platform: true,
+            startedAt: true,
+            completedAt: true,
+            failureReason: true,
+          },
         });
 
         const isStatewide = isStatewideBoard(group.platform, group.url);
@@ -203,6 +222,7 @@ export async function GET(request: NextRequest) {
           leaid: representative.leaid,
           name: representative.name,
           status: result?.status ?? "unknown",
+          failureReason: result?.failureReason ?? null,
           statewide: isStatewide,
         });
       })
@@ -217,6 +237,26 @@ export async function GET(request: NextRequest) {
     const neverScannedGroupsRemaining = orderedGroups
       .slice(batch.length)
       .filter((g) => g.hasNeverScanned).length;
+
+    const failureReasonMix = results.reduce<Record<string, number>>((acc, r) => {
+      if (r.failureReason) acc[r.failureReason] = (acc[r.failureReason] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    console.log(
+      JSON.stringify({
+        event: "vacancy_cron_summary",
+        batch_id: batchId,
+        total_stale: staleDistricts.length,
+        unique_urls: urlGroups.size,
+        scans_run: batch.length,
+        districts_processed: districtsProcessed,
+        never_scanned_groups_remaining: neverScannedGroupsRemaining,
+        sibling_coverage_created: siblingCoverageCreated,
+        tarpit_size_at_start: tarpitSize,
+        failure_reason_mix: failureReasonMix,
+      }),
+    );
 
     return NextResponse.json({
       batchId,
