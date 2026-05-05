@@ -334,9 +334,26 @@ export interface PlanFeatureRow {
 }
 
 /**
- * Fetches plan district polygon GeoJSON.
- * Not bounds-limited — plans are loaded globally since there are relatively few.
- * Returns GeoJSON FeatureCollection with Polygon/MultiPolygon geometry.
+ * Stable URL pattern for the MapLibre vector source. Filters are baked into
+ * the query string so MapLibre can keep its tile cache stable across pans/zooms.
+ * The `{z}/{x}/{y}` placeholders are filled in by MapLibre at fetch time.
+ */
+export function buildMapPlansTileUrl(filters: PlanLayerFilter): string {
+  const params = new URLSearchParams();
+  if (filters.status?.length) params.set("status", filters.status.join(","));
+  if (filters.fiscalYear) params.set("fiscalYear", String(filters.fiscalYear));
+  if (filters.planIds?.length) params.set("planIds", filters.planIds.join(","));
+  if (filters.ownerIds?.length) params.set("ownerIds", filters.ownerIds.join(","));
+  const qs = params.toString();
+  return qs
+    ? `/api/map/plans/{z}/{x}/{y}.mvt?${qs}`
+    : `/api/map/plans/{z}/{x}/{y}.mvt`;
+}
+
+/**
+ * Fetches the lightweight plan-district list (no geometry) used by the
+ * PlansTab sidebar and the cross-filter. The map itself uses MVT vector
+ * tiles via `buildMapPlansTileUrl` — not this hook.
  */
 export function useMapPlans(
   filters: PlanLayerFilter,
@@ -353,7 +370,7 @@ export function useMapPlans(
   return useQuery({
     queryKey: ["mapPlans", queryString],
     queryFn: () =>
-      fetchJson<FeatureCollection<Geometry>>(`${API_BASE}/map/plans${queryString}`),
+      fetchJson<PlanFeatureRow[]>(`${API_BASE}/map/plans/list${queryString}`),
     enabled,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
