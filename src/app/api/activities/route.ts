@@ -48,6 +48,9 @@ export async function GET(request: NextRequest) {
     const dealKinds = readMulti(searchParams, "dealKinds");
     const districtLeaids = readMulti(searchParams, "districtLeaids");
     const attendeeIds = readMulti(searchParams, "attendeeIds");
+    const contactIds = readMulti(searchParams, "contactIds")
+      .map((s) => Number(s))
+      .filter((n) => Number.isFinite(n));
     const inPersonValues = readMulti(searchParams, "inPerson");
 
     const planId = searchParams.get("planId");
@@ -56,12 +59,23 @@ export async function GET(request: NextRequest) {
     const hasUnlinkedDistricts = searchParams.get("hasUnlinkedDistricts") === "true";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const startDateFrom = searchParams.get("startDateFrom");
+    const startDateTo = searchParams.get("startDateTo");
     const unscheduled = searchParams.get("unscheduled") === "true";
     const search = searchParams.get("search");
     const source = searchParams.get("source");
     const ownerId = searchParams.get("ownerId"); // specific user ID, "all", or null (defaults to current user)
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
+    // Table-view sort. The whitelist mirrors ActivitySortKey in the
+    // shared types — anything else falls through to the default (date desc).
+    const ALLOWED_SORT_KEYS = ["date", "type", "title", "district", "owner", "status"] as const;
+    type SortKey = typeof ALLOWED_SORT_KEYS[number];
+    const sortByRaw = searchParams.get("sortBy");
+    const sortBy: SortKey = (ALLOWED_SORT_KEYS as readonly string[]).includes(sortByRaw ?? "")
+      ? (sortByRaw as SortKey)
+      : "date";
+    const sortDir: "asc" | "desc" = searchParams.get("sortDir") === "asc" ? "asc" : "desc";
 
     // Build where clause
     // When filtering by planId, show ALL activities in that plan (not just the user's)
@@ -86,9 +100,19 @@ export async function GET(request: NextRequest) {
       where.createdByUserId = user.id;
     }
 
-    // Search by title
+    // Search across title, notes, and outcome (case-insensitive contains).
+    // OR'd into the where so a row matching ANY of the three fields appears.
     if (search) {
-      where.title = { contains: search, mode: "insensitive" };
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+        { outcome: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Filter by contact id list (Table view).
+    if (contactIds.length > 0) {
+      where.contacts = { some: { contactId: { in: contactIds } } };
     }
 
     // Filter by category (maps each category to its types). When both
@@ -188,6 +212,54 @@ export async function GET(request: NextRequest) {
         { endDate: { lte: new Date(endDate) } },
         { endDate: null, startDate: { not: null, lte: new Date(endDate) } },
       ];
+    } else if (startDateFrom || startDateTo) {
+      // Table view sends a free-form startDate range (either bound may be
+      // missing). Activities must have a startDate within the bounds.
+      const range: Prisma.DateTimeNullableFilter = { not: null };
+      if (startDateFrom) range.gte = new Date(startDateFrom);
+      if (startDateTo) {
+        // Inclusive end-of-day for the To bound so `2026-05-05` includes the
+        // full day in the user's timezone-relative view.
+        const to = new Date(startDateTo);
+        to.setHours(23, 59, 59, 999);
+        range.lte = to;
+      }
+      where.startDate = range;
+    }
+
+    // Resolve orderBy from sortBy/sortDir.
+    //
+    // - `district` falls back to title: Prisma can't natively orderBy on a
+    //   list relation's `name` field and our schema has no denormalized
+    //   first-district column. The header still reads "District" but the
+    //   rows order alphabetically by activity title under the hood.
+    // - `owner` falls back to `createdByUserId`: Activity carries the FK
+    //   scalar but has no `createdByUser` relation in the schema, so a
+    //   true name-sort would require a denormalized column or post-fetch
+    //   ordering. UUID-sort at least groups same-owner rows together.
+    let orderBy: Prisma.ActivityOrderByWithRelationInput | Prisma.ActivityOrderByWithRelationInput[];
+    switch (sortBy) {
+      case "type":
+        orderBy = [{ type: sortDir }, { startDate: { sort: "desc", nulls: "last" } }];
+        break;
+      case "title":
+        orderBy = [{ title: sortDir }];
+        break;
+      case "status":
+        orderBy = [{ status: sortDir }, { startDate: { sort: "desc", nulls: "last" } }];
+        break;
+      case "owner":
+        orderBy = [{ createdByUserId: sortDir }, { startDate: { sort: "desc", nulls: "last" } }];
+        break;
+      case "district":
+        orderBy = [{ title: sortDir }];
+        break;
+      case "date":
+      default:
+        orderBy = [
+          { startDate: { sort: sortDir, nulls: "last" } },
+          { createdAt: sortDir },
+        ];
     }
 
     const queryStart = Date.now();
@@ -210,7 +282,14 @@ export async function GET(request: NextRequest) {
           status: true,
           source: true,
           outcomeType: true,
-          // Only fetch the IDs and flags we need for list view, not full related objects
+          // Table-view denormalizations: notes/outcome power outcomePreview;
+          // first-district name + first-contact name + owner name avoid an
+          // N+1 in the row renderer. Older calendar views ignore these.
+          notes: true,
+          outcome: true,
+          createdByUserId: true,
+          inPerson: true,
+          createdAt: true,
           plans: {
             select: { planId: true },
           },
@@ -218,7 +297,14 @@ export async function GET(request: NextRequest) {
             select: {
               districtLeaid: true,
               warningDismissed: true,
+              position: true,
+              district: { select: { name: true } },
             },
+            orderBy: { position: "asc" },
+          },
+          contacts: {
+            select: { contact: { select: { name: true } } },
+            take: 1,
           },
           states: {
             select: {
@@ -226,7 +312,7 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { startDate: { sort: "desc", nulls: "last" } },
+        orderBy,
         take: limit,
         skip: offset,
       }),
@@ -258,6 +344,27 @@ export async function GET(request: NextRequest) {
       planDistrictMap.get(pd.planId)!.add(pd.districtLeaid);
     }
 
+    // Batch-fetch owner display names for the Table view's Owner column.
+    // Activity carries `createdByUserId` as a scalar (no relation), so we
+    // resolve names here in a single query rather than per-row.
+    const ownerIds = [
+      ...new Set(
+        activities
+          .map((a) => a.createdByUserId)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    const ownerProfiles = ownerIds.length > 0
+      ? await prisma.userProfile.findMany({
+          where: { id: { in: ownerIds } },
+          select: { id: true, fullName: true, email: true },
+        })
+      : [];
+    const ownerNameById = new Map<string, string>();
+    for (const p of ownerProfiles) {
+      ownerNameById.set(p.id, p.fullName ?? p.email);
+    }
+
     // Transform and filter by computed flags
     const transformed = activities
       .map((activity) => {
@@ -271,6 +378,18 @@ export async function GET(request: NextRequest) {
             planDistrictMap.get(planId)?.has(ad.districtLeaid)
           );
         });
+
+        const firstDistrict = activity.districts[0]?.district?.name ?? null;
+        const firstContact = activity.contacts[0]?.contact?.name ?? null;
+        const ownerFullName = activity.createdByUserId
+          ? ownerNameById.get(activity.createdByUserId) ?? null
+          : null;
+        const previewSource = activity.outcome?.trim() || activity.notes?.trim() || null;
+        const outcomePreview = previewSource
+          ? previewSource.length > 80
+            ? `${previewSource.slice(0, 80)}…`
+            : previewSource
+          : null;
 
         return {
           id: activity.id,
@@ -287,6 +406,14 @@ export async function GET(request: NextRequest) {
           planCount: activity.plans.length,
           districtCount: activity.districts.length,
           stateAbbrevs: activity.states.map((s) => s.state.abbrev),
+          // Table-view denormalizations
+          createdByUserId: activity.createdByUserId,
+          ownerFullName,
+          districtName: firstDistrict,
+          contactName: firstContact,
+          outcomePreview,
+          inPerson: activity.inPerson,
+          createdAt: activity.createdAt.toISOString(),
         };
       })
       .filter((a) => {

@@ -581,6 +581,16 @@ export interface ActivityListItem {
   planCount: number;
   districtCount: number;
   stateAbbrevs: string[];
+  // Owner / display-name denormalization for the Table view. The list
+  // route populates these from a Prisma `include`; older calendar views
+  // ignore them and read names per-row from their own includes.
+  createdByUserId?: string | null;
+  ownerFullName?: string | null;
+  districtName?: string | null;
+  contactName?: string | null;
+  outcomePreview?: string | null;
+  inPerson?: boolean | null;
+  createdAt?: string;
   // Mixmax enrichment fields (populated by Mixmax sync)
   mixmaxSequenceName?: string | null;
   mixmaxSequenceStep?: number | null;
@@ -592,6 +602,9 @@ export interface ActivityListItem {
 export interface ActivitiesResponse {
   activities: ActivityListItem[];
   total: number;
+  // Total matching the base filters before computed-flag filtering. Used by
+  // the Table view's pagination footer + 200+ banner.
+  totalInDb?: number;
 }
 
 // ActivitiesParams is the client-side filter shape sent to GET /api/activities.
@@ -622,6 +635,8 @@ export interface ActivitiesParams {
   owner?: string | string[];
   // Filter to activities that include these user IDs as attendees.
   attendeeIds?: string | string[];
+  // Multi-contact filter — Table view writes the user-picked contacts here.
+  contactIds?: number[] | string[];
   // "yes" → only in-person; "no" → only virtual; both → exclude unset.
   inPerson?: string | string[];
   territory?: string | string[];
@@ -630,6 +645,9 @@ export interface ActivitiesParams {
   search?: string;
   limit?: number;
   offset?: number;
+  // Server-side sort. Default on the route is date desc.
+  sortBy?: "date" | "type" | "title" | "district" | "owner" | "status";
+  sortDir?: "asc" | "desc";
 }
 
 // ===== Deal data layer (Wave 1) =====

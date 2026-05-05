@@ -271,7 +271,19 @@ export async function PATCH(
       address, addressLat, addressLng, inPerson,
       metadata, attendeeUserIds, contactIds, expenses, rating, opportunityIds,
       districts: districtUpdates, // [{leaid, visitDate?, visitEndDate?}]
+      createdByUserId, // owner reassignment — auth gate above already restricts to current owner or admin
     } = body;
+
+    // Validate the new owner exists when reassigning ownership.
+    if (createdByUserId !== undefined && createdByUserId !== null) {
+      const newOwner = await prisma.userProfile.findUnique({
+        where: { id: createdByUserId },
+        select: { id: true },
+      });
+      if (!newOwner) {
+        return NextResponse.json({ error: "invalid_owner" }, { status: 400 });
+      }
+    }
 
     // Validate type if provided — allow keeping the existing type even if it's
     // a legacy value not in the current enum (e.g. customer_check_in)
@@ -402,6 +414,7 @@ export async function PATCH(
         }),
         ...(metadata !== undefined && { metadata: metadata }),
         ...(rating !== undefined && { rating: rating }),
+        ...(createdByUserId !== undefined && { createdByUserId }),
       },
     });
 

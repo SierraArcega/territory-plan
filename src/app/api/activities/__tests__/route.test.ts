@@ -23,7 +23,7 @@ vi.mock("@/lib/prisma", () => ({
     activityPlan: { findFirst: vi.fn() },
     district: { findMany: vi.fn() },
     territoryPlanDistrict: { findMany: vi.fn() },
-    userProfile: { findUnique: vi.fn() },
+    userProfile: { findUnique: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -58,8 +58,19 @@ function makeListActivity(overrides: Record<string, unknown> = {}) {
     status: "planned",
     source: "manual",
     outcomeType: null,
+    notes: null,
+    outcome: null,
+    createdByUserId: "user-1",
+    inPerson: null,
+    createdAt: new Date("2026-02-20T00:00:00Z"),
     plans: [] as { planId: string }[],
-    districts: [] as { districtLeaid: string; warningDismissed: boolean }[],
+    districts: [] as {
+      districtLeaid: string;
+      warningDismissed: boolean;
+      position?: number;
+      district?: { name: string };
+    }[],
+    contacts: [] as { contact: { name: string } }[],
     states: [] as { state: { abbrev: string } }[],
     ...overrides,
   };
@@ -307,6 +318,118 @@ describe("GET /api/activities", () => {
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBe("Failed to fetch activities");
+  });
+
+  it("search matches notes (broadened OR clause)", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({ notes: "discussed pilot" }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?search=pilot");
+    await listActivities(req);
+
+    const where = mockPrisma.activity.findMany.mock.calls[0][0].where;
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: expect.objectContaining({ contains: "pilot" }) }),
+        expect.objectContaining({ notes: expect.objectContaining({ contains: "pilot" }) }),
+        expect.objectContaining({ outcome: expect.objectContaining({ contains: "pilot" }) }),
+      ])
+    );
+  });
+
+  it("?contactIds= filters by contact junction", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?contactIds=1,2");
+    await listActivities(req);
+
+    const where = mockPrisma.activity.findMany.mock.calls[0][0].where;
+    expect(where.contacts).toEqual({ some: { contactId: { in: [1, 2] } } });
+  });
+
+  it("?sortBy=title&sortDir=asc orders by title ascending", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?sortBy=title&sortDir=asc");
+    await listActivities(req);
+
+    const orderBy = mockPrisma.activity.findMany.mock.calls[0][0].orderBy;
+    expect(orderBy).toEqual([{ title: "asc" }]);
+  });
+
+  it("response includes denormalized Table-view fields", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({
+        notes: "Some notes",
+        outcome: null,
+        createdByUserId: "user-1",
+        districts: [
+          {
+            districtLeaid: "1234567",
+            warningDismissed: false,
+            position: 0,
+            district: { name: "Test District" },
+          },
+        ],
+        contacts: [{ contact: { name: "Jane Doe" } }],
+      }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+    mockPrisma.userProfile.findMany.mockResolvedValue([
+      { id: "user-1", fullName: "Sierra A.", email: "sierra@test.com" },
+    ] as never);
+
+    const req = makeRequest("/api/activities");
+    const res = await listActivities(req);
+    const body = await res.json();
+
+    expect(body.activities[0].districtName).toBe("Test District");
+    expect(body.activities[0].contactName).toBe("Jane Doe");
+    expect(body.activities[0].ownerFullName).toBe("Sierra A.");
+    expect(body.activities[0].createdByUserId).toBe("user-1");
+  });
+
+  it("outcomePreview truncates at 80 chars with ellipsis", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    const longText = "a".repeat(120);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({ outcome: longText, notes: null }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities");
+    const res = await listActivities(req);
+    const body = await res.json();
+
+    expect(body.activities[0].outcomePreview).toBe(`${"a".repeat(80)}…`);
+  });
+
+  it("outcomePreview falls back to notes when outcome is empty", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({ outcome: null, notes: "Short note" }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities");
+    const res = await listActivities(req);
+    const body = await res.json();
+
+    expect(body.activities[0].outcomePreview).toBe("Short note");
   });
 });
 
@@ -913,6 +1036,73 @@ describe("PATCH /api/activities/[id]", () => {
     expect(data.nextStep).toBeNull();
     expect(data.followUpDate).toBeNull();
     expect(data.outcomeDisposition).toBeNull();
+  });
+
+  it("allows owner to reassign their own activity to another user", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue({ id: "user-2" } as never);
+    mockPrisma.activity.update.mockResolvedValue({
+      id: "activity-1",
+      title: "Reassigned",
+      createdByUserId: "user-2",
+      updatedAt: new Date("2026-02-23T12:00:00Z"),
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ createdByUserId: "user-2" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = mockPrisma.activity.update.mock.calls[0][0].data;
+    expect(data.createdByUserId).toBe("user-2");
+  });
+
+  it("returns 400 when reassigning to a non-existent user", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue(null as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ createdByUserId: "ghost-user" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("invalid_owner");
+  });
+
+  it("returns 403 when non-owner non-admin attempts to reassign", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockIsAdmin.mockResolvedValueOnce(false);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "other-user",
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ createdByUserId: "user-2" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(403);
   });
 });
 

@@ -51,6 +51,14 @@ export function buildActivitiesQueryString(params: ActivitiesParams): string {
   if (districtLeaids) sp.set("districtLeaids", districtLeaids);
   const attendeeIds = csvParam(params.attendeeIds);
   if (attendeeIds) sp.set("attendeeIds", attendeeIds);
+  const contactIds = csvParam(
+    params.contactIds == null
+      ? undefined
+      : Array.isArray(params.contactIds)
+        ? params.contactIds.map((v) => String(v))
+        : String(params.contactIds)
+  );
+  if (contactIds) sp.set("contactIds", contactIds);
   const inPerson = csvParam(params.inPerson);
   if (inPerson) sp.set("inPerson", inPerson);
 
@@ -66,6 +74,8 @@ export function buildActivitiesQueryString(params: ActivitiesParams): string {
   if (params.search) sp.set("search", params.search);
   if (params.limit) sp.set("limit", params.limit.toString());
   if (params.offset) sp.set("offset", params.offset.toString());
+  if (params.sortBy) sp.set("sortBy", params.sortBy);
+  if (params.sortDir) sp.set("sortDir", params.sortDir);
 
   // Sort entries so e.g. {a,b} and {b,a} produce the same string and the
   // same TanStack key. URLSearchParams preserves insertion order otherwise.
@@ -84,6 +94,11 @@ export function useActivities(params: ActivitiesParams = {}, options?: { enabled
     queryFn: () => fetchJson<ActivitiesResponse>(url),
     staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: options?.enabled,
+    // Keep the prior result visible while a new filter/sort/page request
+    // is in flight. Without this, the Table view flashes to a skeleton on
+    // every checkbox toggle, which feels unresponsive even though the
+    // request itself is fast (~800ms).
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -193,6 +208,7 @@ export function useUpdateActivity() {
       contactIds?: number[];
       expenses?: { description: string; amount: number }[];
       districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[];
+      createdByUserId?: string;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",
@@ -231,6 +247,7 @@ export function useUpdateActivity() {
           ...(patch.inPerson !== undefined && { inPerson: patch.inPerson }),
           ...(patch.rating !== undefined && { rating: patch.rating }),
           ...(patch.metadata !== undefined && { metadata: patch.metadata }),
+          ...(patch.createdByUserId !== undefined && { createdByUserId: patch.createdByUserId }),
         });
       }
       return { previous, queryKey };
@@ -243,6 +260,66 @@ export function useUpdateActivity() {
     onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["activity", variables.activityId] });
+    },
+  });
+}
+
+// Bulk-update mutation for the Table view's selection bar. Optimistically
+// patches every selected activity's cache entry, rolls back on error, then
+// invalidates so the server's authoritative shape replaces the local guess.
+//
+// Note that the server returns per-row results — `succeeded` and `failed` —
+// rather than 4xx for partial failures. Callers should check `failed.length`
+// and surface a toast when non-empty so reps know which rows didn't apply.
+export function useBulkUpdateActivities() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ids,
+      updates,
+    }: {
+      ids: string[];
+      updates: { ownerId?: string; status?: ActivityStatus };
+    }) =>
+      fetchJson<{
+        succeeded: string[];
+        failed: { id: string; reason: "not_found" | "forbidden" | "system_skip" }[];
+      }>(`${API_BASE}/activities/bulk`, {
+        method: "PATCH",
+        body: JSON.stringify({ ids, updates }),
+      }),
+    onMutate: async ({ ids, updates }) => {
+      // Snapshot all the entries we're about to touch so we can roll back.
+      const snapshots = new Map<string, Activity | undefined>();
+      for (const id of ids) {
+        const key = ["activity", id] as const;
+        await queryClient.cancelQueries({ queryKey: key });
+        const previous = queryClient.getQueryData<Activity>(key);
+        snapshots.set(id, previous);
+        if (previous) {
+          queryClient.setQueryData<Activity>(key, {
+            ...previous,
+            ...(updates.ownerId !== undefined && { createdByUserId: updates.ownerId }),
+            ...(updates.status !== undefined && { status: updates.status }),
+          });
+        }
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      if (!context?.snapshots) return;
+      for (const [id, snapshot] of context.snapshots.entries()) {
+        if (snapshot) {
+          queryClient.setQueryData(["activity", id], snapshot);
+        }
+      }
+    },
+    onSettled: (_data, _err, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      for (const id of variables.ids) {
+        queryClient.invalidateQueries({ queryKey: ["activity", id] });
+      }
     },
   });
 }

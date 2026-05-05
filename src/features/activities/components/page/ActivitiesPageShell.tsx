@@ -21,6 +21,7 @@ import WeekGridView from "./WeekGridView";
 import MapTimeView from "./MapTimeView";
 import UpcomingRail from "./UpcomingRail";
 import ActivityDetailDrawer from "./ActivityDetailDrawer";
+import ActivitiesTableView from "./table/ActivitiesTableView";
 import BackfillSetupModal from "@/features/calendar/components/backfill/BackfillSetupModal";
 import type { ActivityScope } from "./ScopeToggle";
 
@@ -50,15 +51,24 @@ export default function ActivitiesPageShell() {
   const [pendingModalOpen, setPendingModalOpen] = useState(false);
   useCommandBarHotkey(setCommandBarOpen);
 
+  const isTableView = view === "table";
+
   const params = useMemo(
     () => deriveActivitiesParams({ filters, anchorIso, grain }),
     [filters, anchorIso, grain]
   );
 
-  const { data, isLoading } = useActivities(params);
+  // Skip the calendar-window query in Table mode; the table owns its own
+  // pagination + sort and asks the API directly. Per CLAUDE.md "Conditional
+  // rendering over conditional fetching" — but here we're already mounting
+  // a single shell, so an `enabled` flag is the cleanest option.
+  const { data, isLoading } = useActivities(params, { enabled: !isTableView });
   const filtered = useMemo(
-    () => applyClientFilters(data?.activities ?? [], filters, getCategoryForType),
-    [data, filters]
+    () =>
+      isTableView
+        ? []
+        : applyClientFilters(data?.activities ?? [], filters, getCategoryForType),
+    [data, filters, isTableView]
   );
 
   // Upcoming-rail rolls 14 days forward from today regardless of the visible window.
@@ -72,10 +82,14 @@ export default function ActivitiesPageShell() {
       limit: 200,
     };
   }, [filters.owners]);
-  const { data: upcomingData } = useActivities(upcomingParams);
+  // Rail is hidden in Table view; skip the fetch too.
+  const { data: upcomingData } = useActivities(upcomingParams, { enabled: !isTableView });
   const upcomingFiltered = useMemo(
-    () => applyClientFilters(upcomingData?.activities ?? [], filters, getCategoryForType),
-    [upcomingData, filters]
+    () =>
+      isTableView
+        ? []
+        : applyClientFilters(upcomingData?.activities ?? [], filters, getCategoryForType),
+    [upcomingData, filters, isTableView]
   );
 
   // Scope is derived from filters.owners: solo-current-user → "mine", empty → "all".
@@ -127,8 +141,8 @@ export default function ActivitiesPageShell() {
         onScopeChange={onScopeChange}
         onReviewPending={() => setPendingModalOpen(true)}
       />
-      <SavedViewTabs currentUserId={profile?.id ?? null} />
-      <ActivitiesFilterChips onOpenCommandBar={() => setCommandBarOpen(true)} />
+      {view !== "table" && <SavedViewTabs currentUserId={profile?.id ?? null} />}
+      {view !== "table" && <ActivitiesFilterChips onOpenCommandBar={() => setCommandBarOpen(true)} />}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -145,19 +159,27 @@ export default function ActivitiesPageShell() {
           {view === "week" && (
             <WeekGridView activities={filtered} onActivityClick={setOpenActivityId} />
           )}
+          {view === "table" && (
+            <ActivitiesTableView
+              onActivityClick={setOpenActivityId}
+              onNewActivity={() => setCreatingActivity(true)}
+            />
+          )}
           {view === "map" && (
             <MapTimeView activities={filtered} onActivityClick={setOpenActivityId} />
           )}
         </div>
 
-        <div className="hidden md:flex">
-          <UpcomingRail
-            activities={upcomingFiltered}
-            onActivityClick={setOpenActivityId}
-            scope={railScope}
-            onNewActivity={() => setCreatingActivity(true)}
-          />
-        </div>
+        {view !== "table" && (
+          <div className="hidden md:flex">
+            <UpcomingRail
+              activities={upcomingFiltered}
+              onActivityClick={setOpenActivityId}
+              scope={railScope}
+              onNewActivity={() => setCreatingActivity(true)}
+            />
+          </div>
+        )}
       </div>
 
       <ActivityDetailDrawer
