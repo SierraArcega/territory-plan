@@ -192,9 +192,9 @@ function OppRow({ opp }: { opp: PlanOpportunityRow }) {
       <span className="text-[11px] text-[#8A80A8] truncate pr-2" title={opp.districtName ?? undefined}>
         {opp.districtName ?? "—"}
       </span>
-      <span>
+      <span className="whitespace-nowrap">
         {opp.stage ? (
-          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${stageStyle.bg} ${stageStyle.text}`}>
+          <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-semibold ${stageStyle.bg} ${stageStyle.text}`}>
             {opp.stage}
           </span>
         ) : (
