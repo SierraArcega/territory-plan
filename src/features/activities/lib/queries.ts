@@ -94,6 +94,11 @@ export function useActivities(params: ActivitiesParams = {}, options?: { enabled
     queryFn: () => fetchJson<ActivitiesResponse>(url),
     staleTime: 2 * 60 * 1000, // 2 minutes
     enabled: options?.enabled,
+    // Keep the prior result visible while a new filter/sort/page request
+    // is in flight. Without this, the Table view flashes to a skeleton on
+    // every checkbox toggle, which feels unresponsive even though the
+    // request itself is fast (~800ms).
+    placeholderData: keepPreviousData,
   });
 }
 

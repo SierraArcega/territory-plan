@@ -116,7 +116,7 @@ export default function ActivitiesTableView({
     [filters, page, pageSize, sorts]
   );
 
-  const { data, isLoading, isError, refetch } = useActivities(params);
+  const { data, isLoading, isFetching, isError, refetch } = useActivities(params);
   const rows: ActivityListItem[] = data?.activities ?? [];
   const total = data?.totalInDb ?? rows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -165,7 +165,7 @@ export default function ActivitiesTableView({
         </div>
       )}
 
-      <div className="flex-1 overflow-auto bg-white">
+      <div className={cn("flex-1 overflow-auto bg-white relative transition-opacity", isFetching && !isLoading && "opacity-70")}>
         <table className="w-full text-xs table-fixed">
           <colgroup>
             <col style={{ width: 32 }} />

@@ -27,16 +27,20 @@ export default function ActivitiesPageHeader({
   const setView = useActivitiesChrome((s) => s.setView);
   const setGrain = useActivitiesChrome((s) => s.setGrain);
 
+  const isTableView = view === "table";
+
   return (
     <header className="bg-white border-b border-[#E2DEEC] px-6 py-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#403770] tracking-[-0.01em]">Activities</h1>
-          <p className="text-xs text-[#8A80A8] whitespace-nowrap">
-            Showing{" "}
-            <span className="font-medium text-[#6E6390]">{count.toLocaleString()}</span>{" "}
-            in this range
-          </p>
+          {!isTableView && (
+            <p className="text-xs text-[#8A80A8] whitespace-nowrap">
+              Showing{" "}
+              <span className="font-medium text-[#6E6390]">{count.toLocaleString()}</span>{" "}
+              in this range
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -61,9 +65,11 @@ export default function ActivitiesPageHeader({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center">
-        <ActivitiesDateRange />
-      </div>
+      {!isTableView && (
+        <div className="mt-3 flex items-center">
+          <ActivitiesDateRange />
+        </div>
+      )}
     </header>
   );
 }
