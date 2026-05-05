@@ -914,6 +914,73 @@ describe("PATCH /api/activities/[id]", () => {
     expect(data.followUpDate).toBeNull();
     expect(data.outcomeDisposition).toBeNull();
   });
+
+  it("allows owner to reassign their own activity to another user", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue({ id: "user-2" } as never);
+    mockPrisma.activity.update.mockResolvedValue({
+      id: "activity-1",
+      title: "Reassigned",
+      createdByUserId: "user-2",
+      updatedAt: new Date("2026-02-23T12:00:00Z"),
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ createdByUserId: "user-2" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = mockPrisma.activity.update.mock.calls[0][0].data;
+    expect(data.createdByUserId).toBe("user-2");
+  });
+
+  it("returns 400 when reassigning to a non-existent user", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "user-1",
+    } as never);
+    mockPrisma.userProfile.findUnique.mockResolvedValue(null as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ createdByUserId: "ghost-user" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("invalid_owner");
+  });
+
+  it("returns 403 when non-owner non-admin attempts to reassign", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockIsAdmin.mockResolvedValueOnce(false);
+    mockPrisma.activity.findUnique.mockResolvedValue({
+      id: "activity-1",
+      createdByUserId: "other-user",
+    } as never);
+
+    const req = makeRequest("/api/activities/activity-1", {
+      method: "PATCH",
+      body: JSON.stringify({ createdByUserId: "user-2" }),
+    });
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: "activity-1" }),
+    });
+
+    expect(res.status).toBe(403);
+  });
 });
 
 describe("DELETE /api/activities/[id]", () => {

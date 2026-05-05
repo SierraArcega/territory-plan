@@ -193,6 +193,7 @@ export function useUpdateActivity() {
       contactIds?: number[];
       expenses?: { description: string; amount: number }[];
       districts?: { leaid: string; visitDate?: string | null; visitEndDate?: string | null; position?: number; notes?: string | null }[];
+      createdByUserId?: string;
     }) =>
       fetchJson<Activity>(`${API_BASE}/activities/${activityId}`, {
         method: "PATCH",
@@ -231,6 +232,7 @@ export function useUpdateActivity() {
           ...(patch.inPerson !== undefined && { inPerson: patch.inPerson }),
           ...(patch.rating !== undefined && { rating: patch.rating }),
           ...(patch.metadata !== undefined && { metadata: patch.metadata }),
+          ...(patch.createdByUserId !== undefined && { createdByUserId: patch.createdByUserId }),
         });
       }
       return { previous, queryKey };
