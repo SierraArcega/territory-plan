@@ -30,6 +30,11 @@ export const ACCOUNT_TYPES = [
     tooltip: "State department of education or board",
   },
   {
+    value: "city",
+    label: "City / Municipality",
+    tooltip: "City or municipal government purchasing on behalf of public services (libraries, parks, IT) — not a school district",
+  },
+  {
     value: "university",
     label: "University",
     tooltip: "College or university",
