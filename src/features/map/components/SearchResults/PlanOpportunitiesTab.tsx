@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { usePlanOpportunities } from "@/lib/api";
 import type { PlanOpportunityRow } from "@/features/shared/types/api-types";
 
-const GRID_TEMPLATE = "1.5fr 1fr 90px 90px 90px 90px 90px 90px";
+const GRID_TEMPLATE = "minmax(200px,1.5fr) 140px 120px 110px 90px 90px 90px 100px";
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null || value === 0) return "—";
@@ -121,12 +121,12 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-x-auto">
       {/* Table header */}
       <div className="shrink-0 border-b border-[#E2DEEC] bg-[#FAFAFE]">
         <div
           className="grid items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]"
-          style={{ gridTemplateColumns: GRID_TEMPLATE }}
+          style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
         >
           <ColHeader label="Name" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
           <ColHeader label="District" col="district" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
@@ -151,7 +151,7 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
         <div className="shrink-0 border-t border-[#E2DEEC] bg-[#FAFAFE]">
           <div
             className="grid items-center px-5 py-2.5 text-[11px]"
-            style={{ gridTemplateColumns: GRID_TEMPLATE }}
+            style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
           >
             <span className="font-medium text-[#6E6390]">
               {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"}
@@ -184,7 +184,7 @@ function OppRow({ opp }: { opp: PlanOpportunityRow }) {
   return (
     <div
       className="grid items-center px-5 py-2.5 border-b border-[#f0edf5] last:border-b-0 hover:bg-[#FAFAFE] transition-colors"
-      style={{ gridTemplateColumns: GRID_TEMPLATE }}
+      style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
     >
       <span className="text-xs font-medium text-[#544A78] truncate pr-2" title={opp.name ?? undefined}>
         {opp.name ?? "Untitled"}
