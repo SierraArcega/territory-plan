@@ -309,6 +309,7 @@ function AgencyDistrictMapsContent() {
   const [resolvingAgency, setResolvingAgency] = useState<AgencyRow | null>(null);
   const [resolutionStep, setResolutionStep] = useState<ResolutionStep>("pick");
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmingLargeCascade, setConfirmingLargeCascade] = useState<null | (() => void)>(null);
 
   const mapMutation = useMutation({
     mutationFn: async (input: {
@@ -399,6 +400,20 @@ function AgencyDistrictMapsContent() {
     });
     setPage(1);
   }, []);
+
+  const totalRfpsInScope = useMemo(() => {
+    const map = new Map((data?.items ?? []).map((r) => [String(r.agencyKey), r.totalRfpCount]));
+    if (resolvingAgency) return resolvingAgency.totalRfpCount;
+    return Array.from(selectedIds).reduce((s, id) => s + (map.get(id) ?? 0), 0);
+  }, [data, resolvingAgency, selectedIds]);
+
+  function guardLargeCascade(submit: () => void) {
+    if (totalRfpsInScope > 100) {
+      setConfirmingLargeCascade(() => submit);
+    } else {
+      submit();
+    }
+  }
 
   const cellRenderers = useMemo<Record<string, CellRendererFn>>(() => ({
     agencyName: ({ value, row }) => (
@@ -526,11 +541,11 @@ function AgencyDistrictMapsContent() {
           subjectName={resolvingAgency.agencyName}
           subjectState={resolvingAgency.stateAbbrev}
           onSelect={(district: DistrictResult) => {
-            mapMutation.mutate({
+            guardLargeCascade(() => mapMutation.mutate({
               agencyKeys: [resolvingAgency.agencyKey],
               kind: "district",
               leaid: district.leaid,
-            });
+            }));
           }}
           onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
         />
@@ -540,12 +555,12 @@ function AgencyDistrictMapsContent() {
         <StateOnlyModal
           agency={resolvingAgency}
           onConfirm={(stateFips, notes) => {
-            mapMutation.mutate({
+            guardLargeCascade(() => mapMutation.mutate({
               agencyKeys: [resolvingAgency.agencyKey],
               kind: "state",
               stateFips,
               notes: notes || undefined,
-            });
+            }));
           }}
           onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
         />
@@ -555,11 +570,11 @@ function AgencyDistrictMapsContent() {
         <DismissConfirmDialog
           agency={resolvingAgency}
           onConfirm={(notes) => {
-            mapMutation.mutate({
+            guardLargeCascade(() => mapMutation.mutate({
               agencyKeys: [resolvingAgency.agencyKey],
               kind: "non_lea",
               notes: notes || undefined,
-            });
+            }));
           }}
           onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
         />
@@ -570,12 +585,14 @@ function AgencyDistrictMapsContent() {
           subjectName={`${selectedAgencyKeys.length} agencies selected`}
           subjectState={null}
           onSelect={(district) => {
-            mapMutation.mutate({
-              agencyKeys: selectedAgencyKeys,
-              kind: "district",
-              leaid: district.leaid,
+            guardLargeCascade(() => {
+              mapMutation.mutate({
+                agencyKeys: selectedAgencyKeys,
+                kind: "district",
+                leaid: district.leaid,
+              });
+              setBulkStep(null);
             });
-            setBulkStep(null);
           }}
           onClose={() => setBulkStep(null)}
         />
@@ -586,8 +603,10 @@ function AgencyDistrictMapsContent() {
           title={`Mark ${selectedAgencyKeys.length} agencies as state-only`}
           description="Each agency will be tagged with its own RFP-derived state."
           onConfirm={(notes) => {
-            mapMutation.mutate({ agencyKeys: selectedAgencyKeys, kind: "state", notes: notes || undefined });
-            setBulkStep(null);
+            guardLargeCascade(() => {
+              mapMutation.mutate({ agencyKeys: selectedAgencyKeys, kind: "state", notes: notes || undefined });
+              setBulkStep(null);
+            });
           }}
           onClose={() => setBulkStep(null)}
         />
@@ -599,8 +618,10 @@ function AgencyDistrictMapsContent() {
           description="They will be hidden from the untriaged view."
           danger
           onConfirm={(notes) => {
-            mapMutation.mutate({ agencyKeys: selectedAgencyKeys, kind: "non_lea", notes: notes || undefined });
-            setBulkStep(null);
+            guardLargeCascade(() => {
+              mapMutation.mutate({ agencyKeys: selectedAgencyKeys, kind: "non_lea", notes: notes || undefined });
+              setBulkStep(null);
+            });
           }}
           onClose={() => setBulkStep(null)}
         />
@@ -609,6 +630,26 @@ function AgencyDistrictMapsContent() {
       {toast && (
         <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-lg border bg-[#F7FFF2] border-[#8AC670] shadow-lg">
           <span className="text-sm font-medium text-[#5f665b]">{toast}</span>
+        </div>
+      )}
+
+      {confirmingLargeCascade && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmingLargeCascade(null)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-[#403770]">Cascade {totalRfpsInScope} RFPs?</h3>
+            <p className="text-sm text-[#6E6390]">
+              This action will update {totalRfpsInScope} RFP records. Bulk undo isn&apos;t available — be sure before confirming.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmingLargeCascade(null)} className="px-4 py-2 text-sm text-[#544A78] hover:bg-[#EFEDF5] rounded-lg">Cancel</button>
+              <button
+                onClick={() => { confirmingLargeCascade(); setConfirmingLargeCascade(null); }}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg"
+              >
+                Confirm cascade
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
