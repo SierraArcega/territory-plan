@@ -1856,62 +1856,62 @@ model NewsMatchQueue {
 
 model Rfp {
   id              Int       @id @default(autoincrement())
-  externalId      String    @unique                            // = opp_key (HigherGov)
-  versionKey      String                                       // = version_key (amendment tracker)
+  externalId      String    @unique                            @map("external_id") // = opp_key (HigherGov)
+  versionKey      String                                       @map("version_key") // = version_key (amendment tracker)
   source          String    @default("highergov")
 
   // Identity / classification
   title           String
-  solicitationNumber String?                                   // = source_id
-  oppType         String?                                      // = opp_type.description
+  solicitationNumber String?                                   @map("solicitation_number") // = source_id
+  oppType         String?                                      @map("opp_type")             // = opp_type.description
   description     String?   @db.Text
-  aiSummary       String?   @db.Text
+  aiSummary       String?   @db.Text                          @map("ai_summary")
 
   // Agency
-  agencyKey       Int                                          // = agency.agency_key
-  agencyName      String
-  agencyPath      String?
+  agencyKey       Int                                          @map("agency_key")           // = agency.agency_key
+  agencyName      String                                       @map("agency_name")
+  agencyPath      String?                                      @map("agency_path")
 
   // Geography
-  stateAbbrev     String?   @db.VarChar(2)
-  stateFips       String?   @db.VarChar(2)
-  popCity         String?
-  popZip          String?
+  stateAbbrev     String?   @db.VarChar(2)                    @map("state_abbrev")
+  stateFips       String?   @db.VarChar(2)                    @map("state_fips")
+  popCity         String?                                      @map("pop_city")
+  popZip          String?                                      @map("pop_zip")
 
   // Resolved district (nullable)
   leaid           String?   @db.VarChar(7)
 
   // Classifiers
-  naicsCode       String?
-  pscCode         String?
-  setAside        String?
+  naicsCode       String?                                      @map("naics_code")
+  pscCode         String?                                      @map("psc_code")
+  setAside        String?                                      @map("set_aside")
 
   // Value
-  valueLow        Decimal?  @db.Decimal(15, 2)
-  valueHigh       Decimal?  @db.Decimal(15, 2)
+  valueLow        Decimal?  @db.Decimal(15, 2)                @map("value_low")
+  valueHigh       Decimal?  @db.Decimal(15, 2)                @map("value_high")
 
   // Contact
-  primaryContactName  String?
-  primaryContactEmail String?
-  primaryContactPhone String?
+  primaryContactName  String?                                  @map("primary_contact_name")
+  primaryContactEmail String?                                  @map("primary_contact_email")
+  primaryContactPhone String?                                  @map("primary_contact_phone")
 
   // Dates
-  postedDate      DateTime?
-  dueDate         DateTime?
-  capturedDate    DateTime
+  postedDate      DateTime?                                    @map("posted_date")
+  dueDate         DateTime?                                    @map("due_date")
+  capturedDate    DateTime                                     @map("captured_date")
 
   // Links
-  highergovUrl    String?
-  sourceUrl       String?
+  highergovUrl    String?                                      @map("highergov_url")
+  sourceUrl       String?                                      @map("source_url")
 
   // Lifecycle
   status          String    @default("open")
-  rawPayload      Json
+  rawPayload      Json                                         @map("raw_payload")
 
-  firstSeenAt     DateTime  @default(now())
-  lastSeenAt      DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  firstSeenAt     DateTime  @default(now())                   @map("first_seen_at")
+  lastSeenAt      DateTime  @default(now())                   @map("last_seen_at")
+  createdAt       DateTime  @default(now())                   @map("created_at")
+  updatedAt       DateTime  @updatedAt                        @map("updated_at")
 
   district        District? @relation(fields: [leaid], references: [leaid])
 
@@ -1920,22 +1920,24 @@ model Rfp {
   @@index([agencyKey])
   @@index([capturedDate])
   @@index([status, dueDate])
+  @@map("rfps")
 }
 
 model RfpIngestRun {
   id                Int       @id @default(autoincrement())
   source            String    @default("highergov")
   status            String    @default("running")
-  startedAt         DateTime  @default(now())
-  finishedAt        DateTime?
+  startedAt         DateTime  @default(now())                 @map("started_at")
+  finishedAt        DateTime?                                  @map("finished_at")
   watermark         DateTime?
-  recordsSeen       Int       @default(0)
-  recordsNew        Int       @default(0)
-  recordsUpdated    Int       @default(0)
-  recordsResolved   Int       @default(0)
-  recordsUnresolved Int       @default(0)
+  recordsSeen       Int       @default(0)                     @map("records_seen")
+  recordsNew        Int       @default(0)                     @map("records_new")
+  recordsUpdated    Int       @default(0)                     @map("records_updated")
+  recordsResolved   Int       @default(0)                     @map("records_resolved")
+  recordsUnresolved Int       @default(0)                     @map("records_unresolved")
   error             String?   @db.Text
 
   @@index([source, status, startedAt])
   @@index([source, finishedAt])
+  @@map("rfp_ingest_runs")
 }
