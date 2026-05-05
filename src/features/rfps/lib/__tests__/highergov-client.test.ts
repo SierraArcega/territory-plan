@@ -7,7 +7,8 @@ beforeEach(() => {
   fetchSpy.mockReset();
   vi.stubGlobal("fetch", fetchSpy);
   process.env.HIGHERGOV_API_KEY = "test-key";
-  process.env.HIGHERGOV_K12_SEARCH_ID = "test-search";
+  delete process.env.HIGHERGOV_K12_SEARCH_ID;
+  delete process.env.HIGHERGOV_K12_NAICS;
 });
 
 afterEach(() => {
@@ -37,7 +38,7 @@ const minimalRecord = (oppKey: string) => ({
 });
 
 describe("fetchOpportunities", () => {
-  it("requests with api_key, search_id, and captured_date filter", async () => {
+  it("requests with api_key, source_type=sled, default NAICS, and captured_date filter", async () => {
     fetchSpy.mockResolvedValueOnce(ok({ results: [], links: { next: null } }));
     const since = new Date("2026-05-01T00:00:00Z");
     const out: unknown[] = [];
@@ -46,9 +47,30 @@ describe("fetchOpportunities", () => {
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
     expect(url.pathname).toBe("/api-external/opportunity/");
     expect(url.searchParams.get("api_key")).toBe("test-key");
-    expect(url.searchParams.get("search_id")).toBe("test-search");
+    expect(url.searchParams.get("source_type")).toBe("sled");
+    expect(url.searchParams.get("naics_code")).toBe("611110");
+    expect(url.searchParams.get("search_id")).toBeNull();
     expect(url.searchParams.get("captured_date__gte")).toBe("2026-05-01");
     expect(url.searchParams.get("ordering")).toBe("-captured_date");
+  });
+
+  it("uses HIGHERGOV_K12_NAICS env override when set", async () => {
+    process.env.HIGHERGOV_K12_NAICS = "611710";
+    fetchSpy.mockResolvedValueOnce(ok({ results: [], links: { next: null } }));
+    for await (const _ of fetchOpportunities({ since: new Date() })) void _;
+    const url = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(url.searchParams.get("naics_code")).toBe("611710");
+  });
+
+  it("layers HIGHERGOV_K12_SEARCH_ID when set (optional)", async () => {
+    process.env.HIGHERGOV_K12_SEARCH_ID = "saved-search-xyz";
+    fetchSpy.mockResolvedValueOnce(ok({ results: [], links: { next: null } }));
+    for await (const _ of fetchOpportunities({ since: new Date() })) void _;
+    const url = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(url.searchParams.get("search_id")).toBe("saved-search-xyz");
+    // NAICS still applied alongside
+    expect(url.searchParams.get("naics_code")).toBe("611110");
+    expect(url.searchParams.get("source_type")).toBe("sled");
   });
 
   it("paginates by following links.next until null", async () => {

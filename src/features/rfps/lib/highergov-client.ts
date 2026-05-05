@@ -45,22 +45,30 @@ async function fetchWithRetry(
   throw lastErr ?? new Error("HigherGov: exhausted retries");
 }
 
+const DEFAULT_NAICS = "611110"; // Elementary and Secondary Schools
+
 /**
- * Async generator over all opportunities matching the K-12 saved search
- * with captured_date >= `since`. Follows HigherGov `links.next` pagination.
+ * Async generator over SLED K-12 opportunities with captured_date >= `since`.
+ * Filters via direct API params (source_type=sled + naics_code) rather than a
+ * HigherGov saved search — saved searches did not retain K-12 filters reliably.
+ * If `HIGHERGOV_K12_SEARCH_ID` is set, it's layered on top as an additional filter.
+ * Follows HigherGov `links.next` pagination.
  */
 export async function* fetchOpportunities(
   args: FetchOpportunitiesArgs,
 ): AsyncGenerator<HigherGovOpportunity, void, unknown> {
   const apiKey = requireEnv("HIGHERGOV_API_KEY");
-  const searchId = requireEnv("HIGHERGOV_K12_SEARCH_ID");
+  const naics = process.env.HIGHERGOV_K12_NAICS || DEFAULT_NAICS;
+  const searchId = process.env.HIGHERGOV_K12_SEARCH_ID;
   const pageSize = args.pageSize ?? DEFAULT_PAGE_SIZE;
   const maxRetries = args.maxRetries ?? DEFAULT_MAX_RETRIES;
   const retryDelayMs = args.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
 
   const initial = new URL(BASE_URL);
   initial.searchParams.set("api_key", apiKey);
-  initial.searchParams.set("search_id", searchId);
+  initial.searchParams.set("source_type", "sled");
+  initial.searchParams.set("naics_code", naics);
+  if (searchId) initial.searchParams.set("search_id", searchId);
   initial.searchParams.set("captured_date__gte", isoDate(args.since));
   initial.searchParams.set("ordering", "-captured_date");
   initial.searchParams.set("page_size", String(pageSize));
