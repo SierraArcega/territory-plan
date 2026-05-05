@@ -259,6 +259,66 @@ export function useUpdateActivity() {
   });
 }
 
+// Bulk-update mutation for the Table view's selection bar. Optimistically
+// patches every selected activity's cache entry, rolls back on error, then
+// invalidates so the server's authoritative shape replaces the local guess.
+//
+// Note that the server returns per-row results — `succeeded` and `failed` —
+// rather than 4xx for partial failures. Callers should check `failed.length`
+// and surface a toast when non-empty so reps know which rows didn't apply.
+export function useBulkUpdateActivities() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      ids,
+      updates,
+    }: {
+      ids: string[];
+      updates: { ownerId?: string; status?: ActivityStatus };
+    }) =>
+      fetchJson<{
+        succeeded: string[];
+        failed: { id: string; reason: "not_found" | "forbidden" | "system_skip" }[];
+      }>(`${API_BASE}/activities/bulk`, {
+        method: "PATCH",
+        body: JSON.stringify({ ids, updates }),
+      }),
+    onMutate: async ({ ids, updates }) => {
+      // Snapshot all the entries we're about to touch so we can roll back.
+      const snapshots = new Map<string, Activity | undefined>();
+      for (const id of ids) {
+        const key = ["activity", id] as const;
+        await queryClient.cancelQueries({ queryKey: key });
+        const previous = queryClient.getQueryData<Activity>(key);
+        snapshots.set(id, previous);
+        if (previous) {
+          queryClient.setQueryData<Activity>(key, {
+            ...previous,
+            ...(updates.ownerId !== undefined && { createdByUserId: updates.ownerId }),
+            ...(updates.status !== undefined && { status: updates.status }),
+          });
+        }
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      if (!context?.snapshots) return;
+      for (const [id, snapshot] of context.snapshots.entries()) {
+        if (snapshot) {
+          queryClient.setQueryData(["activity", id], snapshot);
+        }
+      }
+    },
+    onSettled: (_data, _err, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      for (const id of variables.ids) {
+        queryClient.invalidateQueries({ queryKey: ["activity", id] });
+      }
+    },
+  });
+}
+
 // Delete activity mutation
 export function useDeleteActivity() {
   const queryClient = useQueryClient();
