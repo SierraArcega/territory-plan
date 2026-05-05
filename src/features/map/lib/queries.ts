@@ -318,6 +318,22 @@ export function useMapActivities(
 }
 
 /**
+ * A single (plan × district) row returned by `/api/map/plans/list` and shown
+ * in the PlansTab sidebar. Replaces the GeoJSON `Feature<Geometry>` shape that
+ * `useMapPlans` returned before the MVT cutover.
+ */
+export interface PlanFeatureRow {
+  planId: string;
+  planName: string;
+  planColor: string;
+  planStatus: string;
+  districtName: string;
+  leaid: string;
+  renewalTarget: number | null;
+  expansionTarget: number | null;
+}
+
+/**
  * Fetches plan district polygon GeoJSON.
  * Not bounds-limited — plans are loaded globally since there are relatively few.
  * Returns GeoJSON FeatureCollection with Polygon/MultiPolygon geometry.

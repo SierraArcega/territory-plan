@@ -37,14 +37,35 @@ export function isActivitiesFiltered(f: Partial<ActivityLayerFilter>): boolean {
   return !!(f.type?.length || f.status?.length || f.outcome?.length);
 }
 
-/** Extract unique leaid values from a GeoJSON FeatureCollection */
-export function extractLeaids(geojson: any): Set<string> {
+/**
+ * Extract unique leaids from either:
+ *   - a GeoJSON FeatureCollection (one feature per district)
+ *   - a flat array of plan-row objects ({ leaid, ... })
+ * Both shapes occur in this codebase: the contacts/vacancies/activities
+ * overlays still use FeatureCollection, while plans switched to a flat
+ * array after the MVT cutover.
+ */
+export function extractLeaids(input: any): Set<string> {
   const leaids = new Set<string>();
-  if (!geojson?.features) return leaids;
-  for (const f of geojson.features) {
-    const id = f.properties?.leaid;
-    if (id) leaids.add(id);
+  if (!input) return leaids;
+
+  // FeatureCollection shape
+  if (Array.isArray(input.features)) {
+    for (const f of input.features) {
+      const id = f.properties?.leaid;
+      if (id) leaids.add(id);
+    }
+    return leaids;
   }
+
+  // Flat array of plan rows
+  if (Array.isArray(input)) {
+    for (const row of input) {
+      if (row?.leaid) leaids.add(row.leaid);
+    }
+    return leaids;
+  }
+
   return leaids;
 }
 
