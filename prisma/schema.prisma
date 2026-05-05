@@ -2026,7 +2026,7 @@ model AgencyDistrictMap {
   source      String    @default("highergov")
   notes       String?   @db.Text
   resolvedBy  String?   @map("resolved_by")
-  resolvedAt  DateTime  @default(now()) @map("resolved_at")
+  resolvedAt  DateTime  @default(now()) @db.Timestamptz @map("resolved_at")
   district    District? @relation(fields: [leaid], references: [leaid])
 
   @@map("agency_district_maps")

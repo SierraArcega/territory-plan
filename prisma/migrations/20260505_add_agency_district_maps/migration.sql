@@ -15,7 +15,7 @@ CREATE TABLE "agency_district_maps" (
         (kind = 'state'    AND leaid IS NULL     AND state_fips IS NOT NULL) OR
         (kind = 'non_lea'  AND leaid IS NULL     AND state_fips IS NULL)
     ),
-    CONSTRAINT "agency_district_maps_leaid_fkey" FOREIGN KEY ("leaid") REFERENCES "districts"("leaid") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT "agency_district_maps_leaid_fkey" FOREIGN KEY ("leaid") REFERENCES "districts"("leaid") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE INDEX "agency_district_maps_kind_idx"  ON "agency_district_maps" ("kind");
