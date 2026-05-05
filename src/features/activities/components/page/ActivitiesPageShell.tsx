@@ -51,15 +51,24 @@ export default function ActivitiesPageShell() {
   const [pendingModalOpen, setPendingModalOpen] = useState(false);
   useCommandBarHotkey(setCommandBarOpen);
 
+  const isTableView = view === "table";
+
   const params = useMemo(
     () => deriveActivitiesParams({ filters, anchorIso, grain }),
     [filters, anchorIso, grain]
   );
 
-  const { data, isLoading } = useActivities(params);
+  // Skip the calendar-window query in Table mode; the table owns its own
+  // pagination + sort and asks the API directly. Per CLAUDE.md "Conditional
+  // rendering over conditional fetching" — but here we're already mounting
+  // a single shell, so an `enabled` flag is the cleanest option.
+  const { data, isLoading } = useActivities(params, { enabled: !isTableView });
   const filtered = useMemo(
-    () => applyClientFilters(data?.activities ?? [], filters, getCategoryForType),
-    [data, filters]
+    () =>
+      isTableView
+        ? []
+        : applyClientFilters(data?.activities ?? [], filters, getCategoryForType),
+    [data, filters, isTableView]
   );
 
   // Upcoming-rail rolls 14 days forward from today regardless of the visible window.
@@ -73,10 +82,14 @@ export default function ActivitiesPageShell() {
       limit: 200,
     };
   }, [filters.owners]);
-  const { data: upcomingData } = useActivities(upcomingParams);
+  // Rail is hidden in Table view; skip the fetch too.
+  const { data: upcomingData } = useActivities(upcomingParams, { enabled: !isTableView });
   const upcomingFiltered = useMemo(
-    () => applyClientFilters(upcomingData?.activities ?? [], filters, getCategoryForType),
-    [upcomingData, filters]
+    () =>
+      isTableView
+        ? []
+        : applyClientFilters(upcomingData?.activities ?? [], filters, getCategoryForType),
+    [upcomingData, filters, isTableView]
   );
 
   // Scope is derived from filters.owners: solo-current-user → "mine", empty → "all".

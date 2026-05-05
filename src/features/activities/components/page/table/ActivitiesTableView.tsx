@@ -26,6 +26,20 @@ interface ActivitiesTableViewProps {
 
 const NARROW_WIDTH_HINT_THRESHOLD = 200;
 
+// String fallback for the cell's `title` tooltip. Used so truncated cells
+// reveal their full content on hover. Editable cells return `undefined` —
+// they handle their own truncation via the picker dropdown anyway.
+function renderCellAsTitle(key: string, row: ActivityListItem): string | undefined {
+  switch (key) {
+    case "title": return row.title;
+    case "district": return row.districtName ?? undefined;
+    case "contact": return row.contactName ?? undefined;
+    case "outcome": return row.outcomePreview ?? undefined;
+    case "states": return row.stateAbbrevs?.join(", ");
+    default: return undefined;
+  }
+}
+
 // Map a column key to the right cell renderer. The four editable cells
 // stop their own click events so the row click → drawer fallback only
 // fires on the non-editable columns.
@@ -148,7 +162,13 @@ export default function ActivitiesTableView({
       )}
 
       <div className="flex-1 overflow-auto bg-white">
-        <table className="w-full text-xs">
+        <table className="w-full text-xs table-fixed">
+          <colgroup>
+            <col style={{ width: 32 }} />
+            {visibleColumnDefs.map((col) => (
+              <col key={col.key} style={col.width ? { width: col.width } : undefined} />
+            ))}
+          </colgroup>
           <ActivitiesTableHeader
             visibleColumnDefs={visibleColumnDefs}
             selectAllChecked={allOnPageSelected}
@@ -189,10 +209,11 @@ export default function ActivitiesTableView({
                       {visibleColumnDefs.map((col) => (
                         <td
                           key={col.key}
-                          className="px-3 py-2.5 text-xs text-[#403770] whitespace-nowrap"
-                          style={col.width ? { maxWidth: col.width } : undefined}
+                          className="px-3 py-2.5 text-xs text-[#403770] overflow-hidden"
                         >
-                          {renderCell(col.key, row)}
+                          <div className="truncate" title={typeof renderCellAsTitle(col.key, row) === "string" ? renderCellAsTitle(col.key, row) : undefined}>
+                            {renderCell(col.key, row)}
+                          </div>
                         </td>
                       ))}
                     </tr>

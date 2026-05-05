@@ -267,9 +267,13 @@ export function deriveActivitiesParams(args: {
     params.limit = 500;
   }
 
-  // Single-value short-circuits — API supports these directly.
+  // Single-value short-circuits — API supports these directly. Multi-value
+  // categories ride the same `category` param as a CSV (route's readMulti
+  // parses it back into a list).
   if (args.filters.categories.length === 1) params.category = args.filters.categories[0];
+  else if (args.filters.categories.length > 1) params.category = args.filters.categories;
   if (args.filters.types.length === 1) params.type = args.filters.types[0];
+  else if (args.filters.types.length > 1) params.type = args.filters.types;
   if (args.filters.statuses.length === 1) params.status = args.filters.statuses[0] as ActivitiesParams["status"];
   if (args.filters.owners.length === 1) params.ownerId = args.filters.owners[0];
   if (args.filters.owners.length === 0) params.ownerId = "all";
