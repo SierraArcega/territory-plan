@@ -24,9 +24,9 @@ const fetchOpps = vi.fn();
 vi.mock("../highergov-client", () => ({
   fetchOpportunities: (...a: unknown[]) => fetchOpps(...a),
 }));
-const resolveDistrict = vi.fn();
+const resolveAgency = vi.fn();
 vi.mock("../district-resolver", () => ({
-  resolveDistrict: (...a: unknown[]) => resolveDistrict(...a),
+  resolveAgency: (...a: unknown[]) => resolveAgency(...a),
 }));
 
 import { syncRfps } from "../sync";
@@ -54,7 +54,7 @@ async function* gen(records: unknown[]) {
 }
 
 beforeEach(() => {
-  for (const m of [rfpUpsert, rfpIngestRunCreate, rfpIngestRunUpdate, rfpIngestRunUpdateMany, rfpIngestRunFindFirst, fetchOpps, resolveDistrict]) m.mockReset();
+  for (const m of [rfpUpsert, rfpIngestRunCreate, rfpIngestRunUpdate, rfpIngestRunUpdateMany, rfpIngestRunFindFirst, fetchOpps, resolveAgency]) m.mockReset();
   rfpUpsert.mockResolvedValue({ firstSeenAt: new Date(0), lastSeenAt: new Date(0) });
   rfpIngestRunCreate.mockResolvedValue({ id: 1 });
   rfpIngestRunUpdate.mockResolvedValue({});
@@ -64,7 +64,7 @@ beforeEach(() => {
 describe("syncRfps", () => {
   it("happy path: fetch, resolve, upsert, finalize", async () => {
     fetchOpps.mockReturnValue(gen([minimalRecord("a"), minimalRecord("b")]));
-    resolveDistrict.mockResolvedValue("4849530");
+    resolveAgency.mockResolvedValue({ leaid: "4849530", kind: "name_match" });
     rfpIngestRunFindFirst.mockResolvedValue({ finishedAt: new Date("2026-05-01T00:00:00Z") });
 
     const summary = await syncRfps();
@@ -85,12 +85,14 @@ describe("syncRfps", () => {
       minimalRecord("c", 1, "Agency One"),
       minimalRecord("d", 2, "Agency Two"),
     ]));
-    resolveDistrict.mockResolvedValueOnce("L1").mockResolvedValueOnce("L2");
+    resolveAgency
+      .mockResolvedValueOnce({ leaid: "L1", kind: "name_match" })
+      .mockResolvedValueOnce({ leaid: "L2", kind: "name_match" });
     rfpIngestRunFindFirst.mockResolvedValue(null);
 
     await syncRfps();
 
-    expect(resolveDistrict).toHaveBeenCalledTimes(2);
+    expect(resolveAgency).toHaveBeenCalledTimes(2);
     expect(rfpUpsert).toHaveBeenCalledTimes(4);
   });
 
@@ -121,7 +123,7 @@ describe("syncRfps", () => {
 
   it("partial failure: one record's upsert throws -> run still finalizes with seen counter", async () => {
     fetchOpps.mockReturnValue(gen([minimalRecord("a"), minimalRecord("b")]));
-    resolveDistrict.mockResolvedValue(null);
+    resolveAgency.mockResolvedValue({ leaid: null, kind: "unresolved" });
     rfpIngestRunFindFirst.mockResolvedValue(null);
     rfpUpsert.mockRejectedValueOnce(new Error("constraint")).mockResolvedValueOnce({ firstSeenAt: new Date(0), lastSeenAt: new Date(0) });
 
@@ -140,5 +142,27 @@ describe("syncRfps", () => {
     expect(rfpIngestRunUpdate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: "error", error: expect.stringContaining("boom") }),
     }));
+  });
+
+  it("splits resolved counter into byOverride / byName", async () => {
+    // 3 records from 3 different agencies
+    fetchOpps.mockReturnValue(gen([
+      minimalRecord("a", 1, "Agency Override"),
+      minimalRecord("b", 2, "Agency Name"),
+      minimalRecord("c", 3, "Agency None"),
+    ]));
+    // agency 1 → override_district, agency 2 → name_match, agency 3 → unresolved
+    resolveAgency
+      .mockResolvedValueOnce({ leaid: "X", kind: "override_district" })
+      .mockResolvedValueOnce({ leaid: "Y", kind: "name_match" })
+      .mockResolvedValueOnce({ leaid: null, kind: "unresolved" });
+    rfpIngestRunFindFirst.mockResolvedValue(null);
+
+    const summary = await syncRfps();
+
+    expect(summary.recordsResolved).toBe(2);
+    expect(summary.recordsResolvedByOverride).toBe(1);
+    expect(summary.recordsResolvedByName).toBe(1);
+    expect(summary.recordsUnresolved).toBe(1);
   });
 });

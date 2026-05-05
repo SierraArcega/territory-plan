@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { fetchOpportunities } from "./highergov-client";
-import { resolveDistrict } from "./district-resolver";
+import { resolveAgency, type ResolveResult } from "./district-resolver";
 import { normalizeOpportunity, type NormalizedRfp } from "./normalize";
 import type { HigherGovOpportunity } from "./types";
 
@@ -16,6 +16,8 @@ export interface SyncSummary {
   recordsUpdated: number;
   recordsResolved: number;
   recordsUnresolved: number;
+  recordsResolvedByOverride: number;
+  recordsResolvedByName: number;
   watermark: Date;
   error?: string;
 }
@@ -91,9 +93,10 @@ export async function syncRfps(): Promise<SyncSummary> {
   const counters = {
     recordsSeen: 0, recordsNew: 0, recordsUpdated: 0,
     recordsResolved: 0, recordsUnresolved: 0,
+    recordsResolvedByOverride: 0, recordsResolvedByName: 0,
   };
 
-  const agencyCache = new Map<number, string | null>();
+  const agencyCache = new Map<number, ResolveResult>();
 
   try {
     const buffer: HigherGovOpportunity[] = [];
@@ -106,23 +109,28 @@ export async function syncRfps(): Promise<SyncSummary> {
       }
     }
     for (const [key, { name, state }] of uniqueAgencies) {
-      agencyCache.set(key, await resolveDistrict(name, state));
+      agencyCache.set(key, await resolveAgency({ agencyKey: key, agencyName: name, stateAbbrev: state }));
     }
 
     for (const raw of buffer) {
       counters.recordsSeen++;
       try {
         const normalized = normalizeOpportunity(raw);
-        const leaid = agencyCache.get(raw.agency.agency_key) ?? null;
-        const result = await prisma.rfp.upsert(rfpUpsertArgs(normalized, leaid));
+        const resolution = agencyCache.get(raw.agency.agency_key) ?? { leaid: null, kind: "unresolved" as const };
+        const result = await prisma.rfp.upsert(rfpUpsertArgs(normalized, resolution.leaid));
         if (result.firstSeenAt && result.lastSeenAt &&
             result.firstSeenAt.getTime() === result.lastSeenAt.getTime()) {
           counters.recordsNew++;
         } else {
           counters.recordsUpdated++;
         }
-        if (leaid) counters.recordsResolved++;
-        else counters.recordsUnresolved++;
+        if (resolution.leaid) {
+          counters.recordsResolved++;
+          if (resolution.kind === "override_district") counters.recordsResolvedByOverride++;
+          else if (resolution.kind === "name_match")  counters.recordsResolvedByName++;
+        } else {
+          counters.recordsUnresolved++;
+        }
       } catch (err) {
         console.error(JSON.stringify({
           event: "rfp_record_error", opp_key: raw.opp_key, error: String(err).slice(0, 500),
