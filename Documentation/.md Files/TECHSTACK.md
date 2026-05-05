@@ -79,6 +79,10 @@ calendar_events             — Staged calendar events (inbox before confirmatio
 tags                        — Tag definitions (name, color)
 unmatched_accounts          — Accounts without district match
 data_refresh_logs           — ETL audit trail
+
+rfps                        — K-12 RFPs ingested from HigherGov SLED API
+└── (linked to districts via leaid)
+rfp_ingest_runs             — Audit log for each HigherGov ingest run
 ```
 
 ### Connection Patterns
@@ -123,6 +127,7 @@ Used for:
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | **googleapis** | latest | Google Calendar API client for two-way calendar sync |
+| **HigherGov SLED API** | — | K-12 RFP/opportunity feed (`https://www.highergov.com/api-external/opportunity/`) |
 
 Used for:
 - Pulling calendar events for the Calendar Inbox
@@ -170,6 +175,9 @@ Used for:
 /api/progress/activities    — Activity metrics (counts, trends, coverage)
 /api/progress/outcomes      — Outcome metrics (funnel, distribution)
 /api/progress/plans         — Plan engagement metrics
+
+/api/rfps                   — List RFPs (filter by leaid/stateFips/state/q, cursor pagination)
+/api/cron/ingest-rfps       — Daily HigherGov RFP ingest cron (08:15 UTC)
 ```
 
 ## Testing
@@ -238,6 +246,10 @@ CRON_SECRET=your-cron-secret
 # NewsAPI.org (optional, not currently wired up — reserved for future enrichment
 # of top-20 districts where structured imageUrl + source.id metadata is desired)
 NEWS_API_KEY=...
+
+# HigherGov RFP feed (required for /api/cron/ingest-rfps)
+HIGHERGOV_API_KEY=your-highergov-api-key
+HIGHERGOV_K12_SEARCH_ID=your-k12-search-id
 ```
 
 ### News feature
