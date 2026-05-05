@@ -97,6 +97,111 @@ function MappingBadge({ mapping }: { mapping: AgencyMapping | null }) {
 type ResolutionStep = "pick" | "district" | "state" | "non_lea";
 type BulkStep = null | "district" | "state" | "non_lea";
 
+interface RfpItem {
+  id: number;
+  title: string;
+  description: string | null;
+  oppType: string | null;
+  solicitationNumber: string | null;
+  postedDate: string | null;
+  dueDate: string | null;
+  valueLow: string | null;
+  valueHigh: string | null;
+  highergovUrl: string | null;
+  leaid: string | null;
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function AgencyRfpsPanel({ agencyKey }: { agencyKey: number }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["agency-rfps", agencyKey],
+    queryFn: async () => {
+      const res = await fetch(`/api/rfps?agency_key=${agencyKey}&limit=50`);
+      if (!res.ok) throw new Error("Failed to fetch RFPs");
+      return res.json() as Promise<{ items: RfpItem[]; nextCursor: string | null }>;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#D4CFE2]">
+        <span className="text-xs text-[#A69DC0]">Loading RFPs…</span>
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#F37167]">
+        <span className="text-xs text-[#F37167]">Failed to load RFPs.</span>
+      </div>
+    );
+  }
+  if (data.items.length === 0) {
+    return (
+      <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#D4CFE2]">
+        <span className="text-xs text-[#A69DC0]">No RFPs found for this agency.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#403770] space-y-3">
+      <div className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
+        {data.items.length} RFP{data.items.length === 1 ? "" : "s"}{data.nextCursor ? "+ (showing first 50)" : ""}
+      </div>
+      <div className="space-y-2">
+        {data.items.map((rfp) => (
+          <div key={rfp.id} className="bg-white rounded-lg border border-[#E2DEEC] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-[#403770]">{rfp.title}</span>
+                  {rfp.oppType ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F7F5FA] text-[#6E6390] border border-[#D4CFE2]">{rfp.oppType}</span>
+                  ) : null}
+                  {rfp.solicitationNumber ? (
+                    <span className="text-[10px] text-[#A69DC0] tabular-nums">#{rfp.solicitationNumber}</span>
+                  ) : null}
+                </div>
+                {rfp.description ? (
+                  <p className="text-xs text-[#6E6390] mt-1 line-clamp-3">{rfp.description}</p>
+                ) : null}
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#8A80A8]">
+                  <span>Posted {fmtDate(rfp.postedDate)}</span>
+                  <span>Due {fmtDate(rfp.dueDate)}</span>
+                  {rfp.valueLow || rfp.valueHigh ? (
+                    <span className="tabular-nums">
+                      {rfp.valueLow ? `$${Math.round(parseFloat(rfp.valueLow)).toLocaleString()}` : "?"}
+                      {" – "}
+                      {rfp.valueHigh ? `$${Math.round(parseFloat(rfp.valueHigh)).toLocaleString()}` : "?"}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {rfp.highergovUrl ? (
+                <a
+                  href={rfp.highergovUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-[#6EA3BE] hover:text-[#403770] hover:underline whitespace-nowrap"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  HigherGov ↗
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BulkActionBar({
   count, onMapDistrict, onMapState, onDismiss, onClear,
 }: {
@@ -301,6 +406,7 @@ function AgencyDistrictMapsContent() {
     agencyDistrictMapColumns.filter((c) => c.isDefault && !c.isFilterOnly).map((c) => c.key)
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
 
   const [bulkStep, setBulkStep] = useState<BulkStep>(null);
   const selectedAgencyKeys = useMemo(() => Array.from(selectedIds).map(Number), [selectedIds]);
@@ -502,6 +608,17 @@ function AgencyDistrictMapsContent() {
             });
           }}
           onClearSelection={() => setSelectedIds(new Set())}
+          expandedRowIds={expandedRowIds}
+          onToggleExpand={(id) => {
+            setExpandedRowIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id); else next.add(id);
+              return next;
+            });
+          }}
+          renderExpandedRow={(row) => (
+            <AgencyRfpsPanel agencyKey={(row as unknown as AgencyRow).agencyKey} />
+          )}
           renderRowAction={(row) => {
             const r = row as unknown as AgencyRow & { id: string };
             const isMapped = r.mapping !== null;
