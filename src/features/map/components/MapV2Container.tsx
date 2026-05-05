@@ -14,7 +14,7 @@ import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
 import { useProfile } from "@/lib/api";
 import { mapV2Ref, mapV2Refs, type MapRefKey } from "@/features/map/lib/ref";
 import { classifyTransition } from "@/features/map/lib/comparison";
-import { useSchoolGeoJSON, useMapContacts, useMapVacancies, useMapActivities, useMapPlans } from "@/features/map/lib/queries";
+import { useSchoolGeoJSON, useMapContacts, useMapVacancies, useMapActivities, useMapPlans, buildMapPlansTileUrl } from "@/features/map/lib/queries";
 import { useCrossFilter } from "@/features/map/lib/useCrossFilter";
 import {
   CONTACTS_SOURCE, VACANCIES_SOURCE, ACTIVITIES_SOURCE, PLANS_SOURCE,
@@ -242,7 +242,7 @@ export default function MapV2Container({
   );
 
   const plansEnabled = activeLayers.has("plans") && mapReady;
-  const { data: plansGeoJSON, isLoading: plansLoading } = useMapPlans(
+  const { data: plansRows, isLoading: plansLoading } = useMapPlans(
     layerFilters.plans, plansEnabled,
   );
 
@@ -260,7 +260,7 @@ export default function MapV2Container({
 
   // Cross-filter: constrains overlay rendering by plan focus, plan filters, and search results
   const { filterOverlayGeoJSON } = useCrossFilter({
-    plansGeoJSON,
+    plansGeoJSON: plansRows ?? null,
     contactsGeoJSON,
     vacanciesGeoJSON,
     activitiesGeoJSON,
@@ -305,17 +305,20 @@ export default function MapV2Container({
     }
   }, [activitiesGeoJSON, activitiesEnabled, mapReady, filterOverlayGeoJSON]);
 
-  // Push overlay plans data to map source
+  // Update vector tile URL when plan filters change.
+  const plansTileUrl = useMemo(
+    () => new URL(buildMapPlansTileUrl(layerFilters.plans), window.location.origin).toString(),
+    [layerFilters.plans],
+  );
+
   useEffect(() => {
     if (!map.current || !mapReady) return;
-    const source = map.current.getSource(PLANS_SOURCE) as maplibregl.GeoJSONSource | undefined;
+    const source = map.current.getSource(PLANS_SOURCE) as any;
     if (!source) return;
-    if (plansGeoJSON && plansEnabled) {
-      source.setData(plansGeoJSON);
-    } else {
-      source.setData({ type: "FeatureCollection", features: [] });
+    if (typeof source.setTiles === "function") {
+      source.setTiles([plansTileUrl]);
     }
-  }, [plansGeoJSON, plansEnabled, mapReady]);
+  }, [plansTileUrl, mapReady]);
 
   // Toggle overlay layer visibility based on activeLayers
   useEffect(() => {
@@ -844,7 +847,12 @@ export default function MapV2Container({
       // === OVERLAY LAYERS (map planning overlays) ===
 
       // Plan polygon source + layers (rendered below pin layers)
-      map.current.addSource(PLANS_SOURCE, createGeoJSONSource());
+      map.current.addSource(PLANS_SOURCE, {
+        type: "vector",
+        tiles: [new URL(buildMapPlansTileUrl(layerFilters.plans), window.location.origin).toString()],
+        minzoom: 0,
+        maxzoom: 22,
+      });
       for (const layer of getPlanLayers()) {
         map.current.addLayer(layer);
       }
