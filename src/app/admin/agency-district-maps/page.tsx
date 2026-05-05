@@ -697,23 +697,61 @@ function AgencyDistrictMapsContent() {
         />
       )}
 
-      {bulkStep === "district" && (
-        <DistrictSearchModal
-          subjectName={`${selectedAgencyKeys.length} agencies selected`}
-          subjectState={null}
-          onSelect={(district) => {
-            guardLargeCascade(() => {
-              mapMutation.mutate({
-                agencyKeys: selectedAgencyKeys,
-                kind: "district",
-                leaid: district.leaid,
+      {bulkStep === "district" && (() => {
+        const selectedRows = (data?.items ?? []).filter((r) =>
+          selectedAgencyKeys.includes(r.agencyKey),
+        );
+        // Bulk-with-1 behaves identically to the single-agency case: real agency
+        // name + state, suggestions on, create-form prefilled.
+        if (selectedRows.length === 1) {
+          const a = selectedRows[0];
+          return (
+            <DistrictSearchModal
+              subjectName={a.agencyName}
+              subjectState={a.stateAbbrev}
+              onSelect={(district) => {
+                guardLargeCascade(() => {
+                  mapMutation.mutate({
+                    agencyKeys: [a.agencyKey],
+                    kind: "district",
+                    leaid: district.leaid,
+                  });
+                  setBulkStep(null);
+                });
+              }}
+              onClose={() => setBulkStep(null)}
+            />
+          );
+        }
+        // True multi-agency: show count + first few names, skip suggestions
+        // (no single name to fuzzy-match), and disable create-form prefill.
+        const names = selectedRows.map((r) => r.agencyName);
+        const subtitle =
+          names.length === 0
+            ? undefined
+            : names.slice(0, 4).join(", ") +
+              (names.length > 4 ? `, +${names.length - 4} more` : "");
+        return (
+          <DistrictSearchModal
+            subjectName={`${selectedAgencyKeys.length} agencies`}
+            subjectState={null}
+            subjectSubtitle={subtitle}
+            searchHint=""
+            defaultDistrictName=""
+            onSelect={(district) => {
+              guardLargeCascade(() => {
+                mapMutation.mutate({
+                  agencyKeys: selectedAgencyKeys,
+                  kind: "district",
+                  leaid: district.leaid,
+                });
+                setBulkStep(null);
               });
-              setBulkStep(null);
-            });
-          }}
-          onClose={() => setBulkStep(null)}
-        />
-      )}
+            }}
+            onClose={() => setBulkStep(null)}
+          />
+        );
+      })()}
 
       {bulkStep === "state" && (
         <BulkConfirm
