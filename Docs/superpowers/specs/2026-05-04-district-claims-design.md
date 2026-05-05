@@ -119,7 +119,14 @@ The companion CRM string columns (`districts.owner`, `districts.sales_executive`
 
 ### Materialized view rebuild
 
-The `district_materialized_financials` materialized view (aliased `dmf` in the summary endpoints) currently includes `sales_executive_id`. The destructive migration must drop and recreate this view without that column. The summary endpoints (`src/app/api/districts/summary/route.ts`, `summary/compare/route.ts`, `leaids/route.ts`) lose the ability to filter financials by `sales_executive_id` — see API changes below for the replacement.
+The `district_map_features` materialized view (aliased `dmf` in the summary endpoints) currently includes `sales_executive_id` and `sales_executive_name`, plus an `idx_dmf_owner` index on `sales_executive_id`. Source of truth lives in `scripts/district-map-features-view.sql`.
+
+The destructive migration must:
+
+1. Update `scripts/district-map-features-view.sql` to remove the `d.sales_executive_id` and `up.full_name AS sales_executive_name` columns from the SELECT, the `LEFT JOIN user_profiles up ON d.sales_executive_id = up.id`, the `idx_dmf_owner` index, and `d.sales_executive_id, up.full_name` from the GROUP BY clause.
+2. Run a migration that `DROP MATERIALIZED VIEW IF EXISTS district_map_features;` and recreates it by executing the updated SQL file.
+
+The summary endpoints (`src/app/api/districts/summary/route.ts`, `summary/compare/route.ts`, `leaids/route.ts`) lose the ability to filter financials by `sales_executive_id` — see API changes below for the replacement.
 
 ## API
 
@@ -289,9 +296,9 @@ Two PRs, in order:
 1. **App code PR** — implement the new claim API, the `<DistrictClaimants>` component, the search-card and detail-panel changes, the "Mine" filter chip. Remove every read referenced in "Existing endpoints — changes" and "UI surfaces removed (CRM-backfill cleanup)" — the `ownerUser` / `salesExecutiveUser` / `territoryOwnerUser` Prisma includes, the related `salesExec` / `territoryOwnerId` query params, the filter pills, the header rows, the explore-modal stats, the `useSalesExecutives` query, the metadata entry, the auth-callback re-link blocks (4 of 5 deleted). Existing columns and the materialized view stay in the database — application code just stops touching them. Deploy.
 
 2. **Destructive migration PR** (after the app code is deployed and stable) — single migration that:
-   1. Drops the `district_materialized_financials` view (or whatever its real name is — verify during implementation).
-   2. Drops the listed columns and indexes (`District.ownerId`, `District.salesExecutiveId`, `School.ownerId`, `State.territoryOwnerId`, `Account.salesExecutiveId`, `unmatched_accounts.sales_executive_id`).
-   3. Recreates `district_materialized_financials` from scratch without the `sales_executive_id` column.
+   1. Drops the `district_map_features` materialized view.
+   2. Drops the listed columns and indexes: `districts.owner_id`, `districts.sales_executive_id`, `schools.owner_id`, `states.territory_owner_id`, `accounts.sales_executive_id`, `unmatched_accounts.sales_executive_id` and any indexes that reference them.
+   3. Recreates `district_map_features` from the updated `scripts/district-map-features-view.sql` (without `sales_executive_id`/`sales_executive_name` and without `idx_dmf_owner`).
    4. Drops the corresponding Prisma relations from `schema.prisma` and runs `prisma migrate`.
 
    Splitting this off from the app PR is cheap insurance: if any code path still referenced one of these columns, we find out before they're gone.
