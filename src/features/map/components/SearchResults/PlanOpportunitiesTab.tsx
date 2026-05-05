@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { usePlanOpportunities } from "@/lib/api";
 import type { PlanOpportunityRow } from "@/features/shared/types/api-types";
 
+const GRID_TEMPLATE = "1.5fr 1fr 90px 90px 90px 90px 90px 90px";
+
 function formatCurrency(value: number | null | undefined): string {
   if (value == null || value === 0) return "—";
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
@@ -122,7 +124,10 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
     <div className="flex flex-col h-full">
       {/* Table header */}
       <div className="shrink-0 border-b border-[#E2DEEC] bg-[#FAFAFE]">
-        <div className="grid grid-cols-[1.5fr_1fr_90px_90px_90px_90px_90px_90px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
+        <div
+          className="grid items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]"
+          style={{ gridTemplateColumns: GRID_TEMPLATE }}
+        >
           <ColHeader label="Name" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
           <ColHeader label="District" col="district" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
           <ColHeader label="Stage" col="stage" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
@@ -144,7 +149,10 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
       {/* Footer */}
       {totals && (
         <div className="shrink-0 border-t border-[#E2DEEC] bg-[#FAFAFE]">
-          <div className="grid grid-cols-[1.5fr_1fr_90px_90px_90px_90px_90px_90px] items-center px-5 py-2.5 text-[11px]">
+          <div
+            className="grid items-center px-5 py-2.5 text-[11px]"
+            style={{ gridTemplateColumns: GRID_TEMPLATE }}
+          >
             <span className="font-medium text-[#6E6390]">
               {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"}
             </span>
@@ -174,7 +182,10 @@ function OppRow({ opp }: { opp: PlanOpportunityRow }) {
   const stageStyle = getStageStyle(opp.stage);
 
   return (
-    <div className="grid grid-cols-[1.5fr_1fr_90px_90px_90px_90px_90px_90px] items-center px-5 py-2.5 border-b border-[#f0edf5] last:border-b-0 hover:bg-[#FAFAFE] transition-colors">
+    <div
+      className="grid items-center px-5 py-2.5 border-b border-[#f0edf5] last:border-b-0 hover:bg-[#FAFAFE] transition-colors"
+      style={{ gridTemplateColumns: GRID_TEMPLATE }}
+    >
       <span className="text-xs font-medium text-[#544A78] truncate pr-2" title={opp.name ?? undefined}>
         {opp.name ?? "Untitled"}
       </span>
