@@ -8,6 +8,7 @@ import type { SortRule, FilterRule, CellRendererFn } from "@/features/shared/com
 import AdminFilterBar from "./AdminFilterBar";
 import AdminColumnPicker from "./AdminColumnPicker";
 import { DistrictSearchModal, type DistrictResult } from "@/features/shared/components/DistrictSearch/DistrictSearchModal";
+import { US_STATES, abbrevToFips } from "@/lib/states";
 
 interface AgencyMapping {
   kind: "district" | "state" | "non_lea";
@@ -93,6 +94,138 @@ function MappingBadge({ mapping }: { mapping: AgencyMapping | null }) {
   return <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#F5F4F7] text-[#8A80A8] border border-[#A69DC0]/30">Non-LEA</span>;
 }
 
+type ResolutionStep = "pick" | "district" | "state" | "non_lea";
+
+function KindPickerModal({
+  agency,
+  onPick,
+  onClose,
+}: {
+  agency: AgencyRow;
+  onPick: (kind: "district" | "state" | "non_lea") => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+        <h3 className="text-lg font-semibold text-[#403770]">Resolve {agency.agencyName}</h3>
+        <p className="text-sm text-[#8A80A8] mt-1 mb-4">
+          {agency.totalRfpCount} RFP{agency.totalRfpCount === 1 ? "" : "s"} from this agency
+          {agency.stateAbbrev ? ` (${agency.stateAbbrev})` : ""}
+        </p>
+
+        <div className="space-y-2">
+          <button
+            onClick={() => onPick("district")}
+            className="w-full text-left px-4 py-3 rounded-lg border border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA]"
+          >
+            <div className="font-medium text-[#403770]">Map to a district</div>
+            <div className="text-xs text-[#8A80A8] mt-0.5">Search for the LEA this agency belongs to</div>
+          </button>
+          <button
+            onClick={() => onPick("state")}
+            className="w-full text-left px-4 py-3 rounded-lg border border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA]"
+          >
+            <div className="font-medium text-[#403770]">State-level only</div>
+            <div className="text-xs text-[#8A80A8] mt-0.5">Real state agency / charter network — no specific LEA</div>
+          </button>
+          <button
+            onClick={() => onPick("non_lea")}
+            className="w-full text-left px-4 py-3 rounded-lg border border-[#D4CFE2] hover:border-[#403770] hover:bg-[#F7F5FA]"
+          >
+            <div className="font-medium text-[#403770]">Dismiss as non-LEA</div>
+            <div className="text-xs text-[#8A80A8] mt-0.5">Vendor / federal entity / mis-classified — suppress from triage</div>
+          </button>
+        </div>
+
+        <button onClick={onClose} className="mt-4 px-4 py-2 text-sm text-[#544A78] hover:bg-[#EFEDF5] rounded-lg">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StateOnlyModal({
+  agency,
+  onConfirm,
+  onClose,
+}: {
+  agency: AgencyRow;
+  onConfirm: (stateFips: string, notes: string) => void;
+  onClose: () => void;
+}) {
+  const [stateAbbrev, setStateAbbrev] = useState(agency.stateAbbrev ?? "");
+  const [notes, setNotes] = useState("");
+  const fips = abbrevToFips(stateAbbrev);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-[#403770]">State-only mapping</h3>
+          <p className="text-sm text-[#8A80A8] mt-1">{agency.agencyName}</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#544A78] mb-1">State</label>
+          <select
+            value={stateAbbrev}
+            onChange={(e) => setStateAbbrev(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg"
+          >
+            <option value="">—</option>
+            {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#544A78] mb-1">Notes (optional)</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg" placeholder="Why state-only?" />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#544A78] hover:bg-[#EFEDF5] rounded-lg">Cancel</button>
+          <button
+            onClick={() => fips && onConfirm(fips, notes)}
+            disabled={!fips}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] disabled:opacity-40 rounded-lg"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DismissConfirmDialog({
+  agency,
+  onConfirm,
+  onClose,
+}: {
+  agency: AgencyRow;
+  onConfirm: (notes: string) => void;
+  onClose: () => void;
+}) {
+  const [notes, setNotes] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-[#403770]">Dismiss as non-LEA?</h3>
+        <p className="text-sm text-[#6E6390]">
+          <span className="font-semibold">{agency.agencyName}</span> ({agency.totalRfpCount} RFP{agency.totalRfpCount === 1 ? "" : "s"}) will be hidden from the untriaged view.
+        </p>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg" placeholder="Notes (optional)" />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#544A78] hover:bg-[#EFEDF5] rounded-lg">Cancel</button>
+          <button onClick={() => onConfirm(notes)} className="px-4 py-2 text-sm font-medium text-white bg-[#F37167] hover:bg-[#e0615a] rounded-lg">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AgencyDistrictMapsContent() {
   const [filters, setFilters] = useState<FilterRule[]>([
     { column: "status", operator: "eq", value: "untriaged" },
@@ -106,6 +239,7 @@ function AgencyDistrictMapsContent() {
 
   const queryClient = useQueryClient();
   const [resolvingAgency, setResolvingAgency] = useState<AgencyRow | null>(null);
+  const [resolutionStep, setResolutionStep] = useState<ResolutionStep>("pick");
   const [toast, setToast] = useState<string | null>(null);
 
   const mapMutation = useMutation({
@@ -131,6 +265,7 @@ function AgencyDistrictMapsContent() {
       queryClient.invalidateQueries({ queryKey: ["agency-district-maps"] });
       setSelectedIds(new Set());
       setResolvingAgency(null);
+      setResolutionStep("pick");
       setToast(`Mapped ${data.mappedAgencyCount} agenc${data.mappedAgencyCount === 1 ? "y" : "ies"} — updated ${data.cascadedRfpCount} RFPs.`);
     },
     onError: (err: Error) => setToast(err.message),
@@ -270,7 +405,7 @@ function AgencyDistrictMapsContent() {
             const isMapped = r.mapping !== null;
             return (
               <button
-                onClick={(e) => { e.stopPropagation(); setResolvingAgency(r); }}
+                onClick={(e) => { e.stopPropagation(); setResolvingAgency(r); setResolutionStep("pick"); }}
                 className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg"
               >
                 {isMapped ? "Edit mapping" : "Resolve"}
@@ -280,7 +415,15 @@ function AgencyDistrictMapsContent() {
         />
       </div>
 
-      {resolvingAgency && (
+      {resolvingAgency && resolutionStep === "pick" && (
+        <KindPickerModal
+          agency={resolvingAgency}
+          onPick={(k) => setResolutionStep(k)}
+          onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
+        />
+      )}
+
+      {resolvingAgency && resolutionStep === "district" && (
         <DistrictSearchModal
           subjectName={resolvingAgency.agencyName}
           subjectState={resolvingAgency.stateAbbrev}
@@ -291,7 +434,36 @@ function AgencyDistrictMapsContent() {
               leaid: district.leaid,
             });
           }}
-          onClose={() => setResolvingAgency(null)}
+          onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
+        />
+      )}
+
+      {resolvingAgency && resolutionStep === "state" && (
+        <StateOnlyModal
+          agency={resolvingAgency}
+          onConfirm={(stateFips, notes) => {
+            mapMutation.mutate({
+              agencyKeys: [resolvingAgency.agencyKey],
+              kind: "state",
+              stateFips,
+              notes: notes || undefined,
+            });
+          }}
+          onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
+        />
+      )}
+
+      {resolvingAgency && resolutionStep === "non_lea" && (
+        <DismissConfirmDialog
+          agency={resolvingAgency}
+          onConfirm={(notes) => {
+            mapMutation.mutate({
+              agencyKeys: [resolvingAgency.agencyKey],
+              kind: "non_lea",
+              notes: notes || undefined,
+            });
+          }}
+          onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
         />
       )}
 
