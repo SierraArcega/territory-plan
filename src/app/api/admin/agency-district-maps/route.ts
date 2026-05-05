@@ -182,7 +182,9 @@ export async function POST(request: NextRequest) {
 
   // Per-kind invariant validation.
   if (kind === "district") {
-    if (!leaid || !/^\d{7}$/.test(leaid)) return badRequest("kind=district requires a 7-digit leaid");
+    // Districts use both NCES 7-digit leaids and 7-character manual ones (A*, M*).
+    // FK to districts.leaid will reject any leaid that doesn't actually exist.
+    if (!leaid || !/^[A-Za-z0-9]{7}$/.test(leaid)) return badRequest("kind=district requires a 7-character leaid");
     if (stateFips) return badRequest("kind=district must not set stateFips");
   } else if (kind === "state") {
     if (leaid) return badRequest("kind=state must not set leaid");

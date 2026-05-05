@@ -204,6 +204,17 @@ describe("POST /api/admin/agency-district-maps", () => {
     expect(res.status).toBe(400);
   });
 
+  it("accepts manually-created district leaids with letter prefix (e.g. M000204)", async () => {
+    updateRfp.mockResolvedValue({ count: 0 });
+    const res = await POST(makePost({ agencyKeys: [1], kind: "district", leaid: "M000204" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("400 when leaid wrong length", async () => {
+    const res = await POST(makePost({ agencyKeys: [1], kind: "district", leaid: "12345" }));
+    expect(res.status).toBe(400);
+  });
+
   it("400 when kind=state missing stateFips (single-agency case)", async () => {
     const res = await POST(makePost({ agencyKeys: [1], kind: "state" }));
     // Single-agency means UI must supply stateFips.

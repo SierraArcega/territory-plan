@@ -441,6 +441,7 @@ function AgencyDistrictMapsContent() {
       setSelectedIds(new Set());
       setResolvingAgency(null);
       setResolutionStep("pick");
+      setBulkStep(null);
       setToast(`Mapped ${data.mappedAgencyCount} agenc${data.mappedAgencyCount === 1 ? "y" : "ies"} — updated ${data.cascadedRfpCount} RFPs.`);
     },
     onError: (err: Error) => setToast(err.message),
