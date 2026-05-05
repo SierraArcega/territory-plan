@@ -23,7 +23,7 @@ vi.mock("@/lib/prisma", () => ({
     activityPlan: { findFirst: vi.fn() },
     district: { findMany: vi.fn() },
     territoryPlanDistrict: { findMany: vi.fn() },
-    userProfile: { findUnique: vi.fn() },
+    userProfile: { findUnique: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -58,8 +58,17 @@ function makeListActivity(overrides: Record<string, unknown> = {}) {
     status: "planned",
     source: "manual",
     outcomeType: null,
+    notes: null,
+    outcome: null,
+    createdByUserId: "user-1",
     plans: [] as { planId: string }[],
-    districts: [] as { districtLeaid: string; warningDismissed: boolean }[],
+    districts: [] as {
+      districtLeaid: string;
+      warningDismissed: boolean;
+      position?: number;
+      district?: { name: string };
+    }[],
+    contacts: [] as { contact: { name: string } }[],
     states: [] as { state: { abbrev: string } }[],
     ...overrides,
   };
@@ -307,6 +316,118 @@ describe("GET /api/activities", () => {
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBe("Failed to fetch activities");
+  });
+
+  it("search matches notes (broadened OR clause)", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({ notes: "discussed pilot" }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?search=pilot");
+    await listActivities(req);
+
+    const where = mockPrisma.activity.findMany.mock.calls[0][0].where;
+    expect(where.OR).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: expect.objectContaining({ contains: "pilot" }) }),
+        expect.objectContaining({ notes: expect.objectContaining({ contains: "pilot" }) }),
+        expect.objectContaining({ outcome: expect.objectContaining({ contains: "pilot" }) }),
+      ])
+    );
+  });
+
+  it("?contactIds= filters by contact junction", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?contactIds=1,2");
+    await listActivities(req);
+
+    const where = mockPrisma.activity.findMany.mock.calls[0][0].where;
+    expect(where.contacts).toEqual({ some: { contactId: { in: [1, 2] } } });
+  });
+
+  it("?sortBy=title&sortDir=asc orders by title ascending", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(0);
+    mockPrisma.activity.findMany.mockResolvedValue([]);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities?sortBy=title&sortDir=asc");
+    await listActivities(req);
+
+    const orderBy = mockPrisma.activity.findMany.mock.calls[0][0].orderBy;
+    expect(orderBy).toEqual([{ title: "asc" }]);
+  });
+
+  it("response includes denormalized Table-view fields", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({
+        notes: "Some notes",
+        outcome: null,
+        createdByUserId: "user-1",
+        districts: [
+          {
+            districtLeaid: "1234567",
+            warningDismissed: false,
+            position: 0,
+            district: { name: "Test District" },
+          },
+        ],
+        contacts: [{ contact: { name: "Jane Doe" } }],
+      }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+    mockPrisma.userProfile.findMany.mockResolvedValue([
+      { id: "user-1", fullName: "Sierra A.", email: "sierra@test.com" },
+    ] as never);
+
+    const req = makeRequest("/api/activities");
+    const res = await listActivities(req);
+    const body = await res.json();
+
+    expect(body.activities[0].districtName).toBe("Test District");
+    expect(body.activities[0].contactName).toBe("Jane Doe");
+    expect(body.activities[0].ownerFullName).toBe("Sierra A.");
+    expect(body.activities[0].createdByUserId).toBe("user-1");
+  });
+
+  it("outcomePreview truncates at 80 chars with ellipsis", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    const longText = "a".repeat(120);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({ outcome: longText, notes: null }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities");
+    const res = await listActivities(req);
+    const body = await res.json();
+
+    expect(body.activities[0].outcomePreview).toBe(`${"a".repeat(80)}…`);
+  });
+
+  it("outcomePreview falls back to notes when outcome is empty", async () => {
+    mockGetUser.mockResolvedValue(TEST_USER);
+    mockPrisma.activity.count.mockResolvedValue(1);
+    mockPrisma.activity.findMany.mockResolvedValue([
+      makeListActivity({ outcome: null, notes: "Short note" }),
+    ] as never);
+    mockPrisma.territoryPlanDistrict.findMany.mockResolvedValue([]);
+
+    const req = makeRequest("/api/activities");
+    const res = await listActivities(req);
+    const body = await res.json();
+
+    expect(body.activities[0].outcomePreview).toBe("Short note");
   });
 });
 
