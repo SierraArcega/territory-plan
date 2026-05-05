@@ -2,9 +2,19 @@ import prisma from "@/lib/prisma";
 import { abbrevToFips } from "@/lib/states";
 
 const STOP_WORDS = new Set([
+  // Base suffixes for K-12 entities
   "public", "schools", "school", "district", "isd", "usd", "unified",
   "independent", "consolidated", "cooperative", "borough", "township",
   "central", "county", "the", "of",
+  // Added for state-agency / SEA / CMO / non-LEA name shapes — the District
+  // table already includes these via accountType, but their canonical names
+  // use words our base list didn't strip.
+  "board", "education", "department", "elementary", "secondary",
+  "system", "state", "academy", "government", "agency",
+  // Connectives
+  "and",
+  // Ordinal/number-word suffixes ("School District Five", "Florence School District One")
+  "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
 ]);
 
 function normalizeName(s: string): string {
