@@ -6,23 +6,27 @@
 
 ## Problem
 
-Districts today have a single editable `District.ownerId` field. Most existing values were assigned arbitrarily during data import; they don't reflect any real working relationship. The "Owner" UI surfaces (search-result card, district-edit modal, batch-edit) reinforce the wrong mental model: that a district has one designated rep.
+Districts today have a single editable `District.ownerId` field. Most existing values were assigned arbitrarily during a CRM-name backfill at login time; they don't reflect any real working relationship. The "Owner" UI surfaces reinforce the wrong mental model: that a district has one designated rep.
 
-In practice, multiple reps may legitimately have standing on a district — anyone with closed-won/lost history in the last 18 months, anyone with an open opportunity, anyone working a territory plan that includes the district. We want to model that reality and let reps explicitly *claim* districts they're actively pursuing.
+The same CRM-name backfill (`src/app/auth/callback/route.ts`) populates `sales_executive_id` on districts, schools, accounts, and unmatched_accounts, plus `territory_owner_id` on states. All of these share the same problem: they're stale identity guesses dressed up as ownership. We're cleaning all of them up in one pass.
+
+In practice, multiple reps may legitimately have standing on a district — anyone with closed-won/lost history in the last 18 months, anyone with an open opportunity, anyone working a territory plan that includes the district. We want to model that reality on districts, and stop pretending the other entities have meaningful "owners."
 
 ## Goals
 
-- Replace the single-owner field with a multi-claimant model.
+- Replace the single-owner field on **districts** with a multi-claimant model (derived + manual claims).
 - Compute most claims automatically ("derived claims") from existing data — opportunities, territory plans.
 - Let reps explicitly *claim* / *release* / *transfer* districts they're working on ("manual claims"), independent of derived basis.
 - Surface claimants on district UI so reps can see at a glance who has standing.
-- Preserve historical attribution during migration; let stale assignments age out naturally.
+- **Drop the entire CRM-name-backfill family** across the schema — the same login-time logic that planted `District.ownerId` also planted `District.salesExecutiveId`, `School.ownerId`, `State.territoryOwnerId`, `Account.salesExecutiveId`, and `unmatched_accounts.sales_executive_id`. All go.
+- Preserve historical district attribution during migration; let stale assignments age out naturally.
 
 ## Non-goals
 
-- Reworking `TerritoryPlan.ownerId`. Plans still have a single owner; that's a different concept.
-- Changing how `Opportunity.salesRepId` works.
-- Reworking `District.salesExecutiveId` (separate account-level field, out of scope).
+- Extending the claim model to schools, states, or accounts. They just lose their owner field with no replacement.
+- Reworking `TerritoryPlan.ownerId`. Plans still have a single user-set owner; that's a different concept.
+- Reworking `MapView.ownerId`. User's own map views; user-set, untouched.
+- Changing how `Opportunity.salesRepId` and `salesRepName` work — the rep on a deal is still the rep on a deal.
 - Notifications when someone else claims a district. (Future.)
 - Permissions / locking — claims are signals, not exclusive locks. Anyone can claim anything.
 
@@ -100,12 +104,22 @@ FROM district_manual_claims;
 
 API reads `district_claimants_v` and groups in app code by `(district_leaid, user_id)`, collapsing bases into a list per user.
 
-### Schema removed (in destructive migration B)
+### Schema removed (in destructive migration C)
 
-- `District.ownerId` (column + Prisma field).
-- `District.ownerUser` Prisma relation.
-- `districts.owner_id` index.
-- The `DistrictOwner` named-relation on `UserProfile`.
+All columns, their indexes, and their Prisma relations:
+
+- `District.ownerId` / `districts.owner_id` + `District.ownerUser` (`DistrictOwner` named-relation).
+- `District.salesExecutiveId` / `districts.sales_executive_id` + `District.salesExecutiveUser` (`DistrictSalesExec` named-relation).
+- `School.ownerId` / `schools.owner_id` + `School.ownerUser` (`SchoolOwner` named-relation).
+- `State.territoryOwnerId` / `states.territory_owner_id` + `State.territoryOwnerUser` named-relation.
+- `Account.salesExecutiveId` / `accounts.sales_executive_id` + relation.
+- `unmatched_accounts.sales_executive_id` + relation.
+
+The companion CRM string columns (`districts.owner`, `districts.sales_executive`, `schools.owner`, `states.territory_owner`, etc.) — leave as-is for now. They're populated by the existing CRM ETL and may have other consumers; out of scope to chase down. They become harmless string fields nobody reads.
+
+### Materialized view rebuild
+
+The `district_materialized_financials` materialized view (aliased `dmf` in the summary endpoints) currently includes `sales_executive_id`. The destructive migration must drop and recreate this view without that column. The summary endpoints (`src/app/api/districts/summary/route.ts`, `summary/compare/route.ts`, `leaids/route.ts`) lose the ability to filter financials by `sales_executive_id` — see API changes below for the replacement.
 
 ## API
 
@@ -147,11 +161,37 @@ Body: `{ toUserId: string }`. Atomic: deletes the authenticated user's claim, cr
 
 ### Existing endpoints — changes
 
+District endpoints:
+
 - `GET /api/districts/search` — drop `ownerUser` from the response payload. Add an inline `claimantSummary` field with `{ count: number, currentUserIsClaimant: boolean, topAvatars: Array<{ id, avatarUrl }> }` (≤3 avatars) so the search-card avatar stack can render without a separate per-result fetch.
-- `GET /api/districts/:leaid` — drop `ownerUser` and the `edits.owner` field from response.
+- `GET /api/districts/:leaid` — drop `ownerUser`, `salesExecutiveUser`, `salesExecutive`, and the `edits.owner` field from response.
 - `PATCH /api/districts/:leaid/edits` — drop `ownerId` from accepted body.
-- `POST /api/districts/batch-edits` — drop `ownerId` from the accepted body and from the validation that requires "at least one of ownerId or notes." Endpoint stays, now `notes`-only.
+- `POST /api/districts/batch-edits` — drop `ownerId` from the accepted body and from the "at least one of" validation. Endpoint stays, now `notes`-only.
+- `GET /api/districts` — drop the `salesExec` filter parameter. `where.salesExecutiveId` removed.
+- `GET /api/districts/summary`, `summary/compare`, `leaids` — the `owner` query param currently filters on `dmf.sales_executive_id`. Repurpose: `owner` now filters by *claimant* via a join through `district_claimants_v`. Same query param name, new semantics. (If keeping the param name causes confusion, rename to `claimedBy`; design assumes rename.)
 - District-list endpoint(s) accept a new `claimedBy=<userId>` filter that joins via `district_claimants_v`.
+
+Other endpoints (CRM-backfill cleanup):
+
+- `GET /api/states/[code]` — drop `territoryOwnerUser` and `territoryOwner` from response.
+- `PATCH /api/states/[code]` — drop `territoryOwnerId` from accepted body. The state edit form loses its owner select.
+- `GET /api/states/[code]/districts` — drop `salesExecutiveUser` and `salesExecutive` from each district row.
+- `GET /api/schools/[ncessch]`, `PATCH /api/schools/[ncessch]/edits` — drop `ownerUser` and `owner` from response and accepted body.
+- `POST /api/accounts` — drop `salesExecutiveId` from accepted body. Existing accounts keep working; new accounts can't be created with the field.
+- `GET /api/admin/unmatched-*` — drop the `sales_executive_id` filter parameter on the unmatched-accounts admin pages.
+- `GET /api/tiles/[z]/[x]/[y]` — drop `d.sales_executive_id` and `d.sales_executive_name` from the SELECT, and from tile-feature properties.
+
+### Auth callback (`src/app/auth/callback/route.ts`)
+
+The callback today runs one re-link by `salesRepEmail` (opportunities) plus a `Promise.all` wrapping five re-links by `crmName`. **Keep only the email-based opp re-link.** Delete the entire `Promise.all` block and the surrounding `crmName` profile fetch:
+
+- `UPDATE districts SET owner_id = ...`
+- `UPDATE districts SET sales_executive_id = ...`
+- `UPDATE states SET territory_owner_id = ...`
+- `UPDATE schools SET owner_id = ...`
+- `UPDATE unmatched_accounts SET sales_executive_id = ...`
+
+New users no longer get any CRM-name-derived ownership stitched together at login. Their connection to districts comes entirely from the claim system; their connection to opportunities still comes from the email-based salesRep re-link.
 
 ## UI
 
@@ -184,11 +224,37 @@ Remove the "Owner" select. The detail panel's Claims section replaces the editab
 
 New filter chip on the district list / map. Default state: **on** for the authenticated user (per CLAUDE.md "Filter bars default to current user"). One-click toggle to "All". Server side, the filter passes `claimedBy=<currentUserId>` to the list endpoint, which joins through `district_claimants_v`.
 
+### UI surfaces removed (CRM-backfill cleanup)
+
+District-level:
+
+- `src/features/districts/components/DistrictHeader.tsx:156-160` — "Sales Executive: <name>" row is deleted.
+- `src/features/map/components/SearchResults/DistrictExploreModal.tsx:285-286` — the "Owner" stat (currently bound to `salesExecutive`) is deleted.
+- `src/features/map/components/SearchBar/FullmindDropdown.tsx`, `DistrictsDropdown.tsx`, `FilterPills.tsx`, `SearchBar/index.tsx` — remove the `salesExecutive` and `owner` columns from the searchable filter set. The "Sales Exec" filter pill disappears.
+- `src/features/districts/lib/queries.ts` — drop `salesExecutive` from the params interface and from `searchParams` building. Drop `salesExecutiveId` from the edit-payload interface.
+- `src/features/shared/lib/queries.ts` — drop the `useSalesExecutives` query (`queryKey: ["salesExecutives"]`).
+- `src/features/shared/lib/app-store.ts` — drop the `salesExecutive` filter slice.
+- `src/features/shared/lib/filters.ts` — drop the `salesExecutive: "salesExecutiveId"` field-map entry.
+- `src/features/shared/types/api-types.ts` — drop `salesExecutive: PersonRef | null` from district-related response types (3 places) and `territoryOwner` from state types.
+- `src/lib/district-column-metadata.ts:2321` — drop the `territoryOwnerId` metadata entry (the column that backs it is gone).
+- `src/features/map/components/MapV2Container.tsx:1028` — drop the `salesExecutive: props?.sales_executive_name` mapping in the tile-feature handler.
+
+State-level:
+
+- The state detail panel's territory-owner edit field (anywhere `territoryOwnerId` is editable in the UI; trace from the `territoryOwner` types in `src/features/shared/types/api-types.ts:816` to its UI consumers).
+
+Account-level:
+
+- The "Sales Executive" filter on the unmatched-opps admin page (`src/app/admin/unmatched-opportunities/page.tsx` if it has one — verify during implementation; only the API filter is confirmed in trace).
+- The "Sales Executive" select on the create-account flow (consumer of `POST /api/accounts`).
+
 ### Surfaces NOT changing
 
-- `TerritoryPlan.ownerId` and the "Owner" label on `PlanDetailSidebar.tsx` — plan ownership is a separate concept.
+- `TerritoryPlan.ownerId` and the "Owner" label on `PlanDetailSidebar.tsx` — plan ownership is a separate concept, user-set, real.
 - `HomePanel`'s plan-owner filter — operates on plans, not districts.
-- `Opportunity.salesRepName` / `salesRepId` displayed in deal views — opp-level, not district-level.
+- `MapView.ownerId` — user's own map views, user-set.
+- `Opportunity.salesRepName` / `salesRepId` displayed in deal views — opp-level, not district-level. The email-based re-link in auth callback stays.
+- The CRM string columns themselves (`districts.owner`, `districts.sales_executive`, `schools.owner`, `states.territory_owner`, etc.). They're populated by the CRM ETL; we're not chasing down that pipeline. They become harmless fields nobody reads from app code.
 
 ## Migration
 
@@ -197,9 +263,13 @@ Three-phase. Each phase is a separate PR/deploy.
 ### Phase A — additive schema + backfill
 
 1. Migration creates `district_manual_claims` table, `district_derived_claims_v` view, and `district_claimants_v` view. No drops.
-2. Backfill script `scripts/backfill-district-manual-claims.ts`: for every district row with a non-null `ownerId`, insert into `district_manual_claims (district_leaid, user_id, claimed_at, last_activity_at)` with both timestamps set to `now()`. Skip if a row already exists for that `(leaid, user_id)`. Idempotent — can be re-run.
+2. Backfill script `scripts/backfill-district-manual-claims.ts`: for every district row, insert into `district_manual_claims (district_leaid, user_id, claimed_at, last_activity_at)` with both timestamps set to `now()` for **each** non-null `(leaid, user_id)` pair from these two sources:
+   - `(districts.leaid, districts.owner_id)` where `owner_id IS NOT NULL`
+   - `(districts.leaid, districts.sales_executive_id)` where `sales_executive_id IS NOT NULL`
 
-   Setting `last_activity_at = now()` starts the 6-month expiry clock fresh on backfill day. Random/wrong assignments will age out naturally if the rep never touches the district. Legitimate assignments will be kept alive by ongoing opps/plans/activities.
+   Skip if a row already exists for that `(leaid, user_id)` (UNIQUE constraint). Idempotent — can be re-run. If both `owner_id` and `sales_executive_id` point to the same user on a district, the second insert is a no-op.
+
+   Setting `last_activity_at = now()` starts the 6-month expiry clock fresh on backfill day. Random/wrong assignments age out naturally if the rep never touches the district. Legitimate assignments stay alive via ongoing opps/plans/activities.
 
 ### Phase B — audit (manual)
 
@@ -216,9 +286,15 @@ Sierra reviews `unsupported.csv` and chooses per row to keep, delete, or leave t
 
 Two PRs, in order:
 
-1. **App code PR** — implement the new claim API, the `<DistrictClaimants>` component, the search-card and detail-panel changes, the "Mine" filter chip, and remove all reads of `District.ownerUser` / `ownerId` in the codebase (API responses, UI components, search results, Prisma includes). Existing column stays in the database — application code just stops touching it. Deploy.
+1. **App code PR** — implement the new claim API, the `<DistrictClaimants>` component, the search-card and detail-panel changes, the "Mine" filter chip. Remove every read referenced in "Existing endpoints — changes" and "UI surfaces removed (CRM-backfill cleanup)" — the `ownerUser` / `salesExecutiveUser` / `territoryOwnerUser` Prisma includes, the related `salesExec` / `territoryOwnerId` query params, the filter pills, the header rows, the explore-modal stats, the `useSalesExecutives` query, the metadata entry, the auth-callback re-link blocks (4 of 5 deleted). Existing columns and the materialized view stay in the database — application code just stops touching them. Deploy.
 
-2. **Destructive migration PR** (after the app code is deployed and stable) — drop the `District.ownerUser` relation from `schema.prisma`, drop the `owner_id` column and its index, run `prisma migrate`. Splitting this off is cheap insurance: if any code path still referenced `ownerId`, we find out before the column is gone.
+2. **Destructive migration PR** (after the app code is deployed and stable) — single migration that:
+   1. Drops the `district_materialized_financials` view (or whatever its real name is — verify during implementation).
+   2. Drops the listed columns and indexes (`District.ownerId`, `District.salesExecutiveId`, `School.ownerId`, `State.territoryOwnerId`, `Account.salesExecutiveId`, `unmatched_accounts.sales_executive_id`).
+   3. Recreates `district_materialized_financials` from scratch without the `sales_executive_id` column.
+   4. Drops the corresponding Prisma relations from `schema.prisma` and runs `prisma migrate`.
+
+   Splitting this off from the app PR is cheap insurance: if any code path still referenced one of these columns, we find out before they're gone.
 
 ## Background jobs
 
@@ -273,9 +349,19 @@ Co-located under `__tests__/` next to source per project convention.
 - Detail panel shows Claim button when user is not a claimant; Release + Transfer when user is.
 - "Mine" filter chip default state matches current user.
 
+### Regression coverage for CRM-backfill cleanup
+
+- `GET /api/districts/:leaid` response no longer contains `ownerUser`, `salesExecutiveUser`, `salesExecutive`, or `edits.owner`.
+- `GET /api/states/[code]` response no longer contains `territoryOwnerUser` or `territoryOwner`.
+- `PATCH /api/districts/:leaid/edits` rejects (or ignores) an `ownerId` field; same for `PATCH /api/states/[code]` with `territoryOwnerId`.
+- `GET /api/districts?salesExec=...` no longer filters; the query param is silently ignored or returns 400 (pick one during implementation — lean toward "silently ignored" for forward compatibility).
+- `GET /api/districts/summary?owner=<userId>` filters by claimant, not by `sales_executive_id`. Verify with a fixture user who has a claim but no historical `sales_executive_id` and confirm the summary includes their districts.
+
 ## Open questions / future work
 
 - Notifications when someone claims, releases, or transfers a district you're connected to — defer.
 - Admin override to remove anyone's claim — defer until a real need surfaces.
 - Warning banner before expiry ("Your claim on X expires in 7 days") — defer.
-- Should `District.salesExecutiveId` be surfaced on the detail panel alongside claimants? Out of scope for this design.
+- Should states get their own claim model later? Today they have a single `territoryOwnerId` (which we're dropping). If state-level ownership turns out to matter for territory planning, consider a state_claims companion to district_claims in a later cycle.
+- Cleaning up the upstream CRM ETL that populates the now-orphan string columns (`districts.owner`, `sales_executive`, `territory_owner`, etc.) — out of scope; those columns become harmless string blobs.
+- Backfilling claim data into the `accounts` table (CMOs, ESAs, charter networks) — `Account.salesExecutiveId` is going away with no replacement on accounts. If account-level claims become a need, design separately.
