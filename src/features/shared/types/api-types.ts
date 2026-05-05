@@ -600,6 +600,9 @@ export interface ActivityListItem {
 export interface ActivitiesResponse {
   activities: ActivityListItem[];
   total: number;
+  // Total matching the base filters before computed-flag filtering. Used by
+  // the Table view's pagination footer + 200+ banner.
+  totalInDb?: number;
 }
 
 // ActivitiesParams is the client-side filter shape sent to GET /api/activities.
