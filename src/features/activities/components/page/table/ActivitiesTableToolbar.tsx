@@ -34,6 +34,9 @@ export default function ActivitiesTableToolbar({
   const { data: profile } = useProfile();
 
   const [search, setSearch] = useState(filters.text);
+
+  // Local→store debounce. The local input is the source of truth while the
+  // user is typing; we flush to the Zustand store after 250ms of idle.
   useEffect(() => {
     const t = setTimeout(() => {
       if (search.trim() !== filters.text) {
@@ -45,10 +48,13 @@ export default function ActivitiesTableToolbar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, patchFilters]);
 
-  // Keep input in sync if some other UI clears the filter (e.g. Reset button).
+  // Store→local sync. Only reacts to filters.text changing (e.g. Reset button,
+  // saved view). Critically NOT depending on `search` — if it did, every
+  // keystroke would race with the debounced flush above and wipe the input.
   useEffect(() => {
-    if (filters.text === "" && search !== "") setSearch("");
-  }, [filters.text, search]);
+    setSearch(filters.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.text]);
 
   const hasActiveFilter =
     filters.categories.length > 0 ||
