@@ -51,6 +51,14 @@ export function buildActivitiesQueryString(params: ActivitiesParams): string {
   if (districtLeaids) sp.set("districtLeaids", districtLeaids);
   const attendeeIds = csvParam(params.attendeeIds);
   if (attendeeIds) sp.set("attendeeIds", attendeeIds);
+  const contactIds = csvParam(
+    params.contactIds == null
+      ? undefined
+      : Array.isArray(params.contactIds)
+        ? params.contactIds.map((v) => String(v))
+        : String(params.contactIds)
+  );
+  if (contactIds) sp.set("contactIds", contactIds);
   const inPerson = csvParam(params.inPerson);
   if (inPerson) sp.set("inPerson", inPerson);
 
@@ -66,6 +74,8 @@ export function buildActivitiesQueryString(params: ActivitiesParams): string {
   if (params.search) sp.set("search", params.search);
   if (params.limit) sp.set("limit", params.limit.toString());
   if (params.offset) sp.set("offset", params.offset.toString());
+  if (params.sortBy) sp.set("sortBy", params.sortBy);
+  if (params.sortDir) sp.set("sortDir", params.sortDir);
 
   // Sort entries so e.g. {a,b} and {b,a} produce the same string and the
   // same TanStack key. URLSearchParams preserves insertion order otherwise.

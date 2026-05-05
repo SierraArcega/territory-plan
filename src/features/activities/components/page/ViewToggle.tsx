@@ -1,12 +1,14 @@
 "use client";
 
-import { Calendar, CalendarDays, CalendarRange, ListChecks, Map } from "lucide-react";
+import { Calendar, CalendarDays, ListChecks, Map, Table as TableIcon } from "lucide-react";
 import type { CalendarView, Grain } from "@/features/activities/lib/filters-store";
 
 // One combined picker for view + grain. Each option pins both: clicking
-// "Quarter" puts you on the month-grid view paginating by quarter; clicking
-// "Schedule" puts you on the day-by-day list paginating by week. The lower
-// grain selector is gone — these five buttons are now the single source.
+// "Schedule" puts you on the day-by-day list paginating by week, etc. The
+// "Table" option swaps the calendar for a paginated, filterable activities
+// grid; date filtering moves into a column filter so anchor+grain are
+// irrelevant — we keep grain="week" so switching back to a calendar view
+// lands on a sensible default.
 interface ViewOption {
   id: string;
   label: string;
@@ -19,15 +21,18 @@ const OPTIONS: ViewOption[] = [
   { id: "schedule", label: "Schedule", view: "schedule", grain: "week", Icon: ListChecks },
   { id: "week", label: "Week", view: "week", grain: "week", Icon: CalendarDays },
   { id: "month", label: "Month", view: "month", grain: "month", Icon: Calendar },
-  { id: "quarter", label: "Quarter", view: "month", grain: "quarter", Icon: CalendarRange },
+  { id: "table", label: "Table", view: "table", grain: "week", Icon: TableIcon },
   { id: "map", label: "Map", view: "map", grain: "week", Icon: Map },
 ];
 
-function activeId(view: CalendarView, grain: Grain): string | null {
+function activeId(view: CalendarView, _grain: Grain): string | null {
   if (view === "schedule") return "schedule";
   if (view === "week") return "week";
+  if (view === "table") return "table";
   if (view === "map") return "map";
-  if (view === "month") return grain === "quarter" ? "quarter" : "month";
+  // Legacy state with grain="quarter" maps back to Month — the Quarter
+  // toggle was removed, but persisted store values may still carry it.
+  if (view === "month") return "month";
   return null;
 }
 
