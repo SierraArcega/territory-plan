@@ -144,3 +144,115 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ items, pagination: { page, pageSize, total } });
 }
+
+interface PostBody {
+  agencyKeys: number[];
+  kind: "district" | "state" | "non_lea";
+  leaid?: string;
+  stateFips?: string;
+  notes?: string;
+}
+
+function badRequest(error: string) {
+  return NextResponse.json({ error }, { status: 400 });
+}
+
+export async function POST(request: NextRequest) {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+
+  let body: PostBody;
+  try {
+    body = await request.json();
+  } catch {
+    return badRequest("Invalid JSON body");
+  }
+
+  const { agencyKeys, kind, leaid, stateFips, notes } = body;
+
+  if (!Array.isArray(agencyKeys) || agencyKeys.length === 0) {
+    return badRequest("agencyKeys must be a non-empty array");
+  }
+  if (!agencyKeys.every((k) => Number.isInteger(k) && k > 0)) {
+    return badRequest("agencyKeys must contain positive integers");
+  }
+  if (!["district", "state", "non_lea"].includes(kind)) {
+    return badRequest("kind must be one of: district, state, non_lea");
+  }
+
+  // Per-kind invariant validation.
+  if (kind === "district") {
+    if (!leaid || !/^\d{7}$/.test(leaid)) return badRequest("kind=district requires a 7-digit leaid");
+    if (stateFips) return badRequest("kind=district must not set stateFips");
+  } else if (kind === "state") {
+    if (leaid) return badRequest("kind=state must not set leaid");
+    if (agencyKeys.length === 1 && !stateFips) {
+      return badRequest("kind=state with a single agency requires stateFips");
+    }
+    if (stateFips && !/^\d{2}$/.test(stateFips)) {
+      return badRequest("stateFips must be a 2-digit FIPS code");
+    }
+  } else {
+    if (leaid || stateFips) return badRequest("kind=non_lea must not set leaid or stateFips");
+  }
+
+  // For multi-agency state-only, derive stateFips per row from rfps.
+  const perAgencyStateFips: Map<number, string> = new Map();
+  if (kind === "state" && !stateFips) {
+    const rows = await prisma.$queryRaw<{ agency_key: number; state_fips: string | null }[]>(
+      Prisma.sql`
+        SELECT agency_key, MAX(state_fips) AS state_fips
+        FROM rfps
+        WHERE agency_key = ANY(${agencyKeys}::int[])
+        GROUP BY agency_key
+      `
+    );
+    for (const r of rows) {
+      if (!r.state_fips) {
+        return badRequest(`Agency ${r.agency_key} has no state — cannot derive stateFips`);
+      }
+      perAgencyStateFips.set(r.agency_key, r.state_fips);
+    }
+    if (perAgencyStateFips.size !== agencyKeys.length) {
+      return badRequest("Some agencyKeys have no RFPs in the database");
+    }
+  }
+
+  // Run all writes in a single transaction.
+  const cascadedRfpCount = await prisma.$transaction(async (tx) => {
+    for (const agencyKey of agencyKeys) {
+      const rowStateFips =
+        kind === "state"
+          ? (stateFips ?? perAgencyStateFips.get(agencyKey)!)
+          : null;
+      const data = {
+        kind,
+        leaid: kind === "district" ? leaid! : null,
+        stateFips: rowStateFips,
+        notes: notes ?? null,
+        resolvedBy: user.id,
+        resolvedAt: new Date(),
+      };
+      await tx.agencyDistrictMap.upsert({
+        where: { agencyKey },
+        create: { agencyKey, ...data },
+        update: data,
+      });
+    }
+    if (kind === "district") {
+      const r = await tx.rfp.updateMany({
+        where: { agencyKey: { in: agencyKeys } },
+        data: { leaid: leaid! },
+      });
+      return r.count;
+    } else {
+      const r = await tx.rfp.updateMany({
+        where: { agencyKey: { in: agencyKeys } },
+        data: { leaid: null },
+      });
+      return r.count;
+    }
+  });
+
+  return NextResponse.json({ mappedAgencyCount: agencyKeys.length, cascadedRfpCount });
+}
