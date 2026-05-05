@@ -7,17 +7,17 @@ import {
   useActivitiesChrome,
   deriveActivitiesParams,
 } from "@/features/activities/lib/filters-store";
-import {
-  ACTIVITY_TYPE_LABELS,
-  ACTIVITY_STATUS_CONFIG,
-  type ActivityType,
-  type ActivityStatus,
-} from "@/features/activities/types";
+import type { ActivityType, ActivityStatus } from "@/features/activities/types";
 import type { ActivityListItem } from "@/features/shared/types/api-types";
 import { cn } from "@/features/shared/lib/cn";
 import { ACTIVITIES_TABLE_COLUMNS, getColumnDef } from "./columns";
 import ActivitiesTableToolbar from "./ActivitiesTableToolbar";
 import ActivitiesTableHeader from "./ActivitiesTableHeader";
+import BulkActionBar from "./BulkActionBar";
+import EditableDateCell from "./cells/EditableDateCell";
+import EditableTypeCell from "./cells/EditableTypeCell";
+import EditableStatusCell from "./cells/EditableStatusCell";
+import EditableOwnerCell from "./cells/EditableOwnerCell";
 
 interface ActivitiesTableViewProps {
   onActivityClick: (id: string) => void;
@@ -26,23 +26,15 @@ interface ActivitiesTableViewProps {
 
 const NARROW_WIDTH_HINT_THRESHOLD = 200;
 
-// Render a typed value into a table cell. Text-fragment fall-throughs are
-// fine for now — when 3.3 lands, the editable columns swap their cell out
-// for an EditableXCell that handles its own click + popover.
+// Map a column key to the right cell renderer. The four editable cells
+// stop their own click events so the row click → drawer fallback only
+// fires on the non-editable columns.
 function renderCell(key: string, row: ActivityListItem) {
   switch (key) {
     case "date":
-      return row.startDate
-        ? new Date(row.startDate).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : <span className="text-[#A69DC0]">Unscheduled</span>;
-    case "type": {
-      const label = ACTIVITY_TYPE_LABELS[row.type as ActivityType] ?? row.type;
-      return <span className="text-[#544A78] uppercase tracking-wide text-[10px] font-semibold">{label}</span>;
-    }
+      return <EditableDateCell activityId={row.id} startDate={row.startDate} />;
+    case "type":
+      return <EditableTypeCell activityId={row.id} type={row.type as ActivityType} />;
     case "title":
       return <span className="font-medium text-[#403770]">{row.title}</span>;
     case "district":
@@ -50,20 +42,15 @@ function renderCell(key: string, row: ActivityListItem) {
     case "contact":
       return row.contactName ?? <span className="text-[#A69DC0]">—</span>;
     case "owner":
-      return row.ownerFullName ?? <span className="text-[#A69DC0]">—</span>;
-    case "status": {
-      const cfg = ACTIVITY_STATUS_CONFIG[row.status as ActivityStatus];
-      if (!cfg) return row.status;
       return (
-        <span
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ backgroundColor: cfg.bgColor, color: cfg.color }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} aria-hidden />
-          {cfg.label}
-        </span>
+        <EditableOwnerCell
+          activityId={row.id}
+          ownerId={row.createdByUserId ?? null}
+          ownerFullName={row.ownerFullName ?? null}
+        />
       );
-    }
+    case "status":
+      return <EditableStatusCell activityId={row.id} status={row.status as ActivityStatus} />;
     case "outcome":
       return row.outcomePreview ? (
         <span className="text-[#6E6390] truncate block">{row.outcomePreview}</span>
@@ -251,6 +238,11 @@ export default function ActivitiesTableView({
         totalPages={totalPages}
         rowCount={rows.length}
         onPageChange={setTablePage}
+      />
+
+      <BulkActionBar
+        selectedRows={selectedRows}
+        onClear={() => setSelectedIds(new Set())}
       />
     </div>
   );
