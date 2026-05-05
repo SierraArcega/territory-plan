@@ -45,7 +45,7 @@ export interface ClassificationResult {
 /** Pure parser for the classify_rfp tool's input — pulled out of
  *  classifyOne so it can be unit-tested without mocking the LLM. */
 export function parseClassificationResult(raw: unknown): ClassificationResult | null {
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const out = raw as Record<string, unknown>;
 
   const fullmindRelevance = (RELEVANCE_TIERS as readonly string[]).includes(
@@ -77,7 +77,9 @@ export function parseClassificationResult(raw: unknown): ClassificationResult | 
 
   const w9 = out.requiresW9State;
   const requiresW9State =
-    typeof w9 === "string" && /^[A-Z]{2}$/.test(w9) ? w9 : null;
+    typeof w9 === "string" && /^[a-zA-Z]{2}$/.test(w9.trim())
+      ? w9.trim().toUpperCase()
+      : null;
 
   return {
     fullmindRelevance,

@@ -155,6 +155,37 @@ describe("parseClassificationResult", () => {
     expect(result?.cooperativeEligible).toBe(false);
   });
 
+  it("returns null for array input", () => {
+    expect(parseClassificationResult(["esser"])).toBeNull();
+    expect(parseClassificationResult([])).toBeNull();
+  });
+
+  it("normalizes requiresW9State to uppercase", () => {
+    expect(
+      parseClassificationResult({
+        fullmindRelevance: "high",
+        keywords: [],
+        fundingSources: [],
+        setAsideType: "none",
+        inStateOnly: true,
+        cooperativeEligible: false,
+        requiresW9State: "tx",
+      })?.requiresW9State,
+    ).toBe("TX");
+
+    expect(
+      parseClassificationResult({
+        fullmindRelevance: "high",
+        keywords: [],
+        fundingSources: [],
+        setAsideType: "none",
+        inStateOnly: true,
+        cooperativeEligible: false,
+        requiresW9State: "  Ca  ",
+      })?.requiresW9State,
+    ).toBe("CA");
+  });
+
   it(`caps each keyword at MAX_KEYWORD_CHARS (${MAX_KEYWORD_CHARS})`, () => {
     const longKeyword = "x".repeat(200);
     const result = parseClassificationResult({
