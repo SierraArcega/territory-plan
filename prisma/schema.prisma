@@ -974,18 +974,93 @@ enum ServiceCategory {
   @@map("service_category")
 }
 
+enum InstructionType {
+  core_credit_bearing
+  supplemental
+
+  @@map("instruction_type")
+}
+
+enum TeacherOfRecord {
+  required
+  optional
+
+  @@map("teacher_of_record")
+}
+
+enum DeliveryType {
+  one_to_one    @map("1:1")
+  one_to_ten    @map("1:10")
+  one_to_thirty @map("1:30")
+
+  @@map("delivery_type")
+}
+
 // ===== Service Catalog =====
 // Fullmind's service offerings that can be targeted for districts
 model Service {
-  id        Int    @id @default(autoincrement())
-  name      String @unique @db.VarChar(100)
-  slug      String @unique @db.VarChar(50)
-  color     String @db.VarChar(7)
-  sortOrder Int    @default(0) @map("sort_order")
+  id                 Int              @id @default(autoincrement())
+  name               String           @unique @db.VarChar(100)
+  slug               String           @unique @db.VarChar(50)
+  color              String           @db.VarChar(7)
+  sortOrder          Int              @default(0) @map("sort_order")
+  instructionType    InstructionType? @map("instruction_type")
+  icon               String?          @db.VarChar(50)
+  deliveryTypes      String[]         @default([]) @map("delivery_types")
+  challenge          String?
+  solution           String?
+  teacherOfRecord    TeacherOfRecord? @map("teacher_of_record")
+  hasLms             Boolean          @default(false) @map("has_lms")
+  hasExitTickets     Boolean          @default(false) @map("has_exit_tickets")
+  hasMiniLesson      Boolean          @default(false) @map("has_mini_lesson")
+  hasSwdProgress     Boolean          @default(false) @map("has_swd_progress")
+  gradebooksIncluded Boolean          @default(false) @map("gradebooks_included")
+  gradebooksNote     String?          @map("gradebooks_note")
+  parentServiceId    Int?             @map("parent_service_id")
+
+  parent   Service?  @relation("ServiceHierarchy", fields: [parentServiceId], references: [id])
+  subtypes Service[] @relation("ServiceHierarchy")
 
   planDistrictServices TerritoryPlanDistrictService[]
+  pricing              ServicePricing[]
+  aliases              ServiceAlias[]
 
+  @@index([parentServiceId])
   @@map("services")
+}
+
+// Per-fiscal-year pricing for instructional services. One row per
+// (service, fiscal_year, delivery). rate_cents avoids float drift.
+model ServicePricing {
+  id            Int          @id @default(autoincrement())
+  serviceId     Int          @map("service_id")
+  fiscalYear    Int          @map("fiscal_year")
+  delivery      DeliveryType
+  rateCents     Int          @map("rate_cents")
+  description   String?
+  effectiveFrom DateTime     @default(now()) @map("effective_from") @db.Timestamptz
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, fiscalYear, delivery])
+  @@index([fiscalYear])
+  @@map("service_pricing")
+}
+
+// Maps free-form service strings from synced sessions/subscriptions to a
+// canonical Service. ignored=true suppresses the alias from the unmapped
+// view without tying it to a service.
+model ServiceAlias {
+  alias     String   @id
+  serviceId Int?     @map("service_id")
+  ignored   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([serviceId])
+  @@map("service_aliases")
 }
 
 // Junction table linking plan-districts to target services
@@ -1488,19 +1563,19 @@ model UnmatchedOpportunity {
 // ===== Vacancy Scanner =====
 // Tracks job board scan runs for audit and progress reporting
 model VacancyScan {
-  id                    String    @id @default(cuid())
-  leaid                 String    @db.VarChar(7)
-  status                String    @db.VarChar(20) // pending, running, completed, completed_partial, failed
-  platform              String?   @db.VarChar(50)
-  vacancyCount          Int?      @map("vacancy_count")
-  fullmindRelevantCount Int?      @map("fullmind_relevant_count")
-  districtsMatched      Int?      @map("districts_matched")
-  startedAt             DateTime  @default(now()) @map("started_at")
-  completedAt           DateTime? @map("completed_at")
-  errorMessage          String?   @map("error_message") @db.Text
+  id                    String                @id @default(cuid())
+  leaid                 String                @db.VarChar(7)
+  status                String                @db.VarChar(20) // pending, running, completed, completed_partial, failed
+  platform              String?               @db.VarChar(50)
+  vacancyCount          Int?                  @map("vacancy_count")
+  fullmindRelevantCount Int?                  @map("fullmind_relevant_count")
+  districtsMatched      Int?                  @map("districts_matched")
+  startedAt             DateTime              @default(now()) @map("started_at")
+  completedAt           DateTime?             @map("completed_at")
+  errorMessage          String?               @map("error_message") @db.Text
   failureReason         VacancyFailureReason? @map("failure_reason")
-  triggeredBy           String    @map("triggered_by") @db.VarChar(100)
-  batchId               String?   @map("batch_id") @db.VarChar(50)
+  triggeredBy           String                @map("triggered_by") @db.VarChar(100)
+  batchId               String?               @map("batch_id") @db.VarChar(50)
 
   district  District  @relation(fields: [leaid], references: [leaid])
   vacancies Vacancy[]
