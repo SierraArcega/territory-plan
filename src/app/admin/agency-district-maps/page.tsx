@@ -95,6 +95,59 @@ function MappingBadge({ mapping }: { mapping: AgencyMapping | null }) {
 }
 
 type ResolutionStep = "pick" | "district" | "state" | "non_lea";
+type BulkStep = null | "district" | "state" | "non_lea";
+
+function BulkActionBar({
+  count, onMapDistrict, onMapState, onDismiss, onClear,
+}: {
+  count: number; onMapDistrict: () => void; onMapState: () => void; onDismiss: () => void; onClear: () => void;
+}) {
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#D4CFE2] bg-white shadow-[0_-4px_12px_rgba(64,55,112,0.08)]">
+      <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-3">
+        <span className="text-sm font-medium text-[#403770]">{count} selected</span>
+        <div className="flex-1" />
+        <button onClick={onMapDistrict} className="px-3 py-1.5 text-sm font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg">
+          Map → district…
+        </button>
+        <button onClick={onMapState} className="px-3 py-1.5 text-sm font-medium text-[#403770] bg-[#F7F5FA] hover:bg-[#EFEDF5] border border-[#D4CFE2] rounded-lg">
+          Mark → state-only…
+        </button>
+        <button onClick={onDismiss} className="px-3 py-1.5 text-sm font-medium text-[#F37167] bg-[#fef1f0] hover:bg-[#fbdfdc] border border-[#f58d85]/30 rounded-lg">
+          Dismiss as non-LEA…
+        </button>
+        <button onClick={onClear} className="px-3 py-1.5 text-sm text-[#8A80A8] hover:text-[#403770]">
+          Clear selection
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BulkConfirm({ title, description, danger, onConfirm, onClose }: {
+  title: string; description: string; danger?: boolean;
+  onConfirm: (notes: string) => void; onClose: () => void;
+}) {
+  const [notes, setNotes] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-[#403770]">{title}</h3>
+        <p className="text-sm text-[#6E6390]">{description}</p>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full px-3 py-2 text-sm border border-[#C2BBD4] rounded-lg" placeholder="Notes (optional)" />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#544A78] hover:bg-[#EFEDF5] rounded-lg">Cancel</button>
+          <button
+            onClick={() => onConfirm(notes)}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg ${danger ? "bg-[#F37167] hover:bg-[#e0615a]" : "bg-[#403770] hover:bg-[#322a5a]"}`}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function KindPickerModal({
   agency,
@@ -248,6 +301,9 @@ function AgencyDistrictMapsContent() {
     agencyDistrictMapColumns.filter((c) => c.isDefault && !c.isFilterOnly).map((c) => c.key)
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const [bulkStep, setBulkStep] = useState<BulkStep>(null);
+  const selectedAgencyKeys = useMemo(() => Array.from(selectedIds).map(Number), [selectedIds]);
 
   const queryClient = useQueryClient();
   const [resolvingAgency, setResolvingAgency] = useState<AgencyRow | null>(null);
@@ -410,7 +466,7 @@ function AgencyDistrictMapsContent() {
           hasActiveFilters={filters.length > 0}
           onClearFilters={() => { setFilters([]); setPage(1); }}
           pagination={data?.pagination}
-          onPageChange={setPage}
+          onPageChange={(p) => { setPage(p); setSelectedIds(new Set()); }}
           cellRenderers={cellRenderers}
           rowIdAccessor="id"
           selectedIds={selectedIds}
@@ -445,6 +501,16 @@ function AgencyDistrictMapsContent() {
           }}
         />
       </div>
+
+      {selectedIds.size > 0 && (
+        <BulkActionBar
+          count={selectedIds.size}
+          onMapDistrict={() => setBulkStep("district")}
+          onMapState={()    => setBulkStep("state")}
+          onDismiss={()     => setBulkStep("non_lea")}
+          onClear={()       => setSelectedIds(new Set())}
+        />
+      )}
 
       {resolvingAgency && resolutionStep === "pick" && (
         <KindPickerModal
@@ -496,6 +562,47 @@ function AgencyDistrictMapsContent() {
             });
           }}
           onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
+        />
+      )}
+
+      {bulkStep === "district" && (
+        <DistrictSearchModal
+          subjectName={`${selectedAgencyKeys.length} agencies selected`}
+          subjectState={null}
+          onSelect={(district) => {
+            mapMutation.mutate({
+              agencyKeys: selectedAgencyKeys,
+              kind: "district",
+              leaid: district.leaid,
+            });
+            setBulkStep(null);
+          }}
+          onClose={() => setBulkStep(null)}
+        />
+      )}
+
+      {bulkStep === "state" && (
+        <BulkConfirm
+          title={`Mark ${selectedAgencyKeys.length} agencies as state-only`}
+          description="Each agency will be tagged with its own RFP-derived state."
+          onConfirm={(notes) => {
+            mapMutation.mutate({ agencyKeys: selectedAgencyKeys, kind: "state", notes: notes || undefined });
+            setBulkStep(null);
+          }}
+          onClose={() => setBulkStep(null)}
+        />
+      )}
+
+      {bulkStep === "non_lea" && (
+        <BulkConfirm
+          title={`Dismiss ${selectedAgencyKeys.length} agencies as non-LEA`}
+          description="They will be hidden from the untriaged view."
+          danger
+          onConfirm={(notes) => {
+            mapMutation.mutate({ agencyKeys: selectedAgencyKeys, kind: "non_lea", notes: notes || undefined });
+            setBulkStep(null);
+          }}
+          onClose={() => setBulkStep(null)}
         />
       )}
 
