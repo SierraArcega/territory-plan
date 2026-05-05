@@ -50,7 +50,7 @@ export const HigherGovOpportunitySchema = z.object({
   opp_key: z.string(),
   version_key: z.string(),
   source_type: z.string(),
-  sole_source_flag: z.boolean(),
+  sole_source_flag: z.boolean().nullable(),
   product_service: z.string().nullable().default(""),
   dibbs_status: z.string().nullable(),
   dibbs_quantity: z.unknown().nullable(),
