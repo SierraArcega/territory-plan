@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useCallback } from "react";
 
-import type { FeatureCollection, Geometry, Feature } from "geojson";
+import type { PlanFeatureRow } from "@/features/map/lib/queries";
 import PlanCard from "./PlanCard";
 import PlanDetailModal from "./PlanDetailModal";
 
 interface PlansTabProps {
-  data: FeatureCollection<Geometry> | undefined;
+  data: PlanFeatureRow[] | undefined;
   isLoading: boolean;
 }
 
@@ -34,22 +34,19 @@ function SkeletonCards() {
 export default function PlansTab({ data, isLoading }: PlansTabProps) {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
-  // Plans can have multiple features per plan (one per district).
-  // Group by planId and show one card per unique plan.
-  const uniquePlans = useMemo(() => {
-    if (!data?.features?.length) return [];
-    const seen = new Map<string, Feature<Geometry>>();
-    for (const feature of data.features) {
-      const planId = feature.properties?.planId;
-      if (planId && !seen.has(planId)) {
-        seen.set(planId, feature);
+  // Group rows by planId; show one card per unique plan.
+  const uniquePlans = useMemo<PlanFeatureRow[]>(() => {
+    if (!data?.length) return [];
+    const seen = new Map<string, PlanFeatureRow>();
+    for (const row of data) {
+      if (row.planId && !seen.has(row.planId)) {
+        seen.set(row.planId, row);
       }
     }
     return [...seen.values()];
   }, [data]);
 
-  // Prev/Next navigation
-  const planIds = useMemo(() => uniquePlans.map((f) => f.properties?.planId as string), [uniquePlans]);
+  const planIds = useMemo(() => uniquePlans.map((r) => r.planId), [uniquePlans]);
   const currentIndex = selectedPlanId ? planIds.indexOf(selectedPlanId) : -1;
 
   const handlePrev = useCallback(() => {
@@ -76,11 +73,11 @@ export default function PlansTab({ data, isLoading }: PlansTabProps) {
   return (
     <>
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {uniquePlans.map((feature) => (
+        {uniquePlans.map((row) => (
           <PlanCard
-            key={feature.properties?.planId ?? feature.id}
-            feature={feature}
-            onClick={() => setSelectedPlanId(feature.properties?.planId)}
+            key={row.planId}
+            row={row}
+            onClick={() => setSelectedPlanId(row.planId)}
           />
         ))}
       </div>
