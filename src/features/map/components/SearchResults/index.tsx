@@ -461,9 +461,8 @@ export default function SearchResults() {
     counts.districts = total;
     if (activeLayers.has("plans") && overlayGeoJSON.plans) {
       const planIds = new Set<string>();
-      for (const f of overlayGeoJSON.plans.features) {
-        const pid = f.properties?.planId;
-        if (pid) planIds.add(pid);
+      for (const row of overlayGeoJSON.plans) {
+        if (row.planId) planIds.add(row.planId);
       }
       counts.plans = planIds.size;
     }
