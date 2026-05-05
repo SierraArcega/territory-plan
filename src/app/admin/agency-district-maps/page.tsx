@@ -99,10 +99,12 @@ type ResolutionStep = "pick" | "district" | "state" | "non_lea";
 function KindPickerModal({
   agency,
   onPick,
+  onRemove,
   onClose,
 }: {
   agency: AgencyRow;
   onPick: (kind: "district" | "state" | "non_lea") => void;
+  onRemove?: () => void;
   onClose: () => void;
 }) {
   return (
@@ -138,6 +140,16 @@ function KindPickerModal({
             <div className="text-xs text-[#8A80A8] mt-0.5">Vendor / federal entity / mis-classified — suppress from triage</div>
           </button>
         </div>
+
+        {onRemove ? (
+          <button
+            onClick={onRemove}
+            className="mt-3 w-full text-left px-4 py-3 rounded-lg border border-dashed border-[#C2BBD4] hover:border-[#F37167] hover:bg-[#fef1f0] text-[#F37167]"
+          >
+            <div className="font-medium">Remove mapping</div>
+            <div className="text-xs text-[#A69DC0] mt-0.5">Revert to untriaged — next sync will re-run name match</div>
+          </button>
+        ) : null}
 
         <button onClick={onClose} className="mt-4 px-4 py-2 text-sm text-[#544A78] hover:bg-[#EFEDF5] rounded-lg">
           Cancel
@@ -267,6 +279,25 @@ function AgencyDistrictMapsContent() {
       setResolvingAgency(null);
       setResolutionStep("pick");
       setToast(`Mapped ${data.mappedAgencyCount} agenc${data.mappedAgencyCount === 1 ? "y" : "ies"} — updated ${data.cascadedRfpCount} RFPs.`);
+    },
+    onError: (err: Error) => setToast(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (agencyKey: number) => {
+      const res = await fetch(`/api/admin/agency-district-maps/${agencyKey}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to remove mapping");
+      }
+      return res.json() as Promise<{ removedRfpLeaidCount: number }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["agency-district-maps"] });
+      setSelectedIds(new Set());
+      setResolvingAgency(null);
+      setResolutionStep("pick");
+      setToast(`Mapping removed. ${data.removedRfpLeaidCount} RFPs reverted to untriaged.`);
     },
     onError: (err: Error) => setToast(err.message),
   });
@@ -419,6 +450,7 @@ function AgencyDistrictMapsContent() {
         <KindPickerModal
           agency={resolvingAgency}
           onPick={(k) => setResolutionStep(k)}
+          onRemove={resolvingAgency.mapping ? () => deleteMutation.mutate(resolvingAgency.agencyKey) : undefined}
           onClose={() => { setResolvingAgency(null); setResolutionStep("pick"); }}
         />
       )}
