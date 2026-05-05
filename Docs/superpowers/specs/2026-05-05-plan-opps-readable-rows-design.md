@@ -91,6 +91,21 @@ Row backgrounds:
 
 The `border-r` provides a subtle scroll-edge cue without needing a JS scroll-shadow.
 
+**Hover sync is non-optional and not automatic.** The sticky cell has its own opaque background, so the row's `hover:bg-[#FAFAFE]` does not propagate to it. The body row wrapper must carry `group` and the sticky Name cell must carry `bg-white group-hover:bg-[#FAFAFE]` (matching the row's transition timing). Without this, the sticky cell stays white while the rest of the row tints — visually broken on every hover.
+
+```tsx
+<div
+  className="group grid items-center px-5 py-2.5 border-b border-[#f0edf5] last:border-b-0 hover:bg-[#FAFAFE] transition-colors"
+  style={{ gridTemplateColumns: COLUMNS, minWidth: "max-content" }}
+>
+  {/* sticky Name cell — note the `group-hover` on the cell itself */}
+  <div className="sticky left-0 z-[1] bg-white group-hover:bg-[#FAFAFE] border-r border-[#E2DEEC] pr-2 transition-colors">
+    {opp.detailsLink ? <a ...>...</a> : <span ...>...</span>}
+  </div>
+  {/* remaining cells follow */}
+</div>
+```
+
 #### Stage column
 
 `whitespace-nowrap` on the cell wrapper and on the pill `<span>` itself. Width 120px gives the longest known stage label ("2 - Presentation") room to render on one line.
@@ -125,6 +140,17 @@ The `border-r` provides a subtle scroll-edge cue without needing a JS scroll-sha
 
 Footer reuses the same `COLUMNS` template. Order: count + 3 empty spans (Name, District, Stage, Type) + 4 right-aligned totals (Bookings, Revenue, Take, Scheduled). Today's footer renders the count under Name and 3 blanks then 4 totals — that's correct, but the misalignment risk goes away once header/body/footer share the constant.
 
+## Acceptance Checks
+
+These are the manual checks the implementation must pass. The implementation plan will turn each into an explicit verification step.
+
+1. **Name column always readable.** With the panel at its default width, the Name column shows at least ~200px of text (or full name if shorter), never one or two characters.
+2. **Stage pill stays on one line.** Open a plan whose opps include "2 - Presentation" or any other long stage label; pill renders single-line.
+3. **Horizontal scroll syncs across header/body/footer.** Scroll the row band right; column headers stay aligned with the data columns underneath them, and footer totals stay aligned with their money columns. If headers stop matching data, `overflow-x-auto` is on the wrong element — move it to the outermost `PlanOpportunitiesTab` container so all three regions scroll together.
+4. **Sticky Name cell hover-tints with its row.** Hover any row; the sticky Name cell tints in lockstep with the rest of the row. If the Name cell stays white while the rest of the row tints plum, the `group` / `group-hover` pairing is missing or mismatched.
+5. **Name link opens LMS opp in new tab.** Click a Name with a non-null `detailsLink`; it opens in a new tab with `rel="noopener noreferrer"`.
+6. **Null `detailsLink` falls back gracefully.** Find an opp with no `detailsLink` (or temporarily null one in the API response); Name renders as plain text, no orphan icon, no broken hover state.
+
 ## Out of Scope
 
 - No mobile/tablet reflow — desktop sales tool, side panel behaves the same on tablet.
@@ -135,5 +161,5 @@ Footer reuses the same `COLUMNS` template. Order: count + 3 empty spans (Name, D
 ## Risks
 
 - **Sticky-left cell on grid items**: `position: sticky` on a CSS grid child is supported in all modern browsers, but the sticky cell must have an opaque background or scrolling cells will show through. Backgrounds are explicit per row state (default / hover / header / footer).
-- **Hover state on sticky cell**: the sticky Name cell has its own background, so the row's `hover:bg-[#FAFAFE]` does not propagate to it via inheritance. The sticky cell needs a sibling `group-hover:bg-[#FAFAFE]` (with `group` on the row wrapper) to stay in sync.
+- **Hover state on sticky cell**: the sticky Name cell has its own background, so the row's `hover:bg-[#FAFAFE]` does not propagate to it via inheritance. Addressed in the design via `group` on the row wrapper + `group-hover:bg-[#FAFAFE]` on the sticky cell, with acceptance check #4 verifying the visual.
 - **`detailsLink` may be null** for opportunities that haven't been ingested with a source URL. Handled — fall back to plain text.
