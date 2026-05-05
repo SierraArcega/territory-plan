@@ -17,6 +17,7 @@ import type { ActivityListItem } from "@/features/shared/types/api-types";
 import { cn } from "@/features/shared/lib/cn";
 import { ACTIVITIES_TABLE_COLUMNS, getColumnDef } from "./columns";
 import ActivitiesTableToolbar from "./ActivitiesTableToolbar";
+import ActivitiesTableHeader from "./ActivitiesTableHeader";
 
 interface ActivitiesTableViewProps {
   onActivityClick: (id: string) => void;
@@ -161,28 +162,11 @@ export default function ActivitiesTableView({
 
       <div className="flex-1 overflow-auto bg-white">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 z-10 bg-[#F7F5FA] border-b border-[#E2DEEC]">
-            <tr>
-              <th className="w-8 px-3 py-2 text-left">
-                <input
-                  type="checkbox"
-                  aria-label="Select page"
-                  checked={allOnPageSelected}
-                  onChange={togglePageSelection}
-                  className="cursor-pointer accent-[#403770]"
-                />
-              </th>
-              {visibleColumnDefs.map((col) => (
-                <th
-                  key={col.key}
-                  className="px-3 py-2 text-left text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#544A78] whitespace-nowrap"
-                  style={col.width ? { minWidth: col.width } : undefined}
-                >
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+          <ActivitiesTableHeader
+            visibleColumnDefs={visibleColumnDefs}
+            selectAllChecked={allOnPageSelected}
+            onTogglePageSelection={togglePageSelection}
+          />
           <tbody className="divide-y divide-[#EFEDF5]">
             {isLoading && rows.length === 0
               ? Array.from({ length: 8 }).map((_, i) => (
