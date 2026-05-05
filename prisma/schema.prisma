@@ -271,6 +271,7 @@ model District {
   newsArticles       NewsArticleDistrict[]
   newsFetch          DistrictNewsFetch?
   rfps               Rfp[]
+  agencyMaps         AgencyDistrictMap[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -2015,4 +2016,20 @@ model RfpIngestRun {
   @@index([source, status, startedAt])
   @@index([source, finishedAt])
   @@map("rfp_ingest_runs")
+}
+
+model AgencyDistrictMap {
+  agencyKey   Int       @id @map("agency_key")
+  kind        String                                       // "district" | "state" | "non_lea"
+  leaid       String?   @db.VarChar(7)
+  stateFips   String?   @db.VarChar(2) @map("state_fips")
+  source      String    @default("highergov")
+  notes       String?   @db.Text
+  resolvedBy  String?   @map("resolved_by")
+  resolvedAt  DateTime  @default(now()) @map("resolved_at")
+  district    District? @relation(fields: [leaid], references: [leaid])
+
+  @@map("agency_district_maps")
+  @@index([kind])
+  @@index([leaid])
 }
