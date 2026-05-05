@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ExternalLink } from "lucide-react";
 import { usePlanOpportunities } from "@/lib/api";
 import type { PlanOpportunityRow } from "@/features/shared/types/api-types";
 
@@ -191,9 +192,25 @@ function OppRow({ opp }: { opp: PlanOpportunityRow }) {
       style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
     >
       <div className="sticky left-0 z-[1] bg-white group-hover:bg-[#FAFAFE] border-r border-[#E2DEEC] pr-2 transition-colors flex items-center min-w-0">
-        <span className="text-xs font-medium text-[#544A78] truncate" title={opp.name ?? undefined}>
-          {opp.name ?? "Untitled"}
-        </span>
+        {opp.detailsLink ? (
+          <a
+            href={opp.detailsLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 min-w-0 text-xs font-medium text-[#544A78] hover:underline fm-focus-ring"
+            title={opp.name ?? undefined}
+          >
+            <span className="truncate">{opp.name ?? "Untitled"}</span>
+            <ExternalLink className="w-3 h-3 shrink-0 opacity-60" aria-hidden />
+          </a>
+        ) : (
+          <span
+            className="text-xs font-medium text-[#544A78] truncate"
+            title={opp.name ?? undefined}
+          >
+            {opp.name ?? "Untitled"}
+          </span>
+        )}
       </div>
       <span className="text-[11px] text-[#8A80A8] truncate pr-2" title={opp.districtName ?? undefined}>
         {opp.districtName ?? "—"}
