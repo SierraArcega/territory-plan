@@ -3721,6 +3721,7 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "report_drafts",
     // RFP feed (backend-only). v2: register in TABLE_REGISTRY with column
     // metadata once we sit down with the user to author Q&A descriptions.
+    "agency_district_maps",
     "rfp_ingest_runs",
     "rfps",
     "unmatched_accounts",
