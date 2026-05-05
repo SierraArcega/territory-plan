@@ -270,6 +270,7 @@ model District {
   opportunities      Opportunity[]
   newsArticles       NewsArticleDistrict[]
   newsFetch          DistrictNewsFetch?
+  rfps               Rfp[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -1851,4 +1852,90 @@ model NewsMatchQueue {
 
   @@index([processedAt])
   @@map("news_match_queue")
+}
+
+model Rfp {
+  id              Int       @id @default(autoincrement())
+  externalId      String    @unique                            // = opp_key (HigherGov)
+  versionKey      String                                       // = version_key (amendment tracker)
+  source          String    @default("highergov")
+
+  // Identity / classification
+  title           String
+  solicitationNumber String?                                   // = source_id
+  oppType         String?                                      // = opp_type.description
+  description     String?   @db.Text
+  aiSummary       String?   @db.Text
+
+  // Agency
+  agencyKey       Int                                          // = agency.agency_key
+  agencyName      String
+  agencyPath      String?
+
+  // Geography
+  stateAbbrev     String?   @db.VarChar(2)
+  stateFips       String?   @db.VarChar(2)
+  popCity         String?
+  popZip          String?
+
+  // Resolved district (nullable)
+  leaid           String?   @db.VarChar(7)
+
+  // Classifiers
+  naicsCode       String?
+  pscCode         String?
+  setAside        String?
+
+  // Value
+  valueLow        Decimal?  @db.Decimal(15, 2)
+  valueHigh       Decimal?  @db.Decimal(15, 2)
+
+  // Contact
+  primaryContactName  String?
+  primaryContactEmail String?
+  primaryContactPhone String?
+
+  // Dates
+  postedDate      DateTime?
+  dueDate         DateTime?
+  capturedDate    DateTime
+
+  // Links
+  highergovUrl    String?
+  sourceUrl       String?
+
+  // Lifecycle
+  status          String    @default("open")
+  rawPayload      Json
+
+  firstSeenAt     DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  district        District? @relation(fields: [leaid], references: [leaid])
+
+  @@index([leaid, dueDate])
+  @@index([stateFips, dueDate])
+  @@index([agencyKey])
+  @@index([capturedDate])
+  @@index([status, dueDate])
+}
+
+model RfpIngestRun {
+  id                Int       @id @default(autoincrement())
+  source            String    @default("highergov")
+  status            String    @default("running")
+  startedAt         DateTime  @default(now())
+  finishedAt        DateTime?
+  watermark         DateTime?
+  recordsSeen       Int       @default(0)
+  recordsNew        Int       @default(0)
+  recordsUpdated    Int       @default(0)
+  recordsResolved   Int       @default(0)
+  recordsUnresolved Int       @default(0)
+  error             String?   @db.Text
+
+  @@index([source, status, startedAt])
+  @@index([source, finishedAt])
 }
