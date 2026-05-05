@@ -8,7 +8,14 @@ const UsersTab = lazy(() => import("./UsersTab"));
 const IntegrationsTab = lazy(() => import("./IntegrationsTab"));
 const IngestHealthTab = lazy(() => import("./IngestHealthTab"));
 const VacancyConfigTab = lazy(() => import("./VacancyConfigTab"));
-type AdminTab = "unmatched" | "users" | "integrations" | "ingest-health" | "vacancy-config";
+const ServiceAliasesTab = lazy(() => import("./ServiceAliasesTab"));
+type AdminTab =
+  | "unmatched"
+  | "users"
+  | "integrations"
+  | "ingest-health"
+  | "vacancy-config"
+  | "service-aliases";
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: "unmatched", label: "Unmatched Opps" },
@@ -16,6 +23,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: "integrations", label: "Integrations" },
   { id: "ingest-health", label: "Ingest Health" },
   { id: "vacancy-config", label: "Vacancy Config" },
+  { id: "service-aliases", label: "Service Aliases" },
 ];
 
 // Legacy slug alias: old bookmarks to ?section=sync should still land here.
@@ -118,6 +126,7 @@ export default function AdminDashboard({ initialSection }: AdminDashboardProps) 
             {activeTab === "integrations" && <IntegrationsTab />}
             {activeTab === "ingest-health" && <IngestHealthTab />}
             {activeTab === "vacancy-config" && <VacancyConfigTab />}
+            {activeTab === "service-aliases" && <ServiceAliasesTab />}
           </Suspense>
         </div>
       </div>

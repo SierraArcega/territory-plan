@@ -2100,7 +2100,7 @@ export const SUBSCRIPTION_COLUMNS: ColumnMetadata[] = [
     field: "product",
     column: "product",
     label: "Product",
-    description: "Top-level product name on an EK12 subscription line (Elevate taxonomy) — the subscription-side equivalent of a session's service_type. Reps use this for 'EK12 subscription revenue by product', 'which districts purchased product X', or 'our Algebra subscription mix'. Pair with product_type (category) and sub_product (detail) for finer breakdowns. See SEMANTIC_CONTEXT.conceptMappings.service_type_breakdown for the cross-table pattern when a rep asks about service breakdowns including both sessions and subscriptions.",
+    description: "EK12 subscription SKU string (e.g., '45-60 min 5DaysStandard Full Year'). NOT a service taxonomy — this is the time-format SKU. For service-level rollups, use product_type (the actual taxonomy column) joined through service_aliases. See SEMANTIC_CONTEXT.conceptMappings.service_type_breakdown.",
     domain: "subscription",
     format: "text",
     source: "elevate_k12",
@@ -2110,7 +2110,7 @@ export const SUBSCRIPTION_COLUMNS: ColumnMetadata[] = [
     field: "productType",
     column: "product_type",
     label: "Product Type",
-    description: "Category tier of the EK12 product (Elevate taxonomy) — one level of hierarchy above product. Use for high-level breakdowns like 'subscription revenue by product type'. Pair with product and sub_product for drill-down.",
+    description: "EK12 service taxonomy category. Full enum: 'Tier 1', 'Diverse Learning', 'Enrichment', 'Supplemental' (the four instructional buckets), plus add-ons/billing artifacts ('Office Hours', 'Student Office Hours', 'Teacher Collaboration Hours', 'Teacher Collaberation Meetings' [sic typo], 'Fee', 'Credit', 'Placeholder Product'). For service-level rollups join through service_aliases (alias=product_type → service_id → services), filtering ignored=FALSE — see SEMANTIC_CONTEXT.conceptMappings.service_type_breakdown. For drill-down into subjects use sub_product.",
     domain: "subscription",
     format: "text",
     source: "elevate_k12",
@@ -2546,7 +2546,7 @@ export const SCHOOL_ENROLLMENT_HISTORY_COLUMNS: ColumnMetadata[] = [
 export const SESSION_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "Session ID", description: "Fullmind LMS session PK.", domain: "session", format: "text", source: "opensearch", queryable: true },
   { field: "opportunityId", column: "opportunity_id", label: "Opportunity ID", description: "FK to opportunities.id. NOT a hard FK — 33% of sessions point to historical opps not in our opportunities table (scheduler sync lag).", domain: "opportunity", format: "text", source: "opensearch", queryable: true },
-  { field: "serviceType", column: "service_type", label: "Service Type", description: "Service type code for this session (e.g., math, tutoring, SPED, ELL, enrichment, science) — the canonical per-session tag used for 'math sessions this month', 'science sessions by district', 'SPED sessions', 'session revenue by service type', or 'which services did we deliver in Texas' breakdowns. Pair with service_name for human-readable labels. Session-level; session_price × sessions aggregates give per-service session revenue. See SEMANTIC_CONTEXT.conceptMappings.service_type_breakdown for the cross-table pattern.", domain: "session", format: "text", source: "opensearch", queryable: true },
+  { field: "serviceType", column: "service_type", label: "Service Type", description: "Raw per-session service tag from OpenSearch (e.g., 'Homebound - Medical', 'Tutoring (Acceleration/Remediation)', 'virtualStaffing'). DO NOT GROUP BY this column directly for service rollups — it has 20+ variants and was never normalized. Always join through service_aliases (alias → service_id → services) to roll up to canonical service names. See SEMANTIC_CONTEXT.conceptMappings.service_type_breakdown for the canonical join pattern. Pair with service_name for the human-readable label when displaying individual session rows.", domain: "session", format: "text", source: "opensearch", queryable: true },
   { field: "sessionPrice", column: "session_price", label: "Session Price", description: "Customer-facing price per session — the revenue side of the session economics. Reps ask about this as 'session revenue' (SUM(session_price) on completed sessions), 'price per session', or as the top line of margin math. Per-session margin = session_price − educator_price. For deal-level or rep-level revenue rollups, prefer opportunities.completed_revenue / scheduled_revenue (or DOA / DF); aggregate sessions directly only when the question is session-grain.", domain: "session", format: "currency", source: "opensearch", queryable: true },
   { field: "educatorPrice", column: "educator_price", label: "Educator Price", description: "Amount paid to the educator for the session — the cost side of the session economics. Reps ask about this as 'educator cost' (SUM(educator_price) on completed sessions), 'pay rate', or as the bottom line of margin math. Per-session margin = session_price − educator_price. See educator_approved_price for the approved-rate variant.", domain: "session", format: "currency", source: "opensearch", queryable: true },
   { field: "educatorApprovedPrice", column: "educator_approved_price", label: "Educator Approved Price", description: "Admin-approved educator rate. In most cases matches educator_price; diverges only when the approved rate is set but the actual paid rate has been adjusted. For margin math or 'educator cost' questions, default to educator_price — only reach for educator_approved_price when the rep specifically asks about approved/contracted rates vs paid.", domain: "session", format: "currency", source: "opensearch", queryable: true },
@@ -2642,6 +2642,48 @@ export const SAVED_REPORT_COLUMNS: ColumnMetadata[] = [
   { field: "runCount", column: "run_count", label: "Run Count", description: "How many times the report has been executed.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
   { field: "createdAt", column: "created_at", label: "Created At", description: "When the report was saved.", domain: "audit", format: "date", source: "query_tool", queryable: true },
   { field: "updatedAt", column: "updated_at", label: "Updated At", description: "When the report was last modified.", domain: "audit", format: "date", source: "query_tool", queryable: true },
+];
+
+/** services — Fullmind + EK12 service catalog. Canonical taxonomy used to roll up sessions and EK12 subscriptions via service_aliases. Some rows are subtypes of a parent (parent_service_id NOT NULL) — Homebound has General/Medical/Suspension subtypes. */
+export const SERVICE_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "Service ID", description: "Auto-increment primary key.", domain: "core", format: "integer", source: "user", queryable: true },
+  { field: "name", column: "name", label: "Service Name", description: "Customer-facing service name (e.g., 'Homebound', 'Whole Class Virtual Instruction', 'EK12 Tier 1'). Unique. Use this column when surfacing service names to reps. Subtypes carry their parent name with a suffix ('Homebound - Medical').", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "slug", column: "slug", label: "Slug", description: "URL-safe identifier (e.g., 'homebound', 'wcvi', 'ek12-tier-1'). Stable across renames; useful as a stable filter key. Reps usually filter by name, not slug.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "color", column: "color", label: "Brand Color", description: "Hex color used for chips/charts. UI-only; never select for reps.", domain: "core", format: "text", source: "user", queryable: false },
+  { field: "sortOrder", column: "sort_order", label: "Sort Order", description: "Stable ordering within the catalog. Lower = earlier. Use for ORDER BY when listing services.", domain: "core", format: "integer", source: "user", queryable: true },
+  { field: "instructionType", column: "instruction_type", label: "Instruction Type", description: "Enum: 'core_credit_bearing' (services that grant seat-time credit — Homebound, WCVI, Credit Recovery, Suspension Alternative, Hybrid Staffing) or 'supplemental' (additional support — Tutoring, Resource Room, Test Prep, Homework Help, iTutor). NULL on services that haven't been classified (Homebased, Virtual Medical Classroom, Extra Help, AP, College Level, AVID, EK12 services, Homebound subtypes).", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "icon", column: "icon", label: "Icon", description: "Lucide icon name. UI-only; never select for reps.", domain: "core", format: "text", source: "user", queryable: false },
+  { field: "deliveryTypes", column: "delivery_types", label: "Delivery Types", description: "Postgres text[] of '1:1', 'SG' (small group), and/or 'WC' (whole class). Use ARRAY operators: '1:1' = ANY(delivery_types). Empty array on services that haven't been classified.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "challenge", column: "challenge", label: "Challenge", description: "Long-form description of the customer problem this service solves (rep-facing copy from the Resources tab). Useful when the rep asks 'what does <service> solve' or 'pitch X service'. NULL on services without enriched content yet.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "solution", column: "solution", label: "Solution", description: "Long-form description of how Fullmind delivers this service (rep-facing copy from the Resources tab). Pair with challenge. NULL until enriched.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "teacherOfRecord", column: "teacher_of_record", label: "Teacher of Record", description: "Enum: 'required' or 'optional'. Whether the service requires a school-side teacher of record. Required for credit-bearing; optional for most supplemental.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "hasLms", column: "has_lms", label: "LMS Included", description: "Whether the service uses Fullmind's LMS for lessons/assignments. TRUE for most credit-bearing and supplemental services; FALSE for Hybrid Staffing and iTutor (which use the school's own platform or no LMS).", domain: "core", format: "boolean", source: "user", queryable: true },
+  { field: "hasExitTickets", column: "has_exit_tickets", label: "Exit Tickets", description: "Whether the service includes end-of-session exit tickets.", domain: "core", format: "boolean", source: "user", queryable: true },
+  { field: "hasMiniLesson", column: "has_mini_lesson", label: "Mini Lesson", description: "Whether the service includes a mini-lesson per session.", domain: "core", format: "boolean", source: "user", queryable: true },
+  { field: "hasSwdProgress", column: "has_swd_progress", label: "SWD Progress Monitoring", description: "Whether the service includes IEP progress monitoring for students with disabilities. TRUE for Homebound, WCVI, and Resource Room; FALSE elsewhere.", domain: "core", format: "boolean", source: "user", queryable: true },
+  { field: "gradebooksIncluded", column: "gradebooks_included", label: "Gradebooks Included", description: "Whether grading happens in Fullmind's gradebooks. FALSE for Hybrid Staffing (uses school's platform — see gradebooks_note) and supplemental services that don't issue grades.", domain: "core", format: "boolean", source: "user", queryable: true },
+  { field: "gradebooksNote", column: "gradebooks_note", label: "Gradebooks Note", description: "Free-text explanation when gradebooks aren't included by default. Currently only set for Hybrid Staffing ('School's platform').", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "parentServiceId", column: "parent_service_id", label: "Parent Service", description: "FK to services.id when this row is a subtype. Currently used by the Homebound subtypes (General/Medical/Suspension). NULL for top-level services. To list subtypes of a parent: WHERE parent_service_id = (SELECT id FROM services WHERE slug = '<parent-slug>'). To roll up subtype counts to the parent: COALESCE(parent_service_id, id) AS effective_service_id.", domain: "core", format: "integer", source: "user", queryable: true },
+];
+
+/** service_pricing — per-fiscal-year, per-delivery-mode rates for services. Empty in v1; populated as pricing migrates from PricingAndPackagingPage. */
+export const SERVICE_PRICING_COLUMNS: ColumnMetadata[] = [
+  { field: "id", column: "id", label: "ID", description: "Auto-increment primary key.", domain: "core", format: "integer", source: "user", queryable: true },
+  { field: "serviceId", column: "service_id", label: "Service", description: "FK to services.id. Always join through services for the human-readable name.", domain: "core", format: "integer", source: "user", queryable: true },
+  { field: "fiscalYear", column: "fiscal_year", label: "Fiscal Year", description: "Numeric FY (e.g., 2026 = FY26). Same convention as territory_plans.fiscal_year — NOT the 'YYYY-YY' string used on opportunities or 'FYNN' on district_financials. See SEMANTIC_CONTEXT.formatMismatches.fiscal_year.", domain: "core", format: "year", source: "user", queryable: true },
+  { field: "delivery", column: "delivery", label: "Delivery", description: "Enum: '1:1', '1:10', or '1:30'. Pricing tier for the delivery mode.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "rateCents", column: "rate_cents", label: "Rate (cents)", description: "Per-session/per-unit rate stored in cents to avoid float drift. Divide by 100 for dollars: rate_cents / 100.0 AS rate_dollars.", domain: "core", format: "integer", source: "user", queryable: true },
+  { field: "description", column: "description", label: "Description", description: "Free-text pricing-context blurb (e.g., 'Drop-in help for assignments brought to the session.').", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "effectiveFrom", column: "effective_from", label: "Effective From", description: "When this rate became effective. Useful for historical pricing snapshots.", domain: "core", format: "date", source: "user", queryable: true },
+];
+
+/** service_aliases — maps free-form sessions.service_type and subscriptions.product_type strings to canonical services. THE join surface for service-level rollups. */
+export const SERVICE_ALIAS_COLUMNS: ColumnMetadata[] = [
+  { field: "alias", column: "alias", label: "Alias", description: "The raw string as it appears in sessions.service_type or subscriptions.product_type (e.g., 'Tutoring (Acceleration/Remediation)', 'virtualStaffing', 'Tier 1', 'Homebound - Medical'). Primary key.", domain: "core", format: "text", source: "user", queryable: true },
+  { field: "serviceId", column: "service_id", label: "Service", description: "FK to services.id when the alias maps to a catalog service. NULL when ignored=TRUE.", domain: "core", format: "integer", source: "user", queryable: true },
+  { field: "ignored", column: "ignored", label: "Ignored", description: "TRUE when the alias is intentionally not mapped to any service (billing artifacts like 'Fee', 'Credit', 'Placeholder Product', 'n/a', plus EK12 add-ons like 'Office Hours' that aren't catalog services). When rolling up sessions/subscriptions to services, filter ignored=FALSE.", domain: "core", format: "boolean", source: "user", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "When the alias was first mapped.", domain: "core", format: "date", source: "user", queryable: true },
+  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "Last time the mapping changed (auto-touched by trigger).", domain: "core", format: "date", source: "user", queryable: true },
 ];
 
 // ============================================================================
@@ -3438,11 +3480,35 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
   },
   services: {
     table: "services",
-    description: "Catalog of Fullmind service offerings that can be targeted for districts in a plan (via territory_plan_district_services).",
+    description:
+      "Canonical service catalog spanning native Fullmind services (Homebound, Tutoring, WCVI, etc.) and post-merger EK12 services (EK12 Tier 1, EK12 Diverse Learning, EK12 Enrichment, EK12 Supplemental). Also holds service subtypes (parent_service_id) — currently only Homebound has subtypes (General/Medical/Suspension). For 'what services do we offer' rep questions, ORDER BY sort_order. To roll session or EK12 subscription rows up to a canonical service, JOIN through service_aliases (alias → service_id), filtering out ignored=TRUE. See SEMANTIC_CONTEXT.conceptMappings.service_type_breakdown for the full pattern.",
     primaryKey: "id",
-    columns: [],
+    columns: SERVICE_COLUMNS,
     relationships: [
-      { toTable: "territory_plan_district_services", type: "one-to-many", joinSql: "territory_plan_district_services.service_id = services.id", description: "Junction to plan-districts" },
+      { toTable: "service_aliases", type: "one-to-many", joinSql: "service_aliases.service_id = services.id", description: "Aliases (raw session/subscription strings) that map to this service" },
+      { toTable: "service_pricing", type: "one-to-many", joinSql: "service_pricing.service_id = services.id", description: "Per-fiscal-year pricing tiers for this service" },
+      { toTable: "services", type: "many-to-one", joinSql: "services.parent_service_id = services.id", description: "Parent service (when this row is a subtype like Homebound - Medical)" },
+      { toTable: "territory_plan_district_services", type: "one-to-many", joinSql: "territory_plan_district_services.service_id = services.id", description: "Junction to plan-districts (return vs new targeting)" },
+    ],
+  },
+  service_pricing: {
+    table: "service_pricing",
+    description:
+      "Per-fiscal-year, per-delivery-mode rates for services. One row per (service, fiscal_year, delivery). rate_cents stores the price in cents (divide by 100 for dollars). Currently EMPTY in v1 — pricing still lives hardcoded in PricingAndPackagingPage; this table is the migration target. When seeded, becomes the canonical rate source for 'what does <service> cost' / 'price for <service> 1:30' rep questions.",
+    primaryKey: "id",
+    columns: SERVICE_PRICING_COLUMNS,
+    relationships: [
+      { toTable: "services", type: "many-to-one", joinSql: "service_pricing.service_id = services.id", description: "Service being priced" },
+    ],
+  },
+  service_aliases: {
+    table: "service_aliases",
+    description:
+      "Maps the free-form strings in sessions.service_type and subscriptions.product_type to canonical service catalog rows. THIS IS THE JOIN SURFACE for any service-level rollup of sessions or EK12 subscriptions — sessions.service_type alone has 80+ raw variants ('Tutoring (Acceleration/Remediation)', 'virtualStaffing', 'Homebound - Medical', etc.) that won't aggregate cleanly without this mapping. Always filter ignored=FALSE when rolling up; ignored rows cover billing artifacts (Fee, Credit, Placeholder Product, n/a) and EK12 add-ons that aren't catalog services (Office Hours, Teacher Collaboration). New aliases that haven't been mapped yet are surfaced via the unmapped_service_aliases admin view (not in this registry — admin tool only).",
+    primaryKey: "alias",
+    columns: SERVICE_ALIAS_COLUMNS,
+    relationships: [
+      { toTable: "services", type: "many-to-one", joinSql: "service_aliases.service_id = services.id", description: "Canonical service this alias maps to" },
     ],
   },
 };
@@ -3535,8 +3601,13 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     },
     service_type_breakdown: {
       dealLevel:
-        "For service-type breakdowns of revenue, the canonical shape depends on the modality: native Fullmind (session-based) → sessions.service_type / sessions.service_name with session_price × count(*) for revenue (or SUM(session_price)); EK12 subscriptions → subscriptions.product / product_type / sub_product / course_name with SUM(subscriptions.net_total). opportunities.service_types is a deal-level jsonb tag, not the canonical breakdown surface. For a combined cross-modality breakdown ('Algebra revenue overall'), UNION the two sources with a modality column and sum.",
-      note: "Neither DOA nor DF breaks revenue down by service type — the breakdown must be computed from sessions and/or subscriptions directly. When a rep asks 'revenue by service type' or 'how much Algebra did we book this year', route to sessions for session-based revenue and subscriptions for EK12 revenue, and combine if the question is modality-agnostic. Use DOA or DF to cross-check totals afterward (sum of breakdown should match DOA/DF total_revenue for the same scope, modulo small timing differences).",
+        "For service-level rollups of sessions or EK12 subscriptions, ALWAYS join through service_aliases — never group on raw sessions.service_type / subscriptions.product_type. The raw columns have 80+ variants ('Tutoring (Acceleration/Remediation)', 'virtualStaffing', 'Homebound - Medical', 'Tier 1', 'Diverse Learning', 'n/a', etc.) that won't aggregate cleanly. Canonical pattern for sessions: `JOIN service_aliases sa ON sa.alias = sessions.service_type AND sa.ignored = FALSE JOIN services svc ON svc.id = sa.service_id GROUP BY svc.name, svc.sort_order ORDER BY svc.sort_order`. Canonical pattern for subscriptions: same shape but `sa.alias = subscriptions.product_type`. For combined cross-modality ('total revenue per service across both sessions and EK12 subscriptions'), UNION ALL two CTEs (one per source) and SUM by service name. opportunities.service_types is a deal-level jsonb tag, not the canonical breakdown surface — use it only for 'which deals tag service X' style questions, not revenue breakdowns.",
+      note: "Neither DOA nor DF breaks revenue down by service. The breakdown must be computed from sessions and/or subscriptions through service_aliases. New session/subscription rows with brand-new alias strings won't appear in the rollup until the alias is mapped (admin Service Aliases tab handles this) — surface a small caveat when the question covers very recent data: 'unmapped aliases get bucketed out until an admin maps them'. Use DOA or DF totals to cross-check service-rollup sums (small timing drift expected). For Homebound questions, decide subtype-level vs parent: GROUP BY services.name keeps subtypes split (General / Medical / Suspension); to roll up to the parent, GROUP BY COALESCE(svc.parent_service_id, svc.id).",
+    },
+    services_catalog: {
+      aggregated:
+        "For 'what services do we offer' rep questions, list the services table directly. Default scope: all rows where parent_service_id IS NULL (top-level services only — subtypes confuse most rep questions unless explicitly asked). ORDER BY sort_order. Use name, instruction_type, and delivery_types for the rep-facing summary. Skip color/icon (UI-only). For 'core credit-bearing services' filter instruction_type = 'core_credit_bearing'; for 'supplemental services' filter instruction_type = 'supplemental'. EK12 services have name LIKE 'EK12 %' and instruction_type IS NULL.",
+      note: "When the rep asks about pricing alongside the catalog, JOIN service_pricing — but be aware service_pricing is currently empty (v1). When the rep asks about delivery breakdown ('which services support 1:30'), use ARRAY operator: '1:30' = ANY(delivery_types).",
     },
     competitor_revenue: {
       aggregated:
