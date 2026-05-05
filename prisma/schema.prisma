@@ -1980,6 +1980,20 @@ model Rfp {
   highergovUrl    String?                                      @map("highergov_url")
   sourceUrl       String?                                      @map("source_url")
 
+  // Classification — set by Haiku classifier pass. Null until classified.
+  fullmindRelevance     String?    @map("fullmind_relevance")    @db.VarChar(10)
+  keywords              String[]   @default([])                  @db.VarChar(80)
+  fundingSources        String[]   @default([])                  @map("funding_sources") @db.VarChar(40)
+  setAsideType          String?    @map("set_aside_type")        @db.VarChar(20)
+  inStateOnly           Boolean    @default(false)               @map("in_state_only")
+  cooperativeEligible   Boolean    @default(false)               @map("cooperative_eligible")
+  requiresW9State       String?    @map("requires_w9_state")     @db.VarChar(2)
+  classifiedAt          DateTime?  @map("classified_at")         @db.Timestamptz
+
+  // Pipeline signal — set by nightly refresh job. Null until refreshed.
+  districtPipelineState String?    @map("district_pipeline_state") @db.VarChar(20)
+  signalsRefreshedAt    DateTime?  @map("signals_refreshed_at")   @db.Timestamptz
+
   // Lifecycle
   status          String    @default("open")
   rawPayload      Json                                         @map("raw_payload")
@@ -1996,6 +2010,9 @@ model Rfp {
   @@index([agencyKey])
   @@index([capturedDate])
   @@index([status, dueDate])
+  @@index([fullmindRelevance, dueDate])
+  @@index([classifiedAt])
+  @@index([signalsRefreshedAt])
   @@map("rfps")
 }
 
