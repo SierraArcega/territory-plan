@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agencyDistrictMapColumns } from "./columns";
 import { DataGrid } from "@/features/shared/components/DataGrid/DataGrid";
 import type { SortRule, FilterRule, CellRendererFn } from "@/features/shared/components/DataGrid/types";
 import AdminFilterBar from "./AdminFilterBar";
 import AdminColumnPicker from "./AdminColumnPicker";
+import { DistrictSearchModal, type DistrictResult } from "@/features/shared/components/DistrictSearch/DistrictSearchModal";
 
 interface AgencyMapping {
   kind: "district" | "state" | "non_lea";
@@ -102,6 +103,44 @@ function AgencyDistrictMapsContent() {
     agencyDistrictMapColumns.filter((c) => c.isDefault && !c.isFilterOnly).map((c) => c.key)
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const queryClient = useQueryClient();
+  const [resolvingAgency, setResolvingAgency] = useState<AgencyRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const mapMutation = useMutation({
+    mutationFn: async (input: {
+      agencyKeys: number[];
+      kind: "district" | "state" | "non_lea";
+      leaid?: string;
+      stateFips?: string;
+      notes?: string;
+    }) => {
+      const res = await fetch("/api/admin/agency-district-maps", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to map agencies");
+      }
+      return res.json() as Promise<{ mappedAgencyCount: number; cascadedRfpCount: number }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["agency-district-maps"] });
+      setSelectedIds(new Set());
+      setResolvingAgency(null);
+      setToast(`Mapped ${data.mappedAgencyCount} agenc${data.mappedAgencyCount === 1 ? "y" : "ies"} — updated ${data.cascadedRfpCount} RFPs.`);
+    },
+    onError: (err: Error) => setToast(err.message),
+  });
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const statusFilter = filters.find((f) => f.column === "status" && f.operator === "eq");
   const stateFilter  = filters.find((f) => f.column === "stateAbbrev" && f.operator === "eq");
@@ -226,8 +265,41 @@ function AgencyDistrictMapsContent() {
             });
           }}
           onClearSelection={() => setSelectedIds(new Set())}
+          renderRowAction={(row) => {
+            const r = row as unknown as AgencyRow & { id: string };
+            const isMapped = r.mapping !== null;
+            return (
+              <button
+                onClick={(e) => { e.stopPropagation(); setResolvingAgency(r); }}
+                className="px-2.5 py-1 text-xs font-medium text-white bg-[#403770] hover:bg-[#322a5a] rounded-lg"
+              >
+                {isMapped ? "Edit mapping" : "Resolve"}
+              </button>
+            );
+          }}
         />
       </div>
+
+      {resolvingAgency && (
+        <DistrictSearchModal
+          subjectName={resolvingAgency.agencyName}
+          subjectState={resolvingAgency.stateAbbrev}
+          onSelect={(district: DistrictResult) => {
+            mapMutation.mutate({
+              agencyKeys: [resolvingAgency.agencyKey],
+              kind: "district",
+              leaid: district.leaid,
+            });
+          }}
+          onClose={() => setResolvingAgency(null)}
+        />
+      )}
+
+      {toast && (
+        <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-lg border bg-[#F7FFF2] border-[#8AC670] shadow-lg">
+          <span className="text-sm font-medium text-[#5f665b]">{toast}</span>
+        </div>
+      )}
     </div>
   );
 }
