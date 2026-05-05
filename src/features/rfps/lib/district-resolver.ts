@@ -79,7 +79,9 @@ export async function resolveAgency({
     if (override.kind === "state") {
       return { leaid: null, kind: "override_state" };
     }
-    return { leaid: null, kind: "override_non_lea" };
+    if (override.kind === "non_lea") {
+      return { leaid: null, kind: "override_non_lea" };
+    }
   }
 
   // 2. Fall through to existing 3-tier name match.
