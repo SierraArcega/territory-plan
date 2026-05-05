@@ -74,8 +74,12 @@ function renderCell(key: string, row: ActivityListItem) {
     case "states":
       return (row.stateAbbrevs ?? []).join(", ") || <span className="text-[#A69DC0]">—</span>;
     case "createdAt":
-      return <span className="text-[#A69DC0]">—</span>;
+      return row.createdAt
+        ? new Date(row.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+        : <span className="text-[#A69DC0]">—</span>;
     case "inPerson":
+      if (row.inPerson === true) return <span className="text-[#403770]">In person</span>;
+      if (row.inPerson === false) return <span className="text-[#403770]">Virtual</span>;
       return <span className="text-[#A69DC0]">—</span>;
     default:
       return <span className="text-[#A69DC0]">—</span>;

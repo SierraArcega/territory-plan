@@ -288,6 +288,8 @@ export async function GET(request: NextRequest) {
           notes: true,
           outcome: true,
           createdByUserId: true,
+          inPerson: true,
+          createdAt: true,
           plans: {
             select: { planId: true },
           },
@@ -410,6 +412,8 @@ export async function GET(request: NextRequest) {
           districtName: firstDistrict,
           contactName: firstContact,
           outcomePreview,
+          inPerson: activity.inPerson,
+          createdAt: activity.createdAt.toISOString(),
         };
       })
       .filter((a) => {

@@ -61,6 +61,8 @@ function makeListActivity(overrides: Record<string, unknown> = {}) {
     notes: null,
     outcome: null,
     createdByUserId: "user-1",
+    inPerson: null,
+    createdAt: new Date("2026-02-20T00:00:00Z"),
     plans: [] as { planId: string }[],
     districts: [] as {
       districtLeaid: string;

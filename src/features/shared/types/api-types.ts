@@ -589,6 +589,8 @@ export interface ActivityListItem {
   districtName?: string | null;
   contactName?: string | null;
   outcomePreview?: string | null;
+  inPerson?: boolean | null;
+  createdAt?: string;
   // Mixmax enrichment fields (populated by Mixmax sync)
   mixmaxSequenceName?: string | null;
   mixmaxSequenceStep?: number | null;
