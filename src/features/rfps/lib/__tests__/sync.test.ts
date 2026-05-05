@@ -31,12 +31,19 @@ vi.mock("../district-resolver", () => ({
 
 import { syncRfps } from "../sync";
 
-const minimalRecord = (oppKey: string, agencyKey = 1, agencyName = "A") => ({
+// Posted date defaults to "recent" (within the 365-day cutoff) so existing tests
+// don't get filtered out by the staleness guard. Tests that exercise the stale
+// branch override `posted_date` explicitly.
+const RECENT_POSTED_DATE = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 10);
+
+const minimalRecord = (oppKey: string, agencyKey = 1, agencyName = "A", postedDate: string | null = RECENT_POSTED_DATE) => ({
   opp_key: oppKey, version_key: oppKey + "v",
   opp_cat: "SLED Contract Opportunity",
   title: "T", description_text: "", ai_summary: "",
   source_id: "", source_id_version: "",
-  captured_date: "2026-05-04", posted_date: null, due_date: null,
+  captured_date: "2026-05-04", posted_date: postedDate, due_date: null,
   agency: { agency_key: agencyKey, agency_name: agencyName, agency_abbreviation: null, agency_type: "SLED", path: null },
   naics_code: null, psc_code: null, opp_type: null,
   primary_contact_email: null, secondary_contact_email: null,
@@ -142,6 +149,36 @@ describe("syncRfps", () => {
     expect(rfpIngestRunUpdate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: "error", error: expect.stringContaining("boom") }),
     }));
+  });
+
+  it("skips records posted more than a year ago and counts them in recordsSkippedStale", async () => {
+    const stalePostedDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    fetchOpps.mockReturnValue(gen([
+      minimalRecord("recent"),                                    // RECENT_POSTED_DATE → kept
+      minimalRecord("stale", 2, "Stale Agency", stalePostedDate),  // 400 days ago → skipped
+      minimalRecord("nullposted", 3, "Null Agency", null),        // missing posted_date → skipped (defensive)
+    ]));
+    resolveAgency.mockResolvedValue({ leaid: "L", kind: "name_match" });
+    rfpIngestRunFindFirst.mockResolvedValue(null);
+
+    const summary = await syncRfps();
+
+    expect(summary.recordsSeen).toBe(3);
+    expect(summary.recordsSkippedStale).toBe(2);
+    expect(rfpUpsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes postedSince to fetchOpportunities (~1 year ago)", async () => {
+    fetchOpps.mockReturnValue(gen([]));
+    rfpIngestRunFindFirst.mockResolvedValue(null);
+
+    const before = Date.now() - 366 * 24 * 60 * 60 * 1000;
+    await syncRfps();
+    const after = Date.now() - 364 * 24 * 60 * 60 * 1000;
+
+    const postedSince = (fetchOpps.mock.calls[0][0] as { postedSince: Date }).postedSince;
+    expect(postedSince.getTime()).toBeGreaterThanOrEqual(before);
+    expect(postedSince.getTime()).toBeLessThanOrEqual(after);
   });
 
   it("splits resolved counter into byOverride / byName", async () => {

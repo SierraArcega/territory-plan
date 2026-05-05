@@ -2013,6 +2013,7 @@ model RfpIngestRun {
   recordsUnresolved            Int       @default(0)    @map("records_unresolved")
   recordsResolvedByOverride    Int       @default(0)    @map("records_resolved_by_override")
   recordsResolvedByName        Int       @default(0)    @map("records_resolved_by_name")
+  recordsSkippedStale          Int       @default(0)    @map("records_skipped_stale")
   error             String?   @db.Text
 
   @@index([source, status, startedAt])

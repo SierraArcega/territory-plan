@@ -7,6 +7,7 @@ const DEFAULT_RETRY_DELAY_MS = 1000;
 
 export interface FetchOpportunitiesArgs {
   since: Date;
+  postedSince?: Date;
   pageSize?: number;
   maxRetries?: number;
   retryDelayMs?: number;
@@ -70,6 +71,7 @@ export async function* fetchOpportunities(
   initial.searchParams.set("naics_code", naics);
   if (searchId) initial.searchParams.set("search_id", searchId);
   initial.searchParams.set("captured_date__gte", isoDate(args.since));
+  if (args.postedSince) initial.searchParams.set("posted_date__gte", isoDate(args.postedSince));
   initial.searchParams.set("ordering", "-captured_date");
   initial.searchParams.set("page_size", String(pageSize));
 
