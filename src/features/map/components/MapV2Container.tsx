@@ -306,8 +306,11 @@ export default function MapV2Container({
   }, [activitiesGeoJSON, activitiesEnabled, mapReady, filterOverlayGeoJSON]);
 
   // Update vector tile URL when plan filters change.
+  // String concatenation (NOT `new URL(...)`) is required so the literal
+  // `{z}/{x}/{y}` placeholders survive into MapLibre's tile templater.
+  // The URL constructor percent-encodes `{` and `}` per the WHATWG spec.
   const plansTileUrl = useMemo(
-    () => new URL(buildMapPlansTileUrl(layerFilters.plans), window.location.origin).toString(),
+    () => `${window.location.origin}${buildMapPlansTileUrl(layerFilters.plans)}`,
     [layerFilters.plans],
   );
 
@@ -849,7 +852,7 @@ export default function MapV2Container({
       // Plan polygon source + layers (rendered below pin layers)
       map.current.addSource(PLANS_SOURCE, {
         type: "vector",
-        tiles: [new URL(buildMapPlansTileUrl(layerFilters.plans), window.location.origin).toString()],
+        tiles: [`${window.location.origin}${buildMapPlansTileUrl(layerFilters.plans)}`],
         minzoom: 0,
         maxzoom: 22,
       });

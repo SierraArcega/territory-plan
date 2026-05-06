@@ -28,3 +28,14 @@ describe("buildMapPlansTileUrl", () => {
     expect(url).toBe("/api/map/plans/{z}/{x}/{y}.mvt");
   });
 });
+
+describe("buildMapPlansTileUrl + origin concatenation", () => {
+  it("preserves literal {z}/{x}/{y} placeholders when prefixed with an origin", () => {
+    const origin = "http://localhost:3005";
+    const url = `${origin}${buildMapPlansTileUrl({})}`;
+    expect(url).toBe("http://localhost:3005/api/map/plans/{z}/{x}/{y}.mvt");
+    // Sanity guard: ensure curly braces survived (they would be %7B / %7D if encoded).
+    expect(url).not.toContain("%7B");
+    expect(url).not.toContain("%7D");
+  });
+});
