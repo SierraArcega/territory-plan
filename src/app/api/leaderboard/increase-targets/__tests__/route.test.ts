@@ -40,6 +40,7 @@ interface RawRow {
   in_fy27_plan: boolean;
   plan_ids: string[] | null;
   has_fy27_target: boolean;
+  fy27_target_amount: number | string | null;
   has_fy27_pipeline: boolean;
   fy27_open_pipeline: number | string | null;
   sales_rep_name: string | null;
@@ -76,6 +77,7 @@ function makeRow(overrides: Partial<RawRow> = {}): RawRow {
     in_fy27_plan: false,
     plan_ids: null,
     has_fy27_target: false,
+    fy27_target_amount: "0",
     has_fy27_pipeline: false,
     fy27_open_pipeline: null,
     sales_rep_name: null,

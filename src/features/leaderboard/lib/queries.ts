@@ -158,6 +158,8 @@ export function useAddDistrictToPlanMutation() {
                     inFy27Plan: true,
                     inPlan: true,
                     hasFy27Target: (variables.targetAmount ?? 0) > 0,
+                    fy27TargetAmount:
+                      d.fy27TargetAmount + (variables.targetAmount ?? 0),
                     planIds: d.planIds.includes(variables.planId)
                       ? d.planIds
                       : [...d.planIds, variables.planId],
