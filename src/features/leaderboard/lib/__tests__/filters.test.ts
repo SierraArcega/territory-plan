@@ -30,6 +30,8 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
     inFy27Plan: false,
     planIds: [],
     hasFy27Target: false,
+    fy27TargetAmount: 0,
+    fy27TargetReps: [],
     hasFy27Pipeline: false,
     fy27OpenPipeline: 0,
     inPlan: false,
@@ -42,15 +44,12 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
   }) as IncreaseTarget;
 
 describe("filters", () => {
-  it("DEFAULT_FILTERS is all-empty except hideWithFy27Target", () => {
+  it("DEFAULT_FILTERS is all-empty", () => {
     expect(DEFAULT_FILTERS.categories).toEqual([]);
     expect(DEFAULT_FILTERS.states).toEqual([]);
     expect(DEFAULT_FILTERS.products).toEqual([]);
     expect(DEFAULT_FILTERS.revenueBand).toBeNull();
     expect(DEFAULT_FILTERS.lastReps).toEqual([]);
-    // The compact ledger surfaces actionable rows by default — districts
-    // already targeted in FY27 are hidden until the user opts back in.
-    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(true);
   });
 
   it("round-trips via URLSearchParams", () => {
@@ -60,7 +59,6 @@ describe("filters", () => {
       products: ["Live Instruction"],
       revenueBand: "250k-1m",
       lastReps: ["Jane Doe", UNASSIGNED_REP],
-      hideWithFy27Target: true,
     };
     const params = filtersToSearchParams(filters);
     const restored = filtersFromSearchParams(params);
@@ -93,14 +91,6 @@ describe("filters", () => {
       states: ["TX"],
     });
     expect(kept).toHaveLength(0);
-  });
-
-  it("applyFilters hides districts with hasFy27Target when the toggle is on", () => {
-    const kept = applyFilters(
-      [row({ hasFy27Target: true }), row({ leaid: "2", hasFy27Target: false })],
-      { ...DEFAULT_FILTERS, hideWithFy27Target: true },
-    );
-    expect(kept.map((r) => r.leaid)).toEqual(["2"]);
   });
 
   it("applyFilters matches revenue band using category-appropriate signal", () => {

@@ -78,6 +78,8 @@ function buildCsv(rows: IncreaseTarget[]): string {
     "FY26 revenue",
     "FY26 closed won",
     "FY27 pipeline",
+    "FY27 target",
+    "FY27 target reps",
     "Suggested target",
     "Last rep",
     "Last close date",
@@ -93,6 +95,8 @@ function buildCsv(rows: IncreaseTarget[]): string {
       r.category === "missing_renewal" ? Math.round(r.fy26Revenue) : "",
       Math.round(r.fy26OppBookings),
       Math.round(r.fy27OpenPipeline),
+      r.fy27TargetAmount > 0 ? Math.round(r.fy27TargetAmount) : "",
+      r.fy27TargetReps.join("; "),
       r.suggestedTarget != null ? Math.round(r.suggestedTarget) : "",
       r.lastClosedWon?.repName ?? "",
       r.lastClosedWon?.closeDate ?? "",
@@ -326,9 +330,11 @@ export default function LowHangingFruitView() {
           <div>
             <h1 className="text-lg font-bold text-[#403770]">Low hanging fruit</h1>
             <p className="text-xs text-[#6E6390] mt-1">
+              Showing{" "}
               <strong className="text-[#403770] font-semibold tabular-nums">
-                {allRows.length} districts
-              </strong>
+                {filtered.length}
+              </strong>{" "}
+              of <span className="tabular-nums">{allRows.length}</span> districts
               {" · "}
               <span className="tabular-nums">
                 {formatCurrencyShort(query.data?.totalRevenueAtRisk ?? 0)}
@@ -358,15 +364,22 @@ export default function LowHangingFruitView() {
           </p>
           <p className="text-xs text-[#544A78] mt-2">
             <strong className="text-[#403770]">How to action them:</strong>{" "}
-            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity — or add to a plan and set a target to remove it from the list.
+            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity, or add to a plan and set a target.
           </p>
+          <ul className="text-xs text-[#544A78] mt-1.5 space-y-0.5 list-disc pl-5">
+            <li>
+              <strong className="text-[#403770]">Missing Renewals</strong> leave this list once an FY27 opp exists — renewals are required to have an FY27 opportunity, so <strong className="text-[#403770]">+Opp</strong> is the path.
+            </li>
+            <li>
+              <strong className="text-[#403770]">Winbacks</strong> leave this list when an FY27 opp is created <em>or</em> a plan target is set.
+            </li>
+          </ul>
         </div>
 
         <LowHangingFruitFilterBar
           filters={filters}
           facets={facets}
           onChange={setFilters}
-          showing={{ visible: filtered.length, total: allRows.length }}
         />
 
         {/* Table */}
@@ -426,6 +439,7 @@ export default function LowHangingFruitView() {
                   <Th width={92} align="right">FY26 rev.</Th>
                   <Th width={108} align="right">FY26 closed won</Th>
                   <Th width={108} align="right">FY27 pipeline</Th>
+                  <Th width={96} align="right">FY27 target</Th>
                   <Th width={96} align="right">Suggested</Th>
                   <Th width={184}>Last sale</Th>
                   <Th
@@ -536,6 +550,32 @@ export default function LowHangingFruitView() {
                         }
                       >
                         {r.fy27OpenPipeline > 0 ? formatCurrencyShort(r.fy27OpenPipeline) : "—"}
+                      </Td>
+                      <Td
+                        align="right"
+                        className={
+                          r.fy27TargetAmount > 0
+                            ? "font-bold text-[#403770]"
+                            : "text-[#A69DC0]"
+                        }
+                      >
+                        {r.fy27TargetAmount > 0 ? (
+                          <>
+                            {formatCurrencyShort(r.fy27TargetAmount)}
+                            {r.fy27TargetReps.length > 0 && (
+                              <div
+                                className="text-[10px] font-normal text-[#A69DC0] truncate"
+                                title={r.fy27TargetReps.join(", ")}
+                              >
+                                {r.fy27TargetReps[0]}
+                                {r.fy27TargetReps.length > 1 &&
+                                  ` +${r.fy27TargetReps.length - 1}`}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </Td>
                       <Td align="right" className="text-[#6E6390]">
                         {r.suggestedTarget != null ? formatCurrencyShort(r.suggestedTarget) : "—"}

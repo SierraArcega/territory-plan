@@ -31,6 +31,8 @@ vi.mock("../../lib/queries", async () => {
             inFy27Plan: false,
             planIds: [],
             hasFy27Target: false,
+            fy27TargetAmount: 0,
+            fy27TargetReps: [],
             hasFy27Pipeline: false,
             fy27OpenPipeline: 0,
             inPlan: false,
@@ -69,8 +71,12 @@ describe("LowHangingFruitView", () => {
     renderView();
 
     // Header — note the spec sentence-cases the title
-    expect(screen.getByRole("heading", { name: /Low hanging fruit/i })).toBeInTheDocument();
-    expect(screen.getByText(/1 districts?/)).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: /Low hanging fruit/i });
+    expect(heading).toBeInTheDocument();
+    // "Showing 1 of 1 districts" — split across <strong>/<span>, so match
+    // against the header's full textContent.
+    const headerText = heading.parentElement?.textContent ?? "";
+    expect(headerText).toMatch(/Showing\s+1\s+of\s+1\s+districts/i);
 
     // Row data
     expect(screen.getByText("Pasadena USD")).toBeInTheDocument();

@@ -18,7 +18,6 @@ export interface LHFFilters {
    * Use `UNASSIGNED_REP` as a sentinel for rows with no prior rep.
    */
   lastReps: string[];
-  hideWithFy27Target: boolean;
 }
 
 export const DEFAULT_FILTERS: LHFFilters = {
@@ -27,7 +26,6 @@ export const DEFAULT_FILTERS: LHFFilters = {
   products: [],
   revenueBand: null,
   lastReps: [],
-  hideWithFy27Target: true,
 };
 
 const BAND_RANGES: Record<RevenueBand, [number, number]> = {
@@ -62,7 +60,6 @@ export function applyFilters(
       const repKey = r.lastClosedWon?.repName ?? UNASSIGNED_REP;
       if (!f.lastReps.includes(repKey)) return false;
     }
-    if (f.hideWithFy27Target && r.hasFy27Target) return false;
     return true;
   });
 }
@@ -78,7 +75,6 @@ export function filtersToSearchParams(f: LHFFilters): URLSearchParams {
   if (f.products.length) p.set("product", f.products.join(","));
   if (f.revenueBand) p.set("rev", f.revenueBand);
   if (f.lastReps.length) p.set("lastRep", f.lastReps.join(","));
-  if (f.hideWithFy27Target) p.set("hideTargeted", "1");
   return p;
 }
 
@@ -105,6 +101,5 @@ export function filtersFromSearchParams(
     products: csv("product"),
     revenueBand: band,
     lastReps: csv("lastRep"),
-    hideWithFy27Target: get("hideTargeted") === "1",
   };
 }

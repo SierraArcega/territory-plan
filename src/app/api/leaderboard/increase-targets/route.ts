@@ -25,6 +25,8 @@ interface IncreaseTargetRow {
   in_fy27_plan: boolean;
   plan_ids: string[] | null;
   has_fy27_target: boolean;
+  fy27_target_amount: number | string | null;
+  fy27_target_rep_names: string[] | null;
   has_fy27_pipeline: boolean;
   fy27_open_pipeline: number | string | null;
   sales_rep_name: string | null;
@@ -65,6 +67,8 @@ interface IncreaseTarget {
   inFy27Plan: boolean;
   planIds: string[];
   hasFy27Target: boolean;
+  fy27TargetAmount: number;
+  fy27TargetReps: string[];
   hasFy27Pipeline: boolean;
   fy27OpenPipeline: number;
   // Deprecated alias kept so existing callers compile. Equivalent to inFy27Plan.
@@ -148,9 +152,21 @@ export async function GET() {
           BOOL_OR(
             COALESCE(tpd.renewal_target,0) + COALESCE(tpd.winback_target,0) +
             COALESCE(tpd.expansion_target,0) + COALESCE(tpd.new_business_target,0) > 0
-          ) AS has_target
+          ) AS has_target,
+          SUM(
+            COALESCE(tpd.renewal_target,0) + COALESCE(tpd.winback_target,0) +
+            COALESCE(tpd.expansion_target,0) + COALESCE(tpd.new_business_target,0)
+          ) AS target_amount,
+          -- Names of reps whose FY27 plan has a non-zero target on this district.
+          -- Falls back to user_id for legacy plans that predate the owner_id split.
+          ARRAY_AGG(DISTINCT up.full_name) FILTER (
+            WHERE up.full_name IS NOT NULL
+              AND COALESCE(tpd.renewal_target,0) + COALESCE(tpd.winback_target,0) +
+                  COALESCE(tpd.expansion_target,0) + COALESCE(tpd.new_business_target,0) > 0
+          ) AS target_rep_names
         FROM territory_plan_districts tpd
         JOIN territory_plans tp ON tp.id = tpd.plan_id
+        LEFT JOIN user_profiles up ON up.id = COALESCE(tp.owner_id, tp.user_id)
         WHERE tp.fiscal_year = 2027
         GROUP BY tpd.district_leaid
       ),
@@ -283,6 +299,8 @@ export async function GET() {
         (fy27_plan.leaid IS NOT NULL)              AS in_fy27_plan,
         fy27_plan.plan_ids,
         COALESCE(fy27_plan.has_target, false)      AS has_fy27_target,
+        COALESCE(fy27_plan.target_amount, 0)       AS fy27_target_amount,
+        fy27_plan.target_rep_names                 AS fy27_target_rep_names,
         (fy27_pipe.leaid IS NOT NULL)              AS has_fy27_pipeline,
         fy27_pipe.open_pipeline                    AS fy27_open_pipeline,
         lo.sales_rep_name, lo.sales_rep_email, lo.close_date,
@@ -359,6 +377,8 @@ export async function GET() {
         inFy27Plan: row.in_fy27_plan === true,
         planIds: row.plan_ids ?? [],
         hasFy27Target: row.has_fy27_target === true,
+        fy27TargetAmount: toNumber(row.fy27_target_amount),
+        fy27TargetReps: row.fy27_target_rep_names ?? [],
         hasFy27Pipeline: row.has_fy27_pipeline === true,
         fy27OpenPipeline: toNumber(row.fy27_open_pipeline),
         inPlan: row.in_fy27_plan === true,
