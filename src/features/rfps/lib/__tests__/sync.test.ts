@@ -168,17 +168,44 @@ describe("syncRfps", () => {
     expect(rfpUpsert).toHaveBeenCalledTimes(1);
   });
 
-  it("passes postedSince to fetchOpportunities (~1 year ago)", async () => {
+  it("does not pass postedSince to fetchOpportunities (filtering is client-side so future-due RFPs survive)", async () => {
     fetchOpps.mockReturnValue(gen([]));
     rfpIngestRunFindFirst.mockResolvedValue(null);
 
-    const before = Date.now() - 366 * 24 * 60 * 60 * 1000;
     await syncRfps();
-    const after = Date.now() - 364 * 24 * 60 * 60 * 1000;
 
-    const postedSince = (fetchOpps.mock.calls[0][0] as { postedSince: Date }).postedSince;
-    expect(postedSince.getTime()).toBeGreaterThanOrEqual(before);
-    expect(postedSince.getTime()).toBeLessThanOrEqual(after);
+    expect(fetchOpps.mock.calls[0][0]).not.toHaveProperty("postedSince");
+  });
+
+  it("keeps a stale-posted RFP when its due date is still in the future", async () => {
+    const stalePostedDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const futureDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    fetchOpps.mockReturnValue(gen([
+      { ...minimalRecord("stale-future", 2, "Active Old", stalePostedDate), due_date: futureDueDate },
+    ]));
+    resolveAgency.mockResolvedValue({ leaid: "L", kind: "name_match" });
+    rfpIngestRunFindFirst.mockResolvedValue(null);
+
+    const summary = await syncRfps();
+
+    expect(summary.recordsSeen).toBe(1);
+    expect(summary.recordsSkippedStale).toBe(0);
+    expect(rfpUpsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("still skips a stale-posted RFP when its due date is in the past", async () => {
+    const stalePostedDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const pastDueDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    fetchOpps.mockReturnValue(gen([
+      { ...minimalRecord("stale-past", 2, "Closed Old", stalePostedDate), due_date: pastDueDate },
+    ]));
+    resolveAgency.mockResolvedValue({ leaid: "L", kind: "name_match" });
+    rfpIngestRunFindFirst.mockResolvedValue(null);
+
+    const summary = await syncRfps();
+
+    expect(summary.recordsSkippedStale).toBe(1);
+    expect(rfpUpsert).not.toHaveBeenCalled();
   });
 
   it("splits resolved counter into byOverride / byName", async () => {
