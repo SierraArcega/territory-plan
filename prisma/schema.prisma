@@ -1997,8 +1997,9 @@ model Rfp {
   signalsRefreshedAt    DateTime?  @map("signals_refreshed_at")   @db.Timestamptz
 
   // Lifecycle
-  status          String    @default("open")
-  rawPayload      Json                                         @map("raw_payload")
+  status              String    @default("open")
+  higherGovSourceType String?   @map("higher_gov_source_type") @db.VarChar(20)
+  rawPayload          Json                                         @map("raw_payload")
 
   firstSeenAt     DateTime  @default(now())                   @map("first_seen_at")
   lastSeenAt      DateTime  @default(now())                   @map("last_seen_at")

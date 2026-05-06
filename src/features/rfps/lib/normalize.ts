@@ -39,6 +39,8 @@ export interface NormalizedRfp {
   highergovUrl: string | null;
   sourceUrl: string | null;
 
+  higherGovSourceType: string | null;
+
   rawPayload: HigherGovOpportunity;
 }
 
@@ -105,6 +107,8 @@ export function normalizeOpportunity(raw: HigherGovOpportunity): NormalizedRfp {
 
     highergovUrl: emptyToNull(raw.path),
     sourceUrl: emptyToNull(raw.source_path),
+
+    higherGovSourceType: emptyToNull(raw.source_type),
 
     rawPayload: raw,
   };

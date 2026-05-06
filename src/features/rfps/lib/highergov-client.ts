@@ -1,4 +1,8 @@
-import { HigherGovListResponseSchema, type HigherGovOpportunity } from "./types";
+import {
+  HigherGovListResponseSchema,
+  HigherGovOpportunitySchema,
+  type HigherGovOpportunity,
+} from "./types";
 
 const BASE_URL = "https://www.highergov.com/api-external/opportunity/";
 const DEFAULT_PAGE_SIZE = 100;
@@ -88,9 +92,24 @@ export async function* fetchOpportunities(
   while (nextUrl) {
     const res = await fetchWithRetry(nextUrl, maxRetries, retryDelayMs);
     const json = await res.json();
-    const parsed = HigherGovListResponseSchema.parse(json);
-    for (const r of parsed.results) yield r;
+    const envelope = HigherGovListResponseSchema.parse(json);
+    for (const raw of envelope.results) {
+      // Per-record validation: a malformed record (e.g., null title on a
+      // forecast-type RFP, array `nsn`, etc.) shouldn't kill the whole page.
+      const result = HigherGovOpportunitySchema.safeParse(raw);
+      if (!result.success) {
+        const oppKey = (raw as { opp_key?: unknown })?.opp_key;
+        console.warn(
+          `[highergov] skipping malformed record (opp_key=${String(oppKey)}): ${result.error.issues
+            .slice(0, 3)
+            .map((i) => `${i.path.join(".")}=${i.message}`)
+            .join("; ")}`,
+        );
+        continue;
+      }
+      yield result.data;
+    }
     // HigherGov uses links.next; fall back to top-level next for forward compat.
-    nextUrl = parsed.links?.next ?? parsed.next ?? null;
+    nextUrl = envelope.links?.next ?? envelope.next ?? null;
   }
 }
