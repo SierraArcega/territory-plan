@@ -38,23 +38,29 @@ function districtCoreName(name: string): string | null {
 
 /**
  * Whether a district name is distinctive enough that a full-name literal
- * substring match is unambiguous. Single-word names that collide with common
- * place names ("Portland", "York", "Bangor") are NOT distinctive — they'd
- * trigger on any article mentioning that city for unrelated reasons. These
- * go to the LLM regardless of exact-substring match.
+ * word-boundary match is unambiguous.
+ *
+ * The earlier "≥2 words is enough" rule was too lax: small-town districts
+ * named after the place itself ("Bar Harbor", "Southwest Harbor", "Blue
+ * Hill", "Long Island", "Coshocton County") have ≥2 words but collide with
+ * non-school articles about the place ("Bar Harbor inn deaths", "Long
+ * Island lacrosse rankings"). Those now fall through to Pass C for LLM
+ * disambiguation.
  *
  * Distinctive if:
- *   • name has ≥2 words (e.g. "Portland Public Schools"), OR
- *   • contains a school/district suffix keyword ("Unified", "ISD", etc.), OR
- *   • has a number in it ("School District 11")
+ *   • contains a number ("School District 11"), OR
+ *   • contains a strong school/district suffix word
+ *
+ * "County", "Area", "Regional", "Central", "Community", "Academy" are
+ * intentionally NOT in the strong-suffix list — they read naturally as part
+ * of a place name ("Coshocton County honors miner") and overmatch.
  */
-const DISTRICT_SUFFIX_RE = /\b(unified|independent|consolidated|central|public|schools?|district|academy|isd|usd|county|area|regional|cooperative|charter|community)\b/i;
+const STRONG_DISTRICT_SUFFIX_RE = /\b(schools?|district|unified|independent|consolidated|public|isd|usd|charter|cooperative)\b/i;
 
 function isDistinctiveForTier1(name: string): boolean {
   const trimmed = name.trim();
-  if (trimmed.split(/\s+/).length >= 2) return true;
   if (/\d/.test(trimmed)) return true;
-  if (DISTRICT_SUFFIX_RE.test(trimmed)) return true;
+  if (STRONG_DISTRICT_SUFFIX_RE.test(trimmed)) return true;
   return false;
 }
 
@@ -149,12 +155,18 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
   // Pass B: full literal district name + state → auto-confirm, but only
   // when the name is distinctive. Non-distinctive names (single-word place
   // names like "Portland", "York") go to Pass C for LLM disambiguation.
+  //
+  // Match must be on word boundaries — naive substring matching produces
+  // false positives like "Ord Public Schools" matching inside "Milford
+  // Public Schools".
   for (const state of stateAbbrevs) {
     const candidates = districtsByState.get(state) ?? [];
     for (const c of candidates) {
       if (confirmedLeaids.has(c.leaid)) continue;
       if (!isDistinctiveForTier1(c.name)) continue;
-      if (lowerText.includes(c.name.toLowerCase())) {
+      const escaped = c.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const nameRe = new RegExp(`\\b${escaped}\\b`);
+      if (nameRe.test(lowerText)) {
         result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
         confirmedLeaids.add(c.leaid);
       }

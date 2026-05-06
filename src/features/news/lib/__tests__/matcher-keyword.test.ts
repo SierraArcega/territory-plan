@@ -219,6 +219,91 @@ describe("matchArticleKeyword — false-positive guards", () => {
     expect(result.confirmedDistricts).toHaveLength(1);
     expect(result.confirmedDistricts[0].leaid).toBe("1725020");
   });
+
+  // From the H1+H2 LLM precision check: "Milford Public Schools" was incorrectly
+  // confirming a district named "Ord Public Schools" because Pass B did naive
+  // substring matching ("ord public schools" appears inside "milf-ord public
+  // schools"). Pass B must require word boundaries.
+  it("does NOT match a district name as a substring inside a longer word", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("NE", [
+      { leaid: "3174940", name: "Ord Public Schools", stateAbbrev: "NE", cityLocation: "Ord", countyName: "Valley County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Milford Public Schools names new deputy superintendent for instruction.",
+        stateAbbrevs: ["NE"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("still matches a district name with hyphens (hyphens count as word boundaries)", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("NC", [
+      { leaid: "3702970", name: "Charlotte-Mecklenburg Schools", stateAbbrev: "NC", cityLocation: "Charlotte", countyName: "Mecklenburg County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Charlotte-Mecklenburg Schools seek clarity on the budget.",
+        stateAbbrevs: ["NC"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(1);
+    expect(result.confirmedDistricts[0].leaid).toBe("3702970");
+  });
+
+  // Small-town districts whose names are just the place ("Bar Harbor",
+  // "Southwest Harbor", "Coshocton County") were Pass-B-confirming on
+  // articles about the place itself. Pass B distinctiveness now requires
+  // a strong school-suffix word.
+  it("does NOT auto-confirm a place-name district without a school suffix word", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("ME", [
+      { leaid: "2312390", name: "Southwest Harbor", stateAbbrev: "ME", cityLocation: "Southwest Harbor", countyName: "Hancock County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Deaths of two men at Southwest Harbor inn appear accidental, police say.",
+        stateAbbrevs: ["ME"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("does NOT auto-confirm a 'County'-only district name (county can stand alone)", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("OH", [
+      { leaid: "3906522", name: "Coshocton County", stateAbbrev: "OH", cityLocation: "Coshocton", countyName: "Coshocton County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Coshocton County honors former coal miner for his contributions.",
+        stateAbbrevs: ["OH"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("still auto-confirms a place-name district when the school suffix IS present", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("NC", [
+      { leaid: "3705020", name: "Wilson County Schools", stateAbbrev: "NC", cityLocation: "Wilson", countyName: "Wilson County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Wilson County Schools announces two finalists for director of schools.",
+        stateAbbrevs: ["NC"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(1);
+    expect(result.confirmedDistricts[0].leaid).toBe("3705020");
+  });
 });
 
 describe("matchArticleKeyword — Tier 2 LLM queue", () => {
