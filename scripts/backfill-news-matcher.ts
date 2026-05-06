@@ -42,15 +42,24 @@ async function main() {
 
   const articleIds = articles.map((a) => a.id);
 
-  if (CLEAN) {
-    const stale = await prisma.newsArticleDistrict.count({
-      where: { articleId: { in: articleIds }, confidence: { in: ["high", "llm"] } },
-    });
-    console.log(`[backfill] keyword/llm links to clear: ${stale}`);
+  // Chunk all bulk operations — pg has a 32767-bind-variable cap, and 90d
+  // of articles already exceeds that as a single IN list.
+  const CHUNK = 1000;
+  async function chunkedCount(confidences: string[]): Promise<number> {
+    let total = 0;
+    for (let i = 0; i < articleIds.length; i += CHUNK) {
+      const slice = articleIds.slice(i, i + CHUNK);
+      total += await prisma.newsArticleDistrict.count({
+        where: { articleId: { in: slice }, confidence: { in: confidences } },
+      });
+    }
+    return total;
+  }
 
-    const sourceLinks = await prisma.newsArticleDistrict.count({
-      where: { articleId: { in: articleIds }, confidence: "source" },
-    });
+  if (CLEAN) {
+    const stale = await chunkedCount(["high", "llm"]);
+    console.log(`[backfill] keyword/llm links to clear: ${stale}`);
+    const sourceLinks = await chunkedCount(["source"]);
     console.log(`[backfill] source links preserved: ${sourceLinks}`);
   }
 
@@ -61,21 +70,17 @@ async function main() {
 
   if (CLEAN) {
     console.log(`[backfill] deleting stale keyword/llm links…`);
-    // Chunk the IN clause to keep below pgbouncer / pg parameter caps.
-    const CHUNK = 1000;
     let deleted = 0;
-    for (let i = 0; i < articleIds.length; i += CHUNK) {
-      const slice = articleIds.slice(i, i + CHUNK);
-      const result = await prisma.newsArticleDistrict.deleteMany({
-        where: { articleId: { in: slice }, confidence: { in: ["high", "llm"] } },
-      });
-      deleted += result.count;
-    }
-    // Also clear school + contact keyword/llm links for the same scope.
     let schoolsDeleted = 0;
     let contactsDeleted = 0;
+    let resetMatchedAt = 0;
     for (let i = 0; i < articleIds.length; i += CHUNK) {
       const slice = articleIds.slice(i, i + CHUNK);
+      deleted += (
+        await prisma.newsArticleDistrict.deleteMany({
+          where: { articleId: { in: slice }, confidence: { in: ["high", "llm"] } },
+        })
+      ).count;
       schoolsDeleted += (
         await prisma.newsArticleSchool.deleteMany({
           where: { articleId: { in: slice }, confidence: { in: ["high", "llm"] } },
@@ -86,19 +91,14 @@ async function main() {
           where: { articleId: { in: slice }, confidence: { in: ["high", "llm"] } },
         })
       ).count;
-    }
-    // Reset matched_at so matchArticles will reprocess these. (matchArticles
-    // sets matched_at unconditionally at the end, so this isn't strictly
-    // necessary for it to run — but clearing it is a clean signal that the
-    // data is being rebuilt.)
-    let resetMatchedAt = 0;
-    for (let i = 0; i < articleIds.length; i += CHUNK) {
-      const slice = articleIds.slice(i, i + CHUNK);
-      const r = await prisma.newsArticle.updateMany({
-        where: { id: { in: slice } },
-        data: { matchedAt: null },
-      });
-      resetMatchedAt += r.count;
+      // Reset matched_at so the picture is consistent: cleared links + null
+      // matched_at = "needs reprocessing".
+      resetMatchedAt += (
+        await prisma.newsArticle.updateMany({
+          where: { id: { in: slice } },
+          data: { matchedAt: null },
+        })
+      ).count;
     }
     console.log(
       `[backfill] cleared ${deleted} district links, ${schoolsDeleted} school links, ${contactsDeleted} contact links, reset matched_at on ${resetMatchedAt} articles`
