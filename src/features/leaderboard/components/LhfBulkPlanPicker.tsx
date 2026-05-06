@@ -320,10 +320,15 @@ export default function LhfBulkPlanPicker({
                   type="text"
                   inputMode="decimal"
                   value={target}
+                  placeholder="e.g. 50,000"
                   onChange={(e) =>
                     setTarget(e.target.value.replace(/[^\d.]/g, ""))
                   }
-                  className="w-full pl-6 pr-3 py-2 rounded-lg border border-[#C2BBD4] text-sm text-[#403770] tabular-nums"
+                  className={`w-full pl-6 pr-3 py-2 rounded-lg border text-sm text-[#403770] tabular-nums ${
+                    targetNum <= 0
+                      ? "border-amber-400 bg-amber-50"
+                      : "border-[#C2BBD4] bg-white"
+                  }`}
                 />
               </div>
               {row.suggestedTarget != null && (
@@ -332,6 +337,9 @@ export default function LhfBulkPlanPicker({
                 </span>
               )}
             </div>
+            <p className="text-[11px] text-amber-700 mt-1" aria-live="polite" aria-atomic="true">
+              {targetNum <= 0 ? "Set a target amount to add to plan" : ""}
+            </p>
             {error && (
               <div className="mt-1 text-xs text-[#B5453D]" role="alert">
                 {error}
