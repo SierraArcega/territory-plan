@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { FeatureCollection, Point, Geometry } from "geojson";
+import type { FeatureCollection, Point } from "geojson";
+import type { PlanFeatureRow } from "./queries";
 import type { VendorId, SignalId, LocaleId, LayerType, ColorDimension } from "@/features/map/lib/layers";
 import type { AccountTypeValue } from "@/features/shared/types/account-types";
 import { DEFAULT_VENDOR_PALETTE, DEFAULT_SIGNAL_PALETTE, DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_OPACITIES, deriveVendorCategoryColors, deriveSignalCategoryColors, getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
@@ -287,7 +288,7 @@ interface MapV2State {
     contacts: FeatureCollection<Point> | null;
     vacancies: FeatureCollection<Point> | null;
     activities: FeatureCollection<Point> | null;
-    plans: FeatureCollection<Geometry> | null;
+    plans: PlanFeatureRow[] | null;
   };
 
   // Unified layer control
@@ -447,7 +448,10 @@ interface MapV2Actions {
   setLayerFilter: <K extends keyof LayerFilters>(layer: K, filter: Partial<LayerFilters[K]>) => void;
   setDateRange: (layer: "vacancies" | "activities", range: Partial<DateRange>) => void;
   setMapBounds: (bounds: [number, number, number, number] | null) => void;
-  setOverlayGeoJSON: (layer: keyof MapV2State["overlayGeoJSON"], data: FeatureCollection | null) => void;
+  setOverlayGeoJSON: <K extends keyof MapV2State["overlayGeoJSON"]>(
+    layer: K,
+    data: MapV2State["overlayGeoJSON"][K],
+  ) => void;
 
   // Unified layer control
   setColorBy: (dimension: ColorDimension) => void;

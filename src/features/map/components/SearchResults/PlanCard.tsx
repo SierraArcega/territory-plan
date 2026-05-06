@@ -1,9 +1,9 @@
 "use client";
 
-import type { Feature, Geometry } from "geojson";
+import type { PlanFeatureRow } from "@/features/map/lib/queries";
 
 interface PlanCardProps {
-  feature: Feature<Geometry>;
+  row: PlanFeatureRow;
   onClick?: () => void;
 }
 
@@ -18,14 +18,14 @@ function getStatusStyle(status: string | undefined) {
   return STATUS_COLORS[status.toLowerCase()] ?? STATUS_COLORS.draft;
 }
 
-export default function PlanCard({ feature, onClick }: PlanCardProps) {
-  const p = feature.properties ?? {};
+export default function PlanCard({ row, onClick }: PlanCardProps) {
+  const p = row;
   const planName = p.planName ?? "Untitled Plan";
   const planColor = p.planColor ?? "#7B6BA4";
   const planStatus = p.planStatus ?? "";
   const districtName = p.districtName ?? null;
-  const renewalTarget = p.renewalTarget ?? null;
-  const expansionTarget = p.expansionTarget ?? null;
+  const renewalTarget = p.renewalTarget;
+  const expansionTarget = p.expansionTarget;
 
   const statusStyle = getStatusStyle(planStatus);
 

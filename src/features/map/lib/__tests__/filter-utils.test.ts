@@ -92,3 +92,21 @@ describe("leaidSetKey", () => {
     expect(leaidSetKey(null)).toBe("");
   });
 });
+
+describe("extractLeaids — flat-array shape", () => {
+  it("extracts leaids from a flat array of plan-row objects", () => {
+    const rows = [
+      { leaid: "001", planId: "p1" },
+      { leaid: "002", planId: "p1" },
+      { leaid: "001", planId: "p2" }, // duplicate leaid across plans → still 2 unique
+      { leaid: undefined, planId: "p3" }, // missing leaid → ignored
+    ];
+    const result = extractLeaids(rows);
+    expect(result).toEqual(new Set(["001", "002"]));
+  });
+
+  it("returns an empty Set for null/undefined input", () => {
+    expect(extractLeaids(null)).toEqual(new Set());
+    expect(extractLeaids(undefined)).toEqual(new Set());
+  });
+});

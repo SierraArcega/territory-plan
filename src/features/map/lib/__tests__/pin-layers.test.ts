@@ -205,6 +205,15 @@ describe("getPlanLayers", () => {
   });
 });
 
+describe("getPlanLayers — vector source-layer", () => {
+  it("sets source-layer to 'plans' on both fill and outline specs", () => {
+    const layers = getPlanLayers();
+    for (const layer of layers) {
+      expect((layer as any)["source-layer"]).toBe("plans");
+    }
+  });
+});
+
 describe("layerIdToOverlayType", () => {
   it("maps contacts layer IDs to 'contacts'", () => {
     expect(layerIdToOverlayType(CONTACTS_POINT_LAYER)).toBe("contacts");

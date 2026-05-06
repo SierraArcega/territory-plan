@@ -241,21 +241,21 @@ export function getActivityLayers(): LayerSpecification[] {
  */
 export function getPlanLayers(): LayerSpecification[] {
   return [
-    // Very subtle fill — just enough to hint at plan coverage without obscuring choropleth
     {
       id: PLANS_FILL_LAYER,
       type: "fill",
       source: PLANS_SOURCE,
+      "source-layer": "plans",
       paint: {
         "fill-color": ["coalesce", ["get", "planColor"], "#7B6BA4"],
         "fill-opacity": 0.08,
       },
     } satisfies LayerSpecification,
-    // Prominent outline for clear plan boundaries
     {
       id: PLANS_OUTLINE_LAYER,
       type: "line",
       source: PLANS_SOURCE,
+      "source-layer": "plans",
       paint: {
         "line-color": ["coalesce", ["get", "planColor"], "#7B6BA4"],
         "line-width": 2.5,

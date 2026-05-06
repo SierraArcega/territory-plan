@@ -11,9 +11,10 @@ import {
   extractLeaids,
   leaidSetKey,
 } from "./filter-utils";
+import type { PlanFeatureRow } from "./queries";
 
 interface OverlayData {
-  plansGeoJSON: any;
+  plansGeoJSON: PlanFeatureRow[] | null;
   contactsGeoJSON: any;
   vacanciesGeoJSON: any;
   activitiesGeoJSON: any;
