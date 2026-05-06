@@ -200,12 +200,12 @@ function OppRow({ opp }: { opp: PlanOpportunityRow }) {
             className="flex items-center gap-1 min-w-0 text-xs font-medium text-[#544A78] hover:underline fm-focus-ring"
             title={opp.name ?? undefined}
           >
-            <span className="truncate">{opp.name ?? "Untitled"}</span>
+            <span className="break-words">{opp.name ?? "Untitled"}</span>
             <ExternalLink className="w-3 h-3 shrink-0 opacity-60" aria-hidden />
           </a>
         ) : (
           <span
-            className="text-xs font-medium text-[#544A78] truncate"
+            className="text-xs font-medium text-[#544A78] break-words"
             title={opp.name ?? undefined}
           >
             {opp.name ?? "Untitled"}
