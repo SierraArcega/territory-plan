@@ -44,7 +44,7 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#FFFCFA] overflow-hidden">
+    <div className="fixed inset-0 h-dvh flex flex-col bg-[#FFFCFA] overflow-hidden overscroll-none">
       {/* Top: FilterBar - adapts based on active tab */}
       <FilterBar activeTab={activeTab} />
 
@@ -60,7 +60,7 @@ export default function AppShell({
         />
 
         {/* Right: Content area - fills remaining space */}
-        <main className="flex-1 relative overflow-hidden">
+        <main className="flex-1 relative overflow-hidden touch-pan-y">
           {children}
         </main>
       </div>
