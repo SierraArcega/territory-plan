@@ -362,13 +362,22 @@ export default function LhfPlanPicker({
               type="text"
               inputMode="decimal"
               value={targetInput}
-              placeholder="0"
+              placeholder="e.g. 50,000"
               onChange={(e) => setTargetInput(e.target.value)}
               onBlur={(e) => setTargetInput(formatTargetInput(e.target.value))}
-              className="w-full rounded-md border border-[#C2BBD4] bg-white pl-5 pr-2 py-1.5 text-sm text-[#403770] tabular-nums focus:border-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167]/40"
+              className={`w-full rounded-md border pl-5 pr-2 py-1.5 text-sm text-[#403770] tabular-nums focus:border-[#403770] focus:outline-none focus:ring-2 focus:ring-[#F37167]/40 ${
+                parsedTarget <= 0
+                  ? "border-amber-400 bg-amber-50"
+                  : "border-[#C2BBD4] bg-white"
+              }`}
               required
             />
           </div>
+          {parsedTarget <= 0 && (
+            <p className="text-[11px] text-amber-700 mt-1">
+              Set a target amount to add to plan
+            </p>
+          )}
         </div>
 
         {/* Error */}
