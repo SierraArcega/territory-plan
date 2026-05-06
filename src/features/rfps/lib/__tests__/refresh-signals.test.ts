@@ -157,7 +157,7 @@ describe("refreshRfpSignals", () => {
     });
   });
 
-  it("sets 'top_icp' for Tier 1 / Tier 2 districts with no opps", async () => {
+  it("sets 'cold' even for Tier 1 / Tier 2 districts with no opps", async () => {
     await withTx(async (q) => {
       await insertDistrict(q, "TEST006", "Top Tier", "Tier 1");
       await insertRfp(q, "test-rfp-6", 999_006, "TEST006");
@@ -167,7 +167,7 @@ describe("refreshRfpSignals", () => {
       const { rows } = await q(
         `SELECT district_pipeline_state FROM rfps WHERE external_id='test-rfp-6'`
       );
-      expect(rows[0].district_pipeline_state).toBe("top_icp");
+      expect(rows[0].district_pipeline_state).toBe("cold");
     });
   });
 

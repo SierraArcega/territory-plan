@@ -15,8 +15,7 @@ type Querier = (
  * Single set-based UPDATE that derives district_pipeline_state for every RFP
  * with a resolved leaid.
  *
- * Priority order: active > recently_won (<=18mo) > recently_lost (<=12mo)
- *   > top_icp (Tier 1/2) > cold
+ * Priority order: active > recently_won (<=18mo) > recently_lost (<=12mo) > cold
  *
  * Closed-won/closed-lost stage detection mirrors the
  * district_opportunity_actuals matview's canonical predicates.
@@ -55,7 +54,6 @@ SET
     WHEN COALESCE(s.has_active, false)               THEN 'active'
     WHEN s.last_won  >= now() - interval '18 months' THEN 'recently_won'
     WHEN s.last_lost >= now() - interval '12 months' THEN 'recently_lost'
-    WHEN d.icp_tier IN ('Tier 1', 'Tier 2')          THEN 'top_icp'
     ELSE 'cold'
   END,
   signals_refreshed_at = now()
