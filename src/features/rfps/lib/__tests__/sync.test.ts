@@ -202,4 +202,31 @@ describe("syncRfps", () => {
     expect(summary.recordsResolvedByName).toBe(1);
     expect(summary.recordsUnresolved).toBe(1);
   });
+
+  it("does NOT write classification or pipeline-signal fields", async () => {
+    fetchOpps.mockReturnValue(gen([minimalRecord("a"), minimalRecord("b")]));
+    resolveAgency.mockResolvedValue({ leaid: "4849530", kind: "name_match" });
+    rfpIngestRunFindFirst.mockResolvedValue({ finishedAt: new Date("2026-05-01T00:00:00Z") });
+
+    await syncRfps();
+
+    const upsertCalls = rfpUpsert.mock.calls;
+    expect(upsertCalls.length).toBeGreaterThan(0);
+    for (const call of upsertCalls) {
+      const create = call[0]?.create ?? {};
+      const update = call[0]?.update ?? {};
+      for (const payload of [create, update]) {
+        expect(payload).not.toHaveProperty("fullmindRelevance");
+        expect(payload).not.toHaveProperty("keywords");
+        expect(payload).not.toHaveProperty("fundingSources");
+        expect(payload).not.toHaveProperty("setAsideType");
+        expect(payload).not.toHaveProperty("inStateOnly");
+        expect(payload).not.toHaveProperty("cooperativeEligible");
+        expect(payload).not.toHaveProperty("requiresW9State");
+        expect(payload).not.toHaveProperty("classifiedAt");
+        expect(payload).not.toHaveProperty("districtPipelineState");
+        expect(payload).not.toHaveProperty("signalsRefreshedAt");
+      }
+    }
+  });
 });
