@@ -158,7 +158,7 @@ const CLASSIFY_TOOL = {
       "setAsideType",
       "inStateOnly",
       "cooperativeEligible",
-    ] as unknown as string[],
+    ] as const,
   },
 };
 
