@@ -86,9 +86,12 @@ inner container must be verified on mobile before shipping.
   Responsive Design Mode locally (Develop → Enter Responsive Design Mode),
   then verify on a real device before approving a PR.
 - **Local device testing — two options (same WiFi required for both):**
-  - `.local` hostname (permanent): `http://A-Arcega.local:3005` — requires
-    one-time Supabase redirect URL whitelist (`http://A-Arcega.local:3005/**`)
-    and `NEXT_PUBLIC_SITE_URL=http://A-Arcega.local:3005` in `.env.local`
+  - `.local` hostname (permanent): `http://a-arcega.local:3005` — requires
+    one-time Supabase redirect URL whitelist (`http://a-arcega.local:3005/**`,
+    **lowercase** — mDNS lowercases hostnames and Supabase matching is
+    case-sensitive), `.env.local` with
+    `NEXT_PUBLIC_SITE_URL=http://a-arcega.local:3005`, and
+    `allowedDevOrigins: ["a-arcega.local"]` in `next.config.ts` (already set).
   - Local IP (per-session): `ipconfig getifaddr en0` → `http://<ip>:3005`
     (auth redirects will fail; use only for pre-login visual checks)
 - **Smoke-test the map tab** after any AppShell layout change — MapLibre touch

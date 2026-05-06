@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["a-arcega.local"],
   outputFileTracingIncludes: {
     "/api/data/district-profiles": ["./data/snapshots/district-profiles.json"],
     "/api/data/reconciliation": [
