@@ -1,11 +1,21 @@
 ---
 name: merging-duplicate-districts
-description: Use when reconciling two or more rows in `districts` that represent the same Salesforce account — typically a real NCES leaid plus one or more synthetic `M`-prefixed rows minted by the contact import. Symptoms include the same district appearing twice on the map/search, an opp's `district_lea_id` not matching its `district_lms_id`'s home district, or `is_customer=true` rows with no NCES data.
+description: Use when reconciling two or more rows in `districts` that represent the same Salesforce account — typically a real NCES leaid plus one or more synthetic placeholder rows minted by the contact import, the customer-book import, or the vendor-financials loader. Symptoms include the same district appearing twice on the map/search, an opp's `district_lea_id` not matching its `district_lms_id`'s home district, or `is_customer=true` rows with no NCES data.
 ---
 
 # Merging Duplicate Districts
 
-The `districts` table accumulates duplicates because `scripts/mint-account-districts.ts` mints synthetic `M`-prefixed leaids whenever the Salesforce contact import can't match an account to an NCES district. When the match later becomes obvious (or a rep flags it), the synthetic rows must be merged into the real NCES district and dropped.
+The `districts` table accumulates duplicates because three different scripts each mint placeholder rows when they can't match an account to an NCES district. Each invented its own ID scheme, so the same logical district can end up with a row from each:
+
+| Script | Prefix scheme | Example |
+|---|---|---|
+| `scripts/mint-account-districts.ts` | `M{seq:06d}` (sequential) | `M000049` |
+| `scripts/import-customer-book.ts` | `A{md5(name\|state)[:6]}` (deterministic) | `A081491` |
+| `scripts/etl/loaders/vendor_financials.py` | `{state_fips}9{seq:04d}` (sequential per state) | `4590009`, `4590019` |
+
+The vendor-financials format is the trickiest because it's 7 digits and starts with a real state fips — it looks like a real NCES leaid. The tell is that `9` in position 3 is reserved (real district codes for SC top out around `4503xxx`) and synthetic rows have null `urban_institute_year`, null `total_enrollment`, and null financial fields. When in doubt, check the data.
+
+When the match later becomes obvious (or a rep flags it), the synthetic rows must be merged into the real NCES district and dropped.
 
 This is **destructive on production data**. Always present a written plan and get explicit user approval before running the merge.
 
@@ -13,8 +23,8 @@ This is **destructive on production data**. Always present a written plan and ge
 
 - A user reports the same district appearing twice on the map/search
 - A Salesforce opp's `district_lea_id` doesn't match its `district_lms_id`'s home district
-- An `M`-prefixed leaid exists alongside a real NCES leaid for the same school
-- An `is_customer=true` row has no NCES data (no enrollment, no address, no ICP score)
+- A synthetic-prefix leaid (`M…`, `A…`, or `{fips}9xxxx`) exists alongside a real NCES leaid for the same school
+- A row has no NCES data (null enrollment, null financial fields) yet still appears in search
 
 **Do NOT use** for:
 - Genuinely different districts that share a name across states. Always verify name + state + city before merging.
