@@ -17,9 +17,11 @@
  *           articles, the ingest path stamps a `news_article_districts` row at
  *           confidence='source' pointing at the queried district. From that leaid
  *           we know the state, so we feed it into the matcher's stateAbbrevs.
- *
- * Future variants (will be added in subsequent commits):
- *   • +H1: publisher → state map
+ *   • +H1+H2 — also adds a publisher → state map mined from the existing corpus:
+ *              for any publisher whose source-confidence links concentrate ≥70%
+ *              in one state (≥10 articles), we trust the publisher's state on
+ *              future articles. Helps Layer 2 articles (broad Google News
+ *              queries) where the source-leaid path doesn't fire.
  */
 import "dotenv/config";
 import prisma from "@/lib/prisma";
@@ -101,15 +103,50 @@ async function main() {
   const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
   const contactsByLeaid = new Map<string, ContactCandidate[]>();
 
-  // Run baseline + H2 variants side-by-side per article so we can identify
-  // articles newly caught (or newly missed) under H2.
+  // H1: build publisher → state map from existing source-confidence links.
+  // A publisher whose links concentrate ≥70% in one state (≥10 articles) is
+  // treated as a state-local publisher. Slight training leakage from the 2000-
+  // article sample is negligible against the ~200K-link aggregation, so we
+  // don't bother filtering it out.
+  const publisherStateRaw = await prisma.$queryRaw<
+    Array<{ source: string; state_abbrev: string }>
+  >`
+    WITH ps AS (
+      SELECT na.source, d.state_abbrev, COUNT(*)::bigint AS n
+      FROM news_articles na
+      JOIN news_article_districts nad ON nad.article_id = na.id
+      JOIN districts d ON d.leaid = nad.leaid
+      WHERE d.state_abbrev IS NOT NULL
+      GROUP BY na.source, d.state_abbrev
+    ),
+    tot AS (SELECT source, SUM(n)::bigint AS total FROM ps GROUP BY source),
+    ranked AS (
+      SELECT ps.source, ps.state_abbrev, ps.n, tot.total,
+        ROW_NUMBER() OVER (PARTITION BY ps.source ORDER BY ps.n DESC) AS rk
+      FROM ps JOIN tot ON tot.source = ps.source
+    )
+    SELECT source, state_abbrev
+    FROM ranked
+    WHERE rk = 1 AND total >= 10 AND (n::numeric / total) >= 0.7
+  `;
+  const publisherToState = new Map<string, string>();
+  for (const r of publisherStateRaw) publisherToState.set(r.source, r.state_abbrev);
+  console.log(`[eval] built publisher→state map with ${publisherToState.size} entries`);
+
+  // Run baseline + H2 + H1+H2 variants side-by-side so we can identify
+  // articles newly caught (or newly missed) under each.
   const baseline: Variant = { name: "baseline", hits: 0, newHits: [], lostHits: [] };
   const h2: Variant = { name: "+H2 (source-leaid hint)", hits: 0, newHits: [], lostHits: [] };
+  const h12: Variant = { name: "+H1+H2 (publisher map)", hits: 0, newHits: [], lostHits: [] };
   const h2NewExamples: Array<{ title: string; sourceLeaid: string; addedState: string; leaids: string[] }> = [];
   const h2LostExamples: Array<{ title: string; baselineStates: string[]; baselineLeaids: string[] }> = [];
+  const h1NewExamples: Array<{ title: string; publisher: string; addedState: string; leaids: string[] }> = [];
+  const h1LostExamples: Array<{ title: string; reason: string }> = [];
 
   let articlesWithSourceLeaid = 0;
   let articlesWhereHintAddsNewState = 0;
+  let articlesWithPublisherMatch = 0;
+  let articlesWherePublisherAddsNewState = 0;
 
   for (const a of articles) {
     const text = [a.title, a.description ?? ""].join(" ");
@@ -173,6 +210,49 @@ async function main() {
         });
       }
     }
+
+    // H1+H2: layer publisher state hint on top of H2.
+    let publisherState: string | undefined;
+    const fromPublisher = publisherToState.get(a.source);
+    if (fromPublisher) articlesWithPublisherMatch++;
+    const h12StatesSet = new Set(h2States);
+    if (fromPublisher && !h12StatesSet.has(fromPublisher)) {
+      publisherState = fromPublisher;
+      articlesWherePublisherAddsNewState++;
+      h12StatesSet.add(fromPublisher);
+    }
+    const h12States = [...h12StatesSet];
+    const h12Result = matchArticleKeyword({
+      articleText: text,
+      stateAbbrevs: h12States,
+      districtsByState,
+      schoolsByLeaid,
+      schoolsByState: undefined,
+      contactsByLeaid,
+    });
+    const h12Hit = h12Result.confirmedDistricts.length > 0;
+    if (h12Hit) h12.hits++;
+
+    if (h12Hit && !h2Hit && publisherState) {
+      h12.newHits.push(a.id);
+      if (h1NewExamples.length < 15) {
+        h1NewExamples.push({
+          title: a.title,
+          publisher: a.source,
+          addedState: publisherState,
+          leaids: h12Result.confirmedDistricts.map((d) => d.leaid),
+        });
+      }
+    }
+    if (!h12Hit && h2Hit) {
+      h12.lostHits.push(a.id);
+      if (h1LostExamples.length < 5) {
+        h1LostExamples.push({
+          title: a.title,
+          reason: `H2 had it via [${h2States.join(",")}], H1 added [${publisherState ?? "(none)"}]`,
+        });
+      }
+    }
   }
 
   const pct = (n: number) => `${((n / articles.length) * 100).toFixed(1)}%`;
@@ -181,6 +261,7 @@ async function main() {
   console.log(`=== Coverage ===`);
   console.log(`  Baseline:                    ${baseline.hits} / ${articles.length}  (${pct(baseline.hits)})`);
   console.log(`  +H2 (source-leaid hint):     ${h2.hits} / ${articles.length}  (${pct(h2.hits)})  +${h2.hits - baseline.hits}`);
+  console.log(`  +H1+H2 (publisher map):      ${h12.hits} / ${articles.length}  (${pct(h12.hits)})  +${h12.hits - h2.hits} over H2`);
   console.log("");
   console.log(`=== H2 hint stats ===`);
   console.log(`  Articles with a source-leaid link: ${articlesWithSourceLeaid} (${pct(articlesWithSourceLeaid)})`);
@@ -188,10 +269,24 @@ async function main() {
   console.log(`  Newly matched (only with H2): ${h2.newHits.length}`);
   console.log(`  Newly missed (regressions vs baseline): ${h2.lostHits.length}`);
   console.log("");
-  console.log(`Sample articles newly matched under H2:`);
+  console.log(`=== H1 hint stats ===`);
+  console.log(`  Articles whose publisher is in the map: ${articlesWithPublisherMatch} (${pct(articlesWithPublisherMatch)})`);
+  console.log(`  Of those, publisher state was NOT already in H2's states: ${articlesWherePublisherAddsNewState}`);
+  console.log(`  Newly matched (only with H1+H2 vs H2): ${h12.newHits.length}`);
+  console.log(`  Newly missed (regressions vs H2): ${h12.lostHits.length}`);
+  console.log("");
+  console.log(`Sample articles newly matched under H2 (over baseline):`);
   for (const ex of h2NewExamples) {
     console.log(
       `  +[${ex.addedState}] (queried-for ${ex.sourceLeaid}) → matched ${ex.leaids.join(",")}\n` +
+        `      ${ex.title.slice(0, 100)}`
+    );
+  }
+  console.log("");
+  console.log(`Sample articles newly matched under H1 (over H2):`);
+  for (const ex of h1NewExamples) {
+    console.log(
+      `  +[${ex.addedState}] (publisher "${ex.publisher}") → matched ${ex.leaids.join(",")}\n` +
         `      ${ex.title.slice(0, 100)}`
     );
   }
@@ -200,6 +295,13 @@ async function main() {
     console.log(`Sample regressions (H2 missed something baseline caught):`);
     for (const ex of h2LostExamples) {
       console.log(`  baseline=[${ex.baselineStates.join(",")}]→${ex.baselineLeaids.join(",")} — ${ex.title.slice(0, 100)}`);
+    }
+  }
+  if (h1LostExamples.length > 0) {
+    console.log("");
+    console.log(`Sample regressions (H1 missed something H2 caught):`);
+    for (const ex of h1LostExamples) {
+      console.log(`  ${ex.reason} — ${ex.title.slice(0, 100)}`);
     }
   }
 
