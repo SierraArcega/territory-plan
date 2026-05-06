@@ -22,7 +22,7 @@ import {
   CONTACTS_CLUSTER_LAYER, VACANCIES_CLUSTER_LAYER, ACTIVITIES_CLUSTER_LAYER,
   PLANS_FILL_LAYER, PLANS_OUTLINE_LAYER,
   ALL_OVERLAY_POINT_LAYERS, ALL_OVERLAY_CLUSTER_LAYERS,
-  createClusteredSource, createGeoJSONSource,
+  createClusteredSource,
   getContactLayers, getVacancyLayers, getActivityLayers, getPlanLayers,
   layerIdToOverlayType, overlayTypeToPanel,
 } from "@/features/map/lib/pin-layers";
