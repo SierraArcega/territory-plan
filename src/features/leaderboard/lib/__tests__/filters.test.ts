@@ -50,7 +50,6 @@ describe("filters", () => {
     expect(DEFAULT_FILTERS.products).toEqual([]);
     expect(DEFAULT_FILTERS.revenueBand).toBeNull();
     expect(DEFAULT_FILTERS.lastReps).toEqual([]);
-    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(false);
   });
 
   it("round-trips via URLSearchParams", () => {
@@ -60,7 +59,6 @@ describe("filters", () => {
       products: ["Live Instruction"],
       revenueBand: "250k-1m",
       lastReps: ["Jane Doe", UNASSIGNED_REP],
-      hideWithFy27Target: true,
     };
     const params = filtersToSearchParams(filters);
     const restored = filtersFromSearchParams(params);
@@ -93,14 +91,6 @@ describe("filters", () => {
       states: ["TX"],
     });
     expect(kept).toHaveLength(0);
-  });
-
-  it("applyFilters hides districts with hasFy27Target when the toggle is on", () => {
-    const kept = applyFilters(
-      [row({ hasFy27Target: true }), row({ leaid: "2", hasFy27Target: false })],
-      { ...DEFAULT_FILTERS, hideWithFy27Target: true },
-    );
-    expect(kept.map((r) => r.leaid)).toEqual(["2"]);
   });
 
   it("applyFilters matches revenue band using category-appropriate signal", () => {

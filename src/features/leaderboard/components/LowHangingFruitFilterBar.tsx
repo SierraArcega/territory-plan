@@ -172,8 +172,7 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
     filters.states.length > 0 ||
     filters.products.length > 0 ||
     filters.revenueBand !== null ||
-    filters.lastReps.length > 0 ||
-    filters.hideWithFy27Target;
+    filters.lastReps.length > 0;
 
   const filteredStates = stateQuery
     ? facets.states.filter((s) => s.toLowerCase().includes(stateQuery.toLowerCase()))
@@ -343,18 +342,6 @@ export default function LowHangingFruitFilterBar({ filters, facets, onChange }: 
           </>
         )}
       </Dropdown>
-
-      {/* FY27 toggle — inline */}
-      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border border-[#D4CFE2] text-[#6E6390] cursor-pointer hover:border-[#C2BBD4]">
-        <input
-          type="checkbox"
-          checked={filters.hideWithFy27Target}
-          onChange={(e) => onChange({ ...filters, hideWithFy27Target: e.target.checked })}
-          aria-label="Hide districts with FY27 target set"
-          className="w-3.5 h-3.5 rounded border-[#C2BBD4] text-[#403770]"
-        />
-        <span>Hide districts with FY27 target</span>
-      </label>
 
       {anyActive && (
         <button
