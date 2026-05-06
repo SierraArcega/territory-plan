@@ -27,7 +27,7 @@ export const DEFAULT_FILTERS: LHFFilters = {
   products: [],
   revenueBand: null,
   lastReps: [],
-  hideWithFy27Target: true,
+  hideWithFy27Target: false,
 };
 
 const BAND_RANGES: Record<RevenueBand, [number, number]> = {

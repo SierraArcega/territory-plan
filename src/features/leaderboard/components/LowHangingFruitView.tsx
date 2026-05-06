@@ -78,6 +78,7 @@ function buildCsv(rows: IncreaseTarget[]): string {
     "FY26 revenue",
     "FY26 closed won",
     "FY27 pipeline",
+    "FY27 target",
     "Suggested target",
     "Last rep",
     "Last close date",
@@ -93,6 +94,7 @@ function buildCsv(rows: IncreaseTarget[]): string {
       r.category === "missing_renewal" ? Math.round(r.fy26Revenue) : "",
       Math.round(r.fy26OppBookings),
       Math.round(r.fy27OpenPipeline),
+      r.fy27TargetAmount > 0 ? Math.round(r.fy27TargetAmount) : "",
       r.suggestedTarget != null ? Math.round(r.suggestedTarget) : "",
       r.lastClosedWon?.repName ?? "",
       r.lastClosedWon?.closeDate ?? "",
@@ -326,9 +328,11 @@ export default function LowHangingFruitView() {
           <div>
             <h1 className="text-lg font-bold text-[#403770]">Low hanging fruit</h1>
             <p className="text-xs text-[#6E6390] mt-1">
+              Showing{" "}
               <strong className="text-[#403770] font-semibold tabular-nums">
-                {allRows.length} districts
-              </strong>
+                {filtered.length}
+              </strong>{" "}
+              of <span className="tabular-nums">{allRows.length}</span> districts
               {" · "}
               <span className="tabular-nums">
                 {formatCurrencyShort(query.data?.totalRevenueAtRisk ?? 0)}
@@ -366,7 +370,6 @@ export default function LowHangingFruitView() {
           filters={filters}
           facets={facets}
           onChange={setFilters}
-          showing={{ visible: filtered.length, total: allRows.length }}
         />
 
         {/* Table */}
@@ -426,6 +429,7 @@ export default function LowHangingFruitView() {
                   <Th width={92} align="right">FY26 rev.</Th>
                   <Th width={108} align="right">FY26 closed won</Th>
                   <Th width={108} align="right">FY27 pipeline</Th>
+                  <Th width={96} align="right">FY27 target</Th>
                   <Th width={96} align="right">Suggested</Th>
                   <Th width={184}>Last sale</Th>
                   <Th
@@ -536,6 +540,16 @@ export default function LowHangingFruitView() {
                         }
                       >
                         {r.fy27OpenPipeline > 0 ? formatCurrencyShort(r.fy27OpenPipeline) : "—"}
+                      </Td>
+                      <Td
+                        align="right"
+                        className={
+                          r.fy27TargetAmount > 0
+                            ? "text-[#403770] font-semibold"
+                            : "text-[#A69DC0]"
+                        }
+                      >
+                        {r.fy27TargetAmount > 0 ? formatCurrencyShort(r.fy27TargetAmount) : "—"}
                       </Td>
                       <Td align="right" className="text-[#6E6390]">
                         {r.suggestedTarget != null ? formatCurrencyShort(r.suggestedTarget) : "—"}

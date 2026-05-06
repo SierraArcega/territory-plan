@@ -30,6 +30,7 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
     inFy27Plan: false,
     planIds: [],
     hasFy27Target: false,
+    fy27TargetAmount: 0,
     hasFy27Pipeline: false,
     fy27OpenPipeline: 0,
     inPlan: false,
@@ -42,15 +43,13 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
   }) as IncreaseTarget;
 
 describe("filters", () => {
-  it("DEFAULT_FILTERS is all-empty except hideWithFy27Target", () => {
+  it("DEFAULT_FILTERS is all-empty", () => {
     expect(DEFAULT_FILTERS.categories).toEqual([]);
     expect(DEFAULT_FILTERS.states).toEqual([]);
     expect(DEFAULT_FILTERS.products).toEqual([]);
     expect(DEFAULT_FILTERS.revenueBand).toBeNull();
     expect(DEFAULT_FILTERS.lastReps).toEqual([]);
-    // The compact ledger surfaces actionable rows by default — districts
-    // already targeted in FY27 are hidden until the user opts back in.
-    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(true);
+    expect(DEFAULT_FILTERS.hideWithFy27Target).toBe(false);
   });
 
   it("round-trips via URLSearchParams", () => {
