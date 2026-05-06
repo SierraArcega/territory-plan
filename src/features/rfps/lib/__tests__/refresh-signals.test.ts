@@ -256,17 +256,83 @@ describe("refreshRfpSignals", () => {
     });
   });
 
-  it("leaves district_pipeline_state NULL when leaid is NULL", async () => {
+  it("leaves district_pipeline_state NULL when leaid is NULL but still refreshes is_new/is_urgent", async () => {
     await withTx(async (q) => {
       await insertRfp(q, "test-rfp-8", 999_008, null);
 
       await refreshRfpSignals(q);
 
       const { rows } = await q(
-        `SELECT district_pipeline_state, signals_refreshed_at FROM rfps WHERE external_id='test-rfp-8'`
+        `SELECT district_pipeline_state, signals_refreshed_at, is_new, is_urgent FROM rfps WHERE external_id='test-rfp-8'`
       );
       expect(rows[0].district_pipeline_state).toBeNull();
-      expect(rows[0].signals_refreshed_at).toBeNull();
+      // Date-relative flags are independent of leaid resolution.
+      expect(rows[0].signals_refreshed_at).not.toBeNull();
+      // Just-inserted row is fresh, so is_new=true. due_date NULL => is_urgent=false.
+      expect(rows[0].is_new).toBe(true);
+      expect(rows[0].is_urgent).toBe(false);
+    });
+  });
+
+  it("sets is_new=true for RFPs first seen within 7 days, false for older", async () => {
+    await withTx(async (q) => {
+      await insertDistrict(q, "TEST013", "Fresh District");
+      await insertDistrict(q, "TEST014", "Stale District");
+
+      // Fresh: first_seen_at = today (default)
+      await insertRfp(q, "test-rfp-13", 999_013, "TEST013");
+
+      // Stale: override first_seen_at to 30 days ago
+      await q(
+        `INSERT INTO rfps (external_id, version_key, title, agency_key, agency_name, state_abbrev, leaid, first_seen_at, captured_date, updated_at, raw_payload)
+         VALUES ($1, $1, $2, $3, $4, $5, $6, now() - interval '30 days', now(), now(), '{}'::jsonb)`,
+        ["test-rfp-14", "T", 999_014, "Test Agency", "AL", "TEST014"]
+      );
+
+      await refreshRfpSignals(q);
+
+      const fresh = await q(
+        `SELECT is_new FROM rfps WHERE external_id='test-rfp-13'`
+      );
+      const stale = await q(
+        `SELECT is_new FROM rfps WHERE external_id='test-rfp-14'`
+      );
+      expect(fresh.rows[0].is_new).toBe(true);
+      expect(stale.rows[0].is_new).toBe(false);
+    });
+  });
+
+  it("sets is_urgent=true when due_date is within next 7 days, false otherwise", async () => {
+    await withTx(async (q) => {
+      await insertDistrict(q, "TEST015", "Urgency Test");
+
+      // Helper: insert an RFP with an explicit due_date
+      const insertWithDue = async (
+        externalId: string,
+        agencyKey: number,
+        dueExpression: string
+      ) => {
+        await q(
+          `INSERT INTO rfps (external_id, version_key, title, agency_key, agency_name, state_abbrev, leaid, due_date, captured_date, updated_at, raw_payload)
+           VALUES ($1, $1, $2, $3, $4, $5, $6, ${dueExpression}, now(), now(), '{}'::jsonb)`,
+          [externalId, "T", agencyKey, "Test Agency", "AL", "TEST015"]
+        );
+      };
+
+      await insertWithDue("urgent-3d",  999_101, `now() + interval '3 days'`);
+      await insertWithDue("urgent-30d", 999_102, `now() + interval '30 days'`);
+      await insertWithDue("urgent-past", 999_103, `now() - interval '2 days'`);
+      await insertRfp(q, "urgent-null", 999_104, "TEST015"); // no due_date
+
+      await refreshRfpSignals(q);
+
+      const rowFor = async (eid: string) =>
+        (await q(`SELECT is_urgent FROM rfps WHERE external_id=$1`, [eid])).rows[0];
+
+      expect((await rowFor("urgent-3d")).is_urgent).toBe(true);
+      expect((await rowFor("urgent-30d")).is_urgent).toBe(false);
+      expect((await rowFor("urgent-past")).is_urgent).toBe(false);
+      expect((await rowFor("urgent-null")).is_urgent).toBe(false);
     });
   });
 

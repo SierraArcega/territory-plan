@@ -1992,6 +1992,8 @@ model Rfp {
 
   // Pipeline signal — set by nightly refresh job. Null until refreshed.
   districtPipelineState String?    @map("district_pipeline_state") @db.VarChar(20)
+  isNew                 Boolean    @default(false)               @map("is_new")
+  isUrgent              Boolean    @default(false)               @map("is_urgent")
   signalsRefreshedAt    DateTime?  @map("signals_refreshed_at")   @db.Timestamptz
 
   // Lifecycle

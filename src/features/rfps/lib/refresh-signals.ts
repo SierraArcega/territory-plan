@@ -18,6 +18,10 @@ type Querier = (
  * Priority order: active > recently_won (<=18mo) > recently_lost (<=12mo)
  *   > in_plan (in any FY27 territory plan) > cold
  *
+ * Also maintains two date-relative flags:
+ *   - is_new    = first_seen_at within last 7 days
+ *   - is_urgent = due_date within next 7 days (and not past)
+ *
  * Closed-won/closed-lost stage detection mirrors the
  * district_opportunity_actuals matview's canonical predicates.
  *
@@ -58,18 +62,24 @@ in_plan AS (
 UPDATE rfps r
 SET
   district_pipeline_state = CASE
+    WHEN r.leaid IS NULL                             THEN NULL
     WHEN COALESCE(s.has_active, false)               THEN 'active'
     WHEN s.last_won  >= now() - interval '18 months' THEN 'recently_won'
     WHEN s.last_lost >= now() - interval '12 months' THEN 'recently_lost'
     WHEN ip.leaid IS NOT NULL                        THEN 'in_plan'
     ELSE 'cold'
   END,
+  is_new = (r.first_seen_at >= now() - interval '7 days'),
+  is_urgent = (
+    r.due_date IS NOT NULL
+    AND r.due_date >= now()
+    AND r.due_date <= now() + interval '7 days'
+  ),
   signals_refreshed_at = now()
-FROM districts d
-LEFT JOIN opp_state s ON s.leaid = d.leaid
-LEFT JOIN in_plan ip  ON ip.leaid = d.leaid
-WHERE r.leaid IS NOT NULL
-  AND r.leaid = d.leaid;
+FROM rfps r2
+LEFT JOIN opp_state s ON s.leaid = r2.leaid
+LEFT JOIN in_plan ip  ON ip.leaid = r2.leaid
+WHERE r.id = r2.id;
 `;
 
 /**
