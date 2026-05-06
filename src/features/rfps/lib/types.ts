@@ -40,11 +40,16 @@ export const HigherGovOpportunitySchema = z.object({
   primary_contact_email: NestedContact,
   secondary_contact_email: NestedContact,
   set_aside: z.string().nullable(),
-  nsn: z.string().nullable(),
+  // nsn can be either a single string or an array of strings depending on
+  // the RFP source_type (forecast-type returns arrays). We don't use it
+  // downstream — accept any shape and ignore.
+  nsn: z.unknown().nullable().optional(),
   val_est_low: z.string().nullable().default(""),
   val_est_high: z.string().nullable().default(""),
-  pop_country: z.string(),
-  pop_state: z.string(),
+  // pop_country / pop_state can be null on forecast-type RFPs that don't
+  // have a place-of-performance assigned yet.
+  pop_country: z.string().nullable().default(""),
+  pop_state: z.string().nullable().default(""),
   pop_city: z.string().nullable().default(""),
   pop_zip: z.string().nullable().default(""),
   opp_key: z.string(),
@@ -65,11 +70,15 @@ export const HigherGovOpportunitySchema = z.object({
 
 export type HigherGovOpportunity = z.infer<typeof HigherGovOpportunitySchema>;
 
+// Envelope schema parses the response shape leniently — `results` is an array
+// of unknowns so we can per-record `safeParse` against HigherGovOpportunitySchema
+// in the client. This isolates malformed records (which the broader saved
+// search occasionally returns) instead of nuking the whole page.
 export const HigherGovListResponseSchema = z.object({
   count: z.number().optional(),
   next: z.string().nullable().optional(),
   previous: z.string().nullable().optional(),
-  results: z.array(HigherGovOpportunitySchema),
+  results: z.array(z.unknown()),
   meta: z
     .object({
       pagination: z

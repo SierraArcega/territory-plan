@@ -1,4 +1,8 @@
-import { HigherGovListResponseSchema, type HigherGovOpportunity } from "./types";
+import {
+  HigherGovListResponseSchema,
+  HigherGovOpportunitySchema,
+  type HigherGovOpportunity,
+} from "./types";
 
 const BASE_URL = "https://www.highergov.com/api-external/opportunity/";
 const DEFAULT_PAGE_SIZE = 100;
@@ -49,27 +53,36 @@ async function fetchWithRetry(
 const DEFAULT_NAICS = "611110"; // Elementary and Secondary Schools
 
 /**
- * Async generator over SLED K-12 opportunities with captured_date >= `since`.
- * Filters via direct API params (source_type=sled + naics_code) rather than a
- * HigherGov saved search — saved searches did not retain K-12 filters reliably.
- * If `HIGHERGOV_K12_SEARCH_ID` is set, it's layered on top as an additional filter.
+ * Async generator over HigherGov opportunities with captured_date >= `since`.
+ *
+ * Filter strategy:
+ *   - When HIGHERGOV_K12_SEARCH_ID is set, the saved search is the SOLE scope
+ *     filter. The hardcoded source_type/naics_code params are skipped — the
+ *     saved search owns the breadth (multiple NAICS, custom keywords, state
+ *     restrictions, etc.).
+ *   - When HIGHERGOV_K12_SEARCH_ID is unset, fall back to direct API params
+ *     (source_type=sled + naics_code=611110 by default) for a NAICS-only K-12 net.
+ *
  * Follows HigherGov `links.next` pagination.
  */
 export async function* fetchOpportunities(
   args: FetchOpportunitiesArgs,
 ): AsyncGenerator<HigherGovOpportunity, void, unknown> {
   const apiKey = requireEnv("HIGHERGOV_API_KEY");
-  const naics = process.env.HIGHERGOV_K12_NAICS || DEFAULT_NAICS;
   const searchId = process.env.HIGHERGOV_K12_SEARCH_ID;
+  const naics = process.env.HIGHERGOV_K12_NAICS || DEFAULT_NAICS;
   const pageSize = args.pageSize ?? DEFAULT_PAGE_SIZE;
   const maxRetries = args.maxRetries ?? DEFAULT_MAX_RETRIES;
   const retryDelayMs = args.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
 
   const initial = new URL(BASE_URL);
   initial.searchParams.set("api_key", apiKey);
-  initial.searchParams.set("source_type", "sled");
-  initial.searchParams.set("naics_code", naics);
-  if (searchId) initial.searchParams.set("search_id", searchId);
+  if (searchId) {
+    initial.searchParams.set("search_id", searchId);
+  } else {
+    initial.searchParams.set("source_type", "sled");
+    initial.searchParams.set("naics_code", naics);
+  }
   initial.searchParams.set("captured_date__gte", isoDate(args.since));
   if (args.postedSince) initial.searchParams.set("posted_date__gte", isoDate(args.postedSince));
   initial.searchParams.set("ordering", "-captured_date");
@@ -79,9 +92,24 @@ export async function* fetchOpportunities(
   while (nextUrl) {
     const res = await fetchWithRetry(nextUrl, maxRetries, retryDelayMs);
     const json = await res.json();
-    const parsed = HigherGovListResponseSchema.parse(json);
-    for (const r of parsed.results) yield r;
+    const envelope = HigherGovListResponseSchema.parse(json);
+    for (const raw of envelope.results) {
+      // Per-record validation: a malformed record (e.g., null title on a
+      // forecast-type RFP, array `nsn`, etc.) shouldn't kill the whole page.
+      const result = HigherGovOpportunitySchema.safeParse(raw);
+      if (!result.success) {
+        const oppKey = (raw as { opp_key?: unknown })?.opp_key;
+        console.warn(
+          `[highergov] skipping malformed record (opp_key=${String(oppKey)}): ${result.error.issues
+            .slice(0, 3)
+            .map((i) => `${i.path.join(".")}=${i.message}`)
+            .join("; ")}`,
+        );
+        continue;
+      }
+      yield result.data;
+    }
     // HigherGov uses links.next; fall back to top-level next for forward compat.
-    nextUrl = parsed.links?.next ?? parsed.next ?? null;
+    nextUrl = envelope.links?.next ?? envelope.next ?? null;
   }
 }

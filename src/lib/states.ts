@@ -65,6 +65,8 @@ export const USPS_TO_FIPS: Record<string, string> = {
   OH: "39", OK: "40", OR: "41", PA: "42", PR: "72", RI: "44", SC: "45",
   SD: "46", TN: "47", TX: "48", UT: "49", VT: "50", VA: "51", WA: "53",
   WV: "54", WI: "55", WY: "56",
+  // Synthetic FIPS for federal/national-scope agencies (no Census equivalent).
+  NAT: "95",
 };
 
 /** Inverse of USPS_TO_FIPS. */

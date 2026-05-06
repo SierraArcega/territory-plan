@@ -62,15 +62,26 @@ describe("fetchOpportunities", () => {
     expect(url.searchParams.get("naics_code")).toBe("611710");
   });
 
-  it("layers HIGHERGOV_K12_SEARCH_ID when set (optional)", async () => {
+  it("uses HIGHERGOV_K12_SEARCH_ID as the sole scope filter when set", async () => {
     process.env.HIGHERGOV_K12_SEARCH_ID = "saved-search-xyz";
     fetchSpy.mockResolvedValueOnce(ok({ results: [], links: { next: null } }));
     for await (const _ of fetchOpportunities({ since: new Date() })) void _;
     const url = new URL(fetchSpy.mock.calls[0][0] as string);
     expect(url.searchParams.get("search_id")).toBe("saved-search-xyz");
-    // NAICS still applied alongside
-    expect(url.searchParams.get("naics_code")).toBe("611110");
-    expect(url.searchParams.get("source_type")).toBe("sled");
+    // The saved search owns the scope — hardcoded source_type and naics_code
+    // are intentionally NOT applied so the search controls breadth.
+    expect(url.searchParams.get("naics_code")).toBeNull();
+    expect(url.searchParams.get("source_type")).toBeNull();
+  });
+
+  it("ignores HIGHERGOV_K12_NAICS when a saved search is configured", async () => {
+    process.env.HIGHERGOV_K12_SEARCH_ID = "saved-search-xyz";
+    process.env.HIGHERGOV_K12_NAICS = "611710";
+    fetchSpy.mockResolvedValueOnce(ok({ results: [], links: { next: null } }));
+    for await (const _ of fetchOpportunities({ since: new Date() })) void _;
+    const url = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(url.searchParams.get("search_id")).toBe("saved-search-xyz");
+    expect(url.searchParams.get("naics_code")).toBeNull();
   });
 
   it("paginates by following links.next until null", async () => {

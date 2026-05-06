@@ -73,6 +73,10 @@ export async function GET(request: NextRequest) {
   // sortBy/sortDir come from a whitelist, so direct interpolation via Prisma.raw is safe.
   const orderBy = Prisma.raw(`${sortBy} ${sortDir} NULLS LAST, agg.agency_key`);
 
+  // Filter out agencies whose RFPs ALL classify as 'none' (federal contractor
+  // noise, construction, water, etc.). Reps shouldn't have to triage these.
+  // Agencies with at least one high/medium/low — or NULL (unclassified) — RFP
+  // remain in the queue. Counts in the CTE still reflect real totals.
   const baseCte = Prisma.sql`
     WITH agg AS (
       SELECT
@@ -88,6 +92,9 @@ export async function GET(request: NextRequest) {
         SUM(COALESCE(r.value_high, 0))                     AS total_value_high
       FROM rfps r
       GROUP BY r.agency_key
+      HAVING COUNT(*) FILTER (
+        WHERE r.fullmind_relevance != 'none' OR r.fullmind_relevance IS NULL
+      ) > 0
     )
   `;
 

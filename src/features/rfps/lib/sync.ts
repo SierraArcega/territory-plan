@@ -76,6 +76,7 @@ function rfpUpsertArgs(n: NormalizedRfp, leaid: string | null) {
     capturedDate: n.capturedDate,
     highergovUrl: n.highergovUrl,
     sourceUrl: n.sourceUrl,
+    higherGovSourceType: n.higherGovSourceType,
     rawPayload: n.rawPayload as object,
   };
   return {

@@ -30,6 +30,11 @@ export const ACCOUNT_TYPES = [
     tooltip: "State department of education or board",
   },
   {
+    value: "federal_agency",
+    label: "Federal Agency",
+    tooltip: "Federal government department or agency (DoD, DOE, USDA, GSA, etc.) — appears in HigherGov SAM/forecast feeds, rarely a Fullmind buyer",
+  },
+  {
     value: "city",
     label: "City / Municipality",
     tooltip: "City or municipal government purchasing on behalf of public services (libraries, parks, IT) — not a school district",
