@@ -86,6 +86,9 @@ export interface IncreaseTarget {
   /** Sum of FY27 plan targets (renewal+winback+expansion+newBusiness) across all
    *  FY27 territory plans this district appears in. 0 when not in any plan. */
   fy27TargetAmount: number;
+  /** Plan-owner full names for FY27 plans that have a non-zero target on this
+   *  district. Empty when no FY27 plan has a target. */
+  fy27TargetReps: string[];
   hasFy27Pipeline: boolean;
   fy27OpenPipeline: number;
   /** Alias for inFy27Plan — kept so existing callers compile. */

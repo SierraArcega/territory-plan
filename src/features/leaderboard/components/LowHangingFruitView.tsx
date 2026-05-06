@@ -79,6 +79,7 @@ function buildCsv(rows: IncreaseTarget[]): string {
     "FY26 closed won",
     "FY27 pipeline",
     "FY27 target",
+    "FY27 target reps",
     "Suggested target",
     "Last rep",
     "Last close date",
@@ -95,6 +96,7 @@ function buildCsv(rows: IncreaseTarget[]): string {
       Math.round(r.fy26OppBookings),
       Math.round(r.fy27OpenPipeline),
       r.fy27TargetAmount > 0 ? Math.round(r.fy27TargetAmount) : "",
+      r.fy27TargetReps.join("; "),
       r.suggestedTarget != null ? Math.round(r.suggestedTarget) : "",
       r.lastClosedWon?.repName ?? "",
       r.lastClosedWon?.closeDate ?? "",
@@ -545,11 +547,27 @@ export default function LowHangingFruitView() {
                         align="right"
                         className={
                           r.fy27TargetAmount > 0
-                            ? "text-[#403770] font-semibold"
+                            ? "font-bold text-[#403770]"
                             : "text-[#A69DC0]"
                         }
                       >
-                        {r.fy27TargetAmount > 0 ? formatCurrencyShort(r.fy27TargetAmount) : "—"}
+                        {r.fy27TargetAmount > 0 ? (
+                          <>
+                            {formatCurrencyShort(r.fy27TargetAmount)}
+                            {r.fy27TargetReps.length > 0 && (
+                              <div
+                                className="text-[10px] font-normal text-[#A69DC0] truncate"
+                                title={r.fy27TargetReps.join(", ")}
+                              >
+                                {r.fy27TargetReps[0]}
+                                {r.fy27TargetReps.length > 1 &&
+                                  ` +${r.fy27TargetReps.length - 1}`}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          "—"
+                        )}
                       </Td>
                       <Td align="right" className="text-[#6E6390]">
                         {r.suggestedTarget != null ? formatCurrencyShort(r.suggestedTarget) : "—"}

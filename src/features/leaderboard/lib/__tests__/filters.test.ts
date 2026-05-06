@@ -31,6 +31,7 @@ const row = (overrides: Partial<IncreaseTarget> = {}): IncreaseTarget =>
     planIds: [],
     hasFy27Target: false,
     fy27TargetAmount: 0,
+    fy27TargetReps: [],
     hasFy27Pipeline: false,
     fy27OpenPipeline: 0,
     inPlan: false,
