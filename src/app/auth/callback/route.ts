@@ -3,7 +3,12 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const requestUrl = new URL(request.url)
+  const { searchParams } = requestUrl
+  // Use the Host header so custom dev hostnames (e.g. a-arcega.local) round-trip
+  // correctly instead of being normalized to localhost by the dev server.
+  const host = request.headers.get('host') ?? requestUrl.host
+  const origin = `${requestUrl.protocol}//${host}`
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
