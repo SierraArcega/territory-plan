@@ -62,7 +62,7 @@ export interface ResolveResult {
 export interface ResolveAgencyArgs {
   agencyKey: number;
   agencyName: string;
-  stateAbbrev: string;
+  stateAbbrev: string | null;
 }
 
 export async function resolveAgency({

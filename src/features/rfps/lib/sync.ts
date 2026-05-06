@@ -110,7 +110,7 @@ export async function syncRfps(): Promise<SyncSummary> {
     // happens client-side below.
     for await (const r of fetchOpportunities({ since: watermark })) buffer.push(r);
 
-    const uniqueAgencies = new Map<number, { name: string; state: string }>();
+    const uniqueAgencies = new Map<number, { name: string; state: string | null }>();
     for (const r of buffer) {
       if (!uniqueAgencies.has(r.agency.agency_key)) {
         uniqueAgencies.set(r.agency.agency_key, { name: r.agency.agency_name, state: r.pop_state });
