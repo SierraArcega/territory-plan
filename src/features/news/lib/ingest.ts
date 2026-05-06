@@ -4,7 +4,6 @@ import {
   BROAD_QUERIES,
   EDU_FEEDS,
   ROLLING_BATCH_SIZE,
-  US_STATES,
   perStateQuery,
 } from "./config";
 import { fetchGoogleNewsRss, fetchRssFeed, type RawArticle } from "./rss";
@@ -79,8 +78,13 @@ async function ingestFeed(
 }
 
 /**
- * Layer 1 + Layer 2: national edu RSS + broad Google News RSS + per-state queries.
+ * Layer 1 + Layer 2: national edu RSS + broad Google News RSS.
  * Intended to run nightly from /api/cron/ingest-news-daily.
+ *
+ * Per-state queries are NOT included here — they live in
+ * /api/cron/ingest-news-state which fans them out one-per-minute. Bundling all
+ * 51 states into the daily run blew the function timeout (every daily run was
+ * orphan-swept), so coverage moved to a slow drip.
  */
 export async function ingestDailyLayers(): Promise<IngestStats> {
   const t0 = Date.now();
@@ -111,24 +115,29 @@ export async function ingestDailyLayers(): Promise<IngestStats> {
     });
   }
 
-  // Layer 2b — per-state queries
-  for (const s of US_STATES) {
-    queue.add(async () => {
-      try {
-        const raws = await fetchGoogleNewsRss(perStateQuery(s.name));
-        await ingestFeed(raws, "google_news_query", stats);
-      } catch (err) {
-        stats.errors.push(`state "${s.abbrev}": ${String(err)}`);
-      }
-    });
-  }
-
   await queue.onIdle();
   const elapsedMs = Date.now() - t0;
   console.log(
     `[news.ingest.daily] articlesNew=${stats.articlesNew} articlesDup=${stats.articlesDup} ` +
     `errors=${stats.errors.length} ms=${elapsedMs}`
   );
+  return stats;
+}
+
+/**
+ * Layer 2b: single per-state Google News query. Intended to be called once per
+ * minute by /api/cron/ingest-news-state with a rotating state index, so all 51
+ * states are swept ~every 51 minutes. Cheap (1 fetch + dedup) so it fits well
+ * under any function timeout.
+ */
+export async function ingestOneState(stateName: string): Promise<IngestStats> {
+  const stats = emptyStats();
+  try {
+    const raws = await fetchGoogleNewsRss(perStateQuery(stateName));
+    await ingestFeed(raws, "google_news_query", stats);
+  } catch (err) {
+    stats.errors.push(`state "${stateName}": ${String(err)}`);
+  }
   return stats;
 }
 
