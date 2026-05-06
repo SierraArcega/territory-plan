@@ -70,6 +70,29 @@ creation flows:
   load asynchronously must render a disabled placeholder during loading, not
   disappear. Disappearing UI causes layout shift and confusion.
 
+### Mobile Testing
+This app is used on iPhone (Safari and Chrome). Any view with a scrollable
+inner container must be verified on mobile before shipping.
+
+- **Never set `overflow: hidden` on `html`/`body`** — on iOS/WebKit this blocks
+  touch-scroll delivery to all inner containers. Use `overscroll-behavior: none`
+  instead, which prevents bounce without the side-effect.
+- **Use `touch-action: pan-y`** on `<main>` or any wrapper that contains
+  scrollable children.
+- **Add `-webkit-overflow-scrolling: touch`** to inner scroll containers for
+  legacy iOS 14 / Chrome-on-iOS coverage (handled globally in `globals.css`).
+- **Test scroll on iPhone before marking a view complete** — use Safari
+  Responsive Design Mode locally (Develop → Enter Responsive Design Mode),
+  then verify on a real device before approving a PR.
+- **Local device testing — two options (same WiFi required for both):**
+  - `.local` hostname (permanent): `http://A-Arcega.local:3005` — requires
+    one-time Supabase redirect URL whitelist (`http://A-Arcega.local:3005/**`)
+    and `NEXT_PUBLIC_SITE_URL=http://A-Arcega.local:3005` in `.env.local`
+  - Local IP (per-session): `ipconfig getifaddr en0` → `http://<ip>:3005`
+    (auth redirects will fail; use only for pre-login visual checks)
+- **Smoke-test the map tab** after any AppShell layout change — MapLibre touch
+  gestures share the same event system.
+
 ### Testing
 - Vitest + Testing Library + jsdom
 - Tests co-located in `__tests__/` directories next to source
