@@ -17,10 +17,10 @@ const STATUSES = [
 ];
 
 const FISCAL_YEARS = [
-  { value: 24, label: "FY24" },
-  { value: 25, label: "FY25" },
-  { value: 26, label: "FY26" },
-  { value: 27, label: "FY27" },
+  { value: 2024, label: "FY24" },
+  { value: 2025, label: "FY25" },
+  { value: 2026, label: "FY26" },
+  { value: 2027, label: "FY27" },
 ];
 
 export default function PlansDropdown({ onClose }: PlansDropdownProps) {
