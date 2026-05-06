@@ -113,3 +113,8 @@ export const TRACKING_PARAMS = new Set<string>([
 
 export const ROLLING_BATCH_SIZE = 100;
 export const GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search";
+
+/** Articles published more than this many days ago are dropped at ingest.
+ *  Keeps the table aligned with the recency window reps actually care about
+ *  and matches the one-off purge policy. */
+export const MAX_ARTICLE_AGE_DAYS = 180;

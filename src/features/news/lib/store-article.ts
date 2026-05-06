@@ -1,13 +1,12 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import type { NewsArticle } from "@prisma/client";
-import { TRACKING_PARAMS } from "./config";
+import { MAX_ARTICLE_AGE_DAYS, TRACKING_PARAMS } from "./config";
 import type { RawArticle } from "./rss";
 
-export interface UpsertResult {
-  article: NewsArticle;
-  isNew: boolean;
-}
+export type UpsertResult =
+  | { article: NewsArticle; isNew: boolean }
+  | { skipped: "stale" };
 
 /** Strip tracking params (utm_*, fbclid, etc.) so the same article hashes
  *  identically regardless of how we discovered it. */
@@ -49,6 +48,14 @@ export async function upsertArticle(
   raw: RawArticle,
   feedSource: string
 ): Promise<UpsertResult> {
+  // Drop stale articles before any DB work. Google News and edu RSS feeds
+  // periodically surface old items (re-promoted, re-syndicated, or surfaced
+  // by a query for the first time months later); reps don't act on those.
+  const ageMs = Date.now() - raw.publishedAt.getTime();
+  if (ageMs > MAX_ARTICLE_AGE_DAYS * 24 * 60 * 60 * 1000) {
+    return { skipped: "stale" };
+  }
+
   const normalized = normalizeUrl(raw.url);
   const urlHash = hashUrl(raw.url);
 

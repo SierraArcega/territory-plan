@@ -14,6 +14,7 @@ import { upsertArticle } from "./store-article";
 export interface IngestStats {
   articlesNew: number;
   articlesDup: number;
+  articlesSkippedStale: number;
   districtsProcessed: number;
   errors: string[];
   newArticleIds: string[];
@@ -23,6 +24,7 @@ function emptyStats(): IngestStats {
   return {
     articlesNew: 0,
     articlesDup: 0,
+    articlesSkippedStale: 0,
     districtsProcessed: 0,
     errors: [],
     newArticleIds: [],
@@ -42,7 +44,12 @@ async function ingestFeed(
 ): Promise<void> {
   for (const raw of articles) {
     try {
-      const { article, isNew } = await upsertArticle(raw, feedSource);
+      const result = await upsertArticle(raw, feedSource);
+      if ("skipped" in result) {
+        stats.articlesSkippedStale++;
+        continue;
+      }
+      const { article, isNew } = result;
       if (isNew) {
         stats.articlesNew++;
         stats.newArticleIds.push(article.id);
@@ -127,6 +134,7 @@ export async function ingestDailyLayers(): Promise<IngestStats> {
   const elapsedMs = Date.now() - t0;
   console.log(
     `[news.ingest.daily] articlesNew=${stats.articlesNew} articlesDup=${stats.articlesDup} ` +
+    `articlesSkippedStale=${stats.articlesSkippedStale} ` +
     `errors=${stats.errors.length} ms=${elapsedMs}`
   );
   return stats;
@@ -174,6 +182,7 @@ export async function ingestRollingLayer(
   console.log(
     `[news.ingest.rolling] batch=${fetches.length} ` +
     `articlesNew=${stats.articlesNew} articlesDup=${stats.articlesDup} ` +
+    `articlesSkippedStale=${stats.articlesSkippedStale} ` +
     `districtsProcessed=${stats.districtsProcessed} errors=${stats.errors.length} ` +
     `ms=${elapsedMs}`
   );

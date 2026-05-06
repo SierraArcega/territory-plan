@@ -55,39 +55,50 @@ describe("upsertArticle title-based dedup", () => {
     };
   };
 
+  // Use relative recent dates so tests don't rot once "today" drifts past
+  // the MAX_ARTICLE_AGE_DAYS cutoff defined in config.
+  const recent = () => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
   it("returns existing article when URL hash matches", async () => {
-    const existing: ArticleFixture = { id: "a1", title: "t", publishedAt: new Date("2026-04-01") };
+    const publishedAt = recent();
+    const existing: ArticleFixture = { id: "a1", title: "t", publishedAt };
     mockPrisma.newsArticle.findUnique.mockResolvedValueOnce(existing);
     const result = await upsertArticle(
       {
         url: "https://a.com/x",
         title: "t",
         source: "a.com",
-        publishedAt: new Date("2026-04-01"),
+        publishedAt,
       },
       "feed"
     );
+    expect("skipped" in result).toBe(false);
+    if ("skipped" in result) return;
     expect(result.isNew).toBe(false);
     expect(result.article.id).toBe("a1");
     expect(mockPrisma.newsArticle.findFirst).not.toHaveBeenCalled();
   });
 
   it("returns existing article when title matches and publish dates within 24h", async () => {
+    const earlier = recent();
+    const later = new Date(earlier.getTime() + 12 * 60 * 60 * 1000);
     mockPrisma.newsArticle.findUnique.mockResolvedValueOnce(null);
     mockPrisma.newsArticle.findFirst.mockResolvedValueOnce({
       id: "a2",
       title: "Big story about schools",
-      publishedAt: new Date("2026-04-01T10:00:00Z"),
+      publishedAt: earlier,
     });
     const result = await upsertArticle(
       {
         url: "https://b.com/y",
         title: "Big story about schools",
         source: "b.com",
-        publishedAt: new Date("2026-04-01T22:00:00Z"),
+        publishedAt: later,
       },
       "feed"
     );
+    expect("skipped" in result).toBe(false);
+    if ("skipped" in result) return;
     expect(result.isNew).toBe(false);
     expect(result.article.id).toBe("a2");
     expect(mockPrisma.newsArticle.create).not.toHaveBeenCalled();
@@ -102,10 +113,12 @@ describe("upsertArticle title-based dedup", () => {
         url: "https://c.com/z",
         title: "A brand new headline",
         source: "c.com",
-        publishedAt: new Date("2026-04-22"),
+        publishedAt: recent(),
       },
       "feed"
     );
+    expect("skipped" in result).toBe(false);
+    if ("skipped" in result) return;
     expect(result.isNew).toBe(true);
     expect(mockPrisma.newsArticle.create).toHaveBeenCalled();
   });
@@ -118,14 +131,71 @@ describe("upsertArticle title-based dedup", () => {
         url: "https://d.com/q",
         title: "Clean headline - The Register",
         source: "d.com",
-        publishedAt: new Date("2026-04-22"),
+        publishedAt: recent(),
       },
       "feed"
     );
+    expect("skipped" in result).toBe(false);
+    if ("skipped" in result) return;
     expect(result.isNew).toBe(false);
-    // The findFirst call should have been made with normalized title
     const findFirstCall = mockPrisma.newsArticle.findFirst.mock.calls[0][0];
     expect(findFirstCall.where.title).toBe("Clean headline");
+  });
+});
+
+describe("upsertArticle stale-age guard", () => {
+  const mockPrisma = prisma as unknown as {
+    newsArticle: {
+      findUnique: ReturnType<typeof vi.fn>;
+      findFirst: ReturnType<typeof vi.fn>;
+      create: ReturnType<typeof vi.fn>;
+    };
+  };
+
+  it("skips articles older than the cutoff without touching the DB", async () => {
+    mockPrisma.newsArticle.findUnique.mockReset();
+    mockPrisma.newsArticle.findFirst.mockReset();
+    mockPrisma.newsArticle.create.mockReset();
+
+    const oldPublishedAt = new Date(Date.now() - 181 * 24 * 60 * 60 * 1000);
+    const result = await upsertArticle(
+      {
+        url: "https://stale.com/x",
+        title: "Ancient news",
+        source: "stale.com",
+        publishedAt: oldPublishedAt,
+      },
+      "feed"
+    );
+
+    expect("skipped" in result && result.skipped).toBe("stale");
+    expect(mockPrisma.newsArticle.findUnique).not.toHaveBeenCalled();
+    expect(mockPrisma.newsArticle.findFirst).not.toHaveBeenCalled();
+    expect(mockPrisma.newsArticle.create).not.toHaveBeenCalled();
+  });
+
+  it("admits articles inside the cutoff window", async () => {
+    mockPrisma.newsArticle.findUnique.mockReset().mockResolvedValueOnce(null);
+    mockPrisma.newsArticle.findFirst.mockReset().mockResolvedValueOnce(null);
+    mockPrisma.newsArticle.create.mockReset().mockResolvedValueOnce({
+      id: "fresh1",
+      title: "Fresh news",
+      publishedAt: new Date(),
+    });
+
+    const recentPublishedAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const result = await upsertArticle(
+      {
+        url: "https://fresh.com/y",
+        title: "Fresh news",
+        source: "fresh.com",
+        publishedAt: recentPublishedAt,
+      },
+      "feed"
+    );
+
+    expect("skipped" in result).toBe(false);
+    expect(mockPrisma.newsArticle.create).toHaveBeenCalled();
   });
 });
 
