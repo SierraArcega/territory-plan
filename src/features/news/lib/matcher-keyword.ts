@@ -149,12 +149,18 @@ export function matchArticleKeyword(input: KeywordInput): KeywordResult {
   // Pass B: full literal district name + state → auto-confirm, but only
   // when the name is distinctive. Non-distinctive names (single-word place
   // names like "Portland", "York") go to Pass C for LLM disambiguation.
+  //
+  // Match must be on word boundaries — naive substring matching produces
+  // false positives like "Ord Public Schools" matching inside "Milford
+  // Public Schools".
   for (const state of stateAbbrevs) {
     const candidates = districtsByState.get(state) ?? [];
     for (const c of candidates) {
       if (confirmedLeaids.has(c.leaid)) continue;
       if (!isDistinctiveForTier1(c.name)) continue;
-      if (lowerText.includes(c.name.toLowerCase())) {
+      const escaped = c.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const nameRe = new RegExp(`\\b${escaped}\\b`);
+      if (nameRe.test(lowerText)) {
         result.confirmedDistricts.push({ leaid: c.leaid, confidence: "high" });
         confirmedLeaids.add(c.leaid);
       }

@@ -219,6 +219,41 @@ describe("matchArticleKeyword — false-positive guards", () => {
     expect(result.confirmedDistricts).toHaveLength(1);
     expect(result.confirmedDistricts[0].leaid).toBe("1725020");
   });
+
+  // From the H1+H2 LLM precision check: "Milford Public Schools" was incorrectly
+  // confirming a district named "Ord Public Schools" because Pass B did naive
+  // substring matching ("ord public schools" appears inside "milf-ord public
+  // schools"). Pass B must require word boundaries.
+  it("does NOT match a district name as a substring inside a longer word", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("NE", [
+      { leaid: "3174940", name: "Ord Public Schools", stateAbbrev: "NE", cityLocation: "Ord", countyName: "Valley County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Milford Public Schools names new deputy superintendent for instruction.",
+        stateAbbrevs: ["NE"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(0);
+  });
+
+  it("still matches a district name with hyphens (hyphens count as word boundaries)", () => {
+    const districtsByState = new Map<string, DistrictCandidate[]>();
+    districtsByState.set("NC", [
+      { leaid: "3702970", name: "Charlotte-Mecklenburg Schools", stateAbbrev: "NC", cityLocation: "Charlotte", countyName: "Mecklenburg County", accountName: null },
+    ]);
+    const result = matchArticleKeyword(
+      makeInput({
+        articleText: "Charlotte-Mecklenburg Schools seek clarity on the budget.",
+        stateAbbrevs: ["NC"],
+        districtsByState,
+      })
+    );
+    expect(result.confirmedDistricts).toHaveLength(1);
+    expect(result.confirmedDistricts[0].leaid).toBe("3702970");
+  });
 });
 
 describe("matchArticleKeyword — Tier 2 LLM queue", () => {
