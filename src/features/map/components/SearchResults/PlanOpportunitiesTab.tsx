@@ -122,9 +122,9 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
   }
 
   return (
-    <div className="flex flex-col h-full overflow-x-auto">
+    <div className="flex flex-col h-full overflow-auto">
       {/* Table header */}
-      <div className="shrink-0 border-b border-[#E2DEEC] bg-[#FAFAFE]">
+      <div className="sticky top-0 z-10 shrink-0 min-w-max border-b border-[#E2DEEC] bg-[#FAFAFE]">
         <div
           className="grid items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]"
           style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
@@ -143,7 +143,7 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
       </div>
 
       {/* Rows */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-w-max">
         {sorted.map((opp) => (
           <OppRow key={opp.id} opp={opp} />
         ))}
@@ -151,7 +151,7 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
 
       {/* Footer */}
       {totals && (
-        <div className="shrink-0 border-t border-[#E2DEEC] bg-[#FAFAFE]">
+        <div className="sticky bottom-0 z-10 shrink-0 min-w-max border-t border-[#E2DEEC] bg-[#FAFAFE]">
           <div
             className="grid items-center px-5 py-2.5 text-[11px]"
             style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
