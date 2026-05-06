@@ -37,7 +37,8 @@ export type ColumnDomain =
   | "history"
   | "unmatched"
   | "audit"
-  | "news";
+  | "news"
+  | "rfp";
 
 export type DataFormat =
   | "text"
@@ -64,7 +65,8 @@ export type DataSource =
   | "elevate_k12"       // subscriptions (Elevate import pipeline)
   | "scraper"           // vacancies, vacancy_scans
   | "query_tool"        // query_log, saved_reports
-  | "news_ingest";      // news_articles + junctions (RSS/Google News + Haiku classifier)
+  | "news_ingest"       // news_articles + junctions (RSS/Google News + Haiku classifier)
+  | "highergov";        // rfps (HigherGov daily ingest + Haiku classifier + nightly signal refresh)
 
 export interface ColumnMetadata {
   /** Prisma camelCase field name */
@@ -2609,6 +2611,80 @@ export const NEWS_ARTICLE_COLUMNS: ColumnMetadata[] = [
   { field: "classifiedAt", column: "classified_at", label: "Classified At", description: "When the Haiku classifier ran. NULL = not yet classified (categories / fullmind_relevance will both be null on those rows).", domain: "news", format: "date", source: "news_ingest", queryable: true },
 ];
 
+/**
+ * rfps — RFPs (Request for Proposals) ingested daily from HigherGov, classified by a
+ * Haiku pass for Fullmind sales relevance, and annotated nightly with a district-level
+ * pipeline signal derived from opportunities + FY27 territory plans.
+ */
+export const RFP_COLUMNS: ColumnMetadata[] = [
+  // ===== Identity & description =====
+  { field: "id", column: "id", label: "RFP ID", description: "Auto-increment PK. Use for joins; not rep-facing — never display.", domain: "rfp", format: "integer", source: "highergov", queryable: true },
+  { field: "externalId", column: "external_id", label: "HigherGov Opp Key", description: "Stable ID from HigherGov (their opp_key). Used as the upsert key during ingest. Internal join key — never SELECT for reps.", domain: "rfp", format: "text", source: "highergov", queryable: false },
+  { field: "versionKey", column: "version_key", label: "Version Key", description: "HigherGov amendment tracker. Two RFPs with the same external_id but different version_key are amendments. Internal — never SELECT for reps.", domain: "rfp", format: "text", source: "highergov", queryable: false },
+  { field: "source", column: "source", label: "Source", description: "Origin of the RFP. Always 'highergov' in current data; column reserved for future aggregators (Clay, GovWin, etc.).", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "title", column: "title", label: "Title", description: "Primary rep-facing identifier. Use ILIKE for keyword search ('RFPs mentioning curriculum'). Often more useful than description because titles are concise — try title ILIKE first.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "solicitationNumber", column: "solicitation_number", label: "Solicitation #", description: "Public RFP number (e.g., 'REQ384933', 'RFP-2026-04-A'). What reps quote when discussing the RFP with the agency. Often null on lighter-weight postings.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "oppType", column: "opp_type", label: "Opportunity Type", description: "HigherGov solicitation type. Currently always 'Solicitation' in our data (548/548) — useless as a filter today. Reserved for future ingest expansion.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "description", column: "description", label: "Description", description: "Long-form RFP description from HigherGov. Often contains the actual scope of work and submission requirements. Large text — only SELECT when rep wants the full body, not list views. For keyword search try title and ai_summary first; fall back to description ILIKE only when those don't hit.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "aiSummary", column: "ai_summary", label: "AI Summary", description: "HigherGov's pre-generated 1-3 sentence summary. Useful for quick rep digestion when title is opaque (e.g., 'CJCF Hamby Title I REQ384933'). Often null on smaller postings.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+
+  // ===== Agency & geography =====
+  { field: "agencyKey", column: "agency_key", label: "Agency Key", description: "HigherGov's stable agency ID (int). Used as the join key for agency_district_maps (internal triage table) and as the unit of bulk mapping. Never display to reps.", domain: "rfp", format: "integer", source: "highergov", queryable: true },
+  { field: "agencyName", column: "agency_name", label: "Agency Name", description: "Buyer organization name as posted on HigherGov (e.g., 'Yonkers Board of Education', 'Other Virginia Localities (Legacy)'). What reps see and quote. Use ILIKE for 'all RFPs from <agency>'. NOT a clean enum — same district can show up under multiple wrappers (e.g., 'City of New York DOE' vs 'NYC Department of Education' vs 'NYC DOE'). Don't GROUP BY expecting cleanliness; agency_district_maps is the override layer.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "agencyPath", column: "agency_path", label: "Agency Path", description: "HigherGov URL for the agency profile page (e.g., 'https://www.highergov.com/agency/tx-29140/'). Surface as a link when rep asks 'where can I see this agency on HigherGov?' Don't filter on it.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "stateAbbrev", column: "state_abbrev", label: "State", description: "2-letter USPS state code of the buyer. Primary geographic filter — use this for 'RFPs in TX', 'open NY RFPs'. Always populated when HigherGov returns it; rare nulls on multi-state cooperative postings.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "stateFips", column: "state_fips", label: "State FIPS", description: "2-digit FIPS state code (e.g., '06' for CA). Same coverage as state_abbrev. Use state_abbrev for rep questions; state_fips only when joining to other tables that key on FIPS.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "popCity", column: "pop_city", label: "Place of Performance City", description: "Place-of-performance city if HigherGov provides it. Often null. Useful for narrowing within a large state ('Houston RFPs', 'Brooklyn RFPs'). Don't trust as a primary filter — frequently missing.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "popZip", column: "pop_zip", label: "Place of Performance ZIP", description: "Place-of-performance ZIP code. Often null. Rarely useful for rep questions; prefer state_abbrev + pop_city or join via leaid → districts.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "leaid", column: "leaid", label: "Resolved District (LEAID)", description: "The resolved district key (NCES leaid, varchar(7)) or NULL if unresolved. Set by the resolver: 3-tier name match against districts.name + agency_district_maps overrides. ~88% of current RFPs resolve. JOIN to districts for district name / state / ICP / opportunity history. Important: NULL ≠ 'not a real district' — it just means we couldn't auto-match. Reps should still see those RFPs in their state filter via state_abbrev.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+
+  // ===== Classification (Haiku classifier pass) =====
+  { field: "fullmindRelevance", column: "fullmind_relevance", label: "Fullmind Relevance", description: "Sales-actionability tier from the Haiku classifier. Full enum: 'high' (RFP explicitly names a Fullmind modality — tutoring, virtual instruction, credit recovery, homebound, suspension alternative, hybrid staffing, PD, EK12-style curriculum), 'medium' (adjacent problem space — MTSS/intervention, assessment, summer school, Title-I-funded literacy/math, juvenile-justice/correctional/treatment-facility educational services, supplemental services), 'low' (tangentially K-12 but not Fullmind's space — library e-resources, generic edtech licenses, school security, non-instructional staff, pure childcare), 'none' (clearly not us — HVAC, construction, transport, food, federal IT). NULL until classified. For 'find me RFPs' / 'high-priority RFPs' / 'what should I bid' questions DEFAULT to fullmind_relevance IN ('high','medium'). Indexed alongside due_date.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "keywords", column: "keywords", label: "Keywords", description: "Distinctive phrases extracted by the classifier — postgres text[], up to 10 per RFP, lowercase, ~2-4 words each. Includes service/program names, grade bands, funding hints, modality cues, named curricula (e.g., ['high-dosage tutoring', 'algebra i', 'esser', 'grades 9-10', 'small group']). Use array operators: 'algebra' = ANY(keywords) for single-keyword search, keywords && ARRAY['saxon math','wilson reading'] for any-of. Defaults to empty array ('{}') when classifier ran but extracted nothing; never NULL.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "fundingSources", column: "funding_sources", label: "Funding Sources", description: "Funding tags extracted by the classifier — postgres text[]. Full enum: 'esser', 'title_i', 'title_iv', 'idea', '21st_cclc', 'state_general', 'state_intervention', 'private_grant', 'cooperative_purchasing', 'unspecified' (when RFP doesn't name a source). Use array ops same as keywords. 'esser' = ANY(funding_sources) AND due_date < '2026-09-30' surfaces the federal sunset crunch. Most RFPs (94% of current corpus) carry only ['unspecified']. Defaults to '{}' when not yet classified.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "setAsideType", column: "set_aside_type", label: "Set-Aside Type", description: "Set-aside requirement extracted by the classifier. Full enum: 'none' (open to any vendor), 'small_business' (Fullmind qualifies), 'minority_owned', 'woman_owned', 'veteran_owned', 'hub_zone'. NULL until classified. DEFAULT FILTER for rep-facing questions: set_aside_type IN ('none','small_business') unless the rep explicitly asks for set-aside RFPs — Fullmind structurally cannot bid the others. Currently 547/548 are 'none' so this filter rarely changes results today, but it's the right default.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "inStateOnly", column: "in_state_only", label: "In-State Only", description: "True if RFP requires the vendor to be physically located or registered in a specific state. Common on state-funded RFPs. Reps usually filter this out (in_state_only = false) unless they're licensed in that state. Default false until classified — be cautious treating defaults as 'not in-state-only' for unclassified rows (use classified_at IS NOT NULL to disambiguate when the distinction matters).", domain: "rfp", format: "boolean", source: "highergov", queryable: true },
+  { field: "cooperativeEligible", column: "cooperative_eligible", label: "Cooperative Eligible", description: "True if RFP allows piggyback off an existing cooperative purchasing agreement (NCPA, Sourcewell, BuyBoard, OMNIA, ESC Region 19, etc.). Boosts win probability — Fullmind has cooperative contracts that pre-qualify us. Pair with fullmind_relevance for 'easy-win RFPs' questions. Default false until classified.", domain: "rfp", format: "boolean", source: "highergov", queryable: true },
+  { field: "requiresW9State", column: "requires_w9_state", label: "Requires W9 State", description: "USPS 2-letter state code (e.g., 'TX') if the RFP requires the vendor to be registered to do business in a specific state, else NULL. Distinct from in_state_only — vendor can sometimes register remotely to satisfy a W9 requirement without relocating.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "classifiedAt", column: "classified_at", label: "Classified At", description: "When the Haiku classifier last processed this row. NULL = not yet classified — fullmind_relevance, keywords, funding_sources, set_aside_type, requires_w9_state are all unreliable on those rows (defaults masquerading as real values). When a rep filters on any of those fields without filtering on classified_at, the agent should add a one-line caveat that unclassified rows are excluded.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+
+  // ===== Pipeline signal (nightly signal-refresh job) =====
+  { field: "districtPipelineState", column: "district_pipeline_state", label: "District Pipeline State", description: "Per-RFP signal of deal proximity at the resolved district. Full enum: 'active' (district has any open opportunity), 'recently_won' (closed-won within last 18 months and no active deal), 'recently_lost' (closed-lost within last 12 months and nothing more recent), 'in_plan' (district appears in any FY27 territory plan with no opp history), 'cold' (none of the above). NULL when leaid IS NULL. Use district_pipeline_state IN ('active','recently_won','recently_lost') for 'RFPs at districts where I have heat'; 'in_plan' for 'RFPs at districts I'm actively prospecting'; 'cold' to surface fresh territory. Refreshed nightly via /api/cron/refresh-rfp-signals.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "isNew", column: "is_new", label: "Is New", description: "True if RFP first ingested within the last 7 days. Quick filter for 'what landed this week?' Stale up to 24h between nightly refreshes.", domain: "rfp", format: "boolean", source: "highergov", queryable: true },
+  { field: "isUrgent", column: "is_urgent", label: "Is Urgent", description: "True if due_date is within the next 7 days (and not in the past). Quick filter for 'what should I bid first?' Stale up to 24h between refreshes.", domain: "rfp", format: "boolean", source: "highergov", queryable: true },
+  { field: "signalsRefreshedAt", column: "signals_refreshed_at", label: "Signals Refreshed At", description: "When the signal-refresh job last ran for this row. NULL = never refreshed (rare; only on rows that just landed before the next nightly run). For 'is this signal fresh?' diagnostics.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+
+  // ===== Value =====
+  { field: "valueLow", column: "value_low", label: "Value Low", description: "Low end of the contract value range, decimal(15,2). Often null on smaller postings. For 'RFPs over $X' use value_low >= X.", domain: "rfp", format: "currency", source: "highergov", queryable: true },
+  { field: "valueHigh", column: "value_high", label: "Value High", description: "High end of the contract value range. Often null. Display as a range with value_low for rep-facing output (e.g., '$1.2M – $4.5M').", domain: "rfp", format: "currency", source: "highergov", queryable: true },
+
+  // ===== Raw HigherGov classifiers =====
+  { field: "naicsCode", column: "naics_code", label: "NAICS Code", description: "Federal NAICS industry code (e.g., '611110' for Elementary & Secondary Schools). Reps rarely filter on this — most education RFPs use the same handful of NAICS codes. Surface only if rep explicitly asks.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "pscCode", column: "psc_code", label: "PSC Code", description: "Federal Product Service Code. Same low-value pattern as naics_code. Surface only on explicit ask.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "setAside", column: "set_aside", label: "Set-Aside (Raw)", description: "Raw HigherGov set-aside field — free text, often inconsistent. For rep-facing filters use set_aside_type (the structured classifier-extracted enum) instead. This column is here for audit / reference only.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+
+  // ===== Contact =====
+  { field: "primaryContactName", column: "primary_contact_name", label: "Primary Contact Name", description: "RFP contact name from HigherGov. Often null. Useful for 'who do I email about this RFP?'", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "primaryContactEmail", column: "primary_contact_email", label: "Primary Contact Email", description: "Contact email. Often null.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "primaryContactPhone", column: "primary_contact_phone", label: "Primary Contact Phone", description: "Contact phone. Often null.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+
+  // ===== Dates =====
+  { field: "postedDate", column: "posted_date", label: "Posted Date", description: "When HigherGov says the RFP was officially posted by the agency. Use for 'RFPs posted this month' questions. RFPs older than 1 year are filtered out at ingest.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+  { field: "dueDate", column: "due_date", label: "Due Date", description: "RFP submission deadline. Primary urgency filter — due_date >= now() for 'open RFPs', due_date BETWEEN now() AND now() + interval '7 days' for 'due this week'. Indexed alongside state_fips and leaid.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+  { field: "capturedDate", column: "captured_date", label: "Captured Date", description: "When HigherGov first captured the RFP into their system (often = posted_date + a day). Use for 'newest RFPs' sort when posted_date is null.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+
+  // ===== Links =====
+  { field: "highergovUrl", column: "highergov_url", label: "HigherGov URL", description: "Direct link to the RFP on HigherGov. Always populated. Surface as the rep-facing 'view full posting' link.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "sourceUrl", column: "source_url", label: "Source URL", description: "Original agency posting URL when HigherGov knows it. Often null.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+
+  // ===== Lifecycle =====
+  { field: "status", column: "status", label: "Status", description: "RFP lifecycle status. Currently always 'open' in our data — column reserved for future closed/withdrawn states. Don't filter on it today.", domain: "rfp", format: "text", source: "highergov", queryable: true },
+  { field: "firstSeenAt", column: "first_seen_at", label: "First Seen At", description: "When our ingest first saw the row. Different from posted_date (HigherGov-side) and captured_date (HigherGov-internal). Backs is_new.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+  { field: "lastSeenAt", column: "last_seen_at", label: "Last Seen At", description: "Most recent ingest run that re-confirmed this row. Used to detect stale postings; rarely useful for rep questions.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+  { field: "createdAt", column: "created_at", label: "Created At", description: "DB row creation. Same as first_seen_at in practice. Internal — prefer first_seen_at for rep-facing recency.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+  { field: "updatedAt", column: "updated_at", label: "Updated At", description: "DB row last modified. Internal.", domain: "rfp", format: "date", source: "highergov", queryable: true },
+];
+
 /** query_log — audit log of every natural-language query and agentic action */
 export const QUERY_LOG_COLUMNS: ColumnMetadata[] = [
   { field: "id", column: "id", label: "ID", description: "Auto-increment primary key.", domain: "audit", format: "integer", source: "query_tool", queryable: true },
@@ -3248,6 +3324,22 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
       },
     ],
   },
+  rfps: {
+    table: "rfps",
+    description:
+      "RFPs (Request for Proposals) ingested daily from HigherGov, the federal/state procurement aggregator. ~548 currently active. Each row is one RFP solicitation from a K-12 or municipal agency. Rows are bounded to the last 1 year — anything older is filtered at ingest. Classified by a Haiku pass for Fullmind sales relevance, distinctive keywords, and structurally-disqualifying flags — those columns are NULL until the classifier runs (classified_at distinguishes). Each row also carries a district_pipeline_state derived nightly from opportunities + FY27 territory_plans — surfaces deal proximity at the resolved district. Two date-relative boolean flags (is_new = ingested in last 7d, is_urgent = due in next 7d) refresh in the same nightly job. Rep questions split four ways: (1) topical fit ('show me tutoring RFPs in TX', 'ESSER-funded literacy RFPs') — filter on fullmind_relevance + keywords + funding_sources, (2) urgency ('what's due this week', 'urgent RFPs at my pipeline districts') — filter on is_urgent + due_date, (3) territory match ('RFPs at districts in my plan', 'open RFPs where I have an active deal') — filter on district_pipeline_state and JOIN to opportunities for rep-scoping, (4) agency triage ('all RFPs from Yonkers Board of Ed', 'agencies posting the most') — group on agency_name. DEFAULT FILTERS for 'find me RFPs': fullmind_relevance IN ('high','medium'), due_date >= now() (for 'open' RFPs), set_aside_type IN ('none','small_business') (Fullmind can't bid most other set-asides). Order by due_date ASC for urgency questions; by captured_date DESC for 'what's new'.",
+    primaryKey: "id",
+    columns: RFP_COLUMNS,
+    excludedColumns: ["raw_payload"],
+    relationships: [
+      {
+        toTable: "districts",
+        type: "many-to-one",
+        joinSql: "rfps.leaid = districts.leaid",
+        description: "Resolved buyer district. NULL on ~12% of rows where the resolver couldn't auto-match the agency to an LEA. JOIN to districts to reach opportunities, contacts, vacancies, plans, etc., transitively via the same leaid.",
+      },
+    ],
+  },
   news_article_districts: {
     table: "news_article_districts",
     description:
@@ -3519,6 +3611,11 @@ export const TABLE_REGISTRY: Record<string, TableMetadata> = {
  */
 export const SEMANTIC_CONTEXT: SemanticContext = {
   conceptMappings: {
+    bid_worthy_rfps: {
+      aggregated:
+        "rfps WHERE fullmind_relevance IN ('high','medium') AND due_date >= now() AND set_aside_type IN ('none','small_business') ORDER BY due_date ASC",
+      note: "Composite filter for 'what should I bid' / 'actionable RFPs' / 'priority RFPs' / 'open RFPs worth pursuing' rep questions. Layer rep-scoping with district_pipeline_state for territory ('active' / 'in_plan') or JOIN opportunities for explicit pipeline membership. Add a brief caveat that unclassified rows (classified_at IS NULL) are excluded.",
+    },
     bookings: {
       aggregated:
         "Rep-agnostic: district_financials.closed_won_bookings WHERE vendor='fullmind'. Rep-scoped or category-scoped: district_opportunity_actuals.bookings (filter by sales_rep_email and/or category).",
@@ -3698,6 +3795,12 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
       message:
         "PREFER THE MATVIEW FOR AGGREGATES: For any SUM/AVG/COUNT/GROUP BY on opportunities that answers a 'how much bookings/pipeline/revenue/take' question — especially anything rep-scoped or category-scoped — route to district_opportunity_actuals instead of aggregating raw opportunities. The matview bakes in four things raw opportunities queries LACK: (1) text-stage closed-won detection (raw numeric-only stage logic misses every closed-won deal since LMS doesn't actually emit numeric 6+ stages — closed-won is text-only: 'closed won', 'active', 'position purchased', 'requisition received', 'return position pending'), (2) chain-deduplicated min_purchase_bookings, (3) EK12 subscription revenue fold-in into total_revenue and completed_revenue, (4) a one-off rep reassignment for mixed-rep 'Anurag' contracts. Raw opportunities queries silently produce wrong answers for these aggregates. Raw opportunities is correct ONLY for per-deal questions (SELECT by id or name, list with LIMIT, filter by a specific stage, count of distinct deals).",
     },
+    {
+      triggerTables: ["rfps"],
+      severity: "mandatory",
+      message:
+        "RFP QUERY DEFAULTS: (1) For 'find me RFPs' / 'high-priority RFPs' / 'what should I bid' questions DEFAULT to fullmind_relevance IN ('high','medium'). The 'low' tier is tangential to Fullmind's space (library e-resources, generic edtech, school security) and 'none' is clearly off-topic — both pollute rep-facing results unless the rep explicitly asks for everything. (2) For 'open RFPs' filter due_date >= now(). Past-due RFPs are retained for ~1 year for historical analysis but reps can no longer bid them. (3) DEFAULT to set_aside_type IN ('none','small_business') unless the rep explicitly asks for set-aside RFPs. Fullmind structurally cannot bid 'minority_owned', 'woman_owned', 'veteran_owned', or 'hub_zone'. (4) Classification columns (fullmind_relevance, keywords, funding_sources, set_aside_type, in_state_only, cooperative_eligible, requires_w9_state) are NULL or default-valued on the unclassified backlog (classified_at IS NULL). Filtering on them silently drops those rows. When a rep DOES filter on relevance, add a brief caveat that unclassified rows are excluded. When the rep does NOT filter on relevance, do NOT add the filter. (5) For 'RFPs at my pipeline districts' filter district_pipeline_state IN ('active','recently_won','recently_lost'). For 'RFPs in my territory plan' filter district_pipeline_state = 'in_plan'. For 'fresh territory' / 'cold districts' filter district_pipeline_state = 'cold'. (6) NEVER expose raw IDs (agency_key, leaid) to reps. JOIN to districts for the district name; use agency_name (not agency_key) when grouping by buyer. Display value_low and value_high as a compact range ('$1.2M – $4.5M'). (7) For ESSER-sunset urgency questions: 'esser' = ANY(funding_sources) AND due_date < '2026-09-30'. Federal ESSER funds expire September 30, 2026.",
+    },
   ],
   excludedTables: [
     // Permanently excluded — admin/ops tables, attachments/notes, the query
@@ -3719,11 +3822,11 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "news_match_queue",
     "opportunity_snapshots",
     "report_drafts",
-    // RFP feed (backend-only). v2: register in TABLE_REGISTRY with column
-    // metadata once we sit down with the user to author Q&A descriptions.
+    // RFP feed: rfps is registered in TABLE_REGISTRY (Phase 3). The other two
+    // are backend-only — agency_district_maps is admin triage state,
+    // rfp_ingest_runs is sync telemetry. Neither belongs in rep-facing queries.
     "agency_district_maps",
     "rfp_ingest_runs",
-    "rfps",
     "unmatched_accounts",
     "unmatched_opportunities",
     "user_integrations",
