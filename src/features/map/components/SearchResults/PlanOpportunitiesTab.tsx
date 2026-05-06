@@ -5,7 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { usePlanOpportunities } from "@/lib/api";
 import type { PlanOpportunityRow } from "@/features/shared/types/api-types";
 
-const GRID_TEMPLATE = "minmax(200px,1.5fr) 140px 120px 110px 90px 90px 90px 100px";
+const GRID_TEMPLATE = "260px 140px 120px 110px 90px 90px 90px 100px";
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null || value === 0) return "—";
