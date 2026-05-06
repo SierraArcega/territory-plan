@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Check, ChevronDown, Plus } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { useLowHangingFruitList } from "../lib/queries";
 import type { IncreaseTarget, IncreaseTargetCategory } from "../lib/types";
 import { formatCurrencyShort, getInitials } from "../lib/format";
@@ -229,6 +229,19 @@ export default function LowHangingFruitView() {
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [bannerCollapsed, setBannerCollapsed] = useState(() =>
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("lhf-banner-collapsed") === "true"
+  );
+
+  const toggleBanner = () => {
+    setBannerCollapsed((prev) => {
+      const next = !prev;
+      sessionStorage.setItem("lhf-banner-collapsed", String(next));
+      return next;
+    });
+  };
+
   const allRows = query.data?.districts ?? [];
 
   const facets = useMemo(() => {
@@ -353,28 +366,52 @@ export default function LowHangingFruitView() {
         </header>
 
         {/* Summary banner */}
-        <div className="flex-shrink-0 px-5 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
-          <p className="text-xs text-[#544A78] leading-relaxed">
-            You&apos;ll find 3 buckets of customers on this page:{" "}
-            <strong className="text-[#403770]">Missing Renewals</strong>,{" "}
-            <strong className="text-[#403770]">Fullmind Winbacks</strong>, and{" "}
-            <strong className="text-[#403770]">Elevate Winbacks</strong>.{" "}
-            All Winbacks are first-come, first-serve — it doesn&apos;t matter if you were the original rep or if the customer is from your company of origin.
-            Grab any winback that looks exciting and fits into the goals you have for your Book of Business!
-          </p>
-          <p className="text-xs text-[#544A78] mt-2">
-            <strong className="text-[#403770]">How to action them:</strong>{" "}
-            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity, or add to a plan and set a target.
-          </p>
-          <ul className="text-xs text-[#544A78] mt-1.5 space-y-0.5 list-disc pl-5">
-            <li>
-              <strong className="text-[#403770]">Missing Renewals</strong> leave this list once an FY27 opp exists — renewals are required to have an FY27 opportunity, so <strong className="text-[#403770]">+Opp</strong> is the path.
-            </li>
-            <li>
-              <strong className="text-[#403770]">Winbacks</strong> leave this list when an FY27 opp is created <em>or</em> a plan target is set.
-            </li>
-          </ul>
-        </div>
+        {bannerCollapsed ? (
+          <button
+            onClick={toggleBanner}
+            className="flex-shrink-0 flex items-center justify-between px-5 py-2 bg-[#F7F5FA] border-b border-[#E2DEEC] w-full text-left"
+            aria-expanded={false}
+            aria-label="Show instructions"
+          >
+            <span className="text-[11px] font-semibold text-[#6E6390]">Instructions</span>
+            <ChevronDown className="w-3.5 h-3.5 text-[#8A80A8]" />
+          </button>
+        ) : (
+          <div className="flex-shrink-0 px-5 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <p className="text-xs text-[#544A78] leading-relaxed">
+                  You&apos;ll find 3 buckets of customers on this page:{" "}
+                  <strong className="text-[#403770]">Missing Renewals</strong>,{" "}
+                  <strong className="text-[#403770]">Fullmind Winbacks</strong>, and{" "}
+                  <strong className="text-[#403770]">Elevate Winbacks</strong>.{" "}
+                  All Winbacks are first-come, first-serve — it doesn&apos;t matter if you were the original rep or if the customer is from your company of origin.
+                  Grab any winback that looks exciting and fits into the goals you have for your Book of Business!
+                </p>
+                <p className="text-xs text-[#544A78] mt-2">
+                  <strong className="text-[#403770]">How to action them:</strong>{" "}
+                  Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity, or add to a plan and set a target.
+                </p>
+                <ul className="text-xs text-[#544A78] mt-1.5 space-y-0.5 list-disc pl-5">
+                  <li>
+                    <strong className="text-[#403770]">Missing Renewals</strong> leave this list once an FY27 opp exists — renewals are required to have an FY27 opportunity, so <strong className="text-[#403770]">+Opp</strong> is the path.
+                  </li>
+                  <li>
+                    <strong className="text-[#403770]">Winbacks</strong> leave this list when an FY27 opp is created <em>or</em> a plan target is set.
+                  </li>
+                </ul>
+              </div>
+              <button
+                onClick={toggleBanner}
+                className="flex-shrink-0 text-[#8A80A8] hover:text-[#403770] mt-0.5"
+                aria-expanded={true}
+                aria-label="Hide instructions"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         <LowHangingFruitFilterBar
           filters={filters}
