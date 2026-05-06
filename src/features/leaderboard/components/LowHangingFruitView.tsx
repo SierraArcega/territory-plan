@@ -185,7 +185,7 @@ function RowActions({ district, isConfirmed, confirmedPlanLabel, onAdded }: RowA
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
         aria-label="Add opportunity"
-        className="inline-flex items-center justify-center w-[26px] h-[26px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg border border-[#C2BBD4] text-[#403770] bg-white hover:bg-[#F7F5FA]"
+        className="inline-flex items-center justify-center w-[28px] h-[28px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg border border-[#C2BBD4] text-[#403770] bg-white hover:bg-[#F7F5FA]"
       >
         <span className="hidden sm:inline text-xs font-semibold whitespace-nowrap">+ Opp</span>
         <ArrowUpRight className="w-3 h-3" />
@@ -198,7 +198,7 @@ function RowActions({ district, isConfirmed, confirmedPlanLabel, onAdded }: RowA
           e.stopPropagation();
           setPickerOpen((v) => !v);
         }}
-        className="inline-flex items-center justify-center w-[26px] h-[26px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg text-white bg-[#403770] hover:bg-[#322a5a]"
+        className="inline-flex items-center justify-center w-[28px] h-[28px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg text-white bg-[#403770] hover:bg-[#322a5a]"
       >
         <Plus className="w-3 h-3" />
         <span className="hidden sm:inline text-xs font-semibold whitespace-nowrap">Plan</span>
@@ -536,7 +536,6 @@ export default function LowHangingFruitView() {
                   <Th width={96} align="right">Suggested</Th>
                   <Th width={184}>Last sale</Th>
                   <Th
-                    width={208}
                     align="right"
                     className="px-3 sticky right-0 bg-[#F7F5FA]"
                     style={{ boxShadow: "-4px 0 6px -2px rgba(0,0,0,0.05)" }}
@@ -824,7 +823,7 @@ interface TdProps {
 function Td({ children, align = "left", className = "" }: TdProps) {
   return (
     <td
-      className={`py-2 px-3 align-middle text-sm ${
+      className={`py-1 px-2 sm:py-2 sm:px-3 align-middle text-sm ${
         align === "right" ? "text-right" : "text-left"
       } ${className}`}
     >
