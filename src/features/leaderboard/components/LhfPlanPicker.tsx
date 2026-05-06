@@ -373,11 +373,9 @@ export default function LhfPlanPicker({
               required
             />
           </div>
-          {parsedTarget <= 0 && (
-            <p className="text-[11px] text-amber-700 mt-1">
-              Set a target amount to add to plan
-            </p>
-          )}
+          <p className="text-[11px] text-amber-700 mt-1" aria-live="polite" aria-atomic="true">
+            {parsedTarget <= 0 ? "Set a target amount to add to plan" : ""}
+          </p>
         </div>
 
         {/* Error */}
