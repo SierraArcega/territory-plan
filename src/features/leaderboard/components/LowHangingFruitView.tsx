@@ -184,23 +184,25 @@ function RowActions({ district, isConfirmed, confirmedPlanLabel, onAdded }: RowA
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        title="Create opportunity in LMS (opens new tab)"
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#C2BBD4] text-xs font-semibold text-[#403770] bg-white hover:bg-[#F7F5FA] whitespace-nowrap"
+        aria-label="Add opportunity"
+        className="inline-flex items-center justify-center w-[26px] h-[26px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg border border-[#C2BBD4] text-[#403770] bg-white hover:bg-[#F7F5FA]"
       >
-        + Opp <ArrowUpRight className="w-3 h-3" />
+        <span className="hidden sm:inline text-xs font-semibold whitespace-nowrap">+ Opp</span>
+        <ArrowUpRight className="w-3 h-3" />
       </a>
       <button
         ref={planBtnRef}
         type="button"
+        aria-label="Add plan"
         onClick={(e) => {
           e.stopPropagation();
           setPickerOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#322a5a] whitespace-nowrap"
+        className="inline-flex items-center justify-center w-[26px] h-[26px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg text-white bg-[#403770] hover:bg-[#322a5a]"
       >
         <Plus className="w-3 h-3" />
-        Plan
-        <ChevronDown className="w-2.5 h-2.5 opacity-80" />
+        <span className="hidden sm:inline text-xs font-semibold whitespace-nowrap">Plan</span>
+        <ChevronDown className="hidden sm:inline w-2.5 h-2.5 opacity-80" />
       </button>
       {pickerOpen && (
         <LhfPlanPicker
@@ -689,7 +691,7 @@ export default function LowHangingFruitView() {
                         )}
                       </Td>
                       <td
-                        className="py-2 px-3 align-middle text-right sticky right-0"
+                        className="py-1 px-1.5 sm:py-2 sm:px-3 align-middle text-right sticky right-0"
                         style={{
                           background: stickyBg,
                           boxShadow: "-4px 0 6px -2px rgba(0,0,0,0.05)",

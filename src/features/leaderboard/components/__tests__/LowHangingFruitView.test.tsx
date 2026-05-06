@@ -85,13 +85,13 @@ describe("LowHangingFruitView", () => {
     expect(screen.getByText("Jordan Lee")).toBeInTheDocument();
 
     // Action bar
-    const oppLink = screen.getByRole("link", { name: /\+ Opp/i });
+    const oppLink = screen.getByRole("link", { name: /Add opportunity/i });
     expect(oppLink).toHaveAttribute(
       "href",
       "https://lms.fullmindlearning.com/opportunities/kanban?_sort=close_date&_dir=asc&school_year=2026-27",
     );
     expect(oppLink).toHaveAttribute("target", "_blank");
-    expect(screen.getByRole("button", { name: /Plan/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add plan/i })).toBeInTheDocument();
   });
 
   it("offers an Export CSV action", () => {
@@ -199,5 +199,19 @@ describe("LowHangingFruitView — filter bar collapse", () => {
     fireEvent.click(screen.getByLabelText("Hide filters"));
     const collapsed = screen.getByLabelText("Show filters");
     expect(collapsed.textContent).not.toMatch(/\d/);
+  });
+});
+
+describe("LowHangingFruitView — compact row action buttons", () => {
+  it("+Opp link has aria-label for icon-only accessibility", () => {
+    renderView();
+    const oppLink = screen.getByRole("link", { name: /Add opportunity/i });
+    expect(oppLink).toHaveAttribute("aria-label", "Add opportunity");
+  });
+
+  it("+Plan button has aria-label for icon-only accessibility", () => {
+    renderView();
+    const planBtn = screen.getByRole("button", { name: /Add plan/i });
+    expect(planBtn).toHaveAttribute("aria-label", "Add plan");
   });
 });
