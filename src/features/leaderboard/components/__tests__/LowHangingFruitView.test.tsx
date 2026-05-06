@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import LowHangingFruitView from "../LowHangingFruitView";
 
@@ -97,5 +97,107 @@ describe("LowHangingFruitView", () => {
   it("offers an Export CSV action", () => {
     renderView();
     expect(screen.getByRole("button", { name: /Export CSV/i })).toBeInTheDocument();
+  });
+});
+
+describe("LowHangingFruitView — summary banner collapse", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("shows the banner and a hide button by default", () => {
+    renderView();
+    expect(screen.getByLabelText("Hide instructions")).toBeInTheDocument();
+    expect(screen.getByText(/How to action them/i)).toBeInTheDocument();
+  });
+
+  it("collapses the banner when hide button is clicked", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide instructions"));
+    expect(screen.queryByText(/How to action them/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Show instructions")).toBeInTheDocument();
+  });
+
+  it("re-expands the banner when the collapsed row is clicked", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide instructions"));
+    fireEvent.click(screen.getByLabelText("Show instructions"));
+    expect(screen.getByText(/How to action them/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Hide instructions")).toBeInTheDocument();
+  });
+
+  it("starts collapsed when sessionStorage flag is pre-set", () => {
+    sessionStorage.setItem("lhf-banner-collapsed", "true");
+    renderView();
+    expect(screen.queryByText(/How to action them/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Show instructions")).toBeInTheDocument();
+  });
+
+  it("persists collapsed state to sessionStorage", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide instructions"));
+    expect(sessionStorage.getItem("lhf-banner-collapsed")).toBe("true");
+  });
+
+  it("persists expanded state to sessionStorage when re-expanded", () => {
+    sessionStorage.setItem("lhf-banner-collapsed", "true");
+    renderView();
+    fireEvent.click(screen.getByLabelText("Show instructions"));
+    expect(sessionStorage.getItem("lhf-banner-collapsed")).toBe("false");
+  });
+});
+
+describe("LowHangingFruitView — filter bar collapse", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("shows the filter bar and a hide button by default", () => {
+    renderView();
+    expect(screen.getByLabelText("Hide filters")).toBeInTheDocument();
+    // State dropdown only renders when the filter bar is expanded
+    expect(screen.getByRole("button", { name: /^State/i })).toBeInTheDocument();
+  });
+
+  it("collapses the filter bar when hide button is clicked", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide filters"));
+    expect(screen.queryByRole("button", { name: /^State/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Show filters")).toBeInTheDocument();
+  });
+
+  it("re-expands the filter bar when the collapsed row is clicked", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide filters"));
+    fireEvent.click(screen.getByLabelText("Show filters"));
+    expect(screen.getByRole("button", { name: /^State/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("Hide filters")).toBeInTheDocument();
+  });
+
+  it("starts collapsed when sessionStorage flag is pre-set", () => {
+    sessionStorage.setItem("lhf-filters-collapsed", "true");
+    renderView();
+    expect(screen.queryByRole("button", { name: /^State/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Show filters")).toBeInTheDocument();
+  });
+
+  it("persists collapsed state to sessionStorage", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide filters"));
+    expect(sessionStorage.getItem("lhf-filters-collapsed")).toBe("true");
+  });
+
+  it("persists expanded state to sessionStorage when re-expanded", () => {
+    sessionStorage.setItem("lhf-filters-collapsed", "true");
+    renderView();
+    fireEvent.click(screen.getByLabelText("Show filters"));
+    expect(sessionStorage.getItem("lhf-filters-collapsed")).toBe("false");
+  });
+
+  it("shows no badge when no filters are active and collapsed", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Hide filters"));
+    const collapsed = screen.getByLabelText("Show filters");
+    expect(collapsed.textContent).not.toMatch(/\d/);
   });
 });

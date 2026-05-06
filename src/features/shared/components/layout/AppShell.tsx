@@ -44,7 +44,7 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#FFFCFA] overflow-hidden">
+    <div className="fixed inset-0 h-dvh flex flex-col bg-[#FFFCFA] overflow-hidden overscroll-none">
       {/* Top: FilterBar - adapts based on active tab */}
       <FilterBar activeTab={activeTab} />
 
