@@ -198,6 +198,6 @@ describe("LowHangingFruitView — filter bar collapse", () => {
     renderView();
     fireEvent.click(screen.getByLabelText("Hide filters"));
     const collapsed = screen.getByLabelText("Show filters");
-    expect(collapsed.querySelector(".rounded-full")).toBeNull();
+    expect(collapsed.textContent).not.toMatch(/\d/);
   });
 });

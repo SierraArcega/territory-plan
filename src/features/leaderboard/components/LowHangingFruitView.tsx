@@ -464,7 +464,7 @@ export default function LowHangingFruitView() {
             <button
               type="button"
               onClick={toggleFilters}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A80A8] hover:text-[#403770]"
+              className="absolute right-3 top-3 text-[#8A80A8] hover:text-[#403770]"
               aria-expanded={true}
               aria-label="Hide filters"
             >
