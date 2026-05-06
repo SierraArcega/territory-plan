@@ -7,6 +7,17 @@ vi.mock("@/lib/anthropic", () => ({
   findToolUse: vi.fn(),
 }));
 
+const mockFindMany = vi.fn();
+const mockUpdate = vi.fn();
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    rfp: {
+      findMany: (...args: unknown[]) => mockFindMany(...args),
+      update: (...args: unknown[]) => mockUpdate(...args),
+    },
+  },
+}));
+
 describe("parseClassificationResult", () => {
   it("returns null for non-object input", () => {
     expect(parseClassificationResult(null)).toBeNull();
@@ -208,7 +219,7 @@ describe("parseClassificationResult", () => {
 });
 
 import { callClaude, findToolUse } from "@/lib/anthropic";
-import { classifyOne } from "../classifier";
+import { classifyOne, classifyUnclassified } from "../classifier";
 
 describe("classifyOne", () => {
   beforeEach(() => {
@@ -327,5 +338,104 @@ describe("classifyOne", () => {
     const xRun = userMsg.match(/x{800,}/);
     expect(xRun).not.toBeNull();
     expect(userMsg.match(/x{900}/)).toBeNull();
+  });
+});
+
+describe("classifyUnclassified", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.RFP_LLM_ENABLED;
+  });
+
+  it("returns zero stats when RFP_LLM_ENABLED='false'", async () => {
+    process.env.RFP_LLM_ENABLED = "false";
+    mockFindMany.mockResolvedValue([
+      { id: 1, title: "x", description: null, aiSummary: null },
+    ]);
+
+    const stats = await classifyUnclassified(10, 2, 5_000);
+    expect(stats).toEqual({ processed: 0, classified: 0, errors: 0, llmCalls: 0 });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("classifies and writes per-RFP", async () => {
+    mockFindMany.mockResolvedValue([
+      { id: 1, title: "Tutoring", description: null, aiSummary: null },
+      { id: 2, title: "HVAC",     description: null, aiSummary: null },
+    ]);
+    (callClaude as any).mockResolvedValue([{ type: "text", text: "ok" }]);
+    (findToolUse as any)
+      .mockReturnValueOnce({
+        input: {
+          fullmindRelevance: "high",
+          keywords: ["tutoring"],
+          fundingSources: [],
+          setAsideType: "none",
+          inStateOnly: false,
+          cooperativeEligible: false,
+        },
+      })
+      .mockReturnValueOnce({
+        input: {
+          fullmindRelevance: "none",
+          keywords: ["hvac"],
+          fundingSources: [],
+          setAsideType: "none",
+          inStateOnly: false,
+          cooperativeEligible: false,
+        },
+      });
+
+    const stats = await classifyUnclassified(10, 2, 30_000);
+
+    expect(stats.processed).toBe(2);
+    expect(stats.classified).toBe(2);
+    expect(stats.errors).toBe(0);
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+
+    // Each call must include classifiedAt
+    for (const call of mockUpdate.mock.calls) {
+      expect(call[0].data.classifiedAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("isolates per-RFP errors via Promise.allSettled-equivalent", async () => {
+    mockFindMany.mockResolvedValue([
+      { id: 1, title: "Good",  description: null, aiSummary: null },
+      { id: 2, title: "Bad",   description: null, aiSummary: null },
+    ]);
+
+    let call = 0;
+    (callClaude as any).mockImplementation(async () => {
+      call++;
+      if (call === 2) throw new Error("rate limited");
+      return [{ type: "text", text: "ok" }];
+    });
+    (findToolUse as any).mockReturnValue({
+      input: {
+        fullmindRelevance: "high",
+        keywords: [],
+        fundingSources: [],
+        setAsideType: "none",
+        inStateOnly: false,
+        cooperativeEligible: false,
+      },
+    });
+
+    const stats = await classifyUnclassified(10, 1, 30_000);
+    expect(stats.processed).toBe(2);
+    expect(stats.classified).toBe(1);
+    expect(stats.errors).toBe(1);
+  });
+
+  it("respects the limit argument (passes take to findMany)", async () => {
+    mockFindMany.mockResolvedValue([]);
+    await classifyUnclassified(50, 4, 1_000);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { classifiedAt: null },
+        take: 50,
+      }),
+    );
   });
 });

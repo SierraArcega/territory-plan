@@ -229,6 +229,66 @@ export interface RfpRow {
   aiSummary: string | null;
 }
 
+export async function classifyUnclassified(
+  limit = 100,
+  concurrency = 4,
+  timeBudgetMs = 60_000,
+): Promise<ClassifyStats> {
+  const stats: ClassifyStats = { processed: 0, classified: 0, errors: 0, llmCalls: 0 };
+  if (process.env.RFP_LLM_ENABLED === "false") return stats;
+
+  const rfps = await prisma.rfp.findMany({
+    where: { classifiedAt: null },
+    select: { id: true, title: true, description: true, aiSummary: true },
+    take: limit,
+    orderBy: { capturedDate: "desc" },
+  });
+
+  return classifyMany(rfps, concurrency, timeBudgetMs, stats);
+}
+
+async function classifyMany(
+  rfps: RfpRow[],
+  concurrency: number,
+  timeBudgetMs: number,
+  stats: ClassifyStats,
+): Promise<ClassifyStats> {
+  const deadline = Date.now() + timeBudgetMs;
+  const queue = new PQueue({ concurrency });
+
+  for (const r of rfps) {
+    queue.add(async () => {
+      if (Date.now() > deadline) return;
+      stats.processed++;
+      try {
+        const result = await classifyOne(r);
+        stats.llmCalls++;
+        if (!result) return;
+
+        await prisma.rfp.update({
+          where: { id: r.id },
+          data: {
+            fullmindRelevance: result.fullmindRelevance,
+            keywords: result.keywords,
+            fundingSources: result.fundingSources,
+            setAsideType: result.setAsideType,
+            inStateOnly: result.inStateOnly,
+            cooperativeEligible: result.cooperativeEligible,
+            requiresW9State: result.requiresW9State,
+            classifiedAt: new Date(),
+          },
+        });
+        stats.classified++;
+      } catch (err) {
+        stats.errors++;
+        console.error(`[rfp-classifier] id=${r.id}: ${String(err)}`);
+      }
+    });
+  }
+  await queue.onIdle();
+  return stats;
+}
+
 export async function classifyOne(rfp: RfpRow): Promise<ClassificationResult | null> {
   if (process.env.RFP_LLM_ENABLED === "false") return null;
 
