@@ -4,8 +4,7 @@
  * Usage:
  *   npx tsx scripts/refresh-rfp-signals.ts
  */
-import { config } from "dotenv";
-config();
+import "dotenv/config";
 
 import { prisma } from "@/lib/prisma";
 import { refreshRfpSignals } from "@/features/rfps/lib/refresh-signals";

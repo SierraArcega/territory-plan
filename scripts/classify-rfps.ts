@@ -6,8 +6,7 @@
  *   npx tsx scripts/classify-rfps.ts --force     # re-classify everything (clears classified_at first)
  *   npx tsx scripts/classify-rfps.ts --batch=50  # cap per loop (default 100)
  */
-import { config } from "dotenv";
-config();
+import "dotenv/config";
 
 import { prisma } from "@/lib/prisma";
 import { classifyUnclassified } from "@/features/rfps/lib/classifier";
@@ -15,7 +14,7 @@ import { classifyUnclassified } from "@/features/rfps/lib/classifier";
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 const batchArg = args.find((a) => a.startsWith("--batch="));
-const batchSize = batchArg ? parseInt(batchArg.split("=")[1], 10) : 100;
+const batchSize = batchArg ? parseInt(batchArg.split("=")[1], 10) || 100 : 100;
 
 async function main() {
   if (force) {
@@ -46,6 +45,12 @@ async function main() {
 
     if (stats.processed === 0) {
       console.warn("[loop] processed 0 — something is wrong, bailing");
+      break;
+    }
+    if (stats.classified === 0 && stats.errors > 0) {
+      console.warn(
+        `[loop] classified 0 of ${stats.processed} with ${stats.errors} errors — bailing to avoid runaway`,
+      );
       break;
     }
   }
