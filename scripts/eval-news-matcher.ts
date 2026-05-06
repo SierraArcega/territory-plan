@@ -24,6 +24,7 @@
  *              queries) where the source-leaid path doesn't fire.
  */
 import "dotenv/config";
+import PQueue from "p-queue";
 import prisma from "@/lib/prisma";
 import { extractStates } from "@/features/news/lib/extract-states";
 import {
@@ -32,9 +33,14 @@ import {
   type SchoolCandidate,
   type ContactCandidate,
 } from "@/features/news/lib/matcher-keyword";
+import { matchArticleLLM } from "@/features/news/lib/matcher-llm";
 
 const SAMPLE_SIZE = parseInt(process.env.SAMPLE ?? "2000", 10);
 const DAYS = parseInt(process.env.DAYS ?? "30", 10);
+/** Set LLM=1 to validate new matches via matcher-llm (Haiku). ~$0.001/match. */
+const RUN_LLM = process.env.LLM === "1";
+const LLM_SAMPLE = parseInt(process.env.LLM_SAMPLE ?? "100", 10);
+const LLM_CONCURRENCY = parseInt(process.env.LLM_CONCURRENCY ?? "5", 10);
 
 interface Variant {
   name: string;
@@ -82,22 +88,32 @@ async function main() {
     },
   });
   const districtsByState = new Map<string, DistrictCandidate[]>();
+  const districtByLeaid = new Map<string, DistrictCandidate>();
   const stateByLeaid = new Map<string, string>();
   for (const d of allDistricts) {
     if (!d.stateAbbrev) continue;
-    const arr = districtsByState.get(d.stateAbbrev) ?? [];
-    arr.push({
+    const cand: DistrictCandidate = {
       leaid: d.leaid,
       name: d.name,
       stateAbbrev: d.stateAbbrev,
       cityLocation: d.cityLocation,
       countyName: d.countyName,
       accountName: d.accountName,
-    });
+    };
+    const arr = districtsByState.get(d.stateAbbrev) ?? [];
+    arr.push(cand);
     districtsByState.set(d.stateAbbrev, arr);
+    districtByLeaid.set(d.leaid, cand);
     stateByLeaid.set(d.leaid, d.stateAbbrev);
   }
   console.log(`[eval] loaded districts for ${districtsByState.size} states`);
+
+  const newPairs: Array<{
+    title: string;
+    description: string | null;
+    leaid: string;
+    via: "H2" | "H1";
+  }> = [];
 
   // Empty maps for schools/contacts — this harness measures district recall only.
   const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
@@ -199,6 +215,12 @@ async function main() {
           leaids: h2Result.confirmedDistricts.map((d) => d.leaid),
         });
       }
+      const baselineLeaids = new Set(baselineResult.confirmedDistricts.map((d) => d.leaid));
+      for (const m of h2Result.confirmedDistricts) {
+        if (!baselineLeaids.has(m.leaid)) {
+          newPairs.push({ title: a.title, description: a.description, leaid: m.leaid, via: "H2" });
+        }
+      }
     }
     if (!h2Hit && baselineHit) {
       h2.lostHits.push(a.id);
@@ -242,6 +264,12 @@ async function main() {
           addedState: publisherState,
           leaids: h12Result.confirmedDistricts.map((d) => d.leaid),
         });
+      }
+      const h2Leaids = new Set(h2Result.confirmedDistricts.map((d) => d.leaid));
+      for (const m of h12Result.confirmedDistricts) {
+        if (!h2Leaids.has(m.leaid)) {
+          newPairs.push({ title: a.title, description: a.description, leaid: m.leaid, via: "H1" });
+        }
       }
     }
     if (!h12Hit && h2Hit) {
@@ -326,6 +354,66 @@ async function main() {
     `  ${dbHighOrLlmHits} / ${articles.length} (${((dbHighOrLlmHits / articles.length) * 100).toFixed(1)}%) ` +
       `have a high/llm-confidence link (this is what the keyword/LLM pipeline produced)`
   );
+
+  if (RUN_LLM) {
+    await validateNewMatchesViaLlm(newPairs, districtByLeaid);
+  } else {
+    console.log("");
+    console.log(`Total new (article, leaid) pairs from H1+H2: ${newPairs.length}`);
+    console.log(`(skip LLM precision check — set LLM=1 to run, ~$0.001/pair)`);
+  }
+}
+
+async function validateNewMatchesViaLlm(
+  pairs: Array<{ title: string; description: string | null; leaid: string; via: "H2" | "H1" }>,
+  districtByLeaid: Map<string, DistrictCandidate>
+) {
+  const sample = [...pairs].sort(() => Math.random() - 0.5).slice(0, LLM_SAMPLE);
+  console.log("");
+  console.log(`=== LLM precision check ===`);
+  console.log(`  Validating ${sample.length} of ${pairs.length} new (article, leaid) pairs (concurrency ${LLM_CONCURRENCY})`);
+
+  const results: Array<{ via: string; confirmed: boolean; title: string; districtName: string; error?: string }> = [];
+  const queue = new PQueue({ concurrency: LLM_CONCURRENCY });
+  for (const p of sample) {
+    queue.add(async () => {
+      const cand = districtByLeaid.get(p.leaid);
+      if (!cand) return;
+      try {
+        const r = await matchArticleLLM(
+          { title: p.title, description: p.description },
+          { districts: [cand], schools: [], contacts: [] }
+        );
+        const confirmed = r.confirmedDistricts.some((d) => d.leaid === p.leaid);
+        results.push({ via: p.via, confirmed, title: p.title, districtName: cand.name });
+      } catch (err) {
+        results.push({ via: p.via, confirmed: false, title: p.title, districtName: cand.name, error: String(err) });
+      }
+    });
+  }
+  await queue.onIdle();
+
+  const summarize = (arr: typeof results) => {
+    const ok = arr.filter((r) => !r.error);
+    const conf = ok.filter((r) => r.confirmed).length;
+    return { total: arr.length, ok: ok.length, errs: arr.length - ok.length, confirmed: conf, rejected: ok.length - conf };
+  };
+  const all = summarize(results);
+  const h2 = summarize(results.filter((r) => r.via === "H2"));
+  const h1 = summarize(results.filter((r) => r.via === "H1"));
+  const pct = (n: number, d: number) => (d === 0 ? "n/a" : `${((n / d) * 100).toFixed(1)}%`);
+  console.log(`  All: ${all.confirmed}/${all.ok} confirmed (${pct(all.confirmed, all.ok)}), ${all.rejected} rejected, ${all.errs} errors`);
+  console.log(`  H2:  ${h2.confirmed}/${h2.ok} confirmed (${pct(h2.confirmed, h2.ok)})`);
+  console.log(`  H1:  ${h1.confirmed}/${h1.ok} confirmed (${pct(h1.confirmed, h1.ok)})`);
+
+  const rejected = results.filter((r) => !r.error && !r.confirmed);
+  if (rejected.length > 0) {
+    console.log("");
+    console.log(`Sample rejections:`);
+    for (const r of rejected.slice(0, 15)) {
+      console.log(`  [${r.via}] ${r.districtName} — ${r.title.slice(0, 100)}`);
+    }
+  }
 }
 
 main()
