@@ -105,6 +105,14 @@ function HomeContent() {
   // ?view=builder) leaves this false → params preserved.
   const sidebarTabChangeRef = useRef(false);
 
+  // Auto-collapse sidebar on narrow viewports (mobile). Runs on every mount so
+  // localStorage-persisted expand state doesn't stick across device changes.
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarCollapsed(true);
+    }
+  }, [setSidebarCollapsed]);
+
   // Initialize state from URL params on mount
   useEffect(() => {
     const tabParam = searchParams.get("tab");
