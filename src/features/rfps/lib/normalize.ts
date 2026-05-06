@@ -65,8 +65,19 @@ function parseDate(s: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+// HigherGov source_types for federal-scope buyers. RFPs with these source types
+// that lack a place-of-performance state get bucketed into the synthetic 'NAT'
+// state so reps can filter them as a group.
+const FEDERAL_SCOPE_SOURCE_TYPES = new Set(["sam", "sbir", "grant", "forecast"]);
+
 export function normalizeOpportunity(raw: HigherGovOpportunity): NormalizedRfp {
-  const stateAbbrev = emptyToNull(raw.pop_state);
+  const popState = emptyToNull(raw.pop_state);
+  // HigherGov occasionally returns the literal "NA" for federal RFPs with no
+  // place of performance — treat that as missing state.
+  const isMissingState = !popState || popState.toUpperCase() === "NA";
+  const isFederalScope = FEDERAL_SCOPE_SOURCE_TYPES.has(raw.source_type);
+
+  const stateAbbrev = isFederalScope && isMissingState ? "NAT" : popState;
   const stateFips = stateAbbrev ? abbrevToFips(stateAbbrev) : null;
 
   const captured = parseDate(raw.captured_date);

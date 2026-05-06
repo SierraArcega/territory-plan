@@ -88,8 +88,8 @@ describe("US_STATES", () => {
 });
 
 describe("USPS_TO_FIPS / FIPS_TO_USPS", () => {
-  it("contains all 52 jurisdictions covered by US_STATES", () => {
-    expect(Object.keys(USPS_TO_FIPS).sort()).toEqual([...US_STATES].sort());
+  it("contains all 52 USPS jurisdictions plus the synthetic 'NAT' federal/national entry", () => {
+    expect(Object.keys(USPS_TO_FIPS).sort()).toEqual([...US_STATES, "NAT"].sort());
   });
 
   it("FIPS values are 2-digit zero-padded strings", () => {
