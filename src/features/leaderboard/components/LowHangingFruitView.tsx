@@ -242,6 +242,26 @@ export default function LowHangingFruitView() {
     });
   };
 
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() =>
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("lhf-filters-collapsed") === "true"
+  );
+
+  const toggleFilters = () => {
+    setFiltersCollapsed((prev) => {
+      const next = !prev;
+      sessionStorage.setItem("lhf-filters-collapsed", String(next));
+      return next;
+    });
+  };
+
+  const activeFilterCount =
+    filters.categories.length +
+    filters.states.length +
+    filters.products.length +
+    (filters.revenueBand ? 1 : 0) +
+    filters.lastReps.length;
+
   const allRows = query.data?.districts ?? [];
 
   const facets = useMemo(() => {
@@ -415,11 +435,43 @@ export default function LowHangingFruitView() {
           </div>
         )}
 
-        <LowHangingFruitFilterBar
-          filters={filters}
-          facets={facets}
-          onChange={setFilters}
-        />
+        {/* Filter bar */}
+        {filtersCollapsed ? (
+          <button
+            type="button"
+            onClick={toggleFilters}
+            className="flex-shrink-0 flex items-center justify-between px-5 py-2 bg-white border-b border-[#E2DEEC] w-full text-left"
+            aria-expanded={false}
+            aria-label="Show filters"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-[#6E6390]">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white bg-[#403770]">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-[#8A80A8]" />
+          </button>
+        ) : (
+          <div className="flex-shrink-0 relative">
+            <LowHangingFruitFilterBar
+              filters={filters}
+              facets={facets}
+              onChange={setFilters}
+            />
+            <button
+              type="button"
+              onClick={toggleFilters}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A80A8] hover:text-[#403770]"
+              aria-expanded={true}
+              aria-label="Hide filters"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Table */}
         <div className="flex-1 min-h-0 overflow-auto bg-white">
