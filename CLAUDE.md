@@ -77,8 +77,9 @@ inner container must be verified on mobile before shipping.
 - **Never set `overflow: hidden` on `html`/`body`** — on iOS/WebKit this blocks
   touch-scroll delivery to all inner containers. Use `overscroll-behavior: none`
   instead, which prevents bounce without the side-effect.
-- **Use `touch-action: pan-y`** on `<main>` or any wrapper that contains
-  scrollable children.
+- **Use `touch-action: pan-y`** on specific scroll panels (sidebars, list views)
+  but **never on a wrapper that contains a map** — ancestor `pan-y` constrains
+  all descendants, breaking MapLibre pinch-zoom and drag-pan.
 - **Add `-webkit-overflow-scrolling: touch`** to inner scroll containers for
   legacy iOS 14 / Chrome-on-iOS coverage (handled globally in `globals.css`).
 - **Test scroll on iPhone before marking a view complete** — use Safari
