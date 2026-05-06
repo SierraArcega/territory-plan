@@ -189,12 +189,16 @@ RELEVANCE TIERS (topical only — do not factor in deadline or contract value):
     • Summer school / extended learning programming
     • Generic "supplemental services" or "qualified vendor for academic support"
     • SPED-adjacent academic support without named modality
+    • Title I-funded literacy or math programs — even when the deliverable is described as "materials," "resources," "books," or "curriculum" rather than as a service. Title I implies an academic-intervention context Fullmind cares about.
+    • Educational services or materials at non-traditional K-12 settings: juvenile justice / Department of Youth Services (DYS) / correctional facilities / treatment centers / alternative schools / residential placements. These are Fullmind-relevant contexts even when the RFP frames the deliverable as materials or equipment.
+    • Pre-K and early-childhood programs aren't Fullmind's primary market — but if the RFP is for instructional content (not just childcare), keep at MEDIUM rather than dropping to LOW.
 
   LOW — tangentially K-12 but not Fullmind's problem space:
-    • Library e-resources
-    • Generic edtech platform licenses (LMS, SIS, devices)
+    • Library e-resources (general circulation, not Title-I-funded literacy intervention)
+    • Generic edtech platform licenses without an instructional services component (LMS, SIS, devices, MDM)
     • School security / safety
     • Non-instructional staff (custodial, food, transport)
+    • Pure childcare / after-school custody programs with no academic component
 
   NONE — clearly not Fullmind:
     • HVAC, construction, transportation, food service
@@ -202,6 +206,13 @@ RELEVANCE TIERS (topical only — do not factor in deadline or contract value):
     • Vendor-only RFPs (vendor pre-qualification, not a service procurement)
 
 Default tendency: lean MEDIUM over LOW when uncertain. Reps prefer skimming a few medium RFPs to missing one real signal.
+
+Tiebreaker for borderline cases: when the RFP could plausibly be either LOW or MEDIUM, escalate to MEDIUM if ANY of the following apply:
+  • Title I or other federal academic-equity funding is named (Title II, Title III, Title IV, IDEA, 21st CCLC).
+  • The setting is non-traditional K-12: juvenile justice, DYS, correctional, treatment center, alternative school, residential placement.
+  • The named program area is reading intervention, math intervention, literacy, numeracy, or compensatory education.
+  • Students are described as at-risk, under-served, special-education, or below-grade-level.
+The rep can always demote at review; a missed MEDIUM is more expensive than an extra MEDIUM to skim.
 
 KEYWORDS (up to ${MAX_KEYWORDS}):
   • Lowercase, no punctuation.
