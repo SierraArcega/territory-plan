@@ -271,6 +271,7 @@ model District {
   newsArticles       NewsArticleDistrict[]
   newsFetch          DistrictNewsFetch?
   rfps               Rfp[]
+  agencyMaps         AgencyDistrictMap[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -2008,11 +2009,29 @@ model RfpIngestRun {
   recordsSeen       Int       @default(0)                     @map("records_seen")
   recordsNew        Int       @default(0)                     @map("records_new")
   recordsUpdated    Int       @default(0)                     @map("records_updated")
-  recordsResolved   Int       @default(0)                     @map("records_resolved")
-  recordsUnresolved Int       @default(0)                     @map("records_unresolved")
+  recordsResolved              Int       @default(0)    @map("records_resolved")
+  recordsUnresolved            Int       @default(0)    @map("records_unresolved")
+  recordsResolvedByOverride    Int       @default(0)    @map("records_resolved_by_override")
+  recordsResolvedByName        Int       @default(0)    @map("records_resolved_by_name")
   error             String?   @db.Text
 
   @@index([source, status, startedAt])
   @@index([source, finishedAt])
   @@map("rfp_ingest_runs")
+}
+
+model AgencyDistrictMap {
+  agencyKey   Int       @id @map("agency_key")
+  kind        String                                       // "district" | "state" | "non_lea"
+  leaid       String?   @db.VarChar(7)
+  stateFips   String?   @db.VarChar(2) @map("state_fips")
+  source      String    @default("highergov")
+  notes       String?   @db.Text
+  resolvedBy  String?   @map("resolved_by")
+  resolvedAt  DateTime  @default(now()) @db.Timestamptz @map("resolved_at")
+  district    District? @relation(fields: [leaid], references: [leaid])
+
+  @@map("agency_district_maps")
+  @@index([kind])
+  @@index([leaid])
 }

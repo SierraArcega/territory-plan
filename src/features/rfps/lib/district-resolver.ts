@@ -47,34 +47,73 @@ function diceCoefficient(a: string, b: string): number {
   return (2 * intersection) / (totalA + totalB);
 }
 
-export async function resolveDistrict(
-  agencyName: string,
-  stateAbbrev: string,
-): Promise<string | null> {
+export type ResolveResultKind =
+  | "override_district"
+  | "override_state"
+  | "override_non_lea"
+  | "name_match"
+  | "unresolved";
+
+export interface ResolveResult {
+  leaid: string | null;
+  kind: ResolveResultKind;
+}
+
+export interface ResolveAgencyArgs {
+  agencyKey: number;
+  agencyName: string;
+  stateAbbrev: string;
+}
+
+export async function resolveAgency({
+  agencyKey,
+  agencyName,
+  stateAbbrev,
+}: ResolveAgencyArgs): Promise<ResolveResult> {
+  // 1. Check manual override first.
+  const override = await prisma.agencyDistrictMap.findUnique({ where: { agencyKey } });
+  if (override) {
+    if (override.kind === "district") {
+      return { leaid: override.leaid, kind: "override_district" };
+    }
+    if (override.kind === "state") {
+      return { leaid: null, kind: "override_state" };
+    }
+    if (override.kind === "non_lea") {
+      return { leaid: null, kind: "override_non_lea" };
+    }
+  }
+
+  // 2. Fall through to existing 3-tier name match.
   const fips = abbrevToFips(stateAbbrev);
-  if (!fips) return null;
+  if (!fips) return { leaid: null, kind: "unresolved" };
 
   const districts = await prisma.district.findMany({
     where: { stateFips: fips },
     select: { leaid: true, name: true },
   });
-  if (districts.length === 0) return null;
+  if (districts.length === 0) return { leaid: null, kind: "unresolved" };
 
   const lcAgency = agencyName.toLowerCase().trim();
   const tier1 = districts.filter((d) => d.name.toLowerCase().trim() === lcAgency);
-  if (tier1.length === 1) return tier1[0].leaid;
+  if (tier1.length === 1) return { leaid: tier1[0].leaid, kind: "name_match" };
 
   const normAgency = normalizeName(agencyName);
-  if (!normAgency) return null;
+  if (!normAgency) return { leaid: null, kind: "unresolved" };
   const tier2 = districts.filter((d) => normalizeName(d.name) === normAgency);
-  if (tier2.length === 1) return tier2[0].leaid;
-  if (tier2.length > 1) return null;
+  if (tier2.length === 1) return { leaid: tier2[0].leaid, kind: "name_match" };
+  if (tier2.length > 1) return { leaid: null, kind: "unresolved" };
 
   const scored = districts
-    .map((d) => ({ leaid: d.leaid, score: diceCoefficient(lcAgency, d.name.toLowerCase().trim()) }))
+    .map((d) => ({
+      leaid: d.leaid,
+      score: diceCoefficient(lcAgency, d.name.toLowerCase().trim()),
+    }))
     .filter((s) => s.score >= 0.85)
     .sort((a, b) => b.score - a.score);
-  if (scored.length === 0) return null;
-  if (scored.length > 1 && scored[0].score === scored[1].score) return null;
-  return scored[0].leaid;
+  if (scored.length === 0) return { leaid: null, kind: "unresolved" };
+  if (scored.length > 1 && scored[0].score === scored[1].score) {
+    return { leaid: null, kind: "unresolved" };
+  }
+  return { leaid: scored[0].leaid, kind: "name_match" };
 }
