@@ -47,6 +47,27 @@ async function insertDistrict(
   );
 }
 
+// Helper: add a district to a territory plan for a given fiscal year
+async function insertPlanDistrict(
+  q: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>,
+  planName: string,
+  fiscalYear: number,
+  leaid: string
+) {
+  const { rows } = await q(
+    `INSERT INTO territory_plans (id, name, fiscal_year, updated_at)
+     VALUES (gen_random_uuid(), $1, $2, now())
+     RETURNING id`,
+    [planName, fiscalYear]
+  );
+  const planId = rows[0].id;
+  await q(
+    `INSERT INTO territory_plan_districts (plan_id, district_leaid)
+     VALUES ($1, $2)`,
+    [planId, leaid]
+  );
+}
+
 // Helper: insert an RFP with required NOT NULL fields
 async function insertRfp(
   q: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>,
@@ -152,6 +173,56 @@ describe("refreshRfpSignals", () => {
 
       const { rows } = await q(
         `SELECT district_pipeline_state FROM rfps WHERE external_id='test-rfp-5'`
+      );
+      expect(rows[0].district_pipeline_state).toBe("active");
+    });
+  });
+
+  it("sets 'in_plan' when district is in an FY27 territory plan with no opps", async () => {
+    await withTx(async (q) => {
+      await insertDistrict(q, "TEST010", "Plan District", "Tier 3");
+      await insertPlanDistrict(q, "FY27 Sierra Plan", 2027, "TEST010");
+      await insertRfp(q, "test-rfp-10", 999_010, "TEST010");
+
+      await refreshRfpSignals(q);
+
+      const { rows } = await q(
+        `SELECT district_pipeline_state FROM rfps WHERE external_id='test-rfp-10'`
+      );
+      expect(rows[0].district_pipeline_state).toBe("in_plan");
+    });
+  });
+
+  it("ignores plans for fiscal years other than 2027", async () => {
+    await withTx(async (q) => {
+      await insertDistrict(q, "TEST011", "Old Plan District", "Tier 3");
+      await insertPlanDistrict(q, "FY26 Plan", 2026, "TEST011");
+      await insertRfp(q, "test-rfp-11", 999_011, "TEST011");
+
+      await refreshRfpSignals(q);
+
+      const { rows } = await q(
+        `SELECT district_pipeline_state FROM rfps WHERE external_id='test-rfp-11'`
+      );
+      expect(rows[0].district_pipeline_state).toBe("cold");
+    });
+  });
+
+  it("active wins over in_plan when both apply", async () => {
+    await withTx(async (q) => {
+      await insertDistrict(q, "TEST012", "Active + In Plan");
+      await insertPlanDistrict(q, "FY27 Plan", 2027, "TEST012");
+      await q(
+        `INSERT INTO opportunities (id, district_lea_id, stage, name)
+         VALUES ($1, $2, $3, $4)`,
+        ["test-opp-12", "TEST012", "3 - Proposal", "Open Deal"]
+      );
+      await insertRfp(q, "test-rfp-12", 999_012, "TEST012");
+
+      await refreshRfpSignals(q);
+
+      const { rows } = await q(
+        `SELECT district_pipeline_state FROM rfps WHERE external_id='test-rfp-12'`
       );
       expect(rows[0].district_pipeline_state).toBe("active");
     });

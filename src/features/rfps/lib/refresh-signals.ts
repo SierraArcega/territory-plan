@@ -15,7 +15,8 @@ type Querier = (
  * Single set-based UPDATE that derives district_pipeline_state for every RFP
  * with a resolved leaid.
  *
- * Priority order: active > recently_won (<=18mo) > recently_lost (<=12mo) > cold
+ * Priority order: active > recently_won (<=18mo) > recently_lost (<=12mo)
+ *   > in_plan (in any FY27 territory plan) > cold
  *
  * Closed-won/closed-lost stage detection mirrors the
  * district_opportunity_actuals matview's canonical predicates.
@@ -47,6 +48,12 @@ WITH opp_state AS (
   FROM opportunities o
   WHERE o.district_lea_id IS NOT NULL
   GROUP BY o.district_lea_id
+),
+in_plan AS (
+  SELECT DISTINCT tpd.district_leaid AS leaid
+  FROM territory_plan_districts tpd
+  JOIN territory_plans tp ON tp.id = tpd.plan_id
+  WHERE tp.fiscal_year = 2027
 )
 UPDATE rfps r
 SET
@@ -54,11 +61,13 @@ SET
     WHEN COALESCE(s.has_active, false)               THEN 'active'
     WHEN s.last_won  >= now() - interval '18 months' THEN 'recently_won'
     WHEN s.last_lost >= now() - interval '12 months' THEN 'recently_lost'
+    WHEN ip.leaid IS NOT NULL                        THEN 'in_plan'
     ELSE 'cold'
   END,
   signals_refreshed_at = now()
 FROM districts d
 LEFT JOIN opp_state s ON s.leaid = d.leaid
+LEFT JOIN in_plan ip  ON ip.leaid = d.leaid
 WHERE r.leaid IS NOT NULL
   AND r.leaid = d.leaid;
 `;
