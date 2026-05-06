@@ -26,7 +26,7 @@ describe("isPlansFiltered", () => {
     expect(isPlansFiltered({ status: ["working"] })).toBe(true);
   });
   it("returns true when fiscalYear set", () => {
-    expect(isPlansFiltered({ fiscalYear: 26 })).toBe(true);
+    expect(isPlansFiltered({ fiscalYear: 2026 })).toBe(true);
   });
 });
 
