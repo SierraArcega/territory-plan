@@ -364,8 +364,16 @@ export default function LowHangingFruitView() {
           </p>
           <p className="text-xs text-[#544A78] mt-2">
             <strong className="text-[#403770]">How to action them:</strong>{" "}
-            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity — or add to a plan and set a target to remove it from the list.
+            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity, or add to a plan and set a target.
           </p>
+          <ul className="text-xs text-[#544A78] mt-1.5 space-y-0.5 list-disc pl-5">
+            <li>
+              <strong className="text-[#403770]">Missing Renewals</strong> leave this list once an FY27 opp exists — renewals are required to have an FY27 opportunity, so <strong className="text-[#403770]">+Opp</strong> is the path.
+            </li>
+            <li>
+              <strong className="text-[#403770]">Winbacks</strong> leave this list when an FY27 opp is created <em>or</em> a plan target is set.
+            </li>
+          </ul>
         </div>
 
         <LowHangingFruitFilterBar
