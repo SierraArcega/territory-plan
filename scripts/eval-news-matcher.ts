@@ -13,9 +13,12 @@
  *
  * Variants currently measured:
  *   • baseline — extractStates(title+description) only (current production behavior)
+ *   • +H2 — adds source-leaid → state hint. For google_news_district / manual_refresh
+ *           articles, the ingest path stamps a `news_article_districts` row at
+ *           confidence='source' pointing at the queried district. From that leaid
+ *           we know the state, so we feed it into the matcher's stateAbbrevs.
  *
  * Future variants (will be added in subsequent commits):
- *   • +H2: source-leaid → state hint
  *   • +H1: publisher → state map
  */
 import "dotenv/config";
@@ -77,6 +80,7 @@ async function main() {
     },
   });
   const districtsByState = new Map<string, DistrictCandidate[]>();
+  const stateByLeaid = new Map<string, string>();
   for (const d of allDistricts) {
     if (!d.stateAbbrev) continue;
     const arr = districtsByState.get(d.stateAbbrev) ?? [];
@@ -89,6 +93,7 @@ async function main() {
       accountName: d.accountName,
     });
     districtsByState.set(d.stateAbbrev, arr);
+    stateByLeaid.set(d.leaid, d.stateAbbrev);
   }
   console.log(`[eval] loaded districts for ${districtsByState.size} states`);
 
@@ -96,51 +101,106 @@ async function main() {
   const schoolsByLeaid = new Map<string, SchoolCandidate[]>();
   const contactsByLeaid = new Map<string, ContactCandidate[]>();
 
-  // Run the baseline variant: extract states from text only.
+  // Run baseline + H2 variants side-by-side per article so we can identify
+  // articles newly caught (or newly missed) under H2.
   const baseline: Variant = { name: "baseline", hits: 0, newHits: [], lostHits: [] };
-  const newMatchExamples: Array<{
-    id: string;
-    title: string;
-    states: string[];
-    leaids: string[];
-  }> = [];
+  const h2: Variant = { name: "+H2 (source-leaid hint)", hits: 0, newHits: [], lostHits: [] };
+  const h2NewExamples: Array<{ title: string; sourceLeaid: string; addedState: string; leaids: string[] }> = [];
+  const h2LostExamples: Array<{ title: string; baselineStates: string[]; baselineLeaids: string[] }> = [];
+
+  let articlesWithSourceLeaid = 0;
+  let articlesWhereHintAddsNewState = 0;
 
   for (const a of articles) {
     const text = [a.title, a.description ?? ""].join(" ");
-    const states = extractStates(text);
-    const result = matchArticleKeyword({
+    const baselineStates = extractStates(text);
+
+    const baselineResult = matchArticleKeyword({
       articleText: text,
-      stateAbbrevs: states,
+      stateAbbrevs: baselineStates,
       districtsByState,
       schoolsByLeaid,
       schoolsByState: undefined,
       contactsByLeaid,
     });
+    const baselineHit = baselineResult.confirmedDistricts.length > 0;
+    if (baselineHit) baseline.hits++;
 
-    const hit = result.confirmedDistricts.length > 0;
-    if (hit) {
-      baseline.hits++;
-      if (newMatchExamples.length < 10) {
-        newMatchExamples.push({
-          id: a.id,
+    // H2: add the state of the source-confidence leaid (if any) to stateAbbrevs.
+    // Production stamps that link in src/features/news/lib/ingest.ts:65 when an
+    // article was discovered via a district-scoped Google News query.
+    const sourceLink = a.districts.find((d) => d.confidence === "source");
+    const sourceLeaid = sourceLink?.leaid;
+    let hintedState: string | undefined;
+    if (sourceLeaid) {
+      articlesWithSourceLeaid++;
+      const st = stateByLeaid.get(sourceLeaid);
+      if (st && !baselineStates.includes(st)) {
+        hintedState = st;
+        articlesWhereHintAddsNewState++;
+      }
+    }
+    const h2States = hintedState ? [...baselineStates, hintedState] : baselineStates;
+    const h2Result = matchArticleKeyword({
+      articleText: text,
+      stateAbbrevs: h2States,
+      districtsByState,
+      schoolsByLeaid,
+      schoolsByState: undefined,
+      contactsByLeaid,
+    });
+    const h2Hit = h2Result.confirmedDistricts.length > 0;
+    if (h2Hit) h2.hits++;
+
+    if (h2Hit && !baselineHit && hintedState) {
+      h2.newHits.push(a.id);
+      if (h2NewExamples.length < 15) {
+        h2NewExamples.push({
           title: a.title,
-          states,
-          leaids: result.confirmedDistricts.map((d) => d.leaid),
+          sourceLeaid: sourceLeaid!,
+          addedState: hintedState,
+          leaids: h2Result.confirmedDistricts.map((d) => d.leaid),
+        });
+      }
+    }
+    if (!h2Hit && baselineHit) {
+      h2.lostHits.push(a.id);
+      if (h2LostExamples.length < 5) {
+        h2LostExamples.push({
+          title: a.title,
+          baselineStates,
+          baselineLeaids: baselineResult.confirmedDistricts.map((d) => d.leaid),
         });
       }
     }
   }
 
+  const pct = (n: number) => `${((n / articles.length) * 100).toFixed(1)}%`;
+
   console.log("");
-  console.log(`=== Baseline ===`);
-  console.log(
-    `  ${baseline.hits} / ${articles.length} (${((baseline.hits / articles.length) * 100).toFixed(1)}%) ` +
-      `articles matched ≥1 district via keyword passes`
-  );
+  console.log(`=== Coverage ===`);
+  console.log(`  Baseline:                    ${baseline.hits} / ${articles.length}  (${pct(baseline.hits)})`);
+  console.log(`  +H2 (source-leaid hint):     ${h2.hits} / ${articles.length}  (${pct(h2.hits)})  +${h2.hits - baseline.hits}`);
   console.log("");
-  console.log(`Sample baseline matches:`);
-  for (const ex of newMatchExamples) {
-    console.log(`  [${ex.states.join(",")}] ${ex.leaids.join(",")} — ${ex.title.slice(0, 80)}`);
+  console.log(`=== H2 hint stats ===`);
+  console.log(`  Articles with a source-leaid link: ${articlesWithSourceLeaid} (${pct(articlesWithSourceLeaid)})`);
+  console.log(`  Of those, source state was NOT already in baseline's states: ${articlesWhereHintAddsNewState}`);
+  console.log(`  Newly matched (only with H2): ${h2.newHits.length}`);
+  console.log(`  Newly missed (regressions vs baseline): ${h2.lostHits.length}`);
+  console.log("");
+  console.log(`Sample articles newly matched under H2:`);
+  for (const ex of h2NewExamples) {
+    console.log(
+      `  +[${ex.addedState}] (queried-for ${ex.sourceLeaid}) → matched ${ex.leaids.join(",")}\n` +
+        `      ${ex.title.slice(0, 100)}`
+    );
+  }
+  if (h2LostExamples.length > 0) {
+    console.log("");
+    console.log(`Sample regressions (H2 missed something baseline caught):`);
+    for (const ex of h2LostExamples) {
+      console.log(`  baseline=[${ex.baselineStates.join(",")}]→${ex.baselineLeaids.join(",")} — ${ex.title.slice(0, 100)}`);
+    }
   }
 
   // Cross-check: how many of the sampled articles have a district link in the
