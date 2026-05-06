@@ -368,6 +368,7 @@ export default function LowHangingFruitView() {
         {/* Summary banner */}
         {bannerCollapsed ? (
           <button
+            type="button"
             onClick={toggleBanner}
             className="flex-shrink-0 flex items-center justify-between px-5 py-2 bg-[#F7F5FA] border-b border-[#E2DEEC] w-full text-left"
             aria-expanded={false}
@@ -402,6 +403,7 @@ export default function LowHangingFruitView() {
                 </ul>
               </div>
               <button
+                type="button"
                 onClick={toggleBanner}
                 className="flex-shrink-0 text-[#8A80A8] hover:text-[#403770] mt-0.5"
                 aria-expanded={true}
