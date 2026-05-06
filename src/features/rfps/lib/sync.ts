@@ -105,7 +105,10 @@ export async function syncRfps(): Promise<SyncSummary> {
 
   try {
     const buffer: HigherGovOpportunity[] = [];
-    for await (const r of fetchOpportunities({ since: watermark, postedSince })) buffer.push(r);
+    // No posted_date__gte at the API layer — we want RFPs that were posted
+    // long ago but are still actively soliciting (future due date). Filtering
+    // happens client-side below.
+    for await (const r of fetchOpportunities({ since: watermark })) buffer.push(r);
 
     const uniqueAgencies = new Map<number, { name: string; state: string }>();
     for (const r of buffer) {
@@ -117,11 +120,14 @@ export async function syncRfps(): Promise<SyncSummary> {
       agencyCache.set(key, await resolveAgency({ agencyKey: key, agencyName: name, stateAbbrev: state }));
     }
 
+    const now = new Date();
     for (const raw of buffer) {
       counters.recordsSeen++;
       try {
         const normalized = normalizeOpportunity(raw);
-        if (!normalized.postedDate || normalized.postedDate < postedSince) {
+        const postedTooOld = !normalized.postedDate || normalized.postedDate < postedSince;
+        const dueInFuture = normalized.dueDate ? normalized.dueDate >= now : false;
+        if (postedTooOld && !dueInFuture) {
           counters.recordsSkippedStale++;
           continue;
         }
