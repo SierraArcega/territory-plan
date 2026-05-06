@@ -22,6 +22,7 @@ function decodeCursor(s: string): Cursor | null {
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const leaid = sp.get("leaid");
+  const agencyKeyArg = sp.get("agency_key");
   const stateFipsArg = sp.get("stateFips");
   const stateArg = sp.get("state");
   const q = sp.get("q");
@@ -31,6 +32,10 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (leaid) where.leaid = leaid;
+  if (agencyKeyArg) {
+    const n = Number(agencyKeyArg);
+    if (Number.isInteger(n) && n > 0) where.agencyKey = n;
+  }
   if (stateFipsArg) where.stateFips = stateFipsArg;
   else if (stateArg) {
     const fips = abbrevToFips(stateArg);

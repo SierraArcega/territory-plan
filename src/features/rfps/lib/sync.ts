@@ -6,6 +6,7 @@ import type { HigherGovOpportunity } from "./types";
 
 const ORPHAN_THRESHOLD_MS = 10 * 60 * 1000;
 const COLD_START_LOOKBACK_DAYS = 90;
+const POSTED_RECENCY_DAYS = 365;
 const SOURCE = "highergov";
 
 export interface SyncSummary {
@@ -18,6 +19,7 @@ export interface SyncSummary {
   recordsUnresolved: number;
   recordsResolvedByOverride: number;
   recordsResolvedByName: number;
+  recordsSkippedStale: number;
   watermark: Date;
   error?: string;
 }
@@ -94,13 +96,15 @@ export async function syncRfps(): Promise<SyncSummary> {
     recordsSeen: 0, recordsNew: 0, recordsUpdated: 0,
     recordsResolved: 0, recordsUnresolved: 0,
     recordsResolvedByOverride: 0, recordsResolvedByName: 0,
+    recordsSkippedStale: 0,
   };
 
   const agencyCache = new Map<number, ResolveResult>();
+  const postedSince = new Date(Date.now() - POSTED_RECENCY_DAYS * 24 * 60 * 60 * 1000);
 
   try {
     const buffer: HigherGovOpportunity[] = [];
-    for await (const r of fetchOpportunities({ since: watermark })) buffer.push(r);
+    for await (const r of fetchOpportunities({ since: watermark, postedSince })) buffer.push(r);
 
     const uniqueAgencies = new Map<number, { name: string; state: string }>();
     for (const r of buffer) {
@@ -116,6 +120,10 @@ export async function syncRfps(): Promise<SyncSummary> {
       counters.recordsSeen++;
       try {
         const normalized = normalizeOpportunity(raw);
+        if (!normalized.postedDate || normalized.postedDate < postedSince) {
+          counters.recordsSkippedStale++;
+          continue;
+        }
         const resolution = agencyCache.get(raw.agency.agency_key) ?? { leaid: null, kind: "unresolved" as const };
         const result = await prisma.rfp.upsert(rfpUpsertArgs(normalized, resolution.leaid));
         if (result.firstSeenAt && result.lastSeenAt &&

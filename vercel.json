@@ -39,6 +39,14 @@
     {
       "path": "/api/cron/ingest-rfps?secret=${CRON_SECRET}",
       "schedule": "15 8 * * *"
+    },
+    {
+      "path": "/api/cron/classify-rfps?secret=${CRON_SECRET}",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-rfp-signals?secret=${CRON_SECRET}",
+      "schedule": "0 4 * * *"
     }
   ]
 }

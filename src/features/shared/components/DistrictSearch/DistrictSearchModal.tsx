@@ -34,9 +34,17 @@ export interface NominatimSuggestion {
 }
 
 export interface DistrictSearchModalProps {
+  // Display-only label shown in the header (e.g., agency name, or "5 agencies").
   subjectName: string;
   subjectState: string | null;
   subjectSubtitle?: string;
+  // Optional fuzzy-match input for the suggestions endpoint. Defaults to subjectName.
+  // Pass an empty string to disable suggestions (e.g., bulk multi-agency case where
+  // there's no single name to match against).
+  searchHint?: string;
+  // Optional pre-fill for the "Create new district" form's name field. Defaults to
+  // subjectName. Pass an empty string for bulk cases where no per-row name applies.
+  defaultDistrictName?: string;
   onSelect: (district: DistrictResult) => void;
   onClose: () => void;
   headerTitle?: string;
@@ -571,6 +579,8 @@ export function DistrictSearchModal({
   subjectName,
   subjectState,
   subjectSubtitle,
+  searchHint,
+  defaultDistrictName,
   onSelect,
   onClose,
   headerTitle,
@@ -579,6 +589,10 @@ export function DistrictSearchModal({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // searchHint controls fuzzy match; if explicitly empty, suggestions are skipped.
+  const effectiveSearchHint = searchHint ?? subjectName;
+  const effectiveCreateDefaultName = defaultDistrictName ?? subjectName;
 
   useEffect(() => {
     if (!showCreate) inputRef.current?.focus();
@@ -590,9 +604,9 @@ export function DistrictSearchModal({
   }, [query]);
 
   const { data: suggestions, isLoading: suggestionsLoading } = useQuery({
-    queryKey: ["district-suggestions", subjectName, subjectState],
-    queryFn: () => fetchSuggestions(subjectName, subjectState),
-    enabled: !!subjectName,
+    queryKey: ["district-suggestions", effectiveSearchHint, subjectState],
+    queryFn: () => fetchSuggestions(effectiveSearchHint, subjectState),
+    enabled: !!effectiveSearchHint,
   });
 
   const { data: searchResults, isLoading: searchLoading } = useQuery({
@@ -641,15 +655,15 @@ export function DistrictSearchModal({
 
         {showCreate ? (
           <CreateAccountForm
-            defaultName={subjectName}
+            defaultName={effectiveCreateDefaultName}
             defaultStateAbbrev={subjectState}
             onCreated={onSelect}
             onCancel={() => setShowCreate(false)}
           />
         ) : (
           <>
-            {/* Suggestions section */}
-            {!isSearching && (
+            {/* Suggestions section — only when there is a single subject to fuzzy-match. */}
+            {!isSearching && effectiveSearchHint && (
               <div className="mb-3">
                 {suggestionsLoading && (
                   <div className="px-4 py-4 text-center border border-[#E2DEEC] rounded-lg">

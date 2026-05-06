@@ -97,6 +97,111 @@ function MappingBadge({ mapping }: { mapping: AgencyMapping | null }) {
 type ResolutionStep = "pick" | "district" | "state" | "non_lea";
 type BulkStep = null | "district" | "state" | "non_lea";
 
+interface RfpItem {
+  id: number;
+  title: string;
+  description: string | null;
+  oppType: string | null;
+  solicitationNumber: string | null;
+  postedDate: string | null;
+  dueDate: string | null;
+  valueLow: string | null;
+  valueHigh: string | null;
+  highergovUrl: string | null;
+  leaid: string | null;
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function AgencyRfpsPanel({ agencyKey }: { agencyKey: number }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["agency-rfps", agencyKey],
+    queryFn: async () => {
+      const res = await fetch(`/api/rfps?agency_key=${agencyKey}&limit=50`);
+      if (!res.ok) throw new Error("Failed to fetch RFPs");
+      return res.json() as Promise<{ items: RfpItem[]; nextCursor: string | null }>;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#D4CFE2]">
+        <span className="text-xs text-[#A69DC0]">Loading RFPs…</span>
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#F37167]">
+        <span className="text-xs text-[#F37167]">Failed to load RFPs.</span>
+      </div>
+    );
+  }
+  if (data.items.length === 0) {
+    return (
+      <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#D4CFE2]">
+        <span className="text-xs text-[#A69DC0]">No RFPs found for this agency.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-6 py-4 bg-[#FBFAFD] border-l-2 border-[#403770] space-y-3">
+      <div className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
+        {data.items.length} RFP{data.items.length === 1 ? "" : "s"}{data.nextCursor ? "+ (showing first 50)" : ""}
+      </div>
+      <div className="space-y-2">
+        {data.items.map((rfp) => (
+          <div key={rfp.id} className="bg-white rounded-lg border border-[#E2DEEC] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-[#403770]">{rfp.title}</span>
+                  {rfp.oppType ? (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F7F5FA] text-[#6E6390] border border-[#D4CFE2]">{rfp.oppType}</span>
+                  ) : null}
+                  {rfp.solicitationNumber ? (
+                    <span className="text-[10px] text-[#A69DC0] tabular-nums">#{rfp.solicitationNumber}</span>
+                  ) : null}
+                </div>
+                {rfp.description ? (
+                  <p className="text-xs text-[#6E6390] mt-1 line-clamp-3">{rfp.description}</p>
+                ) : null}
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#8A80A8]">
+                  <span>Posted {fmtDate(rfp.postedDate)}</span>
+                  <span>Due {fmtDate(rfp.dueDate)}</span>
+                  {rfp.valueLow || rfp.valueHigh ? (
+                    <span className="tabular-nums">
+                      {rfp.valueLow ? `$${Math.round(parseFloat(rfp.valueLow)).toLocaleString()}` : "?"}
+                      {" – "}
+                      {rfp.valueHigh ? `$${Math.round(parseFloat(rfp.valueHigh)).toLocaleString()}` : "?"}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {rfp.highergovUrl ? (
+                <a
+                  href={rfp.highergovUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-[#6EA3BE] hover:text-[#403770] hover:underline whitespace-nowrap"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  HigherGov ↗
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BulkActionBar({
   count, onMapDistrict, onMapState, onDismiss, onClear,
 }: {
@@ -301,6 +406,7 @@ function AgencyDistrictMapsContent() {
     agencyDistrictMapColumns.filter((c) => c.isDefault && !c.isFilterOnly).map((c) => c.key)
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
 
   const [bulkStep, setBulkStep] = useState<BulkStep>(null);
   const selectedAgencyKeys = useMemo(() => Array.from(selectedIds).map(Number), [selectedIds]);
@@ -335,6 +441,7 @@ function AgencyDistrictMapsContent() {
       setSelectedIds(new Set());
       setResolvingAgency(null);
       setResolutionStep("pick");
+      setBulkStep(null);
       setToast(`Mapped ${data.mappedAgencyCount} agenc${data.mappedAgencyCount === 1 ? "y" : "ies"} — updated ${data.cascadedRfpCount} RFPs.`);
     },
     onError: (err: Error) => setToast(err.message),
@@ -502,6 +609,17 @@ function AgencyDistrictMapsContent() {
             });
           }}
           onClearSelection={() => setSelectedIds(new Set())}
+          expandedRowIds={expandedRowIds}
+          onToggleExpand={(id) => {
+            setExpandedRowIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id); else next.add(id);
+              return next;
+            });
+          }}
+          renderExpandedRow={(row) => (
+            <AgencyRfpsPanel agencyKey={(row as unknown as AgencyRow).agencyKey} />
+          )}
           renderRowAction={(row) => {
             const r = row as unknown as AgencyRow & { id: string };
             const isMapped = r.mapping !== null;
@@ -580,23 +698,61 @@ function AgencyDistrictMapsContent() {
         />
       )}
 
-      {bulkStep === "district" && (
-        <DistrictSearchModal
-          subjectName={`${selectedAgencyKeys.length} agencies selected`}
-          subjectState={null}
-          onSelect={(district) => {
-            guardLargeCascade(() => {
-              mapMutation.mutate({
-                agencyKeys: selectedAgencyKeys,
-                kind: "district",
-                leaid: district.leaid,
+      {bulkStep === "district" && (() => {
+        const selectedRows = (data?.items ?? []).filter((r) =>
+          selectedAgencyKeys.includes(r.agencyKey),
+        );
+        // Bulk-with-1 behaves identically to the single-agency case: real agency
+        // name + state, suggestions on, create-form prefilled.
+        if (selectedRows.length === 1) {
+          const a = selectedRows[0];
+          return (
+            <DistrictSearchModal
+              subjectName={a.agencyName}
+              subjectState={a.stateAbbrev}
+              onSelect={(district) => {
+                guardLargeCascade(() => {
+                  mapMutation.mutate({
+                    agencyKeys: [a.agencyKey],
+                    kind: "district",
+                    leaid: district.leaid,
+                  });
+                  setBulkStep(null);
+                });
+              }}
+              onClose={() => setBulkStep(null)}
+            />
+          );
+        }
+        // True multi-agency: show count + first few names, skip suggestions
+        // (no single name to fuzzy-match), and disable create-form prefill.
+        const names = selectedRows.map((r) => r.agencyName);
+        const subtitle =
+          names.length === 0
+            ? undefined
+            : names.slice(0, 4).join(", ") +
+              (names.length > 4 ? `, +${names.length - 4} more` : "");
+        return (
+          <DistrictSearchModal
+            subjectName={`${selectedAgencyKeys.length} agencies`}
+            subjectState={null}
+            subjectSubtitle={subtitle}
+            searchHint=""
+            defaultDistrictName=""
+            onSelect={(district) => {
+              guardLargeCascade(() => {
+                mapMutation.mutate({
+                  agencyKeys: selectedAgencyKeys,
+                  kind: "district",
+                  leaid: district.leaid,
+                });
+                setBulkStep(null);
               });
-              setBulkStep(null);
-            });
-          }}
-          onClose={() => setBulkStep(null)}
-        />
-      )}
+            }}
+            onClose={() => setBulkStep(null)}
+          />
+        );
+      })()}
 
       {bulkStep === "state" && (
         <BulkConfirm
