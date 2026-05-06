@@ -1,7 +1,6 @@
 import PQueue from "p-queue";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { extractStates } from "./extract-states";
 import {
   matchArticleKeyword,
   schoolHasDistinctiveToken as schoolHasDistinctive,
@@ -10,6 +9,7 @@ import {
   type ContactCandidate,
 } from "./matcher-keyword";
 import { matchArticleLLM, type LlmCandidates } from "./matcher-llm";
+import { computeStateAbbrevs } from "./state-hints";
 
 export interface MatchStats {
   articlesProcessed: number;
@@ -143,12 +143,42 @@ export async function matchArticles(articleIds: string[]): Promise<MatchStats> {
     where: { id: { in: articleIds } },
   });
 
-  // First pass: extract states per article, collect global state set
+  // Look up source-confidence district links for the batch. These get stamped
+  // by the Layer 3 / Layer 4 ingest path (src/features/news/lib/ingest.ts) and
+  // tell us which district an article was queried for. The district's state
+  // becomes a state hint — see computeStateAbbrevs in state-hints.ts.
+  const sourceLinks = await prisma.newsArticleDistrict.findMany({
+    where: { articleId: { in: articleIds }, confidence: "source" },
+    select: { articleId: true, leaid: true },
+  });
+  const sourceLeaidByArticle = new Map<string, string>();
+  for (const link of sourceLinks) sourceLeaidByArticle.set(link.articleId, link.leaid);
+
+  const sourceLeaids = [...new Set(sourceLinks.map((l) => l.leaid))];
+  const sourceLeaidStates = sourceLeaids.length
+    ? await prisma.district.findMany({
+        where: { leaid: { in: sourceLeaids } },
+        select: { leaid: true, stateAbbrev: true },
+      })
+    : [];
+  const stateBySourceLeaid = new Map<string, string>();
+  for (const d of sourceLeaidStates) {
+    if (d.stateAbbrev) stateBySourceLeaid.set(d.leaid, d.stateAbbrev);
+  }
+
+  // First pass: compute state set per article (text + source-leaid hint +
+  // publisher-map hint), collect global state set for candidate loading.
   const articleStates = new Map<string, string[]>();
   const allStates = new Set<string>();
   for (const a of articles) {
-    const text = [a.title, a.description ?? ""].join(" ");
-    const states = extractStates(text);
+    const sourceLeaid = sourceLeaidByArticle.get(a.id);
+    const sourceLeaidState = sourceLeaid ? stateBySourceLeaid.get(sourceLeaid) ?? null : null;
+    const states = computeStateAbbrevs({
+      title: a.title,
+      description: a.description,
+      publisher: a.source,
+      sourceLeaidState,
+    });
     articleStates.set(a.id, states);
     for (const s of states) allStates.add(s);
     if (states.length > 0) {
