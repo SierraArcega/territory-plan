@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parseClassificationResult, MAX_KEYWORDS, MAX_KEYWORD_CHARS } from "../classifier";
+
+vi.mock("@/lib/anthropic", () => ({
+  HAIKU_MODEL: "claude-haiku-4-5-20251001",
+  callClaude: vi.fn(),
+  findToolUse: vi.fn(),
+}));
 
 describe("parseClassificationResult", () => {
   it("returns null for non-object input", () => {
@@ -198,5 +204,128 @@ describe("parseClassificationResult", () => {
     });
     expect(result?.keywords).toHaveLength(1);
     expect(result?.keywords[0]).toHaveLength(MAX_KEYWORD_CHARS);
+  });
+});
+
+import { callClaude, findToolUse } from "@/lib/anthropic";
+import { classifyOne } from "../classifier";
+
+describe("classifyOne", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    delete process.env.RFP_LLM_ENABLED;
+  });
+
+  it("returns null when RFP_LLM_ENABLED='false'", async () => {
+    process.env.RFP_LLM_ENABLED = "false";
+    const result = await classifyOne({
+      id: 42,
+      title: "Tutoring services",
+      description: null,
+      aiSummary: null,
+    });
+    expect(result).toBeNull();
+    expect(callClaude).not.toHaveBeenCalled();
+  });
+
+  it("calls callClaude with title/description/aiSummary in the user message", async () => {
+    (callClaude as any).mockResolvedValue([{ type: "text", text: "ok" }]);
+    (findToolUse as any).mockReturnValue({
+      input: {
+        fullmindRelevance: "high",
+        keywords: ["tutoring"],
+        fundingSources: ["esser"],
+        setAsideType: "none",
+        inStateOnly: false,
+        cooperativeEligible: true,
+      },
+    });
+
+    await classifyOne({
+      id: 1,
+      title: "K-8 High-Dosage Tutoring RFP",
+      description: "Seeking vendors for ESSER-funded math tutoring",
+      aiSummary: "K-8 ESSER tutoring",
+    });
+
+    expect(callClaude).toHaveBeenCalledOnce();
+    const arg = (callClaude as any).mock.calls[0][0];
+    expect(arg.userMessage).toContain("K-8 High-Dosage Tutoring RFP");
+    expect(arg.userMessage).toContain("Seeking vendors for ESSER-funded math tutoring");
+    expect(arg.userMessage).toContain("K-8 ESSER tutoring");
+    expect(arg.toolChoice).toEqual({ type: "tool", name: "classify_rfp" });
+  });
+
+  it("returns null when no classify_rfp tool use found in response", async () => {
+    (callClaude as any).mockResolvedValue([{ type: "text", text: "ok" }]);
+    (findToolUse as any).mockReturnValue(null);
+
+    const result = await classifyOne({
+      id: 1,
+      title: "X",
+      description: null,
+      aiSummary: null,
+    });
+    expect(result).toBeNull();
+  });
+
+  it("parses a successful tool response", async () => {
+    (callClaude as any).mockResolvedValue([{ type: "text", text: "ok" }]);
+    (findToolUse as any).mockReturnValue({
+      input: {
+        fullmindRelevance: "medium",
+        keywords: ["mtss tier 2"],
+        fundingSources: ["title_i"],
+        setAsideType: "small_business",
+        inStateOnly: true,
+        cooperativeEligible: false,
+        requiresW9State: "CA",
+      },
+    });
+
+    const result = await classifyOne({
+      id: 1,
+      title: "MTSS Vendor Pool",
+      description: null,
+      aiSummary: null,
+    });
+
+    expect(result).toEqual({
+      fullmindRelevance: "medium",
+      keywords: ["mtss tier 2"],
+      fundingSources: ["title_i"],
+      setAsideType: "small_business",
+      inStateOnly: true,
+      cooperativeEligible: false,
+      requiresW9State: "CA",
+    });
+  });
+
+  it("truncates description to 800 chars to control prompt cost", async () => {
+    (callClaude as any).mockResolvedValue([{ type: "text", text: "ok" }]);
+    (findToolUse as any).mockReturnValue({
+      input: {
+        fullmindRelevance: "low",
+        keywords: [],
+        fundingSources: [],
+        setAsideType: "none",
+        inStateOnly: false,
+        cooperativeEligible: false,
+      },
+    });
+
+    const longDesc = "x".repeat(2000);
+    await classifyOne({
+      id: 1,
+      title: "T",
+      description: longDesc,
+      aiSummary: null,
+    });
+
+    const userMsg = (callClaude as any).mock.calls[0][0].userMessage as string;
+    // Should contain at most 800 'x' run from the description
+    const xRun = userMsg.match(/x{800,}/);
+    expect(xRun).not.toBeNull();
+    expect(userMsg.match(/x{900}/)).toBeNull();
   });
 });

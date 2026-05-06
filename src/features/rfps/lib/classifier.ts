@@ -162,6 +162,42 @@ const CLASSIFY_TOOL = {
   },
 };
 
+const MAX_DESCRIPTION_CHARS = 800;
+
+export interface RfpRow {
+  id: number;
+  title: string;
+  description: string | null;
+  aiSummary: string | null;
+}
+
+export async function classifyOne(rfp: RfpRow): Promise<ClassificationResult | null> {
+  if (process.env.RFP_LLM_ENABLED === "false") return null;
+
+  const parts: string[] = [`Title: ${rfp.title}`];
+  if (rfp.description && rfp.description !== rfp.title) {
+    parts.push(`Description: ${rfp.description.slice(0, MAX_DESCRIPTION_CHARS)}`);
+  }
+  if (rfp.aiSummary && rfp.aiSummary !== rfp.title && rfp.aiSummary !== rfp.description) {
+    parts.push(`AI Summary: ${rfp.aiSummary.slice(0, MAX_DESCRIPTION_CHARS)}`);
+  }
+  const userMessage = parts.join("\n");
+
+  const content = await callClaude({
+    model: HAIKU_MODEL,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage,
+    tools: [CLASSIFY_TOOL],
+    toolChoice: { type: "tool", name: "classify_rfp" },
+    maxTokens: 600,
+  });
+
+  const tool = findToolUse(content, "classify_rfp");
+  if (!tool) return null;
+
+  return parseClassificationResult(tool.input);
+}
+
 const SYSTEM_PROMPT = `You classify K-12 procurement RFPs for Fullmind Learning — a company that sells on-demand online tutoring, virtual teachers, intervention services, professional development, and the EK12 curriculum subscription to public school districts.
 
 Each RFP arrives as a title (sometimes with a description and AI summary). The audience is a Fullmind sales rep deciding whether to pursue a bid. You must return:
