@@ -244,6 +244,16 @@ export async function GET() {
         JOIN opportunities o ON o.id = s.opportunity_id
         WHERE o.district_lea_id IS NOT NULL
         GROUP BY o.district_lea_id
+      ),
+      -- Any FY27 opp regardless of stage or amount.
+      -- Catches Closed Lost and zero-dollar Stage 0 opps that
+      -- district_financials' open_pipeline / closed_won_bookings miss.
+      fy27_any_opp AS (
+        SELECT DISTINCT district_lea_id AS leaid
+        FROM opportunities
+        WHERE school_yr = '2026-27'
+          AND district_lea_id IS NOT NULL
+          AND district_lea_id != '_NOMAP'
       )
       SELECT
         d.leaid, d.name, d.state_abbrev, d.enrollment, d.lmsid,
@@ -297,6 +307,7 @@ export async function GET() {
       LEFT JOIN top_products tp ON tp.leaid = eligible.leaid
       WHERE eligible.leaid NOT IN (SELECT leaid FROM fy27_done WHERE leaid IS NOT NULL)
         AND fy27_pipe.leaid IS NULL
+        AND eligible.leaid NOT IN (SELECT leaid FROM fy27_any_opp)
         -- Win-back categories also require no FY27 plan membership;
         -- Missing Renewal Opp stays visible even when in a plan (action flips to Open in LMS).
         AND (

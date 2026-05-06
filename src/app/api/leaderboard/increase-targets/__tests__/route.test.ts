@@ -143,7 +143,7 @@ describe("GET /api/leaderboard/increase-targets", () => {
     expect(data.totalRevenueAtRisk).toBe(75000);
   });
 
-  it("references fy27_done, fy27_pipe, fy27_plan, and revenue_trend CTEs in its SQL", async () => {
+  it("references fy27_done, fy27_pipe, fy27_plan, fy27_any_opp, and revenue_trend CTEs in its SQL", async () => {
     (prisma.$queryRaw as unknown as Mock).mockResolvedValueOnce([]);
 
     await GET();
@@ -157,8 +157,10 @@ describe("GET /api/leaderboard/increase-targets", () => {
     expect(sql).toContain("fy27_done");
     expect(sql).toContain("fy27_pipe");
     expect(sql).toContain("fy27_plan");
+    expect(sql).toContain("fy27_any_opp");
     expect(sql).toContain("revenue_trend");
     expect(sql).toContain("NOT IN (SELECT leaid FROM fy27_done");
+    expect(sql).toContain("NOT IN (SELECT leaid FROM fy27_any_opp");
     expect(sql).toContain("LEFT JOIN revenue_trend rt");
   });
 
