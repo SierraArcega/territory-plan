@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ExternalLink } from "lucide-react";
 import { usePlanOpportunities } from "@/lib/api";
 import type { PlanOpportunityRow } from "@/features/shared/types/api-types";
+
+const GRID_TEMPLATE = "260px 140px 120px 110px 90px 90px 90px 100px";
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null || value === 0) return "—";
@@ -119,11 +122,16 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-auto">
       {/* Table header */}
-      <div className="shrink-0 border-b border-[#E2DEEC] bg-[#FAFAFE]">
-        <div className="grid grid-cols-[1.5fr_1fr_90px_90px_90px_90px_90px_90px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
-          <ColHeader label="Name" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+      <div className="sticky top-0 z-10 shrink-0 min-w-max border-b border-[#E2DEEC] bg-[#FAFAFE]">
+        <div
+          className="grid items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]"
+          style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
+        >
+          <div className="sticky left-0 z-[1] bg-[#FAFAFE] border-r border-[#E2DEEC]">
+            <ColHeader label="Name" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
+          </div>
           <ColHeader label="District" col="district" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
           <ColHeader label="Stage" col="stage" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
           <ColHeader label="Type" col="type" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
@@ -135,7 +143,7 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
       </div>
 
       {/* Rows */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-w-max">
         {sorted.map((opp) => (
           <OppRow key={opp.id} opp={opp} />
         ))}
@@ -143,11 +151,16 @@ export default function PlanOpportunitiesTab({ planId }: PlanOpportunitiesTabPro
 
       {/* Footer */}
       {totals && (
-        <div className="shrink-0 border-t border-[#E2DEEC] bg-[#FAFAFE]">
-          <div className="grid grid-cols-[1.5fr_1fr_90px_90px_90px_90px_90px_90px] items-center px-5 py-2.5 text-[11px]">
-            <span className="font-medium text-[#6E6390]">
-              {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"}
-            </span>
+        <div className="sticky bottom-0 z-10 shrink-0 min-w-max border-t border-[#E2DEEC] bg-[#FAFAFE]">
+          <div
+            className="grid items-center px-5 py-2.5 text-[11px]"
+            style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
+          >
+            <div className="sticky left-0 z-[1] bg-[#FAFAFE] border-r border-[#E2DEEC]">
+              <span className="font-medium text-[#6E6390]">
+                {opportunities.length} opportunit{opportunities.length !== 1 ? "ies" : "y"}
+              </span>
+            </div>
             <span />
             <span />
             <span />
@@ -174,16 +187,37 @@ function OppRow({ opp }: { opp: PlanOpportunityRow }) {
   const stageStyle = getStageStyle(opp.stage);
 
   return (
-    <div className="grid grid-cols-[1.5fr_1fr_90px_90px_90px_90px_90px_90px] items-center px-5 py-2.5 border-b border-[#f0edf5] last:border-b-0 hover:bg-[#FAFAFE] transition-colors">
-      <span className="text-xs font-medium text-[#544A78] truncate pr-2" title={opp.name ?? undefined}>
-        {opp.name ?? "Untitled"}
-      </span>
+    <div
+      className="group grid items-center px-5 py-2.5 border-b border-[#f0edf5] last:border-b-0 hover:bg-[#FAFAFE] transition-colors"
+      style={{ gridTemplateColumns: GRID_TEMPLATE, minWidth: "max-content" }}
+    >
+      <div className="sticky left-0 z-[1] bg-white group-hover:bg-[#FAFAFE] border-r border-[#E2DEEC] pr-2 transition-colors flex items-center min-w-0">
+        {opp.detailsLink ? (
+          <a
+            href={opp.detailsLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 min-w-0 text-xs font-medium text-[#544A78] hover:underline fm-focus-ring"
+            title={opp.name ?? undefined}
+          >
+            <span className="break-words">{opp.name ?? "Untitled"}</span>
+            <ExternalLink className="w-3 h-3 shrink-0 opacity-60" aria-hidden />
+          </a>
+        ) : (
+          <span
+            className="text-xs font-medium text-[#544A78] break-words"
+            title={opp.name ?? undefined}
+          >
+            {opp.name ?? "Untitled"}
+          </span>
+        )}
+      </div>
       <span className="text-[11px] text-[#8A80A8] truncate pr-2" title={opp.districtName ?? undefined}>
         {opp.districtName ?? "—"}
       </span>
-      <span>
+      <span className="whitespace-nowrap">
         {opp.stage ? (
-          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${stageStyle.bg} ${stageStyle.text}`}>
+          <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-full text-[10px] font-semibold ${stageStyle.bg} ${stageStyle.text}`}>
             {opp.stage}
           </span>
         ) : (

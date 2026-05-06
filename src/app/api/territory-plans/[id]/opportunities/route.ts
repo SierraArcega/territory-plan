@@ -54,6 +54,7 @@ export async function GET(
         completedRevenue: true,
         scheduledRevenue: true,
         closeDate: true,
+        detailsLink: true,
       },
       orderBy: { netBookingAmount: "desc" },
     });
@@ -71,6 +72,7 @@ export async function GET(
       completedRevenue: r.completedRevenue ? Number(r.completedRevenue) : 0,
       scheduledRevenue: r.scheduledRevenue ? Number(r.scheduledRevenue) : 0,
       closeDate: r.closeDate?.toISOString() ?? null,
+      detailsLink: r.detailsLink,
     }));
 
     return NextResponse.json(opportunities);
