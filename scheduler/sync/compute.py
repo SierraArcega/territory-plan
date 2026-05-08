@@ -64,7 +64,20 @@ def compute_metrics(sessions, now=None):
     total_take = completed_take + scheduled_take
     avg_take_rate = None
     if total_revenue > 0:
-        avg_take_rate = (total_take / total_revenue).quantize(FOUR_PLACES, ROUND_HALF_UP)
+        ratio = (total_take / total_revenue).quantize(FOUR_PLACES, ROUND_HALF_UP)
+        # opportunities.average_take_rate is NUMERIC(5,4) — abs(value) must
+        # be < 10 to fit. A ratio past that bound only happens when educator
+        # cost massively outpaces session revenue (e.g. a single low-priced
+        # session against a large negative take); the value isn't meaningful
+        # and would otherwise raise "numeric field overflow" and abort the
+        # whole sync transaction.
+        if abs(ratio) < Decimal("10"):
+            avg_take_rate = ratio
+        else:
+            logger.warning(
+                f"average_take_rate {ratio} exceeds NUMERIC(5,4) range; "
+                f"storing NULL (total_take={total_take}, total_revenue={total_revenue})"
+            )
 
     return {
         "completed_revenue": completed_revenue,
