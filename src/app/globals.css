@@ -42,7 +42,14 @@ body {
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+[class*="overflow-auto"],
+[class*="overflow-y-auto"],
+[class*="overflow-scroll"],
+[class*="overflow-y-scroll"] {
+  -webkit-overflow-scrolling: touch;
 }
 
 body {

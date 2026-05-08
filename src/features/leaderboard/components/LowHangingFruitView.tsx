@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Check, ChevronDown, Plus } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { useLowHangingFruitList } from "../lib/queries";
 import type { IncreaseTarget, IncreaseTargetCategory } from "../lib/types";
 import { formatCurrencyShort, getInitials } from "../lib/format";
@@ -184,23 +184,25 @@ function RowActions({ district, isConfirmed, confirmedPlanLabel, onAdded }: RowA
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        title="Create opportunity in LMS (opens new tab)"
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#C2BBD4] text-xs font-semibold text-[#403770] bg-white hover:bg-[#F7F5FA] whitespace-nowrap"
+        aria-label="Add opportunity"
+        className="inline-flex items-center justify-center w-[28px] h-[28px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg border border-[#C2BBD4] text-[#403770] bg-white hover:bg-[#F7F5FA]"
       >
-        + Opp <ArrowUpRight className="w-3 h-3" />
+        <span className="hidden sm:inline text-xs font-semibold whitespace-nowrap">+ Opp</span>
+        <ArrowUpRight className="w-3 h-3" />
       </a>
       <button
         ref={planBtnRef}
         type="button"
+        aria-label="Add plan"
         onClick={(e) => {
           e.stopPropagation();
           setPickerOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-[#403770] hover:bg-[#322a5a] whitespace-nowrap"
+        className="inline-flex items-center justify-center w-[28px] h-[28px] sm:w-auto sm:h-auto sm:gap-1 sm:px-2.5 sm:py-1 rounded-lg text-white bg-[#403770] hover:bg-[#322a5a]"
       >
         <Plus className="w-3 h-3" />
-        Plan
-        <ChevronDown className="w-2.5 h-2.5 opacity-80" />
+        <span className="hidden sm:inline text-xs font-semibold whitespace-nowrap">Plan</span>
+        <ChevronDown className="hidden sm:inline w-2.5 h-2.5 opacity-80" />
       </button>
       {pickerOpen && (
         <LhfPlanPicker
@@ -228,6 +230,39 @@ export default function LowHangingFruitView() {
   const bulkBtnRef = useRef<HTMLButtonElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [bannerCollapsed, setBannerCollapsed] = useState(() =>
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("lhf-banner-collapsed") === "true"
+  );
+
+  const toggleBanner = () => {
+    setBannerCollapsed((prev) => {
+      const next = !prev;
+      sessionStorage.setItem("lhf-banner-collapsed", String(next));
+      return next;
+    });
+  };
+
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() =>
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("lhf-filters-collapsed") === "true"
+  );
+
+  const toggleFilters = () => {
+    setFiltersCollapsed((prev) => {
+      const next = !prev;
+      sessionStorage.setItem("lhf-filters-collapsed", String(next));
+      return next;
+    });
+  };
+
+  const activeFilterCount =
+    filters.categories.length +
+    filters.states.length +
+    filters.products.length +
+    (filters.revenueBand ? 1 : 0) +
+    filters.lastReps.length;
 
   const allRows = query.data?.districts ?? [];
 
@@ -353,34 +388,92 @@ export default function LowHangingFruitView() {
         </header>
 
         {/* Summary banner */}
-        <div className="flex-shrink-0 px-5 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
-          <p className="text-xs text-[#544A78] leading-relaxed">
-            You&apos;ll find 3 buckets of customers on this page:{" "}
-            <strong className="text-[#403770]">Missing Renewals</strong>,{" "}
-            <strong className="text-[#403770]">Fullmind Winbacks</strong>, and{" "}
-            <strong className="text-[#403770]">Elevate Winbacks</strong>.{" "}
-            All Winbacks are first-come, first-serve — it doesn&apos;t matter if you were the original rep or if the customer is from your company of origin.
-            Grab any winback that looks exciting and fits into the goals you have for your Book of Business!
-          </p>
-          <p className="text-xs text-[#544A78] mt-2">
-            <strong className="text-[#403770]">How to action them:</strong>{" "}
-            Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity, or add to a plan and set a target.
-          </p>
-          <ul className="text-xs text-[#544A78] mt-1.5 space-y-0.5 list-disc pl-5">
-            <li>
-              <strong className="text-[#403770]">Missing Renewals</strong> leave this list once an FY27 opp exists — renewals are required to have an FY27 opportunity, so <strong className="text-[#403770]">+Opp</strong> is the path.
-            </li>
-            <li>
-              <strong className="text-[#403770]">Winbacks</strong> leave this list when an FY27 opp is created <em>or</em> a plan target is set.
-            </li>
-          </ul>
-        </div>
+        {bannerCollapsed ? (
+          <button
+            type="button"
+            onClick={toggleBanner}
+            className="flex-shrink-0 flex items-center justify-between px-5 py-2 bg-[#F7F5FA] border-b border-[#E2DEEC] w-full text-left"
+            aria-expanded={false}
+            aria-label="Show instructions"
+          >
+            <span className="text-[11px] font-semibold text-[#6E6390]">Instructions</span>
+            <ChevronDown className="w-3.5 h-3.5 text-[#8A80A8]" />
+          </button>
+        ) : (
+          <div className="flex-shrink-0 px-5 py-3.5 bg-[#F7F5FA] border-b border-[#E2DEEC]">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1">
+                <p className="text-xs text-[#544A78] leading-relaxed">
+                  You&apos;ll find 3 buckets of customers on this page:{" "}
+                  <strong className="text-[#403770]">Missing Renewals</strong>,{" "}
+                  <strong className="text-[#403770]">Fullmind Winbacks</strong>, and{" "}
+                  <strong className="text-[#403770]">Elevate Winbacks</strong>.{" "}
+                  All Winbacks are first-come, first-serve — it doesn&apos;t matter if you were the original rep or if the customer is from your company of origin.
+                  Grab any winback that looks exciting and fits into the goals you have for your Book of Business!
+                </p>
+                <p className="text-xs text-[#544A78] mt-2">
+                  <strong className="text-[#403770]">How to action them:</strong>{" "}
+                  Click the <strong className="text-[#403770]">+Opp</strong> button to jump straight into the LMS and create the opportunity, or add to a plan and set a target.
+                </p>
+                <ul className="text-xs text-[#544A78] mt-1.5 space-y-0.5 list-disc pl-5">
+                  <li>
+                    <strong className="text-[#403770]">Missing Renewals</strong> leave this list once an FY27 opp exists — renewals are required to have an FY27 opportunity, so <strong className="text-[#403770]">+Opp</strong> is the path.
+                  </li>
+                  <li>
+                    <strong className="text-[#403770]">Winbacks</strong> leave this list when an FY27 opp is created <em>or</em> a plan target is set.
+                  </li>
+                </ul>
+              </div>
+              <button
+                type="button"
+                onClick={toggleBanner}
+                className="flex-shrink-0 text-[#8A80A8] hover:text-[#403770] mt-0.5"
+                aria-expanded={true}
+                aria-label="Hide instructions"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
-        <LowHangingFruitFilterBar
-          filters={filters}
-          facets={facets}
-          onChange={setFilters}
-        />
+        {/* Filter bar */}
+        {filtersCollapsed ? (
+          <button
+            type="button"
+            onClick={toggleFilters}
+            className="flex-shrink-0 flex items-center justify-between px-5 py-2 bg-white border-b border-[#E2DEEC] w-full text-left"
+            aria-expanded={false}
+            aria-label="Show filters"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-[#6E6390]">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white bg-[#403770]">
+                  {activeFilterCount}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-[#8A80A8]" />
+          </button>
+        ) : (
+          <div className="flex-shrink-0 relative">
+            <LowHangingFruitFilterBar
+              filters={filters}
+              facets={facets}
+              onChange={setFilters}
+            />
+            <button
+              type="button"
+              onClick={toggleFilters}
+              className="absolute right-3 top-3 text-[#8A80A8] hover:text-[#403770]"
+              aria-expanded={true}
+              aria-label="Hide filters"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Table */}
         <div className="flex-1 min-h-0 overflow-auto bg-white">
@@ -443,7 +536,6 @@ export default function LowHangingFruitView() {
                   <Th width={96} align="right">Suggested</Th>
                   <Th width={184}>Last sale</Th>
                   <Th
-                    width={208}
                     align="right"
                     className="px-3 sticky right-0 bg-[#F7F5FA]"
                     style={{ boxShadow: "-4px 0 6px -2px rgba(0,0,0,0.05)" }}
@@ -598,7 +690,7 @@ export default function LowHangingFruitView() {
                         )}
                       </Td>
                       <td
-                        className="py-2 px-3 align-middle text-right sticky right-0"
+                        className="py-1 px-1.5 sm:py-2 sm:px-3 align-middle text-right sticky right-0"
                         style={{
                           background: stickyBg,
                           boxShadow: "-4px 0 6px -2px rgba(0,0,0,0.05)",
@@ -731,7 +823,7 @@ interface TdProps {
 function Td({ children, align = "left", className = "" }: TdProps) {
   return (
     <td
-      className={`py-2 px-3 align-middle text-sm ${
+      className={`py-1 px-2 sm:py-2 sm:px-3 align-middle text-sm ${
         align === "right" ? "text-right" : "text-left"
       } ${className}`}
     >

@@ -105,6 +105,17 @@ function HomeContent() {
   // ?view=builder) leaves this false → params preserved.
   const sidebarTabChangeRef = useRef(false);
 
+  // Collapse sidebar on first mount when viewport is narrow (< 768 px).
+  // Overrides any localStorage-persisted expanded state from a previous desktop session.
+  // No resize listener by design — user can re-expand manually; next page load re-applies.
+  // No cleanup needed — setting store state on unmount has no meaningful inverse.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
   // Initialize state from URL params on mount
   useEffect(() => {
     const tabParam = searchParams.get("tab");
