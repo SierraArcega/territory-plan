@@ -53,6 +53,44 @@ def test_compute_metrics_empty_sessions():
     assert m["average_take_rate"] is None
 
 
+def test_compute_metrics_take_rate_out_of_range_returns_none():
+    """Regression: ratios that overflow NUMERIC(5,4) used to abort the sync.
+
+    Educator cost wildly exceeds session revenue (e.g. $1 session,
+    $100 educator) -> ratio of -99.0, which doesn't fit in NUMERIC(5,4)
+    (max abs 9.9999). Must return None instead of raising on upsert.
+    """
+    sessions = [
+        {
+            "sessionPrice": 1.0,
+            "educatorPrice": 100.0,
+            "educatorApprovedPrice": None,
+            "startTime": "2026-01-01T10:00:00Z",
+            "serviceType": "tutoring",
+        },
+    ]
+    m = compute_metrics(sessions, now=NOW)
+    assert m["total_revenue"] == Decimal("1.00")
+    assert m["total_take"] == Decimal("-99.00")
+    assert m["average_take_rate"] is None
+
+
+def test_compute_metrics_take_rate_at_boundary_kept():
+    """Ratios within ±9.9999 still persist."""
+    sessions = [
+        {
+            "sessionPrice": 100.0,
+            "educatorPrice": 999.0,
+            "educatorApprovedPrice": None,
+            "startTime": "2026-01-01T10:00:00Z",
+            "serviceType": "tutoring",
+        },
+    ]
+    m = compute_metrics(sessions, now=NOW)
+    assert m["total_take"] == Decimal("-899.00")
+    assert m["average_take_rate"] == Decimal("-8.9900")
+
+
 def test_to_decimal_handles_empty_string():
     """Regression: empty string in numeric field caused ConversionSyntax."""
     from sync.compute import _to_decimal
