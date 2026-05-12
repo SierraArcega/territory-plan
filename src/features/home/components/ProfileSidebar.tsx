@@ -121,12 +121,12 @@ export default function ProfileSidebar() {
   return (
     <aside
       className={`shrink-0 border-r border-[#E2DEEC] bg-white h-full transition-[width] duration-200 ease-in-out ${
-        collapsed ? "w-11 overflow-hidden" : "w-[289px] overflow-y-auto"
+        collapsed ? "w-11" : "w-[289px]"
       }`}
     >
       {/* ── Expanded content ── */}
       {!collapsed && (
-        <div className="px-6 pt-4">
+        <div className="px-6 pt-4 h-full overflow-y-auto">
           {/* Collapse chevron */}
           <div className="flex justify-end mb-2">
             <button
