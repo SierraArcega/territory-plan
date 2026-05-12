@@ -12,6 +12,8 @@ import LeaderboardHomeWidget from "@/features/leaderboard/components/Leaderboard
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 import {
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Mail,
   MessageSquare,
@@ -67,6 +69,19 @@ export default function ProfileSidebar() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const createPlan = useCreateTerritoryPlan();
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("home-sidebar-collapsed") === "true";
+  });
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("home-sidebar-collapsed", String(next));
+      return next;
+    });
+  };
+
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const handleNavigateToDetails = useCallback(() => {
     setActiveTab("leaderboard");
