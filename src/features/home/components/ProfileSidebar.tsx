@@ -45,6 +45,25 @@ const INTEGRATIONS: Integration[] = [
   { name: "Rippling", icon: CircleDollarSign, status: "setup" },
 ];
 
+// ============================================================================
+// Quick-action definitions (shared between expanded grid and collapsed strip)
+// ============================================================================
+
+const OPP_URL = "https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26";
+
+interface StripAction {
+  icon: LucideIcon;
+  label: string;
+  modalKey: "plan" | "activity" | "task" | "opp";
+}
+
+const STRIP_ACTIONS: StripAction[] = [
+  { icon: Map, label: "Create Plan", modalKey: "plan" },
+  { icon: FileEdit, label: "Log Activity", modalKey: "activity" },
+  { icon: ListPlus, label: "Create Task", modalKey: "task" },
+  { icon: ExternalLink, label: "Create Opp", modalKey: "opp" },
+];
+
 function relativeTime(date: string | null): string {
   if (!date) return "Never";
   const diff = Date.now() - new Date(date).getTime();
@@ -154,14 +173,19 @@ export default function ProfileSidebar() {
             {/* ---- Quick Actions ---- */}
             <div className="mt-4 self-stretch">
               <div className="grid grid-cols-2 gap-2">
-                <QuickActionButton icon={Map} label="Create Plan" onClick={() => setShowPlanModal(true)} />
-                <QuickActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
-                <QuickActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
-                <QuickActionButton
-                  icon={ExternalLink}
-                  label="Create Opp"
-                  onClick={() => window.open("https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26", "_blank")}
-                />
+                {STRIP_ACTIONS.map(({ icon, label, modalKey }) => (
+                  <QuickActionButton
+                    key={label}
+                    icon={icon}
+                    label={label}
+                    onClick={() => {
+                      if (modalKey === "plan") setShowPlanModal(true);
+                      else if (modalKey === "activity") setShowActivityModal(true);
+                      else if (modalKey === "task") setShowTaskModal(true);
+                      else window.open(OPP_URL, "_blank");
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -249,23 +273,15 @@ export default function ProfileSidebar() {
           <div className="w-5 h-px bg-[#E2DEEC]" />
 
           {/* Quick-action icons */}
-          {[
-            { icon: Map, label: "Create Plan", onClick: () => setShowPlanModal(true) },
-            { icon: FileEdit, label: "Log Activity", onClick: () => setShowActivityModal(true) },
-            { icon: ListPlus, label: "Create Task", onClick: () => setShowTaskModal(true) },
-            {
-              icon: ExternalLink,
-              label: "Create Opp",
-              onClick: () =>
-                window.open(
-                  "https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26",
-                  "_blank"
-                ),
-            },
-          ].map(({ icon: Icon, label, onClick }) => (
+          {STRIP_ACTIONS.map(({ icon: Icon, label, modalKey }) => (
             <div key={label} className="relative group">
               <button
-                onClick={onClick}
+                onClick={() => {
+                  if (modalKey === "plan") setShowPlanModal(true);
+                  else if (modalKey === "activity") setShowActivityModal(true);
+                  else if (modalKey === "task") setShowTaskModal(true);
+                  else window.open(OPP_URL, "_blank");
+                }}
                 aria-label={label}
                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#8A80A8] hover:text-[#544A78] transition-colors cursor-pointer"
               >
