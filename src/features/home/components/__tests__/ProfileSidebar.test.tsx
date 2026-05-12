@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import ProfileSidebar from "../ProfileSidebar";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -169,5 +169,25 @@ describe("ProfileSidebar collapse", () => {
     renderSidebar();
     expect(screen.queryByText("Aston Arcega")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /expand sidebar/i })).toBeInTheDocument();
+  });
+
+  it("collapses reactively when window resizes below 768px", () => {
+    renderSidebar();
+    expect(screen.getByText("Aston Arcega")).toBeInTheDocument();
+    act(() => {
+      Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 390 });
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(screen.queryByText("Aston Arcega")).not.toBeInTheDocument();
+  });
+
+  it("does not auto-expand when window resizes above 768px", () => {
+    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 390 });
+    renderSidebar();
+    act(() => {
+      Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 1280 });
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(screen.queryByText("Aston Arcega")).not.toBeInTheDocument();
   });
 });

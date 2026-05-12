@@ -102,6 +102,17 @@ export default function ProfileSidebar() {
     });
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+        localStorage.setItem("home-sidebar-collapsed", "true");
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const handleNavigateToDetails = useCallback(() => {
     setActiveTab("leaderboard");
