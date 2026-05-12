@@ -213,9 +213,70 @@ export default function ProfileSidebar() {
         </div>
       )}
 
-      {/* ── Collapsed icon strip (placeholder — Task 4 will replace this) ── */}
+      {/* ── Collapsed icon strip ── */}
       {collapsed && (
-        <div>STRIP_PLACEHOLDER</div>
+        <div className="flex flex-col items-center py-3 gap-2">
+          {/* Expand chevron */}
+          <button
+            onClick={toggle}
+            aria-label="Expand sidebar"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#544A78] transition-colors cursor-pointer"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Avatar — click expands */}
+          <button
+            onClick={toggle}
+            aria-label="Expand via avatar"
+            className="w-8 h-8 rounded-full overflow-hidden shrink-0 cursor-pointer"
+          >
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-coral">
+                <span className="text-xs font-bold text-white">{initials}</span>
+              </div>
+            )}
+          </button>
+
+          {/* Divider */}
+          <div className="w-5 h-px bg-[#E2DEEC]" />
+
+          {/* Quick-action icons */}
+          {[
+            { icon: Map, label: "Create Plan", onClick: () => setShowPlanModal(true) },
+            { icon: FileEdit, label: "Log Activity", onClick: () => setShowActivityModal(true) },
+            { icon: ListPlus, label: "Create Task", onClick: () => setShowTaskModal(true) },
+            {
+              icon: ExternalLink,
+              label: "Create Opp",
+              onClick: () =>
+                window.open(
+                  "https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26",
+                  "_blank"
+                ),
+            },
+          ].map(({ icon: Icon, label, onClick }) => (
+            <div key={label} className="relative group">
+              <button
+                onClick={onClick}
+                aria-label={label}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#8A80A8] hover:text-[#544A78] transition-colors cursor-pointer"
+              >
+                <Icon className="w-3.5 h-3.5" />
+              </button>
+              <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-plum text-[10px] font-medium text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none z-50">
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Modals */}
