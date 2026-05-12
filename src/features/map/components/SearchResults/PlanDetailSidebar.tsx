@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useUpdateTerritoryPlan, useUsers, useStates } from "@/lib/api";
 import type { TerritoryPlanDetail } from "@/features/shared/types/api-types";
+import { formatCurrency } from "@/features/shared/lib/format";
+import { STATUS_BADGE } from "./planStatusBadge";
 
 const STATUS_OPTIONS: { value: string; label: string; dot: string }[] = [
   { value: "planning", label: "Planning", dot: "bg-[#A69DC0]" },
@@ -10,20 +12,6 @@ const STATUS_OPTIONS: { value: string; label: string; dot: string }[] = [
   { value: "stale", label: "Stale", dot: "bg-[#D4A843]" },
   { value: "archived", label: "Archived", dot: "bg-[#A69DC0]" },
 ];
-
-const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
-  planning: { bg: "bg-[#f0edf5]", text: "text-[#6E6390]" },
-  working: { bg: "bg-[#EFF5F0]", text: "text-[#5a7a61]" },
-  stale: { bg: "bg-[#FEF3C7]", text: "text-[#92700C]" },
-  archived: { bg: "bg-[#f0edf5]", text: "text-[#8A80A8]" },
-};
-
-function formatCurrency(value: number | null | undefined): string {
-  if (value == null || value === 0) return "$0";
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toLocaleString()}`;
-}
 
 function formatDate(dateString: string | null): string {
   if (!dateString) return "—";
@@ -150,18 +138,18 @@ function ReadMode({
       {/* Targets */}
       <div className="space-y-2.5">
         <SectionLabel>Targets</SectionLabel>
-        <StatRow label="Total Target" value={formatCurrency(totalTarget)} highlight />
-        <StatRow label="Renewal" value={formatCurrency(plan.renewalRollup)} />
-        <StatRow label="Expansion" value={formatCurrency(plan.expansionRollup)} />
-        <StatRow label="Winback" value={formatCurrency(plan.winbackRollup)} />
-        <StatRow label="New Business" value={formatCurrency(plan.newBusinessRollup)} />
+        <StatRow label="Total Target" value={formatCurrency(totalTarget, true)} highlight />
+        <StatRow label="Renewal" value={formatCurrency(plan.renewalRollup, true)} />
+        <StatRow label="Expansion" value={formatCurrency(plan.expansionRollup, true)} />
+        <StatRow label="Winback" value={formatCurrency(plan.winbackRollup, true)} />
+        <StatRow label="New Business" value={formatCurrency(plan.newBusinessRollup, true)} />
       </div>
 
       {/* Actuals */}
       <div className="space-y-2.5">
         <SectionLabel>Actuals</SectionLabel>
-        <StatRow label="Revenue" value={formatCurrency(totalActual)} highlight />
-        <StatRow label="Pipeline" value={formatCurrency(totalPipeline)} />
+        <StatRow label="Revenue" value={formatCurrency(totalActual, true)} highlight />
+        <StatRow label="Pipeline" value={formatCurrency(totalPipeline, true)} />
       </div>
 
       {/* Owner */}

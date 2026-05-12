@@ -39,14 +39,6 @@ export default function PlanDetailModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose, onPrev, onNext]);
 
-  // Prevent body scroll while modal is open
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
-
   return createPortal(
     <div onClick={(e) => e.stopPropagation()}>
       {/* Backdrop */}

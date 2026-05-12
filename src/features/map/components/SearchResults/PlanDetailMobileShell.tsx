@@ -2,21 +2,9 @@
 
 import { useState } from "react";
 import type { TerritoryPlanDetail } from "@/features/shared/types/api-types";
+import { formatCurrency } from "@/features/shared/lib/format";
+import { STATUS_BADGE } from "./planStatusBadge";
 import PlanDetailTabs from "./PlanDetailTabs";
-
-const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
-  planning: { bg: "bg-[#f0edf5]", text: "text-[#6E6390]" },
-  working: { bg: "bg-[#EFF5F0]", text: "text-[#5a7a61]" },
-  stale: { bg: "bg-[#FEF3C7]", text: "text-[#92700C]" },
-  archived: { bg: "bg-[#f0edf5]", text: "text-[#8A80A8]" },
-};
-
-function formatCurrency(value: number | null | undefined): string {
-  if (value == null || value === 0) return "$0";
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toLocaleString()}`;
-}
 
 interface PlanDetailMobileShellProps {
   plan: TerritoryPlanDetail;
@@ -65,7 +53,7 @@ export default function PlanDetailMobileShell({
       >
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           style={{ background: "rgba(255,255,255,0.15)" }}
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +67,7 @@ export default function PlanDetailMobileShell({
             <button
               onClick={onPrev}
               disabled={!onPrev}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-30"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               style={{ background: "rgba(255,255,255,0.15)" }}
               aria-label="Previous plan"
             >
@@ -93,7 +81,7 @@ export default function PlanDetailMobileShell({
             <button
               onClick={onNext}
               disabled={!onNext}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-30"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               style={{ background: "rgba(255,255,255,0.15)" }}
               aria-label="Next plan"
             >
@@ -106,7 +94,7 @@ export default function PlanDetailMobileShell({
 
         <button
           onClick={onClose}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-white"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
           style={{ background: "rgba(255,255,255,0.15)" }}
           aria-label="Close"
         >
@@ -157,13 +145,13 @@ export default function PlanDetailMobileShell({
           <div className="mt-3 pt-3 border-t border-[#E2DEEC]">
             <div className="grid grid-cols-3 gap-2 mb-2">
               <StatCell label="Districts" value={String(plan.districts.length)} highlight />
-              <StatCell label="Total Target" value={formatCurrency(totalTarget)} highlight />
-              <StatCell label="Revenue" value={formatCurrency(totalActual)} highlight />
+              <StatCell label="Total Target" value={formatCurrency(totalTarget, true)} highlight />
+              <StatCell label="Revenue" value={formatCurrency(totalActual, true)} highlight />
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <StatCell label="Renewal" value={formatCurrency(plan.renewalRollup)} />
-              <StatCell label="Expansion" value={formatCurrency(plan.expansionRollup)} />
-              <StatCell label="New Biz" value={formatCurrency(plan.newBusinessRollup)} />
+              <StatCell label="Renewal" value={formatCurrency(plan.renewalRollup, true)} />
+              <StatCell label="Expansion" value={formatCurrency(plan.expansionRollup, true)} />
+              <StatCell label="New Biz" value={formatCurrency(plan.newBusinessRollup, true)} />
             </div>
           </div>
         )}
