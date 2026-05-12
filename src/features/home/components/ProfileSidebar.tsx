@@ -90,6 +90,7 @@ export default function ProfileSidebar() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
+    if (window.innerWidth < 768) return true;
     return localStorage.getItem("home-sidebar-collapsed") === "true";
   });
 

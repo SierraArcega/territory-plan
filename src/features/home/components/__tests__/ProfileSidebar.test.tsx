@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ProfileSidebar from "../ProfileSidebar";
 
@@ -61,8 +61,16 @@ function renderSidebar() {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe("ProfileSidebar collapse", () => {
+  const originalInnerWidth = window.innerWidth;
+
   beforeEach(() => {
     localStorage.clear();
+    // jsdom defaults innerWidth to 0; set a desktop width so tests default to expanded
+    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 1280 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: originalInnerWidth });
   });
 
   it("renders a collapse chevron button when expanded", () => {
@@ -154,5 +162,12 @@ describe("ProfileSidebar collapse", () => {
     localStorage.setItem("home-sidebar-collapsed", "false");
     renderSidebar();
     expect(screen.getByText("Aston Arcega")).toBeInTheDocument();
+  });
+
+  it("auto-collapses on narrow viewport (< 768px) regardless of localStorage", () => {
+    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 390 });
+    renderSidebar();
+    expect(screen.queryByText("Aston Arcega")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /expand sidebar/i })).toBeInTheDocument();
   });
 });
