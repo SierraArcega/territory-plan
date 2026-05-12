@@ -100,100 +100,123 @@ export default function ProfileSidebar() {
   const jobTitle = profile?.jobTitle || "";
 
   return (
-    <aside className="w-[289px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
-      <div className="px-6 pt-8">
-        {/* ---- Leaderboard Widget ---- */}
-        <LeaderboardHomeWidget onOpenModal={() => setShowLeaderboard(true)} />
+    <aside
+      className={`shrink-0 border-r border-[#E2DEEC] bg-white h-full transition-[width] duration-200 ease-in-out ${
+        collapsed ? "w-11 overflow-hidden" : "w-[289px] overflow-y-auto"
+      }`}
+    >
+      {/* ── Expanded content ── */}
+      {!collapsed && (
+        <div className="px-6 pt-4">
+          {/* Collapse chevron */}
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={toggle}
+              aria-label="Collapse sidebar"
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#8A80A8] hover:text-[#544A78] transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-        {/* ---- User Avatar + Info ---- */}
-        <div className="flex flex-col items-center mb-6">
-          {isLoading ? (
-            <div className="w-[88px] h-[88px] rounded-full bg-[#EFEDF5] animate-pulse" />
-          ) : profile?.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={displayName}
-              className="w-[88px] h-[88px] rounded-full object-cover shadow-sm"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-[88px] h-[88px] rounded-full flex items-center justify-center bg-coral shadow-sm">
-              <span className="text-2xl font-bold text-white">{initials}</span>
-            </div>
-          )}
-          <h2 className="mt-4 text-xl font-bold text-plum text-center">
+          {/* ---- Leaderboard Widget ---- */}
+          <LeaderboardHomeWidget onOpenModal={() => setShowLeaderboard(true)} />
+
+          {/* ---- User Avatar + Info ---- */}
+          <div className="flex flex-col items-center mb-6">
             {isLoading ? (
-              <span className="inline-block w-32 h-5 bg-[#EFEDF5] rounded-lg animate-pulse" />
-            ) : (
-              displayName
-            )}
-          </h2>
-          {jobTitle && (
-            <p className="mt-1 text-sm font-medium text-[#8A80A8] text-center">
-              {jobTitle}
-            </p>
-          )}
-
-          {/* ---- Quick Actions ---- */}
-          <div className="mt-4 self-stretch">
-            <div className="grid grid-cols-2 gap-2">
-              <QuickActionButton icon={Map} label="Create Plan" onClick={() => setShowPlanModal(true)} />
-              <QuickActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
-              <QuickActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
-              <QuickActionButton
-                icon={ExternalLink}
-                label="Create Opp"
-                onClick={() => window.open("https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26", "_blank")}
+              <div className="w-[88px] h-[88px] rounded-full bg-[#EFEDF5] animate-pulse" />
+            ) : profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={displayName}
+                className="w-[88px] h-[88px] rounded-full object-cover shadow-sm"
+                referrerPolicy="no-referrer"
               />
+            ) : (
+              <div className="w-[88px] h-[88px] rounded-full flex items-center justify-center bg-coral shadow-sm">
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              </div>
+            )}
+            <h2 className="mt-4 text-xl font-bold text-plum text-center">
+              {isLoading ? (
+                <span className="inline-block w-32 h-5 bg-[#EFEDF5] rounded-lg animate-pulse" />
+              ) : (
+                displayName
+              )}
+            </h2>
+            {jobTitle && (
+              <p className="mt-1 text-sm font-medium text-[#8A80A8] text-center">
+                {jobTitle}
+              </p>
+            )}
+
+            {/* ---- Quick Actions ---- */}
+            <div className="mt-4 self-stretch">
+              <div className="grid grid-cols-2 gap-2">
+                <QuickActionButton icon={Map} label="Create Plan" onClick={() => setShowPlanModal(true)} />
+                <QuickActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
+                <QuickActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
+                <QuickActionButton
+                  icon={ExternalLink}
+                  label="Create Opp"
+                  onClick={() => window.open("https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26", "_blank")}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* ---- Integrations ---- */}
-        <div className="mt-6">
-          <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
-            Integrations
-          </p>
-          <div className="mt-3 flex items-center gap-2.5">
-            {INTEGRATIONS.map((integration, i) => (
-              <IntegrationChip key={integration.name} integration={integration} alignRight={i >= 2} />
-            ))}
+          {/* ---- Integrations ---- */}
+          <div className="mt-6">
+            <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
+              Integrations
+            </p>
+            <div className="mt-3 flex items-center gap-2.5">
+              {INTEGRATIONS.map((integration, i) => (
+                <IntegrationChip key={integration.name} integration={integration} alignRight={i >= 2} />
+              ))}
+            </div>
           </div>
+
+          {/* ---- Divider ---- */}
+          <div className="h-px bg-[#E2DEEC] mt-6" />
+
+          {/* ---- Contact Details ---- */}
+          {!isLoading && (profile?.email || profile?.phone || profile?.location) && (
+            <div className="mt-6 pb-8 flex flex-col gap-1.5 text-[#A69DC0]">
+              {profile?.email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{profile.email}</span>
+                </div>
+              )}
+              {profile?.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{profile.phone}</span>
+                </div>
+              )}
+              {profile?.location && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{profile.location}</span>
+                </div>
+              )}
+              {profile?.lastLoginAt && (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{relativeTime(profile.lastLoginAt)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+      )}
 
-        {/* ---- Divider ---- */}
-        <div className="h-px bg-[#E2DEEC] mt-6" />
-
-        {/* ---- Contact Details ---- */}
-        {!isLoading && (profile?.email || profile?.phone || profile?.location) && (
-          <div className="mt-6 pb-8 flex flex-col gap-1.5 text-[#A69DC0]">
-            {profile?.email && (
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{profile.email}</span>
-              </div>
-            )}
-            {profile?.phone && (
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{profile.phone}</span>
-              </div>
-            )}
-            {profile?.location && (
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{profile.location}</span>
-              </div>
-            )}
-            {profile?.lastLoginAt && (
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{relativeTime(profile.lastLoginAt)}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* ── Collapsed icon strip (placeholder — Task 4 will replace this) ── */}
+      {collapsed && (
+        <div>STRIP_PLACEHOLDER</div>
+      )}
 
       {/* Modals */}
       <PlanFormModal
