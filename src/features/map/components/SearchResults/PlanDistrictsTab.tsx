@@ -148,7 +148,7 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
         <div className="grid grid-cols-[1fr_52px_52px_44px_28px] sm:grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
           <SortBtn label="District" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
           <SortBtn
-            label={<><span className="sm:hidden">Target</span><span className="hidden sm:inline">Rev. Target</span></>}
+            label={<><span className="sm:hidden whitespace-nowrap">Target</span><span className="hidden sm:inline whitespace-nowrap">Rev. Target</span></>}
             col="target"
             activeCol={sortCol}
             dir={sortDir}
@@ -156,7 +156,7 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
             align="right"
           />
           <SortBtn
-            label={<><span className="sm:hidden">Actual</span><span className="hidden sm:inline">Rev. Actual</span></>}
+            label={<><span className="sm:hidden whitespace-nowrap">Actual</span><span className="hidden sm:inline whitespace-nowrap">Rev. Actual</span></>}
             col="actual"
             activeCol={sortCol}
             dir={sortDir}
@@ -276,10 +276,12 @@ function DistrictRow({
             <span className={`text-xs truncate block ${isExpanded ? "font-semibold text-[#403770]" : "font-medium text-[#544A78]"}`}>
               {district.name}
             </span>
-            <span className="sm:hidden text-[9px] text-[#8A80A8] mt-0.5 block">
-              {district.stateAbbrev ?? "—"}
-              {district.enrollment != null && ` · ${formatEnrollment(district.enrollment)}`}
-            </span>
+            {(district.stateAbbrev != null || district.enrollment != null) && (
+              <span className="sm:hidden text-[9px] text-[#8A80A8] mt-0.5 block">
+                {district.stateAbbrev ?? "—"}
+                {district.enrollment != null && ` · ${formatEnrollment(district.enrollment)}`}
+              </span>
+            )}
           </div>
         </div>
 

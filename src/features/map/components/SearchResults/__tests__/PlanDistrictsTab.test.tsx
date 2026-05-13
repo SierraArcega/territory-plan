@@ -66,9 +66,9 @@ const mockPlan: TerritoryPlanDetail = {
 describe("PlanDistrictsTab", () => {
   it("renders short mobile header label 'Target' (the sm:hidden span)", () => {
     render(<PlanDistrictsTab plan={mockPlan} onClose={vi.fn()} />);
-    // Both spans are in the DOM; JSDOM doesn't apply CSS, so both are present.
-    // We just check the short version exists.
-    expect(screen.getAllByText("Target").length).toBeGreaterThan(0);
+    // JSDOM doesn't apply CSS, so both the sm:hidden "Target" and hidden sm:inline "Rev. Target" spans render.
+    // We verify exactly one element with the short text "Target" exists.
+    expect(screen.getAllByText("Target")).toHaveLength(1);
   });
 
   it("renders the state/enrollment sub-label for the district row", () => {
