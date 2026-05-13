@@ -55,6 +55,10 @@ function getPercentOfBadge(current: number, fullPrior: number): { label: string;
   return { label: `${pct}%`, bg: "bg-[#FEF2F1]", text: "text-[#9B4D46]" };
 }
 
+function formatEnrollment(n: number): string {
+  return n >= 1000 ? `${Math.round(n / 1000)}K` : String(n);
+}
+
 // ─── Sort ────────────────────────────────────────────────────────
 
 type SortColumn = "name" | "target" | "actual" | "attainment";
@@ -699,7 +703,7 @@ function SortBtn({
   onSort,
   align = "left",
 }: {
-  label: string;
+  label: React.ReactNode;
   col: SortColumn;
   activeCol: SortColumn;
   dir: "asc" | "desc";
