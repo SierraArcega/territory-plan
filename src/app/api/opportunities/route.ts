@@ -5,7 +5,10 @@ import { getUser } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 // GET /api/opportunities?search={query}&limit={10}
-// Search opportunities by ID or name
+//   - With `search`: search by id/name (legacy behavior).
+//   - With `leaids=a,b,c`: list opportunities in the given district set
+//     (used by Saved Views' Opps view).
+//   - With neither: returns an empty list.
 export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
@@ -15,24 +18,37 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
+    const leaidsArg = searchParams.get("leaids");
+    const leaids = leaidsArg
+      ? leaidsArg.split(",").map((s) => s.trim()).filter(Boolean)
+      : null;
     const limit = Math.min(
       parseInt(searchParams.get("limit") || "10", 10),
       50
     );
 
-    if (!search || !search.trim()) {
+    // Build the where clause based on the call shape. Search and leaids are
+    // both honored — combining them narrows by both, which is the natural
+    // expectation for any future "search within this plan" UX.
+    const where: Record<string, unknown> = {};
+    if (search && search.trim()) {
+      where.OR = [
+        { id: { contains: search.trim(), mode: "insensitive" } },
+        { name: { contains: search.trim(), mode: "insensitive" } },
+      ];
+    }
+    if (leaids && leaids.length > 0) {
+      where.districtLeaId = { in: leaids };
+    }
+
+    // If neither search nor leaids supplied, fall back to legacy empty
+    // response (the original handler treated this as "no query → no rows").
+    if (!search?.trim() && (!leaids || leaids.length === 0)) {
       return NextResponse.json({ opportunities: [] });
     }
 
-    const query = search.trim();
-
     const opportunities = await prisma.opportunity.findMany({
-      where: {
-        OR: [
-          { id: { contains: query, mode: "insensitive" } },
-          { name: { contains: query, mode: "insensitive" } },
-        ],
-      },
+      where,
       select: {
         id: true,
         name: true,
@@ -43,7 +59,7 @@ export async function GET(request: NextRequest) {
         closeDate: true,
       },
       take: limit,
-      orderBy: [{ name: "asc" }],
+      orderBy: [{ closeDate: "desc" }, { name: "asc" }],
     });
 
     const result = opportunities.map((opp) => ({
