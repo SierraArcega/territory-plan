@@ -36,23 +36,31 @@ export default function SidebarFooter() {
         <span className="whitespace-nowrap">New list</span>
       </button>
 
-      {/* Profile card — 28px avatar + name + pod label */}
+      {/* Profile card — 28px circular avatar (robin's-egg bg + plum initials),
+          name (14px, plum, 500 weight), then optional pod / job-title subline.
+
+          The prototype's "Pod" subline maps to `UserProfile.jobTitle` for now;
+          when the pod field ships server-side we'll swap the source.
+          TODO(saved-views v1.1): replace jobTitle fallback with a real
+          UserProfile.pod field once the schema adds it. */}
       <div className="flex items-center gap-2.5 px-1 min-w-0">
         <div
           className="flex-shrink-0 w-7 h-7 rounded-full bg-[#C4E7E6] flex items-center justify-center"
           aria-hidden
         >
-          <span className="text-[11px] font-semibold text-[#403770] tabular-nums">
+          <span className="text-[11px] font-semibold text-[#403770]">
             {isLoading ? "…" : initialsOf(profile?.fullName)}
           </span>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
-          <span className="text-xs font-semibold text-[#403770] whitespace-nowrap truncate">
+          <span className="text-sm font-medium text-[#403770] whitespace-nowrap truncate">
             {isLoading ? " " : profile?.fullName ?? profile?.email ?? "—"}
           </span>
-          <span className="text-[10px] text-[#8A80A8] whitespace-nowrap truncate">
-            {profile?.jobTitle ?? "Fullmind"}
-          </span>
+          {profile?.jobTitle && (
+            <span className="text-xs text-[#8A80A8] whitespace-nowrap truncate">
+              {profile.jobTitle}
+            </span>
+          )}
         </div>
       </div>
     </footer>
