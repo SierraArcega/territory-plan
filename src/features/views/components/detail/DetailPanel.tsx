@@ -114,6 +114,9 @@ export default function DetailPanel() {
         key={`${detail.kind}:${detail.id}`}
         className="absolute top-0 right-0 bottom-0 w-[380px] bg-white border-l border-[#D4CFE2] flex flex-col z-30 overflow-hidden"
         style={{
+          // Mobile: don't let the panel exceed the viewport — the canvas can
+          // be narrower than 380px when the hamburger sidebar is collapsed.
+          maxWidth: "calc(100vw - 16px)",
           boxShadow: "-12px 0 32px rgba(64,55,112,0.08)",
           animation:
             "detailPanelSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1)",

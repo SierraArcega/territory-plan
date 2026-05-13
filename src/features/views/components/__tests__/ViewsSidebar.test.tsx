@@ -121,4 +121,27 @@ describe("ViewsSidebar shell", () => {
     const buttons = getAllByRole("button", { name: /new list/i });
     expect(buttons.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("translates off-screen when mobileOpen is false", () => {
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <ViewsSidebar mobileOpen={false} onMobileClose={() => undefined} />
+      </Wrapper>,
+    );
+    const aside = container.querySelector("aside");
+    expect(aside?.className).toContain("-translate-x-full");
+  });
+
+  it("slides into view when mobileOpen is true", () => {
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <ViewsSidebar mobileOpen onMobileClose={() => undefined} />
+      </Wrapper>,
+    );
+    const aside = container.querySelector("aside");
+    expect(aside?.className).toContain("translate-x-0");
+    expect(aside?.className).not.toContain("-translate-x-full");
+  });
 });

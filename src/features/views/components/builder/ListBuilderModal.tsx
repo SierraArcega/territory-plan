@@ -335,7 +335,9 @@ function ListBuilderModalBody({ seed, onClose }: ListBuilderModalBodyProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Build a saved list"
-        className="fixed inset-0 z-50 flex items-center justify-center p-8"
+        // Mobile: tighten backdrop padding so the modal can claim more
+        // of the viewport. Desktop padding (p-8) stays for breathing room.
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-8"
         style={{
           background: "rgba(64,55,112,0.45)",
           animation: "lbFade 150ms ease-out",
@@ -345,7 +347,9 @@ function ListBuilderModalBody({ seed, onClose }: ListBuilderModalBodyProps) {
         <div
           className="bg-white rounded-2xl w-full max-w-[880px] flex flex-col overflow-hidden"
           style={{
-            maxHeight: "88vh",
+            // Allow the modal to grow taller on mobile so its inner content
+            // can scroll vertically instead of getting cut off.
+            maxHeight: "92vh",
             boxShadow: "0 24px 48px rgba(64,55,112,0.25)",
             animation: "lbSlide 200ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
