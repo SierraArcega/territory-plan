@@ -1,11 +1,14 @@
 /**
  * /views — the All-Plans portfolio.
  *
- * Phase B3 mounts a stub component; Phase F replaces it with the real
- * PortfolioView (card grid + Active/Archived tabs).
+ * Mounts the real `PortfolioView` (card grid + Active/Archived tabs +
+ * client-side computed header aggregates). The header stats deviate from
+ * the README's "Total target / Booked / To target" set — those would
+ * require new backend fields. See PortfolioView's file header comment for
+ * the full rationale.
  */
-import PortfolioViewStub from "@/features/views/components/__stubs__/PortfolioViewStub";
+import PortfolioView from "@/features/views/components/PortfolioView";
 
 export default function ViewsPortfolioPage() {
-  return <PortfolioViewStub />;
+  return <PortfolioView />;
 }
