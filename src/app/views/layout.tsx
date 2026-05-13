@@ -9,6 +9,7 @@
 import { Suspense } from "react";
 import ViewsSidebar from "@/features/views/components/ViewsSidebar";
 import DetailPanel from "@/features/views/components/detail/DetailPanel";
+import ListBuilderModal from "@/features/views/components/builder/ListBuilderModal";
 
 export default function ViewsLayout({
   children,
@@ -40,6 +41,15 @@ export default function ViewsLayout({
           <DetailPanel />
         </Suspense>
       </main>
+      {/*
+        ListBuilderModal — mounted once at the layout level so all three
+        triggers (sidebar Lists "+", footer dashed "+ New list", canvas
+        "Save as list") open the same instance via useViewsStore.builderOpen.
+        Renders null when closed.
+      */}
+      <Suspense fallback={null}>
+        <ListBuilderModal />
+      </Suspense>
     </div>
   );
 }
