@@ -15,25 +15,12 @@ vi.mock("../../../lib/ai-list-builder/client", () => ({
 import AiPromptBlock from "../AiPromptBlock";
 
 /** Helper to build an async iterator from a fixed event sequence. */
-function makeEventStream(
+async function* makeEventStream(
   events: AiListBuilderEvent[],
 ): AsyncGenerator<AiListBuilderEvent, void, void> {
-  let i = 0;
-  return {
-    async next() {
-      if (i >= events.length) return { value: undefined, done: true };
-      return { value: events[i++], done: false };
-    },
-    async return() {
-      return { value: undefined, done: true };
-    },
-    async throw() {
-      return { value: undefined, done: true };
-    },
-    [Symbol.asyncIterator]() {
-      return this;
-    },
-  } as AsyncGenerator<AiListBuilderEvent, void, void>;
+  for (const ev of events) {
+    yield ev;
+  }
 }
 
 beforeEach(() => {
