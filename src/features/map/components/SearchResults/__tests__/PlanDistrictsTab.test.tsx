@@ -70,4 +70,10 @@ describe("PlanDistrictsTab", () => {
     // We just check the short version exists.
     expect(screen.getAllByText("Target").length).toBeGreaterThan(0);
   });
+
+  it("renders the state/enrollment sub-label for the district row", () => {
+    render(<PlanDistrictsTab plan={mockPlan} onClose={vi.fn()} />);
+    // stateAbbrev="NY", enrollment=25000 → "NY · 25K"
+    expect(screen.getByText("NY · 25K")).toBeInTheDocument();
+  });
 });

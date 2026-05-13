@@ -258,7 +258,7 @@ function DistrictRow({
     <div className={`${isExpanded ? "border-b-2 border-[#E2DEEC]" : "border-b border-[#f0edf5]"} last:border-b-0`}>
       {/* Collapsed row */}
       <div
-        className={`grid grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2.5 cursor-pointer transition-colors ${
+        className={`grid grid-cols-[1fr_52px_52px_44px_28px] sm:grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2.5 cursor-pointer transition-colors ${
           isExpanded ? "bg-[#FAFAFE] border-b border-[#E2DEEC]" : "hover:bg-[#FAFAFE]"
         }`}
         onClick={onToggle}
@@ -272,9 +272,15 @@ function DistrictRow({
           >
             <path d="M2.5 1L5.5 4L2.5 7" stroke="currentColor" strokeWidth={isExpanded ? "1.5" : "1.2"} fill="none" strokeLinecap="round" />
           </svg>
-          <span className={`text-xs truncate ${isExpanded ? "font-semibold text-[#403770]" : "font-medium text-[#544A78]"}`}>
-            {district.name}
-          </span>
+          <div className="min-w-0">
+            <span className={`text-xs truncate block ${isExpanded ? "font-semibold text-[#403770]" : "font-medium text-[#544A78]"}`}>
+              {district.name}
+            </span>
+            <span className="sm:hidden text-[9px] text-[#8A80A8] mt-0.5 block">
+              {district.stateAbbrev ?? "—"}
+              {district.enrollment != null && ` · ${formatEnrollment(district.enrollment)}`}
+            </span>
+          </div>
         </div>
 
         {totalTarget > 0 ? (
