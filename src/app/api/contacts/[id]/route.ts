@@ -4,6 +4,69 @@ import { isValidPersona, isValidSeniorityLevel } from "@/features/shared/types/c
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/contacts/[id]
+ *
+ * Detail-panel data for a single contact. Returns the contact row plus the
+ * joined district (name + state) — the panel header shows
+ * "{role} · {district}" so we need both in one round-trip.
+ *
+ * Added in Phase D for the Saved Views detail panel; the rest of this file
+ * predates the feature and handles legacy PUT/DELETE flows.
+ */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const contactId = parseInt(id, 10);
+    if (!Number.isFinite(contactId)) {
+      return NextResponse.json({ error: "Invalid contact ID" }, { status: 400 });
+    }
+
+    const contact = await prisma.contact.findUnique({
+      where: { id: contactId },
+      include: {
+        district: {
+          select: { leaid: true, name: true, stateAbbrev: true },
+        },
+      },
+    });
+
+    if (!contact) {
+      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      id: contact.id,
+      leaid: contact.leaid,
+      salutation: contact.salutation,
+      name: contact.name,
+      title: contact.title,
+      email: contact.email,
+      phone: contact.phone,
+      isPrimary: contact.isPrimary,
+      linkedinUrl: contact.linkedinUrl,
+      persona: contact.persona,
+      seniorityLevel: contact.seniorityLevel,
+      district: contact.district
+        ? {
+            leaid: contact.district.leaid,
+            name: contact.district.name,
+            stateAbbrev: contact.district.stateAbbrev,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error("Error fetching contact:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch contact" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
