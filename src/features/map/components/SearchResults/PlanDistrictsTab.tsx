@@ -145,10 +145,24 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
 
       {/* Table header */}
       <div className="shrink-0 border-y border-[#E2DEEC] bg-[#FAFAFE]">
-        <div className="grid grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
+        <div className="grid grid-cols-[1fr_52px_52px_44px_28px] sm:grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
           <SortBtn label="District" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-          <SortBtn label="Rev. Target" col="target" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="right" />
-          <SortBtn label="Rev. Actual" col="actual" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+          <SortBtn
+            label={<><span className="sm:hidden">Target</span><span className="hidden sm:inline">Rev. Target</span></>}
+            col="target"
+            activeCol={sortCol}
+            dir={sortDir}
+            onSort={handleSort}
+            align="right"
+          />
+          <SortBtn
+            label={<><span className="sm:hidden">Actual</span><span className="hidden sm:inline">Rev. Actual</span></>}
+            col="actual"
+            activeCol={sortCol}
+            dir={sortDir}
+            onSort={handleSort}
+            align="right"
+          />
           <SortBtn label="Attain." col="attainment" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="center" />
           <span />
         </div>
