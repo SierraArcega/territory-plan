@@ -57,9 +57,14 @@ export const filterAndSchema: z.ZodType<FilterAnd> = z.object({
   children: z.array(filterNodeSchema).max(50),
 });
 
-export const savedListSourceSchema = z.enum(
-  SAVED_LIST_SOURCES as readonly [string, ...string[]],
-);
+// Use a literal-union via z.enum so the inferred type is the precise
+// SavedListSource union, not `string`. Zod's overload picks up the readonly
+// tuple shape when we cast through `as`.
+const SAVED_LIST_SOURCES_TUPLE = SAVED_LIST_SOURCES as readonly [
+  (typeof SAVED_LIST_SOURCES)[number],
+  ...(typeof SAVED_LIST_SOURCES)[number][],
+];
+export const savedListSourceSchema = z.enum(SAVED_LIST_SOURCES_TUPLE);
 
 /** Scope payload for both lists and previews. */
 export const scopeSchema = z.union([
