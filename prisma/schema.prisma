@@ -525,6 +525,7 @@ model TerritoryPlan {
   collaborators TerritoryPlanCollaborator[]
   activityLinks ActivityPlan[]
   taskLinks     TaskPlan[]
+  hidden        TerritoryPlanHidden[]
 
   @@index([userId])
   @@index([userId, fiscalYear])
@@ -575,6 +576,67 @@ model TerritoryPlanCollaborator {
 
   @@id([planId, userId])
   @@map("territory_plan_collaborators")
+}
+
+// ===== Saved Views =====
+// Per-rep saved filtered queries over one of six entity sources. Paired with
+// TerritoryPlan rows in the unified "My views" sidebar. The filter tree is an
+// opaque JSON document; its shape is validated by Zod at the API boundary
+// (see src/lib/saved-views/schema.ts). Compiled to read-only SQL at preview /
+// fetch time via @/lib/db-readonly.
+model SavedList {
+  id              String   @id @default(uuid())
+  ownerId         String   @map("owner_id") @db.Uuid
+  name            String   @db.VarChar(200)
+  // 'districts' | 'contacts' | 'opps' | 'vacancies' | 'news' | 'rfps'
+  source          String   @db.VarChar(20)
+  // {schemaVersion, kind:'and', children:[...]} — see src/lib/saved-views/filter-tree.ts
+  filterTree      Json     @map("filter_tree")
+  // 'none' | 'rules' | 'reference'
+  scopeMode       String   @default("none") @map("scope_mode") @db.VarChar(20)
+  scopeFilterTree Json?    @map("scope_filter_tree")
+  // 'plan' | 'list' when scope_mode = 'reference'
+  scopeRefKind    String?  @map("scope_ref_kind") @db.VarChar(10)
+  scopeRefId      String?  @map("scope_ref_id")
+  shared          Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  owner  UserProfile       @relation("SavedListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  hidden SavedListHidden[]
+
+  @@index([ownerId])
+  @@index([shared])
+  @@map("saved_lists")
+}
+
+// Per-user hide for SavedList rows so a shared list can be dismissed locally
+// without affecting other reps' sidebars.
+model SavedListHidden {
+  listId   String   @map("list_id")
+  userId   String   @map("user_id") @db.Uuid
+  hiddenAt DateTime @default(now()) @map("hidden_at")
+
+  list SavedList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user UserProfile @relation("SavedListHiddenUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([listId, userId])
+  @@map("saved_list_hidden")
+}
+
+// Per-user hide for TerritoryPlan rows. Distinct from status='archived', which
+// is a global state. A rep can hide a plan from their own sidebar without
+// affecting teammates.
+model TerritoryPlanHidden {
+  planId   String   @map("plan_id")
+  userId   String   @map("user_id") @db.Uuid
+  hiddenAt DateTime @default(now()) @map("hidden_at")
+
+  plan TerritoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user UserProfile   @relation("TerritoryPlanHiddenUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([planId, userId])
+  @@map("territory_plan_hidden")
 }
 
 // ===== Activities System =====
@@ -936,6 +998,10 @@ model UserProfile {
   savedReports        SavedReport[]               @relation("UserSavedReports")
   // Query tool active draft (one per user)
   reportDraft         ReportDraft?                @relation("UserReportDraft")
+  // Saved Views — owned + per-user hides for both lists and plans
+  ownedLists          SavedList[]                 @relation("SavedListOwner")
+  hiddenLists         SavedListHidden[]           @relation("SavedListHiddenUser")
+  hiddenPlans         TerritoryPlanHidden[]       @relation("TerritoryPlanHiddenUser")
 
   @@map("user_profiles")
 }
@@ -1931,82 +1997,82 @@ model NewsMatchQueue {
 }
 
 model Rfp {
-  id              Int       @id @default(autoincrement())
-  externalId      String    @unique                            @map("external_id") // = opp_key (HigherGov)
-  versionKey      String                                       @map("version_key") // = version_key (amendment tracker)
-  source          String    @default("highergov")
+  id         Int    @id @default(autoincrement())
+  externalId String @unique @map("external_id") // = opp_key (HigherGov)
+  versionKey String @map("version_key") // = version_key (amendment tracker)
+  source     String @default("highergov")
 
   // Identity / classification
-  title           String
-  solicitationNumber String?                                   @map("solicitation_number") // = source_id
-  oppType         String?                                      @map("opp_type")             // = opp_type.description
-  description     String?   @db.Text
-  aiSummary       String?   @db.Text                          @map("ai_summary")
+  title              String
+  solicitationNumber String? @map("solicitation_number") // = source_id
+  oppType            String? @map("opp_type") // = opp_type.description
+  description        String? @db.Text
+  aiSummary          String? @map("ai_summary") @db.Text
 
   // Agency
-  agencyKey       Int                                          @map("agency_key")           // = agency.agency_key
-  agencyName      String                                       @map("agency_name")
-  agencyPath      String?                                      @map("agency_path")
+  agencyKey  Int     @map("agency_key") // = agency.agency_key
+  agencyName String  @map("agency_name")
+  agencyPath String? @map("agency_path")
 
   // Geography
-  stateAbbrev     String?   @db.VarChar(2)                    @map("state_abbrev")
-  stateFips       String?   @db.VarChar(2)                    @map("state_fips")
-  popCity         String?                                      @map("pop_city")
-  popZip          String?                                      @map("pop_zip")
+  stateAbbrev String? @map("state_abbrev") @db.VarChar(2)
+  stateFips   String? @map("state_fips") @db.VarChar(2)
+  popCity     String? @map("pop_city")
+  popZip      String? @map("pop_zip")
 
   // Resolved district (nullable)
-  leaid           String?   @db.VarChar(7)
+  leaid String? @db.VarChar(7)
 
   // Classifiers
-  naicsCode       String?                                      @map("naics_code")
-  pscCode         String?                                      @map("psc_code")
-  setAside        String?                                      @map("set_aside")
+  naicsCode String? @map("naics_code")
+  pscCode   String? @map("psc_code")
+  setAside  String? @map("set_aside")
 
   // Value
-  valueLow        Decimal?  @db.Decimal(15, 2)                @map("value_low")
-  valueHigh       Decimal?  @db.Decimal(15, 2)                @map("value_high")
+  valueLow  Decimal? @map("value_low") @db.Decimal(15, 2)
+  valueHigh Decimal? @map("value_high") @db.Decimal(15, 2)
 
   // Contact
-  primaryContactName  String?                                  @map("primary_contact_name")
-  primaryContactEmail String?                                  @map("primary_contact_email")
-  primaryContactPhone String?                                  @map("primary_contact_phone")
+  primaryContactName  String? @map("primary_contact_name")
+  primaryContactEmail String? @map("primary_contact_email")
+  primaryContactPhone String? @map("primary_contact_phone")
 
   // Dates
-  postedDate      DateTime?                                    @map("posted_date")
-  dueDate         DateTime?                                    @map("due_date")
-  capturedDate    DateTime                                     @map("captured_date")
+  postedDate   DateTime? @map("posted_date")
+  dueDate      DateTime? @map("due_date")
+  capturedDate DateTime  @map("captured_date")
 
   // Links
-  highergovUrl    String?                                      @map("highergov_url")
-  sourceUrl       String?                                      @map("source_url")
+  highergovUrl String? @map("highergov_url")
+  sourceUrl    String? @map("source_url")
 
   // Classification — set by Haiku classifier pass. Null until classified.
-  fullmindRelevance     String?    @map("fullmind_relevance")    @db.VarChar(10)
-  keywords              String[]   @default([])                  @db.VarChar(80)
-  fundingSources        String[]   @default([])                  @map("funding_sources") @db.VarChar(40)
-  setAsideType          String?    @map("set_aside_type")        @db.VarChar(20)
-  inStateOnly           Boolean    @default(false)               @map("in_state_only")
-  cooperativeEligible   Boolean    @default(false)               @map("cooperative_eligible")
-  requiresW9State       String?    @map("requires_w9_state")     @db.VarChar(2)
-  classifiedAt          DateTime?  @map("classified_at")         @db.Timestamptz
+  fullmindRelevance   String?   @map("fullmind_relevance") @db.VarChar(10)
+  keywords            String[]  @default([]) @db.VarChar(80)
+  fundingSources      String[]  @default([]) @map("funding_sources") @db.VarChar(40)
+  setAsideType        String?   @map("set_aside_type") @db.VarChar(20)
+  inStateOnly         Boolean   @default(false) @map("in_state_only")
+  cooperativeEligible Boolean   @default(false) @map("cooperative_eligible")
+  requiresW9State     String?   @map("requires_w9_state") @db.VarChar(2)
+  classifiedAt        DateTime? @map("classified_at") @db.Timestamptz
 
   // Pipeline signal — set by nightly refresh job. Null until refreshed.
-  districtPipelineState String?    @map("district_pipeline_state") @db.VarChar(20)
-  isNew                 Boolean    @default(false)               @map("is_new")
-  isUrgent              Boolean    @default(false)               @map("is_urgent")
-  signalsRefreshedAt    DateTime?  @map("signals_refreshed_at")   @db.Timestamptz
+  districtPipelineState String?   @map("district_pipeline_state") @db.VarChar(20)
+  isNew                 Boolean   @default(false) @map("is_new")
+  isUrgent              Boolean   @default(false) @map("is_urgent")
+  signalsRefreshedAt    DateTime? @map("signals_refreshed_at") @db.Timestamptz
 
   // Lifecycle
-  status              String    @default("open")
-  higherGovSourceType String?   @map("higher_gov_source_type") @db.VarChar(20)
-  rawPayload          Json                                         @map("raw_payload")
+  status              String  @default("open")
+  higherGovSourceType String? @map("higher_gov_source_type") @db.VarChar(20)
+  rawPayload          Json    @map("raw_payload")
 
-  firstSeenAt     DateTime  @default(now())                   @map("first_seen_at")
-  lastSeenAt      DateTime  @default(now())                   @map("last_seen_at")
-  createdAt       DateTime  @default(now())                   @map("created_at")
-  updatedAt       DateTime  @updatedAt                        @map("updated_at")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  district        District? @relation(fields: [leaid], references: [leaid])
+  district District? @relation(fields: [leaid], references: [leaid])
 
   @@index([leaid, dueDate])
   @@index([stateFips, dueDate])
@@ -2020,21 +2086,21 @@ model Rfp {
 }
 
 model RfpIngestRun {
-  id                Int       @id @default(autoincrement())
-  source            String    @default("highergov")
-  status            String    @default("running")
-  startedAt         DateTime  @default(now())                 @map("started_at")
-  finishedAt        DateTime?                                  @map("finished_at")
-  watermark         DateTime?
-  recordsSeen       Int       @default(0)                     @map("records_seen")
-  recordsNew        Int       @default(0)                     @map("records_new")
-  recordsUpdated    Int       @default(0)                     @map("records_updated")
-  recordsResolved              Int       @default(0)    @map("records_resolved")
-  recordsUnresolved            Int       @default(0)    @map("records_unresolved")
-  recordsResolvedByOverride    Int       @default(0)    @map("records_resolved_by_override")
-  recordsResolvedByName        Int       @default(0)    @map("records_resolved_by_name")
-  recordsSkippedStale          Int       @default(0)    @map("records_skipped_stale")
-  error             String?   @db.Text
+  id                        Int       @id @default(autoincrement())
+  source                    String    @default("highergov")
+  status                    String    @default("running")
+  startedAt                 DateTime  @default(now()) @map("started_at")
+  finishedAt                DateTime? @map("finished_at")
+  watermark                 DateTime?
+  recordsSeen               Int       @default(0) @map("records_seen")
+  recordsNew                Int       @default(0) @map("records_new")
+  recordsUpdated            Int       @default(0) @map("records_updated")
+  recordsResolved           Int       @default(0) @map("records_resolved")
+  recordsUnresolved         Int       @default(0) @map("records_unresolved")
+  recordsResolvedByOverride Int       @default(0) @map("records_resolved_by_override")
+  recordsResolvedByName     Int       @default(0) @map("records_resolved_by_name")
+  recordsSkippedStale       Int       @default(0) @map("records_skipped_stale")
+  error                     String?   @db.Text
 
   @@index([source, status, startedAt])
   @@index([source, finishedAt])
@@ -2042,17 +2108,17 @@ model RfpIngestRun {
 }
 
 model AgencyDistrictMap {
-  agencyKey   Int       @id @map("agency_key")
-  kind        String                                       // "district" | "state" | "non_lea"
-  leaid       String?   @db.VarChar(7)
-  stateFips   String?   @db.VarChar(2) @map("state_fips")
-  source      String    @default("highergov")
-  notes       String?   @db.Text
-  resolvedBy  String?   @map("resolved_by")
-  resolvedAt  DateTime  @default(now()) @db.Timestamptz @map("resolved_at")
-  district    District? @relation(fields: [leaid], references: [leaid])
+  agencyKey  Int       @id @map("agency_key")
+  kind       String // "district" | "state" | "non_lea"
+  leaid      String?   @db.VarChar(7)
+  stateFips  String?   @map("state_fips") @db.VarChar(2)
+  source     String    @default("highergov")
+  notes      String?   @db.Text
+  resolvedBy String?   @map("resolved_by")
+  resolvedAt DateTime  @default(now()) @map("resolved_at") @db.Timestamptz
+  district   District? @relation(fields: [leaid], references: [leaid])
 
-  @@map("agency_district_maps")
   @@index([kind])
   @@index([leaid])
+  @@map("agency_district_maps")
 }
