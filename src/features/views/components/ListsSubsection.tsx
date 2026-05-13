@@ -124,6 +124,7 @@ function Body({ isLoading, isError, lists }: BodyProps) {
             id={l.id}
             label={l.name}
             filterCount={countRules(l.filterTree)}
+            hidden={l.hidden}
           />
         </li>
       ))}

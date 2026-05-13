@@ -12,20 +12,19 @@
  *     button (CTA flows into openBuilder())
  *   - Hidden footer ("Show hidden (N)") wired to the store
  */
-import { useMemo } from "react";
 import Link from "next/link";
 import { Bookmark, Grid3x3, Plus } from "lucide-react";
 import { useViewsStore, selectShowHidden } from "../lib/store";
 import { useLists, usePlansWithStats } from "../lib/queries";
 import PlansSubsection from "./PlansSubsection";
 import ListsSubsection from "./ListsSubsection";
+import HiddenFooter from "./HiddenFooter";
 
 /** Section eyebrow color per the prototype — Fullmind plum. */
 const EYEBROW_PLUM = "#403770";
 
 export default function MyViewsSection() {
   const showHidden = useViewsStore(selectShowHidden);
-  const toggleShowHidden = useViewsStore((s) => s.toggleShowHidden);
   const openBuilder = useViewsStore((s) => s.openBuilder);
 
   const plansQ = usePlansWithStats(showHidden);
@@ -33,14 +32,6 @@ export default function MyViewsSection() {
 
   const plans = plansQ.data ?? [];
   const lists = listsQ.data ?? [];
-
-  // Hidden count for the footer affordance.
-  const hiddenCount = useMemo(
-    () =>
-      plans.filter((p) => p.hidden).length +
-      lists.filter((l) => l.hidden).length,
-    [plans, lists],
-  );
 
   // True empty state — both queries resolved with zero rows. We deliberately
   // do NOT show this until both queries have data; until then the subsections
@@ -111,18 +102,9 @@ export default function MyViewsSection() {
         </>
       )}
 
-      {/* Hidden footer affordance */}
-      {hiddenCount > 0 && (
-        <button
-          type="button"
-          onClick={() => toggleShowHidden()}
-          className="mt-3 mx-2 px-1 py-1 text-left text-[11px] text-[#8A80A8] hover:text-[#403770] transition-colors duration-100 whitespace-nowrap"
-        >
-          {showHidden
-            ? `Hide hidden (${hiddenCount})`
-            : `Show hidden (${hiddenCount})`}
-        </button>
-      )}
+      {/* Show hidden + Archived plans deep-links — render only when their
+          populations are non-empty. */}
+      <HiddenFooter />
     </div>
   );
 }

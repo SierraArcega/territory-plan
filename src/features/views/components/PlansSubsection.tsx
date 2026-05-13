@@ -145,6 +145,7 @@ function Body({ isLoading, isError, plans }: BodyProps) {
             progress={p.progress ?? null}
             target={formatTarget(readTarget(p))}
             fiscal={readFiscalLabel(p)}
+            hidden={p.hidden}
           />
         </li>
       ))}
