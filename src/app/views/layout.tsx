@@ -8,6 +8,7 @@
  */
 import { Suspense } from "react";
 import ViewsSidebar from "@/features/views/components/ViewsSidebar";
+import DetailPanel from "@/features/views/components/detail/DetailPanel";
 
 export default function ViewsLayout({
   children,
@@ -19,11 +20,25 @@ export default function ViewsLayout({
       <Suspense fallback={<aside className="w-[252px] flex-shrink-0 border-r border-[#D4CFE2] bg-white" />}>
         <ViewsSidebar />
       </Suspense>
-      {/* Main canvas — children render the portfolio, group canvas, or detail
-          panel host. min-w-0 is critical so flex children can shrink rather
-          than overflow horizontally (per CLAUDE.md narrow-width guidance). */}
-      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/*
+        Main canvas — children render the portfolio, group canvas, or detail
+        panel host. min-w-0 is critical so flex children can shrink rather
+        than overflow horizontally (per CLAUDE.md narrow-width guidance).
+        `relative` anchors the absolutely-positioned <DetailPanel/> below to
+        this column so the panel slides in over the canvas (not the sidebar)
+        and never covers the My Views nav.
+      */}
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden relative">
         <Suspense fallback={null}>{children}</Suspense>
+        {/*
+          DetailPanel reads its open state from `useViewsRouter().detail`. It
+          renders null when no `?detail=kind:id` param is present, so this
+          mount is effectively a no-op for the portfolio view and any
+          non-detail interaction.
+        */}
+        <Suspense fallback={null}>
+          <DetailPanel />
+        </Suspense>
       </main>
     </div>
   );
