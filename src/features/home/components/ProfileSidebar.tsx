@@ -85,7 +85,7 @@ export default function ProfileSidebar() {
   const jobTitle = profile?.jobTitle || "";
 
   return (
-    <aside className="hidden sm:block w-[289px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
+    <aside className="w-[289px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
       <div className="px-6 pt-8">
         {/* ---- Leaderboard Widget ---- */}
         <LeaderboardHomeWidget onOpenModal={() => setShowLeaderboard(true)} />
