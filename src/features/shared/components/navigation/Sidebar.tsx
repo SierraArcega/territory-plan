@@ -7,8 +7,10 @@ import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardN
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 
 // Tab configuration - defines all navigation items
-// The 'id' matches the activeTab state values we'll use throughout the app
-type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "reports" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin";
+// The 'id' matches the activeTab state values we'll use throughout the app.
+// "views" is a sentinel passed from /views/* routes so no main tab is highlighted —
+// it never appears in MAIN_TABS or BOTTOM_TABS.
+type TabId = "home" | "map" | "plans" | "activities" | "tasks" | "reports" | "leaderboard" | "low-hanging-fruit" | "resources" | "profile" | "admin" | "views";
 
 interface Tab {
   id: TabId;
