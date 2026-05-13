@@ -24,12 +24,42 @@ import {
   type TurnEvent,
 } from "./types";
 
+/**
+ * Agent variant — controls which terminal tool the loop expects and which
+ * result variant the loop produces. The default 'reports' preserves the
+ * original behavior; 'list-builder' is used by the saved-views AI list
+ * builder route.
+ */
+export type AgentVariant = "reports" | "list-builder";
+
+/**
+ * Generic terminal-tool config. When passed to runAgentLoop, the loop
+ * substitutes this tool for the default `run_sql`. The handler returns a
+ * structured payload (kind 'ok' = terminate; 'error' / 'validation_error'
+ * = retry within the SQL-retry budget).
+ */
+export interface TerminalToolConfig<TInput, TOk> {
+  /** Tool name — must match the name the model will call. */
+  name: string;
+  /**
+   * Handler invoked when the model calls the terminal tool. Returns a
+   * RunSqlResult-shaped value; the loop interprets `kind === 'ok'` as
+   * "stream `ok.result` back as a final result event and exit".
+   */
+  handle: (input: TInput, userMessage: string) => Promise<TerminalToolResult<TOk>>;
+}
+
+export type TerminalToolResult<TOk> =
+  | { kind: "ok"; result: TOk }
+  | { kind: "error"; message: string }
+  | { kind: "validation_error"; errors: string[] };
+
 export interface AgentTelemetry {
   events: TurnEvent[];
   usage: TokenUsage;
 }
 
-export type AgentResult = AgentTelemetry &
+export type AgentResult<TTerminal = unknown> = AgentTelemetry &
   (
     | {
         kind: "result";
@@ -41,11 +71,21 @@ export type AgentResult = AgentTelemetry &
         executionTimeMs: number;
         assistantText: string;
       }
+    | {
+        /**
+         * Terminal-tool result for the 'list-builder' variant (and any future
+         * variant whose terminal tool is not `run_sql`). The shape of
+         * `terminalResult` is whatever the terminal-tool handler returned.
+         */
+        kind: "terminal_result";
+        terminalResult: TTerminal;
+        assistantText: string;
+      }
     | { kind: "clarifying"; text: string }
     | { kind: "surrender"; text: string }
   );
 
-interface RunAgentLoopArgs {
+interface RunAgentLoopArgs<TTerminal = unknown> {
   anthropic: Anthropic;
   userMessage: string;
   priorTurns: PriorTurn[];
@@ -59,6 +99,38 @@ interface RunAgentLoopArgs {
    * ignore it — the synchronous return shape is unchanged.
    */
   onEvent?: (event: TurnEvent) => void;
+  /**
+   * Agent variant — controls system prompt selection and the terminal-tool
+   * shape. Defaults to 'reports' for backwards compatibility.
+   */
+  agentVariant?: AgentVariant;
+  /**
+   * Optional override for the system prompt. When omitted, the reports
+   * variant builds the standard prompt; list-builder must supply one.
+   */
+  systemPrompt?: string;
+  /**
+   * Optional override for the tool set. When omitted, the reports variant
+   * uses AGENT_TOOLS; list-builder must supply its own (read-only schema
+   * introspection + emit_list_spec).
+   */
+  tools?: Anthropic.Tool[];
+  /**
+   * Optional terminal-tool config. When provided, the loop substitutes the
+   * default `run_sql` terminal for this one. The 'reports' variant ignores
+   * this and keeps `run_sql`; 'list-builder' requires it.
+   */
+  terminalTool?: TerminalToolConfig<unknown, TTerminal>;
+  /**
+   * Optional handler for exploratory (non-terminal) tools. When omitted,
+   * the loop uses the built-in reports dispatcher (list_tables /
+   * describe_table / search_metadata / etc.). List-builder supplies its own
+   * read-only dispatcher (describe_entity / sample_values).
+   */
+  exploratoryToolHandler?: (
+    toolUse: Anthropic.ToolUseBlock,
+    userId: string,
+  ) => Promise<string>;
 }
 
 // Set AGENT_LOOP_DIAG=1 in the deployment env to capture full system-prompt +
@@ -105,8 +177,29 @@ function containsSqlFence(text: string): boolean {
   return bareFence.test(text);
 }
 
-export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult> {
-  const { anthropic, userMessage, priorTurns, userId, conversationId, onEvent } = args;
+export async function runAgentLoop<TTerminal = unknown>(
+  args: RunAgentLoopArgs<TTerminal>,
+): Promise<AgentResult<TTerminal>> {
+  const {
+    anthropic,
+    userMessage,
+    priorTurns,
+    userId,
+    conversationId,
+    onEvent,
+    agentVariant = "reports",
+    systemPrompt: systemPromptOverride,
+    tools: toolsOverride,
+    terminalTool,
+    exploratoryToolHandler,
+  } = args;
+  // The variant defines which terminal tool name the loop should detect.
+  // Reports keeps the historical `run_sql`. List-builder uses whatever the
+  // caller passed in (typically `emit_list_spec`).
+  const terminalToolName =
+    agentVariant === "list-builder"
+      ? (terminalTool?.name ?? RUN_SQL_TOOL_NAME)
+      : RUN_SQL_TOOL_NAME;
 
   // Replay prior turns as tool_use/tool_result pairs (not Markdown SQL blocks)
   // so the model sees structured execution it can't mimic in plain-text replies.
@@ -147,7 +240,12 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
   }
   history.push({ role: "user", content: userMessage });
 
-  const systemPrompt = await buildSystemPrompt(priorTurns);
+  // System prompt: reports uses the default builder. List-builder must supply
+  // a complete prompt (the entity-schema + filter-tree-shape rules differ
+  // enough that reusing the SQL-flavored prompt would be misleading).
+  const systemPrompt =
+    systemPromptOverride ?? (await buildSystemPrompt(priorTurns));
+  const toolSet = toolsOverride ?? AGENT_TOOLS;
 
   let sqlRetriesUsed = 0;
   let ghostReportRetriesUsed = 0;
@@ -198,7 +296,7 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       max_tokens: 16000,
       thinking: { type: "adaptive" },
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral", ttl: "1h" } }],
-      tools: AGENT_TOOLS,
+      tools: toolSet,
       messages,
     });
 
@@ -246,7 +344,10 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
       // Ghost-report detection: model wrote SQL in text without calling
       // run_sql. Inject a corrective user-turn message and let the loop
       // continue — gives the model one chance to invoke the tool properly.
+      // Only applicable to the reports variant; list-builder doesn't emit
+      // SQL fences in practice.
       if (
+        agentVariant === "reports" &&
         containsSqlFence(text) &&
         ghostReportRetriesUsed < MAX_GHOST_REPORT_RETRIES
       ) {
@@ -293,84 +394,168 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
 
     messages.push({ role: "assistant", content: response.content });
 
-    const runSqlUse = toolUses.find((t) => t.name === RUN_SQL_TOOL_NAME);
-    let runSqlResult: RunSqlResult | null = null;
-    if (runSqlUse) {
-      const input = runSqlUse.input as { sql: string; summary: QuerySummary };
-      runSqlResult = await handleRunSql(input.sql, input.summary, userMessage);
+    // Terminal tool detection — for `reports` variant we look for run_sql; for
+    // `list-builder` (or any variant with a custom terminalTool) we look for
+    // the configured tool name. Both branches share the same retry budget and
+    // tool_result emission shape so SSE consumers can render either uniformly.
+    const terminalUse = toolUses.find((t) => t.name === terminalToolName);
+    let terminalErrShape:
+      | { kind: "error"; message: string }
+      | { kind: "validation_error"; errors: string[] }
+      | null = null;
 
-      if (runSqlResult.kind === "ok") {
-        pushEvent({
-          kind: "tool_result",
-          toolUseId: runSqlUse.id,
-          toolName: runSqlUse.name,
-          isError: false,
-          content: `run_sql ok — ${runSqlResult.rowCount} row(s) in ${runSqlResult.executionTimeMs}ms`,
+    if (terminalUse) {
+      if (agentVariant === "reports") {
+        // Original run_sql path — preserved verbatim so existing behavior is
+        // unchanged for the reports caller.
+        const input = terminalUse.input as { sql: string; summary: QuerySummary };
+        const runSqlResult: RunSqlResult = await handleRunSql(
+          input.sql,
+          input.summary,
+          userMessage,
+        );
+
+        if (runSqlResult.kind === "ok") {
+          pushEvent({
+            kind: "tool_result",
+            toolUseId: terminalUse.id,
+            toolName: terminalUse.name,
+            isError: false,
+            content: `run_sql ok — ${runSqlResult.rowCount} row(s) in ${runSqlResult.executionTimeMs}ms`,
+          });
+          const replyText =
+            assistantText ||
+            `Found ${runSqlResult.rowCount} row${runSqlResult.rowCount === 1 ? "" : "s"}.`;
+          return {
+            kind: "result",
+            sql: runSqlResult.sql,
+            summary: runSqlResult.summary,
+            columns: runSqlResult.columns,
+            rows: runSqlResult.rows,
+            rowCount: runSqlResult.rowCount,
+            executionTimeMs: runSqlResult.executionTimeMs,
+            assistantText: replyText,
+            events,
+            usage: totalUsage,
+          };
+        }
+
+        console.error("[agent-loop] run_sql failed", {
+          attempt: sqlRetriesUsed + 1,
+          kind: runSqlResult.kind,
+          errors:
+            runSqlResult.kind === "validation_error"
+              ? runSqlResult.errors
+              : [runSqlResult.message],
+          sql: input.sql,
+          summary: input.summary,
         });
-        // Fallback so the chat rail always has SOMETHING when Claude skipped
-        // the brief preamble — keeps the UI feeling responsive.
-        const replyText =
-          assistantText ||
-          `Found ${runSqlResult.rowCount} row${runSqlResult.rowCount === 1 ? "" : "s"}.`;
-        return {
-          kind: "result",
-          sql: runSqlResult.sql,
-          summary: runSqlResult.summary,
-          columns: runSqlResult.columns,
-          rows: runSqlResult.rows,
-          rowCount: runSqlResult.rowCount,
-          executionTimeMs: runSqlResult.executionTimeMs,
-          assistantText: replyText,
-          events,
-          usage: totalUsage,
-        };
-      }
 
-      console.error("[agent-loop] run_sql failed", {
-        attempt: sqlRetriesUsed + 1,
-        kind: runSqlResult.kind,
-        errors:
-          runSqlResult.kind === "validation_error"
-            ? runSqlResult.errors
-            : [runSqlResult.message],
-        sql: input.sql,
-        summary: input.summary,
-      });
+        if (sqlRetriesUsed >= MAX_SQL_RETRIES) {
+          pushEvent({
+            kind: "tool_result",
+            toolUseId: terminalUse.id,
+            toolName: terminalUse.name,
+            isError: true,
+            content:
+              runSqlResult.kind === "error"
+                ? `run_sql error: ${runSqlResult.message}`
+                : `run_sql validation failed: ${runSqlResult.errors.join("; ")}`,
+          });
+          const text =
+            assistantText ||
+            "I tried a few times but couldn't run that query. Could you tell me more about what you're looking for?";
+          logDiag("sql_retries_exhausted", "surrender", text);
+          return {
+            kind: "surrender",
+            text,
+            events,
+            usage: totalUsage,
+          };
+        }
+        sqlRetriesUsed++;
+        terminalErrShape =
+          runSqlResult.kind === "error"
+            ? { kind: "error", message: runSqlResult.message }
+            : { kind: "validation_error", errors: runSqlResult.errors };
+      } else {
+        // List-builder (or any future) variant — call the supplied terminal
+        // handler. Same retry budget (MAX_SQL_RETRIES) — list-builder errors
+        // are usually unknown-field / scope misconfig, which the model can
+        // correct in one retry.
+        if (!terminalTool) {
+          throw new Error(
+            `agentVariant '${agentVariant}' requires a terminalTool config.`,
+          );
+        }
+        const terminalResult = await terminalTool.handle(
+          terminalUse.input,
+          userMessage,
+        );
 
-      if (sqlRetriesUsed >= MAX_SQL_RETRIES) {
-        pushEvent({
-          kind: "tool_result",
-          toolUseId: runSqlUse.id,
-          toolName: runSqlUse.name,
-          isError: true,
-          content:
-            runSqlResult.kind === "error"
-              ? `run_sql error: ${runSqlResult.message}`
-              : `run_sql validation failed: ${runSqlResult.errors.join("; ")}`,
+        if (terminalResult.kind === "ok") {
+          pushEvent({
+            kind: "tool_result",
+            toolUseId: terminalUse.id,
+            toolName: terminalUse.name,
+            isError: false,
+            content: `${terminalToolName} ok`,
+          });
+          const replyText = assistantText || "Done.";
+          return {
+            kind: "terminal_result",
+            terminalResult: terminalResult.result,
+            assistantText: replyText,
+            events,
+            usage: totalUsage,
+          };
+        }
+
+        console.error(`[agent-loop] ${terminalToolName} failed`, {
+          attempt: sqlRetriesUsed + 1,
+          kind: terminalResult.kind,
+          errors:
+            terminalResult.kind === "validation_error"
+              ? terminalResult.errors
+              : [terminalResult.message],
         });
-        const text =
-          assistantText ||
-          "I tried a few times but couldn't run that query. Could you tell me more about what you're looking for?";
-        logDiag("sql_retries_exhausted", "surrender", text);
-        return {
-          kind: "surrender",
-          text,
-          events,
-          usage: totalUsage,
-        };
+
+        if (sqlRetriesUsed >= MAX_SQL_RETRIES) {
+          pushEvent({
+            kind: "tool_result",
+            toolUseId: terminalUse.id,
+            toolName: terminalUse.name,
+            isError: true,
+            content:
+              terminalResult.kind === "error"
+                ? `${terminalToolName} error: ${terminalResult.message}`
+                : `${terminalToolName} validation failed: ${terminalResult.errors.join("; ")}`,
+          });
+          const text =
+            assistantText ||
+            "I couldn't build a valid list spec after retries. Could you rephrase?";
+          logDiag("sql_retries_exhausted", "surrender", text);
+          return {
+            kind: "surrender",
+            text,
+            events,
+            usage: totalUsage,
+          };
+        }
+        sqlRetriesUsed++;
+        terminalErrShape = terminalResult;
       }
-      sqlRetriesUsed++;
     }
 
     // Anthropic requires every tool_use in the assistant turn to have a matching
     // tool_result in the next user turn. Process all in one batch.
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const tu of toolUses) {
-      if (tu === runSqlUse && runSqlResult) {
+      if (tu === terminalUse && terminalErrShape) {
         const errorText =
-          runSqlResult.kind === "error"
-            ? `run_sql failed: ${runSqlResult.message}. Please correct the query and retry.`
-            : `run_sql validation failed:\n${runSqlResult.errors.join("\n")}\nAdjust and retry.`;
+          terminalErrShape.kind === "error"
+            ? `${terminalToolName} failed: ${terminalErrShape.message}. Please correct and retry.`
+            : `${terminalToolName} validation failed:\n${terminalErrShape.errors.join("\n")}\nAdjust and retry.`;
         toolResults.push({
           type: "tool_result",
           tool_use_id: tu.id,
@@ -399,7 +584,9 @@ export async function runAgentLoop(args: RunAgentLoopArgs): Promise<AgentResult>
           usage: totalUsage,
         };
       }
-      const toolResult = await executeExploratoryTool(tu, userId);
+      const toolResult = exploratoryToolHandler
+        ? await exploratoryToolHandler(tu, userId)
+        : await executeExploratoryTool(tu, userId);
       toolResults.push({
         type: "tool_result",
         tool_use_id: tu.id,
