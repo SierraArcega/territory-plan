@@ -3,31 +3,27 @@
 /**
  * "My Views" section — sidebar's centerpiece.
  *
- * Phase B6 ships:
+ * Phase C1 wires real plan/list rows. The section shows:
  *   - Section header (bookmark icon + "MY VIEWS" eyebrow)
  *   - "All plans" row (routes to /views portfolio)
- *   - Plans subsection placeholder with loading skeleton rows
- *   - Lists subsection placeholder with loading skeleton rows + "+ New list"
+ *   - PlansSubsection — real plans via usePlansWithStats
+ *   - ListsSubsection — real lists via useLists
+ *   - Inline empty state when both are empty + a primary "Create your first list"
+ *     button (CTA flows into openBuilder())
  *   - Hidden footer ("Show hidden (N)") wired to the store
- *
- * The actual plan/list rows (with caret expand, accent bars, progress rings,
- * context menu) are Phase C1. B6's job is to mount the queries, show the
- * loading state correctly (per CLAUDE.md "show loading state, don't hide UI"),
- * and surface the section chrome so the layout is observable end-to-end.
  */
 import { useMemo } from "react";
 import Link from "next/link";
-import { Bookmark, Grid3x3, Plus, Target, ListChecks } from "lucide-react";
-import { useViewsStore, selectDensity, selectShowHidden } from "../lib/store";
+import { Bookmark, Grid3x3, Plus } from "lucide-react";
+import { useViewsStore, selectShowHidden } from "../lib/store";
 import { useLists, usePlansWithStats } from "../lib/queries";
-
-const ALL_PLANS_HREF = "/views";
+import PlansSubsection from "./PlansSubsection";
+import ListsSubsection from "./ListsSubsection";
 
 /** Section eyebrow color per the prototype — Fullmind plum. */
 const EYEBROW_PLUM = "#403770";
 
 export default function MyViewsSection() {
-  const density = useViewsStore(selectDensity);
   const showHidden = useViewsStore(selectShowHidden);
   const toggleShowHidden = useViewsStore((s) => s.toggleShowHidden);
   const openBuilder = useViewsStore((s) => s.openBuilder);
@@ -35,21 +31,25 @@ export default function MyViewsSection() {
   const plansQ = usePlansWithStats(showHidden);
   const listsQ = useLists(showHidden);
 
-  // Hidden count for the footer affordance. We always-on fetch the visible
-  // set; the hidden count is the delta from the showHidden=1 fetch. Phase F
-  // will swap to a cheaper /api/territory-plans?stats=0&onlyHidden=1 endpoint
-  // — for now we fold both lists' hidden flags.
-  const hiddenCount = useMemo(() => {
-    const plans = plansQ.data ?? [];
-    const lists = listsQ.data ?? [];
-    return (
-      plans.filter((p) => p.hidden).length +
-      lists.filter((l) => l.hidden).length
-    );
-  }, [plansQ.data, listsQ.data]);
+  const plans = plansQ.data ?? [];
+  const lists = listsQ.data ?? [];
 
-  const rowPadY = density === "comfortable" ? "py-2.5" : "py-2";
-  const subRowPadY = density === "comfortable" ? "py-2" : "py-1.5";
+  // Hidden count for the footer affordance.
+  const hiddenCount = useMemo(
+    () =>
+      plans.filter((p) => p.hidden).length +
+      lists.filter((l) => l.hidden).length,
+    [plans, lists],
+  );
+
+  // True empty state — both queries resolved with zero rows. We deliberately
+  // do NOT show this until both queries have data; until then the subsections
+  // render their own skeletons.
+  const showEmptyState =
+    !plansQ.isLoading &&
+    !listsQ.isLoading &&
+    plans.length === 0 &&
+    lists.length === 0;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto px-2 pt-2 pb-1">
@@ -63,90 +63,55 @@ export default function MyViewsSection() {
         />
         <span
           className="text-[10px] font-semibold uppercase whitespace-nowrap"
-          style={{
-            color: EYEBROW_PLUM,
-            letterSpacing: "0.06em",
-          }}
+          style={{ color: EYEBROW_PLUM, letterSpacing: "0.06em" }}
         >
           My Views
         </span>
       </header>
 
-      {/* "All plans" row — routes to portfolio */}
-      <Link
-        href={ALL_PLANS_HREF}
-        className={`mt-1 group flex items-center gap-2.5 rounded-md px-2 ${rowPadY} text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] transition-colors duration-100`}
-      >
-        <Grid3x3 className="w-4 h-4 flex-shrink-0 text-[#544A78]" aria-hidden />
-        <span className="flex-1 min-w-0 truncate whitespace-nowrap">
-          All plans
-        </span>
-        {/* Compact count badge — number of plans (loads asynchronously). */}
-        <span className="text-[10px] font-medium text-[#8A80A8] tabular-nums whitespace-nowrap">
-          {plansQ.isLoading ? "…" : plansQ.data?.length ?? 0}
-        </span>
-      </Link>
-
-      {/* Plans subsection header */}
-      <div className="mt-3 flex items-center justify-between px-2">
-        <div className="flex items-center gap-1.5">
-          <Target
-            className="w-3.5 h-3.5 text-[#544A78]"
-            aria-hidden
-            strokeWidth={2}
-          />
-          <span className="text-xs font-semibold text-[#544A78] whitespace-nowrap">
-            Plans
-          </span>
+      {/* Empty state — shown inline when the user has no plans and no lists. */}
+      {showEmptyState ? (
+        <div className="mt-2 mx-2 p-3 rounded-md border border-dashed border-[#D4CFE2] bg-[#FFFCFA]">
+          <p className="text-[12px] text-[#544A78] font-medium whitespace-nowrap">
+            No views yet
+          </p>
+          <p className="text-[11px] text-[#8A80A8] mt-1 mb-2">
+            Start with a saved list to scope your work.
+          </p>
+          <button
+            type="button"
+            onClick={() => openBuilder()}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#403770] text-white text-[12px] font-semibold hover:bg-[#322a5a] transition-colors duration-100"
+          >
+            <Plus className="w-3.5 h-3.5" aria-hidden />
+            <span className="whitespace-nowrap">Create your first list</span>
+          </button>
         </div>
-        <span className="text-[10px] font-medium text-[#8A80A8] whitespace-nowrap">
-          FY26
-        </span>
-      </div>
+      ) : (
+        <>
+          {/* "All plans" row — routes to portfolio */}
+          <Link
+            href="/views"
+            className="mt-1 group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-[#403770] hover:bg-[#EFEDF5] transition-colors duration-100"
+          >
+            <Grid3x3
+              className="w-4 h-4 flex-shrink-0 text-[#544A78]"
+              aria-hidden
+            />
+            <span className="flex-1 min-w-0 truncate whitespace-nowrap">
+              All plans
+            </span>
+            <span className="text-[10px] font-medium text-[#8A80A8] tabular-nums whitespace-nowrap">
+              {plansQ.isLoading ? "…" : plans.length}
+            </span>
+          </Link>
 
-      <SubsectionBody
-        isLoading={plansQ.isLoading}
-        isError={plansQ.isError}
-        isEmpty={plansQ.data?.length === 0}
-        emptyText="No plans yet"
-        rowCount={plansQ.data?.length ?? 0}
-        rowPadY={subRowPadY}
-        kind="plan"
-      />
+          <PlansSubsection />
+          <ListsSubsection />
+        </>
+      )}
 
-      {/* Lists subsection header */}
-      <div className="mt-3 flex items-center justify-between px-2">
-        <div className="flex items-center gap-1.5">
-          <ListChecks
-            className="w-3.5 h-3.5 text-[#544A78]"
-            aria-hidden
-            strokeWidth={2}
-          />
-          <span className="text-xs font-semibold text-[#544A78] whitespace-nowrap">
-            Lists
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => openBuilder()}
-          className="text-[#8A80A8] hover:text-[#403770] transition-colors duration-100 p-0.5 rounded-sm"
-          aria-label="New list"
-        >
-          <Plus className="w-3.5 h-3.5" aria-hidden />
-        </button>
-      </div>
-
-      <SubsectionBody
-        isLoading={listsQ.isLoading}
-        isError={listsQ.isError}
-        isEmpty={listsQ.data?.length === 0}
-        emptyText="No lists yet"
-        rowCount={listsQ.data?.length ?? 0}
-        rowPadY={subRowPadY}
-        kind="list"
-      />
-
-      {/* Hidden footer affordance — only when there's something to show */}
+      {/* Hidden footer affordance */}
       {hiddenCount > 0 && (
         <button
           type="button"
@@ -158,75 +123,6 @@ export default function MyViewsSection() {
             : `Show hidden (${hiddenCount})`}
         </button>
       )}
-    </div>
-  );
-}
-
-interface SubsectionBodyProps {
-  isLoading: boolean;
-  isError: boolean;
-  isEmpty: boolean;
-  emptyText: string;
-  rowCount: number;
-  rowPadY: string;
-  kind: "plan" | "list";
-}
-
-/**
- * Subsection body — shows a skeleton while loading, an error retry hint on
- * failure, the empty state when the user has no plans/lists, or a count
- * stub for now (real rows come in Phase C1).
- *
- * Per CLAUDE.md "show loading state, don't hide UI": we render the
- * skeleton in the same row footprint so the layout doesn't shift.
- */
-function SubsectionBody({
-  isLoading,
-  isError,
-  isEmpty,
-  emptyText,
-  rowCount,
-  rowPadY,
-  kind,
-}: SubsectionBodyProps) {
-  if (isLoading) {
-    return (
-      <ul className="mt-1.5" aria-busy="true">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <li
-            key={i}
-            className={`flex items-center gap-2 px-2 ${rowPadY}`}
-            aria-hidden
-          >
-            <span className="w-1 h-3.5 rounded-full bg-[#EFEDF5] flex-shrink-0" />
-            <span className="flex-1 min-w-0 h-3 rounded-md bg-[#F7F5FA] animate-pulse" />
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="mt-1.5 px-2 py-2 text-[11px] text-[#8A80A8] whitespace-nowrap">
-        Couldn&apos;t load — retry coming
-      </div>
-    );
-  }
-
-  if (isEmpty) {
-    return (
-      <div className="mt-1.5 px-2 py-2 text-[11px] text-[#8A80A8] whitespace-nowrap">
-        {emptyText}
-      </div>
-    );
-  }
-
-  // Phase B6 placeholder — Phase C1 replaces this with real GroupRow rendering.
-  return (
-    <div className="mt-1.5 px-2 py-2 text-[11px] text-[#8A80A8] whitespace-nowrap">
-      {rowCount} {kind === "plan" ? "plan" : "list"}
-      {rowCount === 1 ? "" : "s"} — rows ship in Phase C1
     </div>
   );
 }
