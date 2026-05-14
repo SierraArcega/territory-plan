@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/supabase/server";
 import { updateListBodySchema } from "@/lib/saved-views/schema";
+import { viewLayoutsSchema } from "@/lib/saved-views/grid-layout-schema";
 import { Prisma } from "@prisma/client";
+
+// Extend the base schema with viewLayouts — defined here to avoid a circular
+// import (grid-layout-schema imports filterAndSchema from schema.ts).
+const updateListBodyWithLayoutsSchema = updateListBodySchema.extend({
+  viewLayouts: viewLayoutsSchema().optional(),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +106,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsed = updateListBodySchema.safeParse(body);
+  const parsed = updateListBodyWithLayoutsSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid update body", details: parsed.error.flatten() },
@@ -135,6 +142,12 @@ export async function PATCH(
   if (data.scopeRefKind !== undefined) updateData.scopeRefKind = data.scopeRefKind;
   if (data.scopeRefId !== undefined) updateData.scopeRefId = data.scopeRefId;
   if (data.shared !== undefined) updateData.shared = data.shared;
+  if (data.viewLayouts !== undefined) {
+    updateData.viewLayouts =
+      data.viewLayouts === null
+        ? Prisma.JsonNull
+        : (data.viewLayouts as unknown as Prisma.InputJsonValue);
+  }
 
   const list = await prisma.savedList.update({
     where: { id },

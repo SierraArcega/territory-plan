@@ -172,6 +172,53 @@ describe("PATCH /api/lists/[id]", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("persists valid viewLayouts", async () => {
+    const validLayout = {
+      columns: [{ id: "name", order: 0, visible: true }],
+      sort: [],
+      filters: { kind: "and" as const, children: [] },
+    };
+    mockGetUser.mockResolvedValue(mockUser);
+    mockPrisma.savedList.findUnique.mockResolvedValue({ ownerId: "user-1" });
+    mockPrisma.savedList.update.mockResolvedValue(makeListRow());
+
+    const res = await PATCH(
+      makeRequest("/api/lists/list-1", {
+        body: { viewLayouts: { table: validLayout } },
+      }),
+      { params: Promise.resolve({ id: "list-1" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.savedList.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          viewLayouts: { table: validLayout },
+        }),
+      }),
+    );
+  });
+
+  it("returns 400 when viewLayouts contains unknown column id", async () => {
+    const badLayout = {
+      columns: [{ id: "bad_col", order: 0, visible: true }],
+      sort: [],
+      filters: { kind: "and" as const, children: [] },
+    };
+    mockGetUser.mockResolvedValue(mockUser);
+    mockPrisma.savedList.findUnique.mockResolvedValue({ ownerId: "user-1" });
+
+    const res = await PATCH(
+      makeRequest("/api/lists/list-1", {
+        body: { viewLayouts: { table: badLayout } },
+      }),
+      { params: Promise.resolve({ id: "list-1" }) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockPrisma.savedList.update).not.toHaveBeenCalled();
+  });
 });
 
 // ============================================================
