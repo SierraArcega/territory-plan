@@ -12,7 +12,7 @@
  */
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/features/shared/components/layout/AppShell";
 import { useMapStore } from "@/features/shared/lib/app-store";
@@ -29,12 +29,28 @@ export default function ViewsLayout({
   const { data: profile } = useProfile();
   const isAdmin = profile?.role === "admin";
 
+  // Collapse sidebar on first mount when viewport is narrow (< 768 px).
+  // Mirrors the same logic in src/app/page.tsx for the legacy /. With the
+  // /views/* hamburger overlay removed, this is the only thing keeping the
+  // 252px sidebar from swallowing the canvas on iPhone-width viewports.
+  // No resize listener by design — user can re-expand manually; next page
+  // load re-applies. No cleanup needed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
   return (
     <AppShell
       // Sentinel — no main tab highlights while on /views/* routes; the
       // MyViewsSection inside the sidebar handles its own active state.
       activeTab={"views" as const}
       onTabChange={(tab) => {
+        // "views" is a sentinel from this layout — never a real destination.
+        // Mirror the guard in src/app/page.tsx's onTabChange for symmetry.
+        if (tab === "views") return;
         // Main-tab clicks on /views/* leave the route and rejoin the legacy
         // app at /?tab=<id>. The legacy page reads ?tab= on mount.
         router.push(`/?tab=${tab}`);
