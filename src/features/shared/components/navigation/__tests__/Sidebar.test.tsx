@@ -30,19 +30,26 @@ function makeWrapper() {
 
 describe("Sidebar (legacy + MyViewsSection)", () => {
   beforeEach(() => {
-    fetchMock.mockReset?.();
-    global.fetch = vi.fn(async (input: RequestInfo) => {
-      const url = typeof input === "string" ? input : (input as Request).url;
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
       if (url.includes("/api/territory-plans")) {
-        // usePlansWithStats calls fetchJson<PlanWithStats[]> — expects a plain array
-        return new Response(JSON.stringify([]), { status: 200 });
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       if (url.includes("/api/lists")) {
-        // useLists calls fetchJson<ListsResponse>().then(r => r.lists) — expects { lists: [] }
-        return new Response(JSON.stringify({ lists: [] }), { status: 200 });
+        return new Response(JSON.stringify({ lists: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
-      return new Response("{}", { status: 200 });
-    }) as unknown as typeof fetch;
+      return new Response("{}", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
   });
 
   it("renders MyViewsSection content when expanded", async () => {
