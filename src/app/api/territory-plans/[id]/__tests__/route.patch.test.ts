@@ -63,9 +63,22 @@ describe("PATCH /api/territory-plans/[id]", () => {
     expect(res.status).toBe(404);
   });
 
+  it("returns 403 when plan is owned by another user", async () => {
+    mockGetUser.mockResolvedValue({ id: "user-a" });
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1", ownerId: "user-b" });
+
+    const res = await PATCH(
+      makeRequest({ viewLayouts: { table: validLayout } }),
+      { params: Promise.resolve({ id: "plan-1" }) },
+    );
+
+    expect(res.status).toBe(403);
+    expect(mockPrisma.territoryPlan.update).not.toHaveBeenCalled();
+  });
+
   it("persists valid viewLayouts", async () => {
     mockGetUser.mockResolvedValue(mockUser);
-    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1", ownerId: mockUser.id });
     mockPrisma.territoryPlan.update.mockResolvedValue({
       id: "plan-1",
       updatedAt: new Date("2026-05-14T00:00:00Z"),
@@ -88,7 +101,7 @@ describe("PATCH /api/territory-plans/[id]", () => {
 
   it("clears viewLayouts when null is passed", async () => {
     mockGetUser.mockResolvedValue(mockUser);
-    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1", ownerId: mockUser.id });
     mockPrisma.territoryPlan.update.mockResolvedValue({
       id: "plan-1",
       updatedAt: new Date("2026-05-14T00:00:00Z"),
@@ -113,7 +126,7 @@ describe("PATCH /api/territory-plans/[id]", () => {
 
   it("returns 400 for unknown column id in viewLayouts", async () => {
     mockGetUser.mockResolvedValue(mockUser);
-    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1", ownerId: mockUser.id });
 
     const badLayout = {
       columns: [{ id: "fake_column", order: 0, visible: true }],
@@ -132,7 +145,7 @@ describe("PATCH /api/territory-plans/[id]", () => {
 
   it("returns 200 with no-op when viewLayouts is omitted", async () => {
     mockGetUser.mockResolvedValue(mockUser);
-    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1" });
+    mockPrisma.territoryPlan.findUnique.mockResolvedValue({ id: "plan-1", ownerId: mockUser.id });
     mockPrisma.territoryPlan.update.mockResolvedValue({
       id: "plan-1",
       updatedAt: new Date("2026-05-14T00:00:00Z"),

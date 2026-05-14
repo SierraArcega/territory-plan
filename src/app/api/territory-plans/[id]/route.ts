@@ -530,11 +530,15 @@ export async function PATCH(
 
     const existing = await prisma.territoryPlan.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, ownerId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Territory plan not found" }, { status: 404 });
+    }
+
+    if (existing.ownerId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     let rawBody: unknown;
@@ -555,7 +559,7 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {};
     if (data.viewLayouts !== undefined) {
-      updateData.viewLayouts = data.viewLayouts ?? Prisma.JsonNull;
+      updateData.viewLayouts = data.viewLayouts === null ? Prisma.JsonNull : data.viewLayouts;
     }
 
     const plan = await prisma.territoryPlan.update({
