@@ -21,6 +21,15 @@ vi.mock("@/features/shared/lib/filters", () => ({
   DISTRICT_FIELD_MAP: {},
 }));
 
+// ?stats=1 reads through the readonly pool now (one grouped query per table
+// instead of N×4 Prisma aggregates). Tests inject row arrays per call.
+const mockReadonlyQuery = vi.fn();
+vi.mock("@/lib/db-readonly", () => ({
+  readonlyPool: {
+    query: (...args: unknown[]) => mockReadonlyQuery(...args),
+  },
+}));
+
 // Mock Prisma - must be hoisted, so define mock object inline
 const mockTransaction = vi.fn();
 vi.mock("@/lib/prisma", () => ({
@@ -183,14 +192,23 @@ describe("Territory Plans API", () => {
       ];
 
       mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
-      mockPrisma.opportunity = {
-        aggregate: vi
-          .fn()
-          .mockResolvedValueOnce({ _sum: { netBookingAmount: 25000 } }) // pipeline (open)
-          .mockResolvedValueOnce({ _sum: { netBookingAmount: 50000 } }), // bookings (closed-won)
-        count: vi.fn().mockResolvedValueOnce(3),
-      };
-      mockPrisma.contact = { count: vi.fn().mockResolvedValueOnce(8) };
+      // First query: opportunities aggregated by (district_lea_id, school_yr).
+      // Second query: contacts counted by leaid.
+      mockReadonlyQuery
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              district_lea_id: "0601234",
+              school_yr: "FY26",
+              open_pipeline: "25000",
+              open_count: "3",
+              bookings: "50000",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ leaid: "0601234", count: "8" }],
+        });
 
       const response = await listPlans(makeListReq("?stats=1"));
       const data = await response.json();
