@@ -27,6 +27,7 @@ import type { ComponentType, SVGProps } from "react";
 
 const TOC = [
   { id: "overview", label: "Overview" },
+  { id: "why-fullmind", label: "Why Fullmind" },
   { id: "core-credit-bearing", label: "Core Credit-Bearing" },
   { id: "supplemental", label: "Supplemental" },
   { id: "supports-glossary", label: "What Supports Mean" },
@@ -514,6 +515,53 @@ export default function OurServiceModelPage() {
                 Tutoring · Resource Room · Test Prep · Homework Help · iTutor
               </p>
             </div>
+          </div>
+        </section>
+
+        <div className="border-t border-[#E2DEEC] mb-12" />
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* WHY FULLMIND */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        <section id="why-fullmind" className="mb-12 scroll-mt-6">
+          <h2 className="text-lg font-bold text-[#403770] mb-2 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-[#F37167]" />
+            Why Fullmind
+          </h2>
+          <p className="text-sm text-[#6E6390] leading-relaxed mb-6">
+            For virtual education to work, students need experienced teachers who can give them real-time
+            feedback. Fullmind&apos;s technology mimics many aspects of in-person instruction, making
+            interaction between students and teachers seamless — and we bring certified educators to
+            schools in all 50 states.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            {(
+              [
+                {
+                  icon: GraduationCap,
+                  title: "Certification",
+                  desc: "All teachers are high-quality, state-certified, and trained in social-emotional learning.",
+                },
+                {
+                  icon: BarChart3,
+                  title: "Results",
+                  desc: "Fullmind provides data-backed insights to measure student success and program impact.",
+                },
+                {
+                  icon: Accessibility,
+                  title: "Accessibility",
+                  desc: "Interpreters, bilingual educators, and specialized support for students with disabilities.",
+                },
+              ] as const
+            ).map(({ icon: Ic, title, desc }) => (
+              <div key={title} className="rounded-xl border border-[#E2DEEC] bg-white p-5">
+                <div className="w-9 h-9 rounded-lg bg-[#F7F5FA] flex items-center justify-center mb-3">
+                  <Ic className="w-4 h-4 text-[#403770]" />
+                </div>
+                <h3 className="text-sm font-semibold text-[#403770] mb-1">{title}</h3>
+                <p className="text-xs text-[#8A80A8] leading-relaxed">{desc}</p>
+              </div>
+            ))}
           </div>
         </section>
 

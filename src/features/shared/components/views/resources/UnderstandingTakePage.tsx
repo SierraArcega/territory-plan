@@ -12,6 +12,7 @@ import {
   Shield,
   Lightbulb,
   ArrowRight,
+  ExternalLink,
 } from "lucide-react";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -301,6 +302,23 @@ export default function UnderstandingTakePage() {
               certifications, state/subject premiums, or heavier workloads.
             </p>
           </div>
+          <a
+            href="https://docs.google.com/document/d/1Uua3gNggqBWprK-LMzk4RE3wkHpUS1puyL0Wm43WgR8/edit"
+            target="_blank"
+            rel="noreferrer"
+            className="group mt-4 flex items-center gap-3 rounded-xl border border-[#E2DEEC] bg-white px-5 py-4 hover:border-[#F37167] transition-colors duration-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#F7F5FA] flex items-center justify-center flex-shrink-0">
+              <Calculator className="w-4 h-4 text-[#403770]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#403770]">How is Take Calculated? (Source Doc)</p>
+              <p className="text-xs text-[#8A80A8] mt-0.5">
+                Historic scenarios, comp band alignment, and Ops context — the live annotated version.
+              </p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-[#A69DC0] flex-shrink-0 group-hover:text-[#F37167] transition-colors duration-100" />
+          </a>
         </div>
 
         {/* ════════════════════════════════════════════════════════════════ */}
