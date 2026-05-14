@@ -1,7 +1,9 @@
 "use client";
 
 import Sidebar, { TabId } from "@/features/shared/components/navigation/Sidebar";
+import BottomNav from "@/features/shared/components/navigation/BottomNav";
 import FilterBar from "@/features/shared/components/filters/FilterBar";
+import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 
 interface AppShellProps {
   // Current active tab - determines which content view to show
@@ -43,6 +45,8 @@ export default function AppShell({
   isAdmin = false,
   children,
 }: AppShellProps) {
+  const isMobile = useIsMobile();
+
   return (
     <div className="fixed inset-0 h-dvh flex flex-col bg-[#FFFCFA] overflow-hidden overscroll-none">
       {/* Top: FilterBar - adapts based on active tab */}
@@ -50,20 +54,31 @@ export default function AppShell({
 
       {/* Main area: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden min-h-0">
-        {/* Left: Sidebar navigation */}
-        <Sidebar
-          activeTab={activeTab}
-          onTabChange={onTabChange}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={onSidebarCollapsedChange}
-          isAdmin={isAdmin}
-        />
+        {/* Left: Sidebar navigation — desktop only */}
+        {!isMobile && (
+          <Sidebar
+            activeTab={activeTab}
+            onTabChange={onTabChange}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={onSidebarCollapsedChange}
+            isAdmin={isAdmin}
+          />
+        )}
 
-        {/* Right: Content area - fills remaining space */}
+        {/* Content area - fills remaining space */}
         <main className="flex-1 relative overflow-hidden">
           {children}
         </main>
       </div>
+
+      {/* Bottom: BottomNav — mobile only */}
+      {isMobile && (
+        <BottomNav
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          isAdmin={isAdmin}
+        />
+      )}
     </div>
   );
 }

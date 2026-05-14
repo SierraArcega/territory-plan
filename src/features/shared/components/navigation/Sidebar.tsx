@@ -328,7 +328,7 @@ export default function Sidebar({
       `}
     >
       {/* Main navigation tabs */}
-      <nav className="flex-1 py-2">
+      <nav className="flex-1 py-2 overflow-y-auto [touch-action:pan-y]">
         {MAIN_TABS.map(renderTab)}
       </nav>
 
