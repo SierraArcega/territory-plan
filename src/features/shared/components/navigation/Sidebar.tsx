@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Apple } from "lucide-react";
 import LeaderboardNavWidget from "@/features/leaderboard/components/LeaderboardNavWidget";
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
+import MyViewsSection from "@/features/views/components/MyViewsSection";
 
 // Tab configuration - defines all navigation items
 // The 'id' matches the activeTab state values we'll use throughout the app.
@@ -326,19 +327,26 @@ export default function Sidebar({
       className={`
         flex flex-col bg-white border-r border-[#D4CFE2]
         transition-all duration-200 ease-in-out
-        ${collapsed ? "w-14" : "w-[140px]"}
+        ${collapsed ? "w-14" : "w-[252px]"}
       `}
     >
       {/* Main navigation tabs */}
-      <nav className="flex-1 py-2">
+      <nav className="py-2 flex-shrink-0">
         {MAIN_TABS.map(renderTab)}
       </nav>
+
+      {/* My Views section — only when expanded */}
+      {!collapsed && (
+        <div className="flex-1 min-h-0 flex flex-col border-t border-[#E2DEEC] overflow-hidden">
+          <MyViewsSection />
+        </div>
+      )}
 
       {/* Admin section (expandable, only for admins) */}
       {renderAdminSection()}
 
       {/* Divider between main/admin tabs and bottom section */}
-      <div className="mx-3 border-t border-[#E2DEEC]" />
+      <div className="mt-auto mx-3 border-t border-[#E2DEEC]" />
 
       {/* Leaderboard widget — above Profile */}
       <div className="py-1">
