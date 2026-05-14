@@ -207,3 +207,31 @@ export function validateFilterTree(
 
 /** Convenience re-exports — keeps imports tidy at the route layer. */
 export { SOURCE_FIELDS, SOURCE_TABLES };
+
+/**
+ * Compile a sort spec into an ORDER BY clause.
+ *
+ * Each sort item's `id` is resolved through the source-fields allowlist —
+ * the same allowlist used by the WHERE compiler — so only known, safe column
+ * names reach the SQL string. A defense-in-depth regex check mirrors the
+ * `quoteIdent` discipline above. NULLS LAST matches sales-rep expectations:
+ * a district with no ARR should not dominate a descending sort.
+ *
+ * Returns an empty string when `sort` is empty (caller omits ORDER BY).
+ */
+export function buildOrderBy(
+  sort: { id: string; dir: "asc" | "desc" }[],
+  source: SavedListSource,
+): string {
+  if (sort.length === 0) return "";
+  const parts = sort.map(({ id, dir }) => {
+    const field = lookupField(source, id);
+    if (!field) throw new Error(`Unknown sort field "${id}" for source "${source}"`);
+    if (!/^[a-z_][a-z0-9_]*$/i.test(field.column)) {
+      throw new Error(`Invalid identifier in sort column: ${field.column}`);
+    }
+    const safeDir = dir === "asc" ? "ASC" : "DESC";
+    return `"${field.column}" ${safeDir} NULLS LAST`;
+  });
+  return `ORDER BY ${parts.join(", ")}`;
+}
