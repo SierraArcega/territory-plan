@@ -12,6 +12,8 @@ import LeaderboardHomeWidget from "@/features/leaderboard/components/Leaderboard
 import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 import {
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Mail,
   MessageSquare,
@@ -43,6 +45,25 @@ const INTEGRATIONS: Integration[] = [
   { name: "Rippling", icon: CircleDollarSign, status: "setup" },
 ];
 
+// ============================================================================
+// Quick-action definitions (shared between expanded grid and collapsed strip)
+// ============================================================================
+
+const OPP_URL = "https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26";
+
+interface StripAction {
+  icon: LucideIcon;
+  label: string;
+  modalKey: "plan" | "activity" | "task" | "opp";
+}
+
+const STRIP_ACTIONS: StripAction[] = [
+  { icon: Map, label: "Create Plan", modalKey: "plan" },
+  { icon: FileEdit, label: "Log Activity", modalKey: "activity" },
+  { icon: ListPlus, label: "Create Task", modalKey: "task" },
+  { icon: ExternalLink, label: "Create Opp", modalKey: "opp" },
+];
+
 function relativeTime(date: string | null): string {
   if (!date) return "Never";
   const diff = Date.now() - new Date(date).getTime();
@@ -67,6 +88,31 @@ export default function ProfileSidebar() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const createPlan = useCreateTerritoryPlan();
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (window.innerWidth < 768) return true;
+    return localStorage.getItem("home-sidebar-collapsed") === "true";
+  });
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("home-sidebar-collapsed", String(next));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+        localStorage.setItem("home-sidebar-collapsed", "true");
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const setActiveTab = useMapStore((s) => s.setActiveTab);
   const handleNavigateToDetails = useCallback(() => {
     setActiveTab("leaderboard");
@@ -85,100 +131,181 @@ export default function ProfileSidebar() {
   const jobTitle = profile?.jobTitle || "";
 
   return (
-    <aside className="w-[289px] shrink-0 border-r border-[#E2DEEC] bg-white h-full overflow-y-auto">
-      <div className="px-6 pt-8">
-        {/* ---- Leaderboard Widget ---- */}
-        <LeaderboardHomeWidget onOpenModal={() => setShowLeaderboard(true)} />
+    <aside
+      className={`shrink-0 border-r border-[#E2DEEC] bg-white h-full transition-[width] duration-200 ease-in-out ${
+        collapsed ? "w-11" : "w-[289px]"
+      }`}
+    >
+      {/* ── Expanded content ── */}
+      {!collapsed && (
+        <div className="px-6 pt-4 h-full overflow-y-auto">
+          {/* Collapse chevron */}
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={toggle}
+              aria-label="Collapse sidebar"
+              className="w-6 h-6 flex items-center justify-center rounded-full bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#8A80A8] hover:text-[#544A78] transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-        {/* ---- User Avatar + Info ---- */}
-        <div className="flex flex-col items-center mb-6">
-          {isLoading ? (
-            <div className="w-[88px] h-[88px] rounded-full bg-[#EFEDF5] animate-pulse" />
-          ) : profile?.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={displayName}
-              className="w-[88px] h-[88px] rounded-full object-cover shadow-sm"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-[88px] h-[88px] rounded-full flex items-center justify-center bg-coral shadow-sm">
-              <span className="text-2xl font-bold text-white">{initials}</span>
-            </div>
-          )}
-          <h2 className="mt-4 text-xl font-bold text-plum text-center">
+          {/* ---- Leaderboard Widget ---- */}
+          <LeaderboardHomeWidget onOpenModal={() => setShowLeaderboard(true)} />
+
+          {/* ---- User Avatar + Info ---- */}
+          <div className="flex flex-col items-center mb-6">
             {isLoading ? (
-              <span className="inline-block w-32 h-5 bg-[#EFEDF5] rounded-lg animate-pulse" />
-            ) : (
-              displayName
-            )}
-          </h2>
-          {jobTitle && (
-            <p className="mt-1 text-sm font-medium text-[#8A80A8] text-center">
-              {jobTitle}
-            </p>
-          )}
-
-          {/* ---- Quick Actions ---- */}
-          <div className="mt-4 self-stretch">
-            <div className="grid grid-cols-2 gap-2">
-              <QuickActionButton icon={Map} label="Create Plan" onClick={() => setShowPlanModal(true)} />
-              <QuickActionButton icon={FileEdit} label="Log Activity" onClick={() => setShowActivityModal(true)} />
-              <QuickActionButton icon={ListPlus} label="Create Task" onClick={() => setShowTaskModal(true)} />
-              <QuickActionButton
-                icon={ExternalLink}
-                label="Create Opp"
-                onClick={() => window.open("https://lms.fullmindlearning.com/opportunities/kanban?school_year=2025-26", "_blank")}
+              <div className="w-[88px] h-[88px] rounded-full bg-[#EFEDF5] animate-pulse" />
+            ) : profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={displayName}
+                className="w-[88px] h-[88px] rounded-full object-cover shadow-sm"
+                referrerPolicy="no-referrer"
               />
+            ) : (
+              <div className="w-[88px] h-[88px] rounded-full flex items-center justify-center bg-coral shadow-sm">
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              </div>
+            )}
+            <h2 className="mt-4 text-xl font-bold text-plum text-center">
+              {isLoading ? (
+                <span className="inline-block w-32 h-5 bg-[#EFEDF5] rounded-lg animate-pulse" />
+              ) : (
+                displayName
+              )}
+            </h2>
+            {jobTitle && (
+              <p className="mt-1 text-sm font-medium text-[#8A80A8] text-center">
+                {jobTitle}
+              </p>
+            )}
+
+            {/* ---- Quick Actions ---- */}
+            <div className="mt-4 self-stretch">
+              <div className="grid grid-cols-2 gap-2">
+                {STRIP_ACTIONS.map(({ icon, label, modalKey }) => (
+                  <QuickActionButton
+                    key={label}
+                    icon={icon}
+                    label={label}
+                    onClick={() => {
+                      if (modalKey === "plan") setShowPlanModal(true);
+                      else if (modalKey === "activity") setShowActivityModal(true);
+                      else if (modalKey === "task") setShowTaskModal(true);
+                      else window.open(OPP_URL, "_blank");
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* ---- Integrations ---- */}
-        <div className="mt-6">
-          <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
-            Integrations
-          </p>
-          <div className="mt-3 flex items-center gap-2.5">
-            {INTEGRATIONS.map((integration, i) => (
-              <IntegrationChip key={integration.name} integration={integration} alignRight={i >= 2} />
-            ))}
+          {/* ---- Integrations ---- */}
+          <div className="mt-6">
+            <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
+              Integrations
+            </p>
+            <div className="mt-3 flex items-center gap-2.5">
+              {INTEGRATIONS.map((integration, i) => (
+                <IntegrationChip key={integration.name} integration={integration} alignRight={i >= 2} />
+              ))}
+            </div>
           </div>
+
+          {/* ---- Divider ---- */}
+          <div className="h-px bg-[#E2DEEC] mt-6" />
+
+          {/* ---- Contact Details ---- */}
+          {!isLoading && (profile?.email || profile?.phone || profile?.location) && (
+            <div className="mt-6 pb-8 flex flex-col gap-1.5 text-[#A69DC0]">
+              {profile?.email && (
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{profile.email}</span>
+                </div>
+              )}
+              {profile?.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{profile.phone}</span>
+                </div>
+              )}
+              {profile?.location && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{profile.location}</span>
+                </div>
+              )}
+              {profile?.lastLoginAt && (
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-xs font-medium text-[#8A80A8]">{relativeTime(profile.lastLoginAt)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+      )}
 
-        {/* ---- Divider ---- */}
-        <div className="h-px bg-[#E2DEEC] mt-6" />
+      {/* ── Collapsed icon strip ── */}
+      {collapsed && (
+        <div className="flex flex-col items-center py-3 gap-2">
+          {/* Expand chevron */}
+          <button
+            onClick={toggle}
+            aria-label="Expand sidebar"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#544A78] transition-colors cursor-pointer"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
 
-        {/* ---- Contact Details ---- */}
-        {!isLoading && (profile?.email || profile?.phone || profile?.location) && (
-          <div className="mt-6 pb-8 flex flex-col gap-1.5 text-[#A69DC0]">
-            {profile?.email && (
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{profile.email}</span>
+          {/* Avatar — click expands */}
+          <button
+            onClick={toggle}
+            aria-label="Expand via avatar"
+            className="w-8 h-8 rounded-full overflow-hidden shrink-0 cursor-pointer"
+          >
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-coral">
+                <span className="text-xs font-bold text-white">{initials}</span>
               </div>
             )}
-            {profile?.phone && (
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{profile.phone}</span>
-              </div>
-            )}
-            {profile?.location && (
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{profile.location}</span>
-              </div>
-            )}
-            {profile?.lastLoginAt && (
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-xs font-medium text-[#8A80A8]">{relativeTime(profile.lastLoginAt)}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          </button>
+
+          {/* Divider */}
+          <div className="w-5 h-px bg-[#E2DEEC]" />
+
+          {/* Quick-action icons */}
+          {STRIP_ACTIONS.map(({ icon: Icon, label, modalKey }) => (
+            <div key={label} className="relative group">
+              <button
+                onClick={() => {
+                  if (modalKey === "plan") setShowPlanModal(true);
+                  else if (modalKey === "activity") setShowActivityModal(true);
+                  else if (modalKey === "task") setShowTaskModal(true);
+                  else window.open(OPP_URL, "_blank");
+                }}
+                aria-label={label}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#F7F5FA] hover:bg-[#EFEDF5] text-[#8A80A8] hover:text-[#544A78] transition-colors cursor-pointer"
+              >
+                <Icon className="w-3.5 h-3.5" />
+              </button>
+              <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg bg-plum text-[10px] font-medium text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none z-50">
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modals */}
       <PlanFormModal
