@@ -6,8 +6,10 @@ import {
   useActivities,
   useUpdateTask,
   useCalendarInbox,
+  useConfirmCalendarEvent,
   type TaskItem,
   type ActivityListItem,
+  type CalendarEvent,
 } from "@/lib/api";
 import FeedSummaryCards from "./FeedSummaryCards";
 import FeedSection from "./FeedSection";
@@ -73,8 +75,28 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const { data: activitiesData } = useActivities({});
   const { data: calendarData } = useCalendarInbox("pending");
   const updateTask = useUpdateTask();
+  const confirmCalendarEvent = useConfirmCalendarEvent();
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
+  const [meetingOutcome, setMeetingOutcome] = useState<
+    { activityId: string; event: CalendarEvent } | null
+  >(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+
+  // Confirm a calendar event → creates an Activity. For past meetings, open
+  // OutcomeModal so the rep can capture notes/next-steps right away. Mirrors
+  // CalendarEventCard.handleConfirm in src/features/calendar/components/CalendarEventCard.tsx.
+  const handleLogActivity = async (event: CalendarEvent) => {
+    if (confirmCalendarEvent.isPending) return;
+    try {
+      const result = await confirmCalendarEvent.mutateAsync({ eventId: event.id });
+      const isPast = new Date(event.startTime) < new Date();
+      if (isPast) {
+        setMeetingOutcome({ activityId: result.activityId, event });
+      }
+    } catch {
+      // Mutation errors surface via React Query; row stays in the inbox.
+    }
+  };
 
   // New state for day navigation, pagination, and completed toggle
   const [selectedDate, setSelectedDate] = useState<string>(today);
@@ -390,6 +412,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
               title={event.title}
               source="Google Calendar"
               time={formatTime(event.startTime)}
+              onLogActivity={() => handleLogActivity(event)}
             />
           ))}
         </FeedSection>
@@ -438,6 +461,27 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         <OutcomeModal
           activity={outcomeActivity}
           onClose={() => setOutcomeActivity(null)}
+        />
+      )}
+
+      {/* Outcome Modal — after logging a past calendar meeting */}
+      {meetingOutcome && (
+        <OutcomeModal
+          activity={{
+            id: meetingOutcome.activityId,
+            type: meetingOutcome.event.suggestedActivityType || "program_check_in",
+            title: meetingOutcome.event.title,
+          }}
+          sourceContext={{
+            planIds: meetingOutcome.event.suggestedPlanId
+              ? [meetingOutcome.event.suggestedPlanId]
+              : undefined,
+            districtLeaids: meetingOutcome.event.suggestedDistrictId
+              ? [meetingOutcome.event.suggestedDistrictId]
+              : undefined,
+            contactIds: meetingOutcome.event.suggestedContactIds || undefined,
+          }}
+          onClose={() => setMeetingOutcome(null)}
         />
       )}
     </div>
