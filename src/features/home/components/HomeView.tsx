@@ -96,7 +96,7 @@ export default function HomeView() {
         />
 
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6">
           {activeTab === "feed" && (
             <FeedTab onBadgeCountChange={handleFeedBadge} />
           )}
