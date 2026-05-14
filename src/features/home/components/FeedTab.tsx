@@ -7,6 +7,7 @@ import {
   useUpdateTask,
   useCalendarInbox,
   useConfirmCalendarEvent,
+  useDismissCalendarEvent,
   type TaskItem,
   type ActivityListItem,
   type CalendarEvent,
@@ -76,6 +77,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
   const { data: calendarData } = useCalendarInbox("pending");
   const updateTask = useUpdateTask();
   const confirmCalendarEvent = useConfirmCalendarEvent();
+  const dismissCalendarEvent = useDismissCalendarEvent();
   const [outcomeActivity, setOutcomeActivity] = useState<ActivityListItem | null>(null);
   const [meetingOutcome, setMeetingOutcome] = useState<
     { activityId: string; event: CalendarEvent } | null
@@ -93,6 +95,15 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
       if (isPast) {
         setMeetingOutcome({ activityId: result.activityId, event });
       }
+    } catch {
+      // Mutation errors surface via React Query; row stays in the inbox.
+    }
+  };
+
+  const handleDismissMeeting = async (event: CalendarEvent) => {
+    if (dismissCalendarEvent.isPending) return;
+    try {
+      await dismissCalendarEvent.mutateAsync(event.id);
     } catch {
       // Mutation errors surface via React Query; row stays in the inbox.
     }
@@ -399,10 +410,10 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
         </FeedSection>
       )}
 
-      {/* Meetings to Log */}
+      {/* Unlogged calendar meetings — rep must log or dismiss each */}
       {meetingsToLog.length > 0 && (
         <FeedSection
-          title="Meetings to Log"
+          title="Unlogged meetings — log or dismiss"
           dotColor="#8AA891"
           itemCount={meetingsToLog.length}
         >
@@ -413,6 +424,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
               source="Google Calendar"
               time={formatTime(event.startTime)}
               onLogActivity={() => handleLogActivity(event)}
+              onDismiss={() => handleDismissMeeting(event)}
             />
           ))}
         </FeedSection>
