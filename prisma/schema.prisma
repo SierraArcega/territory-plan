@@ -518,6 +518,8 @@ model TerritoryPlan {
   enrichmentQueued     Int?      @map("enrichment_queued")
   enrichmentActivityId String?   @map("enrichment_activity_id") @db.Uuid
 
+  viewLayouts  Json?  @map("view_layouts")
+
   // Relations
   ownerUser     UserProfile?                @relation("PlanOwner", fields: [ownerId], references: [id])
   districts     TerritoryPlanDistrict[]
@@ -601,6 +603,8 @@ model SavedList {
   shared          Boolean  @default(false)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+
+  viewLayouts  Json?  @map("view_layouts")
 
   owner  UserProfile       @relation("SavedListOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   hidden SavedListHidden[]
