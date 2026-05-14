@@ -9,8 +9,9 @@
  *
  * URL shapes (see spec §"URL Structure"):
  *
- *   /views                                         → portfolio
- *   /views?archived=1                              → portfolio, Archived tab
+ *   /views                                         → portfolio, My plans tab (default)
+ *   /views?bucket=team                             → portfolio, Team plans tab
+ *   /views?bucket=archived                         → portfolio, Archived plans tab
  *   /views/plans/[planId]                          → plan, default view (page redirects)
  *   /views/plans/[planId]/[viewId]                 → plan, specific view
  *   /views/plans/[planId]/[viewId]?detail=kind:id  → plan view + detail panel
@@ -37,6 +38,15 @@ import {
 
 export type GroupKind = "plan" | "list";
 
+/** Portfolio tab buckets. "mine" is the default landing tab. */
+export type PortfolioBucket = "mine" | "team" | "archived";
+
+const PORTFOLIO_BUCKETS: PortfolioBucket[] = ["mine", "team", "archived"];
+
+function isPortfolioBucket(v: string | null): v is PortfolioBucket {
+  return v !== null && (PORTFOLIO_BUCKETS as string[]).includes(v);
+}
+
 export interface DetailState {
   kind: DetailKind;
   id: string;
@@ -56,12 +66,16 @@ export interface ViewsRouter {
   viewId: ViewId | null;
   /** Detail-panel state parsed from ?detail=[kind]:[id], or null. */
   detail: DetailState | null;
-  /** Whether the portfolio is in Archived tab mode (?archived=1). */
-  showArchived: boolean;
+  /**
+   * Active portfolio tab. Reads `?bucket=mine|team|archived`; defaults to
+   * "mine" when absent or invalid so a bare `/views` URL lands on the user's
+   * own plans.
+   */
+  bucket: PortfolioBucket;
   /** Navigate to a specific group + optional view; preserves no query params. */
   goToGroup: (kind: GroupKind, id: string, viewId?: ViewId) => void;
-  /** Navigate to the portfolio; optionally selecting the Archived tab. */
-  goToPortfolio: (showArchived?: boolean) => void;
+  /** Navigate to the portfolio; optionally selecting a specific tab. */
+  goToPortfolio: (bucket?: PortfolioBucket) => void;
   /** Open the detail panel on the current view, preserving everything else. */
   openDetail: (kind: DetailKind, id: string) => void;
   /** Close the detail panel by removing the ?detail param. */
@@ -146,7 +160,8 @@ export function useViewsRouter(): ViewsRouter {
   const detailRaw = searchParams?.get("detail") ?? null;
   const detail = useMemo(() => parseDetailParam(detailRaw), [detailRaw]);
 
-  const showArchived = searchParams?.get("archived") === "1";
+  const bucketRaw = searchParams?.get("bucket") ?? null;
+  const bucket: PortfolioBucket = isPortfolioBucket(bucketRaw) ? bucketRaw : "mine";
 
   const isPortfolio = parsed.groupKind === null && pathname.startsWith("/views");
 
@@ -158,8 +173,9 @@ export function useViewsRouter(): ViewsRouter {
   );
 
   const goToPortfolio = useCallback(
-    (archived?: boolean) => {
-      router.push(archived ? "/views?archived=1" : "/views");
+    (next?: PortfolioBucket) => {
+      // "mine" is the default landing tab, so a bare /views is canonical for it.
+      router.push(next && next !== "mine" ? `/views?bucket=${next}` : "/views");
     },
     [router],
   );
@@ -188,7 +204,7 @@ export function useViewsRouter(): ViewsRouter {
     groupId: parsed.groupId,
     viewId: parsed.viewId,
     detail,
-    showArchived,
+    bucket,
     goToGroup,
     goToPortfolio,
     openDetail,

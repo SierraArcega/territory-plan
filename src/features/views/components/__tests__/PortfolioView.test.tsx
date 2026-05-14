@@ -5,8 +5,10 @@ import type { ReactNode } from "react";
 import PortfolioView from "../PortfolioView";
 import type { PlanWithStats } from "../../lib/queries";
 
-// The component reads URL state (showArchived) via useViewsRouter.
+// The component reads URL state (bucket) via useViewsRouter. Each test can
+// override the active bucket by mutating `routerState.bucket` before render.
 const goToPortfolio = vi.fn();
+const routerState: { bucket: "mine" | "team" | "archived" } = { bucket: "mine" };
 vi.mock("../../hooks/useViewsRouter", () => ({
   useViewsRouter: () => ({
     isPortfolio: true,
@@ -14,12 +16,19 @@ vi.mock("../../hooks/useViewsRouter", () => ({
     groupId: null,
     viewId: null,
     detail: null,
-    showArchived: false,
+    bucket: routerState.bucket,
     goToGroup: vi.fn(),
     goToPortfolio,
     openDetail: vi.fn(),
     closeDetail: vi.fn(),
   }),
+}));
+
+// PortfolioView reads the current user id via useProfile() to split mine/team.
+// Mock returns the same id (u1) the test fixture's owner uses by default, so a
+// stock `plan()` is owned-by-me unless an override flips it.
+vi.mock("@/features/shared/lib/queries", () => ({
+  useProfile: () => ({ data: { id: "u1" } }),
 }));
 
 // The card mutation uses the territory-plans update hook — stub to avoid
@@ -63,6 +72,7 @@ function plan(overrides: Partial<PlanWithStats> = {}): PlanWithStats {
     districtCount: 12,
     districtLeaids: ["0100005", "0100006"],
     owner: { id: "u1", fullName: "Sierra Arcega", avatarUrl: null },
+    collaborators: [],
     hidden: false,
     progress: 62,
     pipelineValue: 622000,
@@ -75,6 +85,7 @@ function plan(overrides: Partial<PlanWithStats> = {}): PlanWithStats {
 beforeEach(() => {
   fetchMock.mockReset();
   goToPortfolio.mockReset();
+  routerState.bucket = "mine";
 });
 
 describe("PortfolioView", () => {
@@ -140,13 +151,21 @@ describe("PortfolioView", () => {
     expect(queryByText("$10.0M")).toBeNull();
   });
 
-  it("renders the Active/Archived tab strip with counts", async () => {
+  it("renders the My / Team / Archived tab strip with counts", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => [
+        // mine (owned by u1)
         plan(),
-        plan({ id: "p2", status: "archived" }),
+        // team (owned by someone else, not a collaborator on it either)
+        plan({
+          id: "p2",
+          owner: { id: "u2", fullName: "Teammate", avatarUrl: null },
+          collaborators: [],
+        }),
+        // archived counts regardless of ownership
         plan({ id: "p3", status: "archived" }),
+        plan({ id: "p4", status: "archived" }),
       ],
       headers: new Headers({ "content-type": "application/json" }),
     });
@@ -156,11 +175,34 @@ describe("PortfolioView", () => {
         <PortfolioView />
       </Wrapper>,
     );
-    expect(await findByText(/Active · 1/)).toBeTruthy();
-    expect(await findByText(/Archived · 2/)).toBeTruthy();
+    expect(await findByText(/My plans · 1/)).toBeTruthy();
+    expect(await findByText(/Team plans · 1/)).toBeTruthy();
+    expect(await findByText(/Archived plans · 2/)).toBeTruthy();
   });
 
-  it("renders a New plan card on the Active tab", async () => {
+  it("counts a plan as mine when the user is a collaborator (not owner)", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        plan({
+          id: "p1",
+          owner: { id: "u2", fullName: "Owner", avatarUrl: null },
+          collaborators: [{ id: "u1", fullName: "Sierra", avatarUrl: null }],
+        }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    const { findByText } = render(
+      <Wrapper>
+        <PortfolioView />
+      </Wrapper>,
+    );
+    expect(await findByText(/My plans · 1/)).toBeTruthy();
+    expect(await findByText(/Team plans · 0/)).toBeTruthy();
+  });
+
+  it("renders a New plan card on the My plans tab", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => [plan()],
@@ -175,10 +217,35 @@ describe("PortfolioView", () => {
     expect(await findByText(/New plan/i)).toBeTruthy();
   });
 
-  it("renders an empty state when there are no plans", async () => {
+  it("does not render the New plan card on the Team tab", async () => {
+    routerState.bucket = "team";
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => [],
+      json: async () => [
+        plan({
+          id: "p2",
+          owner: { id: "u2", fullName: "Other", avatarUrl: null },
+          collaborators: [],
+        }),
+      ],
+      headers: new Headers({ "content-type": "application/json" }),
+    });
+    const Wrapper = makeWrapper();
+    const { findByText, queryByText } = render(
+      <Wrapper>
+        <PortfolioView />
+      </Wrapper>,
+    );
+    // Wait for the team-owned plan card to render before asserting absence.
+    expect(await findByText("Mountain West FY26")).toBeTruthy();
+    expect(queryByText(/New plan/i)).toBeNull();
+  });
+
+  it("renders an empty state on the Team tab when no team plans exist", async () => {
+    routerState.bucket = "team";
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [plan()], // owned by u1 → goes to mine, not team
       headers: new Headers({ "content-type": "application/json" }),
     });
     const Wrapper = makeWrapper();
@@ -187,7 +254,7 @@ describe("PortfolioView", () => {
         <PortfolioView />
       </Wrapper>,
     );
-    expect(await findByText(/No plans yet/i)).toBeTruthy();
+    expect(await findByText(/No team plans/i)).toBeTruthy();
   });
 
   it("shows skeletons while loading", async () => {

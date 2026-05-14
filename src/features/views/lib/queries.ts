@@ -46,6 +46,7 @@ export interface PlanWithStats {
   districtCount: number;
   districtLeaids: string[];
   owner: { id: string; fullName: string | null; avatarUrl: string | null } | null;
+  collaborators: { id: string; fullName: string | null; avatarUrl: string | null }[];
   hidden: boolean;
   // ?stats=1 computed fields
   progress: number | null;

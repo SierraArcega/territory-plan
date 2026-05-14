@@ -3,27 +3,26 @@
 /**
  * PortfolioView — the /views entry page.
  *
- * Replaces the Phase B stub. Renders an Active / Archived tab strip and a
- * responsive card grid of `PlanCardPortfolio` tiles. The Active tab also
- * shows a dashed "New plan" affordance at the end of the grid.
+ * Renders three tabs (My plans / Team plans / Archived plans) and a
+ * responsive card grid of `PlanCardPortfolio` tiles. The My + Team tabs also
+ * show a dashed "New plan" affordance at the end of the grid; new plans
+ * default-own to the current user so they land in My plans.
  *
- * Header stats note (Phase F deviation): the README's "Total target / Booked
- * / To target" portfolio aggregates are not exposed by the existing
- * `/api/territory-plans` endpoint and we agreed not to extend the API in this
- * pass. The four real aggregates we surface instead are computed client-side
- * from the fields the API already returns:
- *   - Open pipeline  — `sum(pipelineValue)`
- *   - Total contacts — `sum(contactsCount)`
- *   - Open opps      — `sum(oppsCount)`
- *   - Plans          — count of active plans
+ * Bucket rules:
+ *   - mine     — `status !== "archived"` AND current user is owner or in
+ *                `collaborators`. This is the default landing tab.
+ *   - team     — `status !== "archived"` AND the user is not on the plan.
+ *   - archived — `status === "archived"` regardless of ownership.
  *
- * Reading the active/archived tab from the URL keeps the tab state
- * bookmarkable / shareable. The footer affordance in `HiddenFooter` deep-links
- * to `?archived=1` so the user can find archived plans from the sidebar.
+ * Header stats are computed from the active book (mine + team) so opening
+ * Archived doesn't make the eyebrow stats appear to "drop". The four
+ * client-side aggregates substitute for the README's Total target / Booked /
+ * To target set, which would require new API fields.
  */
 import { useMemo } from "react";
 import { usePlansWithStats, type PlanWithStats } from "../lib/queries";
-import { useViewsRouter } from "../hooks/useViewsRouter";
+import { useViewsRouter, type PortfolioBucket } from "../hooks/useViewsRouter";
+import { useProfile } from "@/features/shared/lib/queries";
 import PlanCardPortfolio, { NewPlanCard } from "./PlanCardPortfolio";
 
 /** Compact dollar formatter ("$1.2M", "$622K", "$48"). */
@@ -40,37 +39,59 @@ function formatInt(value: number): string {
   return value.toLocaleString();
 }
 
+/** Is the current user on this plan (owner or collaborator)? */
+function isOnPlan(plan: PlanWithStats, userId: string | null): boolean {
+  if (!userId) return false;
+  if (plan.owner?.id === userId) return true;
+  return plan.collaborators.some((c) => c.id === userId);
+}
+
 export default function PortfolioView() {
   const router = useViewsRouter();
-  const { showArchived } = router;
+  const { bucket } = router;
 
   const plansQ = usePlansWithStats();
+  const profileQ = useProfile();
+  const userId = profileQ.data?.id ?? null;
+
   const allPlans: PlanWithStats[] = plansQ.data ?? [];
 
-  // Plans are "archived" when their `status` is the literal "archived". All
-  // other statuses (planning / working / stale) are bucketed into Active.
-  const active = useMemo(
-    () => allPlans.filter((p) => p.status !== "archived"),
-    [allPlans],
-  );
-  const archived = useMemo(
-    () => allPlans.filter((p) => p.status === "archived"),
-    [allPlans],
-  );
-  const shown = showArchived ? archived : active;
+  // Three-way split. "mine" wins over "team" when both conditions could match.
+  // Archived plans skip the ownership split — they get their own tab.
+  const { mine, team, archived } = useMemo(() => {
+    const mineArr: PlanWithStats[] = [];
+    const teamArr: PlanWithStats[] = [];
+    const archivedArr: PlanWithStats[] = [];
+    for (const p of allPlans) {
+      if (p.status === "archived") {
+        archivedArr.push(p);
+      } else if (isOnPlan(p, userId)) {
+        mineArr.push(p);
+      } else {
+        teamArr.push(p);
+      }
+    }
+    return { mine: mineArr, team: teamArr, archived: archivedArr };
+  }, [allPlans, userId]);
 
-  // Header stats are computed from the Active set so opening Archived
-  // doesn't make the eyebrow stats appear to "drop" — the portfolio number
-  // is your present-day book.
-  const totals = useMemo(
-    () => ({
-      pipeline: active.reduce((acc, p) => acc + (p.pipelineValue ?? 0), 0),
-      contacts: active.reduce((acc, p) => acc + (p.contactsCount ?? 0), 0),
-      opps: active.reduce((acc, p) => acc + (p.oppsCount ?? 0), 0),
-      plansCount: active.length,
-    }),
-    [active],
-  );
+  const shown = bucket === "archived" ? archived : bucket === "team" ? team : mine;
+
+  // Header stats are computed from the active book (mine + team) so opening
+  // Archived doesn't make the eyebrow stats appear to "drop" — the portfolio
+  // number is your present-day book.
+  const totals = useMemo(() => {
+    const activeCount = mine.length + team.length;
+    const pipeline =
+      mine.reduce((acc, p) => acc + (p.pipelineValue ?? 0), 0) +
+      team.reduce((acc, p) => acc + (p.pipelineValue ?? 0), 0);
+    const contacts =
+      mine.reduce((acc, p) => acc + (p.contactsCount ?? 0), 0) +
+      team.reduce((acc, p) => acc + (p.contactsCount ?? 0), 0);
+    const opps =
+      mine.reduce((acc, p) => acc + (p.oppsCount ?? 0), 0) +
+      team.reduce((acc, p) => acc + (p.oppsCount ?? 0), 0);
+    return { pipeline, contacts, opps, plansCount: activeCount };
+  }, [mine, team]);
 
   return (
     <>
@@ -80,10 +101,10 @@ export default function PortfolioView() {
       >
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#8A80A8] whitespace-nowrap">
-            {showArchived ? "Archived" : "FY26 Portfolio"}
+            {bucket === "archived" ? "Archived" : "FY26 Portfolio"}
           </p>
           <h1 className="mt-1 text-[22px] font-bold tracking-tight text-[#403770] whitespace-nowrap">
-            {showArchived ? `Archived plans · ${archived.length}` : "All plans"}
+            All plans
           </h1>
         </div>
 
@@ -108,32 +129,40 @@ export default function PortfolioView() {
 
       {/* Body — off-white background, scrollable */}
       <section className="flex-1 min-h-0 overflow-y-auto bg-[#FFFCFA] px-6 py-5">
-        {/* Tab strip: Active / Archived */}
+        {/* Tab strip: My plans / Team plans / Archived plans */}
         <div
           className="flex gap-0 mb-[18px] border-b border-[#E2DEEC]"
           role="tablist"
-          aria-label="Plan archive state"
+          aria-label="Plan ownership"
         >
           <PortfolioTab
-            active={!showArchived}
-            label={`Active · ${active.length}`}
-            onClick={() => router.goToPortfolio(false)}
+            active={bucket === "mine"}
+            label={`My plans · ${mine.length}`}
+            onClick={() => router.goToPortfolio("mine")}
           />
           <PortfolioTab
-            active={showArchived}
-            label={`Archived · ${archived.length}`}
-            onClick={() => router.goToPortfolio(true)}
+            active={bucket === "team"}
+            label={`Team plans · ${team.length}`}
+            onClick={() => router.goToPortfolio("team")}
+          />
+          <PortfolioTab
+            active={bucket === "archived"}
+            label={`Archived plans · ${archived.length}`}
+            onClick={() => router.goToPortfolio("archived")}
           />
         </div>
 
         {/* Card grid — auto-fill at 320px minimum so wide viewports get 4+
-            columns while a 320px sidebar still surfaces 1-2 cards cleanly. */}
+            columns while a 320px sidebar still surfaces 1-2 cards cleanly.
+            "mine" always renders the grid so NewPlanCard stays reachable even
+            when the user has zero owned plans; team/archived fall back to
+            EmptyBlock so the empty tab is unambiguous. */}
         {plansQ.isLoading ? (
           <Skeletons />
         ) : plansQ.isError ? (
           <ErrorBlock />
-        ) : shown.length === 0 ? (
-          <EmptyBlock archived={showArchived} />
+        ) : bucket !== "mine" && shown.length === 0 ? (
+          <EmptyBlock bucket={bucket} />
         ) : (
           <div
             className="grid gap-[14px]"
@@ -142,9 +171,16 @@ export default function PortfolioView() {
             }}
           >
             {shown.map((p) => (
-              <PlanCardPortfolio key={p.id} plan={p} archived={showArchived} />
+              <PlanCardPortfolio
+                key={p.id}
+                plan={p}
+                archived={bucket === "archived"}
+              />
             ))}
-            {!showArchived && <NewPlanCard />}
+            {/* New-plan affordance only on My plans. A plan you create owns
+                to you → lands here; showing it on Team would mislead, and on
+                Archived is nonsensical. */}
+            {bucket === "mine" && <NewPlanCard />}
           </div>
         )}
       </section>
@@ -233,19 +269,30 @@ function ErrorBlock() {
 }
 
 interface EmptyBlockProps {
-  archived: boolean;
+  bucket: PortfolioBucket;
 }
-function EmptyBlock({ archived }: EmptyBlockProps) {
+function EmptyBlock({ bucket }: EmptyBlockProps) {
+  const { title, body } =
+    bucket === "archived"
+      ? {
+          title: "No archived plans",
+          body: "Plans you archive will appear here.",
+        }
+      : bucket === "team"
+        ? {
+            title: "No team plans",
+            body: "Plans owned by your teammates will appear here.",
+          }
+        : {
+            title: "You don't own any plans yet",
+            body: "Create one with the New plan card on this tab to get started.",
+          };
   return (
     <div className="rounded-lg border border-dashed border-[#D4CFE2] bg-white p-8 text-center">
       <p className="text-sm font-semibold text-[#403770] whitespace-nowrap">
-        {archived ? "No archived plans" : "No plans yet"}
+        {title}
       </p>
-      <p className="mt-1 text-xs text-[#8A80A8]">
-        {archived
-          ? "Plans you archive will appear here."
-          : "Create a plan to get started — use the dashed card below."}
-      </p>
+      <p className="mt-1 text-xs text-[#8A80A8]">{body}</p>
     </div>
   );
 }

@@ -161,15 +161,30 @@ describe("useViewsRouter (hook)", () => {
     expect(result.current.groupId).toBe(null);
     expect(result.current.viewId).toBe(null);
     expect(result.current.detail).toBe(null);
-    expect(result.current.showArchived).toBe(false);
+    expect(result.current.bucket).toBe("mine");
   });
 
-  it("portfolio with archived flag: /views?archived=1", () => {
+  it("portfolio with team bucket: /views?bucket=team", () => {
     mockState.pathname = "/views";
-    mockState.searchParams = new URLSearchParams("archived=1");
+    mockState.searchParams = new URLSearchParams("bucket=team");
     const { result } = renderHook(() => useViewsRouter());
     expect(result.current.isPortfolio).toBe(true);
-    expect(result.current.showArchived).toBe(true);
+    expect(result.current.bucket).toBe("team");
+  });
+
+  it("portfolio with archived bucket: /views?bucket=archived", () => {
+    mockState.pathname = "/views";
+    mockState.searchParams = new URLSearchParams("bucket=archived");
+    const { result } = renderHook(() => useViewsRouter());
+    expect(result.current.isPortfolio).toBe(true);
+    expect(result.current.bucket).toBe("archived");
+  });
+
+  it("portfolio with unknown bucket falls back to mine", () => {
+    mockState.pathname = "/views";
+    mockState.searchParams = new URLSearchParams("bucket=garbage");
+    const { result } = renderHook(() => useViewsRouter());
+    expect(result.current.bucket).toBe("mine");
   });
 
   it("plan default view: /views/plans/plan-abc", () => {
@@ -222,16 +237,28 @@ describe("useViewsRouter (hook)", () => {
     expect(mockState.push).toHaveBeenCalledWith("/views/plans/plan-abc/table");
   });
 
-  it("goToPortfolio without archived flag", () => {
+  it("goToPortfolio with no bucket lands on the default tab", () => {
     const { result } = renderHook(() => useViewsRouter());
     act(() => result.current.goToPortfolio());
     expect(mockState.push).toHaveBeenCalledWith("/views");
   });
 
-  it("goToPortfolio with archived flag", () => {
+  it("goToPortfolio('mine') produces the canonical bare URL", () => {
     const { result } = renderHook(() => useViewsRouter());
-    act(() => result.current.goToPortfolio(true));
-    expect(mockState.push).toHaveBeenCalledWith("/views?archived=1");
+    act(() => result.current.goToPortfolio("mine"));
+    expect(mockState.push).toHaveBeenCalledWith("/views");
+  });
+
+  it("goToPortfolio('team') sets ?bucket=team", () => {
+    const { result } = renderHook(() => useViewsRouter());
+    act(() => result.current.goToPortfolio("team"));
+    expect(mockState.push).toHaveBeenCalledWith("/views?bucket=team");
+  });
+
+  it("goToPortfolio('archived') sets ?bucket=archived", () => {
+    const { result } = renderHook(() => useViewsRouter());
+    act(() => result.current.goToPortfolio("archived"));
+    expect(mockState.push).toHaveBeenCalledWith("/views?bucket=archived");
   });
 
   it("openDetail preserves existing query params", () => {

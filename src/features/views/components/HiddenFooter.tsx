@@ -7,8 +7,8 @@
  *   1. "Show hidden (N)" — toggles `showHidden` in the views store. With it
  *      on, the sidebar refetches plans/lists with `?showHidden=1` and renders
  *      hidden rows in their muted treatment (opacity 0.55 + dashed accent).
- *   2. "Archived plans · N" — deep-links to `/views?archived=1` so the user
- *      can find an archived plan to unarchive without leaving the sidebar.
+ *   2. "Archived plans · N" — deep-links to `/views?bucket=archived` so the
+ *      user can find an archived plan to unarchive without leaving the sidebar.
  *
  * We always fetch with `showHidden=1` here (one extra query) so the count is
  * authoritative. The main sidebar list still respects the local `showHidden`
@@ -62,7 +62,7 @@ export default function HiddenFooter() {
       {hasArchived && (
         <button
           type="button"
-          onClick={() => router.push("/views?archived=1")}
+          onClick={() => router.push("/views?bucket=archived")}
           className="px-1 py-1 text-left text-[11px] font-medium text-[#8A80A8] hover:text-[#403770] transition-colors duration-100 whitespace-nowrap"
         >
           Archived plans · {counts.archivedPlans}
