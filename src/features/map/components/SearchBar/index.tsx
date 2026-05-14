@@ -261,7 +261,7 @@ export default function SearchBar() {
   return (
     <div className="search-bar-root shrink-0 relative z-20 flex flex-col">
       {/* Main bar */}
-      <div className="flex items-center gap-2 bg-[#F7F5FA] border-b border-[#D4CFE2] px-3 py-2">
+      <div className="flex items-center gap-2 bg-[#F7F5FA] border-b border-[#D4CFE2] px-3 py-2 overflow-x-auto">
         {/* Search input */}
         <div className="relative flex-1 min-w-[160px] max-w-[300px]">
           <div className="flex items-center gap-2 bg-white rounded-lg border border-[#C2BBD4] px-2.5 py-1.5 focus-within:border-plum focus-within:ring-2 focus-within:ring-plum/15 transition-all">
@@ -291,7 +291,7 @@ export default function SearchBar() {
 
           {/* Search suggestions dropdown */}
           {showSuggestions && (districtSuggestions.length > 0 || suggestions.length > 0) && (
-            <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
+            <div className="absolute top-full left-0 mt-1 w-[min(320px,calc(100vw-1.5rem))] bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
               {districtSuggestions.length > 0 && (
                 <>
                   <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
@@ -355,13 +355,15 @@ export default function SearchBar() {
         <div className="w-px h-6 bg-[#D4CFE2]" />
 
         {/* Geography — always active, opens GeographyDropdown */}
-        <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
+        <div className="shrink-0">
+          <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
+        </div>
 
         {/* Divider */}
         <div className="w-px h-6 bg-[#D4CFE2]" />
 
         {/* Entity layer toggle + filter buttons — always visible */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 shrink-0">
           {(["contacts", "vacancies", "activities", "plans"] as const).some((l) => !activeLayers.has(l)) && (
             <span className="text-[10px] text-[#B8B0CF] select-none whitespace-nowrap leading-none pl-0.5">
               Click a layer below to show it on the map
@@ -435,7 +437,7 @@ export default function SearchBar() {
 
         {/* Fiscal Year selector + Compare */}
         {compareMode ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <select
               value={compareFyA}
               onChange={(e) => setCompareFyA(e.target.value as FiscalYear)}
@@ -463,7 +465,7 @@ export default function SearchBar() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <div className="flex items-center bg-white rounded-lg border border-[#D4CFE2] overflow-hidden">
               {(["fy25", "fy26", "fy27"] as const).map((fy) => (
                 <button

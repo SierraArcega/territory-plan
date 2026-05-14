@@ -87,7 +87,7 @@ export default function FloatingPanel() {
               className="absolute inset-0 z-10 bg-black/20"
               onClick={() => setPanelMode("hidden")}
             />
-            <div className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm rounded-t-2xl shadow-lg max-h-[70vh] flex flex-col">
+            <div className="absolute bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-sm rounded-t-2xl shadow-lg max-h-[70vh] flex flex-col" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
               {/* Drag handle */}
               <div className="flex justify-center py-2">
                 <div className="w-10 h-1 rounded-full bg-gray-300" />
