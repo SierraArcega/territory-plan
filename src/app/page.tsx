@@ -267,6 +267,10 @@ function HomeContent() {
     <AppShell
       activeTab={activeTab}
       onTabChange={(tab, section) => {
+        // "views" is a sentinel from /views/layout.tsx — never fires from / route
+        // because no MAIN_TABS entry has id "views". Guard to satisfy app-store's
+        // narrower TabId.
+        if (tab === "views") return;
         // Mark this state update as a sidebar click so the URL sync effect
         // clears Reports builder params (?view=, ?report=, etc.).
         sidebarTabChangeRef.current = true;
