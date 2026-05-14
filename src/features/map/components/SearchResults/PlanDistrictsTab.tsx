@@ -55,6 +55,10 @@ function getPercentOfBadge(current: number, fullPrior: number): { label: string;
   return { label: `${pct}%`, bg: "bg-[#FEF2F1]", text: "text-[#9B4D46]" };
 }
 
+function formatEnrollment(n: number): string {
+  return n >= 1000 ? `${Math.round(n / 1000)}K` : String(n);
+}
+
 // ─── Sort ────────────────────────────────────────────────────────
 
 type SortColumn = "name" | "target" | "actual" | "attainment";
@@ -141,10 +145,24 @@ export default function PlanDistrictsTab({ plan, onClose }: PlanDistrictsTabProp
 
       {/* Table header */}
       <div className="shrink-0 border-y border-[#E2DEEC] bg-[#FAFAFE]">
-        <div className="grid grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
+        <div className="grid grid-cols-[1fr_52px_52px_44px_28px] sm:grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-[#A69DC0]">
           <SortBtn label="District" col="name" activeCol={sortCol} dir={sortDir} onSort={handleSort} />
-          <SortBtn label="Rev. Target" col="target" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="right" />
-          <SortBtn label="Rev. Actual" col="actual" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="right" />
+          <SortBtn
+            label={<><span className="sm:hidden whitespace-nowrap">Target</span><span className="hidden sm:inline whitespace-nowrap">Rev. Target</span></>}
+            col="target"
+            activeCol={sortCol}
+            dir={sortDir}
+            onSort={handleSort}
+            align="right"
+          />
+          <SortBtn
+            label={<><span className="sm:hidden whitespace-nowrap">Actual</span><span className="hidden sm:inline whitespace-nowrap">Rev. Actual</span></>}
+            col="actual"
+            activeCol={sortCol}
+            dir={sortDir}
+            onSort={handleSort}
+            align="right"
+          />
           <SortBtn label="Attain." col="attainment" activeCol={sortCol} dir={sortDir} onSort={handleSort} align="center" />
           <span />
         </div>
@@ -240,7 +258,7 @@ function DistrictRow({
     <div className={`${isExpanded ? "border-b-2 border-[#E2DEEC]" : "border-b border-[#f0edf5]"} last:border-b-0`}>
       {/* Collapsed row */}
       <div
-        className={`grid grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2.5 cursor-pointer transition-colors ${
+        className={`grid grid-cols-[1fr_52px_52px_44px_28px] sm:grid-cols-[1fr_110px_110px_55px_28px] items-center px-5 py-2.5 cursor-pointer transition-colors ${
           isExpanded ? "bg-[#FAFAFE] border-b border-[#E2DEEC]" : "hover:bg-[#FAFAFE]"
         }`}
         onClick={onToggle}
@@ -254,9 +272,17 @@ function DistrictRow({
           >
             <path d="M2.5 1L5.5 4L2.5 7" stroke="currentColor" strokeWidth={isExpanded ? "1.5" : "1.2"} fill="none" strokeLinecap="round" />
           </svg>
-          <span className={`text-xs truncate ${isExpanded ? "font-semibold text-[#403770]" : "font-medium text-[#544A78]"}`}>
-            {district.name}
-          </span>
+          <div className="min-w-0">
+            <span className={`text-xs truncate block ${isExpanded ? "font-semibold text-[#403770]" : "font-medium text-[#544A78]"}`}>
+              {district.name}
+            </span>
+            {(district.stateAbbrev != null || district.enrollment != null) && (
+              <span className="sm:hidden text-[9px] text-[#8A80A8] mt-0.5 block">
+                {district.stateAbbrev ?? "—"}
+                {district.enrollment != null && ` · ${formatEnrollment(district.enrollment)}`}
+              </span>
+            )}
+          </div>
         </div>
 
         {totalTarget > 0 ? (
@@ -699,7 +725,7 @@ function SortBtn({
   onSort,
   align = "left",
 }: {
-  label: string;
+  label: React.ReactNode;
   col: SortColumn;
   activeCol: SortColumn;
   dir: "asc" | "desc";

@@ -3,8 +3,10 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useTerritoryPlan } from "@/lib/api";
+import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import PlanDetailSidebar from "./PlanDetailSidebar";
 import PlanDetailTabs from "./PlanDetailTabs";
+import PlanDetailMobileShell from "./PlanDetailMobileShell";
 
 interface PlanDetailModalProps {
   planId: string;
@@ -24,6 +26,7 @@ export default function PlanDetailModal({
   totalCount,
 }: PlanDetailModalProps) {
   const { data: plan, isLoading, error } = useTerritoryPlan(planId);
+  const isMobile = useIsMobile();
 
   // Keyboard navigation
   useEffect(() => {
@@ -36,112 +39,160 @@ export default function PlanDetailModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose, onPrev, onNext]);
 
-  // Prevent body scroll while modal is open
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
-
   return createPortal(
-    // Stop propagation so clicks inside the portal don't bubble
-    // through React's tree back to the parent card's onClick
     <div onClick={(e) => e.stopPropagation()}>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      {/* Modal + navigation — matches DistrictExploreModal layout */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          {/* Prev arrow */}
-          {onPrev ? (
-            <button
-              onClick={onPrev}
-              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-              title="Previous plan (←)"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          ) : <div className="w-10 shrink-0" />}
-
-          {/* Center column: back button + modal + counter */}
-          <div className="flex flex-col items-start gap-2">
-            {/* Top row: back + close */}
-            <div className="flex items-center justify-between w-full">
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Return to Map
-              </button>
-              <button
-                onClick={onClose}
-                className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-                aria-label="Close"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      {isMobile ? (
+        /* ── Mobile: full-screen overlay ── */
+        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden">
+          {isLoading ? (
+            <MobileModalSkeleton />
+          ) : error ? (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <p className="text-sm font-medium text-[#F37167]">Failed to load plan</p>
+                <p className="text-xs text-[#8A80A8] mt-1">{error.message}</p>
+              </div>
             </div>
+          ) : plan ? (
+            <PlanDetailMobileShell
+              plan={plan}
+              onClose={onClose}
+              onPrev={onPrev}
+              onNext={onNext}
+              currentIndex={currentIndex}
+              totalCount={totalCount}
+            />
+          ) : null}
+        </div>
+      ) : (
+        /* ── Desktop: original modal + floating arrows ── */
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={onClose}
+        >
+          <div
+            className="flex items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Prev arrow */}
+            {onPrev ? (
+              <button
+                onClick={onPrev}
+                className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+                title="Previous plan (←)"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            ) : (
+              <div className="w-10 shrink-0" />
+            )}
 
-            {/* Modal container */}
-            <div className="relative bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden">
-              {/* Content */}
-              {isLoading ? (
-                <ModalSkeleton />
-              ) : error ? (
-                <div className="flex-1 flex items-center justify-center p-8">
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-[#F37167]">Failed to load plan</p>
-                    <p className="text-xs text-[#8A80A8] mt-1">{error.message}</p>
+            {/* Center column: back button + modal + counter */}
+            <div className="flex flex-col items-start gap-2">
+              {/* Top row: back + close */}
+              <div className="flex items-center justify-between w-full">
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Return to Map
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+                  aria-label="Close"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal container */}
+              <div className="relative bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden">
+                {isLoading ? (
+                  <DesktopModalSkeleton />
+                ) : error ? (
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-[#F37167]">Failed to load plan</p>
+                      <p className="text-xs text-[#8A80A8] mt-1">{error.message}</p>
+                    </div>
                   </div>
-                </div>
-              ) : plan ? (
-                <div className="flex-1 flex overflow-hidden">
-                  <PlanDetailSidebar plan={plan} />
-                  <PlanDetailTabs plan={plan} onClose={onClose} />
-                </div>
-              ) : null}
+                ) : plan ? (
+                  <div className="flex-1 flex overflow-hidden">
+                    <PlanDetailSidebar plan={plan} />
+                    <PlanDetailTabs plan={plan} onClose={onClose} />
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Counter */}
+              {currentIndex != null && totalCount != null && totalCount > 0 && (
+                <span className="self-center px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78]">
+                  {currentIndex + 1} of {totalCount}
+                </span>
+              )}
             </div>
 
-            {/* Counter */}
-            {currentIndex != null && totalCount != null && totalCount > 0 && (
-              <span className="self-center px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78]">
-                {currentIndex + 1} of {totalCount}
-              </span>
+            {/* Next arrow */}
+            {onNext ? (
+              <button
+                onClick={onNext}
+                className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+                title="Next plan (→)"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ) : (
+              <div className="w-10 shrink-0" />
             )}
           </div>
-
-          {/* Next arrow */}
-          {onNext ? (
-            <button
-              onClick={onNext}
-              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-              title="Next plan (→)"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          ) : <div className="w-10 shrink-0" />}
         </div>
-      </div>
+      )}
     </div>,
     document.body
   );
 }
 
-function ModalSkeleton() {
+function MobileModalSkeleton() {
+  return (
+    <div className="flex flex-col h-full animate-pulse">
+      <div className="h-11 shrink-0" style={{ background: "#403770" }} />
+      <div
+        className="h-20 shrink-0 border-b border-[#E2DEEC]"
+        style={{ background: "linear-gradient(180deg, #F7F5FA 0%, #EFEDF5 100%)" }}
+      >
+        <div className="px-4 py-3 space-y-2">
+          <div className="h-4 bg-[#f0edf5] rounded w-3/4" />
+          <div className="flex gap-2">
+            <div className="h-4 bg-[#f0edf5] rounded-full w-10" />
+            <div className="h-4 bg-[#f0edf5] rounded-full w-16" />
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 p-4 space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-10 bg-[#f0edf5] rounded" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DesktopModalSkeleton() {
   return (
     <div className="flex-1 flex">
-      {/* Sidebar skeleton */}
       <div className="w-[280px] border-r border-[#E2DEEC] p-5 space-y-4 animate-pulse">
         <div className="flex items-center gap-3">
           <div className="w-4 h-4 rounded-full bg-[#f0edf5]" />
@@ -157,7 +208,6 @@ function ModalSkeleton() {
           ))}
         </div>
       </div>
-      {/* Content skeleton */}
       <div className="flex-1 p-5 space-y-4 animate-pulse">
         <div className="flex gap-4">
           {Array.from({ length: 4 }).map((_, i) => (

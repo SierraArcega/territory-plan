@@ -129,6 +129,7 @@ your local code never runs.
 - `/design-explore` — create Paper prototypes for design exploration
 - `/design-review` — post-implementation design QA audit
 - `/frontend-design` — build UI with Fullmind brand compliance
+- `/mobile-design` — responsive layout guidance for < 640px: collapsible panels, responsive tables, nav adaptation, icon minimization, scroll safety, safe zones, testing checklist
 
 ## Documentation
 - `Documentation/UI Framework/` — 80+ component/pattern specs (the design system)
