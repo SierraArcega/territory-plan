@@ -7,6 +7,11 @@ import OurServiceModelPage from "./resources/OurServiceModelPage";
 import PricingAndPackagingPage from "./resources/PricingAndPackagingPage";
 import SelfManagementPage from "./resources/SelfManagementPage";
 import UnderstandingTakePage from "./resources/UnderstandingTakePage";
+import HybridStaffingPage from "./resources/HybridStaffingPage";
+import SpedPage from "./resources/SpedPage";
+import HomeboundPage from "./resources/HomeboundPage";
+import CreditRecoveryPage from "./resources/CreditRecoveryPage";
+import ShortTermSuspensionAltPage from "./resources/ShortTermSuspensionAltPage";
 
 // ── Resource page registry ────────────────────────────────────────────────────
 // Add new pages here — one line per resource. The sidebar groups by category.
@@ -25,6 +30,11 @@ const RESOURCE_PAGES: ResourcePage[] = [
   { id: "self-management", label: "Self-Management", category: "Training", component: SelfManagementPage },
   { id: "our-service-model", label: "Our Service Model", category: "Product", component: OurServiceModelPage },
   { id: "org-chart", label: "Org Chart", category: "Team", component: OrgChartPage },
+  { id: "hybrid-staffing", label: "Hybrid Staffing", category: "Marketing", component: HybridStaffingPage },
+  { id: "sped", label: "SPED", category: "Marketing", component: SpedPage },
+  { id: "homebound", label: "Homebound", category: "Marketing", component: HomeboundPage },
+  { id: "credit-recovery", label: "Credit Recovery", category: "Marketing", component: CreditRecoveryPage },
+  { id: "short-term-suspension-alt", label: "Short-Term Suspension Alt.", category: "Marketing", component: ShortTermSuspensionAltPage },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────
