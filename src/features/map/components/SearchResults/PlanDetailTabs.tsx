@@ -62,7 +62,7 @@ export default function PlanDetailTabs({ plan, onClose }: PlanDetailTabsProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* Tab strip */}
-      <div className="shrink-0 border-b border-[#E2DEEC] flex items-center px-5 pt-1">
+      <div className="shrink-0 border-b border-[#E2DEEC] flex items-center overflow-x-auto px-5 pt-1">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.key;
           const count = tabCounts[tab.key];
@@ -71,7 +71,7 @@ export default function PlanDetailTabs({ plan, onClose }: PlanDetailTabsProps) {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="relative px-4 py-3 text-xs font-medium transition-colors whitespace-nowrap"
+              className="relative shrink-0 px-4 py-3 text-xs font-medium transition-colors whitespace-nowrap"
               style={{
                 color: isActive ? "#403770" : "#8A80A8",
                 fontWeight: isActive ? 700 : 500,
