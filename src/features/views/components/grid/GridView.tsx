@@ -11,6 +11,7 @@ import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 import { SOURCE_COLUMNS } from "@/features/views/lib/columns";
 import { useViewsData } from "@/features/views/hooks/useViewsData";
 import { GridHeaderCell } from "./GridHeaderCell";
+import { GridFilterChips } from "./GridFilterChips";
 import {
   LoadingState,
   ErrorState,
@@ -126,6 +127,11 @@ export default function GridView({
 
   return (
     <ViewScroll>
+      <GridFilterChips
+        source={source}
+        layout={layout}
+        onChange={onLayoutChange ?? (() => {})}
+      />
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>
