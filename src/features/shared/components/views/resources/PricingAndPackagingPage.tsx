@@ -931,6 +931,22 @@ export default function PricingAndPackagingPage() {
 
           <p className="text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider mb-3">Deep Dives</p>
 
+          <a
+            href="https://docs.google.com/document/d/10UFK90Ao88TRFGHFXR3eJm7hbYjtNsRhn4MrxOohZ98/edit"
+            target="_blank"
+            rel="noreferrer"
+            className="group block rounded-xl border border-[#E2DEEC] bg-white px-5 py-4 hover:border-[#F37167] transition-colors duration-100 mb-3"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4 text-[#403770]" />
+              <span className="text-sm font-semibold text-[#403770]">Pricing &amp; Packaging Training (Source Doc)</span>
+              <ExternalLink className="w-3.5 h-3.5 text-[#A69DC0] ml-auto group-hover:text-[#F37167]" />
+            </div>
+            <p className="text-xs text-[#8A80A8] leading-relaxed">
+              The original April 21, 2026 training — services, pricing model, Take, and partner messaging.
+            </p>
+          </a>
+
           <div className="grid grid-cols-2 gap-3 mb-3">
             <a
               href="https://docs.google.com/document/d/1Uua3gNggqBWprK-LMzk4RE3wkHpUS1puyL0Wm43WgR8/edit?usp=sharing"
