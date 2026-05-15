@@ -957,8 +957,8 @@ export default function PlanTabs({
   return (
     <div className="space-y-4">
       {/* Tab Navigation */}
-      <div className="flex items-center justify-between border-b border-gray-200">
-        <nav className="flex -mb-px" aria-label="Tabs">
+      <div className="flex items-center border-b border-gray-200">
+        <nav className="flex-1 flex overflow-x-auto -mb-px" aria-label="Tabs">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -966,7 +966,7 @@ export default function PlanTabs({
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  group relative flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors
+                  group relative shrink-0 flex items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors
                   ${isActive
                     ? "text-[#403770]"
                     : "text-gray-500 hover:text-[#403770]"
@@ -1001,7 +1001,7 @@ export default function PlanTabs({
 
         {/* View Toggle + Add button — hidden on Tasks and Vacancies tabs (table-only) */}
         {activeTab !== "tasks" && activeTab !== "vacancies" && (
-          <div className="pb-3 flex items-center gap-2">
+          <div className="shrink-0 pb-3 flex items-center gap-2">
             <ViewToggle
               view={views[activeTab]}
               onViewChange={(view) => setViews(prev => ({ ...prev, [activeTab]: view as "cards" | "table" }))}
