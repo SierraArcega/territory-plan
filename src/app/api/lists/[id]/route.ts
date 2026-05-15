@@ -65,6 +65,8 @@ export async function GET(
     createdAt: list.createdAt.toISOString(),
     updatedAt: list.updatedAt.toISOString(),
     hidden: list.hidden.length > 0,
+    // Column/sort/filter layout blob — null until the user first customises a view.
+    viewLayouts: list.viewLayouts ?? null,
   });
 }
 
@@ -175,6 +177,8 @@ export async function PATCH(
     createdAt: list.createdAt.toISOString(),
     updatedAt: list.updatedAt.toISOString(),
     hidden: list.hidden.length > 0,
+    // Column/sort/filter layout blob — null until the user first customises a view.
+    viewLayouts: list.viewLayouts ?? null,
   });
 }
 

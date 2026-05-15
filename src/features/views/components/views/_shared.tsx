@@ -9,9 +9,30 @@
  * - FilterHintBanner shown at 200+ matches to nudge the user to refine.
  * - EventDelegationRow wrapper helpers exposed via data-row-* attrs that
  *   GroupCanvas listens for.
+ * - ViewBodyProps — shared prop contract for all view body components
+ *   (districts table, contacts, opps, vacancies, news, rfps). GroupCanvas
+ *   threads these down so each view body can call useGridLayout internally.
  */
 import type { ReactNode } from "react";
 import { Filter, RefreshCw, Inbox, AlertTriangle } from "lucide-react";
+import type { ViewLayouts } from "@/lib/saved-views/grid-layout-schema";
+
+/**
+ * Shared props for all view body components rendered inside GroupCanvas.
+ *
+ * - `leaids`       — district scope (null = list-scoped, not yet narrowed).
+ * - `parentKind`   — "plan" or "list", determines which PATCH route to use.
+ * - `parentId`     — the plan or list id, used by useGridLayout for the PATCH.
+ * - `savedLayouts` — the full viewLayouts blob from the parent record; null
+ *                    when not yet persisted (first visit). The view body passes
+ *                    this to useGridLayout, which seeds local state from it.
+ */
+export interface ViewBodyProps {
+  leaids: string[] | null;
+  parentKind: "plan" | "list";
+  parentId: string;
+  savedLayouts: ViewLayouts;
+}
 
 export const PAGE_SIZE = 50;
 export const FILTER_HINT_THRESHOLD = 200;

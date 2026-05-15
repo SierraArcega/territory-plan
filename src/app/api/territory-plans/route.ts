@@ -318,6 +318,8 @@ export async function GET(request: NextRequest) {
         priorFyRevenue: 0,
         // Per-user hide state — surfaces in the sidebar's "show hidden" toggle.
         hidden: plan.hidden.length > 0,
+        // Column/sort/filter layout blob — null until the user first customises a view.
+        viewLayouts: plan.viewLayouts ?? null,
         // ?stats=1 fields. Omitted entirely when stats=0 so legacy callers
         // see the same payload they always saw.
         ...(stats

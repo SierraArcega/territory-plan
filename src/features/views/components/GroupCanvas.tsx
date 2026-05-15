@@ -120,6 +120,7 @@ export default function GroupCanvas({
             leaids={leaids}
             plan={plan}
             list={list}
+            parentId={groupId}
           />
         </>
       )}
@@ -135,6 +136,8 @@ interface CanvasBodyProps {
   leaids: string[] | null;
   plan: PlanWithStats | null;
   list: SavedListSummary | null;
+  /** Resolved parent id (plan.id or list.id) — forwarded to view bodies. */
+  parentId: string;
 }
 
 function CanvasBody({
@@ -143,6 +146,7 @@ function CanvasBody({
   leaids,
   plan,
   list,
+  parentId,
 }: CanvasBodyProps) {
   const router = useViewsRouter();
 
@@ -183,6 +187,7 @@ function CanvasBody({
         leaids={leaids}
         plan={plan}
         list={list}
+        parentId={parentId}
       />
     </div>
   );
@@ -194,7 +199,13 @@ function ViewBody({
   leaids,
   plan,
   list,
+  parentId,
 }: CanvasBodyProps): ReactNode {
+  // Resolve the saved layouts blob from whichever parent record is active.
+  // This is passed to view bodies so useGridLayout can seed its state without
+  // a second fetch (the hook is "caller-feeds-saved-layouts").
+  const savedLayouts = kind === "plan" ? plan?.viewLayouts ?? null : list?.viewLayouts ?? null;
+
   switch (viewId) {
     case "map":
       return (
@@ -204,7 +215,14 @@ function ViewBody({
         />
       );
     case "table":
-      return <TableView leaids={leaids} />;
+      return (
+        <TableView
+          leaids={leaids}
+          parentKind={kind}
+          parentId={parentId}
+          savedLayouts={savedLayouts}
+        />
+      );
     case "kanban":
       return <KanbanView leaids={leaids} />;
     case "contacts":

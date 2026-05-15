@@ -7,9 +7,16 @@ import {
 } from "@tanstack/react-table";
 import type { ColumnDef as TanColumnDef } from "@tanstack/react-table";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
-import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
+import type {
+  GridViewLayout,
+  ViewLayouts,
+} from "@/lib/saved-views/grid-layout-schema";
 import { SOURCE_COLUMNS } from "@/features/views/lib/columns";
 import { useViewsData } from "@/features/views/hooks/useViewsData";
+import {
+  useGridLayout,
+  type ViewTypeKey,
+} from "@/features/views/hooks/useGridLayout";
 import { GridHeaderCell } from "./GridHeaderCell";
 import { GridFilterChips } from "./GridFilterChips";
 import { GridColumnMenu } from "./GridColumnMenu";
@@ -21,26 +28,84 @@ import {
   ViewScroll,
 } from "../views/_shared";
 
+/**
+ * GridView — shared data-table for all entity sources.
+ *
+ * Layout state can be driven in two ways:
+ *
+ * A) Hook-driven (preferred for production use):
+ *    Pass `parentKind`, `parentId`, `viewType`, and optionally `savedLayouts`.
+ *    GridView calls `useGridLayout` internally and manages debounced persistence.
+ *
+ * B) Prop-driven (escape hatch for tests or controlled parents):
+ *    Pass `layout` directly. `onLayoutChange` is called synchronously on every
+ *    mutation. When `layout` is present it takes precedence over the hook.
+ *
+ * Never mix A and B in the same render — choose one.
+ */
 interface GridViewProps {
   source: SavedListSource;
   leaids: string[] | null;
   listId: string | null;
-  layout: GridViewLayout;
-  // Optional: when provided, sort-header clicks propagate layout changes upward.
-  // In B8 this will be wired to useGridLayout (debounced PATCH). When absent,
-  // the sort header still renders as clickable but changes are no-ops.
+
+  // ── Option A: hook-driven layout ──────────────────────────────────────────
+  /** "plan" or "list" — determines which PATCH endpoint useGridLayout targets. */
+  parentKind?: "plan" | "list";
+  /** Id of the plan or list that owns the persisted layout. */
+  parentId?: string;
+  /** Which slot in the viewLayouts blob this view occupies. */
+  viewType?: ViewTypeKey;
+  /** The full viewLayouts blob from the parent record (passed to useGridLayout). */
+  savedLayouts?: ViewLayouts;
+
+  // ── Option B: prop-driven layout (test escape hatch) ─────────────────────
+  /** When provided, skips the hook and uses this layout directly. */
+  layout?: GridViewLayout;
+  /** Called synchronously on every layout mutation when using Option B. */
   onLayoutChange?: (next: GridViewLayout) => void;
 }
 
 const PAGE_SIZE = 50;
 
-export default function GridView({
-  source,
-  leaids,
-  listId,
-  layout,
-  onLayoutChange,
-}: GridViewProps) {
+export default function GridView(props: GridViewProps) {
+  const {
+    source,
+    leaids,
+    listId,
+    parentKind,
+    parentId,
+    viewType,
+    savedLayouts,
+    layout: layoutProp,
+    onLayoutChange: onLayoutChangeProp,
+  } = props;
+
+  // ── Layout state: prop-driven (B) takes precedence over hook-driven (A) ──
+  //
+  // Rules of Hooks: useGridLayout must be called unconditionally. When using
+  // Option B, we call the hook with placeholder values and discard its output.
+  const isHookDriven = layoutProp === undefined;
+  const hookResult = useGridLayout(
+    isHookDriven && parentKind && parentId && viewType
+      ? { parentKind, parentId, viewType, source, savedLayouts: savedLayouts ?? null }
+      : // Placeholder args when using prop-driven mode — hook output is discarded.
+        {
+          parentKind: parentKind ?? "plan",
+          parentId: parentId ?? "__noop__",
+          viewType: viewType ?? "table",
+          source,
+          savedLayouts: savedLayouts ?? null,
+        },
+  );
+
+  // Resolve the effective layout and setter.
+  const layout: GridViewLayout = isHookDriven
+    ? hookResult.layout
+    : layoutProp!;
+  const setLayout = isHookDriven
+    ? hookResult.setLayout
+    : (onLayoutChangeProp ?? (() => {}));
+
   const [page, setPage] = useState(1);
   const limit = page * PAGE_SIZE;
   const q = useViewsData({ source, leaids, listId, layout, limit, offset: 0 });
@@ -53,7 +118,7 @@ export default function GridView({
         : layout.sort.some((s) => s.id === columnId)
           ? layout.sort.map((s) => (s.id === columnId ? { ...s, dir } : s))
           : [{ id: columnId, dir }]; // replace all — single-sort
-    onLayoutChange?.({ ...layout, sort: nextSort });
+    setLayout({ ...layout, sort: nextSort });
   }
 
   // Compute visible columns from the layout overlaid on SOURCE_COLUMNS defaults.
@@ -134,14 +199,14 @@ export default function GridView({
           <GridFilterChips
             source={source}
             layout={layout}
-            onChange={onLayoutChange ?? (() => {})}
+            onChange={setLayout}
           />
         </div>
         <div className="shrink-0 px-2 py-2">
           <GridColumnMenu
             source={source}
             layout={layout}
-            onChange={onLayoutChange ?? (() => {})}
+            onChange={setLayout}
           />
         </div>
       </div>

@@ -54,6 +54,10 @@ export interface PlanWithStats {
   pipelineValue: number;
   contactsCount: number;
   oppsCount: number;
+  // Per-plan column/sort/filter layout, keyed by view-type slot.
+  // Null when the plan has never had a view layout saved; undefined in legacy
+  // responses that predate the field (treated the same as null at the call site).
+  viewLayouts?: ViewLayouts;
 }
 
 export interface SavedListSummary {
@@ -71,6 +75,9 @@ export interface SavedListSummary {
   createdAt: string;
   updatedAt: string;
   hidden: boolean;
+  // Per-list column/sort/filter layout, keyed by view-type slot.
+  // Null when the list has never had a view layout saved.
+  viewLayouts?: ViewLayouts;
 }
 
 interface ListsResponse {
