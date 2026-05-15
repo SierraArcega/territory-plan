@@ -333,7 +333,7 @@ export function GridFilterChips({
   };
 
   return (
-    <div className="relative flex items-center gap-2 overflow-x-auto border-b border-[#EFEDF5] bg-white px-3 py-2">
+    <div className="relative flex items-center gap-2 overflow-x-auto px-3 py-2">
       {chips.map((c) => {
         const label =
           c.column?.header ??

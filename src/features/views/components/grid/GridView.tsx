@@ -12,6 +12,7 @@ import { SOURCE_COLUMNS } from "@/features/views/lib/columns";
 import { useViewsData } from "@/features/views/hooks/useViewsData";
 import { GridHeaderCell } from "./GridHeaderCell";
 import { GridFilterChips } from "./GridFilterChips";
+import { GridColumnMenu } from "./GridColumnMenu";
 import {
   LoadingState,
   ErrorState,
@@ -127,11 +128,23 @@ export default function GridView({
 
   return (
     <ViewScroll>
-      <GridFilterChips
-        source={source}
-        layout={layout}
-        onChange={onLayoutChange ?? (() => {})}
-      />
+      {/* Filter chips + column visibility gear on one row */}
+      <div className="flex items-center border-b border-[#EFEDF5] bg-white">
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <GridFilterChips
+            source={source}
+            layout={layout}
+            onChange={onLayoutChange ?? (() => {})}
+          />
+        </div>
+        <div className="shrink-0 px-2 py-2">
+          <GridColumnMenu
+            source={source}
+            layout={layout}
+            onChange={onLayoutChange ?? (() => {})}
+          />
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>
