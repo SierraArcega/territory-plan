@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { useDistrictDetail } from "@/features/districts/lib/queries";
 import { useQuery } from "@tanstack/react-query";
 import { useTerritoryPlans, useAddDistrictsToPlan } from "@/lib/api";
@@ -42,6 +43,7 @@ export default function DistrictExploreModal({ leaid, onClose, onNavigateToPlan,
   const { data, isLoading } = useDistrictDetail(leaid);
   const { data: plans } = useTerritoryPlans();
   const addDistricts = useAddDistrictsToPlan();
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? "fullmind");
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -164,282 +166,405 @@ export default function DistrictExploreModal({ leaid, onClose, onNavigateToPlan,
     return `${map[lo] || lo} – ${map[hi] || hi}`;
   };
 
+  const tabList = ([
+    { key: "fullmind", label: "Fullmind" },
+    { key: "competitors", label: "Competitors" },
+    { key: "finance", label: "Finance" },
+    { key: "demographics", label: "Demographics" },
+    { key: "academics", label: "Academics" },
+    { key: "contacts", label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ""}` },
+    { key: "schools", label: `Schools${district?.numberOfSchools != null ? ` (${district.numberOfSchools})` : ""}` },
+    { key: "vacancies", label: `Vacancies${vacancyCount > 0 ? ` (${vacancyCount})` : ""}` },
+  ] as { key: Tab; label: string }[]);
+
+  const tabBody = isLoading ? (
+    <ContentSkeleton />
+  ) : activeTab === "fullmind" ? (
+    <FullmindTab
+      fullmindData={fullmindData ?? null}
+      tags={tags}
+      territoryPlanIds={territoryPlanIds}
+      plans={plans || []}
+      activities={activitiesData?.activities || []}
+      onNavigateToPlan={onNavigateToPlan}
+    />
+  ) : activeTab === "competitors" ? (
+    <CompetitorsTab competitorData={competitorData ?? null} />
+  ) : activeTab === "finance" ? (
+    <FinanceTab educationData={educationData ?? null} />
+  ) : activeTab === "demographics" ? (
+    <DemographicsTab
+      district={district ?? null}
+      demographics={demographics ?? null}
+      trends={trends ?? null}
+      demoSegments={demoSegments}
+      demoTotal={demoTotal}
+    />
+  ) : activeTab === "academics" ? (
+    <AcademicsTab
+      educationData={educationData ?? null}
+      trends={trends ?? null}
+    />
+  ) : activeTab === "contacts" ? (
+    <ContactsTab contacts={contacts} />
+  ) : activeTab === "schools" ? (
+    <SchoolsTab leaid={leaid} />
+  ) : activeTab === "vacancies" ? (
+    <VacancyList leaid={leaid} highlightVacancyId={useMapV2Store.getState().exploreModalVacancyId} />
+  ) : null;
+
+  const addToPlanDropdown = showPlanDropdown && plans && (
+    <div className="absolute right-0 bottom-full mb-1.5 w-56 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
+      <div className="max-h-48 overflow-y-auto">
+        {plans.map((plan) => {
+          const alreadyIn = existingPlanIds.has(plan.id);
+          return (
+            <button
+              key={plan.id}
+              onClick={() => !alreadyIn && handleAddToPlan(plan.id)}
+              disabled={alreadyIn}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                alreadyIn ? "bg-[#EFEDF5] text-[#A69DC0]" : "hover:bg-[#EFEDF5] text-[#544A78]"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
+              <span className="truncate">{plan.name}</span>
+              {alreadyIn && (
+                <svg className="w-4 h-4 text-[#8AA891] ml-auto shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const showNav = (onPrev != null || onNext != null) && currentIndex != null && totalCount != null && totalCount > 0;
+
   return (
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      {/* Modal + navigation — flex layout keeps arrows hugging the modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          {/* Prev arrow */}
-          {onPrev ? (
-            <button
-              onClick={onPrev}
-              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-              title="Previous district (←)"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-          ) : <div className="w-10 shrink-0" />}
-
-          {/* Center column: return + modal + counter */}
-          <div className="flex flex-col items-start gap-2">
-            {/* Return to Map */}
+      {isMobile ? (
+        /* ── Mobile: full-screen overlay ── */
+        <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white">
+          {/* Brand header bar */}
+          <div
+            className="shrink-0 flex items-center gap-2 px-3 py-2"
+            style={{ background: "#403770" }}
+          >
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              style={{ background: "rgba(255,255,255,0.15)" }}
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               Return to Map
             </button>
 
-            {/* w/h: viewport minus arrow chrome (2×40px arrows + 2×12px gaps = 104px) and vertical chrome
-                (Return to Map ~32px + counter ~24px + 2×8px gaps = ~72px, rounded to 80px).
-                max-w/max-h caps preserve the original design on large screens. */}
-            <div
-              ref={modalRef}
-              className="bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden"
-            >
-          {/* Left sidebar */}
-          <div className="w-[260px] shrink-0 flex flex-col" style={{ background: "linear-gradient(180deg, #F7F5FA 0%, #EFEDF5 100%)" }}>
-            {isLoading ? (
-              <SidebarSkeleton />
-            ) : district ? (
-              <div className="flex flex-col h-full p-5">
-                {/* Tags */}
-                {tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                        style={{ backgroundColor: `${tag.color}15`, color: tag.color, borderColor: `${tag.color}30` }}
-                      >
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="self-start px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#403770]/10 text-[#403770] mb-4">
-                    {fullmindData?.isCustomer ? "Customer" : "Prospect"}
-                  </span>
-                )}
-
-                {/* Name */}
-                <h2 className="text-xl font-bold leading-tight mb-1.5 text-[#403770]">{district.name}</h2>
-                <p className="text-xs text-[#8A80A8] font-medium leading-relaxed">
-                  {district.stateAbbrev}
-                  {district.countyName && ` · ${district.countyName}`}
-                  {district.lograde && district.higrade && (
-                    <><br />{formatGrades(district.lograde, district.higrade)}</>
-                  )}
-                  {district.numberOfSchools != null && ` · ${district.numberOfSchools} schools`}
-                </p>
-
-                {/* External links */}
-                {(district.websiteUrl || district.jobBoardUrl) && (
-                  <div className="flex gap-2 mt-3">
-                    {district.websiteUrl && (
-                      <a
-                        href={district.websiteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#403770]/10 text-[#6E6390] hover:bg-[#403770]/15 hover:text-[#403770] transition-colors"
-                        title="Visit Website"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
-                        </svg>
-                      </a>
-                    )}
-                    {district.jobBoardUrl && (
-                      <a
-                        href={district.jobBoardUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#403770]/10 text-[#6E6390] hover:bg-[#403770]/15 hover:text-[#403770] transition-colors"
-                        title="View Job Board"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                <div className="w-full h-px bg-[#E2DEEC] my-5" />
-
-                {/* Key stats */}
-                <div className="flex flex-col gap-1.5">
-                  <SidebarStat label="Enrollment" value={fmt(district.enrollment)} />
-                  <SidebarStat label="$/Pupil" value={fmtK(educationData?.expenditurePerPupil)} />
-                  <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
-                  <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
-                  <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
-                  {fullmindData?.salesExecutive?.fullName && (
-                    <SidebarStat label="Owner" value={fullmindData.salesExecutive.fullName} small />
-                  )}
-                </div>
-
-                <div className="w-full h-px bg-[#E2DEEC] my-5" />
-
-
-              </div>
-            ) : null}
-          </div>
-
-          {/* Right content */}
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            {/* Tab header */}
-            <div className="flex items-center justify-between px-6">
-              <div className="flex gap-0 overflow-x-auto border-b border-[#E2DEEC]">
-                {([
-                  { key: "fullmind", label: "Fullmind" },
-                  { key: "competitors", label: "Competitors" },
-                  { key: "finance", label: "Finance" },
-                  { key: "demographics", label: "Demographics" },
-                  { key: "academics", label: "Academics" },
-                  { key: "contacts", label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ""}` },
-                  { key: "schools", label: `Schools${district?.numberOfSchools != null ? ` (${district.numberOfSchools})` : ""}` },
-                  { key: "vacancies", label: `Vacancies${vacancyCount > 0 ? ` (${vacancyCount})` : ""}` },
-                ] as { key: Tab; label: string }[]).map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={`shrink-0 px-3 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
-                      activeTab === key
-                        ? "text-[#403770] border-[#403770]"
-                        : "text-[#A69DC0] hover:text-[#544A78] border-transparent"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-[#C2BBD4] hover:text-[#403770] hover:bg-[#EFEDF5] transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Tab body */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {isLoading ? (
-                <ContentSkeleton />
-              ) : activeTab === "fullmind" ? (
-                <FullmindTab
-                  fullmindData={fullmindData ?? null}
-                  tags={tags}
-                  territoryPlanIds={territoryPlanIds}
-                  plans={plans || []}
-                  activities={activitiesData?.activities || []}
-                  onNavigateToPlan={onNavigateToPlan}
-                />
-              ) : activeTab === "competitors" ? (
-                <CompetitorsTab competitorData={competitorData ?? null} />
-              ) : activeTab === "finance" ? (
-                <FinanceTab educationData={educationData ?? null} />
-              ) : activeTab === "demographics" ? (
-                <DemographicsTab
-                  district={district ?? null}
-                  demographics={demographics ?? null}
-                  trends={trends ?? null}
-                  demoSegments={demoSegments}
-                  demoTotal={demoTotal}
-                />
-              ) : activeTab === "academics" ? (
-                <AcademicsTab
-                  educationData={educationData ?? null}
-                  trends={trends ?? null}
-                />
-              ) : activeTab === "contacts" ? (
-                <ContactsTab contacts={contacts} />
-              ) : activeTab === "schools" ? (
-                <SchoolsTab leaid={leaid} />
-              ) : activeTab === "vacancies" ? (
-                <VacancyList leaid={leaid} highlightVacancyId={useMapV2Store.getState().exploreModalVacancyId} />
-              ) : null}
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#E2DEEC] bg-[#F7F5FA]">
-              <div className="relative" ref={dropdownRef}>
+            {showNav && (
+              <div className="flex items-center gap-1 flex-1 justify-center">
                 <button
-                  onClick={() => setShowPlanDropdown(!showPlanDropdown)}
-                  className="px-5 py-2.5 rounded-lg bg-[#403770] text-white text-sm font-semibold hover:bg-[#322a5a] transition-colors flex items-center gap-1.5"
+                  onClick={onPrev}
+                  disabled={!onPrev}
+                  aria-label="Previous district"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  style={{ background: "rgba(255,255,255,0.15)" }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
-                  Add to Plan
                 </button>
-
-                {showPlanDropdown && plans && (
-                  <div className="absolute right-0 bottom-full mb-1.5 w-56 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
-                    <div className="max-h-48 overflow-y-auto">
-                      {plans.map((plan) => {
-                        const alreadyIn = existingPlanIds.has(plan.id);
-                        return (
-                          <button
-                            key={plan.id}
-                            onClick={() => !alreadyIn && handleAddToPlan(plan.id)}
-                            disabled={alreadyIn}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                              alreadyIn ? "bg-[#EFEDF5] text-[#A69DC0]" : "hover:bg-[#EFEDF5] text-[#544A78]"
-                            }`}
-                          >
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: plan.color }} />
-                            <span className="truncate">{plan.name}</span>
-                            {alreadyIn && (
-                              <svg className="w-4 h-4 text-[#8AA891] ml-auto shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-            {/* end modal */}
-            </div>
-
-            {/* Position counter */}
-            {currentIndex != null && totalCount != null && (
-              <div className="self-center px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-medium text-[#6E6390] mt-1">
-                {currentIndex + 1} of {totalCount}
+                <span className="text-[11px] text-white/70 whitespace-nowrap tabular-nums">
+                  {currentIndex! + 1} of {totalCount}
+                </span>
+                <button
+                  onClick={onNext}
+                  disabled={!onNext}
+                  aria-label="Next district"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-white disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  style={{ background: "rgba(255,255,255,0.15)" }}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             )}
-          </div>
 
-          {/* Next arrow */}
-          {onNext ? (
             <button
-              onClick={onNext}
-              className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
-              title="Next district (→)"
+              onClick={onClose}
+              aria-label="Close"
+              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-white/60 hover:text-white transition-colors ml-auto"
+              style={{ background: "rgba(255,255,255,0.12)" }}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          ) : <div className="w-10 shrink-0" />}
+          </div>
+
+          {/* District identity strip */}
+          {isLoading ? (
+            <div className="shrink-0 px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
+              <div className="h-4 w-48 bg-[#E2DEEC] rounded animate-pulse mb-1" />
+              <div className="h-3 w-32 bg-[#EFEDF5] rounded animate-pulse" />
+            </div>
+          ) : district ? (
+            <div className="shrink-0 px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA]">
+              <h2 className="text-sm font-bold text-[#403770] truncate">{district.name}</h2>
+              <p className="text-xs text-[#8A80A8] mt-0.5">
+                {district.stateAbbrev}
+                {district.countyName && ` · ${district.countyName}`}
+                {district.enrollment != null && ` · ${district.enrollment.toLocaleString()} students`}
+              </p>
+            </div>
+          ) : null}
+
+          {/* Scrollable tab strip */}
+          <div className="shrink-0 flex overflow-x-auto border-b border-[#E2DEEC] bg-white">
+            {tabList.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`shrink-0 px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
+                  activeTab === key
+                    ? "text-[#403770] border-[#403770]"
+                    : "text-[#A69DC0] hover:text-[#544A78] border-transparent"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab body */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {tabBody}
+          </div>
+
+          {/* Footer: Add to Plan */}
+          <div
+            className="shrink-0 flex items-center justify-end px-4 py-3 border-t border-[#E2DEEC] bg-[#F7F5FA]"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setShowPlanDropdown(!showPlanDropdown)}
+                className="px-5 py-2.5 rounded-lg bg-[#403770] text-white text-sm font-semibold hover:bg-[#322a5a] transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add to Plan
+              </button>
+              {addToPlanDropdown}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ── Desktop: centered modal with sidebar ── */
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            {/* Prev arrow */}
+            {onPrev ? (
+              <button
+                onClick={onPrev}
+                className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+                title="Previous district (←)"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            ) : <div className="w-10 shrink-0" />}
+
+            {/* Center column: return + modal + counter */}
+            <div className="flex flex-col items-start gap-2">
+              {/* Return to Map */}
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-semibold text-[#544A78] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Return to Map
+              </button>
+
+              {/* Modal */}
+              <div
+                ref={modalRef}
+                className="bg-white rounded-2xl shadow-xl w-[70vw] max-w-[1076px] h-[70vh] max-h-[745px] flex overflow-hidden"
+              >
+                {/* Left sidebar */}
+                <div className="w-[260px] shrink-0 flex flex-col" style={{ background: "linear-gradient(180deg, #F7F5FA 0%, #EFEDF5 100%)" }}>
+                  {isLoading ? (
+                    <SidebarSkeleton />
+                  ) : district ? (
+                    <div className="flex flex-col h-full p-5">
+                      {/* Tags */}
+                      {tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {tags.map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                              style={{ backgroundColor: `${tag.color}15`, color: tag.color, borderColor: `${tag.color}30` }}
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="self-start px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#403770]/10 text-[#403770] mb-4">
+                          {fullmindData?.isCustomer ? "Customer" : "Prospect"}
+                        </span>
+                      )}
+
+                      {/* Name */}
+                      <h2 className="text-xl font-bold leading-tight mb-1.5 text-[#403770]">{district.name}</h2>
+                      <p className="text-xs text-[#8A80A8] font-medium leading-relaxed">
+                        {district.stateAbbrev}
+                        {district.countyName && ` · ${district.countyName}`}
+                        {district.lograde && district.higrade && (
+                          <><br />{formatGrades(district.lograde, district.higrade)}</>
+                        )}
+                        {district.numberOfSchools != null && ` · ${district.numberOfSchools} schools`}
+                      </p>
+
+                      {/* External links */}
+                      {(district.websiteUrl || district.jobBoardUrl) && (
+                        <div className="flex gap-2 mt-3">
+                          {district.websiteUrl && (
+                            <a
+                              href={district.websiteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#403770]/10 text-[#6E6390] hover:bg-[#403770]/15 hover:text-[#403770] transition-colors"
+                              title="Visit Website"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+                              </svg>
+                            </a>
+                          )}
+                          {district.jobBoardUrl && (
+                            <a
+                              href={district.jobBoardUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#403770]/10 text-[#6E6390] hover:bg-[#403770]/15 hover:text-[#403770] transition-colors"
+                              title="View Job Board"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="w-full h-px bg-[#E2DEEC] my-5" />
+
+                      {/* Key stats */}
+                      <div className="flex flex-col gap-1.5">
+                        <SidebarStat label="Enrollment" value={fmt(district.enrollment)} />
+                        <SidebarStat label="$/Pupil" value={fmtK(educationData?.expenditurePerPupil)} />
+                        <SidebarStat label="Graduation" value={fmtPct(educationData?.graduationRateTotal)} />
+                        <SidebarStat label="SWD %" value={fmtPct(trends?.swdPct)} />
+                        <SidebarStat label="ELL %" value={fmtPct(trends?.ellPct)} />
+                        {fullmindData?.salesExecutive?.fullName && (
+                          <SidebarStat label="Owner" value={fullmindData.salesExecutive.fullName} small />
+                        )}
+                      </div>
+
+                      <div className="w-full h-px bg-[#E2DEEC] my-5" />
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Right content */}
+                <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+                  {/* Tab header */}
+                  <div className="flex items-center justify-between px-6">
+                    <div className="flex gap-0 overflow-x-auto border-b border-[#E2DEEC]">
+                      {tabList.map(({ key, label }) => (
+                        <button
+                          key={key}
+                          onClick={() => setActiveTab(key)}
+                          className={`shrink-0 px-3 py-3 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
+                            activeTab === key
+                              ? "text-[#403770] border-[#403770]"
+                              : "text-[#A69DC0] hover:text-[#544A78] border-transparent"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={onClose}
+                      aria-label="Close"
+                      className="flex items-center justify-center w-8 h-8 rounded-lg text-[#C2BBD4] hover:text-[#403770] hover:bg-[#EFEDF5] transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Tab body */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {tabBody}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-end gap-2.5 px-6 py-4 border-t border-[#E2DEEC] bg-[#F7F5FA]">
+                    <div className="relative" ref={dropdownRef}>
+                      <button
+                        onClick={() => setShowPlanDropdown(!showPlanDropdown)}
+                        className="px-5 py-2.5 rounded-lg bg-[#403770] text-white text-sm font-semibold hover:bg-[#322a5a] transition-colors flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add to Plan
+                      </button>
+                      {addToPlanDropdown}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Position counter */}
+              {currentIndex != null && totalCount != null && (
+                <div className="self-center px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm shadow-md border border-[#D4CFE2]/60 text-xs font-medium text-[#6E6390] mt-1">
+                  {currentIndex + 1} of {totalCount}
+                </div>
+              )}
+            </div>
+
+            {/* Next arrow */}
+            {onNext ? (
+              <button
+                onClick={onNext}
+                className="shrink-0 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-[#D4CFE2]/60 flex items-center justify-center text-[#6E6390] hover:text-[#403770] hover:bg-white transition-colors focus-visible:ring-2 focus-visible:ring-[#403770]/30 focus-visible:outline-none"
+                title="Next district (→)"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ) : <div className="w-10 shrink-0" />}
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -35,16 +35,16 @@ export default function DistrictHeader({
       )}
 
       {/* State, County & LEAID */}
-      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-        <span>{district.stateAbbrev}</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-gray-500">
+        <span className="whitespace-nowrap">{district.stateAbbrev}</span>
         {district.countyName && (
           <>
             <span>·</span>
-            <span>{district.countyName} County</span>
+            <span className="truncate min-w-0 max-w-[160px]">{district.countyName} County</span>
           </>
         )}
         <span>·</span>
-        <span className="font-mono">{district.leaid}</span>
+        <span className="font-mono whitespace-nowrap">{district.leaid}</span>
       </div>
 
       {/* External Links */}
