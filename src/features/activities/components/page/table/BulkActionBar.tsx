@@ -89,7 +89,7 @@ export default function BulkActionBar({ selectedRows, onClear }: BulkActionBarPr
           {toast}
         </div>
       )}
-      <div className="flex items-center gap-2 px-6 py-2 bg-[#403770] text-white shadow-[0_-2px_12px_rgba(64,55,112,0.2)]">
+      <div className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 bg-[#403770] text-white shadow-[0_-2px_12px_rgba(64,55,112,0.2)]">
         <span className="text-xs font-semibold">
           {ids.length} selected
         </span>
@@ -100,10 +100,10 @@ export default function BulkActionBar({ selectedRows, onClear }: BulkActionBarPr
           type="button"
           onClick={handleExport}
           disabled={bulk.isPending}
-          className="inline-flex items-center gap-1 h-7 px-2.5 text-xs font-medium text-white border border-white/30 rounded-lg hover:bg-white/10 disabled:opacity-50"
+          className="inline-flex items-center gap-1 h-7 px-2 sm:px-2.5 text-xs font-medium text-white border border-white/30 rounded-lg hover:bg-white/10 disabled:opacity-50"
         >
           <Download className="w-3 h-3" />
-          Export CSV
+          <span className="hidden sm:inline">Export </span>CSV
         </button>
         <button
           type="button"
@@ -153,9 +153,9 @@ function OwnerPicker({ disabled, onPick }: { disabled: boolean; onPick: (ownerId
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 h-7 px-2.5 text-xs font-medium text-white border border-white/30 rounded-lg hover:bg-white/10 disabled:opacity-50"
+        className="inline-flex items-center gap-1 h-7 px-2 sm:px-2.5 text-xs font-medium text-white border border-white/30 rounded-lg hover:bg-white/10 disabled:opacity-50"
       >
-        Reassign owner
+        <span className="hidden sm:inline">Reassign </span>Owner
         <ChevronDown className="w-3 h-3" />
       </button>
       {open && (
@@ -202,9 +202,9 @@ function StatusPicker({ disabled, onPick }: { disabled: boolean; onPick: (status
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 h-7 px-2.5 text-xs font-medium text-white border border-white/30 rounded-lg hover:bg-white/10 disabled:opacity-50"
+        className="inline-flex items-center gap-1 h-7 px-2 sm:px-2.5 text-xs font-medium text-white border border-white/30 rounded-lg hover:bg-white/10 disabled:opacity-50"
       >
-        Change status
+        <span className="hidden sm:inline">Change </span>Status
         <ChevronDown className="w-3 h-3" />
       </button>
       {open && (

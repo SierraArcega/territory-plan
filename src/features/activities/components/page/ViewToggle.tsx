@@ -61,14 +61,14 @@ export default function ViewToggle({
             aria-selected={isActive}
             type="button"
             onClick={() => onChange({ view: opt.view, grain: opt.grain })}
-            className={`fm-focus-ring inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium [transition-duration:120ms] transition-colors ${
+            className={`fm-focus-ring inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-md text-xs font-medium [transition-duration:120ms] transition-colors ${
               isActive
                 ? "bg-white text-[#403770] shadow-sm"
                 : "text-[#8A80A8] hover:text-[#403770]"
             }`}
           >
             <opt.Icon className="w-3.5 h-3.5" />
-            {opt.label}
+            <span className="hidden sm:inline">{opt.label}</span>
           </button>
         );
       })}

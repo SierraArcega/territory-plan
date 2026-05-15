@@ -75,7 +75,7 @@ export default function ActivitiesDateRange() {
         <ChevronLeft className="w-4 h-4" />
       </button>
 
-      <div className="min-w-[200px] max-w-[320px] px-2.5 text-sm font-bold text-[#403770] text-center tabular-nums truncate">
+      <div className="min-w-[140px] sm:min-w-[200px] max-w-[320px] px-2.5 text-sm font-bold text-[#403770] text-center tabular-nums truncate">
         {labelFor(anchorIso, grain)}
       </div>
 
