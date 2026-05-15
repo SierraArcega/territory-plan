@@ -64,21 +64,21 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
+    <div className="bg-white rounded-lg border border-[#D4CFE2] overflow-x-auto">
+      <table className="w-full table-auto sm:table-fixed">
+        <thead className="bg-[#F7F5FA] border-b border-[#E2DEEC]">
           <tr>
-            <SortHeader field="title" label="Title" sortState={sortState} onSort={onSort} className="w-[35%]" />
+            <SortHeader field="title" label="Title" sortState={sortState} onSort={onSort} className="sm:w-[35%]" />
             <SortHeader field="status" label="Status" sortState={sortState} onSort={onSort} />
-            <SortHeader field="priority" label="Priority" sortState={sortState} onSort={onSort} />
             <SortHeader field="dueDate" label="Due Date" sortState={sortState} onSort={onSort} />
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            <SortHeader field="priority" label="Priority" sortState={sortState} onSort={onSort} className="hidden sm:table-cell" />
+            <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-semibold text-[#6E6390] uppercase tracking-wide">
               Linked
             </th>
-            <SortHeader field="createdAt" label="Created" sortState={sortState} onSort={onSort} />
+            <SortHeader field="createdAt" label="Created" sortState={sortState} onSort={onSort} className="hidden sm:table-cell" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-[#EFEDF5]">
           {sortedTasks.map((task) => {
             const statusConfig = TASK_STATUS_CONFIG[task.status as TaskStatus];
             const priorityConfig = TASK_PRIORITY_CONFIG[task.priority as TaskPriority];
@@ -88,12 +88,14 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
             return (
               <tr
                 key={task.id}
-                className="hover:bg-gray-50 cursor-pointer transition-colors"
+                className="hover:bg-[#F7F5FA] cursor-pointer transition-colors"
                 onClick={() => onTaskClick(task)}
               >
                 {/* Title */}
                 <td className="px-4 py-3">
-                  <span className="text-sm font-medium text-[#403770]">{task.title}</span>
+                  <div className="max-w-[180px] sm:max-w-none overflow-hidden">
+                    <span className="text-sm font-medium text-[#403770] block truncate">{task.title}</span>
+                  </div>
                 </td>
 
                 {/* Status dropdown */}
@@ -110,8 +112,23 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
                   </select>
                 </td>
 
-                {/* Priority dropdown */}
-                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                {/* Due date */}
+                <td className="px-4 py-3">
+                  {task.dueDate ? (
+                    <span className={`text-xs whitespace-nowrap ${isOverdue ? "text-red-500 font-medium" : "text-[#6E6390]"}`}>
+                      {new Date(task.dueDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[#C2BBD4]">--</span>
+                  )}
+                </td>
+
+                {/* Priority dropdown — hidden on mobile */}
+                <td className="hidden sm:table-cell px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <select
                     value={task.priority}
                     onChange={(e) => handlePriorityChange(task.id, e.target.value)}
@@ -124,35 +141,20 @@ export default function TasksTable({ tasks, onTaskClick }: TasksTableProps) {
                   </select>
                 </td>
 
-                {/* Due date */}
-                <td className="px-4 py-3">
-                  {task.dueDate ? (
-                    <span className={`text-xs ${isOverdue ? "text-red-500 font-medium" : "text-gray-500"}`}>
-                      {new Date(task.dueDate.split("T")[0] + "T00:00:00").toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-300">--</span>
-                  )}
-                </td>
-
-                {/* Linked entities count */}
-                <td className="px-4 py-3">
+                {/* Linked entities count — hidden on mobile */}
+                <td className="hidden sm:table-cell px-4 py-3">
                   {linkedCount > 0 ? (
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-[#EFEDF5] text-[#6E6390]">
                       {linkedCount} linked
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-300">--</span>
+                    <span className="text-xs text-[#C2BBD4]">--</span>
                   )}
                 </td>
 
-                {/* Created date */}
-                <td className="px-4 py-3">
-                  <span className="text-xs text-gray-400">
+                {/* Created date — hidden on mobile */}
+                <td className="hidden sm:table-cell px-4 py-3">
+                  <span className="text-xs text-[#9E97B8]">
                     {new Date(task.createdAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",

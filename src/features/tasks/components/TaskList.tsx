@@ -62,7 +62,7 @@ export default function TaskList({
         return (
           <div
             key={task.id}
-            className={`flex items-center gap-2 px-2 ${compact ? "py-1" : "py-1.5"} rounded-md hover:bg-gray-50 group cursor-pointer`}
+            className={`flex items-center gap-2 px-2 ${compact ? "py-1" : "py-1.5"} rounded-md hover:bg-[#F7F5FA] group cursor-pointer`}
             onClick={() => setSelectedTask(task)}
           >
             {/* Checkbox — toggles done/todo */}
