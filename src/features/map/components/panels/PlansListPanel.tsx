@@ -146,10 +146,10 @@ export default function PlansListPanel() {
       {/* FY Tabs */}
       {!isLoading && fiscalYears.length > 0 && (
         <div className="px-4 pb-2">
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto pb-0.5">
             <button
               onClick={() => setActiveTab("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === "all"
                   ? "bg-gray-800 text-white"
                   : "bg-gray-100 text-gray-500 hover:bg-gray-150 hover:text-gray-600"
@@ -161,7 +161,7 @@ export default function PlansListPanel() {
               <button
                 key={fy}
                 onClick={() => setActiveTab(fy)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                   activeTab === fy
                     ? "bg-gray-800 text-white"
                     : "bg-gray-100 text-gray-500 hover:bg-gray-150 hover:text-gray-600"

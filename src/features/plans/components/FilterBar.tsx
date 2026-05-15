@@ -77,7 +77,7 @@ function Dropdown({ trigger, children, isOpen, onToggle, onClose, align = "left"
       {isOpen && (
         <div
           className={`
-            absolute z-50 mt-1 min-w-[180px] bg-white rounded-lg shadow-lg border border-gray-200 py-1
+            absolute z-50 mt-1 min-w-[180px] max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border border-gray-200 py-1
             ${align === "right" ? "right-0" : "left-0"}
           `}
         >
@@ -248,7 +248,7 @@ export default function FilterBar({
               trigger={
                 <button
                   className={`
-                    inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors
+                    inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
                     ${isActive
                       ? "bg-[#403770] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -307,7 +307,7 @@ export default function FilterBar({
           onToggle={() => setOpenDropdown(openDropdown === "sort" ? null : "sort")}
           onClose={closeDropdowns}
           trigger={
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors whitespace-nowrap">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
               </svg>
@@ -353,7 +353,7 @@ export default function FilterBar({
           onClose={closeDropdowns}
           trigger={
             <button className={`
-              inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors
+              inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap
               ${currentGroup !== "none"
                 ? "bg-[#403770] text-white"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -397,7 +397,7 @@ export default function FilterBar({
           }}
           align="right"
           trigger={
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors whitespace-nowrap">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>

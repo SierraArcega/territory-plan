@@ -191,13 +191,13 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {toolbar && (
-        <div className="px-4 py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA] relative z-20 rounded-t-lg border-x border-t border-[#D4CFE2]">
+        <div className="px-3 sm:px-4 py-1.5 sm:py-2.5 border-b border-[#E2DEEC] bg-[#F7F5FA] relative z-20 rounded-t-lg border-x border-t border-[#D4CFE2]">
           {toolbar}
         </div>
       )}
       <div className={`overflow-hidden border border-[#D4CFE2] ${toolbar ? 'rounded-b-lg border-t-0' : 'rounded-lg'} bg-white shadow-sm flex flex-col flex-1 min-h-0`}>
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full table-fixed divide-y divide-[#D4CFE2]">
+        <table className="w-full table-auto sm:table-fixed divide-y divide-[#D4CFE2]">
           <thead className="bg-[#F7F5FA] sticky top-0 z-10">
             <tr>
               <th
@@ -211,9 +211,10 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 label="Name"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[18%]"
+                className="sm:w-[18%]"
               />
-              <th className="w-[22%] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">
+              {/* Description, Owner, State, FY hidden on mobile — show ≥ sm */}
+              <th className="hidden sm:table-cell w-[22%] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">
                 Description
               </th>
               <SortHeader
@@ -221,9 +222,9 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 label="Owner"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[12%]"
+                className="hidden sm:table-cell w-[12%]"
               />
-              <th className="w-[8%] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
+              <th className="hidden sm:table-cell w-[8%] px-2 py-2 text-left text-xs font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
                 State
               </th>
               <SortHeader
@@ -231,21 +232,21 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 label="FY"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[40px] px-1 text-center"
+                className="hidden sm:table-cell w-[40px] px-1 text-center"
               />
               <SortHeader
                 field="status"
                 label="Status"
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[10%]"
+                className="w-[32px] sm:w-[80px]"
               />
               <SortHeader
                 field="districtCount"
                 label="Dist."
                 sortState={sortState}
                 onSort={onSort}
-                className="w-[44px] text-center"
+                className="w-[32px] sm:w-[44px] !px-1 sm:!px-4 text-center"
               />
               <th className="w-[56px] px-2 py-2 text-right text-xs font-semibold text-[#8A80A8] uppercase tracking-wider">
                 Actions
@@ -284,17 +285,19 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                 </td>
 
                 {/* Name (click to navigate) */}
-                <td className="px-2 py-1 truncate">
-                  <button
-                    onClick={() => onSelectPlan(plan.id)}
-                    className="text-sm font-medium text-[#403770] hover:underline truncate text-left cursor-pointer"
-                  >
-                    {plan.name}
-                  </button>
+                <td className="px-2 py-1">
+                  <div className="max-w-[180px] sm:max-w-none overflow-hidden">
+                    <button
+                      onClick={() => onSelectPlan(plan.id)}
+                      className="w-full text-sm font-medium text-[#403770] hover:underline truncate text-left cursor-pointer block"
+                    >
+                      {plan.name}
+                    </button>
+                  </div>
                 </td>
 
-                {/* Description (editable, truncated) */}
-                <td className="px-2 py-1 truncate">
+                {/* Description — hidden on mobile */}
+                <td className="hidden sm:table-cell px-2 py-1 truncate">
                   <InlineEditCell
                     type="textarea"
                     value={plan.description}
@@ -304,8 +307,8 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                   />
                 </td>
 
-                {/* Owner (click to filter) */}
-                <td className="px-2 py-1">
+                {/* Owner — hidden on mobile */}
+                <td className="hidden sm:table-cell px-2 py-1">
                   {plan.owner && onFilterByOwner ? (
                     <button
                       onClick={() => onFilterByOwner(plan.owner!.id)}
@@ -316,38 +319,48 @@ export default function PlansTable({ plans, onSelectPlan, onEditPlan, onShowOnMa
                     </button>
                   ) : (
                     <span className="text-xs text-[#8A80A8]">
-                      {plan.owner?.fullName ?? "\u2014"}
+                      {plan.owner?.fullName ?? "—"}
                     </span>
                   )}
                 </td>
 
-                {/* State abbreviations */}
-                <td className="px-2 py-1 truncate">
+                {/* State abbreviations — hidden on mobile */}
+                <td className="hidden sm:table-cell px-2 py-1 truncate">
                   <span className="text-xs text-[#6E6390]">
-                    {plan.states.map((s) => s.abbrev).join(", ") || "\u2014"}
+                    {plan.states.map((s) => s.abbrev).join(", ") || "—"}
                   </span>
                 </td>
 
-                {/* FY Badge (display only) */}
-                <td className="px-1 py-1.5 text-center">
+                {/* FY Badge — hidden on mobile */}
+                <td className="hidden sm:table-cell px-1 py-1.5 text-center">
                   <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-[#403770] text-white">
                     FY{String(plan.fiscalYear).slice(-2)}
                   </span>
                 </td>
 
-                {/* Status (editable select) */}
-                <td className="px-2 py-1">
-                  <InlineEditCell
-                    type="select"
-                    value={plan.status}
-                    onSave={async (value) => handleFieldUpdate(plan.id, "status", value)}
-                    options={STATUS_OPTIONS}
-                    className={`text-xs font-medium px-1.5 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}
-                  />
+                {/* Status */}
+                <td className="pl-1 pr-0.5 sm:px-2 py-1 text-center">
+                  {/* Mobile: single letter, long-press for full label */}
+                  <span
+                    title={formatStatusLabel(plan.status)}
+                    className={`sm:hidden text-[10px] font-bold w-[22px] h-[22px] rounded-full inline-flex items-center justify-center ${getStatusBadgeClass(plan.status)}`}
+                  >
+                    {plan.status.charAt(0).toUpperCase()}
+                  </span>
+                  {/* Desktop: full editable badge */}
+                  <span className="hidden sm:inline-block">
+                    <InlineEditCell
+                      type="select"
+                      value={plan.status}
+                      onSave={async (value) => handleFieldUpdate(plan.id, "status", value)}
+                      options={STATUS_OPTIONS}
+                      className={`text-xs font-medium px-1.5 py-0.5 rounded-full inline-block ${getStatusBadgeClass(plan.status)}`}
+                    />
+                  </span>
                 </td>
 
                 {/* Districts (clickable to navigate) */}
-                <td className="px-2 py-1.5 text-center">
+                <td className="px-1 sm:px-2 py-1.5 text-center">
                   <button
                     onClick={() => onSelectPlan(plan.id)}
                     className="text-xs font-medium text-[#403770] hover:text-[#F37167] transition-colors cursor-pointer"
