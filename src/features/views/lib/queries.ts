@@ -28,6 +28,7 @@ import type {
   ScopeMode,
   ScopeRefKind,
 } from "@/lib/saved-views/filter-tree";
+import type { ViewLayouts } from "@/lib/saved-views/grid-layout-schema";
 import type { DetailKind } from "./view-types";
 
 // ── Plan + List response shapes ────────────────────────────────────────────
@@ -238,6 +239,54 @@ export function useUnhidePlan() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["views", "plans"] });
+    },
+  });
+}
+
+// ── Layout mutations ────────────────────────────────────────────────────────
+
+/**
+ * Persist a full viewLayouts blob onto a territory plan.
+ * Called by useGridLayout after its 500ms debounce fires.
+ *
+ * Invalidation matches the canonical key shapes used by usePlansWithStats
+ * (["views", "plans", ...]) and any single-plan fetch (["views", "plan", id]).
+ * There is no single-plan fetch hook today, but the key is reserved here so
+ * it invalidates correctly when one is added.
+ */
+export function useUpdatePlanLayout(planId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (viewLayouts: ViewLayouts) =>
+      fetchJson(`${API_BASE}/territory-plans/${planId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ viewLayouts }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["views", "plans"] });
+      qc.invalidateQueries({ queryKey: ["views", "plan", planId] });
+    },
+  });
+}
+
+/**
+ * Persist a full viewLayouts blob onto a saved list.
+ * Called by useGridLayout after its 500ms debounce fires.
+ *
+ * Invalidation matches ["views", "lists"] (useLists) and
+ * ["views", "list", id] (useList).
+ */
+export function useUpdateListLayout(listId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (viewLayouts: ViewLayouts) =>
+      fetchJson(`${API_BASE}/lists/${listId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ viewLayouts }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["views", "lists"] });
+      qc.invalidateQueries({ queryKey: ["views", "list", listId] });
     },
   });
 }
