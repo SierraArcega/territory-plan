@@ -226,7 +226,14 @@ function ViewBody({
     case "kanban":
       return <KanbanView leaids={leaids} />;
     case "contacts":
-      return <ContactsView leaids={leaids} />;
+      return (
+        <ContactsView
+          leaids={leaids}
+          parentKind={kind}
+          parentId={parentId}
+          savedLayouts={savedLayouts}
+        />
+      );
     case "opps":
       return <OppsView leaids={leaids} planId={kind === "plan" ? plan?.id ?? null : null} />;
     case "vacancies":
