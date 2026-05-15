@@ -244,7 +244,14 @@ function ViewBody({
         />
       );
     case "vacancies":
-      return <VacanciesView leaids={leaids} />;
+      return (
+        <VacanciesView
+          leaids={leaids}
+          parentKind={kind}
+          parentId={parentId}
+          savedLayouts={savedLayouts}
+        />
+      );
     case "news":
       return (
         <NewsView
