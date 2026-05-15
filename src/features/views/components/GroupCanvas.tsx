@@ -235,7 +235,14 @@ function ViewBody({
         />
       );
     case "opps":
-      return <OppsView leaids={leaids} planId={kind === "plan" ? plan?.id ?? null : null} />;
+      return (
+        <OppsView
+          leaids={leaids}
+          parentKind={kind}
+          parentId={parentId}
+          savedLayouts={savedLayouts}
+        />
+      );
     case "vacancies":
       return <VacanciesView leaids={leaids} />;
     case "news":
