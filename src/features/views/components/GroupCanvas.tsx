@@ -260,7 +260,14 @@ function ViewBody({
         />
       );
     case "rfps":
-      return <RfpsView leaids={leaids} />;
+      return (
+        <RfpsView
+          leaids={leaids}
+          parentKind={kind}
+          parentId={parentId}
+          savedLayouts={savedLayouts}
+        />
+      );
     default: {
       const _: never = viewId;
       throw new Error(`Unhandled view id: ${String(_)}`);
