@@ -328,7 +328,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
   );
 
   const filterToolbar = plans && plans.length > 0 ? (
-    <div className="flex flex-wrap items-start gap-1.5 sm:gap-3">
+    <div className="grid grid-cols-3 items-start gap-1.5 sm:flex sm:flex-wrap sm:gap-3">
       {/* Name text search */}
       <div className="relative">
         <input
@@ -341,7 +341,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             nameDebounceRef.current = setTimeout(() => setNameSearch(val), 300);
           }}
           placeholder="Name…"
-          className="h-7 sm:h-9 px-2 sm:px-3 pr-7 sm:pr-8 text-xs sm:text-sm border border-[#D4CFE2] rounded-lg bg-white text-[#403770] placeholder-[#8A80A8] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 w-[120px] sm:w-[160px]"
+          className="h-7 sm:h-9 px-2 sm:px-3 pr-7 sm:pr-8 text-xs sm:text-sm border border-[#D4CFE2] rounded-lg bg-white text-[#403770] placeholder-[#8A80A8] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 w-full sm:w-[160px]"
         />
         {nameInputValue && (
           <button
@@ -369,7 +369,7 @@ function PlansListView({ onSelectPlan, showCreateModal, setShowCreateModal }: Pl
             descriptionDebounceRef.current = setTimeout(() => setDescriptionSearch(val), 300);
           }}
           placeholder="Description…"
-          className="h-7 sm:h-9 px-2 sm:px-3 pr-7 sm:pr-8 text-xs sm:text-sm border border-[#D4CFE2] rounded-lg bg-white text-[#403770] placeholder-[#8A80A8] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 w-[120px] sm:w-[160px]"
+          className="h-7 sm:h-9 px-2 sm:px-3 pr-7 sm:pr-8 text-xs sm:text-sm border border-[#D4CFE2] rounded-lg bg-white text-[#403770] placeholder-[#8A80A8] focus:outline-none focus:ring-2 focus:ring-[#403770]/20 w-full sm:w-[160px]"
         />
         {descriptionInputValue && (
           <button
