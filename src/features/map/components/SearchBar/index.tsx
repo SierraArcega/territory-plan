@@ -262,8 +262,8 @@ export default function SearchBar() {
     <div className="search-bar-root shrink-0 relative z-20 flex flex-col">
       {/* Main bar */}
       <div className="flex items-center gap-2 bg-[#F7F5FA] border-b border-[#D4CFE2] px-3 py-2">
-        {/* Search input */}
-        <div className="relative flex-1 min-w-[160px] max-w-[300px]">
+        {/* Search input — fixed width so filter strip always gets the remainder; no flex-1 here */}
+        <div className="relative shrink-0 w-[140px] lg:w-[220px]">
           <div className="flex items-center gap-2 bg-white rounded-lg border border-[#C2BBD4] px-2.5 py-1.5 focus-within:border-plum focus-within:ring-2 focus-within:ring-plum/15 transition-all">
             <svg className="w-4 h-4 text-plum/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -291,7 +291,7 @@ export default function SearchBar() {
 
           {/* Search suggestions dropdown */}
           {showSuggestions && (districtSuggestions.length > 0 || suggestions.length > 0) && (
-            <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
+            <div className="absolute top-full left-0 mt-1 w-[min(320px,calc(100vw-1.5rem))] bg-white rounded-xl shadow-lg border border-[#D4CFE2]/60 overflow-hidden z-50">
               {districtSuggestions.length > 0 && (
                 <>
                   <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider bg-[#F7F5FA]">
@@ -351,17 +351,19 @@ export default function SearchBar() {
           )}
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-[#D4CFE2]" />
+        {/* Filter strip — scroll horizontally here, not on the outer bar, so the search dropdown isn't clipped */}
+        <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden flex-1 min-w-0">
+          <div className="w-px h-6 bg-[#D4CFE2] shrink-0" />
 
-        {/* Geography — always active, opens GeographyDropdown */}
-        <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
+          {/* Geography — always active, opens GeographyDropdown */}
+          <div className="shrink-0">
+          <DomainButton label="Geography" isOpen={openDropdown === "geography"} onClick={() => toggleDropdown("geography")} count={countByDomain(searchFilters, "geography")} />
+        </div>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-[#D4CFE2]" />
+          <div className="w-px h-6 bg-[#D4CFE2] shrink-0" />
 
-        {/* Entity layer toggle + filter buttons — always visible */}
-        <div className="flex flex-col gap-1.5">
+          {/* Entity layer toggle + filter buttons — always visible */}
+        <div className="flex flex-col gap-1.5 shrink-0">
           {(["contacts", "vacancies", "activities", "plans"] as const).some((l) => !activeLayers.has(l)) && (
             <span className="text-[10px] text-[#B8B0CF] select-none whitespace-nowrap leading-none pl-0.5">
               Click a layer below to show it on the map
@@ -420,7 +422,7 @@ export default function SearchBar() {
         {/* Clear filters */}
         {activeFilterCount > 0 && (
           <>
-            <div className="w-px h-6 bg-[#D4CFE2]" />
+            <div className="w-px h-6 bg-[#D4CFE2] shrink-0" />
             <button
               onClick={() => useMapV2Store.getState().clearSearchFilters()}
               className="text-xs text-coral hover:text-coral/80 font-semibold whitespace-nowrap"
@@ -430,12 +432,11 @@ export default function SearchBar() {
           </>
         )}
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-[#D4CFE2]" />
+          <div className="w-px h-6 bg-[#D4CFE2] shrink-0" />
 
-        {/* Fiscal Year selector + Compare */}
+          {/* Fiscal Year selector + Compare */}
         {compareMode ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <select
               value={compareFyA}
               onChange={(e) => setCompareFyA(e.target.value as FiscalYear)}
@@ -463,7 +464,7 @@ export default function SearchBar() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <div className="flex items-center bg-white rounded-lg border border-[#D4CFE2] overflow-hidden">
               {(["fy25", "fy26", "fy27"] as const).map((fy) => (
                 <button
@@ -502,7 +503,7 @@ export default function SearchBar() {
             </div>
           </div>
         )}
-
+        </div>{/* end filter strip */}
       </div>
 
       {/* Active filter pills — in flow, part of toolbar */}
