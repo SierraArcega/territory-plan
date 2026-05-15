@@ -10,6 +10,7 @@ import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 import { SOURCE_COLUMNS } from "@/features/views/lib/columns";
 import { useViewsData } from "@/features/views/hooks/useViewsData";
+import { GridHeaderCell } from "./GridHeaderCell";
 import {
   LoadingState,
   ErrorState,
@@ -23,6 +24,10 @@ interface GridViewProps {
   leaids: string[] | null;
   listId: string | null;
   layout: GridViewLayout;
+  // Optional: when provided, sort-header clicks propagate layout changes upward.
+  // In B8 this will be wired to useGridLayout (debounced PATCH). When absent,
+  // the sort header still renders as clickable but changes are no-ops.
+  onLayoutChange?: (next: GridViewLayout) => void;
 }
 
 const PAGE_SIZE = 50;
@@ -32,10 +37,22 @@ export default function GridView({
   leaids,
   listId,
   layout,
+  onLayoutChange,
 }: GridViewProps) {
   const [page, setPage] = useState(1);
   const limit = page * PAGE_SIZE;
   const q = useViewsData({ source, leaids, listId, layout, limit, offset: 0 });
+
+  // Single-sort mode: one column active at a time. Multi-sort (shift-click) comes in E3.
+  function handleSortChange(columnId: string, dir: "asc" | "desc" | null) {
+    const nextSort =
+      dir === null
+        ? layout.sort.filter((s) => s.id !== columnId)
+        : layout.sort.some((s) => s.id === columnId)
+          ? layout.sort.map((s) => (s.id === columnId ? { ...s, dir } : s))
+          : [{ id: columnId, dir }]; // replace all — single-sort
+    onLayoutChange?.({ ...layout, sort: nextSort });
+  }
 
   // Compute visible columns from the layout overlaid on SOURCE_COLUMNS defaults.
   const visibleCols = SOURCE_COLUMNS[source]
@@ -113,14 +130,23 @@ export default function GridView({
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr className="bg-[#F7F5FA] sticky top-0 z-[1]">
-              {table.getHeaderGroups()[0].headers.map((h) => (
-                <th
-                  key={h.id}
-                  className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left"
-                >
-                  {flexRender(h.column.columnDef.header, h.getContext())}
-                </th>
-              ))}
+              {table.getHeaderGroups()[0].headers.map((h) => {
+                const colDef = SOURCE_COLUMNS[source].find((c) => c.id === h.column.id);
+                const sortDir = layout.sort.find((s) => s.id === h.column.id)?.dir ?? null;
+                return (
+                  <th
+                    key={h.id}
+                    className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left"
+                  >
+                    <GridHeaderCell
+                      label={colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}
+                      sortable={colDef?.sortable ?? false}
+                      sortDir={sortDir}
+                      onSortChange={(dir) => handleSortChange(h.column.id, dir)}
+                    />
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
