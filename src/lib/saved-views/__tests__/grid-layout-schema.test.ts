@@ -44,4 +44,24 @@ describe("viewLayoutsSchema", () => {
   it("null clears layouts", () => {
     expect(() => viewLayoutsSchema().parse(null)).not.toThrow();
   });
+
+  it("accepts mode on news layout", () => {
+    const news = {
+      columns: [{ id: "title", order: 0, visible: true }],
+      sort: [],
+      filters: { kind: "and" as const, children: [] },
+      mode: "table" as const,
+    };
+    expect(() => viewLayoutsSchema().parse({ news })).not.toThrow();
+  });
+
+  it("rejects unknown mode on news layout", () => {
+    const news = {
+      columns: [{ id: "title", order: 0, visible: true }],
+      sort: [],
+      filters: { kind: "and" as const, children: [] },
+      mode: "gallery",
+    };
+    expect(() => viewLayoutsSchema().parse({ news })).toThrow();
+  });
 });

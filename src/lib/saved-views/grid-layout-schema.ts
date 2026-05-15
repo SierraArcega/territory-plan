@@ -45,6 +45,14 @@ export function gridLayoutSchema(source: SavedListSource) {
   });
 }
 
+// News has an extra `mode` field on top of the standard grid layout fields.
+const newsLayoutSchema = z.object({
+  columns: gridLayoutSchema("news").shape.columns,
+  sort:    gridLayoutSchema("news").shape.sort,
+  filters: gridLayoutSchema("news").shape.filters,
+  mode:    z.enum(["cards", "table"]).optional(),
+});
+
 export function viewLayoutsSchema() {
   return z
     .object({
@@ -52,7 +60,7 @@ export function viewLayoutsSchema() {
       contacts:  gridLayoutSchema("contacts").optional(),
       opps:      gridLayoutSchema("opps").optional(),
       vacancies: gridLayoutSchema("vacancies").optional(),
-      news:      gridLayoutSchema("news").optional(),
+      news:      newsLayoutSchema.optional(),
       rfps:      gridLayoutSchema("rfps").optional(),
     })
     .nullable();

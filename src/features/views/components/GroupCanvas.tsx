@@ -256,7 +256,9 @@ function ViewBody({
       return (
         <NewsView
           leaids={leaids}
-          territoryPlanId={kind === "plan" ? plan?.id ?? null : null}
+          parentKind={kind}
+          parentId={parentId}
+          savedLayouts={savedLayouts}
         />
       );
     case "rfps":

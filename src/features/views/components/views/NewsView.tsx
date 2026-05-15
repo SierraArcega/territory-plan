@@ -1,9 +1,12 @@
 "use client";
 
 /**
- * NewsView — card feed (NOT a table) for the active plan/list scope.
+ * NewsView — card feed (NOT a table) for the active plan/list scope, with an
+ * optional toggle to switch to GridView table mode.
  *
- * Prototype source: `district-feeds.jsx::CanvasNewsView`. Each card:
+ * Mode defaults to "cards" and persists via viewLayouts.news.mode.
+ *
+ * Card layout prototype source: `district-feeds.jsx::CanvasNewsView`. Each card:
  *   - 36px square block tinted by category, district initials inside
  *   - Headline (14px, 500 weight)
  *   - Category pill
@@ -13,7 +16,7 @@
  * Lists ship empty in v0 — the news endpoint doesn't accept a leaid set yet
  * and Phase E's list preview will surface that scope later.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
 import {
@@ -24,15 +27,15 @@ import {
   ShowMoreButton,
   ViewScroll,
 } from "./_shared";
+import type { ViewBodyProps } from "./_shared";
+import GridView from "../grid/GridView";
+import {
+  useUpdatePlanLayout,
+  useUpdateListLayout,
+} from "@/features/views/lib/queries";
+import type { ViewLayouts } from "@/lib/saved-views/grid-layout-schema";
 
-interface NewsViewProps {
-  leaids: string[] | null;
-  /**
-   * When the active group is a Plan, pass its id so the /api/news route
-   * runs its `territoryPlanId` branch (joins through TerritoryPlanDistrict).
-   */
-  territoryPlanId: string | null;
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface NewsArticle {
   id: string;
@@ -51,6 +54,8 @@ interface NewsArticle {
 interface NewsResponse {
   articles: NewsArticle[];
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function relativeFromIso(iso: string): string {
   const then = new Date(iso).getTime();
@@ -93,7 +98,13 @@ function categoryStyle(categories: string[]): { bg: string; fg: string; label: s
   return { bg: "#EFEDF5", fg: "#6f6786", label: categories[0] ?? "Update" };
 }
 
-export default function NewsView({ territoryPlanId }: NewsViewProps) {
+// ── NewsCards — preserved cards rendering ─────────────────────────────────────
+
+interface NewsCardsProps {
+  territoryPlanId: string | null;
+}
+
+function NewsCards({ territoryPlanId }: NewsCardsProps) {
   const [page, setPage] = useState(1);
   const visibleCount = page * PAGE_SIZE;
 
@@ -193,5 +204,103 @@ export default function NewsView({ territoryPlanId }: NewsViewProps) {
         />
       )}
     </ViewScroll>
+  );
+}
+
+// ── NewsView — top-level with toggle ──────────────────────────────────────────
+
+export default function NewsView({
+  leaids,
+  parentKind,
+  parentId,
+  savedLayouts,
+}: ViewBodyProps & { leaids: string[] | null }) {
+  // Derive territoryPlanId the same way GroupCanvas used to — only plans have news.
+  // GroupCanvas no longer passes territoryPlanId directly; we reconstruct it from
+  // parentKind/parentId (plan IDs are strings and are the parentId when kind=plan).
+  const territoryPlanId = parentKind === "plan" ? parentId : null;
+
+  const initialMode = savedLayouts?.news?.mode ?? "cards";
+  const [mode, setMode] = useState<"cards" | "table">(initialMode);
+
+  const planMutation = useUpdatePlanLayout(parentKind === "plan" ? parentId : "");
+  const listMutation = useUpdateListLayout(parentKind === "list" ? parentId : "");
+
+  // Re-hydrate mode if savedLayouts updates externally (e.g. another tab).
+  useEffect(() => {
+    const incoming = savedLayouts?.news?.mode;
+    if (incoming && incoming !== mode) {
+      setMode(incoming);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedLayouts?.news?.mode]);
+
+  const toggleMode = (next: "cards" | "table") => {
+    if (next === mode) return;
+    setMode(next);
+    const mergedNews = {
+      ...(savedLayouts?.news ?? {
+        columns: [],
+        sort: [],
+        filters: { kind: "and" as const, children: [] },
+      }),
+      mode: next,
+    };
+    const merged: ViewLayouts = { ...(savedLayouts ?? {}), news: mergedNews };
+    if (parentKind === "plan") planMutation.mutate(merged);
+    else listMutation.mutate(merged);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* View-as toggle bar */}
+      <div className="flex items-center gap-2 border-b border-[#EFEDF5] bg-white px-3 py-2 flex-shrink-0">
+        <div
+          className="inline-flex rounded-md border border-[#E2DEEC] bg-white p-0.5"
+          role="group"
+          aria-label="View as"
+        >
+          <button
+            type="button"
+            onClick={() => toggleMode("cards")}
+            className={`rounded px-2 py-0.5 text-[12px] whitespace-nowrap transition-colors ${
+              mode === "cards"
+                ? "bg-[#403770] text-white"
+                : "text-[#544A78] hover:bg-[#F7F5FA]"
+            }`}
+          >
+            Cards
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleMode("table")}
+            className={`rounded px-2 py-0.5 text-[12px] whitespace-nowrap transition-colors ${
+              mode === "table"
+                ? "bg-[#403770] text-white"
+                : "text-[#544A78] hover:bg-[#F7F5FA]"
+            }`}
+          >
+            Table
+          </button>
+        </div>
+      </div>
+
+      {/* View body */}
+      <div className="flex-1 min-h-0">
+        {mode === "cards" ? (
+          <NewsCards territoryPlanId={territoryPlanId} />
+        ) : (
+          <GridView
+            source="news"
+            leaids={leaids}
+            listId={null}
+            parentKind={parentKind}
+            parentId={parentId}
+            viewType="news"
+            savedLayouts={savedLayouts}
+          />
+        )}
+      </div>
+    </div>
   );
 }
