@@ -217,9 +217,12 @@ export default function GridView(props: GridViewProps) {
               {table.getHeaderGroups()[0].headers.map((h) => {
                 const colDef = SOURCE_COLUMNS[source].find((c) => c.id === h.column.id);
                 const sortDir = layout.sort.find((s) => s.id === h.column.id)?.dir ?? null;
+                const colId = h.column.id;
+                const colWidth = layout.columns.find((c) => c.id === colId)?.width;
                 return (
                   <th
                     key={h.id}
+                    style={{ width: colWidth ? `${colWidth}px` : undefined, position: "relative" }}
                     className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#8A80A8] py-2.5 px-3.5 border-b border-[#D4CFE2] whitespace-nowrap text-left"
                   >
                     <GridHeaderCell
@@ -227,6 +230,17 @@ export default function GridView(props: GridViewProps) {
                       sortable={colDef?.sortable ?? false}
                       sortDir={sortDir}
                       onSortChange={(dir) => handleSortChange(h.column.id, dir)}
+                      width={colWidth}
+                      onWidthChange={(w) => {
+                        const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);
+                        const merged = allColIds.map((id) => {
+                          const existing = layout.columns.find((c) => c.id === id);
+                          const def = SOURCE_COLUMNS[source].find((c) => c.id === id)!;
+                          const base = existing ?? { id, order: def.defaultOrder, visible: def.defaultVisible };
+                          return id === colId ? { ...base, width: w } : base;
+                        });
+                        setLayout({ ...layout, columns: merged });
+                      }}
                     />
                   </th>
                 );
