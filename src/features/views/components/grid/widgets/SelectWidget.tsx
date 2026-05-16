@@ -32,7 +32,7 @@ export function SelectWidget({
   }, [options, query]);
 
   return (
-    <div className="w-64 rounded-lg border border-[#E2DEEC] bg-white p-2 shadow-md">
+    <div className="w-64 rounded-lg border border-[#E2DEEC] bg-white p-2 shadow-md" style={{ maxWidth: "calc(100vw - 16px)" }}>
       <input
         autoFocus
         placeholder="Search…"

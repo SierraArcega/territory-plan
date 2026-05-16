@@ -218,7 +218,7 @@ export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-[#E2DEEC] bg-white p-2 shadow-md">
+        <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-[#E2DEEC] bg-white p-2 shadow-md" style={{ maxWidth: "calc(100vw - 16px)" }}>
           <div className="px-2 pb-1 text-[10px] uppercase tracking-[0.06em] text-[#8A80A8]">
             Columns
           </div>

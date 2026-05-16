@@ -20,7 +20,7 @@ export function FilterFieldPicker({
   );
 
   return (
-    <div className="w-56 rounded-lg border border-[#E2DEEC] bg-white p-1 shadow-md">
+    <div className="w-56 rounded-lg border border-[#E2DEEC] bg-white p-1 shadow-md" style={{ maxWidth: "calc(100vw - 16px)" }}>
       <div className="px-2 py-1 text-[10px] uppercase tracking-[0.06em] text-[#8A80A8]">
         Add filter
       </div>

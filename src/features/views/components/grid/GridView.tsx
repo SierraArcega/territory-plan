@@ -244,7 +244,9 @@ export default function GridView(props: GridViewProps) {
   return (
     <ViewScroll>
       {/* Filter chips + column visibility gear on one row */}
-      <div className="flex items-center border-b border-[#EFEDF5] bg-white">
+      {/* touch-action:auto overrides the ancestor ViewScroll pan-y so the chip
+          strip can scroll horizontally on iOS without fighting the outer pan lock. */}
+      <div className="flex items-center border-b border-[#EFEDF5] bg-white" style={{ touchAction: "auto" }}>
         <div className="min-w-0 flex-1 overflow-x-auto">
           <GridFilterChips
             source={source}

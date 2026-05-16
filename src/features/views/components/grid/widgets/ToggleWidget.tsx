@@ -12,6 +12,7 @@ export function ToggleWidget({ widget, value, onApply }: ToggleWidgetProps) {
   return (
     <div
       className="inline-flex rounded-lg border border-[#E2DEEC] bg-white p-1 shadow-md"
+      style={{ maxWidth: "calc(100vw - 16px)" }}
       role="group"
     >
       <button

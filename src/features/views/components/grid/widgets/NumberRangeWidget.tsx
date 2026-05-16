@@ -25,7 +25,7 @@ export function NumberRangeWidget({ widget, value, onApply, onCancel }: NumberRa
   };
 
   return (
-    <div className="w-72 rounded-lg border border-[#E2DEEC] bg-white p-3 shadow-md">
+    <div className="w-72 rounded-lg border border-[#E2DEEC] bg-white p-3 shadow-md" style={{ maxWidth: "calc(100vw - 16px)" }}>
       <div className="flex gap-2">
         <input
           type="number"

@@ -40,7 +40,7 @@ export function DateRangeWidget({ widget, value, onApply, onCancel }: DateRangeW
   };
 
   return (
-    <div className="w-72 rounded-lg border border-[#E2DEEC] bg-white p-3 shadow-md">
+    <div className="w-72 rounded-lg border border-[#E2DEEC] bg-white p-3 shadow-md" style={{ maxWidth: "calc(100vw - 16px)" }}>
       {widget.relativeChips && widget.relativeChips.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {widget.relativeChips.map(chip => (
