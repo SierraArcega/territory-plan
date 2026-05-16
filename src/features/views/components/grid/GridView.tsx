@@ -28,6 +28,30 @@ import {
   ViewScroll,
 } from "../views/_shared";
 
+function FilteredEmptyState({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+      <div className="text-[14px] font-medium text-[#403770]">No rows match your filters</div>
+      <div className="text-[12px] text-[#8A80A8]">Try widening or removing filters.</div>
+      <button
+        type="button"
+        onClick={onClear}
+        className="mt-2 rounded bg-[#403770] px-3 py-1 text-[12px] text-white hover:bg-[#322a5a]"
+      >
+        Clear filters
+      </button>
+    </div>
+  );
+}
+
+function TruncatedBanner() {
+  return (
+    <div className="border-b border-[#FFCF70] bg-[#FFF7E6] px-3 py-1.5 text-[12px] text-[#997c43]">
+      Result too large — narrow your filters.
+    </div>
+  );
+}
+
 /**
  * GridView — shared data-table for all entity sources.
  *
@@ -176,7 +200,22 @@ export default function GridView(props: GridViewProps) {
   }
 
   const rows = q.data?.rows ?? [];
+  const filtersActive = layout.filters.children.length > 0;
+  const truncated = q.data?.truncated === true;
+
   if (rows.length === 0) {
+    if (filtersActive) {
+      return (
+        <ViewScroll>
+          {truncated && <TruncatedBanner />}
+          <FilteredEmptyState
+            onClear={() =>
+              setLayout({ ...layout, filters: { kind: "and", children: [] } })
+            }
+          />
+        </ViewScroll>
+      );
+    }
     return (
       <EmptyState
         title="No matching rows"
@@ -221,6 +260,7 @@ export default function GridView(props: GridViewProps) {
           />
         </div>
       </div>
+      {truncated && <TruncatedBanner />}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>

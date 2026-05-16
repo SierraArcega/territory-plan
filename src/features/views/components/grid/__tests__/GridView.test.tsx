@@ -447,3 +447,177 @@ describe("GridView — sort interactions", () => {
     expect(next.sort[1]).toEqual({ id: "state", dir: "desc" });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Filtered-empty and truncated states
+// ---------------------------------------------------------------------------
+describe("GridView — filtered-empty and truncated", () => {
+  /** Layout with one active filter. */
+  function layoutWithFilter(): GridViewLayout {
+    return {
+      columns: [],
+      sort: [],
+      filters: {
+        kind: "and",
+        children: [{ kind: "rule", fieldId: "state", op: "eq", value: "CA" }],
+      },
+    };
+  }
+
+  it("default empty state renders when no filters AND no rows", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: [], total: 0 },
+    });
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={emptyLayout()}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText("No matching rows")).toBeTruthy();
+    expect(screen.queryByText("No rows match your filters")).toBeNull();
+    expect(screen.queryByRole("button", { name: /clear filters/i })).toBeNull();
+  });
+
+  it("filtered-empty state renders Clear filters button when filters are active and rows are empty", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: [], total: 0 },
+    });
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={layoutWithFilter()}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText("No rows match your filters")).toBeTruthy();
+    expect(screen.getByText("Try widening or removing filters.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /clear filters/i })).toBeTruthy();
+    // The default empty state title should NOT appear
+    expect(screen.queryByText("No matching rows")).toBeNull();
+  });
+
+  it("clicking Clear filters empties layout.filters.children", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: [], total: 0 },
+    });
+
+    const onChange = vi.fn();
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={layoutWithFilter()}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+
+    const clearBtn = screen.getByRole("button", { name: /clear filters/i });
+    fireEvent.click(clearBtn);
+
+    expect(onChange).toHaveBeenCalledOnce();
+    const next = onChange.mock.calls[0][0] as GridViewLayout;
+    expect(next.filters.children).toHaveLength(0);
+    expect(next.filters.kind).toBe("and");
+  });
+
+  it("truncated banner renders when q.data.truncated is true (with rows)", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [{ name: "Acme USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 0, stage: "Prospect" }],
+        total: 1,
+        truncated: true,
+      },
+    });
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={emptyLayout()}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText("Result too large — narrow your filters.")).toBeTruthy();
+  });
+
+  it("truncated banner renders when q.data.truncated is true (with zero rows + filters)", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: [], total: 0, truncated: true },
+    });
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={layoutWithFilter()}
+        />
+      </Wrapper>,
+    );
+
+    // Both the banner AND the filtered-empty state should be visible
+    expect(screen.getByText("Result too large — narrow your filters.")).toBeTruthy();
+    expect(screen.getByText("No rows match your filters")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /clear filters/i })).toBeTruthy();
+  });
+
+  it("truncated banner does NOT render when truncated is false", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [{ name: "Acme USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 0, stage: "Prospect" }],
+        total: 1,
+        truncated: false,
+      },
+    });
+
+    const Wrapper = makeWrapper();
+    render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={emptyLayout()}
+        />
+      </Wrapper>,
+    );
+
+    expect(screen.queryByText("Result too large — narrow your filters.")).toBeNull();
+  });
+});
