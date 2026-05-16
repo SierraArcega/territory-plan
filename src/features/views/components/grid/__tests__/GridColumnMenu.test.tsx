@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { GridColumnMenu } from "../GridColumnMenu";
+import { GridColumnMenu, reorderColumns } from "../GridColumnMenu";
 import { SOURCE_COLUMNS, getDefaultLayoutColumns } from "@/features/views/lib/columns";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 
@@ -394,6 +394,99 @@ describe("GridColumnMenu", () => {
 
       await user.click(screen.getByTestId("outside"));
       expect(screen.queryByText("Reset to defaults")).toBeNull();
+    });
+  });
+
+  describe("drag handle", () => {
+    it("renders a drag handle button for each column row", async () => {
+      const user = userEvent.setup();
+      render(
+        <GridColumnMenu
+          source="districts"
+          layout={emptyLayout()}
+          onChange={() => {}}
+        />,
+      );
+      await openMenu(user);
+
+      const handles = screen.getAllByLabelText("Drag to reorder");
+      expect(handles.length).toBe(SOURCE_COLUMNS.districts.length);
+    });
+
+    it("renders drag handles for contacts source too", async () => {
+      const user = userEvent.setup();
+      render(
+        <GridColumnMenu
+          source="contacts"
+          layout={emptyLayout("contacts")}
+          onChange={() => {}}
+        />,
+      );
+      await openMenu(user);
+
+      const handles = screen.getAllByLabelText("Drag to reorder");
+      expect(handles.length).toBe(SOURCE_COLUMNS.contacts.length);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // reorderColumns pure helper tests
+  // Preferred strategy: test the exported pure helper directly so we never
+  // depend on jsdom DOM rects (which @dnd-kit relies on internally).
+  // ---------------------------------------------------------------------------
+  describe("reorderColumns (pure helper)", () => {
+    it("moves a column from index 1 to index 0", () => {
+      const layout = emptyLayout();
+      // "state" is defaultOrder=1, "name" is defaultOrder=0
+      const next = reorderColumns("districts", layout, "state", "name");
+      const stateEntry = next.columns.find((c) => c.id === "state");
+      const nameEntry = next.columns.find((c) => c.id === "name");
+      expect(stateEntry?.order).toBe(0);
+      expect(nameEntry?.order).toBe(1);
+    });
+
+    it("moves a column from index 0 to index 1", () => {
+      const layout = emptyLayout();
+      // drag "name" (order=0) onto "state" (order=1)
+      const next = reorderColumns("districts", layout, "name", "state");
+      const nameEntry = next.columns.find((c) => c.id === "name");
+      const stateEntry = next.columns.find((c) => c.id === "state");
+      expect(nameEntry?.order).toBe(1);
+      expect(stateEntry?.order).toBe(0);
+    });
+
+    it("is a no-op when activeId === overId", () => {
+      const layout = emptyLayout();
+      const next = reorderColumns("districts", layout, "name", "name");
+      // same id: no reorder happens, layout returned as-is (reference equality)
+      // The early return `return layout` fires only when active.id === over.id,
+      // but the id-equality check here matches on column IDs before that branch.
+      // Use deep equality since the function rebuilds but preserves same values.
+      expect(next).toStrictEqual(layout);
+    });
+
+    it("preserves all columns in the output", () => {
+      const layout = emptyLayout();
+      const next = reorderColumns("districts", layout, "state", "name");
+      expect(next.columns).toHaveLength(SOURCE_COLUMNS.districts.length);
+    });
+
+    it("preserves visibility flags after reorder", () => {
+      const layout = emptyLayout();
+      const next = reorderColumns("districts", layout, "state", "name");
+      // Each column's visibility should match the default
+      for (const col of SOURCE_COLUMNS.districts) {
+        const entry = next.columns.find((c) => c.id === col.id);
+        expect(entry?.visible).toBe(col.defaultVisible);
+      }
+    });
+
+    it("assigns contiguous 0-based order indices after reorder", () => {
+      const layout = emptyLayout();
+      const next = reorderColumns("districts", layout, "tier", "name");
+      const orders = next.columns.map((c) => c.order).sort((a, b) => a - b);
+      const expected = Array.from({ length: SOURCE_COLUMNS.districts.length }, (_, i) => i);
+      expect(orders).toEqual(expected);
     });
   });
 });

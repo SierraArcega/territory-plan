@@ -1,6 +1,22 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Settings, ChevronUp, ChevronDown } from "lucide-react";
+import { Settings, ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { SOURCE_COLUMNS, getDefaultLayoutColumns } from "@/features/views/lib/columns";
 import type { SavedListSource } from "@/lib/saved-views/filter-tree";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
@@ -11,6 +27,92 @@ interface GridColumnMenuProps {
   onChange: (next: GridViewLayout) => void;
 }
 
+// ---------------------------------------------------------------------------
+// Pure helper — exported for unit testing without needing DOM drag simulation
+// ---------------------------------------------------------------------------
+export function reorderColumns(
+  source: SavedListSource,
+  layout: GridViewLayout,
+  activeId: string,
+  overId: string,
+): GridViewLayout {
+  const orderedIds = SOURCE_COLUMNS[source]
+    .slice()
+    .sort((a, b) => {
+      const oa = layout.columns.find((l) => l.id === a.id)?.order ?? a.defaultOrder;
+      const ob = layout.columns.find((l) => l.id === b.id)?.order ?? b.defaultOrder;
+      return oa - ob;
+    })
+    .map((c) => c.id);
+
+  const oldIndex = orderedIds.indexOf(activeId);
+  const newIndex = orderedIds.indexOf(overId);
+  if (oldIndex === -1 || newIndex === -1) return layout;
+
+  const reordered = [...orderedIds];
+  const [moved] = reordered.splice(oldIndex, 1);
+  reordered.splice(newIndex, 0, moved);
+
+  const baseCols = SOURCE_COLUMNS[source].map((c) => {
+    const found = layout.columns.find((l) => l.id === c.id);
+    return {
+      id: c.id,
+      order: found?.order ?? c.defaultOrder,
+      visible: found?.visible ?? c.defaultVisible,
+      ...(found?.width !== undefined ? { width: found.width } : {}),
+    };
+  });
+
+  const next = baseCols.map((col) => {
+    const idx = reordered.indexOf(col.id);
+    return idx === -1 ? col : { ...col, order: idx };
+  });
+
+  return { ...layout, columns: next };
+}
+
+// ---------------------------------------------------------------------------
+// SortableRow — wraps each column row with drag handle + dnd-kit bindings
+// ---------------------------------------------------------------------------
+function SortableRow({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-2 py-1 hover:bg-[#F7F5FA]"
+    >
+      <button
+        type="button"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+        className="cursor-grab text-[#8A80A8] hover:text-[#403770]"
+      >
+        <GripVertical className="h-3 w-3" />
+      </button>
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// GridColumnMenu
+// ---------------------------------------------------------------------------
 export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -91,6 +193,19 @@ export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps
     setOpen(false);
   };
 
+  // dnd-kit sensors — require 4px movement before activating to avoid
+  // accidentally swallowing checkbox / button clicks
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    onChange(reorderColumns(source, layout, String(active.id), String(over.id)));
+  };
+
   return (
     <div ref={wrapRef} className="relative">
       <button
@@ -108,40 +223,48 @@ export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps
             Columns
           </div>
           <div className="max-h-72 overflow-y-auto">
-            {orderedColumns.map((col, i) => (
-              <div
-                key={col.id}
-                className="flex items-center gap-2 px-2 py-1 hover:bg-[#F7F5FA]"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={orderedColumns.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
               >
-                <input
-                  type="checkbox"
-                  aria-label={`Show ${col.header}`}
-                  checked={isVisible(col.id)}
-                  onChange={() => toggleVisible(col.id)}
-                />
-                <span className="flex-1 whitespace-nowrap text-[13px] text-[#403770]">
-                  {col.header}
-                </span>
-                <button
-                  type="button"
-                  aria-label={`Move ${col.header} up`}
-                  disabled={i === 0}
-                  onClick={() => moveColumn(col.id, -1)}
-                  className="text-[#8A80A8] hover:text-[#403770] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Move ${col.header} down`}
-                  disabled={i === orderedColumns.length - 1}
-                  onClick={() => moveColumn(col.id, 1)}
-                  className="text-[#8A80A8] hover:text-[#403770] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+                {orderedColumns.map((col, i) => (
+                  <SortableRow key={col.id} id={col.id}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Show ${col.header}`}
+                      checked={isVisible(col.id)}
+                      onChange={() => toggleVisible(col.id)}
+                    />
+                    <span className="flex-1 whitespace-nowrap text-[13px] text-[#403770]">
+                      {col.header}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Move ${col.header} up`}
+                      disabled={i === 0}
+                      onClick={() => moveColumn(col.id, -1)}
+                      className="text-[#8A80A8] hover:text-[#403770] disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move ${col.header} down`}
+                      disabled={i === orderedColumns.length - 1}
+                      onClick={() => moveColumn(col.id, 1)}
+                      className="text-[#8A80A8] hover:text-[#403770] disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </SortableRow>
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
           <button
             type="button"
