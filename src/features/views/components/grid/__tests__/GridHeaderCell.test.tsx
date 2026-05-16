@@ -7,15 +7,22 @@ describe("GridHeaderCell", () => {
     const onChange = vi.fn();
     const { rerender } = render(<GridHeaderCell label="Name" sortable={true} sortDir={null} onSortChange={onChange} />);
     fireEvent.click(screen.getByRole("button"));
-    expect(onChange).toHaveBeenCalledWith("asc");
+    expect(onChange).toHaveBeenCalledWith("asc", false);
 
     rerender(<GridHeaderCell label="Name" sortable={true} sortDir="asc" onSortChange={onChange} />);
     fireEvent.click(screen.getByRole("button"));
-    expect(onChange).toHaveBeenCalledWith("desc");
+    expect(onChange).toHaveBeenCalledWith("desc", false);
 
     rerender(<GridHeaderCell label="Name" sortable={true} sortDir="desc" onSortChange={onChange} />);
     fireEvent.click(screen.getByRole("button"));
-    expect(onChange).toHaveBeenCalledWith(null);
+    expect(onChange).toHaveBeenCalledWith(null, false);
+  });
+
+  it("passes shift=true when clicking with shiftKey held", () => {
+    const onChange = vi.fn();
+    render(<GridHeaderCell label="Name" sortable={true} sortDir={null} onSortChange={onChange} />);
+    fireEvent.click(screen.getByRole("button"), { shiftKey: true });
+    expect(onChange).toHaveBeenCalledWith("asc", true);
   });
 
   it("renders as static text when not sortable", () => {
@@ -29,8 +36,31 @@ describe("GridHeaderCell", () => {
       <GridHeaderCell label="Name" sortable={true} sortDir="asc" onSortChange={() => {}} />
     );
     expect(container.querySelector("svg")).toBeInTheDocument();
-    // Note: lucide-react renders as svg; specific class check is fragile, so we just confirm an svg appears
     rerender(<GridHeaderCell label="Name" sortable={true} sortDir="desc" onSortChange={() => {}} />);
     expect(container.querySelector("svg")).toBeInTheDocument();
+  });
+
+  it("shows the sortIndex badge when sortIndex is provided and sortDir is not null", () => {
+    render(
+      <GridHeaderCell label="Name" sortable={true} sortDir="asc" sortIndex={2} onSortChange={() => {}} />
+    );
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("does not show badge when sortIndex is undefined", () => {
+    const { container } = render(
+      <GridHeaderCell label="Name" sortable={true} sortDir="asc" onSortChange={() => {}} />
+    );
+    // No badge span — only the svg chevron
+    const spans = container.querySelectorAll("button span");
+    // The only span inside the button is the label text span
+    expect(Array.from(spans).map((s) => s.textContent)).not.toContain("1");
+  });
+
+  it("does not show badge when sortDir is null (even if sortIndex is set)", () => {
+    render(
+      <GridHeaderCell label="Name" sortable={true} sortDir={null} sortIndex={1} onSortChange={() => {}} />
+    );
+    expect(screen.queryByText("1")).toBeNull();
   });
 });

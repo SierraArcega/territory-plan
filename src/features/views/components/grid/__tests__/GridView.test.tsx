@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import GridView from "../GridView";
@@ -323,5 +323,127 @@ describe("GridView — contacts source", () => {
     const row = container.querySelector("tr[data-row-kind='contact']");
     expect(row).not.toBeNull();
     expect(row?.getAttribute("data-row-id")).toBe("c-1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sort interaction: single-sort and shift-click multi-sort
+// ---------------------------------------------------------------------------
+describe("GridView — sort interactions", () => {
+  /** Render GridView with prop-driven layout so we can capture layout changes. */
+  function renderWithLayout(initial: GridViewLayout) {
+    let current = initial;
+    const onChange = vi.fn((next: GridViewLayout) => { current = next; });
+
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        rows: [{ name: "Acme USD", stateAbbrev: "CA", tier: "Tier 1", metricValue: 42000, stage: "Prospect" }],
+        total: 1,
+      },
+    });
+
+    const Wrapper = makeWrapper();
+    const utils = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["0100005"]}
+          listId={null}
+          layout={current}
+          onLayoutChange={onChange}
+        />
+      </Wrapper>,
+    );
+
+    return { ...utils, onChange, getCurrent: () => current };
+  }
+
+  it("single click on a non-sorted column sets sort stack to length 1", () => {
+    const { onChange } = renderWithLayout(emptyLayout());
+
+    // Click the "District" header (id: "name", sortable: true)
+    const districtHeader = screen.getByText("District").closest("button")!;
+    fireEvent.click(districtHeader);
+
+    expect(onChange).toHaveBeenCalledOnce();
+    const next = onChange.mock.calls[0][0] as GridViewLayout;
+    expect(next.sort).toHaveLength(1);
+    expect(next.sort[0].id).toBe("name");
+    expect(next.sort[0].dir).toBe("asc");
+  });
+
+  it("single click on a sorted column cycles direction; stack length stays 1", () => {
+    const initial: GridViewLayout = {
+      ...emptyLayout(),
+      sort: [{ id: "name", dir: "asc" }],
+    };
+    const { onChange } = renderWithLayout(initial);
+
+    const districtHeader = screen.getByText("District").closest("button")!;
+    fireEvent.click(districtHeader);
+
+    expect(onChange).toHaveBeenCalledOnce();
+    const next = onChange.mock.calls[0][0] as GridViewLayout;
+    expect(next.sort).toHaveLength(1);
+    expect(next.sort[0].dir).toBe("desc");
+  });
+
+  it("plain click after multi-sort collapses stack to 1", () => {
+    const initial: GridViewLayout = {
+      ...emptyLayout(),
+      sort: [
+        { id: "name", dir: "asc" },
+        { id: "state", dir: "desc" },
+      ],
+    };
+    const { onChange } = renderWithLayout(initial);
+
+    // Click "District" without shift → should collapse to single sort
+    const districtHeader = screen.getByText("District").closest("button")!;
+    fireEvent.click(districtHeader);
+
+    const next = onChange.mock.calls[0][0] as GridViewLayout;
+    // "name" was already asc, next cycle is "desc"; stack collapses to 1
+    expect(next.sort).toHaveLength(1);
+  });
+
+  it("shift-click on a second column appends to the sort stack", () => {
+    const initial: GridViewLayout = {
+      ...emptyLayout(),
+      sort: [{ id: "name", dir: "asc" }],
+    };
+    const { onChange } = renderWithLayout(initial);
+
+    // Shift-click "State" header (id: "state", sortable: true)
+    const stateHeader = screen.getByText("State").closest("button")!;
+    fireEvent.click(stateHeader, { shiftKey: true });
+
+    expect(onChange).toHaveBeenCalledOnce();
+    const next = onChange.mock.calls[0][0] as GridViewLayout;
+    expect(next.sort).toHaveLength(2);
+    expect(next.sort[0]).toEqual({ id: "name", dir: "asc" });
+    expect(next.sort[1]).toEqual({ id: "state", dir: "asc" });
+  });
+
+  it("shift-click on an already-sorted column cycles its direction within the stack", () => {
+    const initial: GridViewLayout = {
+      ...emptyLayout(),
+      sort: [
+        { id: "name", dir: "asc" },
+        { id: "state", dir: "asc" },
+      ],
+    };
+    const { onChange } = renderWithLayout(initial);
+
+    // Shift-click "State" (currently "asc") → should become "desc", stay at index 1
+    const stateHeader = screen.getByText("State").closest("button")!;
+    fireEvent.click(stateHeader, { shiftKey: true });
+
+    const next = onChange.mock.calls[0][0] as GridViewLayout;
+    expect(next.sort).toHaveLength(2);
+    expect(next.sort[0]).toEqual({ id: "name", dir: "asc" });
+    expect(next.sort[1]).toEqual({ id: "state", dir: "desc" });
   });
 });

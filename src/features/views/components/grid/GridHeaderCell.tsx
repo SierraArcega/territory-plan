@@ -5,12 +5,13 @@ interface GridHeaderCellProps {
   label: string;
   sortable: boolean;
   sortDir: "asc" | "desc" | null;
-  onSortChange: (next: "asc" | "desc" | null) => void;
+  sortIndex?: number;       // 1-based precedence when participating in multi-sort
+  onSortChange: (next: "asc" | "desc" | null, shift: boolean) => void;
   width?: number;
   onWidthChange?: (next: number) => void;
 }
 
-export function GridHeaderCell({ label, sortable, sortDir, onSortChange, width, onWidthChange }: GridHeaderCellProps) {
+export function GridHeaderCell({ label, sortable, sortDir, sortIndex, onSortChange, width, onWidthChange }: GridHeaderCellProps) {
   const handleRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const [draggingWidth, setDraggingWidth] = useState<number | null>(null);
@@ -71,12 +72,17 @@ export function GridHeaderCell({ label, sortable, sortDir, onSortChange, width, 
     <>
       <button
         type="button"
-        onClick={() => onSortChange(next)}
+        onClick={(e) => onSortChange(next, e.shiftKey)}
         className="flex items-center gap-1 whitespace-nowrap text-inherit hover:text-[#403770]"
       >
         <span>{label}</span>
-        {sortDir === "asc" && <ChevronUp className="h-3 w-3" />}
+        {sortDir === "asc"  && <ChevronUp   className="h-3 w-3" />}
         {sortDir === "desc" && <ChevronDown className="h-3 w-3" />}
+        {sortIndex !== undefined && sortDir !== null && (
+          <span className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#EFEDF5] text-[9px] font-semibold text-[#403770]">
+            {sortIndex}
+          </span>
+        )}
       </button>
       {resizeHandle}
     </>

@@ -110,14 +110,25 @@ export default function GridView(props: GridViewProps) {
   const limit = page * PAGE_SIZE;
   const q = useViewsData({ source, leaids, listId, layout, limit, offset: 0 });
 
-  // Single-sort mode: one column active at a time. Multi-sort (shift-click) comes in E3.
-  function handleSortChange(columnId: string, dir: "asc" | "desc" | null) {
-    const nextSort =
-      dir === null
-        ? layout.sort.filter((s) => s.id !== columnId)
-        : layout.sort.some((s) => s.id === columnId)
-          ? layout.sort.map((s) => (s.id === columnId ? { ...s, dir } : s))
-          : [{ id: columnId, dir }]; // replace all — single-sort
+  function handleSortChange(columnId: string, dir: "asc" | "desc" | null, shift: boolean) {
+    const existing = layout.sort.findIndex((s) => s.id === columnId);
+    let nextSort: typeof layout.sort;
+
+    if (!shift) {
+      // Single-sort: replace the entire stack.
+      nextSort = dir ? [{ id: columnId, dir }] : [];
+    } else {
+      // Multi-sort: add/update/remove this column within the stack.
+      if (dir === null) {
+        nextSort = layout.sort.filter((s) => s.id !== columnId);
+      } else if (existing >= 0) {
+        nextSort = layout.sort.slice();
+        nextSort[existing] = { id: columnId, dir };
+      } else {
+        nextSort = [...layout.sort, { id: columnId, dir }];
+      }
+    }
+
     setLayout({ ...layout, sort: nextSort });
   }
 
@@ -216,7 +227,10 @@ export default function GridView(props: GridViewProps) {
             <tr className="bg-[#F7F5FA] sticky top-0 z-[1]">
               {table.getHeaderGroups()[0].headers.map((h) => {
                 const colDef = SOURCE_COLUMNS[source].find((c) => c.id === h.column.id);
-                const sortDir = layout.sort.find((s) => s.id === h.column.id)?.dir ?? null;
+                const sortIndexInStack = layout.sort.findIndex((s) => s.id === h.column.id);
+                const sortEntry = sortIndexInStack >= 0 ? layout.sort[sortIndexInStack] : undefined;
+                const sortDir = sortEntry?.dir ?? null;
+                const showIndex = layout.sort.length > 1 && sortIndexInStack >= 0;
                 const colId = h.column.id;
                 const colWidth = layout.columns.find((c) => c.id === colId)?.width;
                 return (
@@ -229,7 +243,8 @@ export default function GridView(props: GridViewProps) {
                       label={colDef?.header ?? String(flexRender(h.column.columnDef.header, h.getContext()))}
                       sortable={colDef?.sortable ?? false}
                       sortDir={sortDir}
-                      onSortChange={(dir) => handleSortChange(h.column.id, dir)}
+                      sortIndex={showIndex ? sortIndexInStack + 1 : undefined}
+                      onSortChange={(dir, shift) => handleSortChange(h.column.id, dir, shift)}
                       width={colWidth}
                       onWidthChange={(w) => {
                         const allColIds = SOURCE_COLUMNS[source].map((c) => c.id);
