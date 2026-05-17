@@ -41,6 +41,11 @@ interface CompilerCtx {
    * positional bind numbering.
    */
   paramOffset: number;
+  /**
+   * Optional plan id — required by fields marked `requiresPlanContext`.
+   * Bound as a parameter when emitted (never string-interpolated).
+   */
+  planId?: string;
 }
 
 function emitParam(ctx: CompilerCtx, value: unknown): string {
@@ -72,6 +77,47 @@ function durationToInterval(raw: unknown): string | null {
   return `${n} ${unit}`;
 }
 
+/**
+ * Emit SQL for a virtual field — one that has no real DB column on the source
+ * table. Each virtual field has a hardcoded SQL shape; the only inputs are the
+ * compile context and the rule node. The function returns the boolean
+ * predicate to inline at the rule's site.
+ */
+function compileVirtualField(
+  ctx: CompilerCtx,
+  fieldId: string,
+  node: { kind: "rule"; op: string; value: unknown },
+): string {
+  if (fieldId === "has_target") {
+    if (ctx.source !== "districts") {
+      throw new Error(`"has_target" is only valid for source "districts".`);
+    }
+    if (!ctx.planId) {
+      throw new Error(`"has_target" requires a planId in the request context.`);
+    }
+    if (node.op !== "is") {
+      throw new Error(`"has_target" only supports op "is"; got "${node.op}".`);
+    }
+    if (typeof node.value !== "boolean") {
+      throw new Error(`"has_target" requires a boolean value.`);
+    }
+    const planParam = emitParam(ctx, ctx.planId);
+    const negate = node.value ? "" : "NOT ";
+    return `(${negate}EXISTS (
+      SELECT 1 FROM territory_plan_districts tpd
+      WHERE tpd.plan_id = ${planParam}
+        AND tpd.district_leaid = ${ctx.alias}."leaid"
+        AND (
+          tpd.renewal_target IS NOT NULL
+          OR tpd.winback_target IS NOT NULL
+          OR tpd.expansion_target IS NOT NULL
+          OR tpd.new_business_target IS NOT NULL
+        )
+    ))`;
+  }
+  throw new Error(`No virtual handler for field "${fieldId}".`);
+}
+
 function compileNode(ctx: CompilerCtx, node: FilterNode): string {
   if (node.kind === "and") {
     if (node.children.length === 0) return "TRUE";
@@ -86,6 +132,13 @@ function compileNode(ctx: CompilerCtx, node: FilterNode): string {
   }
   const opErr = validateFieldOp(ctx.source, node.fieldId, node.op);
   if (opErr) throw new Error(opErr);
+
+  if (field.virtual) {
+    if (node.kind !== "rule") {
+      throw new Error(`Virtual field "${field.id}" only supports "rule" nodes.`);
+    }
+    return compileVirtualField(ctx, field.id, node);
+  }
 
   const col = `${ctx.alias}.${quoteIdent(field.column)}`;
 
@@ -163,16 +216,31 @@ function compileNode(ctx: CompilerCtx, node: FilterNode): string {
  * On failure (unknown field/op or invalid value), returns
  * `{ ok: false, error }` so the route can respond 400 cleanly.
  */
+export interface CompileOptions {
+  /**
+   * Plan id supplied to virtual fields marked `requiresPlanContext` (e.g.
+   * `has_target`). The compiler binds it as a parameter, never interpolates.
+   */
+  planId?: string;
+}
+
 export function compileFilterTree(
   source: SavedListSource,
   filterTree: FilterNode,
   alias: string,
   paramOffset = 0,
+  options: CompileOptions = {},
 ): CompileResult {
   if (!/^[a-z_][a-z0-9_]*$/i.test(alias)) {
     return { ok: false, error: `Invalid SQL alias: ${alias}` };
   }
-  const ctx: CompilerCtx = { source, alias, params: [], paramOffset };
+  const ctx: CompilerCtx = {
+    source,
+    alias,
+    params: [],
+    paramOffset,
+    planId: options.planId,
+  };
   try {
     const whereSql = compileNode(ctx, filterTree);
     return { ok: true, whereSql, params: ctx.params };

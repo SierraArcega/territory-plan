@@ -210,3 +210,64 @@ describe("validateFilterTree", () => {
     expect(err).toMatch(/Unknown field/);
   });
 });
+
+describe("compileFilterTree — has_target (virtual, plan-scoped)", () => {
+  it("compiles `has_target = true` to an EXISTS subquery with planId bound", () => {
+    const res = compileFilterTree(
+      "districts",
+      { kind: "rule", fieldId: "has_target", op: "is", value: true },
+      "d",
+      0,
+      { planId: "plan-123" },
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.whereSql).toContain("EXISTS");
+      expect(res.whereSql).toContain("territory_plan_districts");
+      expect(res.whereSql).toContain(`d."leaid"`);
+      expect(res.whereSql).not.toContain("NOT EXISTS");
+      expect(res.params).toEqual(["plan-123"]);
+    }
+  });
+
+  it("compiles `has_target = false` to NOT EXISTS", () => {
+    const res = compileFilterTree(
+      "districts",
+      { kind: "rule", fieldId: "has_target", op: "is", value: false },
+      "d",
+      0,
+      { planId: "plan-123" },
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.whereSql).toContain("NOT EXISTS");
+      expect(res.params).toEqual(["plan-123"]);
+    }
+  });
+
+  it("rejects has_target without a planId in compile options", () => {
+    const res = compileFilterTree(
+      "districts",
+      { kind: "rule", fieldId: "has_target", op: "is", value: true },
+      "d",
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toMatch(/requires a planId/);
+    }
+  });
+
+  it("rejects non-boolean values for has_target", () => {
+    const res = compileFilterTree(
+      "districts",
+      { kind: "rule", fieldId: "has_target", op: "is", value: "yes" },
+      "d",
+      0,
+      { planId: "plan-123" },
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toMatch(/boolean/);
+    }
+  });
+});

@@ -190,10 +190,20 @@ export async function GET(req: NextRequest) {
     combinedFilter = listFilter ?? requestFilter;
   }
 
+  // 8b. Parse planId — used by virtual fields like `has_target` that need
+  // a plan context to compile. The compiler binds it as a parameter.
+  const planId = searchParams.get("planId") ?? undefined;
+
   // 9. Compile filter tree → WHERE clause.
   const tableInfo = SOURCE_TABLES[typedSource];
   const alias = "t";
-  const compileResult = compileFilterTree(typedSource, combinedFilter, alias);
+  const compileResult = compileFilterTree(
+    typedSource,
+    combinedFilter,
+    alias,
+    0,
+    { planId },
+  );
   if (!compileResult.ok) {
     return NextResponse.json(
       { error: `Filter compile error: ${compileResult.error}` },

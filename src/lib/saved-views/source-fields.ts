@@ -49,13 +49,28 @@ export interface FieldDef {
   id: string;
   /** Rep-facing label shown in the editor. */
   label: string;
-  /** Underlying DB column in the source's primary table. */
+  /**
+   * Underlying DB column in the source's primary table. Ignored when
+   * `virtual: true` — the compiler emits a hardcoded expression instead.
+   */
   column: string;
   type: FieldType;
   /** Allowed operators for this field. */
   ops: FieldOp[];
   /** Optional enum of allowed `value` strings — also used by the UI value picker. */
   enumValues?: readonly string[];
+  /**
+   * When true, the compiler routes this field to a hardcoded SQL emitter
+   * (see `compileVirtualField`) instead of `<alias>.<column>`. Used for
+   * fields that join through another table or depend on request context
+   * (e.g. `has_target` requires the current plan id).
+   */
+  virtual?: boolean;
+  /**
+   * When true, the field cannot be used unless the request supplies a planId.
+   * The compiler emits a clear error if planId is missing.
+   */
+  requiresPlanContext?: boolean;
 }
 
 /**
@@ -110,6 +125,17 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       column: "name",
       type: "text",
       ops: ["is", "contains"],
+    },
+    {
+      // Virtual: compiles to an EXISTS subquery against territory_plan_districts
+      // for the request's planId. Requires a plan context.
+      id: "has_target",
+      label: "Has target",
+      column: "",
+      type: "boolean",
+      ops: ["is"],
+      virtual: true,
+      requiresPlanContext: true,
     },
   ],
   contacts: [
