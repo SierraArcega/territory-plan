@@ -483,7 +483,7 @@ describe("GridColumnMenu", () => {
 
     it("assigns contiguous 0-based order indices after reorder", () => {
       const layout = emptyLayout();
-      const next = reorderColumns("districts", layout, "tier", "name");
+      const next = reorderColumns("districts", layout, "target", "name");
       const orders = next.columns.map((c) => c.order).sort((a, b) => a - b);
       const expected = Array.from({ length: SOURCE_COLUMNS.districts.length }, (_, i) => i);
       expect(orders).toEqual(expected);
