@@ -363,12 +363,25 @@ describe("GridView — sort interactions", () => {
     return { ...utils, onChange, getCurrent: () => current };
   }
 
+  /**
+   * Find a column header button by text — the `<th>` contains the text.
+   * Distinguishes from sort chips, which live in the toolbar above the table.
+   */
+  function headerButton(label: string): HTMLButtonElement {
+    const ths = Array.from(document.querySelectorAll("th"));
+    for (const th of ths) {
+      if (th.textContent?.includes(label)) {
+        const btn = th.querySelector("button");
+        if (btn) return btn as HTMLButtonElement;
+      }
+    }
+    throw new Error(`No header button found for "${label}"`);
+  }
+
   it("single click on a non-sorted column sets sort stack to length 1", () => {
     const { onChange } = renderWithLayout(emptyLayout());
 
-    // Click the "District" header (id: "name", sortable: true)
-    const districtHeader = screen.getByText("District").closest("button")!;
-    fireEvent.click(districtHeader);
+    fireEvent.click(headerButton("District"));
 
     expect(onChange).toHaveBeenCalledOnce();
     const next = onChange.mock.calls[0][0] as GridViewLayout;
@@ -384,8 +397,7 @@ describe("GridView — sort interactions", () => {
     };
     const { onChange } = renderWithLayout(initial);
 
-    const districtHeader = screen.getByText("District").closest("button")!;
-    fireEvent.click(districtHeader);
+    fireEvent.click(headerButton("District"));
 
     expect(onChange).toHaveBeenCalledOnce();
     const next = onChange.mock.calls[0][0] as GridViewLayout;
@@ -403,9 +415,7 @@ describe("GridView — sort interactions", () => {
     };
     const { onChange } = renderWithLayout(initial);
 
-    // Click "District" without shift → should collapse to single sort
-    const districtHeader = screen.getByText("District").closest("button")!;
-    fireEvent.click(districtHeader);
+    fireEvent.click(headerButton("District"));
 
     const next = onChange.mock.calls[0][0] as GridViewLayout;
     // "name" was already asc, next cycle is "desc"; stack collapses to 1
@@ -419,9 +429,7 @@ describe("GridView — sort interactions", () => {
     };
     const { onChange } = renderWithLayout(initial);
 
-    // Shift-click "State" header (id: "state", sortable: true)
-    const stateHeader = screen.getByText("State").closest("button")!;
-    fireEvent.click(stateHeader, { shiftKey: true });
+    fireEvent.click(headerButton("State"), { shiftKey: true });
 
     expect(onChange).toHaveBeenCalledOnce();
     const next = onChange.mock.calls[0][0] as GridViewLayout;
@@ -440,9 +448,7 @@ describe("GridView — sort interactions", () => {
     };
     const { onChange } = renderWithLayout(initial);
 
-    // Shift-click "State" (currently "asc") → should become "desc", stay at index 1
-    const stateHeader = screen.getByText("State").closest("button")!;
-    fireEvent.click(stateHeader, { shiftKey: true });
+    fireEvent.click(headerButton("State"), { shiftKey: true });
 
     const next = onChange.mock.calls[0][0] as GridViewLayout;
     expect(next.sort).toHaveLength(2);

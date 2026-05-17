@@ -20,6 +20,7 @@ import {
 } from "@/features/views/hooks/useGridLayout";
 import { GridHeaderCell } from "./GridHeaderCell";
 import { GridFilterChips } from "./GridFilterChips";
+import { GridSortChips } from "./GridSortChips";
 import { GridColumnMenu } from "./GridColumnMenu";
 import {
   LoadingState,
@@ -311,8 +312,13 @@ export default function GridView(props: GridViewProps) {
         className="shrink-0 flex items-center border-b border-[#EFEDF5] bg-white"
         style={{ touchAction: "auto" }}
       >
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 flex items-center">
           <GridFilterChips
+            source={source}
+            layout={layout}
+            onChange={setLayout}
+          />
+          <GridSortChips
             source={source}
             layout={layout}
             onChange={setLayout}
