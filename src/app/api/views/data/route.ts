@@ -291,6 +291,7 @@ export async function GET(req: NextRequest) {
             ...r,
             target: e?.target ?? null,
             weighted_pipeline: e?.weightedPipeline ?? null,
+            won_range: e?.wonRange ?? null,
           };
         });
       }
@@ -347,16 +348,24 @@ function camelizeRow(row: Record<string, unknown>): Record<string, unknown> {
  * the grid. The two underlying tables (`territory_plan_districts`,
  * `district_opportunity_actuals`) are loaded in parallel.
  */
+interface DistrictEnrichmentEntry {
+  target: number | null;
+  weightedPipeline: number | null;
+  /** Min / max net_booking_amount across Closed Won deals for this plan's
+   *  school year. Null when the district has no Closed Won deals. */
+  wonRange: { min: number; max: number } | null;
+}
+
 async function fetchDistrictPlanEnrichment(
   planId: string,
   leaids: string[],
-): Promise<{
-  byLeaid: Map<string, { target: number | null; weightedPipeline: number | null }>;
-}> {
-  const byLeaid = new Map<
-    string,
-    { target: number | null; weightedPipeline: number | null }
-  >();
+): Promise<{ byLeaid: Map<string, DistrictEnrichmentEntry> }> {
+  const byLeaid = new Map<string, DistrictEnrichmentEntry>();
+  const blank = (): DistrictEnrichmentEntry => ({
+    target: null,
+    weightedPipeline: null,
+    wonRange: null,
+  });
 
   // Plan record gives us the fiscal year for the actuals join.
   const plan = await prisma.territoryPlan
@@ -373,8 +382,13 @@ async function fetchDistrictPlanEnrichment(
     district_lea_id: string;
     weighted_pipeline: number;
   };
+  type WonRangeRow = {
+    district_lea_id: string;
+    won_min: number | null;
+    won_max: number | null;
+  };
 
-  const [targetRows, pipelineRows] = await Promise.all([
+  const [targetRows, pipelineRows, wonRangeRows] = await Promise.all([
     prisma.$queryRaw<TargetRow[]>`
       SELECT district_leaid,
              COALESCE(renewal_target, 0)
@@ -393,22 +407,33 @@ async function fetchDistrictPlanEnrichment(
         AND school_yr = ${schoolYr}
       GROUP BY district_lea_id
     `.catch(() => [] as PipelineRow[]),
+    prisma.$queryRaw<WonRangeRow[]>`
+      SELECT district_lea_id,
+             MIN(net_booking_amount) AS won_min,
+             MAX(net_booking_amount) AS won_max
+      FROM opportunities
+      WHERE district_lea_id = ANY(${leaids})
+        AND school_yr = ${schoolYr}
+        AND stage = 'Closed Won'
+        AND net_booking_amount IS NOT NULL
+      GROUP BY district_lea_id
+    `.catch(() => [] as WonRangeRow[]),
   ]);
 
   for (const r of targetRows) {
-    const cur = byLeaid.get(r.district_leaid) ?? {
-      target: null,
-      weightedPipeline: null,
-    };
+    const cur = byLeaid.get(r.district_leaid) ?? blank();
     cur.target = r.target == null ? null : Number(r.target);
     byLeaid.set(r.district_leaid, cur);
   }
   for (const r of pipelineRows) {
-    const cur = byLeaid.get(r.district_lea_id) ?? {
-      target: null,
-      weightedPipeline: null,
-    };
+    const cur = byLeaid.get(r.district_lea_id) ?? blank();
     cur.weightedPipeline = Number(r.weighted_pipeline);
+    byLeaid.set(r.district_lea_id, cur);
+  }
+  for (const r of wonRangeRows) {
+    if (r.won_min == null || r.won_max == null) continue;
+    const cur = byLeaid.get(r.district_lea_id) ?? blank();
+    cur.wonRange = { min: Number(r.won_min), max: Number(r.won_max) };
     byLeaid.set(r.district_lea_id, cur);
   }
   return { byLeaid };
