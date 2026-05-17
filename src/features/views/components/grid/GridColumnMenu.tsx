@@ -232,20 +232,26 @@ export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps
                 items={orderedColumns.map((c) => c.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {orderedColumns.map((col, i) => (
+                {orderedColumns.map((col, i) => {
+                  // Disambiguate columns that share a short header (e.g.
+                  // "Count"/"Min"/"Max" appear once per deal-status group).
+                  const label = col.group
+                    ? `${col.group} ${col.header}`
+                    : col.header;
+                  return (
                   <SortableRow key={col.id} id={col.id}>
                     <input
                       type="checkbox"
-                      aria-label={`Show ${col.header}`}
+                      aria-label={`Show ${label}`}
                       checked={isVisible(col.id)}
                       onChange={() => toggleVisible(col.id)}
                     />
                     <span className="flex-1 whitespace-nowrap text-[13px] text-[#403770]">
-                      {col.header}
+                      {label}
                     </span>
                     <button
                       type="button"
-                      aria-label={`Move ${col.header} up`}
+                      aria-label={`Move ${label} up`}
                       disabled={i === 0}
                       onClick={() => moveColumn(col.id, -1)}
                       className="text-[#8A80A8] hover:text-[#403770] disabled:cursor-not-allowed disabled:opacity-30"
@@ -254,7 +260,7 @@ export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps
                     </button>
                     <button
                       type="button"
-                      aria-label={`Move ${col.header} down`}
+                      aria-label={`Move ${label} down`}
                       disabled={i === orderedColumns.length - 1}
                       onClick={() => moveColumn(col.id, 1)}
                       className="text-[#8A80A8] hover:text-[#403770] disabled:cursor-not-allowed disabled:opacity-30"
@@ -262,7 +268,8 @@ export function GridColumnMenu({ source, layout, onChange }: GridColumnMenuProps
                       <ChevronDown className="h-3 w-3" />
                     </button>
                   </SortableRow>
-                ))}
+                  );
+                })}
               </SortableContext>
             </DndContext>
           </div>

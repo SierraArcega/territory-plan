@@ -27,6 +27,12 @@ export interface ColumnDef {
   format: "money" | "number" | "percent" | "date" | "pill" | "text" | "avatar" | "boolean";
   defaultVisible: boolean;
   defaultOrder: number;
+  /**
+   * Optional group label rendered as a spanning row above the column header.
+   * Contiguous visible columns that share a group merge into one spanning
+   * cell. Ungrouped columns leave the top-row cell blank.
+   */
+  group?: string;
 }
 
 const MONEY_PRESETS = [
@@ -53,29 +59,29 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
       align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 2 },
     // Open deals (not Closed Won / Closed Lost) — count + min/max
     // net_booking_amount. Plan-scoped, school-year filtered.
-    { id: "open_count",    header: "Open deals",kind: "derived", accessor: "openCount",
+    { id: "open_count",    header: "Count",      kind: "derived", accessor: "openCount",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 3 },
-    { id: "pipeline_min",  header: "Pipeline min", kind: "derived", accessor: "pipelineMin",
+      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 3, group: "Pipeline" },
+    { id: "pipeline_min",  header: "Min",        kind: "derived", accessor: "pipelineMin",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 4 },
-    { id: "pipeline_max",  header: "Pipeline max", kind: "derived", accessor: "pipelineMax",
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 4, group: "Pipeline" },
+    { id: "pipeline_max",  header: "Max",        kind: "derived", accessor: "pipelineMax",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 5 },
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 5, group: "Pipeline" },
     // Closed Won deals — count + min/max net_booking_amount.
-    { id: "won_count",     header: "Won deals",  kind: "derived", accessor: "wonCount",
+    { id: "won_count",     header: "Count",      kind: "derived", accessor: "wonCount",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 6 },
-    { id: "won_min",       header: "Won min",    kind: "derived", accessor: "wonMin",
+      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 6, group: "Closed Won" },
+    { id: "won_min",       header: "Min",        kind: "derived", accessor: "wonMin",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 7 },
-    { id: "won_max",       header: "Won max",    kind: "derived", accessor: "wonMax",
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 7, group: "Closed Won" },
+    { id: "won_max",       header: "Max",        kind: "derived", accessor: "wonMax",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 8 },
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 8, group: "Closed Won" },
     // Closed Lost deals — count only.
-    { id: "lost_count",    header: "Lost deals", kind: "derived", accessor: "lostCount",
+    { id: "lost_count",    header: "Count",      kind: "derived", accessor: "lostCount",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 9 },
+      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 9, group: "Closed Lost" },
     { id: "enrollment",    header: "Enrollment", kind: "raw",     accessor: "enrollment",
       sortable: true,  filterFieldId: "enrollment",      filterWidget: { kind: "numberRange", min: 0, step: 100 },
       align: "right",  format: "number", defaultVisible: false, defaultOrder: 10 },

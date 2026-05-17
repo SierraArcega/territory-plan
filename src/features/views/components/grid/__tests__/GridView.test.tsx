@@ -65,10 +65,13 @@ describe("GridView — districts source", () => {
     );
 
     for (const header of defaultVisibleHeaders) {
+      // Multiple columns share short headers like "Count" / "Min" / "Max"
+      // (one per deal-status group), so allow any number of matches as long
+      // as the header is rendered somewhere.
       expect(
-        screen.getByText(header),
+        screen.getAllByText(header).length,
         `Expected header "${header}" to be present`,
-      ).toBeTruthy();
+      ).toBeGreaterThan(0);
     }
   });
 

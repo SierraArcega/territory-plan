@@ -226,6 +226,19 @@ export default function GridView(props: GridViewProps) {
     }),
   );
 
+  // Compute contiguous group spans for the optional grouped header row.
+  // Adjacent visible columns sharing the same `group` merge into one span.
+  const groupSpans: { group: string | undefined; count: number }[] = [];
+  for (const c of visibleCols) {
+    const last = groupSpans[groupSpans.length - 1];
+    if (last && last.group === c.group) {
+      last.count += 1;
+    } else {
+      groupSpans.push({ group: c.group, count: 1 });
+    }
+  }
+  const hasGroups = groupSpans.some((s) => s.group !== undefined);
+
   const table = useReactTable({
     data: q.data?.rows ?? [],
     columns: tanCols,
@@ -320,8 +333,33 @@ export default function GridView(props: GridViewProps) {
           columns stay aligned. */}
       <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full border-collapse text-[13px]">
-          <thead>
-            <tr className="bg-[#F7F5FA] sticky top-0 z-[1]">
+          {/* `sticky` on `<thead>` keeps both the group row and the column
+              header row pinned together when the body scrolls vertically. */}
+          <thead className="sticky top-0 z-[1]">
+            {hasGroups && (
+              <tr className="bg-[#F7F5FA]">
+                {groupSpans.map((span, i) =>
+                  span.group ? (
+                    <th
+                      key={`group-${i}`}
+                      colSpan={span.count}
+                      className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#403770] py-1.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap text-left"
+                    >
+                      {span.group}
+                    </th>
+                  ) : (
+                    <th
+                      key={`group-${i}`}
+                      colSpan={span.count}
+                      aria-hidden
+                      className="py-1.5 border-b border-[#EFEDF5]"
+                    />
+                  ),
+                )}
+                <th aria-hidden className="border-b border-[#EFEDF5]" />
+              </tr>
+            )}
+            <tr className="bg-[#F7F5FA]">
               {table.getHeaderGroups()[0].headers.map((h) => {
                 const colDef = SOURCE_COLUMNS[source].find((c) => c.id === h.column.id);
                 const sortIndexInStack = layout.sort.findIndex((s) => s.id === h.column.id);

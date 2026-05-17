@@ -46,7 +46,8 @@ describe("GridColumnMenu", () => {
 
       const cols = SOURCE_COLUMNS["districts"];
       for (const col of cols) {
-        expect(screen.getByText(col.header)).toBeTruthy();
+        const label = col.group ? `${col.group} ${col.header}` : col.header;
+        expect(screen.getByText(label)).toBeTruthy();
       }
     });
 
@@ -80,8 +81,9 @@ describe("GridColumnMenu", () => {
 
       const cols = SOURCE_COLUMNS["districts"];
       for (const col of cols) {
-        expect(screen.getByRole("button", { name: `Move ${col.header} up` })).toBeTruthy();
-        expect(screen.getByRole("button", { name: `Move ${col.header} down` })).toBeTruthy();
+        const label = col.group ? `${col.group} ${col.header}` : col.header;
+        expect(screen.getByRole("button", { name: `Move ${label} up` })).toBeTruthy();
+        expect(screen.getByRole("button", { name: `Move ${label} down` })).toBeTruthy();
       }
     });
 
@@ -111,7 +113,8 @@ describe("GridColumnMenu", () => {
 
       const cols = SOURCE_COLUMNS["districts"];
       for (const col of cols) {
-        const cb = screen.getByRole("checkbox", { name: `Show ${col.header}` }) as HTMLInputElement;
+        const label = col.group ? `${col.group} ${col.header}` : col.header;
+        const cb = screen.getByRole("checkbox", { name: `Show ${label}` }) as HTMLInputElement;
         expect(cb.checked).toBe(col.defaultVisible);
       }
     });
