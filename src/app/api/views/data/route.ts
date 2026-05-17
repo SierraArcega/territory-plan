@@ -32,6 +32,7 @@ import {
 } from "@/lib/saved-views/sql-compiler";
 import { SAVED_LIST_SOURCES } from "@/lib/saved-views/filter-tree";
 import type { FilterNode, SavedListSource } from "@/lib/saved-views/filter-tree";
+import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -266,11 +267,35 @@ export async function GET(req: NextRequest) {
     const total =
       result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
     // Strip __total from every row so it doesn't leak to the client.
-    const rows = result.rows.map((r) => {
+    let rows: Record<string, unknown>[] = result.rows.map((r) => {
       const { __total, ...rest } = r;
       void __total; // consumed above
       return rest;
     });
+
+    // 15. Plan-context enrichment for the districts grid: attach `target`
+    // (sum of the four plan-district target columns) and `weighted_pipeline`
+    // (open-pipe weighted value for the plan's fiscal year). Both require a
+    // planId; we silently skip when one isn't provided.
+    if (typedSource === "districts" && planId && rows.length > 0) {
+      const leaids = rows
+        .map((r) => (typeof r.leaid === "string" ? r.leaid : null))
+        .filter((x): x is string => x !== null);
+      if (leaids.length > 0) {
+        const enrichment = await fetchDistrictPlanEnrichment(planId, leaids);
+        rows = rows.map((r) => {
+          const leaid = typeof r.leaid === "string" ? r.leaid : null;
+          if (!leaid) return r;
+          const e = enrichment.byLeaid.get(leaid);
+          return {
+            ...r,
+            target: e?.target ?? null,
+            weighted_pipeline: e?.weightedPipeline ?? null,
+          };
+        });
+      }
+    }
+
     return NextResponse.json({ rows, total }, { status: 200 });
   } catch (err: unknown) {
     // Statement timeout — 57014 is the Postgres error code for query_canceled.
@@ -288,4 +313,80 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/views/data] query failed:", err);
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
+}
+
+/**
+ * Fetch the plan-scoped target sum and weighted-pipeline value for a given
+ * set of district leaids. Returns a Map keyed by leaid. Missing entries
+ * simply mean no plan target / no open pipeline for that district.
+ *
+ * Errors are swallowed — these are enrichment fields, not required to render
+ * the grid. The two underlying tables (`territory_plan_districts`,
+ * `district_opportunity_actuals`) are loaded in parallel.
+ */
+async function fetchDistrictPlanEnrichment(
+  planId: string,
+  leaids: string[],
+): Promise<{
+  byLeaid: Map<string, { target: number | null; weightedPipeline: number | null }>;
+}> {
+  const byLeaid = new Map<
+    string,
+    { target: number | null; weightedPipeline: number | null }
+  >();
+
+  // Plan record gives us the fiscal year for the actuals join.
+  const plan = await prisma.territoryPlan
+    .findUnique({ where: { id: planId }, select: { fiscalYear: true } })
+    .catch(() => null);
+  if (!plan) return { byLeaid };
+  const schoolYr = fiscalYearToSchoolYear(plan.fiscalYear);
+
+  type TargetRow = {
+    district_leaid: string;
+    target: number | null;
+  };
+  type PipelineRow = {
+    district_lea_id: string;
+    weighted_pipeline: number;
+  };
+
+  const [targetRows, pipelineRows] = await Promise.all([
+    prisma.$queryRaw<TargetRow[]>`
+      SELECT district_leaid,
+             COALESCE(renewal_target, 0)
+               + COALESCE(winback_target, 0)
+               + COALESCE(expansion_target, 0)
+               + COALESCE(new_business_target, 0) AS target
+      FROM territory_plan_districts
+      WHERE plan_id = ${planId}
+        AND district_leaid = ANY(${leaids})
+    `.catch(() => [] as TargetRow[]),
+    prisma.$queryRaw<PipelineRow[]>`
+      SELECT district_lea_id,
+             COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline
+      FROM district_opportunity_actuals
+      WHERE district_lea_id = ANY(${leaids})
+        AND school_yr = ${schoolYr}
+      GROUP BY district_lea_id
+    `.catch(() => [] as PipelineRow[]),
+  ]);
+
+  for (const r of targetRows) {
+    const cur = byLeaid.get(r.district_leaid) ?? {
+      target: null,
+      weightedPipeline: null,
+    };
+    cur.target = r.target == null ? null : Number(r.target);
+    byLeaid.set(r.district_leaid, cur);
+  }
+  for (const r of pipelineRows) {
+    const cur = byLeaid.get(r.district_lea_id) ?? {
+      target: null,
+      weightedPipeline: null,
+    };
+    cur.weightedPipeline = Number(r.weighted_pipeline);
+    byLeaid.set(r.district_lea_id, cur);
+  }
+  return { byLeaid };
 }

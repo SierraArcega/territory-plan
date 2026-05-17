@@ -12,6 +12,7 @@ import type {
   ViewLayouts,
 } from "@/lib/saved-views/grid-layout-schema";
 import { SOURCE_COLUMNS } from "@/features/views/lib/columns";
+import { formatCurrency, formatNumber, formatPercent } from "@/features/shared/lib/format";
 import { useViewsData } from "@/features/views/hooks/useViewsData";
 import {
   useGridLayout,
@@ -50,6 +51,45 @@ function TruncatedBanner() {
       Result too large — narrow your filters.
     </div>
   );
+}
+
+function formatCellValue(
+  v: unknown,
+  format:
+    | "money"
+    | "number"
+    | "percent"
+    | "date"
+    | "pill"
+    | "text"
+    | "avatar"
+    | "boolean",
+): string {
+  if (format === "money") {
+    const n = typeof v === "string" ? Number(v) : v;
+    return typeof n === "number" && Number.isFinite(n)
+      ? formatCurrency(n, true)
+      : String(v);
+  }
+  if (format === "number") {
+    const n = typeof v === "string" ? Number(v) : v;
+    return typeof n === "number" && Number.isFinite(n)
+      ? formatNumber(n)
+      : String(v);
+  }
+  if (format === "percent") {
+    const n = typeof v === "string" ? Number(v) : v;
+    // DB columns like frpl_rate store 0..1; formatPercent multiplies by 100.
+    return typeof n === "number" && Number.isFinite(n)
+      ? formatPercent(n)
+      : String(v);
+  }
+  if (format === "boolean") {
+    if (v === true) return "Yes";
+    if (v === false) return "No";
+    return String(v);
+  }
+  return String(v);
 }
 
 /**
@@ -181,7 +221,7 @@ export default function GridView(props: GridViewProps) {
       cell: (info) => {
         const v = info.getValue();
         if (v == null) return <span className="text-[#A69DC0]">—</span>;
-        return <span>{String(v)}</span>;
+        return <span>{formatCellValue(v, c.format)}</span>;
       },
     }),
   );
