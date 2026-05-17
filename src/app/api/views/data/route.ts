@@ -296,6 +296,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 16. Normalize row keys to camelCase so frontend accessors match a
+    // single convention (Prisma client emits camelCase, but raw `pg` queries
+    // return DB column names directly).
+    rows = rows.map(camelizeRow);
+
     return NextResponse.json({ rows, total }, { status: 200 });
   } catch (err: unknown) {
     // Statement timeout — 57014 is the Postgres error code for query_canceled.
@@ -313,6 +318,24 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/views/data] query failed:", err);
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
+}
+
+/**
+ * Convert a snake_case key to camelCase. ASCII-only — DB columns are
+ * `[a-z_][a-z0-9_]*` so we never need full Unicode handling.
+ */
+function snakeToCamel(key: string): string {
+  if (!key.includes("_")) return key;
+  return key.replace(/_([a-z0-9])/g, (_m, c: string) => c.toUpperCase());
+}
+
+/** Camelize every top-level key of a row object. Values pass through. */
+function camelizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(row)) {
+    out[snakeToCamel(k)] = row[k];
+  }
+  return out;
 }
 
 /**

@@ -107,14 +107,14 @@ describe("GridView — districts source", () => {
   });
 
   it("reorders columns when layout sets non-default order", () => {
-    // Put "Stage" (defaultOrder 8) before "District" (defaultOrder 0) via layout overrides.
+    // Put "Stage" (last defaultOrder) before "District" (defaultOrder 0) via layout overrides.
     const layout: GridViewLayout = {
       columns: [
-        { id: "name",  order: 99, visible: true },
-        { id: "state", order: 100, visible: false },
-        { id: "tier",  order: 101, visible: false },
-        { id: "fy26_arr", order: 102, visible: false },
-        { id: "stage", order: 0,  visible: true },
+        { id: "name",    order: 99,  visible: true },
+        { id: "state",   order: 100, visible: false },
+        { id: "target",  order: 101, visible: false },
+        { id: "pipeline", order: 102, visible: false },
+        { id: "stage",   order: 0,   visible: true },
       ],
       sort: [],
       filters: { kind: "and", children: [] },
