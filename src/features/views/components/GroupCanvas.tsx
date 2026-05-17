@@ -101,7 +101,7 @@ export default function GroupCanvas({
     (kind === "list" && !listQ.isLoading && !list && listQ.isSuccess);
 
   return (
-    <section className="flex-1 min-w-0 flex flex-col bg-[#FFFCFA] overflow-hidden">
+    <section className="h-full min-w-0 flex flex-col bg-[#FFFCFA] overflow-hidden">
       {isInitialLoading ? (
         <HeaderSkeleton />
       ) : notFound ? (
