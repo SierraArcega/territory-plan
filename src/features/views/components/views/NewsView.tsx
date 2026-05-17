@@ -298,7 +298,6 @@ export default function NewsView({
             parentId={parentId}
             viewType="news"
             savedLayouts={savedLayouts}
-            hideGroup={mode === "cards"}
           />
         )}
       </div>
