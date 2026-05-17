@@ -16,6 +16,10 @@ const sortEntrySchema = z.object({
   dir: z.enum(["asc", "desc"]),
 });
 
+const groupByEntrySchema = z.object({
+  id: z.string(),
+});
+
 export function gridLayoutSchema(source: SavedListSource) {
   const knownColumnIds = new Set(SOURCE_COLUMNS[source].map((c) => c.id));
   const sortableFieldIds = new Set(SOURCE_FIELDS[source].map((f) => f.id));
@@ -42,6 +46,17 @@ export function gridLayoutSchema(source: SavedListSource) {
       }
     }),
     filters: filterAndSchema,
+    groupBy: groupByEntrySchema
+      .nullable()
+      .optional()
+      .superRefine((gb, ctx) => {
+        if (gb && !sortableFieldIds.has(gb.id)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Group field "${gb.id}" is not sortable for source "${source}"`,
+          });
+        }
+      }),
   });
 }
 
@@ -50,6 +65,7 @@ const newsLayoutSchema = z.object({
   columns: gridLayoutSchema("news").shape.columns,
   sort:    gridLayoutSchema("news").shape.sort,
   filters: gridLayoutSchema("news").shape.filters,
+  groupBy: gridLayoutSchema("news").shape.groupBy,
   mode:    z.enum(["cards", "table"]).optional(),
 });
 
