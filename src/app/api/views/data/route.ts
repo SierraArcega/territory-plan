@@ -297,6 +297,11 @@ export async function GET(req: NextRequest) {
             open_count: e?.openCount ?? 0,
             won_count: e?.wonCount ?? 0,
             lost_count: e?.lostCount ?? 0,
+            last_activity_date: e?.lastActivityDate ?? null,
+            last_activity_name: e?.lastActivityName ?? null,
+            next_activity_date: e?.nextActivityDate ?? null,
+            next_activity_name: e?.nextActivityName ?? null,
+            activities_count_90d: e?.activitiesCount90d ?? 0,
           };
         });
       }
@@ -367,6 +372,14 @@ interface DistrictEnrichmentEntry {
   openCount: number;
   wonCount: number;
   lostCount: number;
+  /** Most-recent past activity (start_date < NOW(), not cancelled). */
+  lastActivityDate: string | null;
+  lastActivityName: string | null;
+  /** Next upcoming activity (start_date >= NOW(), not cancelled). */
+  nextActivityDate: string | null;
+  nextActivityName: string | null;
+  /** Activities started in the last 90 days (not cancelled). */
+  activitiesCount90d: number;
 }
 
 async function fetchDistrictPlanEnrichment(
@@ -383,6 +396,11 @@ async function fetchDistrictPlanEnrichment(
     openCount: 0,
     wonCount: 0,
     lostCount: 0,
+    lastActivityDate: null,
+    lastActivityName: null,
+    nextActivityDate: null,
+    nextActivityName: null,
+    activitiesCount90d: 0,
   });
 
   // Plan record gives us the fiscal year for the opportunities join.
@@ -406,8 +424,22 @@ async function fetchDistrictPlanEnrichment(
     won_count: bigint;
     lost_count: bigint;
   };
+  type LastActivityRow = {
+    district_leaid: string;
+    last_date: Date | null;
+    last_title: string | null;
+  };
+  type NextActivityRow = {
+    district_leaid: string;
+    next_date: Date | null;
+    next_title: string | null;
+  };
+  type ActivityCountRow = {
+    district_leaid: string;
+    count_90d: bigint;
+  };
 
-  const [targetRows, oppsRows] = await Promise.all([
+  const [targetRows, oppsRows, lastActRows, nextActRows, actCountRows] = await Promise.all([
     prisma.$queryRaw<TargetRow[]>`
       SELECT district_leaid,
              COALESCE(renewal_target, 0)
@@ -436,6 +468,47 @@ async function fetchDistrictPlanEnrichment(
         AND school_yr = ${schoolYr}
       GROUP BY district_lea_id
     `.catch(() => [] as OppsAggRow[]),
+    // Most-recent past activity per district. DISTINCT ON picks the first
+    // row per leaid given the ORDER BY (leaid, start_date DESC).
+    prisma.$queryRaw<LastActivityRow[]>`
+      SELECT DISTINCT ON (ad.district_leaid)
+        ad.district_leaid,
+        a.start_date AS last_date,
+        a.title AS last_title
+      FROM activities a
+      JOIN activity_districts ad ON ad.activity_id = a.id
+      WHERE ad.district_leaid = ANY(${leaids})
+        AND a.start_date IS NOT NULL
+        AND a.start_date < NOW()
+        AND a.status <> 'cancelled'
+      ORDER BY ad.district_leaid, a.start_date DESC
+    `.catch(() => [] as LastActivityRow[]),
+    // Next upcoming activity per district.
+    prisma.$queryRaw<NextActivityRow[]>`
+      SELECT DISTINCT ON (ad.district_leaid)
+        ad.district_leaid,
+        a.start_date AS next_date,
+        a.title AS next_title
+      FROM activities a
+      JOIN activity_districts ad ON ad.activity_id = a.id
+      WHERE ad.district_leaid = ANY(${leaids})
+        AND a.start_date IS NOT NULL
+        AND a.start_date >= NOW()
+        AND a.status <> 'cancelled'
+      ORDER BY ad.district_leaid, a.start_date ASC
+    `.catch(() => [] as NextActivityRow[]),
+    // Activities started in the trailing 90 days (excludes future-dated).
+    prisma.$queryRaw<ActivityCountRow[]>`
+      SELECT ad.district_leaid, COUNT(*) AS count_90d
+      FROM activities a
+      JOIN activity_districts ad ON ad.activity_id = a.id
+      WHERE ad.district_leaid = ANY(${leaids})
+        AND a.start_date IS NOT NULL
+        AND a.start_date >= NOW() - INTERVAL '90 days'
+        AND a.start_date < NOW()
+        AND a.status <> 'cancelled'
+      GROUP BY ad.district_leaid
+    `.catch(() => [] as ActivityCountRow[]),
   ]);
 
   for (const r of targetRows) {
@@ -453,6 +526,23 @@ async function fetchDistrictPlanEnrichment(
     cur.wonCount = Number(r.won_count);
     cur.lostCount = Number(r.lost_count);
     byLeaid.set(r.district_lea_id, cur);
+  }
+  for (const r of lastActRows) {
+    const cur = byLeaid.get(r.district_leaid) ?? blank();
+    cur.lastActivityDate = r.last_date ? r.last_date.toISOString() : null;
+    cur.lastActivityName = r.last_title;
+    byLeaid.set(r.district_leaid, cur);
+  }
+  for (const r of nextActRows) {
+    const cur = byLeaid.get(r.district_leaid) ?? blank();
+    cur.nextActivityDate = r.next_date ? r.next_date.toISOString() : null;
+    cur.nextActivityName = r.next_title;
+    byLeaid.set(r.district_leaid, cur);
+  }
+  for (const r of actCountRows) {
+    const cur = byLeaid.get(r.district_leaid) ?? blank();
+    cur.activitiesCount90d = Number(r.count_90d);
+    byLeaid.set(r.district_leaid, cur);
   }
   return { byLeaid };
 }
