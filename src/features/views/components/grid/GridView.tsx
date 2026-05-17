@@ -57,7 +57,6 @@ function formatCellValue(
   v: unknown,
   format:
     | "money"
-    | "moneyRange"
     | "number"
     | "percent"
     | "date"
@@ -71,16 +70,6 @@ function formatCellValue(
     return typeof n === "number" && Number.isFinite(n)
       ? formatCurrency(n, true)
       : String(v);
-  }
-  if (format === "moneyRange") {
-    if (v && typeof v === "object" && "min" in v && "max" in v) {
-      const min = Number((v as { min: unknown }).min);
-      const max = Number((v as { max: unknown }).max);
-      if (!Number.isFinite(min) || !Number.isFinite(max)) return String(v);
-      if (min === max) return formatCurrency(min, true);
-      return `${formatCurrency(min, true)}–${formatCurrency(max, true)}`;
-    }
-    return String(v);
   }
   if (format === "number") {
     const n = typeof v === "string" ? Number(v) : v;

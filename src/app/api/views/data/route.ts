@@ -291,7 +291,8 @@ export async function GET(req: NextRequest) {
             ...r,
             target: e?.target ?? null,
             weighted_pipeline: e?.weightedPipeline ?? null,
-            won_range: e?.wonRange ?? null,
+            won_min: e?.wonMin ?? null,
+            won_max: e?.wonMax ?? null,
           };
         });
       }
@@ -351,9 +352,12 @@ function camelizeRow(row: Record<string, unknown>): Record<string, unknown> {
 interface DistrictEnrichmentEntry {
   target: number | null;
   weightedPipeline: number | null;
-  /** Min / max net_booking_amount across Closed Won deals for this plan's
-   *  school year. Null when the district has no Closed Won deals. */
-  wonRange: { min: number; max: number } | null;
+  /** Min net_booking_amount across this district's Closed Won deals for
+   *  the plan's school year. Null when there are no Closed Won deals. */
+  wonMin: number | null;
+  /** Max net_booking_amount across this district's Closed Won deals for
+   *  the plan's school year. Null when there are no Closed Won deals. */
+  wonMax: number | null;
 }
 
 async function fetchDistrictPlanEnrichment(
@@ -364,7 +368,8 @@ async function fetchDistrictPlanEnrichment(
   const blank = (): DistrictEnrichmentEntry => ({
     target: null,
     weightedPipeline: null,
-    wonRange: null,
+    wonMin: null,
+    wonMax: null,
   });
 
   // Plan record gives us the fiscal year for the actuals join.
@@ -433,7 +438,8 @@ async function fetchDistrictPlanEnrichment(
   for (const r of wonRangeRows) {
     if (r.won_min == null || r.won_max == null) continue;
     const cur = byLeaid.get(r.district_lea_id) ?? blank();
-    cur.wonRange = { min: Number(r.won_min), max: Number(r.won_max) };
+    cur.wonMin = Number(r.won_min);
+    cur.wonMax = Number(r.won_max);
     byLeaid.set(r.district_lea_id, cur);
   }
   return { byLeaid };

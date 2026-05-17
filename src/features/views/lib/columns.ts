@@ -24,7 +24,7 @@ export interface ColumnDef {
   filterFieldId: string | null;
   filterWidget: FilterWidget | null;
   align: "left" | "right" | "center";
-  format: "money" | "moneyRange" | "number" | "percent" | "date" | "pill" | "text" | "avatar" | "boolean";
+  format: "money" | "number" | "percent" | "date" | "pill" | "text" | "avatar" | "boolean";
   defaultVisible: boolean;
   defaultOrder: number;
 }
@@ -57,30 +57,33 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
       align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 3 },
     // Min / max net_booking_amount across this district's Closed Won deals
     // for the plan's fiscal year. Plan-scoped — null outside a plan context.
-    { id: "won_range",     header: "Won range", kind: "derived", accessor: "wonRange",
+    { id: "won_min",       header: "Won min",   kind: "derived", accessor: "wonMin",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "moneyRange", defaultVisible: true, defaultOrder: 4 },
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 4 },
+    { id: "won_max",       header: "Won max",   kind: "derived", accessor: "wonMax",
+      sortable: false, filterFieldId: null,              filterWidget: null,
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 5 },
     { id: "enrollment",    header: "Enrollment", kind: "raw",     accessor: "enrollment",
       sortable: true,  filterFieldId: "enrollment",      filterWidget: { kind: "numberRange", min: 0, step: 100 },
-      align: "right",  format: "number", defaultVisible: false, defaultOrder: 5 },
+      align: "right",  format: "number", defaultVisible: false, defaultOrder: 6 },
     { id: "frpl_rate",     header: "FRPL %",     kind: "raw",     accessor: "frplRate",
       sortable: true,  filterFieldId: "frpl_rate",       filterWidget: { kind: "numberRange", min: 0, max: 1, step: 0.01 },
-      align: "right",  format: "percent",defaultVisible: false, defaultOrder: 6 },
+      align: "right",  format: "percent",defaultVisible: false, defaultOrder: 7 },
     { id: "is_customer",   header: "Customer",   kind: "raw",     accessor: "isCustomer",
       sortable: true,  filterFieldId: "is_customer",     filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
-      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 7 },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 8 },
     { id: "has_open_pipe", header: "Open pipe",  kind: "raw",     accessor: "hasOpenPipeline",
       sortable: true,  filterFieldId: "has_open_pipeline", filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
-      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 8 },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 9 },
     // Plan-scoped virtual field. Filter-only — target lives in the
     // plan-district join table, so there's no per-row value to render in the
     // grid. Compiles to an EXISTS subquery on the backend.
     { id: "has_target",    header: "Has target",kind: "derived", accessor: "hasTarget",
       sortable: false, filterFieldId: "has_target",      filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
-      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 9 },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 10 },
     { id: "stage",         header: "Stage",      kind: "derived", accessor: "stage",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 10 },
+      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 11 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",
