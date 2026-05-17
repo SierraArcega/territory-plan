@@ -630,3 +630,154 @@ describe("GridView — filtered-empty and truncated", () => {
     expect(screen.queryByText("Result too large — narrow your filters.")).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Group rendering
+// ---------------------------------------------------------------------------
+describe("GridView — group rendering", () => {
+  function groupedRows() {
+    return [
+      { leaid: "1", name: "Acme USD",  stateAbbrev: "NY", stage: "Prospect" },
+      { leaid: "2", name: "Beta USD",  stateAbbrev: "NY", stage: "Prospect" },
+      { leaid: "3", name: "Gamma USD", stateAbbrev: "CA", stage: "Prospect" },
+      { leaid: "4", name: "Delta USD", stateAbbrev: null, stage: "Prospect" },
+    ];
+  }
+
+  it("renders group headers when layout.groupBy is set", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: groupedRows(), total: 4 },
+    });
+
+    const layout: GridViewLayout = {
+      ...emptyLayout(),
+      groupBy: { id: "state" },
+    };
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1", "2", "3", "4"]}
+          listId={null}
+          layout={layout}
+        />
+      </Wrapper>,
+    );
+
+    // 3 headers: NY (2 rows), CA (1 row), — No value — (1 row)
+    const groupHeaders = Array.from(
+      container.querySelectorAll("tr[data-group-key]"),
+    );
+    expect(groupHeaders.length).toBe(3);
+
+    const headerLabels = groupHeaders.map(
+      (h) => h.querySelector("span.uppercase")?.textContent,
+    );
+    expect(headerLabels).toContain("NY");
+    expect(headerLabels).toContain("CA");
+    expect(headerLabels).toContain("— No value —");
+
+    const headerCounts = groupHeaders.map(
+      (h) => h.querySelectorAll("span")[1]?.textContent,
+    );
+    expect(headerCounts).toContain("· 2 rows");
+    expect(headerCounts.filter((c) => c === "· 1 rows").length).toBe(2);
+  });
+
+  it("null group renders last under '— No value —'", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: groupedRows(), total: 4 },
+    });
+
+    const layout: GridViewLayout = {
+      ...emptyLayout(),
+      groupBy: { id: "state" },
+    };
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1", "2", "3", "4"]}
+          listId={null}
+          layout={layout}
+        />
+      </Wrapper>,
+    );
+
+    const headers = Array.from(
+      container.querySelectorAll("tr[data-group-key]"),
+    );
+    const keys = headers.map((h) => h.getAttribute("data-group-key"));
+    expect(keys[keys.length - 1]).toBe("__nogroup__");
+  });
+
+  it("clicking a group header collapses its rows", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: groupedRows(), total: 4 },
+    });
+
+    const layout: GridViewLayout = {
+      ...emptyLayout(),
+      groupBy: { id: "state" },
+    };
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1", "2", "3", "4"]}
+          listId={null}
+          layout={layout}
+        />
+      </Wrapper>,
+    );
+
+    // Expanded: 4 data rows + 3 headers
+    const beforeDataRows = container.querySelectorAll("tr[data-row-kind]");
+    expect(beforeDataRows.length).toBe(4);
+
+    // Click NY header
+    const nyHeader = container.querySelector('tr[data-group-key="NY"]')!;
+    fireEvent.click(nyHeader);
+
+    // NY rows hidden — 2 fewer data rows
+    const afterDataRows = container.querySelectorAll("tr[data-row-kind]");
+    expect(afterDataRows.length).toBe(2);
+    // Header still present
+    expect(container.querySelector('tr[data-group-key="NY"]')).not.toBeNull();
+  });
+
+  it("no headers render when layout.groupBy is null", () => {
+    mockUseViewsData.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { rows: groupedRows(), total: 4 },
+    });
+
+    const Wrapper = makeWrapper();
+    const { container } = render(
+      <Wrapper>
+        <GridView
+          source="districts"
+          leaids={["1", "2", "3", "4"]}
+          listId={null}
+          layout={emptyLayout()}
+        />
+      </Wrapper>,
+    );
+
+    expect(container.querySelectorAll("tr[data-group-key]").length).toBe(0);
+    expect(container.querySelectorAll("tr[data-row-kind]").length).toBe(4);
+  });
+});

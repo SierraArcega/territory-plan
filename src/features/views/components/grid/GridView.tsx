@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -188,6 +189,9 @@ export default function GridView(props: GridViewProps) {
     : (onLayoutChangeProp ?? (() => {}));
 
   const [page, setPage] = useState(1);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
   const limit = page * PAGE_SIZE;
   // When the grid lives inside a plan, forward the planId so virtual fields
   // like `has_target` can compile their EXISTS subquery on the backend.
@@ -314,6 +318,154 @@ export default function GridView(props: GridViewProps) {
               ? "news"
               : "rfp";
 
+  const groupBy = layout.groupBy ?? null;
+  const groupColumn = groupBy
+    ? SOURCE_COLUMNS[source].find((c) => c.id === groupBy.id) ?? null
+    : null;
+
+  function groupKeyFor(rowData: Record<string, unknown>): string {
+    if (!groupColumn) return "";
+    const raw = rowData[groupColumn.accessor];
+    if (raw === null || raw === undefined || raw === "") return "__nogroup__";
+    return String(raw);
+  }
+
+  function groupLabelFor(key: string): string {
+    if (key === "__nogroup__") return "— No value —";
+    return key;
+  }
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const colCount = visibleCols.length + 1;
+
+  function renderBody() {
+    const tableRows = table.getRowModel().rows;
+
+    if (!groupColumn) {
+      return tableRows.map((row) => {
+        const original = row.original as Record<string, unknown>;
+        const rowId = String(original.id ?? original.leaid ?? "");
+        return (
+          <tr
+            key={row.id}
+            data-row-kind={rowKind}
+            data-row-id={rowId}
+            className="hover:bg-[#F7F5FA] cursor-pointer transition-colors duration-100"
+          >
+            {row.getVisibleCells().map((cell) => (
+              <td
+                key={cell.id}
+                className="py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap"
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+            {/* Matching spacer cell — keeps the column count consistent
+                so the spacer header has a body counterpart. */}
+            <td aria-hidden className="border-b border-[#EFEDF5]" />
+          </tr>
+        );
+      });
+    }
+
+    // Walk rows, splitting into groups by changing key. Null group is
+    // captured separately and re-emitted at the end under "— No value —".
+    type Bucket = {
+      key: string;
+      rows: { row: (typeof tableRows)[number]; rowId: string }[];
+    };
+    const ordered: Bucket[] = [];
+    let nullBucket: Bucket | null = null;
+    let current: Bucket | null = null;
+
+    for (const row of tableRows) {
+      const original = row.original as Record<string, unknown>;
+      const rowId = String(original.id ?? original.leaid ?? "");
+      const key = groupKeyFor(original);
+      const entry = { row, rowId };
+
+      if (key === "__nogroup__") {
+        if (!nullBucket) nullBucket = { key, rows: [] };
+        nullBucket.rows.push(entry);
+        continue;
+      }
+
+      if (!current || current.key !== key) {
+        current = { key, rows: [entry] };
+        ordered.push(current);
+      } else {
+        current.rows.push(entry);
+      }
+    }
+
+    const buckets: Bucket[] = nullBucket ? [...ordered, nullBucket] : ordered;
+    const nodes: ReactNode[] = [];
+
+    for (const bucket of buckets) {
+      const collapsed = collapsedGroups.has(bucket.key);
+      const Chev = collapsed ? ChevronRight : ChevronDown;
+      nodes.push(
+        <tr
+          key={`grp-${bucket.key}`}
+          data-group-key={bucket.key}
+          onClick={() => toggleGroup(bucket.key)}
+          // sticky top:36px aligns the group header just below the column
+          // header row (~36px tall) so both stay pinned while body scrolls.
+          className="cursor-pointer bg-[#F7F5FA] hover:bg-[#EFEDF5]"
+          style={{ position: "sticky", top: 36 }}
+        >
+          <td
+            colSpan={colCount}
+            className="border-b border-[#EFEDF5] px-3.5 py-1.5"
+          >
+            <div className="flex items-center gap-2 text-[12px] font-semibold text-[#403770]">
+              <Chev className="h-3.5 w-3.5" />
+              <span className="whitespace-nowrap uppercase tracking-[0.06em]">
+                {groupLabelFor(bucket.key)}
+              </span>
+              <span className="whitespace-nowrap text-[#8A80A8]">
+                · {bucket.rows.length} rows
+              </span>
+            </div>
+          </td>
+        </tr>,
+      );
+
+      if (collapsed) continue;
+
+      for (const { row, rowId } of bucket.rows) {
+        nodes.push(
+          <tr
+            key={row.id}
+            data-row-kind={rowKind}
+            data-row-id={rowId}
+            className="hover:bg-[#F7F5FA] cursor-pointer transition-colors duration-100"
+          >
+            {row.getVisibleCells().map((cell) => (
+              <td
+                key={cell.id}
+                className="py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap"
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+            <td aria-hidden className="border-b border-[#EFEDF5]" />
+          </tr>,
+        );
+      }
+    }
+
+    return nodes;
+  }
+
   return (
     <div
       className="h-full flex flex-col bg-[#FFFCFA]"
@@ -434,30 +586,7 @@ export default function GridView(props: GridViewProps) {
             </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => {
-              const original = row.original as Record<string, unknown>;
-              const rowId = String(original.id ?? original.leaid ?? "");
-              return (
-                <tr
-                  key={row.id}
-                  data-row-kind={rowKind}
-                  data-row-id={rowId}
-                  className="hover:bg-[#F7F5FA] cursor-pointer transition-colors duration-100"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                  {/* Matching spacer cell — keeps the column count consistent
-                      so the spacer header has a body counterpart. */}
-                  <td aria-hidden className="border-b border-[#EFEDF5]" />
-                </tr>
-              );
-            })}
+            {renderBody()}
           </tbody>
         </table>
       </div>
