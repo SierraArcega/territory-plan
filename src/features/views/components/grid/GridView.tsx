@@ -21,6 +21,7 @@ import {
 import { GridHeaderCell } from "./GridHeaderCell";
 import { GridFilterChips } from "./GridFilterChips";
 import { GridSortChips } from "./GridSortChips";
+import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
 import {
   LoadingState,
@@ -90,6 +91,17 @@ function formatCellValue(
     if (v === false) return "No";
     return String(v);
   }
+  if (format === "date") {
+    if (typeof v !== "string" && !(v instanceof Date)) return String(v);
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v);
+    // Short-format ("Jun 15, 2026") matches the rest of the app's date chrome.
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
   return String(v);
 }
 
@@ -128,6 +140,9 @@ interface GridViewProps {
   layout?: GridViewLayout;
   /** Called synchronously on every layout mutation when using Option B. */
   onLayoutChange?: (next: GridViewLayout) => void;
+
+  /** Hide the Group chip + button (e.g. News cards mode has no group affordance). */
+  hideGroup?: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -143,6 +158,7 @@ export default function GridView(props: GridViewProps) {
     savedLayouts,
     layout: layoutProp,
     onLayoutChange: onLayoutChangeProp,
+    hideGroup,
   } = props;
 
   // ── Layout state: prop-driven (B) takes precedence over hook-driven (A) ──
@@ -322,6 +338,12 @@ export default function GridView(props: GridViewProps) {
             source={source}
             layout={layout}
             onChange={setLayout}
+          />
+          <GridGroupChip
+            source={source}
+            layout={layout}
+            onChange={setLayout}
+            hidden={hideGroup}
           />
         </div>
         <div className="shrink-0 px-2 py-2">
