@@ -27,8 +27,16 @@ export function useViewsData(args: UseViewsDataArgs) {
   const { source, leaids, listId, planId, layout, limit, offset } = args;
   const filtersJson = JSON.stringify(layout.filters);
   const sortJson = JSON.stringify(layout.sort);
+  const groupById = layout.groupBy?.id ?? "";
   const leaidsKey = leaids ? leaids.slice().sort().join(",") : "";
   const enabled = leaids !== null || listId !== null;
+
+  // When groupBy is set, the group field becomes the primary sort key so
+  // rows arrive pre-grouped. The user's existing sort stack follows it as
+  // secondary keys.
+  const effectiveSort = layout.groupBy
+    ? [{ id: layout.groupBy.id, dir: "asc" as const }, ...layout.sort]
+    : layout.sort;
 
   const url = (() => {
     const params = new URLSearchParams({
@@ -40,7 +48,7 @@ export function useViewsData(args: UseViewsDataArgs) {
     if (listId) params.set("listId", listId);
     if (planId) params.set("planId", planId);
     if (layout.filters.children.length > 0) params.set("filters", filtersJson);
-    for (const s of layout.sort) params.append("sort", `${s.id}:${s.dir}`);
+    for (const s of effectiveSort) params.append("sort", `${s.id}:${s.dir}`);
     return `${API_BASE}/views/data?${params.toString()}`;
   })();
 
@@ -54,6 +62,7 @@ export function useViewsData(args: UseViewsDataArgs) {
       planId ?? "",
       filtersJson,
       sortJson,
+      groupById,
       limit,
       offset,
     ] as const,

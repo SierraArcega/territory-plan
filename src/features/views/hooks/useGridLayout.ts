@@ -56,6 +56,7 @@ function defaultLayout(source: SavedListSource): GridViewLayout {
     columns: getDefaultLayoutColumns(source),
     sort: [],
     filters: { kind: "and", children: [] },
+    groupBy: null,
   };
 }
 
