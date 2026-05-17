@@ -33,7 +33,7 @@ describe("GridFilterChips", () => {
           kind: "and",
           children: [
             { kind: "rule", fieldId: "name", op: "contains", value: "Acme" },
-            { kind: "rule", fieldId: "is_customer", op: "=", value: true },
+            { kind: "rule", fieldId: "is_customer", op: "is", value: true },
           ],
         },
       };
@@ -192,7 +192,7 @@ describe("GridFilterChips", () => {
       expect(node).toEqual({
         kind: "rule",
         fieldId: "is_customer",
-        op: "=",
+        op: "is",
         value: true,
       });
     });
@@ -233,7 +233,7 @@ describe("GridFilterChips", () => {
       expect(node).toEqual({
         kind: "any",
         fieldId: "state",
-        op: "in",
+        op: "is any of",
         values: [],
       });
     });
@@ -249,7 +249,7 @@ describe("GridFilterChips", () => {
           kind: "and",
           children: [
             { kind: "rule", fieldId: "name", op: "contains", value: "Acme" },
-            { kind: "rule", fieldId: "is_customer", op: "=", value: true },
+            { kind: "rule", fieldId: "is_customer", op: "is", value: true },
           ],
         },
       };
@@ -412,7 +412,7 @@ describe("GridFilterChips", () => {
           kind: "and",
           children: [
             { kind: "rule", fieldId: "name", op: "contains", value: "Acme" },
-            { kind: "any", fieldId: "state", op: "in", values: ["CA", "TX"] },
+            { kind: "any", fieldId: "state", op: "is any of", values: ["CA", "TX"] },
             {
               kind: "and",
               children: [
@@ -420,7 +420,7 @@ describe("GridFilterChips", () => {
                 { kind: "rule", fieldId: "enrollment", op: "<=", value: 500 },
               ],
             },
-            { kind: "rule", fieldId: "is_customer", op: "=", value: true },
+            { kind: "rule", fieldId: "is_customer", op: "is", value: true },
           ],
         },
       };

@@ -68,7 +68,7 @@ function buildDateRangeNode(
     return { kind: "rule", fieldId, op: "within", value: value.value };
   }
   if (value.kind === "before") {
-    return { kind: "rule", fieldId, op: "<", value: value.value };
+    return { kind: "rule", fieldId, op: "before", value: value.value };
   }
   // between → AND of two rules
   return {
@@ -223,7 +223,7 @@ export function GridFilterChips({
       node = {
         kind: "any",
         fieldId,
-        op: "in",
+        op: "is any of",
         values: (rawValue as string[]).filter(
           (v): v is string => typeof v === "string",
         ),
@@ -239,9 +239,9 @@ export function GridFilterChips({
     } else if (w?.kind === "dateRange") {
       node = buildDateRangeNode(fieldId, rawValue as DateRangeValue);
     } else if (w?.kind === "select") {
-      node = { kind: "rule", fieldId, op: "=", value: rawValue as string };
+      node = { kind: "rule", fieldId, op: "is", value: rawValue as string };
     } else if (w?.kind === "toggle") {
-      node = { kind: "rule", fieldId, op: "=", value: rawValue as boolean };
+      node = { kind: "rule", fieldId, op: "is", value: rawValue as boolean };
     } else {
       // text
       node = {

@@ -169,7 +169,7 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       label: "Close date",
       column: "close_date",
       type: "date",
-      ops: ["before", "within"],
+      ops: ["before", "within", ">=", "<="],
     },
     {
       id: "state",
@@ -231,7 +231,7 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       label: "Posted",
       column: "date_posted",
       type: "date",
-      ops: ["within", "before"],
+      ops: ["within", "before", ">=", "<="],
     },
   ],
   news: [
@@ -255,7 +255,7 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       label: "Published",
       column: "published_at",
       type: "date",
-      ops: ["within", "before"],
+      ops: ["within", "before", ">=", "<="],
     },
     {
       id: "title",
@@ -300,7 +300,7 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       label: "Due",
       column: "due_date",
       type: "date",
-      ops: ["before", "within"],
+      ops: ["before", "within", ">=", "<="],
     },
     {
       id: "state",

@@ -162,7 +162,7 @@ describe("GridView e2e — filter → debounced save → refetch", () => {
 
     const leaf = tableLayout.filters.children[0];
     // The State column uses a multiselect widget → emits a FilterAny node.
-    // FilterAny: { kind: "any", fieldId: "state", op: "in", values: ["NY"] }
+    // FilterAny: { kind: "any", fieldId: "state", op: "is any of", values: ["NY"] }
     expect(leaf.fieldId).toBe("state");
 
     // ── Assert: useViewsData was called again with the filter in args ──────
