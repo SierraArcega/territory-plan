@@ -61,12 +61,18 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
     { id: "has_open_pipe", header: "Open pipe",  kind: "raw",     accessor: "hasOpenPipeline",
       sortable: true,  filterFieldId: "has_open_pipeline", filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
       align: "center", format: "boolean",defaultVisible: false, defaultOrder: 6 },
+    // Plan-scoped virtual field. Filter-only — target lives in the
+    // plan-district join table, so there's no per-row value to render in the
+    // grid. Compiles to an EXISTS subquery on the backend.
+    { id: "has_target",    header: "Has target",kind: "derived", accessor: "hasTarget",
+      sortable: false, filterFieldId: "has_target",      filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 7 },
     { id: "fy26_arr",      header: "FY26 ARR",   kind: "raw",     accessor: "metricValue",
       sortable: false, filterFieldId: null,              filterWidget: { kind: "numberRange", min: 0, presets: MONEY_PRESETS },
-      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 7 },
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 8 },
     { id: "stage",         header: "Stage",      kind: "derived", accessor: "stage",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 8 },
+      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 9 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",

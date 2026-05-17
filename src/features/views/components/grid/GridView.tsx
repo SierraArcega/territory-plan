@@ -132,7 +132,10 @@ export default function GridView(props: GridViewProps) {
 
   const [page, setPage] = useState(1);
   const limit = page * PAGE_SIZE;
-  const q = useViewsData({ source, leaids, listId, layout, limit, offset: 0 });
+  // When the grid lives inside a plan, forward the planId so virtual fields
+  // like `has_target` can compile their EXISTS subquery on the backend.
+  const planId = parentKind === "plan" ? parentId ?? null : null;
+  const q = useViewsData({ source, leaids, listId, planId, layout, limit, offset: 0 });
 
   function handleSortChange(columnId: string, dir: "asc" | "desc" | null, shift: boolean) {
     const existing = layout.sort.findIndex((s) => s.id === columnId);
