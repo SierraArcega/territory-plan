@@ -39,11 +39,11 @@ export function GridGroupChip({
   return (
     <div className="relative inline-flex items-center gap-2">
         {groupBy && (
-          <div className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770]">
+          <div className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]">
             <button
               type="button"
               onClick={() => setPickerOpen((v) => !v)}
-              className="inline-flex items-center gap-1"
+              className="inline-flex items-center gap-1 rounded-full focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#403770]/40"
               aria-label={`Change group field`}
             >
               <Layers className="h-3 w-3" />

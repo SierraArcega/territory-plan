@@ -332,6 +332,13 @@ export default function GridView(props: GridViewProps) {
 
   function groupLabelFor(key: string): string {
     if (key === "__nogroup__") return "— No value —";
+    if (!groupColumn) return key;
+    // Boolean toggle columns serialize as "true"/"false"; pass through the
+    // cell formatter so headers read "Yes"/"No" like the rest of the table.
+    if (groupColumn.format === "boolean") {
+      if (key === "true") return formatCellValue(true, "boolean");
+      if (key === "false") return formatCellValue(false, "boolean");
+    }
     return key;
   }
 
@@ -424,7 +431,7 @@ export default function GridView(props: GridViewProps) {
         >
           <td
             colSpan={colCount}
-            className="border-b border-[#EFEDF5] px-3.5 py-1.5"
+            className="border-b border-[#EFEDF5] px-3.5 py-2"
           >
             <div className="flex items-center gap-2 text-[12px] font-semibold text-[#403770]">
               <Chev className="h-3.5 w-3.5" />

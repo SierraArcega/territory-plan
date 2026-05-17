@@ -64,12 +64,12 @@ export function GridSortChips({
           return (
             <div
               key={`${entry.id}-${i}`}
-              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770]"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]"
             >
               <button
                 type="button"
                 onClick={() => flipDirection(i)}
-                className="inline-flex items-center gap-1"
+                className="inline-flex items-center gap-1 rounded-full focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#403770]/40"
                 aria-label={`Toggle ${label} direction`}
               >
                 <Icon className="h-3 w-3" />
