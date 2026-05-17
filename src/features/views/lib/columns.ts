@@ -47,43 +47,56 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
       sortable: true,  filterFieldId: "state",           filterWidget: { kind: "multiselect", enumSource: "states" },
       align: "left",   format: "text",   defaultVisible: true,  defaultOrder: 1 },
     // Plan-scoped: server enriches the row with `target` (sum of the four
-    // plan-district target columns) and `weighted_pipeline` (open-pipe value
-    // for the plan's fiscal year). Both are null outside a plan context.
+    // plan-district target columns). Null outside a plan context.
     { id: "target",        header: "Target",     kind: "derived", accessor: "target",
       sortable: false, filterFieldId: null,              filterWidget: null,
       align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 2 },
-    { id: "pipeline",      header: "Pipeline",   kind: "derived", accessor: "weightedPipeline",
+    // Open deals (not Closed Won / Closed Lost) — count + min/max
+    // net_booking_amount. Plan-scoped, school-year filtered.
+    { id: "open_count",    header: "Open deals",kind: "derived", accessor: "openCount",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 3 },
-    // Min / max net_booking_amount across this district's Closed Won deals
-    // for the plan's fiscal year. Plan-scoped — null outside a plan context.
-    { id: "won_min",       header: "Won min",   kind: "derived", accessor: "wonMin",
+      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 3 },
+    { id: "pipeline_min",  header: "Pipeline min", kind: "derived", accessor: "pipelineMin",
       sortable: false, filterFieldId: null,              filterWidget: null,
       align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 4 },
-    { id: "won_max",       header: "Won max",   kind: "derived", accessor: "wonMax",
+    { id: "pipeline_max",  header: "Pipeline max", kind: "derived", accessor: "pipelineMax",
       sortable: false, filterFieldId: null,              filterWidget: null,
       align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 5 },
+    // Closed Won deals — count + min/max net_booking_amount.
+    { id: "won_count",     header: "Won deals",  kind: "derived", accessor: "wonCount",
+      sortable: false, filterFieldId: null,              filterWidget: null,
+      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 6 },
+    { id: "won_min",       header: "Won min",    kind: "derived", accessor: "wonMin",
+      sortable: false, filterFieldId: null,              filterWidget: null,
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 7 },
+    { id: "won_max",       header: "Won max",    kind: "derived", accessor: "wonMax",
+      sortable: false, filterFieldId: null,              filterWidget: null,
+      align: "right",  format: "money",  defaultVisible: true,  defaultOrder: 8 },
+    // Closed Lost deals — count only.
+    { id: "lost_count",    header: "Lost deals", kind: "derived", accessor: "lostCount",
+      sortable: false, filterFieldId: null,              filterWidget: null,
+      align: "right",  format: "number", defaultVisible: true,  defaultOrder: 9 },
     { id: "enrollment",    header: "Enrollment", kind: "raw",     accessor: "enrollment",
       sortable: true,  filterFieldId: "enrollment",      filterWidget: { kind: "numberRange", min: 0, step: 100 },
-      align: "right",  format: "number", defaultVisible: false, defaultOrder: 6 },
+      align: "right",  format: "number", defaultVisible: false, defaultOrder: 10 },
     { id: "frpl_rate",     header: "FRPL %",     kind: "raw",     accessor: "frplRate",
       sortable: true,  filterFieldId: "frpl_rate",       filterWidget: { kind: "numberRange", min: 0, max: 1, step: 0.01 },
-      align: "right",  format: "percent",defaultVisible: false, defaultOrder: 7 },
+      align: "right",  format: "percent",defaultVisible: false, defaultOrder: 11 },
     { id: "is_customer",   header: "Customer",   kind: "raw",     accessor: "isCustomer",
       sortable: true,  filterFieldId: "is_customer",     filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
-      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 8 },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 12 },
     { id: "has_open_pipe", header: "Open pipe",  kind: "raw",     accessor: "hasOpenPipeline",
       sortable: true,  filterFieldId: "has_open_pipeline", filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
-      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 9 },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 13 },
     // Plan-scoped virtual field. Filter-only — target lives in the
     // plan-district join table, so there's no per-row value to render in the
     // grid. Compiles to an EXISTS subquery on the backend.
     { id: "has_target",    header: "Has target",kind: "derived", accessor: "hasTarget",
       sortable: false, filterFieldId: "has_target",      filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
-      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 10 },
+      align: "center", format: "boolean",defaultVisible: false, defaultOrder: 14 },
     { id: "stage",         header: "Stage",      kind: "derived", accessor: "stage",
       sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 11 },
+      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 15 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",

@@ -290,9 +290,13 @@ export async function GET(req: NextRequest) {
           return {
             ...r,
             target: e?.target ?? null,
-            weighted_pipeline: e?.weightedPipeline ?? null,
+            pipeline_min: e?.pipelineMin ?? null,
+            pipeline_max: e?.pipelineMax ?? null,
             won_min: e?.wonMin ?? null,
             won_max: e?.wonMax ?? null,
+            open_count: e?.openCount ?? 0,
+            won_count: e?.wonCount ?? 0,
+            lost_count: e?.lostCount ?? 0,
           };
         });
       }
@@ -351,13 +355,18 @@ function camelizeRow(row: Record<string, unknown>): Record<string, unknown> {
  */
 interface DistrictEnrichmentEntry {
   target: number | null;
-  weightedPipeline: number | null;
-  /** Min net_booking_amount across this district's Closed Won deals for
-   *  the plan's school year. Null when there are no Closed Won deals. */
+  /** Min net_booking_amount across this district's open (not Closed Won /
+   *  Closed Lost) deals for the plan's school year. */
+  pipelineMin: number | null;
+  pipelineMax: number | null;
+  /** Min / max net_booking_amount across this district's Closed Won deals
+   *  for the plan's school year. */
   wonMin: number | null;
-  /** Max net_booking_amount across this district's Closed Won deals for
-   *  the plan's school year. Null when there are no Closed Won deals. */
   wonMax: number | null;
+  /** Count of open / Closed Won / Closed Lost deals (school year scoped). */
+  openCount: number;
+  wonCount: number;
+  lostCount: number;
 }
 
 async function fetchDistrictPlanEnrichment(
@@ -367,12 +376,16 @@ async function fetchDistrictPlanEnrichment(
   const byLeaid = new Map<string, DistrictEnrichmentEntry>();
   const blank = (): DistrictEnrichmentEntry => ({
     target: null,
-    weightedPipeline: null,
+    pipelineMin: null,
+    pipelineMax: null,
     wonMin: null,
     wonMax: null,
+    openCount: 0,
+    wonCount: 0,
+    lostCount: 0,
   });
 
-  // Plan record gives us the fiscal year for the actuals join.
+  // Plan record gives us the fiscal year for the opportunities join.
   const plan = await prisma.territoryPlan
     .findUnique({ where: { id: planId }, select: { fiscalYear: true } })
     .catch(() => null);
@@ -383,17 +396,18 @@ async function fetchDistrictPlanEnrichment(
     district_leaid: string;
     target: number | null;
   };
-  type PipelineRow = {
+  type OppsAggRow = {
     district_lea_id: string;
-    weighted_pipeline: number;
-  };
-  type WonRangeRow = {
-    district_lea_id: string;
+    pipeline_min: number | null;
+    pipeline_max: number | null;
     won_min: number | null;
     won_max: number | null;
+    open_count: bigint;
+    won_count: bigint;
+    lost_count: bigint;
   };
 
-  const [targetRows, pipelineRows, wonRangeRows] = await Promise.all([
+  const [targetRows, oppsRows] = await Promise.all([
     prisma.$queryRaw<TargetRow[]>`
       SELECT district_leaid,
              COALESCE(renewal_target, 0)
@@ -404,25 +418,24 @@ async function fetchDistrictPlanEnrichment(
       WHERE plan_id = ${planId}
         AND district_leaid = ANY(${leaids})
     `.catch(() => [] as TargetRow[]),
-    prisma.$queryRaw<PipelineRow[]>`
-      SELECT district_lea_id,
-             COALESCE(SUM(weighted_pipeline), 0) AS weighted_pipeline
-      FROM district_opportunity_actuals
-      WHERE district_lea_id = ANY(${leaids})
-        AND school_yr = ${schoolYr}
-      GROUP BY district_lea_id
-    `.catch(() => [] as PipelineRow[]),
-    prisma.$queryRaw<WonRangeRow[]>`
-      SELECT district_lea_id,
-             MIN(net_booking_amount) AS won_min,
-             MAX(net_booking_amount) AS won_max
+    // One pass over the plan's opportunities computes pipeline/won ranges
+    // and stage counts using FILTER aggregates — cheaper than three round
+    // trips and keeps the per-leaid Map merge logic simple below.
+    prisma.$queryRaw<OppsAggRow[]>`
+      SELECT
+        district_lea_id,
+        MIN(net_booking_amount) FILTER (WHERE stage NOT IN ('Closed Won', 'Closed Lost')) AS pipeline_min,
+        MAX(net_booking_amount) FILTER (WHERE stage NOT IN ('Closed Won', 'Closed Lost')) AS pipeline_max,
+        MIN(net_booking_amount) FILTER (WHERE stage = 'Closed Won') AS won_min,
+        MAX(net_booking_amount) FILTER (WHERE stage = 'Closed Won') AS won_max,
+        COUNT(*) FILTER (WHERE stage NOT IN ('Closed Won', 'Closed Lost')) AS open_count,
+        COUNT(*) FILTER (WHERE stage = 'Closed Won') AS won_count,
+        COUNT(*) FILTER (WHERE stage = 'Closed Lost') AS lost_count
       FROM opportunities
       WHERE district_lea_id = ANY(${leaids})
         AND school_yr = ${schoolYr}
-        AND stage = 'Closed Won'
-        AND net_booking_amount IS NOT NULL
       GROUP BY district_lea_id
-    `.catch(() => [] as WonRangeRow[]),
+    `.catch(() => [] as OppsAggRow[]),
   ]);
 
   for (const r of targetRows) {
@@ -430,16 +443,15 @@ async function fetchDistrictPlanEnrichment(
     cur.target = r.target == null ? null : Number(r.target);
     byLeaid.set(r.district_leaid, cur);
   }
-  for (const r of pipelineRows) {
+  for (const r of oppsRows) {
     const cur = byLeaid.get(r.district_lea_id) ?? blank();
-    cur.weightedPipeline = Number(r.weighted_pipeline);
-    byLeaid.set(r.district_lea_id, cur);
-  }
-  for (const r of wonRangeRows) {
-    if (r.won_min == null || r.won_max == null) continue;
-    const cur = byLeaid.get(r.district_lea_id) ?? blank();
-    cur.wonMin = Number(r.won_min);
-    cur.wonMax = Number(r.won_max);
+    cur.pipelineMin = r.pipeline_min == null ? null : Number(r.pipeline_min);
+    cur.pipelineMax = r.pipeline_max == null ? null : Number(r.pipeline_max);
+    cur.wonMin = r.won_min == null ? null : Number(r.won_min);
+    cur.wonMax = r.won_max == null ? null : Number(r.won_max);
+    cur.openCount = Number(r.open_count);
+    cur.wonCount = Number(r.won_count);
+    cur.lostCount = Number(r.lost_count);
     byLeaid.set(r.district_lea_id, cur);
   }
   return { byLeaid };
