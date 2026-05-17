@@ -357,6 +357,14 @@ export default function GridView(props: GridViewProps) {
                   </th>
                 );
               })}
+              {/* Spacer header — `width: 100%` claims any leftover horizontal
+                  space so the real columns can shrink to their content width
+                  instead of stretching to fill the screen. */}
+              <th
+                aria-hidden
+                style={{ width: "100%" }}
+                className="border-b border-[#D4CFE2] bg-[#F7F5FA]"
+              />
             </tr>
           </thead>
           <tbody>
@@ -373,11 +381,14 @@ export default function GridView(props: GridViewProps) {
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className="py-2.5 px-3.5 border-b border-[#EFEDF5]"
+                      className="py-2.5 px-3.5 border-b border-[#EFEDF5] whitespace-nowrap"
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
+                  {/* Matching spacer cell — keeps the column count consistent
+                      so the spacer header has a body counterpart. */}
+                  <td aria-hidden className="border-b border-[#EFEDF5]" />
                 </tr>
               );
             })}
