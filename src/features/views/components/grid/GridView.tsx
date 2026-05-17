@@ -247,7 +247,7 @@ export default function GridView(props: GridViewProps) {
       {/* touch-action:auto overrides the ancestor ViewScroll pan-y so the chip
           strip can scroll horizontally on iOS without fighting the outer pan lock. */}
       <div className="flex items-center border-b border-[#EFEDF5] bg-white" style={{ touchAction: "auto" }}>
-        <div className="min-w-0 flex-1 overflow-x-auto">
+        <div className="min-w-0 flex-1">
           <GridFilterChips
             source={source}
             layout={layout}
