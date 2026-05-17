@@ -140,6 +140,13 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
   ],
   contacts: [
     {
+      id: "name",
+      label: "Name",
+      column: "name",
+      type: "text",
+      ops: ["is", "contains"],
+    },
+    {
       id: "title",
       label: "Title",
       column: "title",

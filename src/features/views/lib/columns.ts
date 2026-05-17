@@ -106,7 +106,7 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",
-      sortable: false, filterFieldId: null,            filterWidget: { kind: "text" },
+      sortable: true,  filterFieldId: "name",          filterWidget: { kind: "text" },
       align: "left",   format: "text",  defaultVisible: true,  defaultOrder: 0 },
     { id: "title",     header: "Title",     kind: "raw", accessor: "title",
       sortable: true,  filterFieldId: "title",         filterWidget: { kind: "text" },
@@ -121,7 +121,7 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
       sortable: true,  filterFieldId: "is_primary",    filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
       align: "center", format: "boolean", defaultVisible: false, defaultOrder: 4 },
     { id: "leaid",     header: "District",  kind: "raw", accessor: "leaid",
-      sortable: false, filterFieldId: "leaid",         filterWidget: null,
+      sortable: true,  filterFieldId: "leaid",         filterWidget: null,
       align: "left",   format: "text",  defaultVisible: true,  defaultOrder: 5 },
   ],
   opps: [
