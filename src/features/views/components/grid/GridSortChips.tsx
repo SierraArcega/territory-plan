@@ -56,8 +56,7 @@ export function GridSortChips({
   const showStackIndex = layout.sort.length > 1;
 
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2 overflow-x-auto px-3 py-2">
+    <div className="relative inline-flex items-center gap-2">
         {layout.sort.map((entry, i) => {
           const col = SOURCE_COLUMNS[source].find((c) => c.id === entry.id);
           const label = col?.header ?? entry.id;
@@ -111,10 +110,9 @@ export function GridSortChips({
             Clear all
           </button>
         )}
-      </div>
 
       {pickerOpen && (
-        <div className="absolute left-3 top-full z-30 mt-1">
+        <div className="absolute left-0 top-full z-30 mt-1">
           <SortFieldPicker
             source={source}
             usedFieldIds={usedFieldIds}

@@ -37,8 +37,7 @@ export function GridGroupChip({
   const clearGroup = () => onChange({ ...layout, groupBy: null });
 
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2 overflow-x-auto px-3 py-2">
+    <div className="relative inline-flex items-center gap-2">
         {groupBy && (
           <div className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770]">
             <button
@@ -73,10 +72,9 @@ export function GridGroupChip({
             <span className="whitespace-nowrap">Group</span>
           </button>
         )}
-      </div>
 
       {pickerOpen && (
-        <div className="absolute left-3 top-full z-30 mt-1">
+        <div className="absolute left-0 top-full z-30 mt-1">
           <GroupFieldPicker
             source={source}
             currentGroupId={groupBy?.id ?? null}

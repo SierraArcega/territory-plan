@@ -333,8 +333,7 @@ export function GridFilterChips({
   };
 
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2 overflow-x-auto px-3 py-2">
+    <div className="relative inline-flex items-center gap-2">
         {chips.map((c) => {
           const label =
             c.column?.header ??
@@ -393,12 +392,11 @@ export function GridFilterChips({
             Clear all
           </button>
         )}
-      </div>
 
       {/* Popover host — rendered outside the overflow-x-auto strip so it
           isn't clipped/forced into a scroll context. */}
       {edit?.mode === "picker" && (
-        <div className="absolute left-3 top-full z-10 mt-1">
+        <div className="absolute left-0 top-full z-10 mt-1">
           <FilterFieldPicker
             source={source}
             usedFieldIds={usedFieldIds}
@@ -408,7 +406,7 @@ export function GridFilterChips({
         </div>
       )}
       {edit?.mode === "widget" && edit.column && (
-        <div className="absolute left-3 top-full z-10 mt-1">
+        <div className="absolute left-0 top-full z-10 mt-1">
           {renderWidget(
             edit.column,
             edit.chipIndex !== undefined
