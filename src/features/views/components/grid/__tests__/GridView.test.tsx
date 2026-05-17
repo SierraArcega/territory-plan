@@ -110,14 +110,13 @@ describe("GridView — districts source", () => {
   });
 
   it("reorders columns when layout sets non-default order", () => {
-    // Put "Stage" (last defaultOrder) before "District" (defaultOrder 0) via layout overrides.
+    // Put "Target" before "District" (defaultOrder 0) via layout overrides.
     const layout: GridViewLayout = {
       columns: [
         { id: "name",    order: 99,  visible: true },
         { id: "state",   order: 100, visible: false },
-        { id: "target",  order: 101, visible: false },
         { id: "pipeline", order: 102, visible: false },
-        { id: "stage",   order: 0,   visible: true },
+        { id: "target",  order: 0,   visible: true },
       ],
       sort: [],
       filters: { kind: "and", children: [] },
@@ -127,7 +126,7 @@ describe("GridView — districts source", () => {
       isLoading: false,
       isError: false,
       data: {
-        rows: [{ name: "Acme USD", stage: "Prospect" }],
+        rows: [{ name: "Acme USD", target: 0 }],
         total: 1,
       },
     });
@@ -147,12 +146,12 @@ describe("GridView — districts source", () => {
     const headers = container.querySelectorAll("th");
     const headerTexts = Array.from(headers).map((h) => h.textContent?.trim());
 
-    // Stage (order: 0) should appear before District (order: 99) in the rendered header row.
-    const stageIdx = headerTexts.indexOf("Stage");
+    // Target (order: 0) should appear before District (order: 99) in the rendered header row.
+    const targetIdx = headerTexts.indexOf("Target");
     const districtIdx = headerTexts.indexOf("District");
-    expect(stageIdx).toBeGreaterThanOrEqual(0);
+    expect(targetIdx).toBeGreaterThanOrEqual(0);
     expect(districtIdx).toBeGreaterThanOrEqual(0);
-    expect(stageIdx).toBeLessThan(districtIdx);
+    expect(targetIdx).toBeLessThan(districtIdx);
   });
 
   it("renders rows with data-row-kind='district' for districts source", () => {

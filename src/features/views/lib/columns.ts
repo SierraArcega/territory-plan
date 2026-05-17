@@ -119,9 +119,6 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
     { id: "has_target",    header: "Has target",kind: "derived", accessor: "hasTarget",
       sortable: false, filterFieldId: "has_target",      filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
       align: "center", format: "boolean",defaultVisible: false, defaultOrder: 19 },
-    { id: "stage",         header: "Stage",      kind: "derived", accessor: "stage",
-      sortable: false, filterFieldId: null,              filterWidget: null,
-      align: "left",   format: "pill",   defaultVisible: true,  defaultOrder: 20 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",
