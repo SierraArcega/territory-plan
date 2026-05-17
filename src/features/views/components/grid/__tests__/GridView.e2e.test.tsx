@@ -170,10 +170,10 @@ describe("GridView e2e — filter → debounced save → refetch", () => {
     // fires), useViewsData should have been called with the updated filter.
     const calls = (useViewsData as ReturnType<typeof vi.fn>).mock.calls;
     // Find any call where the layout's filter children are non-empty.
-    const filteredCall = calls.find(
-      ([args]: [{ layout: { filters: { children: unknown[] } } }]) =>
-        args.layout.filters.children.length === 1,
-    );
+    const filteredCall = calls.find((callArgs) => {
+      const [args] = callArgs as [{ layout: { filters: { children: unknown[] } } }];
+      return args.layout.filters.children.length === 1;
+    });
     expect(filteredCall).toBeDefined();
     const filteredArg = filteredCall![0] as {
       layout: { filters: { children: Array<{ fieldId: string }> } };

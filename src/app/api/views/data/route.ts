@@ -239,9 +239,10 @@ export async function GET(req: NextRequest) {
   params.push(offset);
   const offsetIdx = params.length;
 
-  // 13. Compose final SELECT.
+  // 13. Compose final SELECT — include a window-function COUNT so we can
+  // return the true total row count without a separate query.
   const sql = `
-    SELECT ${alias}.*
+    SELECT ${alias}.*, COUNT(*) OVER() AS __total
     FROM ${quoteIdent(tableInfo.table)} ${alias}
     WHERE ${whereFragment}
     ${orderBy}
@@ -252,10 +253,15 @@ export async function GET(req: NextRequest) {
   // 14. Execute against readonly pool.
   try {
     const result = await readonlyPool.query(sql, params);
-    return NextResponse.json(
-      { rows: result.rows, total: result.rows.length },
-      { status: 200 },
-    );
+    const total =
+      result.rows.length > 0 ? Number(result.rows[0].__total) : 0;
+    // Strip __total from every row so it doesn't leak to the client.
+    const rows = result.rows.map((r) => {
+      const { __total, ...rest } = r;
+      void __total; // consumed above
+      return rest;
+    });
+    return NextResponse.json({ rows, total }, { status: 200 });
   } catch (err: unknown) {
     // Statement timeout — 57014 is the Postgres error code for query_canceled.
     if (

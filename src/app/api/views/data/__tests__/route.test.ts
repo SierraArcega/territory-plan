@@ -164,6 +164,7 @@ describe("GET /api/views/data — leaids scope", () => {
           name: "Albertville City",
           state_abbrev: "AL",
           enrollment: 5000,
+          __total: "1",
         },
       ],
     });
@@ -177,6 +178,8 @@ describe("GET /api/views/data — leaids scope", () => {
     expect(res.status).toBe(200);
     expect(body.rows).toHaveLength(1);
     expect(body.rows[0].leaid).toBe("0100005");
+    // __total must not leak into the response rows
+    expect(body.rows[0].__total).toBeUndefined();
     expect(body.total).toBe(1);
     // Verify the leaids were passed as params
     const [, params] = mockReadonlyQuery.mock.calls[0];
@@ -192,8 +195,8 @@ describe("GET /api/views/data — happy path", () => {
     mockGetUser.mockResolvedValue(mockUser);
     mockReadonlyQuery.mockResolvedValueOnce({
       rows: [
-        { leaid: "1234567", name: "Test District", state_abbrev: "NY" },
-        { leaid: "7654321", name: "Other District", state_abbrev: "NY" },
+        { leaid: "1234567", name: "Test District", state_abbrev: "NY", __total: "2" },
+        { leaid: "7654321", name: "Other District", state_abbrev: "NY", __total: "2" },
       ],
     });
 
@@ -203,7 +206,29 @@ describe("GET /api/views/data — happy path", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.rows).toHaveLength(2);
+    // total comes from __total window column, not rows.length
     expect(body.total).toBe(2);
+    // __total must not leak into the response rows
+    expect(body.rows[0].__total).toBeUndefined();
+  });
+
+  it("uses __total window column as true total (not rows.length)", async () => {
+    // Simulate a page of 2 results where the full dataset has 127 rows.
+    mockGetUser.mockResolvedValue(mockUser);
+    mockReadonlyQuery.mockResolvedValueOnce({
+      rows: [
+        { leaid: "lea1", __total: "127" },
+        { leaid: "lea2", __total: "127" },
+      ],
+    });
+
+    const res = await GET(makeRequest("/api/views/data?source=districts"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    // total must reflect the window-function value, not rows.length
+    expect(body.total).toBe(127);
+    // rows must not contain __total
+    expect(body.rows).toEqual([{ leaid: "lea1" }, { leaid: "lea2" }]);
   });
 
   it("respects limit and offset params", async () => {
@@ -354,7 +379,7 @@ describe("GET /api/views/data — listId", () => {
       },
     });
     mockReadonlyQuery.mockResolvedValueOnce({
-      rows: [{ leaid: "1234567", name: "Some District", state_abbrev: "NY" }],
+      rows: [{ leaid: "1234567", name: "Some District", state_abbrev: "NY", __total: "1" }],
     });
 
     const res = await GET(
@@ -363,6 +388,8 @@ describe("GET /api/views/data — listId", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toHaveLength(1);
+    // __total must not leak into the response rows
+    expect(body.rows[0].__total).toBeUndefined();
     // NY should appear in query params from the list's filterTree
     const [, params] = mockReadonlyQuery.mock.calls[0];
     expect(params).toContain("NY");
