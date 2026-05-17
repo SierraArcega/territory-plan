@@ -267,3 +267,59 @@ describe("useGridLayout — debounced save", () => {
     expect(mutatePlan).not.toHaveBeenCalled();
   });
 });
+
+describe("useGridLayout — sort + groupBy persistence round-trip", () => {
+  it("persists both sort and groupBy via the debounced mutation", async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(
+      () => useGridLayout({ ...BASE_ARGS, savedLayouts: null }),
+      { wrapper: makeWrapper() },
+    );
+
+    const next = {
+      columns: getDefaultLayoutColumns("districts"),
+      sort: [{ id: "name", dir: "asc" as const }],
+      filters: { kind: "and" as const, children: [] },
+      groupBy: { id: "state" },
+    };
+
+    act(() => {
+      result.current.setLayout(next);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(mutatePlan).toHaveBeenCalledTimes(1);
+    const called = mutatePlan.mock.calls[0][0] as ViewLayouts;
+    expect(called?.table?.sort).toEqual([{ id: "name", dir: "asc" }]);
+    expect(called?.table?.groupBy).toEqual({ id: "state" });
+  });
+
+  it("re-hydrates sort and groupBy from a persisted layout on mount", () => {
+    const savedLayouts: ViewLayouts = {
+      table: {
+        columns: getDefaultLayoutColumns("districts"),
+        sort: [
+          { id: "name", dir: "asc" },
+          { id: "state", dir: "desc" },
+        ],
+        filters: { kind: "and", children: [] },
+        groupBy: { id: "state" },
+      },
+    };
+
+    const { result } = renderHook(
+      () => useGridLayout({ ...BASE_ARGS, savedLayouts }),
+      { wrapper: makeWrapper() },
+    );
+
+    expect(result.current.layout.sort).toEqual([
+      { id: "name", dir: "asc" },
+      { id: "state", dir: "desc" },
+    ]);
+    expect(result.current.layout.groupBy).toEqual({ id: "state" });
+  });
+});
