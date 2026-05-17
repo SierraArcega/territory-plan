@@ -285,11 +285,19 @@ export default function GridView(props: GridViewProps) {
               : "rfp";
 
   return (
-    <ViewScroll>
-      {/* Filter chips + column visibility gear on one row */}
-      {/* touch-action:auto overrides the ancestor ViewScroll pan-y so the chip
-          strip can scroll horizontally on iOS without fighting the outer pan lock. */}
-      <div className="flex items-center border-b border-[#EFEDF5] bg-white" style={{ touchAction: "auto" }}>
+    <div
+      className="h-full flex flex-col bg-[#FFFCFA]"
+      // Per CLAUDE.md mobile guidance: pan-y opt-in on iOS for inner scroll.
+      style={{ touchAction: "pan-y" }}
+    >
+      {/* Filter chips + column visibility gear on one row. shrink-0 so the
+          strip keeps its natural height when the table area below grows. */}
+      {/* touch-action:auto overrides the ancestor pan-y so the chip strip can
+          scroll horizontally on iOS without fighting the outer pan lock. */}
+      <div
+        className="shrink-0 flex items-center border-b border-[#EFEDF5] bg-white"
+        style={{ touchAction: "auto" }}
+      >
         <div className="min-w-0 flex-1">
           <GridFilterChips
             source={source}
@@ -306,7 +314,11 @@ export default function GridView(props: GridViewProps) {
         </div>
       </div>
       {truncated && <TruncatedBanner />}
-      <div className="overflow-x-auto">
+      {/* Single scroll context for the whole table — both axes. The thead's
+          `sticky top-0` keeps headers pinned while the body scrolls
+          vertically; horizontal scroll moves header and body together so
+          columns stay aligned. */}
+      <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr className="bg-[#F7F5FA] sticky top-0 z-[1]">
@@ -373,8 +385,10 @@ export default function GridView(props: GridViewProps) {
         </table>
       </div>
       {remaining > 0 && (
-        <ShowMoreButton onClick={() => setPage((p) => p + 1)} remaining={remaining} />
+        <div className="shrink-0">
+          <ShowMoreButton onClick={() => setPage((p) => p + 1)} remaining={remaining} />
+        </div>
       )}
-    </ViewScroll>
+    </div>
   );
 }
