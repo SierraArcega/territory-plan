@@ -380,6 +380,10 @@ interface DistrictEnrichmentEntry {
   nextActivityName: string | null;
   /** Activities started in the last 90 days (not cancelled). */
   activitiesCount90d: number;
+  /** Per-plan churn risk assessment. NULL = not yet set. */
+  churnRisk: string | null;
+  /** Per-plan free-form notes for this district. */
+  notes: string | null;
 }
 
 async function fetchDistrictPlanEnrichment(
@@ -401,6 +405,8 @@ async function fetchDistrictPlanEnrichment(
     nextActivityDate: null,
     nextActivityName: null,
     activitiesCount90d: 0,
+    churnRisk: null,
+    notes: null,
   });
 
   // Plan record gives us the fiscal year for the opportunities join.
@@ -438,8 +444,13 @@ async function fetchDistrictPlanEnrichment(
     district_leaid: string;
     count_90d: bigint;
   };
+  type TpdRow = {
+    district_leaid: string;
+    churn_risk: string | null;
+    notes: string | null;
+  };
 
-  const [targetRows, oppsRows, lastActRows, nextActRows, actCountRows] = await Promise.all([
+  const [targetRows, oppsRows, lastActRows, nextActRows, actCountRows, tpdRows] = await Promise.all([
     prisma.$queryRaw<TargetRow[]>`
       SELECT district_leaid,
              COALESCE(renewal_target, 0)
@@ -509,6 +520,12 @@ async function fetchDistrictPlanEnrichment(
         AND a.status <> 'cancelled'
       GROUP BY ad.district_leaid
     `.catch(() => [] as ActivityCountRow[]),
+    prisma.$queryRaw<TpdRow[]>`
+      SELECT district_leaid, churn_risk, notes
+      FROM territory_plan_districts
+      WHERE plan_id = ${planId}
+        AND district_leaid = ANY(${leaids})
+    `.catch(() => [] as TpdRow[]),
   ]);
 
   for (const r of targetRows) {
@@ -542,6 +559,12 @@ async function fetchDistrictPlanEnrichment(
   for (const r of actCountRows) {
     const cur = byLeaid.get(r.district_leaid) ?? blank();
     cur.activitiesCount90d = Number(r.count_90d);
+    byLeaid.set(r.district_leaid, cur);
+  }
+  for (const r of tpdRows) {
+    const cur = byLeaid.get(r.district_leaid) ?? blank();
+    cur.churnRisk = r.churn_risk;
+    cur.notes = r.notes;
     byLeaid.set(r.district_leaid, cur);
   }
   return { byLeaid };
