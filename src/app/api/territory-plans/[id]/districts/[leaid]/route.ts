@@ -161,14 +161,26 @@ export async function PUT(
       },
     });
 
-    if (!existing) {
+    // Inline grid cells (Churn risk, Notes) can edit any district visible in
+    // a plan's scope — including ones that don't yet have a territory_plan_districts
+    // row. When that's the only thing being set, upsert the row instead of 404'ing.
+    const isInlineMetaOnly =
+      renewalTarget === undefined &&
+      winbackTarget === undefined &&
+      expansionTarget === undefined &&
+      newBusinessTarget === undefined &&
+      returnServiceIds === undefined &&
+      newServiceIds === undefined &&
+      (churnRisk !== undefined || notes !== undefined);
+
+    if (!existing && !isInlineMetaOnly) {
       return NextResponse.json(
         { error: "District not found in this plan" },
         { status: 404 }
       );
     }
 
-    // Update targets and notes
+    // Update (or insert) targets, notes, churn risk.
     const updateData: Record<string, unknown> = {};
     if (renewalTarget !== undefined) updateData.renewalTarget = renewalTarget;
     if (winbackTarget !== undefined) updateData.winbackTarget = winbackTarget;
@@ -177,14 +189,19 @@ export async function PUT(
     if (notes !== undefined) updateData.notes = notes;
     if (churnRisk !== undefined) updateData.churnRisk = churnRisk;
 
-    const updatedPlanDistrict = await prisma.territoryPlanDistrict.update({
+    const updatedPlanDistrict = await prisma.territoryPlanDistrict.upsert({
       where: {
         planId_districtLeaid: {
           planId,
           districtLeaid: leaid,
         },
       },
-      data: updateData,
+      create: {
+        planId,
+        districtLeaid: leaid,
+        ...updateData,
+      },
+      update: updateData,
       include: {
         district: {
           select: {
