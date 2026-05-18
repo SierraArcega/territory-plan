@@ -545,6 +545,7 @@ model TerritoryPlanDistrict {
   winbackTarget     Decimal? @map("winback_target") @db.Decimal(15, 2)
   expansionTarget   Decimal? @map("expansion_target") @db.Decimal(15, 2)
   newBusinessTarget Decimal? @map("new_business_target") @db.Decimal(15, 2)
+  churnRisk         String?  @map("churn_risk") @db.VarChar(16)
   notes             String?
 
   // Relations
