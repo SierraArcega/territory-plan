@@ -73,15 +73,19 @@ export function computeLabelsFromRows(rows: RevenueRow[]): Map<string, GlobalLab
 
 /** Default fetcher — runs the rank CTE. Injected for testing. */
 async function defaultFetcher(): Promise<Map<string, GlobalLabel>> {
+  // district_financials stores fiscal_year as 'FY24'/'FY25'/'FY26' (not '24'/'25'/'26').
+  // We include BOTH vendor='fullmind' (post-merger consolidated tutoring + subs)
+  // AND vendor='elevate' (legacy Elevate K12 subscriptions) — some districts
+  // have rows in only one, so summing both gives the true customer total.
   const rows = await prisma.$queryRaw<RevenueRow[]>`
     SELECT
       leaid,
-      SUM(total_revenue) FILTER (WHERE fiscal_year = '26')::float AS fy26,
-      SUM(total_revenue) FILTER (WHERE fiscal_year = '25')::float AS fy25,
-      SUM(total_revenue) FILTER (WHERE fiscal_year = '24')::float AS fy24
+      SUM(total_revenue) FILTER (WHERE fiscal_year = 'FY26')::float AS fy26,
+      SUM(total_revenue) FILTER (WHERE fiscal_year = 'FY25')::float AS fy25,
+      SUM(total_revenue) FILTER (WHERE fiscal_year = 'FY24')::float AS fy24
     FROM district_financials
-    WHERE vendor = 'fullmind'
-      AND fiscal_year IN ('24', '25', '26')
+    WHERE vendor IN ('fullmind', 'elevate')
+      AND fiscal_year IN ('FY24', 'FY25', 'FY26')
       AND leaid IS NOT NULL
     GROUP BY leaid
   `;

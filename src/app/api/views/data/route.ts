@@ -245,12 +245,12 @@ export async function GET(req: NextRequest) {
     cteFragments.push(`__rank_cte AS (
       WITH rev AS (
         SELECT leaid,
-          SUM(total_revenue) FILTER (WHERE fiscal_year = '26') AS fy26,
-          SUM(total_revenue) FILTER (WHERE fiscal_year = '25') AS fy25,
-          SUM(total_revenue) FILTER (WHERE fiscal_year = '24') AS fy24
+          SUM(total_revenue) FILTER (WHERE fiscal_year = 'FY26') AS fy26,
+          SUM(total_revenue) FILTER (WHERE fiscal_year = 'FY25') AS fy25,
+          SUM(total_revenue) FILTER (WHERE fiscal_year = 'FY24') AS fy24
         FROM district_financials
-        WHERE vendor = 'fullmind'
-          AND fiscal_year IN ('24','25','26')
+        WHERE vendor IN ('fullmind','elevate')
+          AND fiscal_year IN ('FY24','FY25','FY26')
           AND leaid IS NOT NULL
         GROUP BY leaid
       )
