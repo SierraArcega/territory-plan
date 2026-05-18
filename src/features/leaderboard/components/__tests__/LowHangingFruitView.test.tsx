@@ -105,25 +105,25 @@ describe("LowHangingFruitView — summary banner collapse", () => {
     sessionStorage.clear();
   });
 
-  it("shows the banner and a hide button by default", () => {
+  it("is collapsed and shows a show button by default", () => {
     renderView();
-    expect(screen.getByLabelText("Hide instructions")).toBeInTheDocument();
-    expect(screen.getByText(/How to action them/i)).toBeInTheDocument();
-  });
-
-  it("collapses the banner when hide button is clicked", () => {
-    renderView();
-    fireEvent.click(screen.getByLabelText("Hide instructions"));
-    expect(screen.queryByText(/How to action them/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Show instructions")).toBeInTheDocument();
+    expect(screen.queryByText(/How to action them/i)).not.toBeInTheDocument();
   });
 
-  it("re-expands the banner when the collapsed row is clicked", () => {
+  it("expands the banner when show button is clicked", () => {
     renderView();
-    fireEvent.click(screen.getByLabelText("Hide instructions"));
     fireEvent.click(screen.getByLabelText("Show instructions"));
     expect(screen.getByText(/How to action them/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Hide instructions")).toBeInTheDocument();
+  });
+
+  it("re-collapses the banner when hide button is clicked", () => {
+    renderView();
+    fireEvent.click(screen.getByLabelText("Show instructions"));
+    fireEvent.click(screen.getByLabelText("Hide instructions"));
+    expect(screen.queryByText(/How to action them/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Show instructions")).toBeInTheDocument();
   });
 
   it("starts collapsed when sessionStorage flag is pre-set", () => {
@@ -135,6 +135,7 @@ describe("LowHangingFruitView — summary banner collapse", () => {
 
   it("persists collapsed state to sessionStorage", () => {
     renderView();
+    fireEvent.click(screen.getByLabelText("Show instructions"));
     fireEvent.click(screen.getByLabelText("Hide instructions"));
     expect(sessionStorage.getItem("lhf-banner-collapsed")).toBe("true");
   });

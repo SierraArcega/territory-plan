@@ -23,7 +23,7 @@ const PODIUM_STYLES = {
     shadow: "",
     avatarBg: "bg-[#808088]",
     rankColor: "text-[#808088]",
-    lift: "",
+    lift: "-translate-y-1.5",
   },
   third: {
     bg: "bg-gradient-to-br from-[#FDF5EE] to-[#F8E8D4]",
@@ -48,15 +48,15 @@ export default function RevenuePodium({ entries }: RevenuePodiumProps) {
   ];
 
   return (
-    <div className="flex justify-center items-end gap-5 py-8 px-10">
+    <div className="flex justify-center items-end gap-2 sm:gap-5 py-4 sm:py-8 px-2 sm:px-10">
       {podiumOrder.map(({ entry, place, rank }) => {
         const style = PODIUM_STYLES[place];
         return (
           <div
             key={entry.userId}
-            className={`flex flex-col items-center px-4 pt-5 pb-4 rounded-xl border w-[200px] transition-transform ${style.bg} ${style.border} ${style.shadow} ${style.lift}`}
+            className={`flex flex-col items-center px-2 sm:px-4 pt-3 sm:pt-5 pb-3 sm:pb-4 rounded-xl border w-[100px] sm:w-[200px] transition-transform ${style.bg} ${style.border} ${style.shadow} ${style.lift}`}
           >
-            <span className={`text-[13px] font-bold mb-2 ${style.rankColor}`}>
+            <span className={`text-[13px] font-bold mb-1 sm:mb-2 ${style.rankColor}`}>
               #{rank}
             </span>
             {entry.avatarUrl ? (
@@ -75,13 +75,13 @@ export default function RevenuePodium({ entries }: RevenuePodiumProps) {
                 </span>
               </div>
             )}
-            <span className="text-sm font-semibold text-[#2D2440] text-center mb-1">
+            <span className="text-xs sm:text-sm font-semibold text-[#2D2440] text-center mb-1">
               {entry.fullName}
             </span>
-            <span className="text-lg font-bold text-[#5B2E91]">
+            <span className="text-sm sm:text-lg font-bold text-[#5B2E91]">
               {formatRevenue(entry.revenue)}
             </span>
-            <span className="text-[11px] text-[#8A849A] uppercase tracking-wider mt-0.5">
+            <span className="text-[10px] sm:text-[11px] text-[#8A849A] uppercase tracking-wider mt-0.5">
               Current Year
             </span>
           </div>
