@@ -33,6 +33,7 @@ import {
 import { SAVED_LIST_SOURCES } from "@/lib/saved-views/filter-tree";
 import type { FilterNode, SavedListSource } from "@/lib/saved-views/filter-tree";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
+import { getGlobalCustomerLabels } from "./global-customer-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -273,20 +274,28 @@ export async function GET(req: NextRequest) {
       return rest;
     });
 
-    // 15. Plan-context enrichment for the districts grid: attach `target`
-    // (sum of the four plan-district target columns) and `weighted_pipeline`
-    // (open-pipe weighted value for the plan's fiscal year). Both require a
-    // planId; we silently skip when one isn't provided.
-    if (typedSource === "districts" && planId && rows.length > 0) {
+    // 15. Districts source enrichment — runs globally (rank/label) plus
+    // plan-scoped (target, pipeline, won, lost, activities, churnRisk, notes).
+    if (typedSource === "districts" && rows.length > 0) {
       const leaids = rows
         .map((r) => (typeof r.leaid === "string" ? r.leaid : null))
         .filter((x): x is string => x !== null);
+
       if (leaids.length > 0) {
-        const enrichment = await fetchDistrictPlanEnrichment(planId, leaids);
+        // Global rank/label — always runs, cached 5 min in-process.
+        // Plan-scoped enrichment — only when a planId is in scope.
+        const [labels, enrichment] = await Promise.all([
+          getGlobalCustomerLabels(),
+          planId
+            ? fetchDistrictPlanEnrichment(planId, leaids)
+            : Promise.resolve(null),
+        ]);
+
         rows = rows.map((r) => {
           const leaid = typeof r.leaid === "string" ? r.leaid : null;
           if (!leaid) return r;
-          const e = enrichment.byLeaid.get(leaid);
+          const e = enrichment?.byLeaid.get(leaid);
+          const g = labels.get(leaid);
           return {
             ...r,
             target: e?.target ?? null,
@@ -302,6 +311,20 @@ export async function GET(req: NextRequest) {
             next_activity_date: e?.nextActivityDate ?? null,
             next_activity_name: e?.nextActivityName ?? null,
             activities_count_90d: e?.activitiesCount90d ?? 0,
+            churn_risk: e?.churnRisk ?? null,
+            plan_notes: e?.notes ?? null,
+            // Single string the grid can dispatch on:
+            //   rank → "#1", "#2", …
+            //   win_back → "Win Back"
+            //   new or missing → "New"
+            customer_rank:
+              g == null
+                ? "New"
+                : g.label === "rank" && g.rank != null
+                  ? `#${g.rank}`
+                  : g.label === "win_back"
+                    ? "Win Back"
+                    : "New",
           };
         });
       }
