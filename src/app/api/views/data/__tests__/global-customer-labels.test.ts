@@ -80,4 +80,23 @@ describe("getGlobalCustomerLabels caching", () => {
     await getGlobalCustomerLabels(fetcher);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it("does NOT cache when the fetcher fails — next call retries", async () => {
+    const { getGlobalCustomerLabels } = await import("../global-customer-labels");
+    const consoleErr = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const failingFetcher = vi.fn().mockRejectedValueOnce(new Error("boom"));
+    const m1 = await getGlobalCustomerLabels(failingFetcher);
+    expect(m1.size).toBe(0);
+    expect(failingFetcher).toHaveBeenCalledTimes(1);
+
+    // Immediately retry — the failure should not have been cached.
+    const ok = new Map([["Z", { rank: 1, label: "rank" as const }]]);
+    const succeedingFetcher = vi.fn().mockResolvedValueOnce(ok);
+    const m2 = await getGlobalCustomerLabels(succeedingFetcher);
+    expect(m2.get("Z")?.rank).toBe(1);
+    expect(succeedingFetcher).toHaveBeenCalledTimes(1);
+
+    consoleErr.mockRestore();
+  });
 });

@@ -8,6 +8,9 @@
  *
  * Cached in module-scoped memory with a 5-minute TTL — the underlying
  * district_financials table refreshes hourly so stale-by-5min is fine.
+ * Cache scope: module-local memory. On Vercel / serverless deployments each
+ * function instance has its own cache, so effective freshness across the
+ * fleet is "5 min since this instance's last successful fetch."
  */
 import prisma from "@/lib/prisma";
 
@@ -81,7 +84,7 @@ async function defaultFetcher(): Promise<Map<string, GlobalLabel>> {
       AND fiscal_year IN ('24', '25', '26')
       AND leaid IS NOT NULL
     GROUP BY leaid
-  `.catch(() => [] as RevenueRow[]);
+  `;
   return computeLabelsFromRows(rows);
 }
 
@@ -94,7 +97,14 @@ export async function getGlobalCustomerLabels(
 ): Promise<Map<string, GlobalLabel>> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.byLeaid;
-  const byLeaid = await fetcher();
-  cache = { byLeaid, expiresAt: now + TTL_MS };
-  return byLeaid;
+  try {
+    const byLeaid = await fetcher();
+    cache = { byLeaid, expiresAt: now + TTL_MS };
+    return byLeaid;
+  } catch (err) {
+    // Failure shouldn't poison the cache — every district would show as 'new'
+    // for the full TTL. Log and return an empty Map; the next call retries.
+    console.error("[getGlobalCustomerLabels] fetcher failed:", err);
+    return new Map();
+  }
 }
