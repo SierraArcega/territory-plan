@@ -17,6 +17,7 @@ import DayNavigator from "./DayNavigator";
 import FeedControls from "./FeedControls";
 import { TaskRow, ActivityRow, MeetingRow, UpcomingActivityRow } from "./FeedRows";
 import OutcomeModal from "@/features/activities/components/OutcomeModal";
+import ActivityFormModal from "@/features/activities/components/ActivityFormModal";
 import TaskDetailModal from "@/features/tasks/components/TaskDetailModal";
 import { ACTIVITY_TYPE_LABELS } from "@/features/activities/types";
 import { Rocket, Users } from "lucide-react";
@@ -81,6 +82,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
     { activityId: string; event: CalendarEvent } | null
   >(null);
   const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
 
   // Confirm a calendar event → creates an Activity. For past meetings, open
   // OutcomeModal so the rep can capture notes/next-steps right away. Mirrors
@@ -394,6 +396,7 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
                   : undefined
               }
               districtCount={activity.districtCount}
+              onClick={() => setEditingActivityId(activity.id)}
             />
           ))}
         </FeedSection>
@@ -463,6 +466,13 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
           onClose={() => setOutcomeActivity(null)}
         />
       )}
+
+      {/* Activity edit modal — opened from Upcoming Activities */}
+      <ActivityFormModal
+        isOpen={!!editingActivityId}
+        editActivityId={editingActivityId ?? undefined}
+        onClose={() => setEditingActivityId(null)}
+      />
 
       {/* Outcome Modal — after logging a past calendar meeting */}
       {meetingOutcome && (
