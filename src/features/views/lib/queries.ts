@@ -49,6 +49,14 @@ export interface PlanWithStats {
   owner: { id: string; fullName: string | null; avatarUrl: string | null } | null;
   collaborators: { id: string; fullName: string | null; avatarUrl: string | null }[];
   hidden: boolean;
+  // Plan-level target rollups (always returned by /api/territory-plans).
+  // The portfolio aggregates these into the "Total target" stat.
+  renewalRollup: number;
+  expansionRollup: number;
+  winbackRollup: number;
+  newBusinessRollup: number;
+  /** Sum of plan-district pipeline rollups — used for the per-card pipeline stat. */
+  pipelineTotal: number;
   // ?stats=1 computed fields
   progress: number | null;
   pipelineValue: number;
