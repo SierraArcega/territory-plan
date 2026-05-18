@@ -33,10 +33,15 @@ describe("SOURCE_COLUMNS", () => {
     }
   });
 
-  it("derived columns are not sortable", () => {
+  it("derived columns are not sortable except for virtual-sort exceptions", () => {
+    // Virtual sort fields are derived but sortable — the route compiles them
+    // to an inline-CTE join in the main query.
+    const SORTABLE_DERIVED_EXCEPTIONS = new Set(["customer_rank", "churn_risk"]);
     for (const s of sources) {
       for (const col of SOURCE_COLUMNS[s]) {
-        if (col.kind === "derived") expect(col.sortable).toBe(false);
+        if (col.kind === "derived" && !SORTABLE_DERIVED_EXCEPTIONS.has(col.id)) {
+          expect(col.sortable).toBe(false);
+        }
       }
     }
   });

@@ -228,7 +228,14 @@ describe("GET /api/views/data — happy path", () => {
     // total must reflect the window-function value, not rows.length
     expect(body.total).toBe(127);
     // rows must not contain __total
-    expect(body.rows).toEqual([{ leaid: "lea1" }, { leaid: "lea2" }]);
+    // The original assertion was strict-equal; this test's intent is to verify
+    // __total stripping. Districts source now also enriches every row with
+    // global rank/label + per-plan-defaulted fields, so we just check the
+    // leaid is correct and __total isn't present.
+    expect(body.rows.map((r: { leaid: string }) => r.leaid)).toEqual(["lea1", "lea2"]);
+    for (const r of body.rows) {
+      expect(r).not.toHaveProperty("__total");
+    }
   });
 
   it("respects limit and offset params", async () => {
