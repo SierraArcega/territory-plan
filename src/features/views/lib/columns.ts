@@ -119,6 +119,20 @@ export const SOURCE_COLUMNS: Record<SavedListSource, ColumnDef[]> = {
     { id: "has_target",    header: "Has target",kind: "derived", accessor: "hasTarget",
       sortable: false, filterFieldId: "has_target",      filterWidget: { kind: "toggle", labels: { on: "Yes", off: "No" } },
       align: "center", format: "boolean",defaultVisible: false, defaultOrder: 19 },
+    // Global derived label: "#1", "#2", ..., "Win Back", or "New". Read-only.
+    // Server emits a single string on the row; cell renderer styles by prefix.
+    { id: "customer_rank", header: "Customer rank", kind: "derived", accessor: "customerRank",
+      sortable: true,  filterFieldId: null,              filterWidget: null,
+      align: "left",   format: "pill",   defaultVisible: false, defaultOrder: 20 },
+    // Per-plan churn risk pill. Inline-editable select (low/medium/high/churned).
+    // Filter joins to territory_plan_districts; sort orders by severity.
+    { id: "churn_risk", header: "Churn risk", kind: "derived", accessor: "churnRisk",
+      sortable: true,  filterFieldId: "churn_risk",      filterWidget: { kind: "multiselect", values: ["low","medium","high","churned"] },
+      align: "left",   format: "pill",   defaultVisible: false, defaultOrder: 21 },
+    // Per-plan free-form notes. Inline-editable contenteditable cell.
+    { id: "plan_notes", header: "Notes", kind: "derived", accessor: "planNotes",
+      sortable: false, filterFieldId: null,              filterWidget: null,
+      align: "left",   format: "text",   defaultVisible: false, defaultOrder: 22 },
   ],
   contacts: [
     { id: "name",      header: "Name",      kind: "raw", accessor: "name",
