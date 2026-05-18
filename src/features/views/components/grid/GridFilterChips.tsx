@@ -2,7 +2,10 @@
 import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import { SOURCE_COLUMNS, type ColumnDef } from "@/features/views/lib/columns";
-import type { SavedListSource, FilterNode } from "@/lib/saved-views/filter-tree";
+import type {
+  SavedListSource,
+  FilterNode,
+} from "@/lib/saved-views/filter-tree";
 import type { GridViewLayout } from "@/lib/saved-views/grid-layout-schema";
 import { FilterFieldPicker } from "./FilterFieldPicker";
 import { MultiSelectWidget } from "./widgets/MultiSelectWidget";
@@ -115,8 +118,10 @@ function extractChipValue(
       let max: number | null = null;
       for (const child of node.children) {
         if (child.kind === "rule") {
-          if (child.op === ">=" && typeof child.value === "number") min = child.value;
-          if (child.op === "<=" && typeof child.value === "number") max = child.value;
+          if (child.op === ">=" && typeof child.value === "number")
+            min = child.value;
+          if (child.op === "<=" && typeof child.value === "number")
+            max = child.value;
         }
       }
       return { min, max };
@@ -127,8 +132,10 @@ function extractChipValue(
       let to = "";
       for (const child of node.children) {
         if (child.kind === "rule") {
-          if (child.op === ">=" && typeof child.value === "string") from = child.value;
-          if (child.op === "<=" && typeof child.value === "string") to = child.value;
+          if (child.op === ">=" && typeof child.value === "string")
+            from = child.value;
+          if (child.op === "<=" && typeof child.value === "string")
+            to = child.value;
         }
       }
       return { kind: "between", from, to } satisfies DateRangeValue;
@@ -159,8 +166,10 @@ function formatChipValue(
     if ("kind" in v) {
       const o = v as DateRangeValue & object;
       if (o && "kind" in o) {
-        if (o.kind === "within") return `Last ${(o as { kind: "within"; value: string }).value}`;
-        if (o.kind === "before") return `Before ${(o as { kind: "before"; value: string }).value}`;
+        if (o.kind === "within")
+          return `Last ${(o as { kind: "within"; value: string }).value}`;
+        if (o.kind === "before")
+          return `Before ${(o as { kind: "before"; value: string }).value}`;
         if (o.kind === "between") {
           const b = o as { kind: "between"; from: string; to: string };
           return `${b.from} – ${b.to}`;
@@ -187,9 +196,7 @@ export function GridFilterChips({
   const chips = layout.filters.children.map((child, i) => {
     const fid = chipFieldId(child);
     const col = fid
-      ? SOURCE_COLUMNS[source].find(
-          (c) => (c.filterFieldId ?? c.id) === fid,
-        )
+      ? SOURCE_COLUMNS[source].find((c) => (c.filterFieldId ?? c.id) === fid)
       : null;
     return { index: i, node: child, column: col ?? null };
   });
@@ -210,11 +217,7 @@ export function GridFilterChips({
   const clearAll = () =>
     onChange({ ...layout, filters: { kind: "and", children: [] } });
 
-  const commit = (
-    column: ColumnDef,
-    rawValue: unknown,
-    chipIndex?: number,
-  ) => {
+  const commit = (column: ColumnDef, rawValue: unknown, chipIndex?: number) => {
     const fieldId = column.filterFieldId ?? column.id;
     const w = column.filterWidget;
 
@@ -258,7 +261,10 @@ export function GridFilterChips({
     } else {
       nextChildren.push(node);
     }
-    onChange({ ...layout, filters: { ...layout.filters, children: nextChildren } });
+    onChange({
+      ...layout,
+      filters: { ...layout.filters, children: nextChildren },
+    });
     setEdit(null);
   };
 
@@ -274,7 +280,9 @@ export function GridFilterChips({
         return (
           <MultiSelectWidget
             widget={w}
-            value={Array.isArray(currentValue) ? (currentValue as string[]) : []}
+            value={
+              Array.isArray(currentValue) ? (currentValue as string[]) : []
+            }
             onApply={(vals) => onApply(vals)}
             onCancel={() => setEdit(null)}
           />
@@ -334,64 +342,61 @@ export function GridFilterChips({
 
   return (
     <div className="relative inline-flex items-center gap-2">
-        {chips.map((c) => {
-          const label =
-            c.column?.header ??
-            chipFieldId(c.node) ??
-            "?";
-          const widgetKind = c.column?.filterWidget?.kind;
+      {chips.map((c) => {
+        const label = c.column?.header ?? chipFieldId(c.node) ?? "?";
+        const widgetKind = c.column?.filterWidget?.kind;
 
-          return (
-            <div
-              key={c.index}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] whitespace-nowrap"
+        return (
+          <div
+            key={c.index}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] whitespace-nowrap"
+          >
+            <button
+              type="button"
+              onClick={() =>
+                c.column &&
+                setEdit({
+                  mode: "widget",
+                  column: c.column,
+                  chipIndex: c.index,
+                })
+              }
             >
-              <button
-                type="button"
-                onClick={() =>
-                  c.column &&
-                  setEdit({
-                    mode: "widget",
-                    column: c.column,
-                    chipIndex: c.index,
-                  })
-                }
-              >
-                <span className="font-medium">{label}:</span>{" "}
-                <span className="text-[#544A78]">
-                  {formatChipValue(c.node, widgetKind)}
-                </span>
-              </button>
-              <button
-                type="button"
-                aria-label={`Remove ${label}`}
-                onClick={() => removeAt(c.index)}
-                className="ml-1 text-[#8A80A8] hover:text-[#403770]"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          );
-        })}
+              <span className="font-medium">{label}:</span>{" "}
+              <span className="text-[#544A78]">
+                {formatChipValue(c.node, widgetKind)}
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label={`Remove ${label}`}
+              onClick={() => removeAt(c.index)}
+              className="ml-1 text-[#8A80A8] hover:text-[#403770]"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      })}
 
+      <button
+        type="button"
+        onClick={() => setEdit({ mode: "picker" })}
+        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[#E2DEEC] px-2 py-0.5 text-[12px] text-[#544A78] hover:bg-[#F7F5FA]"
+      >
+        <Plus className="h-3 w-3" />
+        <span className="whitespace-nowrap">Filter</span>
+      </button>
+
+      {chips.length > 0 && (
         <button
           type="button"
-          onClick={() => setEdit({ mode: "picker" })}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[#E2DEEC] px-2 py-0.5 text-[12px] text-[#544A78] hover:bg-[#F7F5FA]"
+          onClick={clearAll}
+          className="ml-2 shrink-0 whitespace-nowrap text-[11px] text-[#8A80A8] underline hover:text-[#403770]"
         >
-          <Plus className="h-3 w-3" />
-          <span className="whitespace-nowrap">Filter</span>
+          Clear all
         </button>
-
-        {chips.length > 0 && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="ml-2 shrink-0 whitespace-nowrap text-[11px] text-[#8A80A8] underline hover:text-[#403770]"
-          >
-            Clear all
-          </button>
-        )}
+      )}
 
       {/* Popover host — rendered outside the overflow-x-auto strip so it
           isn't clipped/forced into a scroll context. */}

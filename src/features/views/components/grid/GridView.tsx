@@ -141,9 +141,6 @@ interface GridViewProps {
   layout?: GridViewLayout;
   /** Called synchronously on every layout mutation when using Option B. */
   onLayoutChange?: (next: GridViewLayout) => void;
-
-  /** Hide the Group chip + button (e.g. News cards mode has no group affordance). */
-  hideGroup?: boolean;
 }
 
 const PAGE_SIZE = 50;
@@ -159,7 +156,6 @@ export default function GridView(props: GridViewProps) {
     savedLayouts,
     layout: layoutProp,
     onLayoutChange: onLayoutChangeProp,
-    hideGroup,
   } = props;
 
   // ── Layout state: prop-driven (B) takes precedence over hook-driven (A) ──
@@ -502,7 +498,6 @@ export default function GridView(props: GridViewProps) {
             source={source}
             layout={layout}
             onChange={setLayout}
-            hidden={hideGroup}
           />
         </div>
         <div className="shrink-0 px-2 py-2">

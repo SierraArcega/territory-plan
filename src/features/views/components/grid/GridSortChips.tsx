@@ -57,59 +57,59 @@ export function GridSortChips({
 
   return (
     <div className="relative inline-flex items-center gap-2">
-        {layout.sort.map((entry, i) => {
-          const col = SOURCE_COLUMNS[source].find((c) => c.id === entry.id);
-          const label = col?.header ?? entry.id;
-          const Icon = entry.dir === "desc" ? ArrowDown : ArrowUp;
-          return (
-            <div
-              key={`${entry.id}-${i}`}
-              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]"
+      {layout.sort.map((entry, i) => {
+        const col = SOURCE_COLUMNS[source].find((c) => c.id === entry.id);
+        const label = col?.header ?? entry.id;
+        const Icon = entry.dir === "desc" ? ArrowDown : ArrowUp;
+        return (
+          <div
+            key={`${entry.id}-${i}`}
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#E2DEEC] bg-[#F7F5FA] px-2 py-0.5 text-[12px] text-[#403770] hover:bg-[#EFEDF5]"
+          >
+            <button
+              type="button"
+              onClick={() => flipDirection(i)}
+              className="inline-flex items-center gap-1 rounded-full focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#403770]/40"
+              aria-label={`Toggle ${label} direction`}
             >
-              <button
-                type="button"
-                onClick={() => flipDirection(i)}
-                className="inline-flex items-center gap-1 rounded-full focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#403770]/40"
-                aria-label={`Toggle ${label} direction`}
-              >
-                <Icon className="h-3 w-3" />
-                <span className="whitespace-nowrap font-medium">{label}</span>
-                {showStackIndex && (
-                  <span className="whitespace-nowrap text-[10px] text-[#8A80A8]">
-                    {toSuperscript(i + 1)}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                aria-label={`Remove sort ${label}`}
-                onClick={() => removeAt(i)}
-                className="ml-1 text-[#8A80A8] hover:text-[#403770]"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          );
-        })}
+              <Icon className="h-3 w-3" />
+              <span className="whitespace-nowrap font-medium">{label}</span>
+              {showStackIndex && (
+                <span className="whitespace-nowrap text-[10px] text-[#8A80A8]">
+                  {toSuperscript(i + 1)}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label={`Remove sort ${label}`}
+              onClick={() => removeAt(i)}
+              className="ml-1 text-[#8A80A8] hover:text-[#403770]"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      })}
 
+      <button
+        type="button"
+        onClick={() => setPickerOpen((v) => !v)}
+        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[#E2DEEC] px-2 py-0.5 text-[12px] text-[#544A78] hover:bg-[#F7F5FA]"
+      >
+        <Plus className="h-3 w-3" />
+        <span className="whitespace-nowrap">Sort</span>
+      </button>
+
+      {layout.sort.length >= 2 && (
         <button
           type="button"
-          onClick={() => setPickerOpen((v) => !v)}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[#E2DEEC] px-2 py-0.5 text-[12px] text-[#544A78] hover:bg-[#F7F5FA]"
+          onClick={clearAll}
+          className="ml-2 shrink-0 whitespace-nowrap text-[11px] text-[#8A80A8] underline hover:text-[#403770]"
         >
-          <Plus className="h-3 w-3" />
-          <span className="whitespace-nowrap">Sort</span>
+          Clear all
         </button>
-
-        {layout.sort.length >= 2 && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="ml-2 shrink-0 whitespace-nowrap text-[11px] text-[#8A80A8] underline hover:text-[#403770]"
-          >
-            Clear all
-          </button>
-        )}
+      )}
 
       {pickerOpen && (
         <div className="absolute left-0 top-full z-30 mt-1">

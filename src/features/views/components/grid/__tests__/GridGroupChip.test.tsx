@@ -121,15 +121,4 @@ describe("GridGroupChip", () => {
     expect(pickerBtn.disabled).toBe(true);
   });
 
-  it("returns null when hidden prop is true", () => {
-    const { container } = render(
-      <GridGroupChip
-        source="districts"
-        layout={emptyLayout()}
-        onChange={() => {}}
-        hidden
-      />,
-    );
-    expect(container.firstChild).toBeNull();
-  });
 });
