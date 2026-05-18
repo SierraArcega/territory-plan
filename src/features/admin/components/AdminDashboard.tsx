@@ -93,7 +93,7 @@ export default function AdminDashboard({ initialSection }: AdminDashboardProps) 
 
       {/* Tabs */}
       <div>
-        <nav className="flex items-center border-b border-[#E2DEEC]" aria-label="Admin tabs">
+        <nav className="flex items-center border-b border-[#E2DEEC] overflow-x-auto" aria-label="Admin tabs">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -102,7 +102,7 @@ export default function AdminDashboard({ initialSection }: AdminDashboardProps) 
                 onClick={() => handleTabChange(tab.id)}
                 aria-current={isActive ? "page" : undefined}
                 className={`
-                  relative flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors duration-100
+                  relative flex shrink-0 items-center gap-2 px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors duration-100
                   ${isActive
                     ? "text-[#F37167]"
                     : "text-[#8A80A8] hover:text-[#403770]"
