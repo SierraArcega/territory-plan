@@ -137,6 +137,28 @@ export const SOURCE_FIELDS: Record<SavedListSource, FieldDef[]> = {
       virtual: true,
       requiresPlanContext: true,
     },
+    {
+      // Virtual: compiles to a join on territory_plan_districts.churn_risk.
+      // Requires a plan context. Filter only.
+      id: "churn_risk",
+      label: "Churn risk",
+      column: "",
+      type: "text",
+      ops: ["is", "is any of"],
+      virtual: true,
+      requiresPlanContext: true,
+    },
+    {
+      // Virtual: sortable-only. Sort emits the rank CTE inline and joins on
+      // leaid. Filtering is not supported in v1.
+      id: "customer_rank",
+      label: "Customer rank",
+      column: "",
+      type: "text",
+      ops: [],
+      virtual: true,
+      requiresPlanContext: false,
+    },
   ],
   contacts: [
     {

@@ -233,10 +233,54 @@ export async function GET(req: NextRequest) {
 
   const whereFragment = whereClauses.join(" AND ");
 
-  // 11. Build ORDER BY.
+  // 11. Determine if sorts require sort-only CTEs.
+  const needsRankCte = sort.some((s) => s.id === "customer_rank");
+  const needsChurnCte = sort.some((s) => s.id === "churn_risk") && planId != null;
+
+  // Build sort CTEs BEFORE buildOrderBy/limit params so the CTE's param
+  // numbering doesn't collide with limit/offset.
+  const cteFragments: string[] = [];
+  let cteJoin = "";
+  if (needsRankCte) {
+    cteFragments.push(`__rank_cte AS (
+      WITH rev AS (
+        SELECT leaid,
+          SUM(total_revenue) FILTER (WHERE fiscal_year = '26') AS fy26,
+          SUM(total_revenue) FILTER (WHERE fiscal_year = '25') AS fy25,
+          SUM(total_revenue) FILTER (WHERE fiscal_year = '24') AS fy24
+        FROM district_financials
+        WHERE vendor = 'fullmind'
+          AND fiscal_year IN ('24','25','26')
+          AND leaid IS NOT NULL
+        GROUP BY leaid
+      )
+      SELECT leaid,
+        CASE WHEN COALESCE(fy26, 0) > 0
+             THEN RANK() OVER (ORDER BY COALESCE(fy26, 0) DESC)
+             ELSE NULL END AS rank,
+        CASE WHEN COALESCE(fy26, 0) > 0 THEN 'rank'
+             WHEN COALESCE(fy25, 0) > 0 OR COALESCE(fy24, 0) > 0 THEN 'win_back'
+             ELSE 'new' END AS label
+      FROM rev
+    )`);
+    cteJoin += ` LEFT JOIN __rank_cte ON __rank_cte.leaid = ${alias}."leaid"`;
+  }
+  if (needsChurnCte) {
+    params.push(planId);
+    const planParamIdx = params.length;
+    cteFragments.push(`__churn_cte AS (
+      SELECT district_leaid, churn_risk
+      FROM territory_plan_districts
+      WHERE plan_id = $${planParamIdx}
+    )`);
+    cteJoin += ` LEFT JOIN __churn_cte ON __churn_cte.district_leaid = ${alias}."leaid"`;
+  }
+  const cteHeader = cteFragments.length > 0 ? `WITH ${cteFragments.join(", ")}` : "";
+
+  // 12. Build ORDER BY (after CTE setup so virtual-sort references compile).
   let orderBy = "";
   try {
-    orderBy = buildOrderBy(sort, typedSource);
+    orderBy = buildOrderBy(sort, typedSource, { planId: planId ?? null, alias });
   } catch (err) {
     // buildOrderBy throws on unknown fields — guard (already validated above).
     return NextResponse.json(
@@ -245,17 +289,18 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 12. Append LIMIT/OFFSET params.
+  // 13. Append LIMIT/OFFSET params.
   params.push(limit);
   const limitIdx = params.length;
   params.push(offset);
   const offsetIdx = params.length;
 
-  // 13. Compose final SELECT — include a window-function COUNT so we can
-  // return the true total row count without a separate query.
+  // 14. Compose final SELECT — CTE header on top, sort-only LEFT JOINs after FROM.
   const sql = `
+    ${cteHeader}
     SELECT ${alias}.*, COUNT(*) OVER() AS __total
     FROM ${quoteIdent(tableInfo.table)} ${alias}
+    ${cteJoin}
     WHERE ${whereFragment}
     ${orderBy}
     LIMIT $${limitIdx}

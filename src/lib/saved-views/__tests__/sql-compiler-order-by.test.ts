@@ -8,12 +8,12 @@ describe("buildOrderBy", () => {
 
   it("compiles a single asc sort to ORDER BY with NULLS LAST", () => {
     const sql = buildOrderBy([{ id: "enrollment", dir: "asc" }], "districts");
-    expect(sql).toBe(`ORDER BY "enrollment" ASC NULLS LAST`);
+    expect(sql).toBe(`ORDER BY t."enrollment" ASC NULLS LAST`);
   });
 
   it("compiles desc with NULLS LAST", () => {
     const sql = buildOrderBy([{ id: "enrollment", dir: "desc" }], "districts");
-    expect(sql).toBe(`ORDER BY "enrollment" DESC NULLS LAST`);
+    expect(sql).toBe(`ORDER BY t."enrollment" DESC NULLS LAST`);
   });
 
   it("compiles multi-sort in order", () => {
@@ -21,7 +21,9 @@ describe("buildOrderBy", () => {
       [{ id: "state", dir: "asc" }, { id: "enrollment", dir: "desc" }],
       "districts",
     );
-    expect(sql).toBe(`ORDER BY "state_abbrev" ASC NULLS LAST, "enrollment" DESC NULLS LAST`);
+    expect(sql).toBe(
+      `ORDER BY t."state_abbrev" ASC NULLS LAST, t."enrollment" DESC NULLS LAST`,
+    );
   });
 
   it("throws on unknown field", () => {

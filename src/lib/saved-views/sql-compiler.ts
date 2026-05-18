@@ -115,6 +115,31 @@ function compileVirtualField(
         )
     ))`;
   }
+  if (fieldId === "churn_risk") {
+    if (ctx.source !== "districts") {
+      throw new Error(`"churn_risk" is only valid for source "districts".`);
+    }
+    if (!ctx.planId) {
+      // Non-plan list contexts: filter becomes a no-op (matches nothing).
+      return "FALSE";
+    }
+    if (node.op !== "is" && node.op !== "is any of") {
+      throw new Error(`"churn_risk" only supports ops "is" / "is any of"; got "${node.op}".`);
+    }
+    const values = Array.isArray(node.value) ? node.value : [node.value];
+    const allowed = new Set(["low", "medium", "high", "churned"]);
+    if (!values.every((v) => typeof v === "string" && allowed.has(v))) {
+      throw new Error(`"churn_risk" only accepts low | medium | high | churned`);
+    }
+    const planParam = emitParam(ctx, ctx.planId);
+    const valuesParam = emitParam(ctx, values);
+    return `EXISTS (
+      SELECT 1 FROM territory_plan_districts tpd
+      WHERE tpd.plan_id = ${planParam}
+        AND tpd.district_leaid = ${ctx.alias}."leaid"
+        AND tpd.churn_risk = ANY(${valuesParam}::text[])
+    )`;
+  }
   throw new Error(`No virtual handler for field "${fieldId}".`);
 }
 
@@ -290,16 +315,48 @@ export { SOURCE_FIELDS, SOURCE_TABLES };
 export function buildOrderBy(
   sort: { id: string; dir: "asc" | "desc" }[],
   source: SavedListSource,
+  options?: { planId?: string | null; alias?: string },
 ): string {
   if (sort.length === 0) return "";
-  const parts = sort.map(({ id, dir }) => {
-    const field = lookupField(source, id);
-    if (!field) throw new Error(`Unknown sort field "${id}" for source "${source}"`);
-    if (!/^[a-z_][a-z0-9_]*$/i.test(field.column)) {
-      throw new Error(`Invalid identifier in sort column: ${field.column}`);
-    }
-    const safeDir = dir === "asc" ? "ASC" : "DESC";
-    return `"${field.column}" ${safeDir} NULLS LAST`;
-  });
+  const safeAlias = options?.alias ?? "t";
+  const parts = sort
+    .map(({ id, dir }) => {
+      const field = lookupField(source, id);
+      if (!field) throw new Error(`Unknown sort field "${id}" for source "${source}"`);
+
+      const safeDir = dir === "asc" ? "ASC" : "DESC";
+
+      // Virtual sort fields — explicit handlers per id.
+      if (field.virtual) {
+        if (id === "customer_rank") {
+          // Resolved against the inline __rank_cte injected by the route.
+          // Numbered ranks first (ascending), then Win Back, then New.
+          return `(__rank_cte.label = 'rank') DESC, __rank_cte.rank ${safeDir} NULLS LAST, (__rank_cte.label = 'win_back') DESC`;
+        }
+        if (id === "churn_risk") {
+          if (!options?.planId) return ""; // no-op outside plan context
+          // Severity ordering — higher number = worse risk.
+          return `(
+            CASE __churn_cte.churn_risk
+              WHEN 'churned' THEN 4
+              WHEN 'high' THEN 3
+              WHEN 'medium' THEN 2
+              WHEN 'low' THEN 1
+              ELSE 0
+            END
+          ) ${safeDir} NULLS LAST`;
+        }
+        throw new Error(`No virtual sort handler for field "${id}".`);
+      }
+
+      if (!/^[a-z_][a-z0-9_]*$/i.test(field.column)) {
+        throw new Error(`Invalid identifier in sort column: ${field.column}`);
+      }
+      // Reference the column on the main-query alias so sort works correctly
+      // even when CTE joins are present (avoids ambiguous-column errors).
+      return `${safeAlias}."${field.column}" ${safeDir} NULLS LAST`;
+    })
+    .filter(Boolean);
+  if (parts.length === 0) return "";
   return `ORDER BY ${parts.join(", ")}`;
 }
