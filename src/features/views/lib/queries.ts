@@ -440,3 +440,61 @@ export function useEntity(kind: DetailKind | null, id: string | null) {
     staleTime: 60 * 1000,
   });
 }
+
+// ── Plan-district inline edits ──────────────────────────────────────────────
+
+interface UpdatePlanDistrictArgs {
+  churnRisk?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Optimistic per-plan-per-district mutation. Used by ChurnRiskCell and
+ * PlanNotesCell. Invalidates the active views/data cache key so the next
+ * fetch is fresh; the optimistic update keeps the cell snappy in the
+ * meantime.
+ */
+export function useUpdatePlanDistrict(planId: string, leaid: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdatePlanDistrictArgs) =>
+      fetchJson<{ churnRisk: string | null; notes: string | null }>(
+        `${API_BASE}/territory-plans/${planId}/districts/${leaid}`,
+        { method: "PUT", body: JSON.stringify(data) },
+      ),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: ["views", "data"] });
+      // Patch every "views","data" page in the cache for this row.
+      const updaters: Array<{ key: readonly unknown[]; previous: unknown }> = [];
+      const queries = qc.getQueriesData<{ rows: Record<string, unknown>[] }>({
+        queryKey: ["views", "data"],
+      });
+      for (const [key, data] of queries) {
+        if (!data?.rows) continue;
+        updaters.push({ key, previous: data });
+        qc.setQueryData(key, {
+          ...data,
+          rows: data.rows.map((r) =>
+            r.leaid === leaid
+              ? {
+                  ...r,
+                  ...(vars.churnRisk !== undefined ? { churnRisk: vars.churnRisk } : {}),
+                  ...(vars.notes !== undefined ? { planNotes: vars.notes } : {}),
+                }
+              : r,
+          ),
+        });
+      }
+      return { updaters };
+    },
+    onError: (_err, _vars, ctx) => {
+      // Roll back every page we patched.
+      for (const u of ctx?.updaters ?? []) {
+        qc.setQueryData(u.key, u.previous);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["views", "data"] });
+    },
+  });
+}
