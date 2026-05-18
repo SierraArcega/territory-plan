@@ -24,6 +24,9 @@ import { GridFilterChips } from "./GridFilterChips";
 import { GridSortChips } from "./GridSortChips";
 import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
+import { ChurnRiskCell } from "./cells/ChurnRiskCell";
+import { PlanNotesCell } from "./cells/PlanNotesCell";
+import { CustomerRankCell } from "./cells/CustomerRankCell";
 import {
   LoadingState,
   ErrorState,
@@ -237,6 +240,32 @@ export default function GridView(props: GridViewProps) {
       accessorKey: c.accessor,
       cell: (info) => {
         const v = info.getValue();
+        const row = info.row.original as Record<string, unknown>;
+        const leaid = typeof row.leaid === "string" ? row.leaid : null;
+
+        if (c.id === "customer_rank") {
+          return <CustomerRankCell value={typeof v === "string" ? v : null} />;
+        }
+        if (c.id === "churn_risk" && leaid) {
+          return (
+            <ChurnRiskCell
+              value={typeof v === "string" ? v : null}
+              planId={planId}
+              leaid={leaid}
+              disabled={planId == null}
+            />
+          );
+        }
+        if (c.id === "plan_notes" && leaid) {
+          return (
+            <PlanNotesCell
+              value={typeof v === "string" ? v : null}
+              planId={planId}
+              leaid={leaid}
+              disabled={planId == null}
+            />
+          );
+        }
         if (v == null) return <span className="text-[#A69DC0]">—</span>;
         return <span>{formatCellValue(v, c.format)}</span>;
       },
