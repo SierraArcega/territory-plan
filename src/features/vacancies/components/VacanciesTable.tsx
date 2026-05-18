@@ -128,10 +128,10 @@ export default function VacanciesTable({
               <SortHeader field="title" label="Title" sortState={sortState} onSort={onSort} className="px-4" />
               <SortHeader field="districtName" label="District" sortState={sortState} onSort={onSort} className="px-4" />
               <SortHeader field="category" label="Category" sortState={sortState} onSort={onSort} className="px-4" />
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                 School
               </th>
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                 Contact
               </th>
               <SortHeader field="datePosted" label="Posted" sortState={sortState} onSort={onSort} className="px-4" />
@@ -194,7 +194,7 @@ export default function VacanciesTable({
                   </td>
 
                   {/* School */}
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 hidden sm:table-cell">
                     {vacancy.schoolName ? (
                       <span className="text-[13px] text-[#403770]/70 truncate max-w-[180px] block">
                         {vacancy.schoolName}
@@ -205,7 +205,7 @@ export default function VacanciesTable({
                   </td>
 
                   {/* Contact */}
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 hidden sm:table-cell">
                     {vacancy.hiringManager ? (
                       <div className="min-w-0">
                         <span className="text-[13px] text-[#403770]/80 block truncate max-w-[160px]">
@@ -260,15 +260,15 @@ export default function VacanciesTable({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between">
-        <span className="text-[12px] font-medium text-gray-400 tracking-wide">
+      <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between flex-wrap gap-y-1">
+        <span className="text-[12px] font-medium text-gray-400 tracking-wide whitespace-nowrap">
           {vacancies.length} vacanc{vacancies.length !== 1 ? "ies" : "y"}
         </span>
         <div className="flex gap-4 text-[12px] text-gray-400">
-          <span>
+          <span className="whitespace-nowrap">
             Relevant: <span className="font-medium text-[#F37167]">{fullmindRelevantCount}</span>
           </span>
-          <span>
+          <span className="whitespace-nowrap">
             Categories: <span className="font-medium text-gray-500">{categorySet.size}</span>
           </span>
         </div>
