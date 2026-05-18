@@ -133,6 +133,28 @@ export async function pushActivityToCalendar(
       return;
     }
 
+    // Guard against duplicates: if a CalendarEvent row already exists for this
+    // user + time slot + title, the meeting is already on Google Calendar.
+    // Link the activity to that event's googleEventId instead of creating a new one.
+    const MATCH_WINDOW_MS = 15 * 60 * 1000;
+    const startMin = new Date(activity.startDate.getTime() - MATCH_WINDOW_MS);
+    const startMax = new Date(activity.startDate.getTime() + MATCH_WINDOW_MS);
+    const existingCalEvent = await prisma.calendarEvent.findFirst({
+      where: {
+        userId,
+        startTime: { gte: startMin, lte: startMax },
+        title: { equals: activity.title, mode: "insensitive" },
+      },
+      select: { googleEventId: true },
+    });
+    if (existingCalEvent?.googleEventId) {
+      await prisma.activity.update({
+        where: { id: activityId },
+        data: { googleEventId: existingCalEvent.googleEventId },
+      });
+      return;
+    }
+
     // Collect attendee emails from linked contacts
     const attendeeEmails = activity.contacts
       .map((c) => c.contact.email)
