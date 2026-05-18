@@ -111,18 +111,24 @@ export async function GET(
 
     const rawAttendees = eventResponse.data.attendees || [];
 
-    // Get company domain from integration metadata for filtering internal emails
+    // Get internal domains from integration metadata for filtering
     const metadata = integration.metadata as Record<string, unknown> | null;
     const companyDomain = (metadata?.companyDomain as string) || "";
+    const companyDomainsRaw = metadata?.companyDomains as string[] | undefined;
+    const internalDomains = (
+      companyDomainsRaw && companyDomainsRaw.length > 0
+        ? companyDomainsRaw
+        : companyDomain
+          ? [companyDomain]
+          : []
+    ).map((d) => d.toLowerCase());
 
     // Filter to external attendees only
     const externalAttendees = rawAttendees.filter((a) => {
       if (a.self) return false;
       if (!a.email) return false;
-      if (companyDomain) {
-        const domain = a.email.split("@")[1]?.toLowerCase();
-        if (domain === companyDomain.toLowerCase()) return false;
-      }
+      const domain = a.email.split("@")[1]?.toLowerCase();
+      if (internalDomains.includes(domain ?? "")) return false;
       return true;
     });
 
