@@ -39,7 +39,7 @@ export default function ConnectedAccountsSection() {
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-6">
         <h3 className="text-lg font-semibold text-[#403770] mb-4">Connected Accounts</h3>
 
         {isLoading ? (
@@ -80,7 +80,7 @@ export default function ConnectedAccountsSection() {
                       <p className="font-medium text-[#403770]">{meta.label}</p>
                     </div>
                     {isConnected ? (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
                         <p className="text-sm text-gray-500 truncate">
                           Connected{connection.accountEmail ? ` \u00b7 ${connection.accountEmail}` : ""}
