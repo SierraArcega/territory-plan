@@ -126,18 +126,22 @@ export default function FeedTab({ onBadgeCountChange }: FeedTabProps) {
     );
   }, [activitiesData]);
 
-  // ---- Upcoming activities (planned, sorted by date) ----
+  // ---- Upcoming activities (planned + startDate on or after today, sorted by date) ----
   const upcomingActivities = useMemo(() => {
     const activities = activitiesData?.activities || [];
     return activities
-      .filter((a) => a.status === "planned")
+      .filter((a) => {
+        if (a.status !== "planned") return false;
+        if (a.startDate && toDateKey(a.startDate) < today) return false;
+        return true;
+      })
       .sort((a, b) => {
         if (!a.startDate && !b.startDate) return 0;
         if (!a.startDate) return 1;
         if (!b.startDate) return -1;
         return a.startDate.localeCompare(b.startDate);
       });
-  }, [activitiesData]);
+  }, [activitiesData, today]);
 
   // ---- Meetings to log ----
   const meetingsToLog = useMemo(() => {
