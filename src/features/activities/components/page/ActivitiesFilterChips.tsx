@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ChevronDown, ChevronRight, Plus, RotateCcw, Search, Square, SquareCheck, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Plus, RotateCcw, Search, Square, SquareCheck, X } from "lucide-react";
 import {
   ACTIVITY_CATEGORIES,
   ACTIVITY_TYPE_LABELS,
@@ -54,6 +54,7 @@ interface GroupChipSpec {
 interface ActivitiesFilterChipsProps {
   /** Opens the ⌘K CommandBar overlay. */
   onOpenCommandBar?: () => void;
+  onCollapse?: () => void;
 }
 
 /**
@@ -62,7 +63,7 @@ interface ActivitiesFilterChipsProps {
  * clicking × clears every value in the section. The popover's open + expanded
  * state is lifted here so chip clicks can drive it.
  */
-export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFilterChipsProps) {
+export default function ActivitiesFilterChips({ onOpenCommandBar, onCollapse }: ActivitiesFilterChipsProps) {
   const filters = useActivitiesChrome((s) => s.filters);
   const patchFilters = useActivitiesChrome((s) => s.patchFilters);
   const resetFilters = useActivitiesChrome((s) => s.resetFilters);
@@ -345,7 +346,7 @@ export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFi
         setExpanded={setExpanded}
       />
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-1.5">
         {hasAnyChip && (
           <button
             type="button"
@@ -359,6 +360,16 @@ export default function ActivitiesFilterChips({ onOpenCommandBar }: ActivitiesFi
           >
             <RotateCcw className="w-3 h-3" />
             Reset filters
+          </button>
+        )}
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="sm:hidden p-1.5 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors"
+            aria-label="Collapse filters"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
           </button>
         )}
       </div>

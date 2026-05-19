@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useActivities, useProfile } from "@/lib/api";
 import { usePrefetchActivity } from "@/features/activities/lib/queries";
 import { getCategoryForType } from "@/features/activities/types";
@@ -49,6 +50,9 @@ export default function ActivitiesPageShell() {
   const [creatingActivity, setCreatingActivity] = useState(false);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
   const [pendingModalOpen, setPendingModalOpen] = useState(false);
+  const [headerOpen, setHeaderOpen] = useState(true);
+  const [tabsOpen, setTabsOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   useCommandBarHotkey(setCommandBarOpen);
 
   const isTableView = view === "table";
@@ -134,15 +138,59 @@ export default function ActivitiesPageShell() {
 
   return (
     <div className="flex flex-col h-full bg-[#FFFCFA] overflow-hidden">
-      <ActivitiesPageHeader
-        count={filtered.length}
-        onNewActivity={() => setCreatingActivity(true)}
-        scope={scope}
-        onScopeChange={onScopeChange}
-        onReviewPending={() => setPendingModalOpen(true)}
-      />
-      {view !== "table" && <SavedViewTabs currentUserId={profile?.id ?? null} />}
-      {view !== "table" && <ActivitiesFilterChips onOpenCommandBar={() => setCommandBarOpen(true)} />}
+      {/* ── Header ── */}
+      <div className={headerOpen ? undefined : "hidden sm:block"}>
+        <ActivitiesPageHeader
+          count={filtered.length}
+          onNewActivity={() => setCreatingActivity(true)}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onReviewPending={() => setPendingModalOpen(true)}
+          onCollapse={() => setHeaderOpen(false)}
+        />
+      </div>
+      {!headerOpen && (
+        <div className="sm:hidden flex items-center justify-between px-4 py-1.5 bg-white border-b border-[#E2DEEC]">
+          <span className="text-xs font-semibold text-[#403770]">Activities</span>
+          <button type="button" onClick={() => setHeaderOpen(true)} className="p-1 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors" aria-label="Expand header">
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Saved view tabs ── */}
+      {view !== "table" && (
+        <>
+          <div className={tabsOpen ? undefined : "hidden sm:block"}>
+            <SavedViewTabs currentUserId={profile?.id ?? null} onCollapse={() => setTabsOpen(false)} />
+          </div>
+          {!tabsOpen && (
+            <div className="sm:hidden flex items-center justify-between px-4 py-1.5 bg-white border-b border-[#E2DEEC]">
+              <span className="text-xs font-semibold text-[#544A78]">Views</span>
+              <button type="button" onClick={() => setTabsOpen(true)} className="p-1 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors" aria-label="Expand views">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Filter chips ── */}
+      {view !== "table" && (
+        <>
+          <div className={filtersOpen ? undefined : "hidden sm:block"}>
+            <ActivitiesFilterChips onOpenCommandBar={() => setCommandBarOpen(true)} onCollapse={() => setFiltersOpen(false)} />
+          </div>
+          {!filtersOpen && (
+            <div className="sm:hidden flex items-center justify-between px-4 py-1.5 bg-white border-b border-[#E2DEEC]">
+              <span className="text-xs font-semibold text-[#544A78]">Filters</span>
+              <button type="button" onClick={() => setFiltersOpen(true)} className="p-1 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors" aria-label="Expand filters">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">

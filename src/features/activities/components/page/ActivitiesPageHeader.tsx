@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { ChevronUp, Plus } from "lucide-react";
 import { useActivitiesChrome } from "@/features/activities/lib/filters-store";
 import ViewToggle from "./ViewToggle";
 import CalendarSyncBadge from "./CalendarSyncBadge";
@@ -13,6 +13,7 @@ interface ActivitiesPageHeaderProps {
   scope: ActivityScope;
   onScopeChange: (scope: ActivityScope) => void;
   onReviewPending?: () => void;
+  onCollapse?: () => void;
 }
 
 export default function ActivitiesPageHeader({
@@ -21,6 +22,7 @@ export default function ActivitiesPageHeader({
   scope,
   onScopeChange,
   onReviewPending,
+  onCollapse,
 }: ActivitiesPageHeaderProps) {
   const view = useActivitiesChrome((s) => s.view);
   const grain = useActivitiesChrome((s) => s.grain);
@@ -30,7 +32,7 @@ export default function ActivitiesPageHeader({
   const isTableView = view === "table";
 
   return (
-    <header className="bg-white border-b border-[#E2DEEC] px-6 py-3">
+    <header className="bg-white border-b border-[#E2DEEC] px-4 sm:px-6 py-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#403770] tracking-[-0.01em]">Activities</h1>
@@ -62,6 +64,16 @@ export default function ActivitiesPageHeader({
             <Plus className="w-4 h-4" />
             New
           </button>
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="sm:hidden p-1.5 rounded-md text-[#8A80A8] hover:text-[#403770] hover:bg-[#F7F5FA] transition-colors"
+              aria-label="Collapse header"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
