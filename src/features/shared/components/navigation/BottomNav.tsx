@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Home,
   Map,
@@ -14,7 +13,6 @@ import {
   User,
   Settings,
 } from "lucide-react";
-import LeaderboardModal from "@/features/leaderboard/components/LeaderboardModal";
 import type { TabId } from "./Sidebar";
 
 interface NavItem {
@@ -54,58 +52,37 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ activeTab, onTabChange, isAdmin = false }: BottomNavProps) {
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-
   const items: NavItem[] = [
     ...MAIN_ITEMS,
     ...(isAdmin ? [ADMIN_ITEM] : []),
     PROFILE_ITEM,
   ];
 
-  const handlePress = (item: NavItem) => {
-    if (item.id === "leaderboard") {
-      setShowLeaderboard(true);
-    } else {
-      onTabChange(item.id);
-    }
-  };
-
   return (
-    <>
-      <nav
-        className="flex flex-row border-t border-[#D4CFE2] bg-white overflow-x-auto"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)", touchAction: "pan-x" }}
-      >
-        {items.map((item) => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handlePress(item)}
-              className={`
-                flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[56px] flex-shrink-0
-                transition-colors duration-150
-                ${isActive ? "text-[#F37167]" : "text-[#403770]"}
-              `}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
-              {isActive && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#F37167]" />
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      <LeaderboardModal
-        isOpen={showLeaderboard}
-        onClose={() => setShowLeaderboard(false)}
-        onNavigateToDetails={() => {
-          onTabChange("leaderboard" as TabId);
-          setShowLeaderboard(false);
-        }}
-      />
-    </>
+    <nav
+      className="flex flex-row border-t border-[#D4CFE2] bg-white overflow-x-auto"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)", touchAction: "pan-x" }}
+    >
+      {items.map((item) => {
+        const isActive = activeTab === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => onTabChange(item.id)}
+            className={`
+              flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[56px] flex-shrink-0
+              transition-colors duration-150
+              ${isActive ? "text-[#F37167]" : "text-[#403770]"}
+            `}
+          >
+            <span className="flex-shrink-0">{item.icon}</span>
+            <span className="text-[10px] font-medium whitespace-nowrap">{item.label}</span>
+            {isActive && (
+              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#F37167]" />
+            )}
+          </button>
+        );
+      })}
+    </nav>
   );
 }

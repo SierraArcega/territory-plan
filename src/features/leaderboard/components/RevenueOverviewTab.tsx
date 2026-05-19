@@ -225,15 +225,17 @@ export default function RevenueOverviewTab() {
       )}
 
       <RevenuePodium entries={sortedEntries} />
-      <RevenueTable
-        entries={sortedEntries}
-        sortColumn={sortColumn}
-        sortDirection={sortDirection}
-        onSort={handleSort}
-        teamTotals={projectedTotals}
-        columnLabels={columnLabels}
-        columnTooltips={columnTooltips}
-      />
+      <div className="overflow-x-auto">
+        <RevenueTable
+          entries={sortedEntries}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          teamTotals={projectedTotals}
+          columnLabels={columnLabels}
+          columnTooltips={columnTooltips}
+        />
+      </div>
     </div>
   );
 }

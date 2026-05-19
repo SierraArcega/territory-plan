@@ -232,8 +232,8 @@ export default function LowHangingFruitView() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [bannerCollapsed, setBannerCollapsed] = useState(() =>
-    typeof window !== "undefined" &&
-    sessionStorage.getItem("lhf-banner-collapsed") === "true"
+    typeof window === "undefined" ||
+    sessionStorage.getItem("lhf-banner-collapsed") !== "false"
   );
 
   const toggleBanner = () => {
