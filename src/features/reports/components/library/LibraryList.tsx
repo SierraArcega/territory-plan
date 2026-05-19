@@ -39,8 +39,12 @@ export function LibraryList({
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.title.toLowerCase().includes(q));
+    const result = q ? rows.filter((r) => r.title.toLowerCase().includes(q)) : rows;
+    return [...result].sort((a, b) => {
+      if (a.isDraft && !b.isDraft) return -1;
+      if (!a.isDraft && b.isDraft) return 1;
+      return 0;
+    });
   }, [rows, searchQuery]);
 
   if (filtered.length === 0) {
