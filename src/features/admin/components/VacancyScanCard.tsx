@@ -83,7 +83,7 @@ export default function VacancyScanCard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Stat label="Open Vacancies" value={data.verifiedVacancies.toLocaleString()} />
         <Stat label="Districts" value={data.districtsWithVacancies.toLocaleString()} />
         <Stat
@@ -100,7 +100,7 @@ export default function VacancyScanCard() {
       </div>
 
       {/* Diagnostics row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Stat
           label="Tarpit"
           value={data.tarpit.total.toLocaleString()}
@@ -148,7 +148,7 @@ export default function VacancyScanCard() {
 
       {/* Platform breakdown */}
       {data.byPlatform.length > 0 && (
-        <div className="flex items-center gap-3 text-[11px] text-[#8A80A8]">
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#8A80A8]">
           <span className="font-medium text-[#6E6390]">By platform:</span>
           {data.byPlatform
             .sort((a, b) => b.count - a.count)

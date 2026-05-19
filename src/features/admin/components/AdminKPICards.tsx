@@ -65,7 +65,7 @@ interface AdminKPICardsProps {
 export default function AdminKPICards({ stats, isLoading, onNavigateTab }: AdminKPICardsProps) {
   if (isLoading || !stats) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KPICardSkeleton />
         <KPICardSkeleton />
         <KPICardSkeleton />
@@ -75,7 +75,7 @@ export default function AdminKPICards({ stats, isLoading, onNavigateTab }: Admin
   }
 
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <KPICard
         accent="#F37167"
         label="Unmatched"

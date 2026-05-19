@@ -100,7 +100,7 @@ export default function UsersTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search users..."
-            className="pl-10 pr-4 py-2 text-sm border border-[#C2BBD4] rounded-lg focus:outline-none focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 w-64"
+            className="pl-10 pr-4 py-2 text-sm border border-[#C2BBD4] rounded-lg focus:outline-none focus:border-[#403770] focus:ring-2 focus:ring-[#403770]/30 w-40 sm:w-64"
           />
         </div>
 

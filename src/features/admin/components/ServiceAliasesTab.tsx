@@ -179,6 +179,7 @@ export default function ServiceAliasesTab() {
       </div>
 
       <div className="border border-[#E2DEEC] rounded-xl overflow-hidden bg-white">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-[#F7F5FA] text-[10px] font-semibold text-[#8A80A8] uppercase tracking-wider">
@@ -201,6 +202,7 @@ export default function ServiceAliasesTab() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

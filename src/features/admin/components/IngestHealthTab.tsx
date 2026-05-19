@@ -113,7 +113,7 @@ export default function IngestHealthTab() {
       <NewsIngestCard />
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <select
           value={source}
           onChange={(e) => {
@@ -147,6 +147,7 @@ export default function IngestHealthTab() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-[#E2DEEC] overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-[#F7F5FA] border-b border-[#D4CFE2]">
@@ -197,6 +198,7 @@ export default function IngestHealthTab() {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination footer */}
         <div className="bg-[#F7F5FA] border-t border-[#E2DEEC] px-4 py-2.5 flex items-center justify-between">
@@ -304,7 +306,7 @@ function RowGroup({
                 </p>
               )}
               {item.detail && (
-                <div className="grid grid-cols-4 gap-4 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                   <div>
                     <div className="text-[11px] uppercase tracking-wider text-[#8A80A8]">
                       Layer
