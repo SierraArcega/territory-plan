@@ -206,6 +206,7 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
 
   const meta = (integration.metadata ?? {}) as {
     companyDomain?: string;
+    companyDomains?: string[];
     syncDirection?: string;
     backfillStartDate?: string | null;
     backfillCompletedAt?: string | null;
@@ -310,7 +311,14 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
 
   // Step 3: Process each event
   const syncTimestamp = new Date();
-  const companyDomain = meta.companyDomain ?? "";
+  // Build the full list of internal domains. companyDomains (array) takes priority;
+  // fall back to the legacy companyDomain scalar so old integrations keep working.
+  const companyDomains: string[] =
+    meta.companyDomains && meta.companyDomains.length > 0
+      ? meta.companyDomains
+      : meta.companyDomain
+        ? [meta.companyDomain]
+        : [];
 
   // Batch dedupe: events the user already logged manually (Activity.googleEventId is @unique)
   // should never be re-staged. Single batch query against the unique index keeps this cheap.
@@ -333,10 +341,22 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     if (alreadyLogged.has(event.id)) continue;
 
     try {
-      // Filter to only external attendees using the company domain
+      // Skip events the rep declined or only tentatively accepted ("maybe").
+      // The self attendee is the only one with a.self === true; check its
+      // responseStatus before filtering it out.
+      const selfAttendee = event.attendees.find((a) => a.self);
+      if (
+        selfAttendee &&
+        (selfAttendee.responseStatus === "declined" ||
+          selfAttendee.responseStatus === "tentative")
+      ) {
+        continue;
+      }
+
+      // Filter to only external attendees using the org's internal domains
       const externalAttendees = filterExternalAttendees(
         event.attendees,
-        companyDomain
+        companyDomains
       );
 
       // Skip events with no external attendees — these are internal meetings

@@ -23,6 +23,7 @@ function buildStatus(overrides: {
           id: "conn-1",
           googleAccountEmail: "user@example.com",
           companyDomain: "example.com",
+          companyDomains: ["example.com"],
           syncEnabled: true,
           lastSyncAt:
             overrides.lastSyncAt === undefined

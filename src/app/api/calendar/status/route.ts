@@ -15,6 +15,7 @@ const VALID_REMINDER_MINUTES = [0, 5, 10, 15, 30, 60, 1440] as const;
 
 type CalendarMetadata = {
   companyDomain?: string;
+  companyDomains?: string[];
   syncDirection?: string;
   syncedActivityTypes?: string[];
   reminderMinutes?: number;
@@ -70,6 +71,7 @@ export async function GET() {
         id: integration.id,
         googleAccountEmail: integration.accountEmail ?? "",
         companyDomain: meta.companyDomain ?? "",
+        companyDomains: meta.companyDomains ?? (meta.companyDomain ? [meta.companyDomain] : []),
         syncEnabled: integration.syncEnabled,
         lastSyncAt: integration.lastSyncAt?.toISOString() || null,
         status: integration.status,
@@ -103,7 +105,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { syncEnabled, companyDomain, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
+    const { syncEnabled, companyDomain, companyDomains, syncDirection, syncedActivityTypes, reminderMinutes, secondReminderMinutes } = body;
 
     const existing = await prisma.userIntegration.findUnique({
       where: { userId_service: { userId: user.id, service: "google_calendar" } },
@@ -123,6 +125,9 @@ export async function PATCH(request: Request) {
     const integrationUpdate: Record<string, unknown> = {};
     if (typeof syncEnabled === "boolean") integrationUpdate.syncEnabled = syncEnabled;
     if (typeof companyDomain === "string") updatedMeta.companyDomain = companyDomain;
+    if (Array.isArray(companyDomains) && companyDomains.every((d: unknown) => typeof d === "string")) {
+      updatedMeta.companyDomains = companyDomains;
+    }
 
     // Sync direction validation
     if (syncDirection !== undefined) {
@@ -198,6 +203,7 @@ export async function PATCH(request: Request) {
         id: updated.id,
         googleAccountEmail: updated.accountEmail ?? "",
         companyDomain: updatedFinalMeta.companyDomain ?? "",
+        companyDomains: updatedFinalMeta.companyDomains ?? (updatedFinalMeta.companyDomain ? [updatedFinalMeta.companyDomain] : []),
         syncEnabled: updated.syncEnabled,
         lastSyncAt: updated.lastSyncAt?.toISOString() || null,
         status: updated.status,
