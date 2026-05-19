@@ -219,7 +219,7 @@ export default function TaskFormModal({
   const content = (
       <div className={embedded
         ? "flex flex-col h-full overflow-hidden"
-        : "relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[85vh] flex flex-col"
+        : "relative bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full sm:max-w-md sm:mx-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col"
       }>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
@@ -682,7 +682,7 @@ export default function TaskFormModal({
   if (embedded) return content;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       {content}
     </div>
