@@ -10,6 +10,7 @@ const getUserMock = vi.hoisted(() => vi.fn(async () => ({ id: "user-1" })));
 const readonlyQueryMock = vi.hoisted(() =>
   vi.fn(async () => ({ fields: [{ name: "a" }], rows: [{ a: 1 }, { a: 2 }], rowCount: 2 })),
 );
+const reportDraftFindManyMock = vi.hoisted(() => vi.fn(async () => []));
 
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -21,6 +22,7 @@ vi.mock("@/lib/prisma", () => ({
       delete: deleteMock,
     },
     userProfile: { findUnique: userProfileFindUniqueMock },
+    reportDraft: { findMany: reportDraftFindManyMock },
   },
 }));
 vi.mock("@/lib/supabase/server", () => ({ getUser: getUserMock }));
@@ -52,8 +54,10 @@ beforeEach(() => {
   userProfileFindUniqueMock.mockReset();
   getUserMock.mockReset();
   readonlyQueryMock.mockReset();
+  reportDraftFindManyMock.mockReset();
 
   getUserMock.mockResolvedValue({ id: "user-1" });
+  reportDraftFindManyMock.mockResolvedValue([]);
   readonlyQueryMock.mockResolvedValue({
     fields: [{ name: "a" }],
     rows: [{ a: 1 }, { a: 2 }],
@@ -150,6 +154,48 @@ describe("saved reports library + CRUD", () => {
       { lastRunAt: { sort: "desc", nulls: "last" } },
       { updatedAt: "desc" },
     ]);
+  });
+
+  it("includes draft rows with isDraft=true at start of mine array", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        id: 1,
+        title: "Saved report",
+        description: null,
+        question: "q1",
+        lastRunAt: null,
+        runCount: 0,
+        rowCount: null,
+        isTeamPinned: false,
+        updatedAt: new Date("2026-05-01T00:00:00Z"),
+        userId: "user-1",
+        user: { id: "user-1", fullName: "Me", avatarUrl: null },
+      },
+    ]);
+
+    reportDraftFindManyMock.mockResolvedValue([
+      {
+        userId: "user-1",
+        reportId: 0,
+        params: {},
+        conversationId: null,
+        chatHistory: [{ userMessage: "show me open vacancies" }],
+        lastTouchedAt: new Date("2026-05-18T08:00:00Z"),
+        createdAt: new Date("2026-05-18T07:00:00Z"),
+      },
+    ]);
+
+    const res = await listGet();
+    const json = await res.json();
+
+    expect(json.mine[0]).toMatchObject({
+      id: 0,
+      isDraft: true,
+      title: "show me open vacancies",
+      lastTouchedAt: "2026-05-18T08:00:00.000Z",
+    });
+    expect(json.mine[1]).toMatchObject({ id: 1 });
+    expect(json.mine[1].isDraft).toBeUndefined();
   });
 
   it("POST / creates a report and accepts description passthrough", async () => {

@@ -19,6 +19,8 @@ interface ReportListItem {
     fullName: string | null;
     avatarUrl: string | null;
   } | null;
+  isDraft?: true;
+  lastTouchedAt?: string;
 }
 
 type LibraryResponse = {
@@ -50,6 +52,30 @@ export async function GET(): Promise<NextResponse<LibraryResponse | { error: str
     },
   });
 
+  const drafts = await prisma.reportDraft.findMany({
+    where: { userId: user.id },
+    orderBy: { lastTouchedAt: "desc" },
+  });
+
+  const draftItems: ReportListItem[] = drafts.map((d) => {
+    const history = (d.chatHistory as { userMessage?: string }[] | null) ?? [];
+    const firstMessage = history[0]?.userMessage;
+    return {
+      id: d.reportId,
+      title: firstMessage ? firstMessage.slice(0, 80) : "Unsaved report",
+      description: null,
+      question: firstMessage ?? "",
+      lastRunAt: null,
+      runCount: 0,
+      rowCount: null,
+      isTeamPinned: false,
+      updatedAt: d.lastTouchedAt.toISOString(),
+      owner: null,
+      isDraft: true,
+      lastTouchedAt: d.lastTouchedAt.toISOString(),
+    };
+  });
+
   const mine: ReportListItem[] = [];
   const starred: ReportListItem[] = [];
   const team: ReportListItem[] = [];
@@ -75,7 +101,7 @@ export async function GET(): Promise<NextResponse<LibraryResponse | { error: str
     if (!isSelf && !r.isTeamPinned) team.push(base);
   }
 
-  return NextResponse.json({ mine, starred, team });
+  return NextResponse.json({ mine: [...draftItems, ...mine], starred, team });
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
