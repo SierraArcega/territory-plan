@@ -8,6 +8,8 @@ import {
   useDeleteReport,
   useUpdateReportDetails,
   useUpdateReportSql,
+  useUpsertReportDraft,
+  useDeleteReportDraft,
 } from "../../lib/queries";
 import { useChatCollapsed } from "../../lib/use-chat-collapsed";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
@@ -80,6 +82,39 @@ export function ReportsBuilder({
     const t = window.setTimeout(() => setToast(null), 2500);
     return () => window.clearTimeout(t);
   }, [toast]);
+  // Autosave: upsert draft after each completed turn that produced a version.
+  // Turns take seconds to complete, so this never fires back-to-back.
+  useEffect(() => {
+    const lastTurn = turns[turns.length - 1];
+    if (!lastTurn || lastTurn.inFlight || !lastTurn.version) return;
+    upsertDraft.mutate({
+      reportId: reportId ?? 0,
+      params: lastTurn.version as unknown as object,
+      conversationId: conversationId ?? null,
+      chatHistory: turns as unknown as object[],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns]);
+  // Last-chance flush when the tab closes. sendBeacon fires after unload and
+  // doesn't need a response — safe to fire-and-forget.
+  useEffect(() => {
+    const handleUnload = () => {
+      const lastTurn = turns[turns.length - 1];
+      if (!lastTurn || lastTurn.inFlight || !lastTurn.version) return;
+      const payload = JSON.stringify({
+        reportId: reportId ?? 0,
+        params: lastTurn.version,
+        conversationId: conversationId ?? null,
+        chatHistory: turns,
+      });
+      navigator.sendBeacon(
+        "/api/reports/draft",
+        new Blob([payload], { type: "application/json" }),
+      );
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [turns, reportId, conversationId]);
   // Selected version is owned locally so flipping pills doesn't trigger a
   // Next.js soft navigation (router.push) — that re-renders the entire page
   // tree (sidebar, builder, 100+ row results table) and adds noticeable lag.
@@ -100,6 +135,8 @@ export function ReportsBuilder({
   const updateReportSql = useUpdateReportSql();
   const updateReportDetails = useUpdateReportDetails();
   const deleteReport = useDeleteReport();
+  const upsertDraft = useUpsertReportDraft();
+  const deleteDraft = useDeleteReportDraft();
   const saveBusy =
     createReport.isPending ||
     updateReportSql.isPending ||
@@ -358,6 +395,7 @@ export function ReportsBuilder({
         },
         {
           onSuccess: (data) => {
+            deleteDraft.mutate(reportId ?? 0);
             setToast("Report saved");
             if (data.report?.id != null) onAfterSaveNew?.(data.report.id);
           },
@@ -379,8 +417,10 @@ export function ReportsBuilder({
         summary: v.summary,
         question: lastUserMessage ?? v.summary.source,
       },
-      {
-        onSuccess: () => setToast("Report updated"),
+      { onSuccess: () => {
+          deleteDraft.mutate(reportId ?? 0);
+          setToast("Report updated");
+        }
       },
     );
   }, [reportId, selectedVersion, turns, updateReportSql]);
