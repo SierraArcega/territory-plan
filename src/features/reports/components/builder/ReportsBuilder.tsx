@@ -23,6 +23,7 @@ import type { BuilderTurn, BuilderVersion } from "./types";
 function relativeAge(iso: string): string {
   if (!iso) return "recently";
   const diffSec = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diffSec < 60) return "just now";
   if (diffSec < 3600) return `${Math.round(diffSec / 60)} minutes ago`;
   if (diffSec < 86400) return `${Math.round(diffSec / 3600)} hours ago`;
   return `${Math.round(diffSec / 86400)} days ago`;
@@ -408,12 +409,17 @@ export function ReportsBuilder({
       }
       deleteDraft.mutate(reportId ?? 0);
       setRecoveryState("restored");
-      // Auto-hide the "restored" chip after 3 seconds
-      window.setTimeout(() => setRecoveryState("none"), 3000);
     } else {
       setRecoveryState("banner");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftQuery.isLoading, draftQuery.data]);
+  // Auto-hide the "Draft restored" chip — mirrors the toast effect pattern.
+  useEffect(() => {
+    if (recoveryState !== "restored") return;
+    const t = window.setTimeout(() => setRecoveryState("none"), 3000);
+    return () => window.clearTimeout(t);
+  }, [recoveryState]);
 
   const headerTitle = useMemo(() => {
     if (savedReportTitle) return savedReportTitle;
@@ -536,8 +542,8 @@ export function ReportsBuilder({
       {recoveryState === "banner" && (
         <div className="mx-3 mb-2 flex items-center justify-between rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
           <span className="text-[#5B21B6]">
-            <span className="font-semibold">You have unsaved work</span>
-            <span className="ml-1.5 text-[#7C3AED]">
+            <span className="whitespace-nowrap font-semibold">You have unsaved work</span>
+            <span className="ml-1.5 whitespace-nowrap text-[#7C3AED]">
               from {relativeAge(draftQuery.data?.lastTouchedAt ?? "")}
             </span>
           </span>
