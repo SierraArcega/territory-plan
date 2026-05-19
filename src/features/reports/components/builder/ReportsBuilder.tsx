@@ -10,6 +10,7 @@ import {
   useUpdateReportSql,
   useUpsertReportDraft,
   useDeleteReportDraft,
+  useReportDraft,
 } from "../../lib/queries";
 import { useChatCollapsed } from "../../lib/use-chat-collapsed";
 import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
@@ -18,6 +19,14 @@ import { CollapsedChatRail } from "./CollapsedChatRail";
 import { ResultsPane } from "./ResultsPane";
 import type { SessionMode } from "./SaveButton";
 import type { BuilderTurn, BuilderVersion } from "./types";
+
+function relativeAge(iso: string): string {
+  if (!iso) return "recently";
+  const diffSec = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diffSec < 3600) return `${Math.round(diffSec / 60)} minutes ago`;
+  if (diffSec < 86400) return `${Math.round(diffSec / 3600)} hours ago`;
+  return `${Math.round(diffSec / 86400)} days ago`;
+}
 
 interface Props {
   /** When set, on mount the builder reruns the saved report's stored SQL and
@@ -70,6 +79,18 @@ export function ReportsBuilder({
   // Surface saved-report load failures (bad SQL, missing summary, server error)
   // so the user sees an actionable message instead of an empty results pane.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Recovery states:
+  //   'idle'       — draft query still loading
+  //   'none'       — no draft found
+  //   'restored'   — auto-restored silently (< 8h); show brief chip
+  //   'banner'     — stale draft (≥ 8h); show in-builder banner
+  //   'dismissed'  — user dismissed the banner
+  const [recoveryState, setRecoveryState] = useState<
+    "idle" | "none" | "restored" | "banner" | "dismissed"
+  >("idle");
+
+  const draftQuery = useReportDraft(reportId ?? 0);
+  const alreadyRecoveredRef = useRef(false);
   // True while the mount-time POST /api/reports/{id}/run is in flight. Used to
   // lock the composer until the saved report's v1 lands.
   const [loadingSaved, setLoadingSaved] = useState(false);
@@ -361,6 +382,39 @@ export function ReportsBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId, initialPrompt, appendTurnFromResult, submit, handleSelectVersion]);
 
+  // Recovery: once draft loads, decide auto-restore vs. banner.
+  // Guard with alreadyRecoveredRef so StrictMode double-invoke is safe.
+  useEffect(() => {
+    if (alreadyRecoveredRef.current) return;
+    if (draftQuery.isLoading) return;
+    if (!draftQuery.data) {
+      setRecoveryState("none");
+      return;
+    }
+
+    const draft = draftQuery.data;
+    const ageMs = Date.now() - new Date(draft.lastTouchedAt).getTime();
+    const EIGHT_HOURS = 8 * 60 * 60 * 1000;
+
+    alreadyRecoveredRef.current = true;
+
+    if (ageMs < EIGHT_HOURS) {
+      // Silently restore turns from chatHistory
+      const history = (draft.chatHistory as BuilderTurn[] | null) ?? [];
+      if (history.length > 0) {
+        setTurns(history);
+        const lastVersion = history.findLast((t) => t.version != null)?.version;
+        if (lastVersion) setLocalSelectedN(lastVersion.n);
+      }
+      deleteDraft.mutate(reportId ?? 0);
+      setRecoveryState("restored");
+      // Auto-hide the "restored" chip after 3 seconds
+      window.setTimeout(() => setRecoveryState("none"), 3000);
+    } else {
+      setRecoveryState("banner");
+    }
+  }, [draftQuery.isLoading, draftQuery.data]);
+
   const headerTitle = useMemo(() => {
     if (savedReportTitle) return savedReportTitle;
     const last = versions.at(-1);
@@ -442,6 +496,24 @@ export function ReportsBuilder({
     [reportId, updateReportDetails],
   );
 
+  const handleRestoreDraft = useCallback(() => {
+    const draft = draftQuery.data;
+    if (!draft) return;
+    const history = (draft.chatHistory as BuilderTurn[] | null) ?? [];
+    if (history.length > 0) {
+      setTurns(history);
+      const lastVersion = history.findLast((t) => t.version != null)?.version;
+      if (lastVersion) setLocalSelectedN(lastVersion.n);
+    }
+    deleteDraft.mutate(reportId ?? 0);
+    setRecoveryState("none");
+  }, [draftQuery.data, deleteDraft, reportId]);
+
+  const handleDiscardDraft = useCallback(() => {
+    deleteDraft.mutate(reportId ?? 0);
+    setRecoveryState("dismissed");
+  }, [deleteDraft, reportId]);
+
   const handleDelete = useCallback(() => {
     if (reportId == null) return;
     if (!window.confirm("Delete this saved report? This can't be undone.")) return;
@@ -460,35 +532,70 @@ export function ReportsBuilder({
   }, [setChatCollapsed]);
 
   const resultsPane = (
-    <ResultsPane
-      version={selectedVersion}
-      sessionMode={sessionMode}
-      savedReportTitle={savedReportTitle ?? ""}
-      savedReportDescription={savedReportDescription}
-      saveBusy={saveBusy}
-      loadError={loadError}
-      saveConfirmation={toast}
-      onSaveNew={handleSaveNew}
-      onUpdateSavedReport={handleUpdateSavedReport}
-      onEditDetails={handleEditDetails}
-      onDelete={handleDelete}
-      onExpandChat={handleExpandChat}
-    />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {recoveryState === "banner" && (
+        <div className="mx-3 mb-2 flex items-center justify-between rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
+          <span className="text-[#5B21B6]">
+            <span className="font-semibold">You have unsaved work</span>
+            <span className="ml-1.5 text-[#7C3AED]">
+              from {relativeAge(draftQuery.data?.lastTouchedAt ?? "")}
+            </span>
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="rounded-md border border-[#C4B5FD] bg-white px-2.5 py-1 text-[11.5px] text-[#5B21B6] hover:bg-[#F7F5FA]"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="rounded-md bg-[#3D1D72] px-2.5 py-1 text-[11.5px] text-white hover:bg-[#2D1562]"
+            >
+              Restore
+            </button>
+          </div>
+        </div>
+      )}
+      <ResultsPane
+        version={selectedVersion}
+        sessionMode={sessionMode}
+        savedReportTitle={savedReportTitle ?? ""}
+        savedReportDescription={savedReportDescription}
+        saveBusy={saveBusy}
+        loadError={loadError}
+        saveConfirmation={toast}
+        onSaveNew={handleSaveNew}
+        onUpdateSavedReport={handleUpdateSavedReport}
+        onEditDetails={handleEditDetails}
+        onDelete={handleDelete}
+        onExpandChat={handleExpandChat}
+      />
+    </div>
   );
 
   const builderChat = (
-    <BuilderChat
-      title={headerTitle}
-      turns={turns}
-      versions={versions}
-      selectedN={selectedVersion?.n ?? null}
-      inFlight={inFlight}
-      onSelectVersion={handleSelectVersion}
-      onSubmit={submit}
-      onNewReport={onNewReport}
-      onCollapseChat={handleCollapseChat}
-      onBackToLibrary={onBackToLibrary}
-    />
+    <div className="flex min-h-0 flex-col">
+      {recoveryState === "restored" && (
+        <div className="mx-3 mb-2 rounded-md border border-[#A5D6A7] bg-[#E8F5E9] px-3 py-1.5 text-[11.5px] text-[#2E7D32]">
+          ✓ Draft restored
+        </div>
+      )}
+      <BuilderChat
+        title={headerTitle}
+        turns={turns}
+        versions={versions}
+        selectedN={selectedVersion?.n ?? null}
+        inFlight={inFlight}
+        onSelectVersion={handleSelectVersion}
+        onSubmit={submit}
+        onNewReport={onNewReport}
+        onCollapseChat={handleCollapseChat}
+        onBackToLibrary={onBackToLibrary}
+      />
+    </div>
   );
 
   // Mobile: one panel at a time — chat full-screen or results full-screen.
