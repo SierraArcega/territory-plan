@@ -52,7 +52,7 @@ export function SaveButton({
           className="inline-flex items-center gap-1.5 rounded-lg border border-[#D4CFE2] bg-white px-2.5 py-1.5 text-xs font-medium text-[#403770] transition-colors hover:bg-[#F7F5FA]"
         >
           <Edit3 size={13} />
-          <span className="whitespace-nowrap">Edit details</span>
+          <span className="hidden whitespace-nowrap sm:inline">Edit details</span>
         </button>
         <button
           type="button"
@@ -60,7 +60,7 @@ export function SaveButton({
           className="inline-flex items-center gap-1.5 rounded-lg border border-[#f58d85] bg-white px-2.5 py-1.5 text-xs font-medium text-[#c25a52] transition-colors hover:bg-[#fef1f0]"
         >
           <Trash2 size={13} />
-          <span className="whitespace-nowrap">Delete</span>
+          <span className="hidden whitespace-nowrap sm:inline">Delete</span>
         </button>
         {popover === "edit-details" && (
           <SavePopover
@@ -93,7 +93,7 @@ export function SaveButton({
             style={{ borderRight: "1px solid rgba(255,255,255,0.18)" }}
           >
             {inlineConfirmed ? <Check size={12} /> : <RefreshCw size={12} />}
-            <span className="whitespace-nowrap">{inlineConfirmed ? "Updated" : "Update"}</span>
+            <span className="hidden whitespace-nowrap sm:inline">{inlineConfirmed ? "Updated" : "Update"}</span>
           </button>
           <button
             type="button"
@@ -132,7 +132,7 @@ export function SaveButton({
         className="inline-flex items-center gap-1.5 rounded-lg border-0 bg-[#403770] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#322a5a] disabled:cursor-not-allowed disabled:bg-[#A69DC0]"
       >
         <Plus size={12} />
-        <span className="whitespace-nowrap">Save report</span>
+        <span className="hidden whitespace-nowrap sm:inline">Save report</span>
       </button>
       {popover === "save-new" && (
         <SavePopover

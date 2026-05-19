@@ -3,6 +3,7 @@
 import { ChevronRight, Clock, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ReportListItem } from "../../lib/queries";
+import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { initials, ownerColor } from "./initials";
 
 interface Props {
@@ -41,6 +42,7 @@ export function LibraryRow({
   onDelete,
 }: Props) {
   const [hover, setHover] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleStarClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -110,13 +112,13 @@ export function LibraryRow({
           >
             {initials(report.owner.fullName)}
           </div>
-          <div className="whitespace-nowrap text-[11.5px] font-medium text-[#6E6390]">
+          <div className="hidden whitespace-nowrap text-[11.5px] font-medium text-[#6E6390] sm:block">
             {report.owner.fullName ?? "Unknown"}
           </div>
         </div>
       )}
 
-      {canDelete && hover && (
+      {canDelete && (hover || isMobile) && (
         <button
           type="button"
           onClick={handleDeleteClick}

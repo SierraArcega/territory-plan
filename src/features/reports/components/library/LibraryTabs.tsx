@@ -47,13 +47,13 @@ export function LibraryTabs({ tab, counts, searchQuery, onTabChange, onSearchCha
           );
         })}
       </div>
-      <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-[#D4CFE2] bg-white px-2.5 py-1.5">
+      <div className="mb-1.5 flex flex-1 items-center gap-1.5 rounded-lg border border-[#D4CFE2] bg-white px-2.5 py-1.5 sm:flex-none">
         <Search size={12} className="shrink-0 text-[#A69DC0]" />
         <input
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search by title…"
-          className="w-[200px] border-none bg-transparent text-xs text-[#403770] outline-none placeholder:text-[#A69DC0]"
+          className="w-full border-none bg-transparent text-xs text-[#403770] outline-none placeholder:text-[#A69DC0] sm:w-[200px]"
         />
       </div>
     </div>

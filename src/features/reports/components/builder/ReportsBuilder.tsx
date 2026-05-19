@@ -10,6 +10,7 @@ import {
   useUpdateReportSql,
 } from "../../lib/queries";
 import { useChatCollapsed } from "../../lib/use-chat-collapsed";
+import { useIsMobile } from "@/features/shared/hooks/useIsMobile";
 import { BuilderChat } from "./BuilderChat";
 import { CollapsedChatRail } from "./CollapsedChatRail";
 import { ResultsPane } from "./ResultsPane";
@@ -89,6 +90,10 @@ export function ReportsBuilder({
   // even after the user adds refining turns. Used by ResultsPane to show
   // "From saved report · refined".
   const fromSavedReportRef = useRef(false);
+
+  const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  isMobileRef.current = isMobile;
 
   const chatTurn = useChatTurnStream();
   const createReport = useCreateSavedReport();
@@ -239,7 +244,10 @@ export function ReportsBuilder({
                 events: inFlightTurn?.events ?? [],
                 durationMs,
               };
-              if (version) handleSelectVersion(version.n);
+              if (version) {
+                handleSelectVersion(version.n);
+                if (isMobileRef.current) setChatCollapsed(true);
+              }
               return [...filtered, next];
             });
           },
@@ -255,7 +263,7 @@ export function ReportsBuilder({
         },
       );
     },
-    [chatTurn, conversationId, handleSelectVersion],
+    [chatTurn, conversationId, handleSelectVersion, setChatCollapsed],
   );
 
   // Mount: load saved report (if requested) or auto-submit initial prompt.
@@ -287,6 +295,7 @@ export function ReportsBuilder({
           };
           appendTurnFromResult("", null, safeData);
           handleSelectVersion(1);
+          if (window.matchMedia("(max-width: 639px)").matches) setChatCollapsed(true);
         } catch (err) {
           console.error("[ReportsBuilder] /run failed", err);
           setLoadError(err instanceof Error ? err.message : String(err));
@@ -410,6 +419,48 @@ export function ReportsBuilder({
     setChatCollapsed(false);
   }, [setChatCollapsed]);
 
+  const resultsPane = (
+    <ResultsPane
+      version={selectedVersion}
+      sessionMode={sessionMode}
+      savedReportTitle={savedReportTitle ?? ""}
+      savedReportDescription={savedReportDescription}
+      saveBusy={saveBusy}
+      loadError={loadError}
+      saveConfirmation={toast}
+      onSaveNew={handleSaveNew}
+      onUpdateSavedReport={handleUpdateSavedReport}
+      onEditDetails={handleEditDetails}
+      onDelete={handleDelete}
+      onExpandChat={handleExpandChat}
+    />
+  );
+
+  const builderChat = (
+    <BuilderChat
+      title={headerTitle}
+      turns={turns}
+      versions={versions}
+      selectedN={selectedVersion?.n ?? null}
+      inFlight={inFlight}
+      onSelectVersion={handleSelectVersion}
+      onSubmit={submit}
+      onNewReport={onNewReport}
+      onCollapseChat={handleCollapseChat}
+      onBackToLibrary={onBackToLibrary}
+    />
+  );
+
+  // Mobile: one panel at a time — chat full-screen or results full-screen.
+  // chatCollapsed doubles as the "show results" toggle on mobile.
+  if (isMobile) {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-[#FFFCFA]">
+        {chatCollapsed ? resultsPane : builderChat}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full min-h-0 bg-[#FFFCFA]">
       {chatCollapsed ? (
@@ -419,33 +470,8 @@ export function ReportsBuilder({
           onSelectVersion={handleSelectVersion}
           onExpand={handleExpandChat}
         />
-      ) : (
-        <BuilderChat
-          title={headerTitle}
-          turns={turns}
-          versions={versions}
-          selectedN={selectedVersion?.n ?? null}
-          inFlight={inFlight}
-          onSelectVersion={handleSelectVersion}
-          onSubmit={submit}
-          onNewReport={onNewReport}
-          onCollapseChat={handleCollapseChat}
-          onBackToLibrary={onBackToLibrary}
-        />
-      )}
-      <ResultsPane
-        version={selectedVersion}
-        sessionMode={sessionMode}
-        savedReportTitle={savedReportTitle ?? ""}
-        savedReportDescription={savedReportDescription}
-        saveBusy={saveBusy}
-        loadError={loadError}
-        saveConfirmation={toast}
-        onSaveNew={handleSaveNew}
-        onUpdateSavedReport={handleUpdateSavedReport}
-        onEditDetails={handleEditDetails}
-        onDelete={handleDelete}
-      />
+      ) : builderChat}
+      {resultsPane}
     </div>
   );
 }
