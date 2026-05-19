@@ -32,6 +32,37 @@ function relativeTime(iso: string | null): string {
   return FORMATTER.format(Math.round(diffSec / (86400 * 30)), "month");
 }
 
+function daysUntilExpiry(lastTouchedAt: string): number {
+  const msRemaining =
+    new Date(lastTouchedAt).getTime() + 30 * 24 * 60 * 60 * 1000 - Date.now();
+  return Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+}
+
+function expiryStyle(daysLeft: number): {
+  border: string;
+  bg: string;
+  badgeColor: string;
+  label: string | null;
+} {
+  if (daysLeft > 7) {
+    return { border: "1.5px dashed #B39DDB", bg: "#FAF8FF", badgeColor: "", label: null };
+  }
+  if (daysLeft > 1) {
+    return {
+      border: "1.5px dashed #F59E0B",
+      bg: "#FFFBEB",
+      badgeColor: "bg-[#FEF3C7] text-[#92400E]",
+      label: `⚠ expires in ${daysLeft} days`,
+    };
+  }
+  return {
+    border: "1.5px dashed #EF4444",
+    bg: "#FFF5F5",
+    badgeColor: "bg-[#FEE2E2] text-[#991B1B]",
+    label: "⚠ expires tomorrow",
+  };
+}
+
 export function LibraryRow({
   report,
   showOwner,
@@ -43,6 +74,42 @@ export function LibraryRow({
 }: Props) {
   const [hover, setHover] = useState(false);
   const isMobile = useIsMobile();
+
+  if (report.isDraft) {
+    const daysLeft = daysUntilExpiry(report.lastTouchedAt ?? report.updatedAt);
+    const style = expiryStyle(daysLeft);
+    return (
+      <div
+        onClick={() => onOpen(report.id)}
+        className="flex cursor-pointer items-center gap-3.5 px-4 py-3.5 transition-colors duration-100"
+        style={{ border: style.border, background: style.bg, borderRadius: 8, margin: "2px 0" }}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] font-semibold text-[#403770]">
+              {report.title}
+            </span>
+            <span className="shrink-0 rounded-full bg-[#EDE7F6] px-2 py-0.5 text-[10px] font-semibold text-[#6B21A8]">
+              DRAFT
+            </span>
+            {style.label && (
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${style.badgeColor}`}>
+                {style.label}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 text-[11.5px] text-[#8A80A8]">
+            {style.label
+              ? "Save or resume before it's gone"
+              : `Unsaved · ${relativeTime(report.lastTouchedAt ?? null)} · expires in ${daysLeft} days`}
+          </div>
+        </div>
+        <span className="shrink-0 text-[11.5px] font-semibold text-[#7C3AED]">
+          Resume →
+        </span>
+      </div>
+    );
+  }
 
   const handleStarClick = (e: React.MouseEvent) => {
     e.stopPropagation();
