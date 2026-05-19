@@ -1,10 +1,18 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ReportsLibrary } from "./ReportsLibrary";
 import { ReportsBuilder } from "./builder/ReportsBuilder";
 import type { LibraryTab } from "./library/LibraryTabs";
+import { useReportDraft, useDeleteReportDraft } from "../lib/queries";
+
+function relativeAgeShort(iso: string): string {
+  const diffSec = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
+  return `${Math.round(diffSec / 86400)}d ago`;
+}
 
 const VALID_LIBRARY_TABS: LibraryTab[] = ["mine", "starred", "team"];
 
@@ -26,6 +34,11 @@ export function ReportsTab() {
   // identical and the in-memory state never resets.
   const [newReportNonce, setNewReportNonce] = useState(0);
 
+  const [navAwayToast, setNavAwayToast] = useState(false);
+  const prevViewRef = useRef<string | null>(null);
+  const draftQuery = useReportDraft(0); // fresh-session draft (reportId=0)
+  const deleteDraft = useDeleteReportDraft();
+
   const updateParams = useCallback(
     (mutate: (p: URLSearchParams) => void) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -45,6 +58,19 @@ export function ReportsTab() {
     },
     [updateParams],
   );
+
+  // Show "Draft saved" toast when user leaves the builder and a fresh draft exists.
+  useEffect(() => {
+    const current = view ?? null;
+    const previous = prevViewRef.current;
+    prevViewRef.current = current;
+
+    if (previous === "builder" && current !== "builder" && draftQuery.data) {
+      setNavAwayToast(true);
+      const t = window.setTimeout(() => setNavAwayToast(false), 4000);
+      return () => window.clearTimeout(t);
+    }
+  }, [view, draftQuery.data]);
 
   const goToLibrary = useCallback(() => {
     updateParams((p) => {
@@ -111,15 +137,62 @@ export function ReportsTab() {
   }
 
   return (
-    <ReportsLibrary
-      initialTab={initialLibraryTab}
-      onTabChange={handleLibraryTabChange}
-      onOpenReport={(id) => goToBuilder({ report: String(id) })}
-      onNewReport={(prompt) => {
-        const extras: Record<string, string> = {};
-        if (prompt) extras.prompt = prompt;
-        goToBuilder(extras);
-      }}
-    />
+    <div className="relative flex flex-col">
+      {/* Navigate-away toast */}
+      {navAwayToast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl bg-[#1E1033] px-4 py-3 text-[13px] text-white shadow-lg">
+          <span className="text-base">✏️</span>
+          <div>
+            <div className="font-semibold">Draft saved</div>
+            <div className="text-[11.5px] text-[#C4B5FD]">
+              Resume anytime from the Reports tab
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Library banner — stale fresh-session draft (≥ 8 hours old) */}
+      {draftQuery.data &&
+        Date.now() - new Date(draftQuery.data.lastTouchedAt).getTime() >= 8 * 60 * 60 * 1000 && (
+          <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
+            <span className="text-[#5B21B6]">
+              <span className="whitespace-nowrap font-semibold">✏️ You have an unsaved draft</span>
+              <span className="ml-2 whitespace-nowrap text-[#7C3AED]">
+                {relativeAgeShort(draftQuery.data.lastTouchedAt)}
+              </span>
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => deleteDraft.mutate(0)}
+                className="rounded-md border border-[#C4B5FD] bg-white px-2.5 py-1 text-[11.5px] text-[#5B21B6] hover:bg-[#F7F5FA]"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={() => goToBuilder()}
+                className="rounded-md bg-[#3D1D72] px-2.5 py-1 text-[11.5px] text-white hover:bg-[#2D1562]"
+              >
+                Resume →
+              </button>
+            </div>
+          </div>
+        )}
+
+      <ReportsLibrary
+        initialTab={initialLibraryTab}
+        onTabChange={handleLibraryTabChange}
+        onOpenReport={(id) => {
+          if (id === 0) goToBuilder();
+          else goToBuilder({ report: String(id) });
+        }}
+        onNewReport={(prompt) => {
+          const extras: Record<string, string> = {};
+          if (prompt) extras.prompt = prompt;
+          goToBuilder(extras);
+        }}
+      />
+    </div>
   );
 }
