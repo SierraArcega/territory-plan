@@ -85,16 +85,14 @@ export default function TaskRowList({ tasks, onChange, currentUserId }: TaskRowL
                 placeholder="Task title..."
                 className={`flex-1 ${inputStyle}`}
               />
-              {tasks.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeTask(i)}
-                  className="p-1 text-[#A69DC0] hover:text-[#F37167] rounded-lg hover:bg-[#fef1f0] transition-colors cursor-pointer"
-                  title="Remove task"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => removeTask(i)}
+                className="p-1 text-[#A69DC0] hover:text-[#F37167] rounded-lg hover:bg-[#fef1f0] transition-colors cursor-pointer"
+                title="Remove task"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Details row: assignee, priority chips, date */}
@@ -151,7 +149,7 @@ export default function TaskRowList({ tasks, onChange, currentUserId }: TaskRowL
         onClick={addTask}
         className="mt-2 text-sm text-[#6E6390] hover:text-[#403770] font-medium transition-colors cursor-pointer"
       >
-        + Add another task
+        + Add task
       </button>
     </div>
   );
