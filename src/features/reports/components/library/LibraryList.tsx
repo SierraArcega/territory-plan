@@ -39,14 +39,9 @@ export function LibraryList({
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const result = q ? rows.filter((r) => r.title.toLowerCase().includes(q)) : rows;
-    if (kind !== "mine") return result;
-    return [...result].sort((a, b) => {
-      if (a.isDraft && !b.isDraft) return -1;
-      if (!a.isDraft && b.isDraft) return 1;
-      return 0;
-    });
-  }, [rows, searchQuery, kind]);
+    if (!q) return rows;
+    return rows.filter((r) => r.title.toLowerCase().includes(q));
+  }, [rows, searchQuery]);
 
   if (filtered.length === 0) {
     return <EmptyLibrary kind={kind} onNewReport={onNewReport} />;
@@ -66,7 +61,7 @@ export function LibraryList({
       <div className="overflow-hidden rounded-xl border border-[#D4CFE2] bg-white">
         {slice.map((r, i) => (
           <div
-            key={r.isDraft ? `draft-${r.id}` : `saved-${r.id}`}
+            key={r.id}
             className={i === slice.length - 1 ? "" : "border-b border-[#E2DEEC]"}
           >
             <LibraryRow

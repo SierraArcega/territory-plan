@@ -206,7 +206,7 @@ export function LiveTrace({
 
   // In-flight: header with pulsing coral dot + "Working on v{n} · step X of N"
   const activeIdx = lines.findIndex((l) => l.state === "active");
-  const stepNumber = activeIdx === -1 ? lines.length : activeIdx + 1;
+  const stepNumber = (activeIdx === -1 ? lines.length : activeIdx) + 1;
 
   return (
     <div style={{ marginTop: 6 }}>

@@ -16,8 +16,6 @@ export interface ReportListItem {
     fullName: string | null;
     avatarUrl: string | null;
   } | null;
-  isDraft?: true;
-  lastTouchedAt?: string;
 }
 
 export interface LibraryResponse {
@@ -155,73 +153,5 @@ export function useUpdateReportSql() {
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: LIBRARY_KEY }),
-  });
-}
-
-export interface ReportDraft {
-  userId: string;
-  reportId: number;
-  params: unknown;
-  conversationId: string | null;
-  chatHistory: unknown[] | null;
-  lastTouchedAt: string;
-  createdAt: string;
-}
-
-const DRAFT_KEY = (reportId: number) => ["report-draft", reportId] as const;
-
-export function useReportDraft(reportId: number) {
-  return useQuery<ReportDraft | null>({
-    queryKey: DRAFT_KEY(reportId),
-    queryFn: async () => {
-      const res = await fetch(`/api/reports/draft?reportId=${reportId}`);
-      if (!res.ok) throw new Error("Failed to load draft");
-      const json = (await res.json()) as { draft: ReportDraft | null };
-      return json.draft;
-    },
-    staleTime: 60_000,
-  });
-}
-
-export function useUpsertReportDraft() {
-  const qc = useQueryClient();
-  return useMutation<
-    void,
-    Error,
-    {
-      reportId: number;
-      params: object;
-      conversationId?: string | null;
-      chatHistory: object[];
-    }
-  >({
-    mutationFn: async (body) => {
-      const res = await fetch("/api/reports/draft", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error("Failed to save draft");
-    },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: DRAFT_KEY(vars.reportId) });
-      qc.invalidateQueries({ queryKey: LIBRARY_KEY });
-    },
-  });
-}
-
-export function useDeleteReportDraft() {
-  const qc = useQueryClient();
-  return useMutation<void, Error, number>({
-    mutationFn: async (reportId) => {
-      const res = await fetch(`/api/reports/draft?reportId=${reportId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete draft");
-    },
-    onSuccess: (_, reportId) => {
-      qc.invalidateQueries({ queryKey: DRAFT_KEY(reportId) });
-      qc.invalidateQueries({ queryKey: LIBRARY_KEY });
-    },
   });
 }

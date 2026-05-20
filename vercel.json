@@ -47,10 +47,6 @@
     {
       "path": "/api/cron/refresh-rfp-signals?secret=${CRON_SECRET}",
       "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/expire-report-drafts?secret=${CRON_SECRET}",
-      "schedule": "0 3 * * *"
     }
   ]
 }
