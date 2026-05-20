@@ -140,8 +140,7 @@ export function ReportsTab() {
     <div className="relative flex flex-col">
       {/* Navigate-away toast */}
       {navAwayToast && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 rounded-xl bg-[#1E1033] px-4 py-3 text-[13px] text-white shadow-lg">
-          <span className="text-base">✏️</span>
+        <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-50 flex items-center gap-2.5 rounded-xl bg-[#1E1033] px-4 py-3 text-[13px] text-white shadow-lg">
           <div>
             <div className="font-semibold">Draft saved</div>
             <div className="text-[11.5px] text-[#C4B5FD]">
@@ -156,7 +155,7 @@ export function ReportsTab() {
         Date.now() - new Date(draftQuery.data.lastTouchedAt).getTime() >= 8 * 60 * 60 * 1000 && (
           <div className="mx-4 mt-3 flex items-center justify-between rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
             <span className="text-[#5B21B6]">
-              <span className="whitespace-nowrap font-semibold">✏️ You have an unsaved draft</span>
+              <span className="whitespace-nowrap font-semibold">You have an unsaved draft</span>
               <span className="ml-2 whitespace-nowrap text-[#7C3AED]">
                 {relativeAgeShort(draftQuery.data.lastTouchedAt)}
               </span>
