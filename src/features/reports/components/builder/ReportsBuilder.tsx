@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { QuerySummary, TurnEvent } from "../../lib/agent/types";
 import { useChatTurnStream } from "../../hooks/useChatTurnStream";
 import {
@@ -536,6 +537,35 @@ export function ReportsBuilder({
     });
   }, [reportId, deleteReport, onAfterDelete]);
 
+  const qc = useQueryClient();
+
+  // Intercept Library navigation: flush any unsaved completed turns to the
+  // draft table and optimistically populate the query cache so the navigate-away
+  // toast in ReportsTab fires synchronously (before the URL change settles).
+  const handleBackToLibrary = useCallback(() => {
+    const completedTurns = turns.filter((t) => !t.inFlight);
+    const lastVersionTurn = completedTurns.findLast((t) => t.version != null);
+    const hasUserInput = completedTurns.some((t) => t.userMessage.trim() !== "");
+    if (lastVersionTurn && hasUserInput) {
+      const draftId = reportId ?? 0;
+      qc.setQueryData(["report-draft", draftId], {
+        reportId: draftId,
+        params: lastVersionTurn.version,
+        conversationId: conversationId ?? null,
+        chatHistory: completedTurns,
+        lastTouchedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+      upsertDraft.mutate({
+        reportId: draftId,
+        params: lastVersionTurn.version as unknown as object,
+        conversationId: conversationId ?? null,
+        chatHistory: completedTurns as unknown as object[],
+      });
+    }
+    onBackToLibrary();
+  }, [turns, reportId, conversationId, qc, upsertDraft, onBackToLibrary]);
+
   const handleCollapseChat = useCallback(() => {
     setChatCollapsed(true);
     onCollapseChat();
@@ -607,7 +637,7 @@ export function ReportsBuilder({
         onSubmit={submit}
         onNewReport={onNewReport}
         onCollapseChat={handleCollapseChat}
-        onBackToLibrary={onBackToLibrary}
+        onBackToLibrary={handleBackToLibrary}
       />
     </div>
   );
