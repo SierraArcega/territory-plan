@@ -57,14 +57,17 @@ export async function GET(): Promise<NextResponse<LibraryResponse | { error: str
     orderBy: { lastTouchedAt: "desc" },
   });
 
-  const draftItems: ReportListItem[] = drafts.map((d) => {
+  const draftItems: ReportListItem[] = drafts.flatMap((d) => {
     const history = (d.chatHistory as { userMessage?: string }[] | null) ?? [];
-    const firstMessage = history[0]?.userMessage;
-    return {
+    // Skip drafts that only have a synthetic saved-report load turn (empty userMessage).
+    // These have no real user work and would show "Unsaved report" with a misleading label.
+    const firstRealMessage = history.find((t) => t.userMessage?.trim())?.userMessage;
+    if (!firstRealMessage) return [];
+    return [{
       id: d.reportId,
-      title: firstMessage ? firstMessage.slice(0, 80) : "Unsaved report",
+      title: firstRealMessage.slice(0, 80),
       description: null,
-      question: firstMessage ?? "",
+      question: firstRealMessage,
       lastRunAt: null,
       runCount: 0,
       rowCount: null,
@@ -73,7 +76,7 @@ export async function GET(): Promise<NextResponse<LibraryResponse | { error: str
       owner: null,
       isDraft: true,
       lastTouchedAt: d.lastTouchedAt.toISOString(),
-    };
+    }];
   });
 
   const mine: ReportListItem[] = [];

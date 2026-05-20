@@ -66,7 +66,7 @@ export function LibraryList({
       <div className="overflow-hidden rounded-xl border border-[#D4CFE2] bg-white">
         {slice.map((r, i) => (
           <div
-            key={r.id}
+            key={r.isDraft ? `draft-${r.id}` : `saved-${r.id}`}
             className={i === slice.length - 1 ? "" : "border-b border-[#E2DEEC]"}
           >
             <LibraryRow

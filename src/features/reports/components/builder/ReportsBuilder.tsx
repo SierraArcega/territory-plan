@@ -105,10 +105,13 @@ export function ReportsBuilder({
     return () => window.clearTimeout(t);
   }, [toast]);
   // Autosave: upsert draft after each completed turn that produced a version.
+  // Skip when the only turns are the synthetic saved-report load (empty userMessage)
+  // — those represent zero user work and would create misleading draft rows.
   // Turns take seconds to complete, so this never fires back-to-back.
   useEffect(() => {
     const lastTurn = turns[turns.length - 1];
     if (!lastTurn || lastTurn.inFlight || !lastTurn.version) return;
+    if (fromSavedReportRef.current && !turns.some((t) => t.userMessage.trim())) return;
     upsertDraft.mutate({
       reportId: reportId ?? 0,
       params: lastTurn.version as unknown as object,
@@ -385,9 +388,12 @@ export function ReportsBuilder({
 
   // Recovery: once draft loads, decide auto-restore vs. banner.
   // Guard with alreadyRecoveredRef so StrictMode double-invoke is safe.
+  // Wait for the saved-report /run to complete (loadingSaved) before deciding
+  // — otherwise the draft restore and the /run result race to set turns.
   useEffect(() => {
     if (alreadyRecoveredRef.current) return;
     if (draftQuery.isLoading) return;
+    if (loadingSaved) return;
     if (!draftQuery.data) {
       setRecoveryState("none");
       return;
@@ -399,8 +405,10 @@ export function ReportsBuilder({
 
     alreadyRecoveredRef.current = true;
 
-    if (ageMs < EIGHT_HOURS) {
-      // Silently restore turns from chatHistory
+    // Auto-restore only for a fresh session (no turns yet) that is recent.
+    // For saved-report contexts (turns already loaded from /run), always use
+    // the banner so the user consciously chooses to restore refinements.
+    if (ageMs < EIGHT_HOURS && turns.length === 0) {
       const history = (draft.chatHistory as BuilderTurn[] | null) ?? [];
       if (history.length > 0) {
         setTurns(history);
@@ -413,7 +421,7 @@ export function ReportsBuilder({
       setRecoveryState("banner");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftQuery.isLoading, draftQuery.data]);
+  }, [draftQuery.isLoading, draftQuery.data, loadingSaved, turns.length]);
   // Auto-hide the "Draft restored" chip — mirrors the toast effect pattern.
   useEffect(() => {
     if (recoveryState !== "restored") return;
@@ -540,7 +548,7 @@ export function ReportsBuilder({
   const resultsPane = (
     <div className="flex min-h-0 flex-1 flex-col">
       {recoveryState === "banner" && (
-        <div className="mx-3 mb-2 flex items-center justify-between rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
+        <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#C4B5FD] bg-[#EDE7F6] px-3.5 py-2.5 text-[12.5px]">
           <span className="text-[#5B21B6]">
             <span className="whitespace-nowrap font-semibold">You have unsaved work</span>
             <span className="ml-1.5 whitespace-nowrap text-[#7C3AED]">
@@ -586,7 +594,7 @@ export function ReportsBuilder({
     <div className="flex min-h-0 flex-col">
       {recoveryState === "restored" && (
         <div className="mx-3 mb-2 rounded-md border border-[#A5D6A7] bg-[#E8F5E9] px-3 py-1.5 text-[11.5px] text-[#2E7D32]">
-          ✓ Draft restored
+          Draft restored
         </div>
       )}
       <BuilderChat

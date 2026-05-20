@@ -11,6 +11,7 @@ const readonlyQueryMock = vi.hoisted(() =>
   vi.fn(async () => ({ fields: [{ name: "a" }], rows: [{ a: 1 }, { a: 2 }], rowCount: 2 })),
 );
 const reportDraftFindManyMock = vi.hoisted(() => vi.fn(async () => []));
+const reportDraftDeleteMock = vi.hoisted(() => vi.fn(async () => ({})));
 
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -22,7 +23,7 @@ vi.mock("@/lib/prisma", () => ({
       delete: deleteMock,
     },
     userProfile: { findUnique: userProfileFindUniqueMock },
-    reportDraft: { findMany: reportDraftFindManyMock },
+    reportDraft: { findMany: reportDraftFindManyMock, delete: reportDraftDeleteMock },
   },
 }));
 vi.mock("@/lib/supabase/server", () => ({ getUser: getUserMock }));
@@ -55,9 +56,11 @@ beforeEach(() => {
   getUserMock.mockReset();
   readonlyQueryMock.mockReset();
   reportDraftFindManyMock.mockReset();
+  reportDraftDeleteMock.mockReset();
 
   getUserMock.mockResolvedValue({ id: "user-1" });
   reportDraftFindManyMock.mockResolvedValue([]);
+  reportDraftDeleteMock.mockResolvedValue({});
   readonlyQueryMock.mockResolvedValue({
     fields: [{ name: "a" }],
     rows: [{ a: 1 }, { a: 2 }],

@@ -52,14 +52,14 @@ function expiryStyle(daysLeft: number): {
       border: "1.5px dashed #F59E0B",
       bg: "#FFFBEB",
       badgeColor: "bg-[#FEF3C7] text-[#92400E]",
-      label: `⚠ expires in ${daysLeft} days`,
+      label: `expires in ${daysLeft} days`,
     };
   }
   return {
     border: "1.5px dashed #EF4444",
     bg: "#FFF5F5",
     badgeColor: "bg-[#FEE2E2] text-[#991B1B]",
-    label: "⚠ expires tomorrow",
+    label: "expires tomorrow",
   };
 }
 
