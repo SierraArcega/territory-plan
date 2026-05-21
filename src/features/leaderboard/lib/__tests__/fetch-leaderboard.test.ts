@@ -172,4 +172,63 @@ describe("fetchLeaderboardData", () => {
 
     await expect(fetchLeaderboardData()).rejects.toThrow("connection pool exhausted");
   });
+
+  it("populates revenueNextFY from next school year actuals", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "alice@x.com": {
+        "2025-26": { totalRevenue: 100 },
+        "2026-27": { totalRevenue: 42 },
+      },
+    }));
+
+    const payload = await fetchLeaderboardData();
+    expect(payload.entries[0].revenueNextFY).toBe(42);
+  });
+
+  it("populates minPurchasesNextFY from next school year actuals", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "alice@x.com": {
+        "2025-26": { minPurchaseBookings: 50 },
+        "2026-27": { minPurchaseBookings: 99 },
+      },
+    }));
+
+    const payload = await fetchLeaderboardData();
+    expect(payload.entries[0].minPurchasesNextFY).toBe(99);
+  });
+
+  it("populates pipelinePriorFY from prior school year actuals", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "alice@x.com": {
+        "2024-25": { openPipeline: 77 },
+        "2025-26": { openPipeline: 200 },
+      },
+    }));
+
+    const payload = await fetchLeaderboardData();
+    expect(payload.entries[0].pipelinePriorFY).toBe(77);
+  });
+
+  it("defaults new per-FY fields to 0 when school year data is absent", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "alice@x.com": { "2025-26": { totalRevenue: 10 } },
+    }));
+
+    const payload = await fetchLeaderboardData();
+    expect(payload.entries[0].revenueNextFY).toBe(0);
+    expect(payload.entries[0].minPurchasesNextFY).toBe(0);
+    expect(payload.entries[0].pipelinePriorFY).toBe(0);
+  });
 });

@@ -64,13 +64,16 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
       pipeline: cur?.openPipeline ?? 0,
       pipelineCurrentFY: cur?.openPipeline ?? 0,
       pipelineNextFY: next?.openPipeline ?? 0,
+      pipelinePriorFY: prior?.openPipeline ?? 0,
       take: cur?.totalTake ?? 0,
       revenue: cur?.totalRevenue ?? 0,
       revenueCurrentFY: cur?.totalRevenue ?? 0,
       revenuePriorFY: prior?.totalRevenue ?? 0,
+      revenueNextFY: next?.totalRevenue ?? 0,
       priorYearRevenue: prior?.minPurchaseBookings ?? 0,
       minPurchasesCurrentFY: cur?.minPurchaseBookings ?? 0,
       minPurchasesPriorFY: prior?.minPurchaseBookings ?? 0,
+      minPurchasesNextFY: next?.minPurchaseBookings ?? 0,
     };
   });
 
@@ -149,9 +152,10 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
 
   const entries: LeaderboardEntry[] = rosterProfiles.map((profile) => {
     const a = actualsMap.get(profile.id) ?? {
-      userId: profile.id, take: 0, pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0,
-      revenue: 0, revenueCurrentFY: 0, revenuePriorFY: 0,
-      priorYearRevenue: 0, minPurchasesCurrentFY: 0, minPurchasesPriorFY: 0,
+      userId: profile.id, take: 0,
+      pipeline: 0, pipelineCurrentFY: 0, pipelineNextFY: 0, pipelinePriorFY: 0,
+      revenue: 0, revenueCurrentFY: 0, revenuePriorFY: 0, revenueNextFY: 0,
+      priorYearRevenue: 0, minPurchasesCurrentFY: 0, minPurchasesPriorFY: 0, minPurchasesNextFY: 0,
     };
     const targetedCurrentFY = targetedCurrentFYByUser.get(profile.id) ?? 0;
     const targetedNextFY = targetedNextFYByUser.get(profile.id) ?? 0;
@@ -165,15 +169,19 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
       pipeline: a.pipeline,
       pipelineCurrentFY: a.pipelineCurrentFY,
       pipelineNextFY: a.pipelineNextFY,
+      pipelinePriorFY: a.pipelinePriorFY,
       revenue: a.revenue,
       revenueCurrentFY: a.revenueCurrentFY,
       revenuePriorFY: a.revenuePriorFY,
+      revenueNextFY: a.revenueNextFY,
       priorYearRevenue: a.priorYearRevenue,
       minPurchasesCurrentFY: a.minPurchasesCurrentFY,
       minPurchasesPriorFY: a.minPurchasesPriorFY,
+      minPurchasesNextFY: a.minPurchasesNextFY,
       revenueTargeted: targetedCurrentFY + targetedNextFY,
       targetedCurrentFY,
       targetedNextFY,
+      targetedPriorFY: 0,
       unmatchedOppCount: unmatched.count,
       unmatchedRevenue: unmatched.revenue,
     };
@@ -185,9 +193,9 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   const sumActuals = (
     pool: typeof repActuals,
     key:
-      | "revenue" | "revenueCurrentFY" | "revenuePriorFY"
-      | "priorYearRevenue" | "minPurchasesCurrentFY" | "minPurchasesPriorFY"
-      | "pipelineCurrentFY" | "pipelineNextFY",
+      | "revenue" | "revenueCurrentFY" | "revenuePriorFY" | "revenueNextFY"
+      | "priorYearRevenue" | "minPurchasesCurrentFY" | "minPurchasesPriorFY" | "minPurchasesNextFY"
+      | "pipelineCurrentFY" | "pipelineNextFY" | "pipelinePriorFY",
   ): number => pool.reduce((acc, x) => acc + (x[key] ?? 0), 0);
 
   const sumTargetedMap = (pool: Map<string, number>, ids: Iterable<string>): number => {
