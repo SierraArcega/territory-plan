@@ -231,4 +231,26 @@ describe("fetchLeaderboardData", () => {
     expect(payload.entries[0].minPurchasesNextFY).toBe(0);
     expect(payload.entries[0].pipelinePriorFY).toBe(0);
   });
+
+  it("populates targetedPriorFY from prior-year territory plan districts", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockTerritoryPlanDistrict
+      .mockResolvedValueOnce([]) // currentFY districts
+      .mockResolvedValueOnce([]) // nextFY districts
+      .mockResolvedValueOnce([  // priorFY districts ← third call
+        {
+          districtLeaid: "D1",
+          renewalTarget: 500,
+          winbackTarget: 0,
+          expansionTarget: 0,
+          newBusinessTarget: 0,
+          plan: { ownerId: "u1", userId: null },
+        },
+      ] as never);
+
+    const payload = await fetchLeaderboardData();
+    expect(payload.entries[0].targetedPriorFY).toBe(500);
+  });
 });

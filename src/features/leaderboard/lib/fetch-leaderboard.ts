@@ -92,7 +92,13 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
   for (const p of profiles) emailByUserId.set(p.id, p.email);
   const rosterEmails = [...emailByUserId.values()];
 
-  const [targetedCurrentFYDistricts, targetedNextFYDistricts, pipelineRows, unmatchedByRep] = await Promise.all([
+  const [
+    targetedCurrentFYDistricts,
+    targetedNextFYDistricts,
+    targetedPriorFYDistricts,
+    pipelineRows,
+    unmatchedByRep,
+  ] = await Promise.all([
     prisma.territoryPlanDistrict.findMany({
       where: { plan: { ...ownerFilter, fiscalYear: currentFYInt } },
       select: {
@@ -109,6 +115,14 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
         plan: { select: { ownerId: true, userId: true } },
       },
     }),
+    prisma.territoryPlanDistrict.findMany({
+      where: { plan: { ...ownerFilter, fiscalYear: currentFYInt - 1 } },
+      select: {
+        districtLeaid: true,
+        renewalTarget: true, winbackTarget: true, expansionTarget: true, newBusinessTarget: true,
+        plan: { select: { ownerId: true, userId: true } },
+      },
+    }),
     rosterEmails.length === 0
       ? Promise.resolve([])
       : prisma.$queryRaw<{ sales_rep_email: string; district_lea_id: string; school_yr: string; pipeline: number }[]>`
@@ -116,7 +130,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
                  SUM(open_pipeline)::float AS pipeline
           FROM district_opportunity_actuals
           WHERE sales_rep_email = ANY(${rosterEmails})
-            AND school_yr IN (${defaultSchoolYr}, ${nextFYSchoolYr})
+            AND school_yr IN (${priorSchoolYr}, ${defaultSchoolYr}, ${nextFYSchoolYr})
             AND district_lea_id != '_NOMAP'
           GROUP BY sales_rep_email, district_lea_id, school_yr
           HAVING SUM(open_pipeline) > 0
@@ -149,6 +163,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
 
   const targetedCurrentFYByUser = sumTargetsWithPipelineDeduction(targetedCurrentFYDistricts, defaultSchoolYr);
   const targetedNextFYByUser = sumTargetsWithPipelineDeduction(targetedNextFYDistricts, nextFYSchoolYr);
+  const targetedPriorFYByUser = sumTargetsWithPipelineDeduction(targetedPriorFYDistricts, priorSchoolYr);
 
   const entries: LeaderboardEntry[] = rosterProfiles.map((profile) => {
     const a = actualsMap.get(profile.id) ?? {
@@ -159,6 +174,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     };
     const targetedCurrentFY = targetedCurrentFYByUser.get(profile.id) ?? 0;
     const targetedNextFY = targetedNextFYByUser.get(profile.id) ?? 0;
+    const targetedPriorFY = targetedPriorFYByUser.get(profile.id) ?? 0;
     const unmatched = unmatchedByRep.get(profile.email) ?? { count: 0, revenue: 0 };
     return {
       userId: profile.id,
@@ -181,7 +197,7 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
       revenueTargeted: targetedCurrentFY + targetedNextFY,
       targetedCurrentFY,
       targetedNextFY,
-      targetedPriorFY: 0,
+      targetedPriorFY,
       unmatchedOppCount: unmatched.count,
       unmatchedRevenue: unmatched.revenue,
     };
