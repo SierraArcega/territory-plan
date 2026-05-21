@@ -58,6 +58,13 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** close_date (timestamptz) → ISO string, or null if missing/unparseable. */
+function toISO(v: Date | string | null): string | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+}
+
 function emptyColumns(): KanbanColumn[] {
   return OPP_STAGE_COLUMNS.map((c) => ({
     id: c.id,
@@ -98,39 +105,39 @@ export async function GET(req: NextRequest) {
 
   const stages = [...OPP_KANBAN_STAGES];
 
-  // True per-stage count + summed bookings (independent of the card cap).
-  const aggResult = await readonlyPool.query<AggRow>(
-    `SELECT stage,
-            COUNT(*) AS count,
-            COALESCE(SUM(net_booking_amount), 0) AS total
-       FROM opportunities
-      WHERE district_lea_id = ANY($1)
-        AND school_yr = $2
-        AND stage = ANY($3)
-      GROUP BY stage`,
-    [leaids, schoolYr, stages],
-  );
-
-  // At most `limit` cards per stage via a window function.
-  const cardResult = await readonlyPool.query<CardRow>(
-    `SELECT id, stage, name, district_name, contract_type, net_booking_amount,
-            minimum_purchase_amount, maximum_budget, close_date, sales_rep_name
-       FROM (
-         SELECT o.id, o.stage, o.name, o.district_name, o.contract_type,
-                o.net_booking_amount, o.minimum_purchase_amount, o.maximum_budget,
-                o.close_date, o.sales_rep_name,
-                ROW_NUMBER() OVER (
-                  PARTITION BY o.stage
-                  ORDER BY o.close_date ASC NULLS LAST, o.net_booking_amount DESC NULLS LAST
-                ) AS rn
-           FROM opportunities o
-          WHERE o.district_lea_id = ANY($1)
-            AND o.school_yr = $2
-            AND o.stage = ANY($3)
-       ) ranked
-      WHERE rn <= $4`,
-    [leaids, schoolYr, stages, limit],
-  );
+  // Run aggregate and card queries in parallel.
+  const [aggResult, cardResult] = await Promise.all([
+    readonlyPool.query<AggRow>(
+      `SELECT stage,
+              COUNT(*) AS count,
+              COALESCE(SUM(net_booking_amount), 0) AS total
+         FROM opportunities
+        WHERE district_lea_id = ANY($1)
+          AND school_yr = $2
+          AND stage = ANY($3)
+        GROUP BY stage`,
+      [leaids, schoolYr, stages],
+    ),
+    readonlyPool.query<CardRow>(
+      `SELECT id, stage, name, district_name, contract_type, net_booking_amount,
+              minimum_purchase_amount, maximum_budget, close_date, sales_rep_name
+         FROM (
+           SELECT o.id, o.stage, o.name, o.district_name, o.contract_type,
+                  o.net_booking_amount, o.minimum_purchase_amount, o.maximum_budget,
+                  o.close_date, o.sales_rep_name,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY o.stage
+                    ORDER BY o.close_date ASC NULLS LAST, o.net_booking_amount DESC NULLS LAST
+                  ) AS rn
+             FROM opportunities o
+            WHERE o.district_lea_id = ANY($1)
+              AND o.school_yr = $2
+              AND o.stage = ANY($3)
+         ) ranked
+        WHERE rn <= $4`,
+      [leaids, schoolYr, stages, limit],
+    ),
+  ]);
 
   const aggByStage = new Map<string, { count: number; total: number }>();
   for (const r of aggResult.rows) {
@@ -151,7 +158,7 @@ export async function GET(req: NextRequest) {
       netBookingAmount: num(r.net_booking_amount),
       minimumPurchaseAmount: num(r.minimum_purchase_amount),
       maximumBudget: num(r.maximum_budget),
-      closeDate: r.close_date ? new Date(r.close_date).toISOString() : null,
+      closeDate: toISO(r.close_date),
       salesRepName: r.sales_rep_name,
     });
     cardsByStage.set(r.stage, list);
