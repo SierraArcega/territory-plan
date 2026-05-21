@@ -30,13 +30,20 @@ export async function fetchDistrictNotesSummary(
   leaids: string[],
 ): Promise<Map<string, NoteSummary>> {
   if (leaids.length === 0) return new Map();
-  const rows = await prisma.$queryRaw<NoteSummaryRow[]>`
-    SELECT district_leaid,
-           COUNT(*)::int AS count,
-           (ARRAY_AGG(body_text ORDER BY created_at DESC))[1] AS latest_text
-    FROM district_notes
-    WHERE district_leaid = ANY(${leaids})
-    GROUP BY district_leaid
-  `.catch(() => [] as NoteSummaryRow[]);
-  return summarizeNoteRows(rows);
+  // Wrapped in try/catch (not just `.catch`) so a synchronous throw — e.g. an
+  // unavailable client in tests — degrades to an empty summary instead of
+  // failing the whole grid request. The cell simply shows "+ Add note".
+  try {
+    const rows = await prisma.$queryRaw<NoteSummaryRow[]>`
+      SELECT district_leaid,
+             COUNT(*)::int AS count,
+             (ARRAY_AGG(body_text ORDER BY created_at DESC))[1] AS latest_text
+      FROM district_notes
+      WHERE district_leaid = ANY(${leaids})
+      GROUP BY district_leaid
+    `;
+    return summarizeNoteRows(rows);
+  } catch {
+    return new Map();
+  }
 }
