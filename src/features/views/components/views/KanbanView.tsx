@@ -14,6 +14,7 @@
  * other views until list previews are wired.
  */
 import { useQuery } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { OPP_STAGE_COLUMNS } from "@/features/views/lib/opp-stage-columns";
@@ -43,6 +44,7 @@ interface KanbanCard {
   maximumBudget: number | null;
   closeDate: string | null;
   salesRepName: string | null;
+  detailsLink: string | null;
 }
 
 interface KanbanColumnData {
@@ -192,11 +194,26 @@ function Card({ card, accent }: { card: KanbanCard; accent: string }) {
             {card.name ?? "Untitled opportunity"}
           </span>
         </div>
-        {card.contractType && (
-          <span className="inline-block px-1.5 py-0.5 rounded-full bg-[#EFEDF5] text-[10px] font-semibold text-[#6f6786] whitespace-nowrap flex-shrink-0">
-            {card.contractType}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {card.contractType && (
+            <span className="inline-block px-1.5 py-0.5 rounded-full bg-[#EFEDF5] text-[10px] font-semibold text-[#6f6786] whitespace-nowrap">
+              {card.contractType}
+            </span>
+          )}
+          {card.detailsLink && (
+            <a
+              href={card.detailsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Open in LMS"
+              title="Open in LMS"
+              className="text-[#A69DC0] hover:text-[#403770] transition-colors duration-100"
+            >
+              <ExternalLink className="w-3.5 h-3.5" aria-hidden />
+            </a>
+          )}
+        </div>
       </div>
       <div className="flex flex-col gap-0.5 text-[11px]">
         <CardRow label="District" value={card.districtName ?? "—"} />

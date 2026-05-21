@@ -68,12 +68,14 @@ describe("GET /api/views/opps-kanban — grouping", () => {
             net_booking_amount: "45000", minimum_purchase_amount: "20000",
             maximum_budget: null, close_date: "2026-06-01T00:00:00.000Z",
             sales_rep_name: "Alice Smith",
+            details_link: "https://lms.fullmindlearning.com/opportunities/111/details",
           },
           {
             id: "opp-2", stage: "2 - Presentation", name: "Beta Expansion",
             district_name: "Beta School", contract_type: null,
             net_booking_amount: "90000", minimum_purchase_amount: "30000",
             maximum_budget: "120000", close_date: null, sales_rep_name: null,
+            details_link: "https://lms.fullmindlearning.com/opportunities/222/details",
           },
         ],
       });
@@ -102,6 +104,9 @@ describe("GET /api/views/opps-kanban — grouping", () => {
       salesRepName: "Alice Smith",
     });
     expect(discovery.cards[0].closeDate).toContain("2026-06-01");
+    expect(discovery.cards[0].detailsLink).toBe(
+      "https://lms.fullmindlearning.com/opportunities/111/details",
+    );
     // 3 in stage, 1 card returned → hasMore
     expect(discovery.hasMore).toBe(true);
 
@@ -136,6 +141,7 @@ describe("GET /api/views/opps-kanban — grouping", () => {
     const cardSql = mockQuery.mock.calls[1][0] as string;
     const cardParams = mockQuery.mock.calls[1][1] as unknown[];
     expect(cardSql).toMatch(/row_number\(\) over/i);
+    expect(cardSql).toMatch(/details_link/i);
     expect(cardSql).toMatch(/rn <= \$4/i);
     expect(cardParams[3]).toBe(50);
   });

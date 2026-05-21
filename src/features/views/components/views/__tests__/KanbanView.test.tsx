@@ -31,6 +31,7 @@ const fixture = {
         id: "opp-1", name: "Acme Renewal", districtName: "Acme District",
         contractType: "Tier 1", netBookingAmount: 45000, minimumPurchaseAmount: 20000,
         maximumBudget: null, closeDate: "2026-06-01T00:00:00.000Z", salesRepName: "Alice Smith",
+        detailsLink: "https://lms.fullmindlearning.com/opportunities/111/details",
       }],
     }),
     col({
@@ -39,6 +40,7 @@ const fixture = {
         id: "opp-2", name: "Beta Expansion", districtName: "Beta School",
         contractType: null, netBookingAmount: 90000, minimumPurchaseAmount: 30000,
         maximumBudget: 120000, closeDate: null, salesRepName: null,
+        detailsLink: null,
       }],
     }),
     col({ id: "proposal", label: "Proposal" }),
@@ -112,5 +114,21 @@ describe("KanbanView", () => {
     expect(
       container.querySelector('[data-row-kind="opp"][data-row-id="opp-1"]'),
     ).not.toBeNull();
+  });
+
+  it("links out to the opp's LMS url in a new tab, only when present", async () => {
+    (fetchJson as Mock).mockResolvedValue(fixture);
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={2026} />));
+    await screen.findByText("Acme Renewal");
+    // opp-1 has a detailsLink; opp-2 does not → exactly one LMS link
+    const links = screen.getAllByRole("link", { name: "Open in LMS" });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      "https://lms.fullmindlearning.com/opportunities/111/details",
+    );
+    expect(links[0]).toHaveAttribute("target", "_blank");
+    // never render the raw URL as visible text
+    expect(screen.queryByText(/lms\.fullmindlearning\.com/)).toBeNull();
   });
 });

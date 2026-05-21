@@ -21,6 +21,7 @@ interface KanbanCard {
   maximumBudget: number | null;
   closeDate: string | null;
   salesRepName: string | null;
+  detailsLink: string | null;
 }
 
 interface KanbanColumn {
@@ -49,6 +50,7 @@ interface CardRow {
   maximum_budget: string | null;
   close_date: Date | string | null;
   sales_rep_name: string | null;
+  details_link: string | null;
 }
 
 /** Decimal columns arrive as strings from pg — coerce to number or null. */
@@ -120,11 +122,12 @@ export async function GET(req: NextRequest) {
     ),
     readonlyPool.query<CardRow>(
       `SELECT id, stage, name, district_name, contract_type, net_booking_amount,
-              minimum_purchase_amount, maximum_budget, close_date, sales_rep_name
+              minimum_purchase_amount, maximum_budget, close_date, sales_rep_name,
+              details_link
          FROM (
            SELECT o.id, o.stage, o.name, o.district_name, o.contract_type,
                   o.net_booking_amount, o.minimum_purchase_amount, o.maximum_budget,
-                  o.close_date, o.sales_rep_name,
+                  o.close_date, o.sales_rep_name, o.details_link,
                   ROW_NUMBER() OVER (
                     PARTITION BY o.stage
                     ORDER BY o.close_date ASC NULLS LAST, o.net_booking_amount DESC NULLS LAST
@@ -160,6 +163,7 @@ export async function GET(req: NextRequest) {
       maximumBudget: num(r.maximum_budget),
       closeDate: toISO(r.close_date),
       salesRepName: r.sales_rep_name,
+      detailsLink: r.details_link,
     });
     cardsByStage.set(r.stage, list);
   }
