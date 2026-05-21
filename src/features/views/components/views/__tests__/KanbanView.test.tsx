@@ -54,6 +54,14 @@ beforeEach(() => {
 });
 
 describe("KanbanView", () => {
+  it("shows the no-opportunities empty state when the plan has no fiscal year", () => {
+    render(wrap(<KanbanView leaids={["lea1"]} fiscalYear={null} />));
+    expect(
+      screen.getByText("No opportunities for this plan's year"),
+    ).toBeInTheDocument();
+    expect(fetchJson as Mock).not.toHaveBeenCalled();
+  });
+
   it("shows the list-scope empty state and never fetches when leaids is null", () => {
     render(wrap(<KanbanView leaids={null} fiscalYear={2026} />));
     expect(screen.getByText("List scoping not wired yet")).toBeInTheDocument();

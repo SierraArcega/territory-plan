@@ -143,7 +143,7 @@ function Column({ col, accent }: { col: KanbanColumnData; accent: string }) {
             style={{ background: accent }}
             aria-hidden
           />
-          <span className="text-[12px] font-semibold text-[#403770] whitespace-nowrap truncate">
+          <span className="text-[12px] font-semibold text-[#403770] truncate">
             {col.label}
           </span>
           <span className="text-[11px] text-[#8A80A8] tabular-nums whitespace-nowrap">
@@ -188,7 +188,7 @@ function Card({ card, accent }: { card: KanbanCard; accent: string }) {
             style={{ background: accent }}
             aria-hidden
           />
-          <span className="text-[13px] font-semibold text-[#403770] truncate whitespace-nowrap">
+          <span className="text-[13px] font-semibold text-[#403770] truncate">
             {card.name ?? "Untitled opportunity"}
           </span>
         </div>
@@ -198,7 +198,7 @@ function Card({ card, accent }: { card: KanbanCard; accent: string }) {
           </span>
         )}
       </div>
-      <dl className="flex flex-col gap-0.5 text-[11px]">
+      <div className="flex flex-col gap-0.5 text-[11px]">
         <CardRow label="District" value={card.districtName ?? "—"} />
         <CardRow
           label="Amount"
@@ -217,7 +217,7 @@ function Card({ card, accent }: { card: KanbanCard; accent: string }) {
         )}
         <CardRow label="Close" value={formatCloseDate(card.closeDate)} />
         <CardRow label="Sales rep" value={card.salesRepName ?? "—"} />
-      </dl>
+      </div>
     </div>
   );
 }
