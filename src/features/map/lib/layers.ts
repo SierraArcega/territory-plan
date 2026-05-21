@@ -726,3 +726,51 @@ export function buildTransitionFillExpression(
     "#E5E7EB",
   ] as unknown as ExpressionSpecification;
 }
+
+// ── Views feature: plan-scoped highlight + selection layers ───────────────────
+// Drawn above `district-base-fill`. Filters are applied reactively by
+// MapV2Container via setFilter; they start matching nothing. Source mirrors the
+// base district fill (districts tiles, rollups excluded).
+
+/** Build a "districts whose leaid is in this set, excluding rollups" filter. */
+export function viewsPlanLeaidFilter(leaids: string[]): unknown[] {
+  return ["all", NOT_ROLLUP_FILTER, ["in", ["get", "leaid"], ["literal", leaids]]];
+}
+
+const VIEWS_PLAN_MATCH_NONE = viewsPlanLeaidFilter([]);
+
+export const VIEWS_PLAN_HIGHLIGHT_FILL_LAYER = {
+  id: "views-plan-highlight-fill",
+  type: "fill" as const,
+  source: "districts",
+  "source-layer": "districts",
+  filter: VIEWS_PLAN_MATCH_NONE,
+  paint: { "fill-color": "#403770", "fill-opacity": 0.22 },
+};
+
+export const VIEWS_PLAN_HIGHLIGHT_OUTLINE_LAYER = {
+  id: "views-plan-highlight-outline",
+  type: "line" as const,
+  source: "districts",
+  "source-layer": "districts",
+  filter: VIEWS_PLAN_MATCH_NONE,
+  paint: { "line-color": "#403770", "line-width": 2 },
+};
+
+export const VIEWS_PLAN_SELECTION_FILL_LAYER = {
+  id: "views-plan-selection-fill",
+  type: "fill" as const,
+  source: "districts",
+  "source-layer": "districts",
+  filter: VIEWS_PLAN_MATCH_NONE,
+  paint: { "fill-color": "#F37167", "fill-opacity": 0.18 },
+};
+
+export const VIEWS_PLAN_SELECTION_OUTLINE_LAYER = {
+  id: "views-plan-selection-outline",
+  type: "line" as const,
+  source: "districts",
+  "source-layer": "districts",
+  filter: VIEWS_PLAN_MATCH_NONE,
+  paint: { "line-color": "#F37167", "line-width": 2.5 },
+};
