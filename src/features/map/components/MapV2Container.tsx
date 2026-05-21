@@ -618,31 +618,6 @@ export default function MapV2Container({
       // absorbing clicks (no fill, so MapLibre hit-tests pass through).
       map.current.addLayer(DISTRICT_ROLLUP_OUTLINE_LAYER as any);
 
-      // Views plan-scoping highlight layers (filters + framing applied reactively
-      // by the effects below; we also apply current store state here because the
-      // plan context is usually set before this load handler runs).
-      map.current.addLayer(VIEWS_PLAN_HIGHLIGHT_FILL_LAYER as any);
-      map.current.addLayer(VIEWS_PLAN_HIGHLIGHT_OUTLINE_LAYER as any);
-      map.current.addLayer(VIEWS_PLAN_SELECTION_FILL_LAYER as any);
-      map.current.addLayer(VIEWS_PLAN_SELECTION_OUTLINE_LAYER as any);
-      {
-        const vp = useMapV2Store.getState();
-        const hf = viewsPlanLeaidFilter([...vp.viewsPlanHighlightLeaids]) as any;
-        map.current.setFilter("views-plan-highlight-fill", hf);
-        map.current.setFilter("views-plan-highlight-outline", hf);
-        const sf = viewsPlanLeaidFilter([...vp.viewsPlanSelectedLeaids]) as any;
-        map.current.setFilter("views-plan-selection-fill", sf);
-        map.current.setFilter("views-plan-selection-outline", sf);
-        if (vp.viewsPlanId) {
-          const b = boundsForLeaids([...vp.viewsPlanHighlightLeaids], STATE_BBOX);
-          map.current.fitBounds((b ?? US_BOUNDS) as maplibregl.LngLatBoundsLike, {
-            padding: 48,
-            duration: 600,
-          });
-          lastFramedPlanId.current = vp.viewsPlanId;
-        }
-      }
-
       // Signal fill layer (renders below vendor layers) — rollups excluded
       map.current.addLayer({
         id: "district-signal-fill",
@@ -705,6 +680,33 @@ export default function MapV2Container({
             visibility: vendorId === "fullmind" ? "visible" : "none",
           },
         });
+      }
+
+      // Views plan-scoping highlight layers (filters + framing applied reactively
+      // by the effects below; we also apply current store state here because the
+      // plan context is usually set before this load handler runs).
+      // Added after all district polygon fills (base/signal/locale/vendor) so the
+      // semi-opaque vendor fills can't draw over and hide the plan highlight.
+      map.current.addLayer(VIEWS_PLAN_HIGHLIGHT_FILL_LAYER as any);
+      map.current.addLayer(VIEWS_PLAN_HIGHLIGHT_OUTLINE_LAYER as any);
+      map.current.addLayer(VIEWS_PLAN_SELECTION_FILL_LAYER as any);
+      map.current.addLayer(VIEWS_PLAN_SELECTION_OUTLINE_LAYER as any);
+      {
+        const vp = useMapV2Store.getState();
+        const hf = viewsPlanLeaidFilter([...vp.viewsPlanHighlightLeaids]) as any;
+        map.current.setFilter("views-plan-highlight-fill", hf);
+        map.current.setFilter("views-plan-highlight-outline", hf);
+        const sf = viewsPlanLeaidFilter([...vp.viewsPlanSelectedLeaids]) as any;
+        map.current.setFilter("views-plan-selection-fill", sf);
+        map.current.setFilter("views-plan-selection-outline", sf);
+        if (vp.viewsPlanId) {
+          const b = boundsForLeaids([...vp.viewsPlanHighlightLeaids], STATE_BBOX);
+          map.current.fitBounds((b ?? US_BOUNDS) as maplibregl.LngLatBoundsLike, {
+            padding: 48,
+            duration: 600,
+          });
+          lastFramedPlanId.current = vp.viewsPlanId;
+        }
       }
 
       // Circle layer for non-district point accounts (CMOs, ESAs, etc.)
@@ -1302,8 +1304,9 @@ export default function MapV2Container({
 
           const store = useMapV2Store.getState();
 
-          // Views plan-scoped mode: clicks build the pending-add selection only.
-          // No results panel, no zoom; in-plan districts are ignored (no-op).
+          // Views plan-scoped mode: clicks build the pending-add selection only
+          // (no results panel, no zoom). In-plan districts ripple but stay
+          // unselected — toggleViewsPlanSelection is a no-op for them.
           if (store.viewsPlanId) {
             store.addClickRipple(e.point.x, e.point.y, "plum");
             store.toggleViewsPlanSelection(leaid);
