@@ -28,7 +28,7 @@ interface TypeMeta {
 export const SIGNAL_TYPE_META: Record<SignalType, TypeMeta> = {
   vac: { Icon: UserSearch, label: "VAC", bg: "#e8f1f5", fg: "#4d7285" },
   news: { Icon: Newspaper, label: "NEWS", bg: "#EFEDF5", fg: "#6f4c8c" },
-  rfp: { Icon: FileText, label: "RFP", bg: "#FFF6DD", fg: "#7d6d3a" },
+  rfp: { Icon: FileText, label: "RFP", bg: "#fffaf1", fg: "#7d6d3a" },
 };
 
 interface SignalTypeTagProps {
@@ -42,7 +42,7 @@ export default function SignalTypeTag({ type, withLabel = false }: SignalTypeTag
   const { Icon, label, bg, fg } = meta;
   return (
     <span
-      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] whitespace-nowrap"
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] whitespace-nowrap"
       style={{ background: bg, color: fg }}
       data-signal-type={type}
     >

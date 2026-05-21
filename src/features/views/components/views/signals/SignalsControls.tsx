@@ -97,7 +97,7 @@ export default function SignalsControls({
 
       {/* Time-window segmented control */}
       <div
-        className="flex shrink-0 items-center rounded-md border border-[#E2DEEC] bg-white p-0.5"
+        className="flex shrink-0 items-center rounded-lg border border-[#E2DEEC] bg-white p-0.5"
         role="group"
         aria-label="Time window"
       >
@@ -134,7 +134,7 @@ export default function SignalsControls({
           onChange={(e) => onChange({ search: e.target.value })}
           placeholder={searchDisabled ? "Loading districts…" : "Search districts"}
           aria-label="Search districts"
-          className="w-full rounded-md border border-[#D4CFE2] bg-white py-1 pl-7 pr-2 text-[12px] text-[#403770] placeholder:text-[#A69DC0] focus:border-[#403770] focus:outline-none disabled:bg-[#F7F5FA] disabled:text-[#A69DC0]"
+          className="w-full rounded-lg border border-[#D4CFE2] bg-white py-1 pl-7 pr-2 text-[12px] text-[#403770] placeholder:text-[#A69DC0] focus:border-[#403770] focus:outline-none disabled:bg-[#F7F5FA] disabled:text-[#A69DC0]"
         />
       </div>
 
@@ -143,7 +143,7 @@ export default function SignalsControls({
         type="button"
         onClick={() => onChange({ expandAll: !expandAll })}
         aria-pressed={expandAll}
-        className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#D4CFE2] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#544A78] hover:border-[#403770] hover:text-[#403770] transition-colors duration-100"
+        className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#D4CFE2] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#544A78] hover:border-[#403770] hover:text-[#403770] transition-colors duration-100"
       >
         <ExpandIcon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden strokeWidth={2} />
         <span className="whitespace-nowrap">

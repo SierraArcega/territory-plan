@@ -47,7 +47,7 @@ export default function SignalItemRow({ item }: SignalItemRowProps) {
         <SignalTypeTag type={type} withLabel />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-[#2d2750] truncate whitespace-nowrap">
+        <div className="text-[13px] font-medium text-[#403770] truncate whitespace-nowrap">
           {title}
         </div>
         {(meta || secondaryDate) && (

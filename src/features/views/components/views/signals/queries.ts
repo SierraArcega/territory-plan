@@ -15,6 +15,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
+import { leaidsKey } from "../_shared";
 import type { SignalType, SignalWindow } from "@/lib/signals/sql";
 
 // ── Wire shapes ──────────────────────────────────────────────────────────────
@@ -97,9 +98,13 @@ export function useSignalsSummary({
 }: UseSignalsSummaryArgs) {
   const csv = typesCsv(types);
   const enabled = parentKind === "plan" || (leaids !== null && leaids.length > 0);
+  // Plans derive leaids server-side from parentId (planId), so leaidsKey is
+  // "none" and parentId disambiguates. Lists pass an explicit set — include it
+  // so two resolved scopes for the same list id can't collide (Phase E).
+  const scopeKey = parentKind === "plan" ? "plan" : leaidsKey(leaids);
 
   return useQuery<SignalsSummaryResponse, Error>({
-    queryKey: ["signals-summary", parentKind, parentId, csv, since] as const,
+    queryKey: ["signals-summary", parentKind, parentId, csv, since, scopeKey] as const,
     queryFn: () => {
       const params = new URLSearchParams();
       if (parentKind === "plan") {

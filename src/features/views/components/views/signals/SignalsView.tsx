@@ -111,6 +111,9 @@ export default function SignalsView({
     } else if (patch.expandAll === false) {
       setExpandedSet(new Set());
     }
+    // A new search term re-scopes the list — reset paging so "Show more" state
+    // doesn't carry across searches.
+    if (patch.search !== undefined) setPage(1);
     patchToolbar(patch);
   }
 
