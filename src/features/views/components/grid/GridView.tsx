@@ -25,7 +25,7 @@ import { GridSortChips } from "./GridSortChips";
 import { GridGroupChip } from "./GridGroupChip";
 import { GridColumnMenu } from "./GridColumnMenu";
 import { ChurnRiskCell } from "./cells/ChurnRiskCell";
-import { PlanNotesCell } from "./cells/PlanNotesCell";
+import { DistrictNotesCell } from "./cells/DistrictNotesCell";
 import { CustomerRankCell } from "./cells/CustomerRankCell";
 import {
   LoadingState,
@@ -258,11 +258,11 @@ export default function GridView(props: GridViewProps) {
         }
         if (c.id === "plan_notes" && leaid) {
           return (
-            <PlanNotesCell
-              value={typeof v === "string" ? v : null}
-              planId={planId}
+            <DistrictNotesCell
               leaid={leaid}
-              disabled={planId == null}
+              districtName={typeof row.name === "string" ? row.name : leaid}
+              latest={typeof row.notesLatest === "string" ? row.notesLatest : null}
+              count={typeof row.notesCount === "number" ? row.notesCount : 0}
             />
           );
         }
