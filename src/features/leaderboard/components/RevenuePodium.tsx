@@ -1,9 +1,18 @@
 "use client";
 
 import type { LeaderboardEntry } from "../lib/types";
+import type { RevenueSortColumn } from "./RevenueTable";
+
+const COLUMN_LABELS: Record<RevenueSortColumn, string> = {
+  revenue: "Revenue",
+  priorYearRevenue: "Min Purchases",
+  pipeline: "Pipeline",
+  revenueTargeted: "Targeted",
+};
 
 interface RevenuePodiumProps {
   entries: LeaderboardEntry[];
+  sortColumn: RevenueSortColumn;
 }
 
 import { formatRevenue, getInitials } from "../lib/format";
@@ -35,7 +44,7 @@ const PODIUM_STYLES = {
   },
 } as const;
 
-export default function RevenuePodium({ entries }: RevenuePodiumProps) {
+export default function RevenuePodium({ entries, sortColumn }: RevenuePodiumProps) {
   if (entries.length < 3) return null;
 
   const [first, second, third] = entries;
@@ -79,10 +88,10 @@ export default function RevenuePodium({ entries }: RevenuePodiumProps) {
               {entry.fullName}
             </span>
             <span className="text-sm sm:text-lg font-bold text-[#5B2E91]">
-              {formatRevenue(entry.revenue)}
+              {formatRevenue(entry[sortColumn])}
             </span>
             <span className="text-[10px] sm:text-[11px] text-[#8A849A] uppercase tracking-wider mt-0.5">
-              Current Year
+              {COLUMN_LABELS[sortColumn]}
             </span>
           </div>
         );
