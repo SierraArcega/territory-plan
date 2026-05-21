@@ -32,6 +32,8 @@ interface KanbanViewProps {
   leaids: string[] | null;
   /** Plan's fiscal year (e.g. 2026). null for lists (not scoped in v1). */
   fiscalYear: number | null;
+  /** Plan id — drives the "Targeted" column. null for lists (not scoped in v1). */
+  planId: string | null;
 }
 
 interface KanbanCard {
@@ -56,26 +58,51 @@ interface KanbanColumnData {
   hasMore: boolean;
 }
 
+interface TargetedCard {
+  leaid: string;
+  name: string | null;
+  target: number;
+}
+
+interface TargetedData {
+  count: number;
+  totalTarget: number;
+  cards: TargetedCard[];
+  hasMore: boolean;
+}
+
 interface KanbanResponse {
   schoolYr: string;
   columns: KanbanColumnData[];
+  targeted: TargetedData;
 }
 
 const ACCENT_BY_ID: Record<string, string> = Object.fromEntries(
   OPP_STAGE_COLUMNS.map((c) => [c.id, c.accent]),
 );
 
-export default function KanbanView({ leaids, fiscalYear }: KanbanViewProps) {
+/** Accent for the leftmost "Targeted" column (no-opp plan districts). */
+const TARGETED_ACCENT = "#9B93B8";
+
+const EMPTY_TARGETED: TargetedData = {
+  count: 0,
+  totalTarget: 0,
+  cards: [],
+  hasMore: false,
+};
+
+export default function KanbanView({ leaids, fiscalYear, planId }: KanbanViewProps) {
   const keyTag = leaidsKey(leaids);
   const schoolYr = fiscalYear != null ? fiscalYearToSchoolYear(fiscalYear) : "";
 
   const q = useQuery({
-    queryKey: ["views", "opps-kanban", keyTag, schoolYr, PAGE_SIZE] as const,
+    queryKey: ["views", "opps-kanban", keyTag, schoolYr, planId ?? "", PAGE_SIZE] as const,
     queryFn: () => {
       const csv = leaidsCsv(leaids);
+      const planParam = planId ? `&planId=${encodeURIComponent(planId)}` : "";
       return fetchJson<KanbanResponse>(
         `${API_BASE}/views/opps-kanban?leaids=${encodeURIComponent(csv)}` +
-          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}`,
+          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}${planParam}`,
       );
     },
     enabled: leaids !== null && schoolYr !== "",
@@ -102,8 +129,9 @@ export default function KanbanView({ leaids, fiscalYear }: KanbanViewProps) {
   }
 
   const columns = q.data?.columns ?? [];
+  const targeted = q.data?.targeted ?? EMPTY_TARGETED;
   const totalOpps = columns.reduce((sum, c) => sum + c.count, 0);
-  if (totalOpps === 0) {
+  if (totalOpps === 0 && targeted.count === 0) {
     return (
       <EmptyState
         title="No opportunities for this plan's year"
@@ -118,6 +146,9 @@ export default function KanbanView({ leaids, fiscalYear }: KanbanViewProps) {
       style={{ touchAction: "pan-y" }}
     >
       <div className="flex gap-3 min-w-max h-full">
+        {targeted.count > 0 && (
+          <TargetedColumn targeted={targeted} accent={TARGETED_ACCENT} />
+        )}
         {columns.map((col) => (
           <Column
             key={col.id}
@@ -126,6 +157,81 @@ export default function KanbanView({ leaids, fiscalYear }: KanbanViewProps) {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+function TargetedColumn({
+  targeted,
+  accent,
+}: {
+  targeted: TargetedData;
+  accent: string;
+}) {
+  return (
+    <div className="w-64 flex flex-col flex-shrink-0">
+      <div
+        className="rounded-full mb-2"
+        style={{ height: 2, background: accent }}
+        aria-hidden
+      />
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ background: accent }}
+            aria-hidden
+          />
+          <span className="text-[12px] font-semibold text-[#403770] truncate">
+            Targeted
+          </span>
+          <span className="text-[11px] text-[#8A80A8] tabular-nums whitespace-nowrap">
+            {targeted.count}
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold text-[#544A78] tabular-nums whitespace-nowrap">
+          {formatMoney(targeted.totalTarget)}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2 flex-1">
+        {targeted.cards.map((card) => (
+          <DistrictCard key={card.leaid} card={card} accent={accent} />
+        ))}
+        {targeted.hasMore && (
+          <div className="px-2.5 py-1 text-[11px] text-[#8A80A8] text-center whitespace-nowrap">
+            +{targeted.count - targeted.cards.length} more
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DistrictCard({
+  card,
+  accent,
+}: {
+  card: TargetedCard;
+  accent: string;
+}) {
+  return (
+    <div
+      data-row-kind="district"
+      data-row-id={card.leaid}
+      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 cursor-pointer hover:border-[#B8B0D0] transition-colors duration-100"
+      style={{ boxShadow: "0 1px 2px rgba(64,55,112,0.05)" }}
+    >
+      <div className="flex items-center gap-1.5 min-w-0 mb-1.5">
+        <span
+          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+          style={{ background: accent }}
+          aria-hidden
+        />
+        <span className="text-[13px] font-semibold text-[#403770] truncate">
+          {card.name ?? "Unknown district"}
+        </span>
+      </div>
+      <CardRow label="Target" value={formatMoney(card.target)} />
     </div>
   );
 }

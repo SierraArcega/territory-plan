@@ -45,6 +45,12 @@ describe("GET /api/views/opps-kanban — auth & validation", () => {
     const data = await res.json();
     expect(data.columns).toHaveLength(8);
     expect(data.columns.every((c: { count: number }) => c.count === 0)).toBe(true);
+    expect(data.targeted).toEqual({
+      count: 0,
+      totalTarget: 0,
+      cards: [],
+      hasMore: false,
+    });
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });
@@ -152,5 +158,66 @@ describe("GET /api/views/opps-kanban — grouping", () => {
     await GET(makeRequest("/api/views/opps-kanban?leaids=l1&schoolYr=2025-26&limit=999"));
     const cardParams = mockQuery.mock.calls[1][1] as unknown[];
     expect(cardParams[3]).toBe(50);
+  });
+});
+
+describe("GET /api/views/opps-kanban — targeted column", () => {
+  it("returns plan districts with no FY opps + summed targets when planId is given", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    // Call order is agg, cards, targeted.
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          { leaid: "1100030", name: "Untouched A", target: "100000" },
+          { leaid: "1100060", name: "Untouched B", target: "50000" },
+        ],
+      });
+
+    const res = await GET(
+      makeRequest("/api/views/opps-kanban?leaids=l1,l2&schoolYr=2025-26&planId=plan-1"),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    expect(data.targeted).toEqual({
+      count: 2,
+      totalTarget: 150000,
+      cards: [
+        { leaid: "1100030", name: "Untouched A", target: 100000 },
+        { leaid: "1100060", name: "Untouched B", target: 50000 },
+      ],
+      hasMore: false,
+    });
+
+    // Targeted is the 3rd query, scoped to the plan with a NOT EXISTS opp guard.
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+    const targetedSql = mockQuery.mock.calls[2][0] as string;
+    const targetedParams = mockQuery.mock.calls[2][1] as unknown[];
+    expect(targetedSql).toMatch(/territory_plan_districts/i);
+    expect(targetedSql).toMatch(/not exists/i);
+    expect(targetedParams).toEqual(["plan-1", "2025-26"]);
+  });
+
+  it("omits the targeted query and zeroes the column when no planId is given", async () => {
+    mockGetUser.mockResolvedValue(mockUser);
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await GET(
+      makeRequest("/api/views/opps-kanban?leaids=l1&schoolYr=2025-26"),
+    );
+    const data = await res.json();
+
+    expect(data.targeted).toEqual({
+      count: 0,
+      totalTarget: 0,
+      cards: [],
+      hasMore: false,
+    });
+    // Only agg + cards ran — no targeted query without a planId.
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 });

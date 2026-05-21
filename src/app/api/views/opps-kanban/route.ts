@@ -33,6 +33,26 @@ interface KanbanColumn {
   hasMore: boolean;
 }
 
+/** A plan district with no opportunities this fiscal year. */
+interface TargetedCard {
+  leaid: string;
+  name: string | null;
+  target: number;
+}
+
+interface Targeted {
+  count: number;
+  totalTarget: number;
+  cards: TargetedCard[];
+  hasMore: boolean;
+}
+
+interface TargetedRow {
+  leaid: string;
+  name: string | null;
+  target: string;
+}
+
 interface AggRow {
   stage: string;
   count: string;
@@ -78,6 +98,10 @@ function emptyColumns(): KanbanColumn[] {
   }));
 }
 
+function emptyTargeted(): Targeted {
+  return { count: 0, totalTarget: 0, cards: [], hasMore: false };
+}
+
 export async function GET(req: NextRequest) {
   const user = await getUser();
   if (!user) {
@@ -86,6 +110,7 @@ export async function GET(req: NextRequest) {
 
   const params = new URL(req.url).searchParams;
   const schoolYr = params.get("schoolYr") ?? "";
+  const planId = params.get("planId");
   const leaids = (params.get("leaids") ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -102,13 +127,22 @@ export async function GET(req: NextRequest) {
   }
 
   if (leaids.length === 0) {
-    return NextResponse.json({ schoolYr, columns: emptyColumns() });
+    return NextResponse.json({
+      schoolYr,
+      columns: emptyColumns(),
+      targeted: emptyTargeted(),
+    });
   }
 
   const stages = [...OPP_KANBAN_STAGES];
 
-  // Run aggregate and card queries in parallel.
-  const [aggResult, cardResult] = await Promise.all([
+  // Run aggregate, card, and targeted queries in parallel. Keep this array order
+  // (agg, cards, targeted) stable — tests assert on call indices.
+  //
+  // "Targeted" = plan districts with NO opportunity this fiscal year. Only
+  // computable when a planId is supplied (targets live on territory_plan_districts).
+  // Districts are bounded per plan, so we fetch all matches and slice client-side.
+  const [aggResult, cardResult, targetedResult] = await Promise.all([
     readonlyPool.query<AggRow>(
       `SELECT stage,
               COUNT(*) AS count,
@@ -140,6 +174,26 @@ export async function GET(req: NextRequest) {
         WHERE rn <= $4`,
       [leaids, schoolYr, stages, limit],
     ),
+    planId
+      ? readonlyPool.query<TargetedRow>(
+          `SELECT tpd.district_leaid AS leaid,
+                  d.name AS name,
+                  COALESCE(tpd.renewal_target, 0)
+                    + COALESCE(tpd.winback_target, 0)
+                    + COALESCE(tpd.expansion_target, 0)
+                    + COALESCE(tpd.new_business_target, 0) AS target
+             FROM territory_plan_districts tpd
+             JOIN districts d ON d.leaid = tpd.district_leaid
+            WHERE tpd.plan_id = $1
+              AND NOT EXISTS (
+                SELECT 1 FROM opportunities o
+                 WHERE o.district_lea_id = tpd.district_leaid
+                   AND o.school_yr = $2
+              )
+            ORDER BY target DESC, d.name ASC`,
+          [planId, schoolYr],
+        )
+      : Promise.resolve({ rows: [] as TargetedRow[] }),
   ]);
 
   const aggByStage = new Map<string, { count: number; total: number }>();
@@ -181,5 +235,17 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json({ schoolYr, columns });
+  const targetedAll: TargetedCard[] = targetedResult.rows.map((r) => ({
+    leaid: r.leaid,
+    name: r.name,
+    target: Number(r.target) || 0,
+  }));
+  const targeted: Targeted = {
+    count: targetedAll.length,
+    totalTarget: targetedAll.reduce((sum, t) => sum + t.target, 0),
+    cards: targetedAll.slice(0, limit),
+    hasMore: targetedAll.length > limit,
+  };
+
+  return NextResponse.json({ schoolYr, columns, targeted });
 }

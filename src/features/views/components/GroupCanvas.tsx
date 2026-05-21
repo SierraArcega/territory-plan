@@ -223,7 +223,13 @@ function ViewBody({
         />
       );
     case "kanban":
-      return <KanbanView leaids={leaids} fiscalYear={plan?.fiscalYear ?? null} />;
+      return (
+        <KanbanView
+          leaids={leaids}
+          fiscalYear={plan?.fiscalYear ?? null}
+          planId={plan?.id ?? null}
+        />
+      );
     case "contacts":
       return (
         <ContactsView
