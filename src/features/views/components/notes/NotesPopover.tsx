@@ -46,7 +46,7 @@ export function NotesPopover({ leaid, districtName, onClose }: Props) {
       ref={ref}
       role="dialog"
       aria-label={`Notes for ${districtName}`}
-      className="w-[480px] max-w-[92vw] rounded-[14px] border border-[#D4CFE2] bg-white shadow-[0_16px_40px_rgba(64,55,112,0.22)] overflow-hidden"
+      className="w-[480px] max-w-[92vw] rounded-[14px] border border-[#D4CFE2] bg-white shadow-[0_16px_40px_rgba(64,55,112,0.22)] overflow-hidden max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:rounded-t-[16px]"
     >
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[#E2DEEC]">
         <span className="text-[12px] font-bold text-[#403770] uppercase tracking-[0.04em] whitespace-nowrap truncate">

@@ -451,8 +451,8 @@ interface UpdatePlanDistrictArgs {
 }
 
 /**
- * Optimistic per-plan-per-district mutation. Used by ChurnRiskCell and
- * PlanNotesCell. Invalidates the active views/data cache key so the next
+ * Optimistic per-plan-per-district mutation. Used by ChurnRiskCell.
+ * Invalidates the active views/data cache key so the next
  * fetch is fresh; the optimistic update keeps the cell snappy in the
  * meantime.
  */
