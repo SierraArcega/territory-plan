@@ -209,6 +209,7 @@ function ViewBody({
       return (
         <MapViewContainer
           leaids={leaids}
+          planId={kind === "plan" ? plan?.id ?? null : null}
           contextLabel={plan?.name ?? list?.name ?? null}
         />
       );
