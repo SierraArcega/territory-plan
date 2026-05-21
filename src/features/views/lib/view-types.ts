@@ -1,8 +1,9 @@
 /**
  * View-type registry for the Saved Views feature.
  *
- * Each Plan/List in the My Views sidebar can be rendered through one of 8
- * "views" (Map / Table / Kanban / Contacts / Opps / Vacancies / News / RFPs).
+ * Each Plan/List in the My Views sidebar can be rendered through one of 6
+ * "views" (Map / Table / Kanban / Contacts / Opps / Signals). Signals merges
+ * the former Vacancies / News / RFPs tabs into one district-grouped feed.
  * The set is closed in v1 — adding a new view type means adding an entry here
  * AND a body component under `components/views/`.
  *
@@ -16,22 +17,18 @@ import {
   Trello as KanbanIcon,
   Users as ContactsIcon,
   Briefcase as OppsIcon,
-  UserSearch as VacanciesIcon,
-  Newspaper as NewsIcon,
-  FileText as RfpsIcon,
+  RadioTower as SignalsIcon,
   type LucideIcon,
 } from "lucide-react";
 
-/** Discriminated identifier for one of the 8 view types. */
+/** Discriminated identifier for one of the 6 view types. */
 export type ViewId =
   | "map"
   | "table"
   | "kanban"
   | "contacts"
   | "opps"
-  | "vacancies"
-  | "news"
-  | "rfps";
+  | "signals";
 
 /** Discriminated identifier for the entity kind a detail panel may show. */
 export type DetailKind =
@@ -58,9 +55,10 @@ export const VIEW_SPECS: readonly ViewSpec[] = [
   { id: "kanban", label: "Kanban", icon: KanbanIcon, detailKind: "district" },
   { id: "contacts", label: "Contacts", icon: ContactsIcon, detailKind: "contact" },
   { id: "opps", label: "Opps", icon: OppsIcon, detailKind: "opp" },
-  { id: "vacancies", label: "Vacancies", icon: VacanciesIcon, detailKind: "vacancy" },
-  { id: "news", label: "News", icon: NewsIcon, detailKind: "news" },
-  { id: "rfps", label: "RFPs", icon: RfpsIcon, detailKind: "rfp" },
+  // `detailKind` is a harmless placeholder — Signals leaf rows declare their
+  // own `data-row-kind` (vacancy/news/rfp), so GroupCanvas's click delegation
+  // routes per row regardless of this value.
+  { id: "signals", label: "Signals", icon: SignalsIcon, detailKind: "district" },
 ] as const;
 
 /** All valid view IDs, useful for URL validation. */

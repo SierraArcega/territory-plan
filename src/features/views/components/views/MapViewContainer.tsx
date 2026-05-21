@@ -1,26 +1,18 @@
 "use client";
 
 /**
- * MapViewContainer — mounts the existing MapV2Container inside the saved-views
- * canvas.
- *
- * Phase C v0 (this file): mounts MapV2Container as-is with a banner clarifying
- * that the displayed map is not yet scoped to the active plan/list's district
- * set. Threading a `districtLeaidsFilter` prop into MapV2Container is a
- * multi-day refactor (MapV2 has ~700 LOC of layer config + filter expressions
- * keyed on the global Zustand store, not props). Phase F revisits this once
- * the rest of the views are validated.
- *
- * Per the implementer prompt's "Stop early if" guidance and CLAUDE.md's MapV2
- * reuse mandate, this v0 ships now so the URL routes work end-to-end. The
- * `leaids` and `contextLabel` props are kept on the contract so Phase F's
- * follow-up doesn't need to change every call site.
+ * MapViewContainer — mounts the embedded MapV2 map inside the saved-views
+ * canvas. When the active context is a plan, it binds the map to that plan
+ * (highlight + territory framing) and renders the add-from-map selection bar.
+ * When there is no active plan (lists / portfolio) it falls back to the global
+ * map plus the legacy "showing all districts" banner.
  */
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
+import { useMapV2Store } from "@/features/map/lib/store";
+import { PlanMapSelectionBar } from "./PlanMapSelectionBar";
 
-// MapV2Container is heavy (MapLibre + tile workers); load only when the Map
-// view is selected so other views don't pay the cost.
 const MapV2Container = dynamic(
   () => import("@/features/map/components/MapV2Container"),
   {
@@ -34,24 +26,36 @@ const MapV2Container = dynamic(
 );
 
 export interface MapViewContainerProps {
-  /**
-   * District leaid set the map should scope to. v0 ignores this — the map
-   * renders the global view and the banner explains the limitation. Phase F
-   * threads this into MapV2Container's layer filter expressions.
-   */
+  /** District leaid set for the active context (plan.districtLeaids). */
   leaids: string[] | null;
-  /** Human label for the active plan/list shown in the banner ("Northeast Pod"). */
+  /** Active plan id, or null when the context is a list / portfolio. */
+  planId: string | null;
+  /** Human label for the active plan/list (used by the null-plan banner). */
   contextLabel: string | null;
 }
 
 export default function MapViewContainer({
   leaids,
+  planId,
   contextLabel,
 }: MapViewContainerProps) {
-  // Show the banner whenever we have a scope but are not yet honoring it. An
-  // empty/null leaids array means the parent didn't compute a scope (lists in
-  // v0) — in that case there's nothing to warn about.
-  const showBanner = Array.isArray(leaids) && leaids.length > 0;
+  const setViewsPlanContext = useMapV2Store((s) => s.setViewsPlanContext);
+  const clearViewsPlanContext = useMapV2Store((s) => s.clearViewsPlanContext);
+
+  // `leaids` is a fresh array reference on every plans refetch (TanStack Query
+  // staleTime + window-focus), but its CONTENTS rarely change. Depend on a
+  // serialized key so a background refetch doesn't re-run setViewsPlanContext
+  // and wipe the rep's in-progress selection (it resets viewsPlanSelectedLeaids).
+  const leaidsKey = leaids?.join(",") ?? "";
+  useEffect(() => {
+    if (!planId) return;
+    setViewsPlanContext(planId, new Set(leaids ?? []));
+    return () => clearViewsPlanContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planId, leaidsKey, setViewsPlanContext, clearViewsPlanContext]);
+
+  // Null-plan path (list / portfolio): keep the legacy "all districts" banner.
+  const showBanner = !planId && Array.isArray(leaids) && leaids.length > 0;
 
   return (
     <div className="relative h-full w-full">
@@ -68,6 +72,7 @@ export default function MapViewContainer({
         </div>
       )}
       <MapV2Container />
+      {planId && <PlanMapSelectionBar planId={planId} />}
     </div>
   );
 }

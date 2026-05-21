@@ -40,9 +40,7 @@ import TableView from "./views/TableView";
 import KanbanView from "./views/KanbanView";
 import ContactsView from "./views/ContactsView";
 import OppsView from "./views/OppsView";
-import VacanciesView from "./views/VacanciesView";
-import NewsView from "./views/NewsView";
-import RfpsView from "./views/RfpsView";
+import SignalsView from "./views/signals/SignalsView";
 
 export interface GroupCanvasProps {
   kind: GroupKind;
@@ -211,6 +209,7 @@ function ViewBody({
       return (
         <MapViewContainer
           leaids={leaids}
+          planId={kind === "plan" ? plan?.id ?? null : null}
           contextLabel={plan?.name ?? list?.name ?? null}
         />
       );
@@ -224,7 +223,7 @@ function ViewBody({
         />
       );
     case "kanban":
-      return <KanbanView leaids={leaids} />;
+      return <KanbanView leaids={leaids} fiscalYear={plan?.fiscalYear ?? null} />;
     case "contacts":
       return (
         <ContactsView
@@ -243,27 +242,9 @@ function ViewBody({
           savedLayouts={savedLayouts}
         />
       );
-    case "vacancies":
+    case "signals":
       return (
-        <VacanciesView
-          leaids={leaids}
-          parentKind={kind}
-          parentId={parentId}
-          savedLayouts={savedLayouts}
-        />
-      );
-    case "news":
-      return (
-        <NewsView
-          leaids={leaids}
-          parentKind={kind}
-          parentId={parentId}
-          savedLayouts={savedLayouts}
-        />
-      );
-    case "rfps":
-      return (
-        <RfpsView
+        <SignalsView
           leaids={leaids}
           parentKind={kind}
           parentId={parentId}
