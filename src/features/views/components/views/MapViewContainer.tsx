@@ -42,12 +42,17 @@ export default function MapViewContainer({
   const setViewsPlanContext = useMapV2Store((s) => s.setViewsPlanContext);
   const clearViewsPlanContext = useMapV2Store((s) => s.clearViewsPlanContext);
 
-  // Bind the embedded map to the active plan; clear on unmount / plan change.
+  // `leaids` is a fresh array reference on every plans refetch (TanStack Query
+  // staleTime + window-focus), but its CONTENTS rarely change. Depend on a
+  // serialized key so a background refetch doesn't re-run setViewsPlanContext
+  // and wipe the rep's in-progress selection (it resets viewsPlanSelectedLeaids).
+  const leaidsKey = leaids?.join(",") ?? "";
   useEffect(() => {
     if (!planId) return;
     setViewsPlanContext(planId, new Set(leaids ?? []));
     return () => clearViewsPlanContext();
-  }, [planId, leaids, setViewsPlanContext, clearViewsPlanContext]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planId, leaidsKey, setViewsPlanContext, clearViewsPlanContext]);
 
   // Null-plan path (list / portfolio): keep the legacy "all districts" banner.
   const showBanner = !planId && Array.isArray(leaids) && leaids.length > 0;
