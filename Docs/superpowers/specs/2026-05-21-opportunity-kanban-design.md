@@ -170,7 +170,7 @@ Response:
       closeDate: string | null;   // ISO
       salesRepName: string | null;
     }[];
-    hasMore: boolean;      // count > cards.length (drives a per-column "Show more")
+    hasMore: boolean;      // count > cards.length (drives a non-interactive "+N more" footer)
   }[];
 }
 ```
@@ -186,7 +186,7 @@ Query against the read-only pool (5s `statement_timeout`), consistent with other
   - Fetch from `/api/views/opps-kanban` via `useQuery` with a serialized-primitive key
     (`["views","opps-kanban", leaidsKey(leaids), schoolYr, limit]`).
   - Render columns from the response (header: accent bar + label + count + summed bookings;
-    body: cards + optional per-column "Show more").
+    body: cards + a non-interactive "+N more" footer when the stage has more than the cap).
   - Reuse `LoadingState` / `ErrorState` / `EmptyState` from `_shared.tsx`.
 - **`src/features/views/components/GroupCanvas.tsx`** — pass `plan.fiscalYear` to `KanbanView`
   in the `case "kanban"` branch.
@@ -211,7 +211,7 @@ only — no Tailwind grays.
 - Stable TanStack Query key built from serialized primitives (sorted `leaidsKey`, `schoolYr`,
   `limit`) — no raw objects.
 - Read-only pool with 5s `statement_timeout`.
-- Closed Won / Closed Lost are the highest-volume stages; the per-column cap + "Show more"
+- Closed Won / Closed Lost are the highest-volume stages; the per-column cap + "+N more" hint
   keeps initial render bounded.
 
 ## Mobile
@@ -243,4 +243,7 @@ Vitest, co-located in `__tests__/`:
 - List-scoped kanban (plan-only until list previews are wired, matching today).
 - Sort / filter / column customization or `viewLayouts` persistence for kanban.
 - Surfacing "Files" / attachments on cards.
+- Interactive per-column pagination — the cap is 50 cards/column with a non-interactive
+  "+N more" hint; per-column "load more" is deferred to v1.1 (counts rarely exceed the cap
+  for a single plan + school year).
 - Staffing-family stages (Position …, Complete …, Active, Return Position Pending) as columns.
