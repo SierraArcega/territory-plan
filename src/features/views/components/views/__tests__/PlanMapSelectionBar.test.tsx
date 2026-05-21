@@ -9,6 +9,8 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
 beforeEach(() => {
   useMapV2Store.setState({
     viewsPlanId: "plan-1",
@@ -31,7 +33,12 @@ describe("PlanMapSelectionBar", () => {
 
   it("posts the selected leaids, then clears selection and highlights them", async () => {
     const fetchMock = vi.fn((url: string, init: RequestInit) =>
-      Promise.resolve(new Response(JSON.stringify({ added: 2, planId: "plan-1" }), { status: 200 })),
+      Promise.resolve(
+        new Response(JSON.stringify({ added: 2, planId: "plan-1" }), {
+          status: 200,
+          headers: JSON_HEADERS,
+        }),
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
     useMapV2Store.setState({ viewsPlanSelectedLeaids: new Set(["0601234", "0699999"]) });

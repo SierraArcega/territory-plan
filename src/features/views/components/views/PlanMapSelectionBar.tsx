@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAddDistrictsToPlan } from "@/features/plans/lib/queries";
 import { useMapV2Store } from "@/features/map/lib/store";
 
 interface Props {
@@ -19,23 +19,15 @@ export function PlanMapSelectionBar({ planId }: Props) {
   const selected = useMapV2Store((s) => s.viewsPlanSelectedLeaids);
   const clearSelection = useMapV2Store((s) => s.clearViewsPlanSelection);
   const addHighlight = useMapV2Store((s) => s.addToViewsPlanHighlight);
-  const [isPending, setIsPending] = useState(false);
-  const [isError, setIsError] = useState(false);
+  const addDistricts = useAddDistrictsToPlan();
 
   const count = selected.size;
   if (count === 0) return null;
 
   const handleAdd = async () => {
     const leaids = [...selected];
-    setIsPending(true);
-    setIsError(false);
     try {
-      const res = await fetch(`/api/territory-plans/${planId}/districts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leaids }),
-      });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      await addDistricts.mutateAsync({ planId, leaids });
       addHighlight(leaids); // optimistic plum highlight
       clearSelection();
       qc.invalidateQueries({ queryKey: ["views", "data"] });
@@ -43,9 +35,6 @@ export function PlanMapSelectionBar({ planId }: Props) {
       qc.invalidateQueries({ queryKey: ["views", "plan", planId] });
     } catch {
       // Selection is preserved for retry; error surfaced below.
-      setIsError(true);
-    } finally {
-      setIsPending(false);
     }
   };
 
@@ -57,20 +46,20 @@ export function PlanMapSelectionBar({ planId }: Props) {
       <button
         type="button"
         onClick={handleAdd}
-        disabled={isPending}
+        disabled={addDistricts.isPending}
         className="whitespace-nowrap rounded-full bg-[#403770] px-3 py-1 text-sm font-semibold text-white transition-colors hover:bg-[#322a5a] disabled:opacity-60"
       >
-        {isPending ? "Adding…" : "Add to plan"}
+        {addDistricts.isPending ? "Adding…" : "Add to plan"}
       </button>
       <button
         type="button"
         onClick={clearSelection}
-        disabled={isPending}
+        disabled={addDistricts.isPending}
         className="whitespace-nowrap rounded-full px-2 py-1 text-sm font-medium text-[#544A78] hover:bg-[#EFEDF5] disabled:opacity-60"
       >
         Clear
       </button>
-      {isError && (
+      {addDistricts.isError && (
         <span className="whitespace-nowrap text-xs text-[#A8281C]">Add failed — try again</span>
       )}
     </div>
