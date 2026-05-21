@@ -36,7 +36,7 @@ describe("RevenuePodium", () => {
       makeEntry({ fullName: "Carol", revenue: 500000, rank: 3 }),
     ];
 
-    render(<RevenuePodium entries={entries} />);
+    render(<RevenuePodium entries={entries} sortColumn="revenue" />);
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("RevenuePodium", () => {
       makeEntry({ fullName: "Carol", revenue: 578543, rank: 3 }),
     ];
 
-    render(<RevenuePodium entries={entries} />);
+    render(<RevenuePodium entries={entries} sortColumn="revenue" />);
 
     expect(screen.getByText("$961,964")).toBeInTheDocument();
     expect(screen.getByText("$795,726")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("RevenuePodium", () => {
       makeEntry({ fullName: "Kris Tedesco", revenue: 500000, rank: 3 }),
     ];
 
-    render(<RevenuePodium entries={entries} />);
+    render(<RevenuePodium entries={entries} sortColumn="revenue" />);
 
     expect(screen.getByText("MS")).toBeInTheDocument();
     expect(screen.getByText("MO")).toBeInTheDocument();

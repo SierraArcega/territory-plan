@@ -178,7 +178,7 @@ export default function RevenueOverviewTab() {
         })}
       </div>
 
-      <RevenuePodium entries={sortedEntries} />
+      <RevenuePodium entries={sortedEntries} sortColumn={sortColumn} />
       <div className="overflow-x-auto">
         <RevenueTable
           entries={sortedEntries}
