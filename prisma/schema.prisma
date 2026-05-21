@@ -935,7 +935,7 @@ model UserProfile {
   queryLogs           QueryLog[]                  @relation("UserQueryLogs")
   savedReports        SavedReport[]               @relation("UserSavedReports")
   // Query tool active draft (one per user)
-  reportDraft         ReportDraft?                @relation("UserReportDraft")
+  reportDrafts        ReportDraft[]               @relation("UserReportDraft")
 
   @@map("user_profiles")
 }
@@ -1786,12 +1786,13 @@ model SavedReport {
   @@map("saved_reports")
 }
 
-// Active report draft per user. One row per user (PK on user_id). Draft lives
-// here across sessions so "return within retention window" → Draft state works
-// across devices. No retention policy for MVP — drafts persist until explicit
-// discard via DELETE /api/ai/query/draft.
+// Active report draft per user. One row per (user_id, report_id). report_id = 0
+// is the sentinel for a fresh/unsaved session; report_id > 0 corresponds to a
+// saved report the user is refining. No FK on report_id — 0 has no SavedReport
+// counterpart. Drafts persist until explicit discard via DELETE /api/ai/query/draft.
 model ReportDraft {
-  userId         String   @id @map("user_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  reportId       Int      @default(0) @map("report_id")
   params         Json
   conversationId String?  @map("conversation_id") @db.Uuid
   chatHistory    Json?    @map("chat_history")
@@ -1800,6 +1801,7 @@ model ReportDraft {
 
   user UserProfile @relation("UserReportDraft", fields: [userId], references: [id], onDelete: Cascade)
 
+  @@id([userId, reportId])
   @@map("report_drafts")
 }
 
