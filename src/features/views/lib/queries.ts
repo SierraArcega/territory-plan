@@ -62,6 +62,8 @@ export interface PlanWithStats {
   pipelineValue: number;
   contactsCount: number;
   oppsCount: number;
+  /** Sum of `minimum_purchase_amount` over the plan's Closed Won opps in the plan FY. */
+  closedWonMinCommit: number;
   // Per-plan column/sort/filter layout, keyed by view-type slot.
   // Null when the plan has never had a view layout saved; undefined in legacy
   // responses that predate the field (treated the same as null at the call site).

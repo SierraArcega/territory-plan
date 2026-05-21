@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { readonlyPool } from "@/lib/db-readonly";
 import { getUser } from "@/lib/supabase/server";
+import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 export const dynamic = "force-dynamic";
 
 /**
@@ -26,6 +27,7 @@ interface PlanStats {
   pipelineValue: number;
   contactsCount: number;
   oppsCount: number;
+  closedWonMinCommit: number;
 }
 
 interface PlanForStats {
@@ -53,17 +55,26 @@ async function computeAllPlanStats(
   const result = new Map<string, PlanStats>();
 
   // Collect the union of leaids and school years we need to scan.
+  // School-year strings must match the canonical "2026-27" format used
+  // everywhere else (see fiscalYearToSchoolYear) — the previous "FY27" shape
+  // matched no rows, which is why pipeline/opps stats came back as zero.
   const leaidSet = new Set<string>();
   const schoolYrSet = new Set<string>();
   for (const p of plans) {
     for (const d of p.districts) leaidSet.add(d.districtLeaid);
-    schoolYrSet.add(`FY${p.fiscalYear - 2000}`);
+    schoolYrSet.add(fiscalYearToSchoolYear(p.fiscalYear));
   }
 
   // No plans touch any districts → every plan is zeros, skip DB entirely.
   if (leaidSet.size === 0) {
     for (const p of plans) {
-      result.set(p.id, { progress: null, pipelineValue: 0, contactsCount: 0, oppsCount: 0 });
+      result.set(p.id, {
+        progress: null,
+        pipelineValue: 0,
+        contactsCount: 0,
+        oppsCount: 0,
+        closedWonMinCommit: 0,
+      });
     }
     return result;
   }
@@ -82,13 +93,15 @@ async function computeAllPlanStats(
     open_pipeline: string;
     open_count: string;
     bookings: string;
+    closed_won_min_commit: string;
   }>(
     `SELECT
        district_lea_id,
        school_yr,
        COALESCE(SUM(net_booking_amount) FILTER (WHERE stage NOT IN ('Closed Won','Closed Lost')), 0) AS open_pipeline,
        COUNT(*) FILTER (WHERE stage NOT IN ('Closed Won','Closed Lost')) AS open_count,
-       COALESCE(SUM(net_booking_amount) FILTER (WHERE stage = 'Closed Won'), 0) AS bookings
+       COALESCE(SUM(net_booking_amount) FILTER (WHERE stage = 'Closed Won'), 0) AS bookings,
+       COALESCE(SUM(minimum_purchase_amount) FILTER (WHERE stage = 'Closed Won'), 0) AS closed_won_min_commit
      FROM opportunities
      WHERE district_lea_id = ANY($1::text[])
        AND school_yr = ANY($2::text[])
@@ -110,13 +123,19 @@ async function computeAllPlanStats(
   // plans can share a district but care about different fiscal years.
   const oppsByKey = new Map<
     string,
-    { openPipeline: number; openCount: number; bookings: number }
+    {
+      openPipeline: number;
+      openCount: number;
+      bookings: number;
+      closedWonMinCommit: number;
+    }
   >();
   for (const r of oppsRows.rows) {
     oppsByKey.set(`${r.district_lea_id}|${r.school_yr}`, {
       openPipeline: Number(r.open_pipeline),
       openCount: Number(r.open_count),
       bookings: Number(r.bookings),
+      closedWonMinCommit: Number(r.closed_won_min_commit),
     });
   }
 
@@ -127,20 +146,28 @@ async function computeAllPlanStats(
 
   for (const plan of plans) {
     if (plan.districts.length === 0) {
-      result.set(plan.id, { progress: null, pipelineValue: 0, contactsCount: 0, oppsCount: 0 });
+      result.set(plan.id, {
+        progress: null,
+        pipelineValue: 0,
+        contactsCount: 0,
+        oppsCount: 0,
+        closedWonMinCommit: 0,
+      });
       continue;
     }
-    const schoolYr = `FY${plan.fiscalYear - 2000}`;
+    const schoolYr = fiscalYearToSchoolYear(plan.fiscalYear);
     let pipelineValue = 0;
     let oppsCount = 0;
     let bookings = 0;
     let contactsCount = 0;
+    let closedWonMinCommit = 0;
     for (const d of plan.districts) {
       const o = oppsByKey.get(`${d.districtLeaid}|${schoolYr}`);
       if (o) {
         pipelineValue += o.openPipeline;
         oppsCount += o.openCount;
         bookings += o.bookings;
+        closedWonMinCommit += o.closedWonMinCommit;
       }
       contactsCount += contactsByLeaid.get(d.districtLeaid) ?? 0;
     }
@@ -148,7 +175,13 @@ async function computeAllPlanStats(
       plan.targetsTotal > 0
         ? Math.max(0, Math.min(100, Math.round((bookings / plan.targetsTotal) * 100)))
         : null;
-    result.set(plan.id, { progress, pipelineValue, contactsCount, oppsCount });
+    result.set(plan.id, {
+      progress,
+      pipelineValue,
+      contactsCount,
+      oppsCount,
+      closedWonMinCommit,
+    });
   }
 
   return result;
@@ -328,6 +361,7 @@ export async function GET(request: NextRequest) {
               pipelineValue: stats.pipelineValue,
               contactsCount: stats.contactsCount,
               oppsCount: stats.oppsCount,
+              closedWonMinCommit: stats.closedWonMinCommit,
             }
           : {}),
       };

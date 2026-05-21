@@ -83,6 +83,7 @@ function plan(overrides: Partial<PlanWithStats> = {}): PlanWithStats {
     pipelineValue: 622000,
     contactsCount: 84,
     oppsCount: 14,
+    closedWonMinCommit: 0,
     ...overrides,
   };
 }

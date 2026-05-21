@@ -199,10 +199,11 @@ describe("Territory Plans API", () => {
           rows: [
             {
               district_lea_id: "0601234",
-              school_yr: "FY26",
+              school_yr: "2025-26",
               open_pipeline: "25000",
               open_count: "3",
               bookings: "50000",
+              closed_won_min_commit: "12000",
             },
           ],
         })
@@ -219,6 +220,7 @@ describe("Territory Plans API", () => {
       expect(data[0].progress).toBe(50);
       expect(data[0].contactsCount).toBe(8);
       expect(data[0].oppsCount).toBe(3);
+      expect(data[0].closedWonMinCommit).toBe(12000);
     });
 
     it("filters out per-user hidden plans by default", async () => {
