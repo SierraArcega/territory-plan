@@ -28,18 +28,18 @@ export function PlanMapSelectionBar({ planId }: Props) {
     const leaids = [...selected];
     try {
       await addDistricts.mutateAsync({ planId, leaids });
-      addHighlight(leaids); // optimistic plum highlight
-      clearSelection();
       qc.invalidateQueries({ queryKey: ["views", "data"] });
       qc.invalidateQueries({ queryKey: ["views", "plans"] });
       qc.invalidateQueries({ queryKey: ["views", "plan", planId] });
+      addHighlight(leaids); // optimistic plum highlight
+      clearSelection();
     } catch {
       // Selection is preserved for retry; error surfaced below.
     }
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-full border border-[#D4CFE2] bg-white px-4 py-2 shadow-md">
+    <div role="status" className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-full border border-[#D4CFE2] bg-white px-4 py-2 shadow-md">
       <span className="whitespace-nowrap text-sm font-medium text-[#403770]">
         {count} district{count === 1 ? "" : "s"} selected
       </span>

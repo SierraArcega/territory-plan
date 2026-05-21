@@ -72,4 +72,24 @@ describe("PlanMapSelectionBar", () => {
     expect(useMapV2Store.getState().viewsPlanSelectedLeaids.size).toBe(0);
     vi.unstubAllGlobals();
   });
+
+  it("surfaces an error and keeps the selection when the add fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "nope" }), {
+          status: 500,
+          headers: JSON_HEADERS,
+        }),
+      ),
+    ));
+    useMapV2Store.setState({ viewsPlanSelectedLeaids: new Set(["0601234"]) });
+
+    render(<PlanMapSelectionBar planId="plan-1" />, { wrapper });
+    fireEvent.click(screen.getByRole("button", { name: /add to plan/i }));
+
+    expect(await screen.findByText(/add failed/i)).toBeInTheDocument();
+    // Selection preserved for retry.
+    expect(useMapV2Store.getState().viewsPlanSelectedLeaids.size).toBe(1);
+    vi.unstubAllGlobals();
+  });
 });
