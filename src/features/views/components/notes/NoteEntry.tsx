@@ -2,7 +2,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { Trash2 } from "lucide-react";
 import { NoteBody } from "./NoteBody";
-import type { DistrictNoteEntry } from "../../../lib/queries";
+import type { DistrictNoteEntry } from "../../lib/queries";
 
 interface Props {
   note: DistrictNoteEntry;
