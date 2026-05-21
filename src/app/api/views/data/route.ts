@@ -34,6 +34,7 @@ import { SAVED_LIST_SOURCES } from "@/lib/saved-views/filter-tree";
 import type { FilterNode, SavedListSource } from "@/lib/saved-views/filter-tree";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { getGlobalCustomerLabels } from "./global-customer-labels";
+import { fetchDistrictNotesSummary } from "./district-notes-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -336,6 +337,10 @@ export async function GET(req: NextRequest) {
             : Promise.resolve(null),
         ]);
 
+        const notesSummary = leaids.length > 0
+          ? await fetchDistrictNotesSummary(leaids)
+          : new Map();
+
         rows = rows.map((r) => {
           const leaid = typeof r.leaid === "string" ? r.leaid : null;
           if (!leaid) return r;
@@ -358,6 +363,8 @@ export async function GET(req: NextRequest) {
             activities_count_90d: e?.activitiesCount90d ?? 0,
             churn_risk: e?.churnRisk ?? null,
             plan_notes: e?.notes ?? null,
+            notes_latest: notesSummary.get(leaid)?.latest ?? null,
+            notes_count: notesSummary.get(leaid)?.count ?? 0,
             // Single string the grid can dispatch on:
             //   rank → "#1", "#2", …
             //   win_back → "Win Back"
