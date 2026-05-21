@@ -49,17 +49,23 @@ We want, when a rep is viewing a **plan** in the Views feature and opens the Map
 - `useAddDistrictsToPlan()` — `src/features/plans/lib/queries.ts:108` (also via
   `@/lib/api`). Bulk add: `POST /api/territory-plans/[id]/districts` with
   `{ leaids: string[] }`. Server expands rollups, syncs tags + plan rollups.
-- Always-on multi-select in the embedded map: a click calls
-  `toggleLeaidSelection(leaid)` (set `selectedLeaids`) — `MapV2Container` click
-  handler, "Priority 6: District base fill" (~lines 1226–1260). It also calls
-  `openResultsPanel("districts")` and zoom-to-district, which we will suppress
-  in plan-map context.
-- `clearSelectedDistricts()` — `store.ts:806`, clears `selectedLeaids`.
-- `STATE_BBOX` (exported from `MapV2Container.tsx:56`) + the combined-bbox
-  computation in `PlanOverviewSection.handleFocusMap` (`PlanOverviewSection.tsx:133–158`)
-  — mirror for camera framing.
-- Plan-plum brand color: `plans: "#7B6BA4"` (`layers.ts:18`); exact fill/outline
-  tokens per `Documentation/UI Framework/tokens.md`.
+- The embedded map's click handler ("Priority 6: District base fill",
+  `MapV2Container` ~lines 1226–1260) calls `toggleLeaidSelection` +
+  `openResultsPanel("districts")` + zoom-to-district. We **do not** reuse
+  `toggleLeaidSelection`/`selectedLeaids`: that set has a **hard cap of 20**
+  (`store.ts` ~782) and mutates global `panelState`/`activeIconTab`, which would
+  cap adds and churn the embedded map's panels. Instead we add a **dedicated,
+  uncapped selection set** in the new slice and branch the click handler.
+- District tiles: `source: "districts"`, `source-layer: "districts"`; features
+  carry `leaid`. Base fill `district-base-fill` excludes rollups via
+  `NOT_ROLLUP_FILTER` (`layers.ts`). Highlight layers mirror this source +
+  `NOT_ROLLUP_FILTER`.
+- `STATE_BBOX` (exported from `MapV2Container.tsx:56`). `PlanWithStats` has **no**
+  `states` field — derive state abbrevs from each leaid's first-2-char FIPS via
+  `fipsToAbbrev` (`src/lib/states.ts:84`), then union `STATE_BBOX` per abbrev for
+  the camera bbox.
+- Brand tokens (`Documentation/UI Framework/tokens.md`): Plum `#403770`
+  (in-plan highlight), Coral `#F37167` (pending-selection highlight).
 - Views data query key `["views", "data"]`; plan-stats query that feeds
   `GroupHeader` (pipeline coverage / contacts / open opps).
 
@@ -69,44 +75,55 @@ A new **isolated store slice** carries the Views→map binding; everything else
 keys off it. The slice is intentionally separate from the existing
 `planDistrictLeaids` / PLAN_ADD machinery so the two flows don't entangle.
 
-### 1. Store slice — `viewsPlanContext` (`src/features/map/lib/store.ts`)
+### 1. Store fields — flat, isolated (`src/features/map/lib/store.ts`)
+
+Flat fields (matching the store's existing `selectedLeaids: Set` / `planDistrictLeaids: Set` style) so components subscribe to the narrowest slice:
 
 ```ts
-viewsPlanContext: {
-  planId: string | null;
-  highlightLeaids: Set<string>;  // the plan's saved districts (for highlight + "in plan" test)
-};
-setViewsPlanContext(planId: string, highlightLeaids: Set<string>): void;
-clearViewsPlanContext(): void;
-addToViewsHighlight(leaids: string[]): void; // optimistic, after a successful add
+viewsPlanId: string | null;              // active Views plan, or null (no scoping)
+viewsPlanHighlightLeaids: Set<string>;   // the plan's saved districts → plum highlight + "in plan" test
+viewsPlanSelectedLeaids: Set<string>;    // pending-to-add (clicked, not yet committed) → coral highlight
+
+setViewsPlanContext(planId: string, highlightLeaids: Set<string>): void; // single set(): sets id+highlight, clears selection
+clearViewsPlanContext(): void;            // resets all three to null/empty
+toggleViewsPlanSelection(leaid: string): void; // uncapped; no-op if leaid ∈ highlight set
+clearViewsPlanSelection(): void;
+addToViewsPlanHighlight(leaids: string[]): void; // optimistic, after a successful add
 ```
 
-- Default: `{ planId: null, highlightLeaids: new Set() }`.
-- Setting/clearing is a single `set()` (batched per CLAUDE.md perf rule).
+- Defaults: `viewsPlanId: null`, both sets empty.
+- `toggleViewsPlanSelection` ignores leaids already in `viewsPlanHighlightLeaids`
+  (in-plan = not selectable). No 20-cap; does **not** touch `panelState`/`activeIconTab`.
+- Each action is a single `set()` (batched per CLAUDE.md perf rule).
 
 ### 2. Highlight layers (`src/features/map/lib/layers.ts` + `MapV2Container`)
 
-- Add `views-plan-highlight-fill` and `views-plan-highlight-outline`, ordered
-  **above** the base district fill.
-- Filter: `["in", ["get", "leaid"], ["literal", [...highlightLeaids]]]`. Plan
-  district counts are bounded (tens–low hundreds), so a literal-list filter is
-  fine.
-- Paint: translucent plan-plum fill (~18–25% opacity) + solid ~2px plan-plum
-  outline. Final values from `tokens.md`.
-- `MapV2Container` registers these layers and updates their filter when
-  `viewsPlanContext.highlightLeaids` changes (subscribe to that narrow slice).
-  Driven by the **client-side** set so newly-added districts highlight
-  immediately after commit.
+Two layer pairs over the base district fill, each `source: "districts"`,
+`source-layer: "districts"`:
+
+- **In-plan (plum):** `views-plan-highlight-fill` (fill `#403770` @ ~0.22) +
+  `views-plan-highlight-outline` (line `#403770` @ 2px). Filter:
+  `["all", NOT_ROLLUP_FILTER, ["in", ["get","leaid"], ["literal", [...highlightLeaids]]]]`.
+- **Pending selection (coral):** `views-plan-selection-fill` (fill `#F37167` @
+  ~0.18) + `views-plan-selection-outline` (line `#F37167` @ 2.5px). Filter:
+  same shape over `viewsPlanSelectedLeaids`.
+
+Plan district counts and the selection are bounded (tens–low hundreds), so
+literal-list filters are fine. `MapV2Container` registers the four layers once
+(after the base fill / rollup outline) and updates each layer's filter
+reactively via `setFilter` when its set changes (subscribe to each narrow
+slice). Driven by the **client-side** sets so clicks and newly-added districts
+re-paint immediately.
 
 ### 3. Click handling in plan-map context (`MapV2Container` click handler)
 
 In the "Priority 6: District base fill" branch, before the existing
-toggle/open/zoom block, add (~6 lines):
+toggle/open/zoom block, add (~5 lines):
 
 ```ts
-if (store.viewsPlanContext.planId) {
-  if (store.viewsPlanContext.highlightLeaids.has(leaid)) return; // already in plan → no-op
-  store.toggleLeaidSelection(leaid);  // selection only — no results panel, no zoom
+if (store.viewsPlanId) {
+  store.toggleViewsPlanSelection(leaid); // no-op for in-plan; selection only — no results panel, no zoom
+  store.addClickRipple(e.point.x, e.point.y, "plum"); // keep the existing tactile feedback
   return;
 }
 ```
@@ -117,12 +134,13 @@ firing inside the Views tab.
 ### 4. `MapViewContainer.tsx`
 
 - New prop `planId: string | null` (alongside existing `leaids`, `contextLabel`).
-  The parent passes the active plan's id, its district leaids, and its state
-  abbrevs (parent already has the active-plan object).
+  `GroupCanvas` passes `kind === "plan" ? plan.id : null` and the existing
+  `leaids` (= `plan.districtLeaids`).
 - On mount / when `planId` changes and is non-null:
-  - `setViewsPlanContext(planId, new Set(leaids))`.
-  - Compute combined bbox from the plan's state abbrevs via `STATE_BBOX` and
-    `map.fitBounds(...)` (camera only — **no** filter mutation).
+  - `setViewsPlanContext(planId, new Set(leaids ?? []))`.
+  - Derive state abbrevs from `leaids` (each leaid's first 2 chars → `fipsToAbbrev`),
+    union `STATE_BBOX` per abbrev, and `map.fitBounds(...)` (camera only — **no**
+    filter mutation). Fall back to `US_BOUNDS` when no valid bbox.
   - Render `<PlanMapSelectionBar planId={planId} />`.
 - On unmount / `planId` → null: `clearViewsPlanContext()` (cleanup per CLAUDE.md).
 - The legacy "Showing all districts … scoping coming soon" banner is removed for
@@ -133,17 +151,18 @@ firing inside the Views tab.
 
 - Fullmind-branded floating bar, bottom-center of the map canvas, above zoom
   controls / attribution.
-- Subscribes narrowly to `selectedLeaids` and `viewsPlanContext.highlightLeaids`.
-- Computes `toAdd = selectedLeaids \ highlightLeaids` (exclude already-in-plan).
-- Visible only when `toAdd.length > 0`.
+- Subscribes narrowly to `viewsPlanSelectedLeaids`. `toggleViewsPlanSelection`
+  already excludes in-plan leaids, so the set is exactly the pending adds.
+- Visible only when `viewsPlanSelectedLeaids.size > 0`.
 - Renders: **"{N} district(s) selected"** · **[Add to plan]** · **[Clear]**.
-- **Add to plan** → `useAddDistrictsToPlan().mutateAsync({ planId, leaids: toAdd })`:
-  - On success: `addToViewsHighlight(toAdd)` (instant highlight),
-    `clearSelectedDistricts()`, and `invalidateQueries(["views","data"])` +
-    invalidate the plan-stats query (so the grid + GroupHeader refresh).
+- **Add to plan** → `useAddDistrictsToPlan().mutateAsync({ planId, leaids: [...viewsPlanSelectedLeaids] })`:
+  - On success: `addToViewsPlanHighlight([...selected])` (instant plum highlight),
+    `clearViewsPlanSelection()`, and `invalidateQueries(["views","data"])` +
+    `invalidateQueries(["views","plans"])` + `invalidateQueries(["views","plan", planId])`
+    (so the grid + GroupHeader stats refresh).
   - While pending: button disabled + spinner; bar stays visible (never hide UI).
   - On error: inline error text; selection preserved for retry.
-- **Clear** → `clearSelectedDistricts()`.
+- **Clear** → `clearViewsPlanSelection()`.
 
 ## Data flow
 
@@ -152,12 +171,12 @@ open Map tab (plan active)
   └─ MapViewContainer: setViewsPlanContext(planId, planLeaids) + fitBounds(territory)
         └─ highlight layers paint planLeaids
 click district (not in plan)
-  └─ toggleLeaidSelection  → selectedLeaids grows  → bar shows "N selected"
+  └─ toggleViewsPlanSelection → viewsPlanSelectedLeaids grows (coral) → bar "N selected"
 [Add to plan]
-  └─ POST /territory-plans/[id]/districts {leaids: toAdd}
-        ├─ addToViewsHighlight(toAdd)         (optimistic highlight)
-        ├─ clearSelectedDistricts()
-        └─ invalidate ["views","data"] + plan-stats  → grid + GroupHeader refresh
+  └─ POST /territory-plans/[id]/districts {leaids: [...selected]}
+        ├─ addToViewsPlanHighlight([...selected])   (optimistic plum highlight)
+        ├─ clearViewsPlanSelection()
+        └─ invalidate ["views","data"] + ["views","plans"] + ["views","plan",id]
 close tab / change plan
   └─ clearViewsPlanContext()
 ```
