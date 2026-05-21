@@ -137,7 +137,7 @@ export function ReportsTab() {
   }
 
   return (
-    <div className="relative flex flex-col">
+    <div className="relative flex h-full flex-col">
       {/* Navigate-away toast */}
       {navAwayToast && (
         <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 z-50 flex items-center gap-2.5 rounded-xl bg-[#1E1033] px-4 py-3 text-[13px] text-white shadow-lg">
