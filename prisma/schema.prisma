@@ -272,6 +272,7 @@ model District {
   newsFetch          DistrictNewsFetch?
   rfps               Rfp[]
   agencyMaps         AgencyDistrictMap[]
+  districtNotes      DistrictNote[]
 
   @@index([stateFips])
   @@index([isCustomer, hasOpenPipeline])
@@ -906,6 +907,27 @@ model ActivityNote {
   @@map("activity_notes")
 }
 
+// District-scoped rich-text note log. One row per author entry, shown as a
+// chronological feed in the Saved Views grid popover. body_json is the TipTap
+// ProseMirror document (source of truth); body_text is the flattened plaintext
+// used for the grid cell snippet. Mentions land in Phase 2.
+model DistrictNote {
+  id            String   @id @default(uuid())
+  districtLeaid String   @map("district_leaid") @db.VarChar(7)
+  authorId      String   @map("author_id") @db.Uuid
+  bodyJson      Json     @map("body_json")
+  bodyText      String   @default("") @map("body_text")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  district District    @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
+  author   UserProfile @relation("DistrictNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([districtLeaid, createdAt])
+  @@index([authorId])
+  @@map("district_notes")
+}
+
 // File / photo attached to an activity. Blob lives in the Supabase Storage
 // bucket `activity-attachments`; storagePath is the bucket-relative path used
 // to mint signed URLs at read time.
@@ -1007,6 +1029,8 @@ model UserProfile {
   ownedLists          SavedList[]                 @relation("SavedListOwner")
   hiddenLists         SavedListHidden[]           @relation("SavedListHiddenUser")
   hiddenPlans         TerritoryPlanHidden[]       @relation("TerritoryPlanHiddenUser")
+  // Notes authored on district note logs
+  authoredDistrictNotes DistrictNote[]            @relation("DistrictNoteAuthor")
 
   @@map("user_profiles")
 }
