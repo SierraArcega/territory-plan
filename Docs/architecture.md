@@ -25,8 +25,8 @@ Each feature follows the pattern `src/features/{name}/`:
 | `vacancies` | Vacancy scanning and tracking | `components/` + `lib/` |
 | `mixmax` | Mixmax campaign integration | `components/CampaignStatsPanel.tsx` |
 | `admin` | Admin tools (unmatched accounts, ICP scoring) | `components/` |
-| `news` | K-12 news ingest + entity matching (RSS + Google News + LLM disambiguator) — backend only; UI pending | `lib/ingest.ts`, `lib/matcher.ts` |
-| `rfps` | K-12 RFP ingest from HigherGov SLED API + name-based district resolution — backend only; UI pending | `lib/sync.ts`, `lib/highergov-client.ts`, `lib/district-resolver.ts` |
+| `news` | K-12 news ingest + entity matching (RSS + Google News + LLM disambiguator); surfaced in the Saved Views **Signals** tab | `lib/ingest.ts`, `lib/matcher.ts` |
+| `rfps` | K-12 RFP ingest from HigherGov SLED API + name-based district resolution; surfaced in the Saved Views **Signals** tab | `lib/sync.ts`, `lib/highergov-client.ts`, `lib/district-resolver.ts` |
 | `reports` | AI-driven query builder — chat-as-timeline, saved-report library, SSE streaming live trace | `components/ReportsTab.tsx` -> `ReportsLibrary.tsx` \| `builder/ReportsBuilder.tsx` |
 | `shared` | Cross-feature components, hooks, utilities | `components/`, `lib/`, `hooks/` |
 
