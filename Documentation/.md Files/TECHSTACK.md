@@ -178,6 +178,9 @@ Used for:
 
 /api/rfps                   — List RFPs (filter by leaid/stateFips/state/q, cursor pagination)
 /api/cron/ingest-rfps       — Daily HigherGov RFP ingest cron (08:15 UTC)
+
+/api/signals                — Signals view summary: per-district vacancy/news/rfp counts + newest-signal date (planId or leaids scope)
+/api/signals/[leaid]        — One district's merged reverse-chron vacancy/news/rfp feed (paginated)
 ```
 
 ## Testing
