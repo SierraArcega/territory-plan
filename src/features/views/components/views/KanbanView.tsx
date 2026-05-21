@@ -1,24 +1,22 @@
 "use client";
 
 /**
- * KanbanView — district pipeline kanban for the active plan/list scope.
+ * KanbanView — opportunity pipeline board for the active plan.
  *
- * Columns (per prototype): Prospect / Pipeline / Renewal / Active / At risk.
- * v1 derives the stage from district booleans (isCustomer / hasOpenPipeline)
- * to keep the spec scope manageable; a richer Stage model lands in v1.1.
+ * Columns are the real Salesforce opportunity stages (funnel 0–5 + Closed Won /
+ * Closed Lost) from lib/opp-stage-columns. Opps are scoped to the plan's
+ * districts and the plan's fiscal year (→ school year). Read-only: cards open
+ * the opp detail panel via GroupCanvas's [data-row-kind][data-row-id]
+ * delegation — there is no drag-to-move and no card create in v1 (opps are a
+ * read-only Salesforce mirror).
  *
- * Column header: stage dot + name + count + (+) button (stub).
- * Cards: 1px border, 8px radius, white bg, signal dot + name + meta + value.
- * "+ Add district" dashed button at column end (stub).
- *
- * Like TableView, rows mark themselves with `data-row-kind="district"
- * data-row-id={leaid}` so GroupCanvas's event delegation opens the detail
- * panel.
+ * Lists are not scoped yet (leaids === null) — same plan-only empty state as the
+ * other views until list previews are wired.
  */
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
+import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
+import { OPP_STAGE_COLUMNS } from "@/features/views/lib/opp-stage-columns";
 import {
   EmptyState,
   ErrorState,
@@ -31,74 +29,54 @@ import { formatMoney } from "./TableView";
 
 interface KanbanViewProps {
   leaids: string[] | null;
+  /** Plan's fiscal year (e.g. 2026). null for lists (not scoped in v1). */
+  fiscalYear: number | null;
 }
 
-interface DistrictRow {
-  leaid: string;
-  name: string;
-  stateAbbrev: string | null;
-  isCustomer: boolean;
-  hasOpenPipeline: boolean;
-  metricValue: number | null;
+interface KanbanCard {
+  id: string;
+  name: string | null;
+  districtName: string | null;
+  contractType: string | null;
+  netBookingAmount: number | null;
+  minimumPurchaseAmount: number | null;
+  maximumBudget: number | null;
+  closeDate: string | null;
+  salesRepName: string | null;
 }
 
-interface DistrictsResponse {
-  districts: DistrictRow[];
-  total: number;
-}
-
-interface StageConfig {
+interface KanbanColumnData {
   id: string;
   label: string;
-  color: string;
-  /** Predicate for assigning a district to this stage. */
-  match: (d: DistrictRow) => boolean;
+  count: number;
+  totalBookings: number;
+  cards: KanbanCard[];
+  hasMore: boolean;
 }
 
-/**
- * Column order matches the prototype. Predicates are evaluated top-down so a
- * district matching more than one stage lands in the first match.
- */
-const STAGES: StageConfig[] = [
-  {
-    id: "prospect",
-    label: "Prospect",
-    color: "#A69DC0",
-    match: (d) => !d.isCustomer && !d.hasOpenPipeline,
-  },
-  {
-    id: "pipeline",
-    label: "Pipeline",
-    color: "#FFCF70",
-    match: (d) => !d.isCustomer && d.hasOpenPipeline,
-  },
-  {
-    id: "renewal",
-    label: "Renewal",
-    color: "#6EA3BE",
-    match: (d) => d.isCustomer && !d.hasOpenPipeline,
-  },
-  {
-    id: "active",
-    label: "Active",
-    color: "#69B34A",
-    match: (d) => d.isCustomer && d.hasOpenPipeline,
-  },
-];
+interface KanbanResponse {
+  schoolYr: string;
+  columns: KanbanColumnData[];
+}
 
-export default function KanbanView({ leaids }: KanbanViewProps) {
-  const [limit] = useState(PAGE_SIZE * 2);
+const ACCENT_BY_ID: Record<string, string> = Object.fromEntries(
+  OPP_STAGE_COLUMNS.map((c) => [c.id, c.accent]),
+);
+
+export default function KanbanView({ leaids, fiscalYear }: KanbanViewProps) {
   const keyTag = leaidsKey(leaids);
+  const schoolYr = fiscalYear != null ? fiscalYearToSchoolYear(fiscalYear) : "";
 
   const q = useQuery({
-    queryKey: ["views", "kanban", "districts", keyTag, limit] as const,
+    queryKey: ["views", "opps-kanban", keyTag, schoolYr, PAGE_SIZE] as const,
     queryFn: () => {
       const csv = leaidsCsv(leaids);
-      return fetchJson<DistrictsResponse>(
-        `${API_BASE}/districts?leaids=${encodeURIComponent(csv)}&limit=${limit}`,
+      return fetchJson<KanbanResponse>(
+        `${API_BASE}/views/opps-kanban?leaids=${encodeURIComponent(csv)}` +
+          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}`,
       );
     },
-    enabled: leaids !== null,
+    enabled: leaids !== null && schoolYr !== "",
     staleTime: 60 * 1000,
   });
 
@@ -115,26 +93,22 @@ export default function KanbanView({ leaids }: KanbanViewProps) {
   if (q.isError) {
     return (
       <ErrorState
-        message={String(q.error?.message ?? "Could not fetch districts.")}
+        message={String(q.error?.message ?? "Could not fetch opportunities.")}
         onRetry={() => q.refetch()}
       />
     );
   }
 
-  const rows = q.data?.districts ?? [];
-  if (rows.length === 0) {
+  const columns = q.data?.columns ?? [];
+  const totalOpps = columns.reduce((sum, c) => sum + c.count, 0);
+  if (totalOpps === 0) {
     return (
       <EmptyState
-        title="No districts in this plan"
-        hint="Add districts from the plan workspace to populate this view."
+        title="No opportunities for this plan's year"
+        hint="Opportunities sync from Salesforce for the plan's districts and fiscal year."
       />
     );
   }
-
-  const byStage = STAGES.map((stage) => ({
-    stage,
-    items: rows.filter(stage.match),
-  }));
 
   return (
     <div
@@ -142,91 +116,130 @@ export default function KanbanView({ leaids }: KanbanViewProps) {
       style={{ touchAction: "pan-y" }}
     >
       <div className="flex gap-3 min-w-max h-full">
-        {byStage.map(({ stage, items }) => (
-          <Column key={stage.id} stage={stage} items={items} />
+        {columns.map((col) => (
+          <Column
+            key={col.id}
+            col={col}
+            accent={ACCENT_BY_ID[col.id] ?? "#A69DC0"}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function Column({
-  stage,
-  items,
-}: {
-  stage: StageConfig;
-  items: DistrictRow[];
-}) {
+function Column({ col, accent }: { col: KanbanColumnData; accent: string }) {
   return (
-    <div className="w-60 flex flex-col flex-shrink-0">
-      {/* Column header */}
-      <div className="flex items-center justify-between px-2.5 py-1.5 mb-2">
-        <div className="flex items-center gap-2">
+    <div className="w-64 flex flex-col flex-shrink-0">
+      <div
+        className="rounded-full mb-2"
+        style={{ height: 2, background: accent }}
+        aria-hidden
+      />
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
           <span
             className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: stage.color }}
+            style={{ background: accent }}
             aria-hidden
           />
-          <span className="text-[12px] font-semibold text-[#403770] whitespace-nowrap">
-            {stage.label}
+          <span className="text-[12px] font-semibold text-[#403770] whitespace-nowrap truncate">
+            {col.label}
           </span>
           <span className="text-[11px] text-[#8A80A8] tabular-nums whitespace-nowrap">
-            {items.length}
+            {col.count}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => undefined}
-          className="text-[#A69DC0] hover:text-[#403770] transition-colors duration-100 p-0.5"
-          aria-label={`Add district to ${stage.label}`}
-          title="Add district (coming soon)"
-        >
-          <Plus className="w-3 h-3" aria-hidden />
-        </button>
+        <span className="text-[11px] font-semibold text-[#544A78] tabular-nums whitespace-nowrap">
+          {formatMoney(col.totalBookings)}
+        </span>
       </div>
-      {/* Cards */}
       <div className="flex flex-col gap-2 flex-1">
-        {items.map((row) => (
-          <Card key={row.leaid} row={row} stage={stage} />
+        {col.cards.map((card) => (
+          <Card key={card.id} card={card} accent={accent} />
         ))}
-        <button
-          type="button"
-          onClick={() => undefined}
-          className="px-2.5 py-2 rounded-md border border-dashed border-[#D4CFE2] bg-transparent text-[12px] text-[#8A80A8] hover:text-[#403770] hover:border-[#403770] transition-colors duration-100 whitespace-nowrap"
-        >
-          + Add district
-        </button>
+        {col.cards.length === 0 && (
+          <div className="px-2.5 py-3 text-[11px] text-[#A69DC0] text-center whitespace-nowrap">
+            No opportunities
+          </div>
+        )}
+        {col.hasMore && (
+          <div className="px-2.5 py-1 text-[11px] text-[#8A80A8] text-center whitespace-nowrap">
+            +{col.count - col.cards.length} more
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function Card({ row, stage }: { row: DistrictRow; stage: StageConfig }) {
+function Card({ card, accent }: { card: KanbanCard; accent: string }) {
   return (
     <div
-      data-row-kind="district"
-      data-row-id={row.leaid}
+      data-row-kind="opp"
+      data-row-id={card.id}
       className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 cursor-pointer hover:border-[#B8B0D0] transition-colors duration-100"
       style={{ boxShadow: "0 1px 2px rgba(64,55,112,0.05)" }}
     >
-      <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#403770] mb-1">
-        <span
-          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-          style={{ background: stage.color }}
-          aria-hidden
-        />
-        <span className="truncate whitespace-nowrap">{row.name}</span>
-      </div>
-      <div className="text-[11px] text-[#8A80A8] mb-2 whitespace-nowrap">
-        {row.stateAbbrev ?? "—"}
-      </div>
-      {row.metricValue != null && (
-        <div className="flex gap-1.5 flex-wrap">
-          <span className="inline-block px-2 py-0.5 rounded-full bg-[#EDFFE3] text-[11px] font-semibold text-[#5f665b] whitespace-nowrap">
-            ARR {formatMoney(row.metricValue)}
+      <div className="flex items-start justify-between gap-1.5 mb-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ background: accent }}
+            aria-hidden
+          />
+          <span className="text-[13px] font-semibold text-[#403770] truncate whitespace-nowrap">
+            {card.name ?? "Untitled opportunity"}
           </span>
         </div>
-      )}
+        {card.contractType && (
+          <span className="inline-block px-1.5 py-0.5 rounded-full bg-[#EFEDF5] text-[10px] font-semibold text-[#6f6786] whitespace-nowrap flex-shrink-0">
+            {card.contractType}
+          </span>
+        )}
+      </div>
+      <dl className="flex flex-col gap-0.5 text-[11px]">
+        <CardRow label="District" value={card.districtName ?? "—"} />
+        <CardRow
+          label="Amount"
+          value={card.netBookingAmount != null ? formatMoney(card.netBookingAmount) : "—"}
+        />
+        <CardRow
+          label="Min purchase"
+          value={
+            card.minimumPurchaseAmount != null
+              ? formatMoney(card.minimumPurchaseAmount)
+              : "—"
+          }
+        />
+        {card.maximumBudget != null && (
+          <CardRow label="Max budget" value={formatMoney(card.maximumBudget)} />
+        )}
+        <CardRow label="Close" value={formatCloseDate(card.closeDate)} />
+        <CardRow label="Sales rep" value={card.salesRepName ?? "—"} />
+      </dl>
     </div>
   );
+}
+
+function CardRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[#8A80A8] whitespace-nowrap">{label}</span>
+      <span className="text-[#544A78] font-medium tabular-nums truncate text-right">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function formatCloseDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
