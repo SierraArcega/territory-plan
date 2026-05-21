@@ -61,7 +61,7 @@ function fiscalLabel(fy: number | null | undefined): string | null {
   return `FY${String(fy).slice(-2)}`;
 }
 
-/** Color the progress bar based on completion. */
+/** Color the coverage bar based on completion. */
 function progressColor(pct: number | null): string {
   if (pct == null) return "#A69DC0";
   if (pct >= 75) return "#69B34A";
@@ -69,13 +69,21 @@ function progressColor(pct: number | null): string {
   return "#F37167";
 }
 
-/** Owner initials from a full name. */
-function initialsOf(name: string | null | undefined): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/** Sum of all four target rollups on a plan (renewal + winback + expansion + new business). */
+function targetTotalFor(plan: PlanWithStats): number {
+  return (
+    (plan.renewalRollup ?? 0) +
+    (plan.winbackRollup ?? 0) +
+    (plan.expansionRollup ?? 0) +
+    (plan.newBusinessRollup ?? 0)
+  );
+}
+
+/** % of target dollars covered by open pipeline. Null when no target is set. */
+function coverageFor(plan: PlanWithStats): number | null {
+  const target = targetTotalFor(plan);
+  if (target <= 0) return null;
+  return Math.round((plan.pipelineValue / target) * 100);
 }
 
 export default function GroupHeader({
@@ -98,7 +106,7 @@ export default function GroupHeader({
   }, [kind, list]);
 
   const isPlan = kind === "plan";
-  const progress = plan?.progress ?? null;
+  const coverage = isPlan && plan ? coverageFor(plan) : null;
 
   return (
     <header className="bg-white border-b border-[#D4CFE2] flex-shrink-0">
@@ -186,7 +194,7 @@ export default function GroupHeader({
           </div>
         </div>
 
-        {/* Plan progress bar — 4px tall, color graduated by % */}
+        {/* Pipeline-coverage bar — 4px tall, color graduated by % */}
         {isPlan && (
           <div
             className="mt-4 h-1 rounded-full overflow-hidden"
@@ -195,8 +203,8 @@ export default function GroupHeader({
             <div
               className="h-full rounded-full transition-all duration-300 ease-out"
               style={{
-                width: `${Math.max(0, Math.min(100, progress ?? 0))}%`,
-                background: progressColor(progress),
+                width: `${Math.max(0, Math.min(100, coverage ?? 0))}%`,
+                background: progressColor(coverage),
               }}
             />
           </div>
@@ -216,41 +224,29 @@ function SharedPill() {
 }
 
 function PlanStatGrid({ plan }: { plan: PlanWithStats }) {
-  // The PlanWithStats shape doesn't include a target field today (the column
-  // is on TerritoryPlan but not always projected). We read it defensively via
-  // the same shim used in PlansSubsection to avoid widening the shared type
-  // until Phase F.
-  const maybe = plan as unknown as {
-    target?: number | null;
-    targetAmount?: number | null;
-  };
-  const target = maybe.target ?? maybe.targetAmount ?? null;
+  const target = targetTotalFor(plan);
+  const coverage = coverageFor(plan);
 
   return (
     <div
       className="mt-3 grid gap-x-4 gap-y-2.5 pr-2"
       style={{ gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))" }}
     >
-      <Stat label="Target" value={formatMoney(target)} />
+      <Stat label="Target" value={target > 0 ? formatMoney(target) : "—"} />
       <Stat
-        label="Progress"
-        value={plan.progress == null ? "—" : `${plan.progress}%`}
+        label="Pipeline coverage"
+        value={coverage == null ? "—" : `${coverage}%`}
       />
       <Stat label="Pipeline" value={formatMoney(plan.pipelineValue ?? 0)} />
-      <Stat label="Contacts" value={String(plan.contactsCount ?? 0)} />
       <Stat label="Open opps" value={String(plan.oppsCount ?? 0)} />
       <Stat
+        label="Closed won min"
+        value={formatMoney(plan.closedWonMinCommit ?? 0)}
+      />
+      <Stat label="Contacts" value={String(plan.contactsCount ?? 0)} />
+      <Stat
         label="Owner"
-        value={
-          <span className="inline-flex items-center gap-1.5">
-            <span
-              className="w-[18px] h-[18px] rounded-full bg-[#C4E7E6] flex items-center justify-center text-[10px] font-semibold text-[#403770]"
-              aria-hidden
-            >
-              {initialsOf(plan.owner?.fullName)}
-            </span>
-          </span>
-        }
+        value={plan.owner?.fullName?.trim() || "—"}
       />
     </div>
   );
