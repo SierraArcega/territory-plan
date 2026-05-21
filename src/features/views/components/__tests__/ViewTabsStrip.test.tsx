@@ -10,13 +10,23 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("ViewTabsStrip", () => {
-  it("renders all 8 view-type tabs", () => {
+  it("renders all 6 view-type tabs", () => {
     const { container } = render(
       <ViewTabsStrip kind="plan" groupId="p1" activeViewId="table" />,
     );
-    // 8 view tabs + 1 "+ View" affordance = 9 buttons
+    // 6 view tabs + 1 "+ View" affordance = 7 buttons
     const buttons = container.querySelectorAll("button");
-    expect(buttons.length).toBe(9);
+    expect(buttons.length).toBe(7);
+  });
+
+  it("shows one Signals tab and none of the legacy Vacancies/News/RFPs tabs", () => {
+    const { getByText, queryByText } = render(
+      <ViewTabsStrip kind="plan" groupId="p1" activeViewId="map" />,
+    );
+    expect(getByText("Signals")).toBeTruthy();
+    expect(queryByText("Vacancies")).toBeNull();
+    expect(queryByText("News")).toBeNull();
+    expect(queryByText("RFPs")).toBeNull();
   });
 
   it("marks the active tab with aria-current=page", () => {

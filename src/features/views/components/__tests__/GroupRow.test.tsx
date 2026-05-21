@@ -95,9 +95,9 @@ describe("GroupRow", () => {
     expect(getByText("78%")).toBeTruthy();
     expect(getByText(/of \$320K/)).toBeTruthy();
     expect(getByText("FY26 Q2")).toBeTruthy();
-    // 8 view rows render when expanded
+    // 6 view rows render when expanded (Signals replaced Vacancies/News/RFPs)
     const viewButtons = container.querySelectorAll("ul button");
-    expect(viewButtons.length).toBe(8);
+    expect(viewButtons.length).toBe(6);
   });
 
   it("renders list rows with filter count badge", () => {

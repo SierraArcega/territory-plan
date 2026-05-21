@@ -10,17 +10,29 @@ import {
 } from "../view-types";
 
 describe("view-types registry", () => {
-  it("has all 8 view IDs", () => {
+  it("has all 6 view IDs (Signals replaces Vacancies/News/RFPs)", () => {
     expect(VIEW_IDS).toEqual([
       "map",
       "table",
       "kanban",
       "contacts",
       "opps",
-      "vacancies",
-      "news",
-      "rfps",
+      "signals",
     ]);
+  });
+
+  it("no longer exposes the legacy entity-feed view ids", () => {
+    expect(isViewId("vacancies")).toBe(false);
+    expect(isViewId("news")).toBe(false);
+    expect(isViewId("rfps")).toBe(false);
+  });
+
+  it("exposes a single Signals view with the RadioTower icon slot", () => {
+    const signals = VIEW_SPECS.find((v) => v.id === "signals");
+    expect(signals).toBeTruthy();
+    expect(signals?.label).toBe("Signals");
+    // detailKind is a harmless placeholder — leaf rows route per data-row-kind.
+    expect(signals?.detailKind).toBe("district");
   });
 
   it("VIEW_SPECS length matches VIEW_IDS", () => {
@@ -54,9 +66,6 @@ describe("view-types registry", () => {
   it("each entity view maps to its own detail kind", () => {
     expect(VIEW_SPECS.find((v) => v.id === "contacts")?.detailKind).toBe("contact");
     expect(VIEW_SPECS.find((v) => v.id === "opps")?.detailKind).toBe("opp");
-    expect(VIEW_SPECS.find((v) => v.id === "vacancies")?.detailKind).toBe("vacancy");
-    expect(VIEW_SPECS.find((v) => v.id === "news")?.detailKind).toBe("news");
-    expect(VIEW_SPECS.find((v) => v.id === "rfps")?.detailKind).toBe("rfp");
   });
 
   it("isViewId narrows correctly", () => {
