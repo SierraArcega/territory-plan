@@ -923,7 +923,7 @@ model DistrictNote {
   district District    @relation(fields: [districtLeaid], references: [leaid], onDelete: Cascade)
   author   UserProfile @relation("DistrictNoteAuthor", fields: [authorId], references: [id])
 
-  @@index([districtLeaid, createdAt])
+  @@index([districtLeaid, createdAt(sort: Desc)])
   @@index([authorId])
   @@map("district_notes")
 }
