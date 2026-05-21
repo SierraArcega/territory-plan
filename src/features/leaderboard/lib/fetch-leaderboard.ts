@@ -7,23 +7,31 @@ export interface LeaderboardTeamTotals {
   revenue: number;
   revenueCurrentFY: number;
   revenuePriorFY: number;
+  revenueNextFY: number;
   unassignedRevenue: number;
   unassignedRevenueCurrentFY: number;
   unassignedRevenuePriorFY: number;
+  unassignedRevenueNextFY: number;
   priorYearRevenue: number;
   minPurchasesCurrentFY: number;
   minPurchasesPriorFY: number;
+  minPurchasesNextFY: number;
   unassignedPriorYearRevenue: number;
   unassignedMinPurchasesCurrentFY: number;
   unassignedMinPurchasesPriorFY: number;
+  unassignedMinPurchasesNextFY: number;
   pipelineCurrentFY: number;
   pipelineNextFY: number;
+  pipelinePriorFY: number;
   unassignedPipelineCurrentFY: number;
   unassignedPipelineNextFY: number;
+  unassignedPipelinePriorFY: number;
   targetedCurrentFY: number;
   targetedNextFY: number;
+  targetedPriorFY: number;
   unassignedTargetedCurrentFY: number;
   unassignedTargetedNextFY: number;
+  unassignedTargetedPriorFY: number;
 }
 
 export interface LeaderboardPayload {
@@ -226,23 +234,31 @@ export async function fetchLeaderboardData(): Promise<LeaderboardPayload> {
     revenue: sumActuals(repActuals, "revenue"),
     revenueCurrentFY: sumActuals(repActuals, "revenueCurrentFY"),
     revenuePriorFY: sumActuals(repActuals, "revenuePriorFY"),
+    revenueNextFY: sumActuals(repActuals, "revenueNextFY"),
     unassignedRevenue: sumActuals(adminActuals, "revenue"),
     unassignedRevenueCurrentFY: sumActuals(adminActuals, "revenueCurrentFY"),
     unassignedRevenuePriorFY: sumActuals(adminActuals, "revenuePriorFY"),
+    unassignedRevenueNextFY: sumActuals(adminActuals, "revenueNextFY"),
     priorYearRevenue: sumActuals(repActuals, "priorYearRevenue"),
     minPurchasesCurrentFY: sumActuals(repActuals, "minPurchasesCurrentFY"),
     minPurchasesPriorFY: sumActuals(repActuals, "minPurchasesPriorFY"),
+    minPurchasesNextFY: sumActuals(repActuals, "minPurchasesNextFY"),
     unassignedPriorYearRevenue: sumActuals(adminActuals, "priorYearRevenue"),
     unassignedMinPurchasesCurrentFY: sumActuals(adminActuals, "minPurchasesCurrentFY"),
     unassignedMinPurchasesPriorFY: sumActuals(adminActuals, "minPurchasesPriorFY"),
+    unassignedMinPurchasesNextFY: sumActuals(adminActuals, "minPurchasesNextFY"),
     pipelineCurrentFY: sumActuals(repActuals, "pipelineCurrentFY"),
     pipelineNextFY: sumActuals(repActuals, "pipelineNextFY"),
+    pipelinePriorFY: sumActuals(repActuals, "pipelinePriorFY"),
     unassignedPipelineCurrentFY: sumActuals(adminActuals, "pipelineCurrentFY"),
     unassignedPipelineNextFY: sumActuals(adminActuals, "pipelineNextFY"),
+    unassignedPipelinePriorFY: sumActuals(adminActuals, "pipelinePriorFY"),
     targetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, userIds),
     targetedNextFY: sumTargetedMap(targetedNextFYByUser, userIds),
+    targetedPriorFY: sumTargetedMap(targetedPriorFYByUser, userIds),
     unassignedTargetedCurrentFY: sumTargetedMap(targetedCurrentFYByUser, adminUserIds),
     unassignedTargetedNextFY: sumTargetedMap(targetedNextFYByUser, adminUserIds),
+    unassignedTargetedPriorFY: sumTargetedMap(targetedPriorFYByUser, adminUserIds),
   };
 
   return {

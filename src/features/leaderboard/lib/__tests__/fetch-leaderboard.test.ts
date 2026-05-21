@@ -253,4 +253,35 @@ describe("fetchLeaderboardData", () => {
     const payload = await fetchLeaderboardData();
     expect(payload.entries[0].targetedPriorFY).toBe(500);
   });
+
+  it("includes revenueNextFY, minPurchasesNextFY, pipelinePriorFY, targetedPriorFY in teamTotals", async () => {
+    mockUserProfile.mockResolvedValue([
+      { id: "u1", fullName: "Alice", avatarUrl: null, email: "alice@x.com", role: "rep" },
+    ] as never);
+    mockGetRepActualsBatch.mockResolvedValue(batchOf({
+      "alice@x.com": {
+        "2024-25": { openPipeline: 77 },
+        "2025-26": { totalRevenue: 100 },
+        "2026-27": { totalRevenue: 42, minPurchaseBookings: 99 },
+      },
+    }));
+    mockTerritoryPlanDistrict
+      .mockResolvedValueOnce([]) // currentFY
+      .mockResolvedValueOnce([]) // nextFY
+      .mockResolvedValueOnce([   // priorFY
+        {
+          districtLeaid: "D1",
+          renewalTarget: 500,
+          winbackTarget: 0, expansionTarget: 0, newBusinessTarget: 0,
+          plan: { ownerId: "u1", userId: null },
+        },
+      ] as never);
+
+    const payload = await fetchLeaderboardData();
+
+    expect(payload.teamTotals.revenueNextFY).toBe(42);
+    expect(payload.teamTotals.minPurchasesNextFY).toBe(99);
+    expect(payload.teamTotals.pipelinePriorFY).toBe(77);
+    expect(payload.teamTotals.targetedPriorFY).toBe(500);
+  });
 });
