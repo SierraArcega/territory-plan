@@ -106,7 +106,7 @@ export async function POST(request: NextRequest): Promise<Response> {
               rowCount: result.rowCount,
               executionTimeMs: result.executionTimeMs,
             });
-          } else {
+          } else if (result.kind === "clarifying" || result.kind === "surrender") {
             const error =
               result.kind === "surrender"
                 ? (lastFailedToolError(result.events) ?? SURRENDER_NO_SQL_SENTINEL)
@@ -121,6 +121,10 @@ export async function POST(request: NextRequest): Promise<Response> {
               error,
             });
           }
+          // result.kind === "terminal_result" is unreachable here — this route
+          // never sets agentVariant != 'reports'. Treated as a no-op in the
+          // type system so future variants can't accidentally land in the
+          // reports save path.
         } catch (err) {
           console.error("[chat stream route] saveTurn failed", err);
         }
@@ -140,10 +144,18 @@ export async function POST(request: NextRequest): Promise<Response> {
               executionTimeMs: result.executionTimeMs,
             },
           });
-        } else {
+        } else if (result.kind === "clarifying" || result.kind === "surrender") {
           send("result", {
             conversationId,
             assistantText: result.text,
+            result: null,
+          });
+        } else {
+          // terminal_result — unreachable for the reports variant. Send a
+          // safe fallback to keep the client unblocked.
+          send("result", {
+            conversationId,
+            assistantText: result.assistantText,
             result: null,
           });
         }

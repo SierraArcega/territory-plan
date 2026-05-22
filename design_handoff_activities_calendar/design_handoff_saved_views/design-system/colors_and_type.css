@@ -1,0 +1,217 @@
+/* ============================================================
+   Fullmind / Mapomatic Design System — Colors & Type
+   Single source of truth for CSS variables.
+   Pairs 1:1 with Documentation/UI Framework/tokens.md.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  /* ---------- Brand palette ---------- */
+  --color-plum:         #403770;
+  --color-plum-dark:    #322a5a;
+  --color-coral:        #F37167;
+  --color-steel-blue:   #6EA3BE;
+  --color-robins-egg:   #C4E7E6;
+  --color-golden:       #FFCF70;
+  --color-mint:         #EDFFE3;
+  --color-off-white:    #FFFCFA;
+  --color-sage:         #8AA891;
+
+  /* ---------- Neutrals (plum-derived; never use Tailwind grays) ---------- */
+  --surface:            #FFFCFA;  /* page + map background */
+  --surface-raised:     #F7F5FA;  /* table headers, subtle card bg */
+  --surface-hover:      #EFEDF5;  /* hover row tint */
+  --surface-white:      #FFFFFF;  /* card surfaces, inputs */
+
+  --border-subtle:      #E2DEEC;
+  --border-default:     #D4CFE2;
+  --border-strong:      #C2BBD4;
+  --border-brand:       #403770;
+
+  /* ---------- Foreground / text (plum ladder) ---------- */
+  --fg-muted:           #A69DC0;  /* placeholders, disabled */
+  --fg-secondary:       #8A80A8;  /* descriptions, small labels */
+  --fg-body:            #6E6390;  /* body */
+  --fg-strong:          #544A78;  /* headings, emphasis */
+  --fg-primary:         #403770;  /* plum — primary ink */
+  --fg-pressed:         #322a5a;  /* pressed / hover on plum */
+  --fg-inverse:         #FFFFFF;  /* on plum / coral backgrounds */
+
+  /* ---------- Semantic (derived from brand stops) ---------- */
+  --error-bg:           #fef1f0;
+  --error-fg:           #c25a52;
+  --error-border:       #f58d85;
+  --error-strong:       #F37167;
+
+  --warning-bg:         #fffaf1;
+  --warning-fg:         #997c43;
+  --warning-border:     #ffd98d;
+  --warning-strong:     #FFCF70;
+
+  --success-bg:         #F7FFF2;
+  --success-fg:         #5f665b;
+  --success-border:     #8AC670;
+  --success-strong:     #69B34A;
+
+  --info-bg:            #e8f1f5;
+  --info-fg:            #4d7285;
+  --info-border:        #8bb5cb;
+  --info-strong:        #6EA3BE;
+
+  /* Special-case map value */
+  --map-lapsed:         #FFB347;
+
+  /* ---------- Radius scale ---------- */
+  --radius-full:        9999px;
+  --radius-lg:          8px;    /* cards, inputs, buttons */
+  --radius-xl:          12px;   /* popovers */
+  --radius-2xl:         16px;   /* modals, floating panels */
+
+  /* ---------- Shadow scale ---------- */
+  --shadow-sm:          0 1px 2px rgba(64, 55, 112, 0.05);
+  --shadow-lg:          0 10px 15px -3px rgba(64, 55, 112, 0.10),
+                        0 4px 6px -4px rgba(64, 55, 112, 0.10);
+  --shadow-xl:          0 20px 25px -5px rgba(64, 55, 112, 0.15),
+                        0 8px 10px -6px rgba(64, 55, 112, 0.10);
+  --shadow-popup:       0 4px 12px rgba(64, 55, 112, 0.15);
+
+  /* ---------- Spacing rhythm (4px grid) ---------- */
+  --space-1:   4px;
+  --space-1-5: 6px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+
+  /* ---------- Type ---------- */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* 5-tier scale — do not extend */
+  --text-micro:   10px;  /* chips, map chrome, ultra-compact labels */
+  --text-caption: 12px;  /* labels, badges, table headers */
+  --text-body:    14px;  /* body, inputs, table data */
+  --text-heading: 18px;  /* section headings, modal titles */
+  --text-display: 20px;  /* hero numbers */
+  --text-display-lg: 24px;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ---------- Animation ---------- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-pop:      cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-hover:     120ms;
+  --dur-tooltip:   150ms;
+  --dur-content:   200ms;
+  --dur-panel:     250ms;
+}
+
+/* ============================================================
+   Base element styles
+   ============================================================ */
+
+html, body {
+  font-family: var(--font-sans);
+  color: var(--fg-primary);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* ============================================================
+   Semantic typography helpers (class-level)
+   Usage: <h1 class="fm-display">...</h1>
+   ============================================================ */
+
+.fm-display {
+  font-size: var(--text-display-lg);
+  font-weight: var(--weight-bold);
+  color: var(--fg-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.fm-heading {
+  font-size: var(--text-heading);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-primary);
+  line-height: 1.3;
+}
+
+.fm-body {
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  color: var(--fg-body);
+  line-height: 1.5;
+}
+
+.fm-body-strong {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--fg-primary);
+}
+
+.fm-caption {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--fg-secondary);
+}
+
+.fm-label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--fg-secondary);
+  text-transform: none;
+}
+
+.fm-eyebrow {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fm-micro {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  color: var(--fg-secondary);
+}
+
+.fm-metric {
+  font-size: var(--text-display);
+  font-weight: var(--weight-bold);
+  color: var(--fg-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.fm-metric-lg {
+  font-size: var(--text-display-lg);
+  font-weight: var(--weight-bold);
+  color: var(--fg-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+/* ============================================================
+   Utility patches — brand scrollbar + focus ring
+   ============================================================ */
+
+.fm-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.fm-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.fm-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(64, 55, 112, 0.15);
+  border-radius: 2px;
+}
+.fm-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(64, 55, 112, 0.3); }
+
+.fm-focus-ring:focus-visible {
+  outline: 2px solid var(--color-coral);
+  outline-offset: 2px;
+}

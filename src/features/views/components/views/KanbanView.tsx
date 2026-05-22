@@ -1,0 +1,389 @@
+"use client";
+
+/**
+ * KanbanView — opportunity pipeline board for the active plan.
+ *
+ * Columns are the real Salesforce opportunity stages (funnel 0–5 + Closed Won /
+ * Closed Lost) from lib/opp-stage-columns. Opps are scoped to the plan's
+ * districts and the plan's fiscal year (→ school year). Read-only: there is no
+ * drag-to-move and no card create in v1 (opps are a read-only Salesforce
+ * mirror). The per-card "Open in LMS" link is the only card affordance.
+ *
+ * Lists are not scoped yet (leaids === null) — same plan-only empty state as the
+ * other views until list previews are wired.
+ */
+import { useQuery } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
+import { API_BASE, fetchJson } from "@/features/shared/lib/api-client";
+import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
+import { OPP_STAGE_COLUMNS } from "@/features/views/lib/opp-stage-columns";
+import { CustomerRankCell } from "@/features/views/components/grid/cells/CustomerRankCell";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PAGE_SIZE,
+  leaidsCsv,
+  leaidsKey,
+} from "./_shared";
+import { formatMoney } from "./TableView";
+import { useKanbanLayout } from "@/features/views/hooks/useKanbanLayout";
+import { KanbanToolbar } from "./KanbanToolbar";
+import type { ViewLayouts } from "@/lib/saved-views/grid-layout-schema";
+
+interface KanbanViewProps {
+  leaids: string[] | null;
+  /** Plan's fiscal year (e.g. 2026). null for lists (not scoped in v1). */
+  fiscalYear: number | null;
+  /** Plan id — drives the "Targeted" column. null for lists (not scoped in v1). */
+  planId: string | null;
+  /** Saved viewLayouts blob from the parent plan/list — seeds filter/sort state. */
+  savedLayouts: ViewLayouts;
+}
+
+interface KanbanCard {
+  id: string;
+  name: string | null;
+  districtName: string | null;
+  contractType: string | null;
+  netBookingAmount: number | null;
+  minimumPurchaseAmount: number | null;
+  maximumBudget: number | null;
+  closeDate: string | null;
+  salesRepName: string | null;
+  detailsLink: string | null;
+  rankLabel: string;
+}
+
+interface KanbanColumnData {
+  id: string;
+  label: string;
+  count: number;
+  totalBookings: number;
+  cards: KanbanCard[];
+  hasMore: boolean;
+}
+
+interface TargetedCard {
+  leaid: string;
+  name: string | null;
+  target: number;
+  rankLabel: string;
+}
+
+interface TargetedData {
+  count: number;
+  totalTarget: number;
+  cards: TargetedCard[];
+  hasMore: boolean;
+}
+
+interface KanbanResponse {
+  schoolYr: string;
+  columns: KanbanColumnData[];
+  targeted: TargetedData;
+}
+
+const ACCENT_BY_ID: Record<string, string> = Object.fromEntries(
+  OPP_STAGE_COLUMNS.map((c) => [c.id, c.accent]),
+);
+
+/** Accent for the leftmost "Targeted" column (no-opp plan districts). */
+const TARGETED_ACCENT = "#9B93B8";
+
+const EMPTY_TARGETED: TargetedData = {
+  count: 0,
+  totalTarget: 0,
+  cards: [],
+  hasMore: false,
+};
+
+export default function KanbanView({ leaids, fiscalYear, planId, savedLayouts }: KanbanViewProps) {
+  const keyTag = leaidsKey(leaids);
+  const schoolYr = fiscalYear != null ? fiscalYearToSchoolYear(fiscalYear) : "";
+
+  const { layout, setLayout } = useKanbanLayout({ parentKind: "plan", parentId: planId ?? "", savedLayouts });
+  const filtersJson = JSON.stringify(layout.filters);
+  const sortJson = JSON.stringify(layout.sort);
+  const rankBucketsParam = layout.rankBuckets.length > 0 ? `&rankBuckets=${layout.rankBuckets.join(",")}` : "";
+  const rankSortParam = layout.rankSort ? `&rankSort=${layout.rankSort}` : "";
+
+  const q = useQuery({
+    queryKey: ["views", "opps-kanban", keyTag, schoolYr, planId ?? "", PAGE_SIZE, filtersJson, sortJson, layout.rankBuckets.join(","), layout.rankSort ?? ""] as const,
+    queryFn: () => {
+      const csv = leaidsCsv(leaids);
+      const planParam = planId ? `&planId=${encodeURIComponent(planId)}` : "";
+      const hasFilters = layout.filters.children.length > 0;
+      const filterParam = hasFilters ? `&filters=${encodeURIComponent(filtersJson)}` : "";
+      const sortParam = layout.sort.length > 0 ? `&sort=${encodeURIComponent(sortJson)}` : "";
+      return fetchJson<KanbanResponse>(
+        `${API_BASE}/views/opps-kanban?leaids=${encodeURIComponent(csv)}` +
+          `&schoolYr=${encodeURIComponent(schoolYr)}&limit=${PAGE_SIZE}${planParam}${filterParam}${sortParam}${rankBucketsParam}${rankSortParam}`,
+      );
+    },
+    enabled: leaids !== null && schoolYr !== "",
+    staleTime: 60 * 1000,
+  });
+
+  if (leaids === null) {
+    return (
+      <EmptyState
+        title="List scoping not wired yet"
+        hint="Phase E adds live list previews — until then the kanban view is plan-only."
+      />
+    );
+  }
+
+  if (q.isLoading) return <LoadingState rows={3} />;
+  if (q.isError) {
+    return (
+      <ErrorState
+        message={String(q.error?.message ?? "Could not fetch opportunities.")}
+        onRetry={() => q.refetch()}
+      />
+    );
+  }
+
+  const columns = q.data?.columns ?? [];
+  const targeted = q.data?.targeted ?? EMPTY_TARGETED;
+  const totalOpps = columns.reduce((sum, c) => sum + c.count, 0);
+  if (totalOpps === 0 && targeted.count === 0) {
+    return (
+      <EmptyState
+        title="No opportunities for this plan's year"
+        hint="Opportunities sync from Salesforce for the plan's districts and fiscal year."
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <KanbanToolbar layout={layout} onChange={setLayout} />
+      <div
+        className="flex-1 overflow-auto bg-[#FFFCFA] p-4"
+        style={{ touchAction: "pan-y" }}
+      >
+        <div className="flex gap-3 min-w-max h-full">
+          {targeted.count > 0 && (
+            <TargetedColumn targeted={targeted} accent={TARGETED_ACCENT} />
+          )}
+          {columns.map((col) => (
+            <Column
+              key={col.id}
+              col={col}
+              accent={ACCENT_BY_ID[col.id] ?? "#A69DC0"}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TargetedColumn({
+  targeted,
+  accent,
+}: {
+  targeted: TargetedData;
+  accent: string;
+}) {
+  return (
+    <div className="w-64 flex flex-col flex-shrink-0">
+      <div
+        className="rounded-full mb-2"
+        style={{ height: 2, background: accent }}
+        aria-hidden
+      />
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ background: accent }}
+            aria-hidden
+          />
+          <span className="text-[12px] font-semibold text-[#403770] truncate">
+            Targeted
+          </span>
+          <span className="text-[11px] text-[#8A80A8] tabular-nums whitespace-nowrap">
+            {targeted.count}
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold text-[#544A78] tabular-nums whitespace-nowrap">
+          {formatMoney(targeted.totalTarget)}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2 flex-1">
+        {targeted.cards.map((card) => (
+          <DistrictCard key={card.leaid} card={card} accent={accent} />
+        ))}
+        {targeted.hasMore && (
+          <div className="px-2.5 py-1 text-[11px] text-[#8A80A8] text-center whitespace-nowrap">
+            +{targeted.count - targeted.cards.length} more
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DistrictCard({
+  card,
+  accent,
+}: {
+  card: TargetedCard;
+  accent: string;
+}) {
+  return (
+    <div
+      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 transition-colors duration-100"
+      style={{ boxShadow: "0 1px 2px rgba(64,55,112,0.05)" }}
+    >
+      <div className="flex items-center gap-1.5 min-w-0 mb-1.5">
+        <span
+          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+          style={{ background: accent }}
+          aria-hidden
+        />
+        <span className="flex-shrink-0">
+          <CustomerRankCell value={card.rankLabel} />
+        </span>
+        <span className="text-[13px] font-semibold text-[#403770] truncate">
+          {card.name ?? "Unknown district"}
+        </span>
+      </div>
+      <CardRow label="Target" value={formatMoney(card.target)} />
+    </div>
+  );
+}
+
+function Column({ col, accent }: { col: KanbanColumnData; accent: string }) {
+  return (
+    <div className="w-64 flex flex-col flex-shrink-0">
+      <div
+        className="rounded-full mb-2"
+        style={{ height: 2, background: accent }}
+        aria-hidden
+      />
+      <div className="flex items-center justify-between px-1 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ background: accent }}
+            aria-hidden
+          />
+          <span className="text-[12px] font-semibold text-[#403770] truncate">
+            {col.label}
+          </span>
+          <span className="text-[11px] text-[#8A80A8] tabular-nums whitespace-nowrap">
+            {col.count}
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold text-[#544A78] tabular-nums whitespace-nowrap">
+          {formatMoney(col.totalBookings)}
+        </span>
+      </div>
+      <div className="flex flex-col gap-2 flex-1">
+        {col.cards.map((card) => (
+          <Card key={card.id} card={card} accent={accent} />
+        ))}
+        {col.cards.length === 0 && (
+          <div className="px-2.5 py-3 text-[11px] text-[#A69DC0] text-center whitespace-nowrap">
+            No opportunities
+          </div>
+        )}
+        {col.hasMore && (
+          <div className="px-2.5 py-1 text-[11px] text-[#8A80A8] text-center whitespace-nowrap">
+            +{col.count - col.cards.length} more
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Card({ card, accent }: { card: KanbanCard; accent: string }) {
+  return (
+    <div
+      className="bg-white border border-[#D4CFE2] rounded-lg p-2.5 transition-colors duration-100"
+      style={{ boxShadow: "0 1px 2px rgba(64,55,112,0.05)" }}
+    >
+      <div className="flex items-start justify-between gap-1.5 mb-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ background: accent }}
+            aria-hidden
+          />
+          <span className="flex-shrink-0">
+            <CustomerRankCell value={card.rankLabel} />
+          </span>
+          <span className="text-[13px] font-semibold text-[#403770] truncate">
+            {card.name ?? "Untitled opportunity"}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {card.contractType && (
+            <span className="inline-block px-1.5 py-0.5 rounded-full bg-[#EFEDF5] text-[10px] font-semibold text-[#6f6786] whitespace-nowrap">
+              {card.contractType}
+            </span>
+          )}
+          {card.detailsLink && (
+            <a
+              href={card.detailsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Open in LMS"
+              title="Open in LMS"
+              className="text-[#A69DC0] hover:text-[#403770] transition-colors duration-100"
+            >
+              <ExternalLink className="w-3.5 h-3.5" aria-hidden />
+            </a>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col gap-0.5 text-[11px]">
+        <CardRow label="District" value={card.districtName ?? "—"} />
+        <CardRow
+          label="Amount"
+          value={card.netBookingAmount != null ? formatMoney(card.netBookingAmount) : "—"}
+        />
+        <CardRow
+          label="Min purchase"
+          value={
+            card.minimumPurchaseAmount != null
+              ? formatMoney(card.minimumPurchaseAmount)
+              : "—"
+          }
+        />
+        {card.maximumBudget != null && (
+          <CardRow label="Max budget" value={formatMoney(card.maximumBudget)} />
+        )}
+        <CardRow label="Close" value={formatCloseDate(card.closeDate)} />
+        <CardRow label="Sales rep" value={card.salesRepName ?? "—"} />
+      </div>
+    </div>
+  );
+}
+
+function CardRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[#8A80A8] whitespace-nowrap">{label}</span>
+      <span className="text-[#544A78] font-medium tabular-nums truncate text-right">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function formatCloseDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}

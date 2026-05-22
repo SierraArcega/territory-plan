@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { getUser } from "@/lib/supabase/server";
 import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 import { expandPlanRollups } from "@/features/districts/lib/expandRollups";
+import { viewLayoutsSchema } from "@/lib/saved-views/grid-layout-schema";
+
+const patchPlanBodySchema = z.object({
+  viewLayouts: viewLayoutsSchema().optional(),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -501,6 +508,69 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error updating territory plan:", error);
+    return NextResponse.json(
+      { error: "Failed to update territory plan" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/territory-plans/[id] - Partial update (viewLayouts etc.)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const user = await getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const existing = await prisma.territoryPlan.findUnique({
+      where: { id },
+      select: { id: true, ownerId: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Territory plan not found" }, { status: 404 });
+    }
+
+    if (existing.ownerId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const parsed = patchPlanBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid update body", details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const data = parsed.data;
+
+    const updateData: Record<string, unknown> = {};
+    if (data.viewLayouts !== undefined) {
+      updateData.viewLayouts = data.viewLayouts === null ? Prisma.JsonNull : data.viewLayouts;
+    }
+
+    const plan = await prisma.territoryPlan.update({
+      where: { id },
+      data: updateData,
+      select: { id: true, updatedAt: true },
+    });
+
+    return NextResponse.json({ id: plan.id, updatedAt: plan.updatedAt.toISOString() });
+  } catch (error) {
+    console.error("Error patching territory plan:", error);
     return NextResponse.json(
       { error: "Failed to update territory plan" },
       { status: 500 }

@@ -43,6 +43,8 @@ interface ActivityFormModalProps {
   // Initial data for editing (optional) - now uses ActivityListItem
   initialData?: ActivityListItem | null;
   title?: string;
+  // When set, the modal opens scoped to this district ("Specific district") instead of all-districts.
+  initialDistrictLeaid?: string | null;
 }
 
 // Build activity type options grouped by category
@@ -72,6 +74,7 @@ export default function ActivityFormModal({
   contacts = [],
   initialData,
   title = "Add Activity",
+  initialDistrictLeaid = null,
 }: ActivityFormModalProps) {
   // Form state - updated for new Activity system with date range
   const [formData, setFormData] = useState<ActivityFormData>({
@@ -114,7 +117,7 @@ export default function ActivityFormModal({
           startDate: new Date().toISOString().split("T")[0],
           endDate: null,
           status: "planned",
-          districtLeaid: null,
+          districtLeaid: initialDistrictLeaid,
           contactIds: [],
           notes: "",
         });
@@ -124,7 +127,7 @@ export default function ActivityFormModal({
       setShowDeleteConfirm(false);
       setIsDeleting(false);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, initialDistrictLeaid]);
 
   // Clear contacts when district changes
   useEffect(() => {

@@ -182,6 +182,13 @@ interface MapV2State {
   rightPanelContent: RightPanelContent | null;
   detailPopout: { leaid: string } | null;
   planDistrictLeaids: Set<string>;
+  // ── Views feature: plan-scoped map (highlight + add-from-map) ──────────────
+  /** Active Views plan whose districts the map is scoped to. Null = no scoping. */
+  viewsPlanId: string | null;
+  /** The active plan's saved districts — plum highlight + "already in plan" test. */
+  viewsPlanHighlightLeaids: Set<string>;
+  /** Districts clicked but not yet committed — coral highlight, drives the add bar. */
+  viewsPlanSelectedLeaids: Set<string>;
 
   // Multi-select (for Flow A: select -> plan)
   selectedLeaids: Set<string>;
@@ -327,6 +334,11 @@ interface MapV2Actions {
   viewPlan: (planId: string) => void;
   addDistrictToPlan: (leaid: string) => void;
   removeDistrictFromPlan: (leaid: string) => void;
+  setViewsPlanContext: (planId: string, highlightLeaids: Set<string>) => void;
+  clearViewsPlanContext: () => void;
+  toggleViewsPlanSelection: (leaid: string) => void;
+  clearViewsPlanSelection: () => void;
+  addToViewsPlanHighlight: (leaids: string[]) => void;
   finishAddingDistricts: () => void;
 
   // Plan workspace
@@ -529,6 +541,9 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
   rightPanelContent: null as RightPanelContent | null,
   detailPopout: null as { leaid: string } | null,
   planDistrictLeaids: new Set<string>(),
+  viewsPlanId: null,
+  viewsPlanHighlightLeaids: new Set<string>(),
+  viewsPlanSelectedLeaids: new Set<string>(),
   selectedLeaids: new Set<string>(),
   searchQuery: "",
   tooltip: initialTooltip,
@@ -741,6 +756,38 @@ export const useMapV2Store = create<MapV2State & MapV2Actions>()((set, get) => (
       const next = new Set(s.planDistrictLeaids);
       next.delete(leaid);
       return { planDistrictLeaids: next };
+    }),
+
+  setViewsPlanContext: (planId, highlightLeaids) =>
+    set({
+      viewsPlanId: planId,
+      viewsPlanHighlightLeaids: new Set(highlightLeaids),
+      viewsPlanSelectedLeaids: new Set<string>(),
+    }),
+
+  clearViewsPlanContext: () =>
+    set({
+      viewsPlanId: null,
+      viewsPlanHighlightLeaids: new Set<string>(),
+      viewsPlanSelectedLeaids: new Set<string>(),
+    }),
+
+  toggleViewsPlanSelection: (leaid) =>
+    set((s) => {
+      if (s.viewsPlanHighlightLeaids.has(leaid)) return s; // in-plan → not selectable
+      const next = new Set(s.viewsPlanSelectedLeaids);
+      if (next.has(leaid)) next.delete(leaid);
+      else next.add(leaid);
+      return { viewsPlanSelectedLeaids: next };
+    }),
+
+  clearViewsPlanSelection: () => set({ viewsPlanSelectedLeaids: new Set<string>() }),
+
+  addToViewsPlanHighlight: (leaids) =>
+    set((s) => {
+      const next = new Set(s.viewsPlanHighlightLeaids);
+      for (const l of leaids) next.add(l);
+      return { viewsPlanHighlightLeaids: next };
     }),
 
   finishAddingDistricts: () =>

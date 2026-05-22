@@ -67,7 +67,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         rowCount: result.rowCount,
         executionTimeMs: result.executionTimeMs,
       });
-    } else {
+    } else if (result.kind === "clarifying" || result.kind === "surrender") {
       // clarifying turns leave error null. Surrenders prefer the real SQL
       // error from events; if none recoverable, fall back to the sentinel.
       const error =
@@ -84,6 +84,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         error,
       });
     }
+    // terminal_result is unreachable here — this route never opts into a
+    // non-reports variant. New variants must add their own save path.
   } catch (err) {
     console.error("[chat route] saveTurn failed", err);
   }
@@ -105,7 +107,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     conversationId,
-    assistantText: result.text,
+    assistantText:
+      result.kind === "terminal_result" ? result.assistantText : result.text,
     result: null,
   });
 }

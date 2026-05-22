@@ -47,12 +47,23 @@ export async function GET(request: NextRequest) {
     const year = (searchParams.get("year") || "fy26") as FiscalYear;
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
+    // Saved-views scoping: comma-separated district leaids. When present, the
+    // result is narrowed to that set (plan/list scope view). Empty string is
+    // a no-op so callers can pass `?leaids=` without conditional URL building.
+    const leaidsArg = searchParams.get("leaids");
+    const leaids = leaidsArg
+      ? leaidsArg.split(",").map((s) => s.trim()).filter(Boolean)
+      : null;
 
     // Build where clause - all filters are now directly on the district
     const where: Prisma.DistrictWhereInput = {};
 
     if (state) {
       where.stateAbbrev = state;
+    }
+
+    if (leaids && leaids.length > 0) {
+      where.leaid = { in: leaids };
     }
 
     if (search) {

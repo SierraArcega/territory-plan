@@ -17,6 +17,9 @@ interface AppShellProps {
   // Whether the current user has admin role
   isAdmin?: boolean;
 
+  /** When true, the global FilterBar is not rendered. /views/* routes use this. */
+  hideFilterBar?: boolean;
+
   // Content to render in the main area
   children: React.ReactNode;
 }
@@ -43,6 +46,7 @@ export default function AppShell({
   sidebarCollapsed,
   onSidebarCollapsedChange,
   isAdmin = false,
+  hideFilterBar = false,
   children,
 }: AppShellProps) {
   const isMobile = useIsMobile();
@@ -50,7 +54,7 @@ export default function AppShell({
   return (
     <div className="fixed inset-0 h-dvh flex flex-col bg-[#FFFCFA] overflow-hidden overscroll-none">
       {/* Top: FilterBar - adapts based on active tab */}
-      <FilterBar activeTab={activeTab} />
+      {!hideFilterBar && <FilterBar activeTab={activeTab} />}
 
       {/* Main area: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden min-h-0">

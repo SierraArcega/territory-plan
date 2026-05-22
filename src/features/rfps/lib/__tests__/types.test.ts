@@ -10,7 +10,8 @@ describe("HigherGovOpportunitySchema", () => {
   it("parses the captured sample without throwing", () => {
     const parsed = HigherGovListResponseSchema.parse(fixture);
     expect(parsed.results).toHaveLength(1);
-    const r = parsed.results[0];
+    // `results` is typed unknown[] (records validated per-row); parse to type it.
+    const r = HigherGovOpportunitySchema.parse(parsed.results[0]);
     expect(r.opp_key).toMatch(/^[a-f0-9]+$/);
     expect(r.agency.agency_key).toEqual(expect.any(Number));
     expect(r.agency.agency_name).toBe("United Independent School District");

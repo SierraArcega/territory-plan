@@ -1,19 +1,225 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { readonlyPool } from "@/lib/db-readonly";
 import { getUser } from "@/lib/supabase/server";
-import { getFinancialValue } from "@/features/shared/lib/financial-helpers";
+import { fiscalYearToSchoolYear } from "@/lib/opportunity-actuals";
 export const dynamic = "force-dynamic";
 
+/**
+ * Plan stats shape returned only when `?stats=1` is set on the GET request.
+ *
+ * Computed on-read by joining Opportunity + Contact against the plan's
+ * member-district leaids. Each row of the returned list payload has these
+ * four fields appended; legacy callers without `?stats=1` see the original
+ * shape unchanged.
+ *
+ * The numbers themselves:
+ *   - progress: % of plan-aggregate target met (bookings / sum-of-targets).
+ *     Returns null when the plan has no targets configured.
+ *   - pipelineValue: sum of net_booking_amount for open (non-Closed Lost)
+ *     opps in the plan's districts during the plan's fiscal year.
+ *   - contactsCount: count of contacts in the plan's member districts.
+ *   - oppsCount: count of open opps in the plan's districts for the plan
+ *     fiscal year.
+ */
+interface PlanStats {
+  progress: number | null;
+  pipelineValue: number;
+  contactsCount: number;
+  oppsCount: number;
+  closedWonMinCommit: number;
+}
+
+interface PlanForStats {
+  id: string;
+  fiscalYear: number;
+  districts: { districtLeaid: string }[];
+  targetsTotal: number;
+}
+
+/**
+ * Batched per-plan stats. The earlier per-plan implementation fired 4 Prisma
+ * aggregates per plan inside an outer Promise.all over every plan — at N plans
+ * that's 4N concurrent connections, which saturated the Supabase pooler (cap
+ * of 3 per server process) and caused the route to throw with
+ * "Timed out fetching a new connection from the connection pool."
+ *
+ * The new shape issues two grouped SQL queries against the readonly pool,
+ * keyed by (district_lea_id, school_yr) and (leaid). Cost is constant in N.
+ * Per-plan numbers are then composed in JS by walking each plan's districts
+ * and summing the matching rows.
+ */
+async function computeAllPlanStats(
+  plans: PlanForStats[],
+): Promise<Map<string, PlanStats>> {
+  const result = new Map<string, PlanStats>();
+
+  // Collect the union of leaids and school years we need to scan.
+  // School-year strings must match the canonical "2026-27" format used
+  // everywhere else (see fiscalYearToSchoolYear) — the previous "FY27" shape
+  // matched no rows, which is why pipeline/opps stats came back as zero.
+  const leaidSet = new Set<string>();
+  const schoolYrSet = new Set<string>();
+  for (const p of plans) {
+    for (const d of p.districts) leaidSet.add(d.districtLeaid);
+    schoolYrSet.add(fiscalYearToSchoolYear(p.fiscalYear));
+  }
+
+  // No plans touch any districts → every plan is zeros, skip DB entirely.
+  if (leaidSet.size === 0) {
+    for (const p of plans) {
+      result.set(p.id, {
+        progress: null,
+        pipelineValue: 0,
+        contactsCount: 0,
+        oppsCount: 0,
+        closedWonMinCommit: 0,
+      });
+    }
+    return result;
+  }
+
+  const leaids = Array.from(leaidSet);
+  const schoolYrs = Array.from(schoolYrSet);
+
+  // Two queries, both leaning on existing indexes:
+  //   - opportunities(district_lea_id, school_yr, stage)
+  //   - contacts(leaid)
+  // CASE/FILTER inside SUM/COUNT folds the open-pipeline / bookings split
+  // into one pass instead of two separate aggregates.
+  const oppsRowsP = readonlyPool.query<{
+    district_lea_id: string;
+    school_yr: string;
+    open_pipeline: string;
+    open_count: string;
+    bookings: string;
+    closed_won_min_commit: string;
+  }>(
+    `SELECT
+       district_lea_id,
+       school_yr,
+       COALESCE(SUM(net_booking_amount) FILTER (WHERE stage NOT IN ('Closed Won','Closed Lost')), 0) AS open_pipeline,
+       COUNT(*) FILTER (WHERE stage NOT IN ('Closed Won','Closed Lost')) AS open_count,
+       COALESCE(SUM(net_booking_amount) FILTER (WHERE stage = 'Closed Won'), 0) AS bookings,
+       COALESCE(SUM(minimum_purchase_amount) FILTER (WHERE stage = 'Closed Won'), 0) AS closed_won_min_commit
+     FROM opportunities
+     WHERE district_lea_id = ANY($1::text[])
+       AND school_yr = ANY($2::text[])
+     GROUP BY district_lea_id, school_yr`,
+    [leaids, schoolYrs],
+  );
+
+  const contactsRowsP = readonlyPool.query<{ leaid: string; count: string }>(
+    `SELECT leaid, COUNT(*) AS count
+     FROM contacts
+     WHERE leaid = ANY($1::text[])
+     GROUP BY leaid`,
+    [leaids],
+  );
+
+  const [oppsRows, contactsRows] = await Promise.all([oppsRowsP, contactsRowsP]);
+
+  // (leaid, school_yr) → opps aggregates. School year matters because two
+  // plans can share a district but care about different fiscal years.
+  const oppsByKey = new Map<
+    string,
+    {
+      openPipeline: number;
+      openCount: number;
+      bookings: number;
+      closedWonMinCommit: number;
+    }
+  >();
+  for (const r of oppsRows.rows) {
+    oppsByKey.set(`${r.district_lea_id}|${r.school_yr}`, {
+      openPipeline: Number(r.open_pipeline),
+      openCount: Number(r.open_count),
+      bookings: Number(r.bookings),
+      closedWonMinCommit: Number(r.closed_won_min_commit),
+    });
+  }
+
+  const contactsByLeaid = new Map<string, number>();
+  for (const r of contactsRows.rows) {
+    contactsByLeaid.set(r.leaid, Number(r.count));
+  }
+
+  for (const plan of plans) {
+    if (plan.districts.length === 0) {
+      result.set(plan.id, {
+        progress: null,
+        pipelineValue: 0,
+        contactsCount: 0,
+        oppsCount: 0,
+        closedWonMinCommit: 0,
+      });
+      continue;
+    }
+    const schoolYr = fiscalYearToSchoolYear(plan.fiscalYear);
+    let pipelineValue = 0;
+    let oppsCount = 0;
+    let bookings = 0;
+    let contactsCount = 0;
+    let closedWonMinCommit = 0;
+    for (const d of plan.districts) {
+      const o = oppsByKey.get(`${d.districtLeaid}|${schoolYr}`);
+      if (o) {
+        pipelineValue += o.openPipeline;
+        oppsCount += o.openCount;
+        bookings += o.bookings;
+        closedWonMinCommit += o.closedWonMinCommit;
+      }
+      contactsCount += contactsByLeaid.get(d.districtLeaid) ?? 0;
+    }
+    const progress =
+      plan.targetsTotal > 0
+        ? Math.max(0, Math.min(100, Math.round((bookings / plan.targetsTotal) * 100)))
+        : null;
+    result.set(plan.id, {
+      progress,
+      pipelineValue,
+      contactsCount,
+      oppsCount,
+      closedWonMinCommit,
+    });
+  }
+
+  return result;
+}
+
 // GET /api/territory-plans - List all plans with district counts
-export async function GET() {
+//
+// Optional query params:
+//   ?stats=1     — include progress / pipelineValue / contactsCount /
+//                  oppsCount per plan (extra aggregate queries; opt-in).
+//   ?showHidden=1 — include plans this user has per-user-hidden via
+//                  POST /api/territory-plans/[id]/hide. Default: filter
+//                  hidden out.
+export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
     if (!user) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Show all plans — the team shares visibility across plans
-    const whereClause = {};
+    const { searchParams } = new URL(request.url);
+    const includeStats = searchParams.get("stats") === "1";
+    const showHidden = searchParams.get("showHidden") === "1";
+    const mine = searchParams.get("mine") === "1";
+
+    // Default: show all plans — the team shares visibility across plans, and
+    // the leaderboard / map search / filter dropdowns all rely on the full set.
+    // With ?mine=1 (the My Views sidebar), scope to plans the user owns or
+    // collaborates on so each rep sees only their own views.
+    const whereClause: Prisma.TerritoryPlanWhereInput = mine
+      ? {
+          OR: [
+            { ownerId: user.id },
+            { collaborators: { some: { userId: user.id } } },
+          ],
+        }
+      : {};
 
     const plans = await prisma.territoryPlan.findMany({
       where: whereClause,
@@ -25,6 +231,10 @@ export async function GET() {
         districts: {
           select: {
             districtLeaid: true,
+            renewalTarget: true,
+            winbackTarget: true,
+            expansionTarget: true,
+            newBusinessTarget: true,
             district: {
               select: {
                 enrollment: true,
@@ -57,10 +267,37 @@ export async function GET() {
             user: { select: { id: true, fullName: true, avatarUrl: true } },
           },
         },
+        hidden: { where: { userId: user.id }, select: { hiddenAt: true } },
       },
     });
 
-    const result = plans.map((plan) => {
+    // Filter per-user hidden plans unless showHidden=1.
+    const visiblePlans = plans.filter((p) => showHidden || p.hidden.length === 0);
+
+    // Stats are computed for every visible plan in two grouped SQL queries
+    // (opportunities + contacts), not 4 Prisma aggregates per plan. This
+    // keeps the connection-pool demand constant in N — the previous fan-out
+    // was timing out the Supabase pooler on /views.
+    let statsByPlanId = new Map<string, PlanStats>();
+    if (includeStats) {
+      const plansForStats: PlanForStats[] = visiblePlans.map((plan) => ({
+        id: plan.id,
+        fiscalYear: plan.fiscalYear,
+        districts: plan.districts.map((d) => ({ districtLeaid: d.districtLeaid })),
+        targetsTotal: plan.districts.reduce(
+          (sum, d) =>
+            sum +
+            Number(d.renewalTarget ?? 0) +
+            Number(d.winbackTarget ?? 0) +
+            Number(d.expansionTarget ?? 0) +
+            Number(d.newBusinessTarget ?? 0),
+          0,
+        ),
+      }));
+      statsByPlanId = await computeAllPlanStats(plansForStats);
+    }
+
+    const result = visiblePlans.map((plan) => {
       const districtLeaIds = plan.districts.map((d) => d.districtLeaid);
 
       const totalEnrollment = plan.districts.reduce(
@@ -81,6 +318,8 @@ export async function GET() {
       const completedTaskCount = plan.taskLinks.filter(
         (tl) => tl.task.status === "done"
       ).length;
+
+      const stats = statsByPlanId.get(plan.id);
 
       return {
         id: plan.id,
@@ -122,6 +361,21 @@ export async function GET() {
         revenueActual: 0,
         takeActual: 0,
         priorFyRevenue: 0,
+        // Per-user hide state — surfaces in the sidebar's "show hidden" toggle.
+        hidden: plan.hidden.length > 0,
+        // Column/sort/filter layout blob — null until the user first customises a view.
+        viewLayouts: plan.viewLayouts ?? null,
+        // ?stats=1 fields. Omitted entirely when stats=0 so legacy callers
+        // see the same payload they always saw.
+        ...(stats
+          ? {
+              progress: stats.progress,
+              pipelineValue: stats.pipelineValue,
+              contactsCount: stats.contactsCount,
+              oppsCount: stats.oppsCount,
+              closedWonMinCommit: stats.closedWonMinCommit,
+            }
+          : {}),
       };
     });
 

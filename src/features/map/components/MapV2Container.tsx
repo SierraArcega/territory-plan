@@ -7,7 +7,12 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // Use more workers for parallel tile decoding during fast panning
 setWorkerCount(4);
 import { useMapV2Store } from "@/features/map/lib/store";
-import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression, NOT_ROLLUP_FILTER, DISTRICT_ROLLUP_OUTLINE_LAYER } from "@/features/map/lib/layers";
+import { VENDOR_CONFIGS, VENDOR_IDS, SIGNAL_CONFIGS, LOCALE_FILL, ALL_LOCALE_IDS, buildFilterExpression, ACCOUNT_POINT_LAYER_ID, buildAccountPointLayer, engagementToCategories, buildVendorFillExpression, buildSignalFillExpression, buildVendorFillExpressionFromCategories, buildSignalFillExpressionFromCategories, buildCategoryOpacityExpression, buildTransitionFillExpression, NOT_ROLLUP_FILTER, DISTRICT_ROLLUP_OUTLINE_LAYER,
+  VIEWS_PLAN_HIGHLIGHT_FILL_LAYER, VIEWS_PLAN_HIGHLIGHT_OUTLINE_LAYER,
+  VIEWS_PLAN_SELECTION_FILL_LAYER, VIEWS_PLAN_SELECTION_OUTLINE_LAYER,
+  viewsPlanLeaidFilter,
+} from "@/features/map/lib/layers";
+import { boundsForLeaids } from "@/features/map/lib/views-plan-bounds";
 import type { SignalId } from "@/features/map/lib/layers";
 import { getVendorPalette, getSignalPalette } from "@/features/map/lib/palettes";
 import { useIsTouchDevice } from "@/features/map/hooks/use-is-touch-device";
@@ -174,6 +179,7 @@ export default function MapV2Container({
   const lastHoverTimeRef = useRef(0);
   const tooltipElRef = useRef<HTMLDivElement>(null);
   const searchResultSetRef = useRef<Set<string>>(new Set());
+  const lastFramedPlanId = useRef<string | null>(null);
 
   // === Render-triggering state (granular selectors) ===
   const selectedLeaid = useMapV2Store((s) => s.selectedLeaid);
@@ -197,6 +203,11 @@ export default function MapV2Container({
   const pendingFitBounds = useMapV2Store((s) => s.pendingFitBounds);
   const clearPendingFitBounds = useMapV2Store((s) => s.clearPendingFitBounds);
   const focusLeaids = useMapV2Store((s) => s.focusLeaids);
+
+  // Views plan-scoping state
+  const viewsPlanId = useMapV2Store((s) => s.viewsPlanId);
+  const viewsPlanHighlightLeaids = useMapV2Store((s) => s.viewsPlanHighlightLeaids);
+  const viewsPlanSelectedLeaids = useMapV2Store((s) => s.viewsPlanSelectedLeaids);
 
   // Overlay layer state
   const activeLayers = useMapV2Store((s) => s.activeLayers);
@@ -422,6 +433,40 @@ export default function MapV2Container({
     }
   }, [colorBy, activeVendors, categoryColors, categoryOpacities, mapReady]);
 
+  // Views plan-scoping: sync highlight filter from store
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !m.getLayer("views-plan-highlight-fill")) return;
+    const f = viewsPlanLeaidFilter([...viewsPlanHighlightLeaids]) as any;
+    m.setFilter("views-plan-highlight-fill", f);
+    m.setFilter("views-plan-highlight-outline", f);
+  }, [viewsPlanHighlightLeaids]);
+
+  // Views plan-scoping: sync selection filter from store
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !m.getLayer("views-plan-selection-fill")) return;
+    const f = viewsPlanLeaidFilter([...viewsPlanSelectedLeaids]) as any;
+    m.setFilter("views-plan-selection-fill", f);
+    m.setFilter("views-plan-selection-outline", f);
+  }, [viewsPlanSelectedLeaids]);
+
+  // Views plan-scoping: frame the plan's territory when the active plan changes
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !viewsPlanId) {
+      if (!viewsPlanId) lastFramedPlanId.current = null;
+      return;
+    }
+    if (lastFramedPlanId.current === viewsPlanId) return;
+    const bounds = boundsForLeaids([...viewsPlanHighlightLeaids], STATE_BBOX);
+    m.fitBounds((bounds ?? US_BOUNDS) as maplibregl.LngLatBoundsLike, {
+      padding: 48,
+      duration: 600,
+    });
+    lastFramedPlanId.current = viewsPlanId;
+  }, [viewsPlanId, viewsPlanHighlightLeaids]);
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -635,6 +680,33 @@ export default function MapV2Container({
             visibility: vendorId === "fullmind" ? "visible" : "none",
           },
         });
+      }
+
+      // Views plan-scoping highlight layers (filters + framing applied reactively
+      // by the effects below; we also apply current store state here because the
+      // plan context is usually set before this load handler runs).
+      // Added after all district polygon fills (base/signal/locale/vendor) so the
+      // semi-opaque vendor fills can't draw over and hide the plan highlight.
+      map.current.addLayer(VIEWS_PLAN_HIGHLIGHT_FILL_LAYER as any);
+      map.current.addLayer(VIEWS_PLAN_HIGHLIGHT_OUTLINE_LAYER as any);
+      map.current.addLayer(VIEWS_PLAN_SELECTION_FILL_LAYER as any);
+      map.current.addLayer(VIEWS_PLAN_SELECTION_OUTLINE_LAYER as any);
+      {
+        const vp = useMapV2Store.getState();
+        const hf = viewsPlanLeaidFilter([...vp.viewsPlanHighlightLeaids]) as any;
+        map.current.setFilter("views-plan-highlight-fill", hf);
+        map.current.setFilter("views-plan-highlight-outline", hf);
+        const sf = viewsPlanLeaidFilter([...vp.viewsPlanSelectedLeaids]) as any;
+        map.current.setFilter("views-plan-selection-fill", sf);
+        map.current.setFilter("views-plan-selection-outline", sf);
+        if (vp.viewsPlanId) {
+          const b = boundsForLeaids([...vp.viewsPlanHighlightLeaids], STATE_BBOX);
+          map.current.fitBounds((b ?? US_BOUNDS) as maplibregl.LngLatBoundsLike, {
+            padding: 48,
+            duration: 600,
+          });
+          lastFramedPlanId.current = vp.viewsPlanId;
+        }
       }
 
       // Circle layer for non-district point accounts (CMOs, ESAs, etc.)
@@ -1231,6 +1303,15 @@ export default function MapV2Container({
           if (!leaid) return;
 
           const store = useMapV2Store.getState();
+
+          // Views plan-scoped mode: clicks build the pending-add selection only
+          // (no results panel, no zoom). In-plan districts ripple but stay
+          // unselected — toggleViewsPlanSelection is a no-op for them.
+          if (store.viewsPlanId) {
+            store.addClickRipple(e.point.x, e.point.y, "plum");
+            store.toggleViewsPlanSelection(leaid);
+            return;
+          }
 
           // Visual feedback
           store.addClickRipple(e.point.x, e.point.y, "plum");

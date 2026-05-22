@@ -3810,6 +3810,7 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "CalendarEvent",
     "activity_attachments",
     "activity_notes",
+    "district_notes",
     "audit_log",
     "data_refresh_logs",
     "district_news_fetch",
@@ -3833,6 +3834,13 @@ export const SEMANTIC_CONTEXT: SemanticContext = {
     "user_integrations",
     "vacancy_keyword_config",
     "vacancy_scans",
+    // Saved Views models — internal sidebar state. The list builder operates
+    // on the underlying entity sources (districts, opportunities, etc.)
+    // through the filter-tree AST, not by exposing these tables in the
+    // reports query tool.
+    "SavedList",
+    "saved_list_hidden",
+    "territory_plan_hidden",
   ],
 };
 

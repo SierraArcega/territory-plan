@@ -1,0 +1,67 @@
+import { describe, it, expect } from "vitest";
+import {
+  VIEW_SPECS,
+  VIEW_IDS,
+  VIEW_ICON,
+  isViewId,
+  lookupViewSpec,
+} from "../view-types";
+
+describe("view-types registry", () => {
+  it("has all 6 view IDs (Signals replaces Vacancies/News/RFPs)", () => {
+    expect(VIEW_IDS).toEqual([
+      "map",
+      "table",
+      "kanban",
+      "contacts",
+      "opps",
+      "signals",
+    ]);
+  });
+
+  it("no longer exposes the legacy entity-feed view ids", () => {
+    expect(isViewId("vacancies")).toBe(false);
+    expect(isViewId("news")).toBe(false);
+    expect(isViewId("rfps")).toBe(false);
+  });
+
+  it("exposes a single Signals view with the RadioTower icon slot", () => {
+    const signals = VIEW_SPECS.find((v) => v.id === "signals");
+    expect(signals).toBeTruthy();
+    expect(signals?.label).toBe("Signals");
+  });
+
+  it("VIEW_SPECS length matches VIEW_IDS", () => {
+    expect(VIEW_SPECS).toHaveLength(VIEW_IDS.length);
+  });
+
+  it("each spec has a unique id", () => {
+    const ids = new Set(VIEW_SPECS.map((s) => s.id));
+    expect(ids.size).toBe(VIEW_SPECS.length);
+  });
+
+  it("each spec maps to a Lucide icon (function/component)", () => {
+    for (const spec of VIEW_SPECS) {
+      expect(spec.icon).toBeTruthy();
+      expect(typeof spec.icon === "function" || typeof spec.icon === "object").toBe(true);
+    }
+  });
+
+  it("VIEW_ICON contains a key for every view id", () => {
+    for (const id of VIEW_IDS) {
+      expect(VIEW_ICON[id]).toBe(lookupViewSpec(id).icon);
+    }
+  });
+
+  it("isViewId narrows correctly", () => {
+    expect(isViewId("map")).toBe(true);
+    expect(isViewId("table")).toBe(true);
+    expect(isViewId("garbage")).toBe(false);
+    expect(isViewId("")).toBe(false);
+  });
+
+  it("lookupViewSpec throws on unknown id", () => {
+    // @ts-expect-error — intentionally pass an invalid id to verify runtime guard
+    expect(() => lookupViewSpec("nope")).toThrow();
+  });
+});

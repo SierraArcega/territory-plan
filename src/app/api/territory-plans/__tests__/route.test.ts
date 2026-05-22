@@ -21,6 +21,15 @@ vi.mock("@/features/shared/lib/filters", () => ({
   DISTRICT_FIELD_MAP: {},
 }));
 
+// ?stats=1 reads through the readonly pool now (one grouped query per table
+// instead of N×4 Prisma aggregates). Tests inject row arrays per call.
+const mockReadonlyQuery = vi.fn();
+vi.mock("@/lib/db-readonly", () => ({
+  readonlyPool: {
+    query: (...args: unknown[]) => mockReadonlyQuery(...args),
+  },
+}));
+
 // Mock Prisma - must be hoisted, so define mock object inline
 const mockTransaction = vi.fn();
 vi.mock("@/lib/prisma", () => ({
@@ -66,6 +75,13 @@ import { getUser } from "@/lib/supabase/server";
 const mockPrisma = vi.mocked(prisma) as any;
 const mockGetUser = vi.mocked(getUser);
 
+function makeListReq(qs = "") {
+  return new NextRequest(
+    new URL(`/api/territory-plans${qs}`, "http://localhost:3000"),
+    { method: "GET" } as never,
+  );
+}
+
 describe("Territory Plans API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,8 +104,8 @@ describe("Territory Plans API", () => {
           updatedAt: new Date("2024-01-15"),
           _count: { districts: 5 },
           districts: [
-            { districtLeaid: "0601234", district: { enrollment: 500, stateAbbrev: "CA", districtFinancials: [] } },
-            { districtLeaid: "0605678", district: { enrollment: 300, stateAbbrev: "CA", districtFinancials: [] } },
+            { districtLeaid: "0601234", renewalTarget: null, winbackTarget: null, expansionTarget: null, newBusinessTarget: null, district: { enrollment: 500, stateAbbrev: "CA", districtFinancials: [] } },
+            { districtLeaid: "0605678", renewalTarget: null, winbackTarget: null, expansionTarget: null, newBusinessTarget: null, district: { enrollment: 300, stateAbbrev: "CA", districtFinancials: [] } },
           ],
           taskLinks: [
             { task: { status: "done" } },
@@ -98,12 +114,13 @@ describe("Territory Plans API", () => {
           ownerUser: { id: "user-1", fullName: "John", avatarUrl: null },
           states: [{ state: { fips: "06", abbrev: "CA", name: "California" } }],
           collaborators: [],
+          hidden: [],
         },
       ];
 
       mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
 
-      const response = await listPlans();
+      const response = await listPlans(makeListReq());
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -115,12 +132,17 @@ describe("Territory Plans API", () => {
       expect(data[0].taskCount).toBe(2);
       expect(data[0].completedTaskCount).toBe(1);
       expect(data[0].owner).toEqual({ id: "user-1", fullName: "John", avatarUrl: null });
+      // Without ?stats=1 the new fields are NOT in the response shape.
+      expect(data[0]).not.toHaveProperty("progress");
+      expect(data[0]).not.toHaveProperty("pipelineValue");
+      expect(data[0]).not.toHaveProperty("contactsCount");
+      expect(data[0]).not.toHaveProperty("oppsCount");
     });
 
     it("returns empty array when no plans exist", async () => {
       mockPrisma.territoryPlan.findMany.mockResolvedValue([]);
 
-      const response = await listPlans();
+      const response = await listPlans(makeListReq());
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -130,11 +152,183 @@ describe("Territory Plans API", () => {
     it("returns 401 when not authenticated", async () => {
       mockGetUser.mockResolvedValue(null as never);
 
-      const response = await listPlans();
+      const response = await listPlans(makeListReq());
       const data = await response.json();
 
       expect(response.status).toBe(401);
       expect(data.error).toContain("Authentication");
+    });
+
+    it("includes stats fields when ?stats=1", async () => {
+      const mockPlans = [
+        {
+          id: "plan-1",
+          name: "Test Plan",
+          description: null,
+          color: "#403770",
+          status: "working",
+          fiscalYear: 2026,
+          startDate: null,
+          endDate: null,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-15"),
+          _count: { districts: 1 },
+          districts: [
+            {
+              districtLeaid: "0601234",
+              renewalTarget: 50000,
+              winbackTarget: null,
+              expansionTarget: 50000,
+              newBusinessTarget: null,
+              district: { enrollment: 500, stateAbbrev: "CA", districtFinancials: [] },
+            },
+          ],
+          taskLinks: [],
+          ownerUser: null,
+          states: [],
+          collaborators: [],
+          hidden: [],
+        },
+      ];
+
+      mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
+      // First query: opportunities aggregated by (district_lea_id, school_yr).
+      // Second query: contacts counted by leaid.
+      mockReadonlyQuery
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              district_lea_id: "0601234",
+              school_yr: "2025-26",
+              open_pipeline: "25000",
+              open_count: "3",
+              bookings: "50000",
+              closed_won_min_commit: "12000",
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ leaid: "0601234", count: "8" }],
+        });
+
+      const response = await listPlans(makeListReq("?stats=1"));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data[0].pipelineValue).toBe(25000);
+      // bookings=50000 / targets=100000 = 50%
+      expect(data[0].progress).toBe(50);
+      expect(data[0].contactsCount).toBe(8);
+      expect(data[0].oppsCount).toBe(3);
+      expect(data[0].closedWonMinCommit).toBe(12000);
+    });
+
+    it("filters out per-user hidden plans by default", async () => {
+      const mockPlans = [
+        {
+          id: "p1",
+          name: "Visible",
+          description: null,
+          color: "#403770",
+          status: "working",
+          fiscalYear: 2026,
+          startDate: null,
+          endDate: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _count: { districts: 0 },
+          districts: [],
+          taskLinks: [],
+          ownerUser: null,
+          states: [],
+          collaborators: [],
+          hidden: [],
+        },
+        {
+          id: "p2",
+          name: "Hidden",
+          description: null,
+          color: "#403770",
+          status: "working",
+          fiscalYear: 2026,
+          startDate: null,
+          endDate: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _count: { districts: 0 },
+          districts: [],
+          taskLinks: [],
+          ownerUser: null,
+          states: [],
+          collaborators: [],
+          hidden: [{ hiddenAt: new Date() }],
+        },
+      ];
+
+      mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
+
+      const response = await listPlans(makeListReq());
+      const data = await response.json();
+      expect(data).toHaveLength(1);
+      expect(data[0].name).toBe("Visible");
+    });
+
+    it("includes hidden plans when ?showHidden=1", async () => {
+      const mockPlans = [
+        {
+          id: "p2",
+          name: "Hidden",
+          description: null,
+          color: "#403770",
+          status: "working",
+          fiscalYear: 2026,
+          startDate: null,
+          endDate: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _count: { districts: 0 },
+          districts: [],
+          taskLinks: [],
+          ownerUser: null,
+          states: [],
+          collaborators: [],
+          hidden: [{ hiddenAt: new Date() }],
+        },
+      ];
+
+      mockPrisma.territoryPlan.findMany.mockResolvedValue(mockPlans as never);
+
+      const response = await listPlans(makeListReq("?showHidden=1"));
+      const data = await response.json();
+      expect(data).toHaveLength(1);
+      expect(data[0].hidden).toBe(true);
+    });
+
+    it("scopes to owned + collaborating plans when ?mine=1", async () => {
+      mockPrisma.territoryPlan.findMany.mockResolvedValue([] as never);
+
+      await listPlans(makeListReq("?mine=1"));
+
+      expect(mockPrisma.territoryPlan.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { ownerId: "user-1" },
+              { collaborators: { some: { userId: "user-1" } } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it("returns all plans (no owner filter) when ?mine is absent", async () => {
+      mockPrisma.territoryPlan.findMany.mockResolvedValue([] as never);
+
+      await listPlans(makeListReq());
+
+      expect(mockPrisma.territoryPlan.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
     });
   });
 

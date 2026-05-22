@@ -10,6 +10,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const VALID_CHURN_RISKS = ["low", "medium", "high", "churned"] as const;
+type ChurnRisk = (typeof VALID_CHURN_RISKS)[number];
+
+function isValidChurnRisk(v: unknown): v is ChurnRisk | null {
+  return v === null || (typeof v === "string" && (VALID_CHURN_RISKS as readonly string[]).includes(v));
+}
+
 // GET /api/territory-plans/[id]/districts/[leaid] - Get district detail with targets
 export async function GET(
   request: NextRequest,
@@ -108,6 +115,7 @@ export async function GET(
       expansionTarget: planDistrict.expansionTarget ? Number(planDistrict.expansionTarget) : null,
       newBusinessTarget: planDistrict.newBusinessTarget ? Number(planDistrict.newBusinessTarget) : null,
       notes: planDistrict.notes,
+      churnRisk: planDistrict.churnRisk,
       returnServices: planDistrict.targetServices
         .filter((ts) => ts.category === "return_services")
         .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),
@@ -134,7 +142,14 @@ export async function PUT(
   try {
     const { id: planId, leaid } = await params;
     const body = await request.json();
-    const { renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds } = body;
+    const { renewalTarget, winbackTarget, expansionTarget, newBusinessTarget, notes, returnServiceIds, newServiceIds, churnRisk } = body;
+
+    if (churnRisk !== undefined && !isValidChurnRisk(churnRisk)) {
+      return NextResponse.json(
+        { error: `Invalid churnRisk; must be one of ${VALID_CHURN_RISKS.join(", ")} or null` },
+        { status: 400 }
+      );
+    }
 
     // Check if the relationship exists
     const existing = await prisma.territoryPlanDistrict.findUnique({
@@ -146,29 +161,47 @@ export async function PUT(
       },
     });
 
-    if (!existing) {
+    // Inline grid cells (Churn risk, Notes) can edit any district visible in
+    // a plan's scope — including ones that don't yet have a territory_plan_districts
+    // row. When that's the only thing being set, upsert the row instead of 404'ing.
+    const isInlineMetaOnly =
+      renewalTarget === undefined &&
+      winbackTarget === undefined &&
+      expansionTarget === undefined &&
+      newBusinessTarget === undefined &&
+      returnServiceIds === undefined &&
+      newServiceIds === undefined &&
+      (churnRisk !== undefined || notes !== undefined);
+
+    if (!existing && !isInlineMetaOnly) {
       return NextResponse.json(
         { error: "District not found in this plan" },
         { status: 404 }
       );
     }
 
-    // Update targets and notes
+    // Update (or insert) targets, notes, churn risk.
     const updateData: Record<string, unknown> = {};
     if (renewalTarget !== undefined) updateData.renewalTarget = renewalTarget;
     if (winbackTarget !== undefined) updateData.winbackTarget = winbackTarget;
     if (expansionTarget !== undefined) updateData.expansionTarget = expansionTarget;
     if (newBusinessTarget !== undefined) updateData.newBusinessTarget = newBusinessTarget;
     if (notes !== undefined) updateData.notes = notes;
+    if (churnRisk !== undefined) updateData.churnRisk = churnRisk;
 
-    const updatedPlanDistrict = await prisma.territoryPlanDistrict.update({
+    const updatedPlanDistrict = await prisma.territoryPlanDistrict.upsert({
       where: {
         planId_districtLeaid: {
           planId,
           districtLeaid: leaid,
         },
       },
-      data: updateData,
+      create: {
+        planId,
+        districtLeaid: leaid,
+        ...updateData,
+      },
+      update: updateData,
       include: {
         district: {
           select: {
@@ -243,6 +276,7 @@ export async function PUT(
         expansionTarget: updatedPlanDistrict.expansionTarget ? Number(updatedPlanDistrict.expansionTarget) : null,
         newBusinessTarget: updatedPlanDistrict.newBusinessTarget ? Number(updatedPlanDistrict.newBusinessTarget) : null,
         notes: updatedPlanDistrict.notes,
+        churnRisk: updatedPlanDistrict.churnRisk,
         returnServices: refreshed?.targetServices
           .filter((ts) => ts.category === "return_services")
           .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })) ?? [],
@@ -266,6 +300,7 @@ export async function PUT(
       expansionTarget: updatedPlanDistrict.expansionTarget ? Number(updatedPlanDistrict.expansionTarget) : null,
       newBusinessTarget: updatedPlanDistrict.newBusinessTarget ? Number(updatedPlanDistrict.newBusinessTarget) : null,
       notes: updatedPlanDistrict.notes,
+      churnRisk: updatedPlanDistrict.churnRisk,
       returnServices: updatedPlanDistrict.targetServices
         .filter((ts) => ts.category === "return_services")
         .map((ts) => ({ id: ts.service.id, name: ts.service.name, slug: ts.service.slug, color: ts.service.color })),

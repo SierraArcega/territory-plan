@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Decimal from "decimal.js";
-import { HigherGovListResponseSchema } from "../types";
+import { HigherGovListResponseSchema, HigherGovOpportunitySchema } from "../types";
 import { normalizeOpportunity } from "../normalize";
 
 const fixturePath = join(__dirname, "..", "__fixtures__", "sample-opportunity.json");
-const raw = HigherGovListResponseSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8"))).results[0];
+// The envelope types `results` as unknown[] (records are validated per-row), so
+// parse the first record through the opportunity schema to get a typed value.
+const raw = HigherGovOpportunitySchema.parse(
+  HigherGovListResponseSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8"))).results[0],
+);
 
 describe("normalizeOpportunity", () => {
   it("maps top-level fields", () => {

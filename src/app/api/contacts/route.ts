@@ -10,6 +10,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const leaid = searchParams.get("leaid");
+    // Saved-views: comma-separated leaid set (preferred for plan/list scope).
+    const leaidsArg = searchParams.get("leaids");
+    const leaids = leaidsArg
+      ? leaidsArg.split(",").map((s) => s.trim()).filter(Boolean)
+      : null;
     const limit = Math.min(parseInt(searchParams.get("limit") || "30", 10), 100);
 
     const where: Record<string, unknown> = {};
@@ -24,6 +29,8 @@ export async function GET(request: NextRequest) {
 
     if (leaid) {
       where.leaid = leaid;
+    } else if (leaids && leaids.length > 0) {
+      where.leaid = { in: leaids };
     }
 
     const contacts = await prisma.contact.findMany({
