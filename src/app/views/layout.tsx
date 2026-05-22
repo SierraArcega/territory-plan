@@ -18,6 +18,7 @@ import AppShell from "@/features/shared/components/layout/AppShell";
 import { useMapStore } from "@/features/shared/lib/app-store";
 import { useProfile } from "@/features/shared/lib/queries";
 import ListBuilderModal from "@/features/views/components/builder/ListBuilderModal";
+import { LISTS_ENABLED } from "@/features/views/lib/feature-flags";
 
 export default function ViewsLayout({
   children,
@@ -60,10 +61,14 @@ export default function ViewsLayout({
       hideFilterBar
     >
       <Suspense fallback={null}>{children}</Suspense>
-      {/* ListBuilderModal reads useViewsStore.builderOpen and renders null when closed. */}
-      <Suspense fallback={null}>
-        <ListBuilderModal />
-      </Suspense>
+      {/* ListBuilderModal reads useViewsStore.builderOpen and renders null when
+          closed. Mounted only when Lists is enabled so it can never open in
+          production while the feature ships dark. */}
+      {LISTS_ENABLED && (
+        <Suspense fallback={null}>
+          <ListBuilderModal />
+        </Suspense>
+      )}
     </AppShell>
   );
 }

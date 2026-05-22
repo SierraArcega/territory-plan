@@ -37,6 +37,7 @@ import {
 } from "@/lib/saved-views/filter-tree";
 import { useViewsStore } from "../lib/store";
 import type { PlanWithStats, SavedListSummary } from "../lib/queries";
+import { LISTS_ENABLED } from "../lib/feature-flags";
 
 interface GroupHeaderProps {
   kind: GroupKind;
@@ -187,10 +188,12 @@ export default function GroupHeader({
               <Share2 className="w-3 h-3" aria-hidden />
               <span className="whitespace-nowrap">Share</span>
             </SecondaryButton>
-            <PrimaryButton onClick={() => openBuilder()}>
-              <Bookmark className="w-3 h-3" aria-hidden />
-              <span className="whitespace-nowrap">Save as list</span>
-            </PrimaryButton>
+            {LISTS_ENABLED && (
+              <PrimaryButton onClick={() => openBuilder()}>
+                <Bookmark className="w-3 h-3" aria-hidden />
+                <span className="whitespace-nowrap">Save as list</span>
+              </PrimaryButton>
+            )}
           </div>
         </div>
 

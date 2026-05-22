@@ -16,6 +16,7 @@ import Link from "next/link";
 import { Bookmark, Grid3x3, Plus } from "lucide-react";
 import { useViewsStore, selectShowHidden } from "../lib/store";
 import { useLists, usePlansWithStats } from "../lib/queries";
+import { LISTS_ENABLED } from "../lib/feature-flags";
 import PlansSubsection from "./PlansSubsection";
 import ListsSubsection from "./ListsSubsection";
 import HiddenFooter from "./HiddenFooter";
@@ -28,19 +29,20 @@ export default function MyViewsSection() {
   const openBuilder = useViewsStore((s) => s.openBuilder);
 
   const plansQ = usePlansWithStats(showHidden);
-  const listsQ = useLists(showHidden);
+  // Lists is feature-gated; skip the fetch entirely when the Lists UI is hidden.
+  const listsQ = useLists(showHidden, LISTS_ENABLED);
 
   const plans = plansQ.data ?? [];
-  const lists = listsQ.data ?? [];
+  const lists = LISTS_ENABLED ? listsQ.data ?? [] : [];
 
-  // True empty state — both queries resolved with zero rows. We deliberately
-  // do NOT show this until both queries have data; until then the subsections
-  // render their own skeletons.
+  // True empty state — every enabled source resolved with zero rows. We
+  // deliberately do NOT show this until those queries have data; until then
+  // the subsections render their own skeletons. When Lists is gated off, the
+  // empty state depends on plans alone.
+  const listsEmpty =
+    !LISTS_ENABLED || (!listsQ.isLoading && lists.length === 0);
   const showEmptyState =
-    !plansQ.isLoading &&
-    !listsQ.isLoading &&
-    plans.length === 0 &&
-    lists.length === 0;
+    !plansQ.isLoading && plans.length === 0 && listsEmpty;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto px-2 pt-2 pb-1">
@@ -66,17 +68,25 @@ export default function MyViewsSection() {
           <p className="text-[12px] text-[#544A78] font-medium whitespace-nowrap">
             No views yet
           </p>
-          <p className="text-[11px] text-[#8A80A8] mt-1 mb-2">
-            Start with a saved list to scope your work.
-          </p>
-          <button
-            type="button"
-            onClick={() => openBuilder()}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#403770] text-white text-[12px] font-semibold hover:bg-[#322a5a] transition-colors duration-100"
-          >
-            <Plus className="w-3.5 h-3.5" aria-hidden />
-            <span className="whitespace-nowrap">Create your first list</span>
-          </button>
+          {LISTS_ENABLED ? (
+            <>
+              <p className="text-[11px] text-[#8A80A8] mt-1 mb-2">
+                Start with a saved list to scope your work.
+              </p>
+              <button
+                type="button"
+                onClick={() => openBuilder()}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#403770] text-white text-[12px] font-semibold hover:bg-[#322a5a] transition-colors duration-100"
+              >
+                <Plus className="w-3.5 h-3.5" aria-hidden />
+                <span className="whitespace-nowrap">Create your first list</span>
+              </button>
+            </>
+          ) : (
+            <p className="text-[11px] text-[#8A80A8] mt-1">
+              Plans you build from the map will show up here.
+            </p>
+          )}
         </div>
       ) : (
         <>
@@ -98,7 +108,7 @@ export default function MyViewsSection() {
           </Link>
 
           <PlansSubsection />
-          <ListsSubsection />
+          {LISTS_ENABLED && <ListsSubsection />}
         </>
       )}
 

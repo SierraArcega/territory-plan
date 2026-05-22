@@ -11,12 +11,15 @@ import {
   DEFAULT_VIEW_ID,
   isViewId,
 } from "@/features/views/lib/view-types";
+import { LISTS_ENABLED } from "@/features/views/lib/feature-flags";
 
 interface PageProps {
   params: Promise<{ listId: string; viewId: string }>;
 }
 
 export default async function ListViewPage({ params }: PageProps) {
+  // Lists ships gated; bounce direct navigation back to the plans portfolio.
+  if (!LISTS_ENABLED) redirect("/views");
   const { listId, viewId } = await params;
   if (!listId) {
     notFound();

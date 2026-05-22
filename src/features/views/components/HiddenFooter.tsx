@@ -18,6 +18,7 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useViewsStore, selectShowHidden } from "../lib/store";
 import { useLists, usePlansWithStats } from "../lib/queries";
+import { LISTS_ENABLED } from "../lib/feature-flags";
 
 export default function HiddenFooter() {
   const router = useRouter();
@@ -28,7 +29,8 @@ export default function HiddenFooter() {
   // counts. This is cheap (TanStack dedupes the request when the same key
   // is in flight elsewhere) and survives unmount via gcTime.
   const plansQ = usePlansWithStats(true);
-  const listsQ = useLists(true);
+  // Lists is feature-gated; skip the hidden-lists count fetch when it's hidden.
+  const listsQ = useLists(true, LISTS_ENABLED);
 
   const counts = useMemo(() => {
     const plans = plansQ.data ?? [];

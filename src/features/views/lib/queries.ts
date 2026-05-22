@@ -116,12 +116,15 @@ export function usePlansWithStats(showHidden = false) {
 
 // ── Lists ───────────────────────────────────────────────────────────────────
 
-export function useLists(showHidden = false) {
+export function useLists(showHidden = false, enabled = true) {
   const url = `${API_BASE}/lists${showHidden ? "?showHidden=1" : ""}`;
   return useQuery({
     queryKey: ["views", "lists", showHidden] as const,
     queryFn: () => fetchJson<ListsResponse>(url).then((r) => r.lists),
     staleTime: 60 * 1000,
+    // Lists is feature-gated; callers pass `false` to skip the fetch entirely
+    // when the Lists UI is hidden (conditional fetching over a wasted request).
+    enabled,
   });
 }
 
