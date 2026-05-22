@@ -78,6 +78,8 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
         <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
           <div
             role="dialog"
+            aria-modal="true"
+            aria-label="Confirm removal"
             style={{ width: 240, transform: "translateX(-208px)" }}
             className="rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
           >

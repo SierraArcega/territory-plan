@@ -295,6 +295,8 @@ confirm popover (portaled, same positioning) when `surface === "remove"`:
   <AnchoredPopover anchorRef={btnRef} open onDismiss={() => setSurface(null)}>
     <div
       role="dialog"
+      aria-modal="true"
+      aria-label="Confirm removal"
       style={{ width: 240, transform: "translateX(-208px)" }}
       className="rounded-xl border border-[#E2DEEC] bg-white p-3 shadow-[0_8px_24px_rgba(64,55,112,0.16)]"
     >
@@ -502,7 +504,7 @@ export function SetTargetsPopover({ planId, leaid, districtName, anchorRef, open
 
   return (
     <AnchoredPopover anchorRef={anchorRef} open={open} onDismiss={onClose}>
-      <div role="dialog" aria-label={`Set targets for ${districtName}`}
+      <div role="dialog" aria-modal="true" aria-label={`Set targets for ${districtName}`}
         style={{ width: 300, transform: "translateX(-268px)" }}
         className="rounded-xl border border-[#E2DEEC] bg-white p-3.5 shadow-[0_10px_30px_rgba(64,55,112,0.18)]">
         <h4 className="m-0 mb-0.5 text-[13px] font-bold text-[#403770]">
