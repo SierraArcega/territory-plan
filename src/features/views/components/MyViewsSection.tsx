@@ -74,9 +74,6 @@ export default function MyViewsSection() {
         <span className="flex-1 min-w-0 truncate whitespace-nowrap">
           All plans
         </span>
-        <span className="text-[10px] font-medium text-[#8A80A8] tabular-nums whitespace-nowrap">
-          {plansQ.isLoading ? "…" : plans.length}
-        </span>
       </Link>
 
       {/* Empty state — shown inline when the user has no plans and no lists. */}
