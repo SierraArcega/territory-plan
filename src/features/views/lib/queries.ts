@@ -63,6 +63,7 @@ export interface PlanWithStats {
   oppsCount: number;
   /** Sum of `minimum_purchase_amount` over the plan's Closed Won opps in the plan FY. */
   closedWonMinCommit: number;
+  recentNewsCount: number;
   // Per-plan column/sort/filter layout, keyed by view-type slot.
   // Null when the plan has never had a view layout saved; undefined in legacy
   // responses that predate the field (treated the same as null at the call site).
@@ -105,12 +106,14 @@ interface ListsResponse {
  * Uses the canonical `/api/territory-plans` path (per Phase A deviation —
  * /api/plans is the legacy alias, /api/territory-plans is the source of truth).
  */
-export function usePlansWithStats(showHidden = false) {
-  const url = `${API_BASE}/territory-plans?stats=1&mine=1${showHidden ? "&showHidden=1" : ""}`;
+export function usePlansWithStats(showHidden = false, mine = true) {
+  const mineParam = mine ? "&mine=1" : "";
+  const hiddenParam = showHidden ? "&showHidden=1" : "";
+  const url = `${API_BASE}/territory-plans?stats=1${mineParam}${hiddenParam}`;
   return useQuery({
-    queryKey: ["views", "plans", "stats", showHidden] as const,
+    queryKey: ["views", "plans", "stats", showHidden, mine] as const,
     queryFn: () => fetchJson<PlanWithStats[]>(url),
-    staleTime: 60 * 1000, // 1 minute — sidebar tolerates slightly stale data
+    staleTime: 60 * 1000,
   });
 }
 
