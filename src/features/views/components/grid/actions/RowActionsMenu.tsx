@@ -4,6 +4,7 @@ import { MoreHorizontal, Pencil, Target, Briefcase, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnchoredPopover } from "../AnchoredPopover";
 import { useRemoveDistrictFromPlan } from "@/features/plans/lib/queries";
+import { SetTargetsPopover } from "./SetTargetsPopover";
 
 interface Props {
   planId: string;
@@ -116,6 +117,15 @@ export function RowActionsMenu({ planId, leaid, districtName }: Props) {
           </div>
         </AnchoredPopover>
       )}
+
+      <SetTargetsPopover
+        planId={planId}
+        leaid={leaid}
+        districtName={districtName}
+        anchorRef={btnRef}
+        open={surface === "targets"}
+        onClose={() => setSurface(null)}
+      />
     </>
   );
 }
